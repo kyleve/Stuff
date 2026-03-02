@@ -7,7 +7,6 @@ struct ContentView: View {
             VStack(spacing: 20) {
                 Image(systemName: "theatermasks.fill")
                     .font(.system(size: 64))
-                    .foregroundStyle(.accent)
 
                 Text("Broadway Catalog")
                     .font(.largeTitle.bold())
