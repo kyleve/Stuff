@@ -1,8 +1,5 @@
 import ProjectDescription
 
-let mobileDestinations: Destinations = [.iPhone, .iPad, .macCatalyst]
-let mobileDeployment: DeploymentTargets = .iOS("26.0")
-
 let macDestinations: Destinations = [.mac]
 let macDeployment: DeploymentTargets = .macOS("26.0")
 
@@ -14,19 +11,19 @@ func framework(
     [
         .target(
             name: name,
-            destinations: mobileDestinations,
+            destinations: macDestinations,
             product: .framework,
             bundleId: "com.stuff.\(bundleIdSuffix)",
-            deploymentTargets: mobileDeployment,
+            deploymentTargets: macDeployment,
             sources: ["\(name)/Sources/**"],
             dependencies: dependencies
         ),
         .target(
             name: "\(name)Tests",
-            destinations: mobileDestinations,
+            destinations: macDestinations,
             product: .unitTests,
             bundleId: "com.stuff.\(bundleIdSuffix).tests",
-            deploymentTargets: mobileDeployment,
+            deploymentTargets: macDeployment,
             sources: ["\(name)/Tests/**"],
             dependencies: [.target(name: name)]
         ),
