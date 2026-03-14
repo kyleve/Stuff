@@ -18,7 +18,7 @@ struct PhotoImportView: View {
                 .strokeBorder(
                     style: StrokeStyle(lineWidth: 2, dash: [8])
                 )
-                .foregroundStyle(isDropTargeted ? .accent : .secondary)
+                .foregroundStyle(isDropTargeted ? Color.accentColor : Color.secondary)
                 .frame(maxWidth: 400, minHeight: 180)
                 .overlay {
                     VStack(spacing: 12) {

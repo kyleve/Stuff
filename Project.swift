@@ -1,7 +1,15 @@
 import ProjectDescription
 
+let mobileDestinations: Destinations = [.iPhone, .iPad, .macCatalyst]
+let mobileDeployment: DeploymentTargets = .iOS("26.0")
+
 let macDestinations: Destinations = [.mac]
 let macDeployment: DeploymentTargets = .macOS("26.0")
+
+/// Frameworks build for all destinations so they can be consumed by both
+/// `mobileApp()` and `macApp()` targets.
+let frameworkDestinations: Destinations = [.iPhone, .iPad, .macCatalyst, .mac]
+let frameworkDeployment: DeploymentTargets = .multiplatform(iOS: "26.0", macOS: "26.0")
 
 func framework(
     _ name: String,
@@ -11,19 +19,19 @@ func framework(
     [
         .target(
             name: name,
-            destinations: macDestinations,
+            destinations: frameworkDestinations,
             product: .framework,
             bundleId: "com.stuff.\(bundleIdSuffix)",
-            deploymentTargets: macDeployment,
+            deploymentTargets: frameworkDeployment,
             sources: ["\(name)/Sources/**"],
             dependencies: dependencies
         ),
         .target(
             name: "\(name)Tests",
-            destinations: macDestinations,
+            destinations: frameworkDestinations,
             product: .unitTests,
             bundleId: "com.stuff.\(bundleIdSuffix).tests",
-            deploymentTargets: macDeployment,
+            deploymentTargets: frameworkDeployment,
             sources: ["\(name)/Tests/**"],
             dependencies: [.target(name: name)]
         ),
