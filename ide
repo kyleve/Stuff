@@ -1,0 +1,20 @@
+#!/bin/bash
+set -euo pipefail
+
+INSTALL=false
+
+for arg in "$@"; do
+    case "$arg" in
+        -i|--install)
+            INSTALL=true
+            ;;
+    esac
+done
+
+if [ "$INSTALL" = true ]; then
+    echo "==> tuist install"
+    mise exec -- tuist install
+fi
+
+echo "==> tuist generate"
+mise exec -- tuist generate
