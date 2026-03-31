@@ -1,7 +1,6 @@
-import Testing
 @testable import BroadwayCatalog
+import Testing
 
-@Suite("BroadwayCatalog Tests")
 struct BroadwayCatalogTests {
     @Test("App launches with ContentView")
     func contentViewExists() {

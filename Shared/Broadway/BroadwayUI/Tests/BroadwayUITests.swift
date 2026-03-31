@@ -1,7 +1,6 @@
-import Testing
 @testable import BroadwayUI
+import Testing
 
-@Suite("BroadwayUI Tests")
 struct BroadwayUITests {
     @Test("BroadwayUI module is importable")
     func moduleExists() {
