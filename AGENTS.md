@@ -6,8 +6,12 @@
 |-------------|---------|--------------|
 | Tuist       | 4.40.0  | `.mise.toml` |
 | SwiftFormat | 0.60.1  | `.mise.toml` |
+| Swift PM    | 6.2     | `Package.swift` (`swift-tools-version`) |
 
-Tuist manifests live at the repo root (`Project.swift`, `Tuist.swift`).
+**Libraries** (**StuffCore**, **WhereCore**, **WhereUI**, **WhereTesting**) are defined in the root [`Package.swift`](Package.swift) (same pattern as Broadway: local package + Tuist for apps and test bundles).
+
+Tuist manifests live at the repo root ([`Project.swift`](Project.swift), [`Tuist.swift`](Tuist.swift)). `Project.swift` references `Package.local(path: .relativeToRoot("."))` and declares the **Where** app, **StuffTestHost**, and unit-test targets that depend on package products.
+
 Run `./ide` (or `./ide -i` to also install dependencies) to regenerate the
 Xcode project, install external agent skills, and point Git at `.githooks/`.
 
@@ -37,8 +41,9 @@ by `./sync-agents`.
 
 ## Targets
 
-- **StuffCore** — macOS framework for shared code (`StuffCore/Sources/`), with unit tests under `StuffCore/Tests/` (Swift Testing).
-- Add more targets in `Project.swift` using `macApp()` or `framework()` helpers.
+- **Package products** ([`Package.swift`](Package.swift)) — **StuffCore** ([`Shared/StuffCore/Sources/`](Shared/StuffCore/Sources/)), **WhereCore** / **WhereUI** / **WhereTesting** under [`Where/`](Where/).
+- **Tuist targets** ([`Project.swift`](Project.swift)) — **Where** app ([`Where/Where/`](Where/Where/)), **StuffTestHost** ([`Shared/StuffTestHost/`](Shared/StuffTestHost/)), **WhereTests** (app tests, no host), and hosted **\*Tests** bundles (**StuffCoreTests**, **WhereCoreTests**, **WhereUITests**) that depend on **StuffTestHost** + **WhereTesting** + the relevant package product.
+- Add SPM library targets in `Package.swift` and wire apps/tests in `Project.swift` (see existing `unitTests` helper).
 
 ## Deployment
 
@@ -49,10 +54,16 @@ by `./sync-agents`.
 
 ## Directory layout
 
+Shared code and the shared iOS test host live under **`Shared/`**. Feature apps and their modules (e.g. **Where**) live under a top-level folder per feature (e.g. **`Where/`**).
+
 ```
-<TargetName>/
+Shared/<TargetName>/
   Sources/    – production code
   Tests/      – unit tests (Swift Testing, not XCTest)
+
+<Feature>/<TargetName>/
+  Sources/
+  Tests/
   Resources/  – asset catalogs, etc. (apps only)
 ```
 
