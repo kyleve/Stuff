@@ -26,4 +26,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
-      - run: mise exec -- tuist test
+      # Pin the iOS Simulator so hosted tests and signing stay predictable (all test targets are iOS).
+      - run: mise exec -- tuist test --no-selective-testing -- -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'

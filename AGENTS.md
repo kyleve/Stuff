@@ -37,8 +37,10 @@ by `./sync-agents`.
 
 ## Targets
 
-- **StuffCore** — macOS framework for shared code (`StuffCore/Sources/`), with unit tests under `StuffCore/Tests/` (Swift Testing).
-- Add more targets in `Project.swift` using `macApp()` or `framework()` helpers.
+- **StuffCore** — iOS framework for shared code ([`Shared/StuffCore/Sources/`](Shared/StuffCore/Sources/)), with hosted unit tests under [`Shared/StuffCore/Tests/`](Shared/StuffCore/Tests/) (Swift Testing, **StuffTestHost**), same as **WhereCore** / **WhereUI** tests.
+- **StuffTestHost** — minimal iOS app used as the unit-test host for UIKit-in-process tests ([`Shared/StuffTestHost/Sources/`](Shared/StuffTestHost/Sources/)); any feature’s hosted iOS tests can depend on this target.
+- **Where** — iOS app under [`Where/Where/`](Where/Where/); **WhereCore**, **WhereUI**, **WhereTesting** live under [`Where/`](Where/); hosted tests use **StuffTestHost**.
+- Add more targets in `Project.swift` using `macApp()`, `framework()`, or the iOS helpers defined there.
 
 ## Deployment
 
@@ -49,10 +51,16 @@ by `./sync-agents`.
 
 ## Directory layout
 
+Shared code and the shared iOS test host live under **`Shared/`**. Feature apps and their modules (e.g. **Where**) live under a top-level folder per feature (e.g. **`Where/`**).
+
 ```
-<TargetName>/
+Shared/<TargetName>/
   Sources/    – production code
   Tests/      – unit tests (Swift Testing, not XCTest)
+
+<Feature>/<TargetName>/
+  Sources/
+  Tests/
   Resources/  – asset catalogs, etc. (apps only)
 ```
 

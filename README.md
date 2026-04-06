@@ -43,7 +43,9 @@ sync-agents         Sync AGENTS.md → CLAUDE.md and .claude/skills/
 .githooks/          Git hooks (pre-commit)
 .agents/            External skills manifest (`external-skills.json`)
 AGENTS.md           Repository shape for AI agents
-StuffCore/          Shared macOS framework (Sources/, Tests/)
+Shared/StuffCore/   Shared iOS framework (Sources/, Tests/)
+Shared/StuffTestHost/  Shared iOS unit-test host app (Sources/)
+Where/              Where iOS app, modules, and tests
 ```
 
 ## License
