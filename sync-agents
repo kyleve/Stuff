@@ -1,0 +1,335 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+#
+# sync-agents — keep AI agent configuration in sync across tools.
+#
+# AGENTS.md is the source of truth. Cursor and Codex read it natively;
+# Claude Code needs CLAUDE.md and .claude/skills/. This script bridges
+# the gap.
+#
+# Commands:
+#   ./sync-agents                        Generate CLAUDE.md files from
+#                                        AGENTS.md and sync local skills
+#                                        to .claude/skills/. Incremental:
+#                                        skips files that are already up
+#                                        to date.
+#
+#   ./sync-agents --install              Fetch external skills listed in
+#                                        .agents/external-skills.json.
+#                                        Skips skills already present.
+#                                        Run automatically by ./ide.
+#
+#   ./sync-agents --add <url> [name]     Add an external skill from a
+#                                        GitHub repo. Clones the repo,
+#                                        copies the skill into
+#                                        .agents/skills/, and pins the
+#                                        commit SHA in the manifest.
+#
+#   ./sync-agents --update               Re-fetch all external skills
+#                                        from their repos at the latest
+#                                        commit. Updates the pinned SHA
+#                                        in the manifest.
+#
+#   ./sync-agents --git-add              Sync, then stage any changed
+#                                        files with git. Used by the
+#                                        pre-commit hook.
+
+require "fileutils"
+require "json"
+require "tmpdir"
+require "open3"
+
+REPO_ROOT = File.expand_path("..", __FILE__)
+MARKER = "<!-- Generated from AGENTS.md — do not edit directly -->"
+SKILLS_DIR = File.join(REPO_ROOT, ".agents", "skills")
+CLAUDE_SKILLS_DIR = File.join(REPO_ROOT, ".claude", "skills")
+MANIFEST_PATH = File.join(REPO_ROOT, ".agents", "external-skills.json")
+
+EXCLUDED_DIRS = %w[Derived .build .git .cursor .claude].freeze
+
+class SyncAgents
+  def initialize
+    @changed_files = []
+  end
+
+  def run(args)
+    if args.include?("--add")
+      idx = args.index("--add")
+      url = args[idx + 1]
+      name = args[idx + 2]
+      abort "Usage: sync-agents --add <github-url> [skill-name]" unless url
+      add_skill(url, name)
+    elsif args.include?("--install")
+      install_skills
+    elsif args.include?("--update")
+      update_skills
+    end
+
+    sync_claude_md
+    sync_skills
+    update_skills_gitignore
+
+    stage_files if args.include?("--git-add") && !@changed_files.empty?
+  end
+
+  private
+
+  # --- CLAUDE.md sync ---
+
+  def sync_claude_md
+    expected = []
+
+    find_files("AGENTS.md", exclude: EXCLUDED_DIRS).each do |agents_file|
+      claude_path = File.join(File.dirname(agents_file), "CLAUDE.md")
+      content = "#{MARKER}\n\n#{File.read(agents_file)}"
+      write_if_changed(claude_path, content)
+      expected << claude_path
+    end
+
+    find_files("CLAUDE.md", exclude: %w[Derived .build .git]).each do |claude_file|
+      next if expected.include?(claude_file)
+      first_line = File.open(claude_file, &:readline).chomp rescue next
+      remove_if_exists(claude_file) if first_line == MARKER
+    end
+  end
+
+  # --- Skills sync ---
+
+  def sync_skills
+    if Dir.exist?(SKILLS_DIR)
+      FileUtils.mkdir_p(CLAUDE_SKILLS_DIR)
+      unless dirs_equal?(SKILLS_DIR, CLAUDE_SKILLS_DIR)
+        FileUtils.rm_rf(CLAUDE_SKILLS_DIR)
+        FileUtils.cp_r(SKILLS_DIR, CLAUDE_SKILLS_DIR)
+        puts "Synced .agents/skills/ → .claude/skills/"
+        @changed_files << CLAUDE_SKILLS_DIR
+      end
+    elsif Dir.exist?(CLAUDE_SKILLS_DIR)
+      FileUtils.rm_rf(CLAUDE_SKILLS_DIR)
+      puts "Removed .claude/skills/"
+      @changed_files << CLAUDE_SKILLS_DIR
+    end
+  end
+
+  # --- Gitignore management for external skills ---
+
+  def update_skills_gitignore
+    manifest = load_manifest
+    gitignore_path = File.join(SKILLS_DIR, ".gitignore")
+
+    if manifest.empty?
+      remove_if_exists(gitignore_path) if File.exist?(gitignore_path)
+      return
+    end
+
+    lines = manifest.keys.sort.map { |name| "/#{name}/\n" }
+    content = "# External skills — fetched via ./sync-agents --install\n" + lines.join
+    write_if_changed(gitignore_path, content)
+  end
+
+  # --- Add a new external skill ---
+
+  def add_skill(url, name)
+    repo = parse_github_repo(url)
+    abort "Could not parse GitHub repo from: #{url}" unless repo
+
+    Dir.mktmpdir do |tmpdir|
+      clone_default_branch(repo, tmpdir)
+
+      if name
+        skill_src = File.join(tmpdir, name)
+        unless Dir.exist?(skill_src) && File.exist?(File.join(skill_src, "SKILL.md"))
+          available = list_skills(tmpdir)
+          abort "Skill '#{name}' not found in #{repo}. Available: #{available.join(", ")}"
+        end
+      else
+        available = list_skills(tmpdir)
+        case available.length
+        when 0 then abort "No skills found in #{repo}"
+        when 1 then name = available.first
+        else abort "Multiple skills in #{repo}: #{available.join(", ")}\n" \
+                    "Specify one: ./sync-agents --add #{url} <name>"
+        end
+        skill_src = File.join(tmpdir, name)
+      end
+
+      dest = File.join(SKILLS_DIR, name)
+      FileUtils.rm_rf(dest)
+      FileUtils.mkdir_p(SKILLS_DIR)
+      FileUtils.cp_r(skill_src, dest)
+      sha = head_sha(tmpdir)
+      puts "Added #{name} from #{repo}@#{sha[0..7]}"
+
+      manifest = load_manifest
+      manifest[name] = { "repo" => repo, "path" => name, "ref" => sha }
+      save_manifest(manifest)
+    end
+  end
+
+  # --- Install all external skills from manifest (skip if present) ---
+
+  def install_skills
+    manifest = load_manifest
+    if manifest.empty?
+      puts "No external skills in manifest."
+      return
+    end
+
+    manifest.each do |name, entry|
+      dest = File.join(SKILLS_DIR, name)
+      if Dir.exist?(dest) && File.exist?(File.join(dest, "SKILL.md"))
+        next
+      end
+
+      repo = entry["repo"]
+      path = entry["path"]
+      ref = entry["ref"] || "main"
+
+      Dir.mktmpdir do |tmpdir|
+        clone_repo(repo, ref, tmpdir)
+
+        skill_src = File.join(tmpdir, path)
+        unless Dir.exist?(skill_src)
+          warn "Warning: '#{path}' not found in #{repo}@#{ref}, skipping #{name}"
+          next
+        end
+
+        FileUtils.mkdir_p(SKILLS_DIR)
+        FileUtils.cp_r(skill_src, dest)
+        puts "Installed #{name} from #{repo}@#{ref}"
+      end
+    end
+  end
+
+  # --- Update all external skills (force re-fetch) ---
+
+  def update_skills
+    manifest = load_manifest
+    if manifest.empty?
+      puts "No external skills to update."
+      return
+    end
+
+    changed = false
+    manifest.each do |name, entry|
+      repo = entry["repo"]
+      path = entry["path"]
+
+      Dir.mktmpdir do |tmpdir|
+        clone_default_branch(repo, tmpdir)
+        sha = head_sha(tmpdir)
+
+        if sha == entry["ref"]
+          puts "#{name} already at #{sha[0..7]}"
+          next
+        end
+
+        skill_src = File.join(tmpdir, path)
+        unless Dir.exist?(skill_src)
+          warn "Warning: '#{path}' not found in #{repo}@#{sha[0..7]}, skipping #{name}"
+          next
+        end
+
+        dest = File.join(SKILLS_DIR, name)
+        FileUtils.rm_rf(dest)
+        FileUtils.cp_r(skill_src, dest)
+        entry["ref"] = sha
+        changed = true
+        puts "Updated #{name} from #{repo}@#{sha[0..7]}"
+      end
+    end
+
+    save_manifest(manifest) if changed
+  end
+
+  # --- Helpers ---
+
+  def write_if_changed(path, content)
+    return if File.exist?(path) && File.read(path) == content
+    FileUtils.mkdir_p(File.dirname(path))
+    File.write(path, content)
+    puts "Updated #{path}"
+    @changed_files << path
+  end
+
+  def remove_if_exists(path)
+    return unless File.exist?(path)
+    File.delete(path)
+    puts "Removed #{path}"
+    @changed_files << path
+  end
+
+  def find_files(name, exclude: [])
+    Dir.glob(File.join(REPO_ROOT, "**", name)).reject do |f|
+      exclude.any? { |d| f.include?("/#{d}/") }
+    end
+  end
+
+  def dirs_equal?(a, b)
+    return false unless Dir.exist?(a) && Dir.exist?(b)
+    a_files = Dir.glob(File.join(a, "**", "*"), File::FNM_DOTMATCH).map { |f| f.sub(a, "") }.sort
+    b_files = Dir.glob(File.join(b, "**", "*"), File::FNM_DOTMATCH).map { |f| f.sub(b, "") }.sort
+    return false unless a_files == b_files
+    a_files.each do |rel|
+      af = File.join(a, rel)
+      bf = File.join(b, rel)
+      next if File.directory?(af)
+      return false unless File.read(af) == File.read(bf)
+    end
+    true
+  end
+
+  def stage_files
+    @changed_files.each do |file|
+      system("git", "add", "-A", "--", file, err: File::NULL)
+    end
+  end
+
+  def parse_github_repo(url)
+    match = url.match(%r{github\.com[/:]([^/]+/[^/]+?)(?:\.git)?/?$})
+    match && match[1]
+  end
+
+  def clone_default_branch(repo, dest)
+    url = "https://github.com/#{repo}.git"
+    system("git", "init", "-q", dest, out: File::NULL, err: File::NULL)
+    system("git", "-C", dest, "remote", "add", "origin", url, out: File::NULL, err: File::NULL)
+    _, stderr, status = Open3.capture3("git", "-C", dest, "fetch", "--depth", "1", "origin", "HEAD")
+    abort "Failed to clone #{repo}: #{stderr}" unless status.success?
+    system("git", "-C", dest, "checkout", "-q", "FETCH_HEAD", out: File::NULL, err: File::NULL)
+  end
+
+  def clone_repo(repo, ref, dest)
+    url = "https://github.com/#{repo}.git"
+    system("git", "init", "-q", dest, out: File::NULL, err: File::NULL)
+    system("git", "-C", dest, "remote", "add", "origin", url, out: File::NULL, err: File::NULL)
+    _, stderr, status = Open3.capture3("git", "-C", dest, "fetch", "--depth", "1", "origin", ref)
+    abort "Failed to fetch #{repo}@#{ref}: #{stderr}" unless status.success?
+    system("git", "-C", dest, "checkout", "-q", "FETCH_HEAD", out: File::NULL, err: File::NULL)
+  end
+
+  def head_sha(repo_dir)
+    stdout, _, status = Open3.capture3("git", "-C", repo_dir, "rev-parse", "HEAD")
+    abort "Failed to resolve HEAD in #{repo_dir}" unless status.success?
+    stdout.strip
+  end
+
+  def list_skills(dir)
+    Dir.children(dir)
+      .select { |name| File.exist?(File.join(dir, name, "SKILL.md")) }
+      .sort
+  end
+
+  def load_manifest
+    return {} unless File.exist?(MANIFEST_PATH)
+    JSON.parse(File.read(MANIFEST_PATH))
+  end
+
+  def save_manifest(manifest)
+    FileUtils.mkdir_p(File.dirname(MANIFEST_PATH))
+    File.write(MANIFEST_PATH, JSON.pretty_generate(manifest) + "\n")
+    puts "Updated #{MANIFEST_PATH}"
+  end
+end
+
+SyncAgents.new.run(ARGV)

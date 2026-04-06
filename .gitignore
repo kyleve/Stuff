@@ -1,6 +1,10 @@
 # Tuist managed
 Derived/
 
+## Generated agent files (re-create via ./sync-agents --install)
+CLAUDE.md
+.claude/skills/
+
 # Xcode
 build/
 DerivedData/

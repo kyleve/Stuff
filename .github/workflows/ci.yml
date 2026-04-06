@@ -11,10 +11,19 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Build & Test
+  format:
+    name: SwiftFormat Lint
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
-      - run: tuist test
+      - run: ./swiftformat --lint
+
+  test:
+    name: Build & Test
+    needs: format
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      - run: mise exec -- tuist test

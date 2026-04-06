@@ -1,6 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
+# CI runs formatting via the workflow's `format` job;
+# this only configures the local pre-commit hook.
+git config core.hooksPath .githooks
+
 INSTALL=false
 
 for arg in "$@"; do
@@ -15,6 +19,9 @@ if [ "$INSTALL" = true ]; then
     echo "==> tuist install"
     mise exec -- tuist install
 fi
+
+echo "==> sync-agents --install"
+./sync-agents --install
 
 echo "==> tuist generate"
 mise exec -- tuist generate

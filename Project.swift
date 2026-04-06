@@ -6,7 +6,7 @@ let macDeployment: DeploymentTargets = .macOS("26.0")
 func framework(
     _ name: String,
     bundleIdSuffix: String,
-    dependencies: [TargetDependency] = []
+    dependencies: [TargetDependency] = [],
 ) -> [Target] {
     [
         .target(
@@ -16,7 +16,7 @@ func framework(
             bundleId: "com.stuff.\(bundleIdSuffix)",
             deploymentTargets: macDeployment,
             sources: ["\(name)/Sources/**"],
-            dependencies: dependencies
+            dependencies: dependencies,
         ),
         .target(
             name: "\(name)Tests",
@@ -25,7 +25,7 @@ func framework(
             bundleId: "com.stuff.\(bundleIdSuffix).tests",
             deploymentTargets: macDeployment,
             sources: ["\(name)/Tests/**"],
-            dependencies: [.target(name: name)]
+            dependencies: [.target(name: name)],
         ),
     ]
 }
@@ -34,7 +34,7 @@ func macApp(
     _ name: String,
     bundleIdSuffix: String,
     infoPlist: [String: Plist.Value] = [:],
-    dependencies: [TargetDependency] = []
+    dependencies: [TargetDependency] = [],
 ) -> [Target] {
     [
         .target(
@@ -46,7 +46,7 @@ func macApp(
             infoPlist: .extendingDefault(with: infoPlist),
             sources: ["\(name)/Sources/**"],
             resources: ["\(name)/Resources/**"],
-            dependencies: dependencies
+            dependencies: dependencies,
         ),
         .target(
             name: "\(name)Tests",
@@ -55,7 +55,7 @@ func macApp(
             bundleId: "com.stuff.\(bundleIdSuffix).tests",
             deploymentTargets: macDeployment,
             sources: ["\(name)/Tests/**"],
-            dependencies: [.target(name: name)]
+            dependencies: [.target(name: name)],
         ),
     ]
 }
@@ -64,7 +64,7 @@ let project = Project(
     name: "Stuff",
     options: .options(
         defaultKnownRegions: ["en"],
-        developmentRegion: "en"
+        developmentRegion: "en",
     ),
-    targets: []
+    targets: framework("StuffCore", bundleIdSuffix: "stuffcore"),
 )

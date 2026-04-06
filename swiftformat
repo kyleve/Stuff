@@ -1,0 +1,14 @@
+#!/bin/bash
+set -euo pipefail
+
+has_positional=false
+
+for arg in "$@"; do
+    [[ "$arg" != -* ]] && has_positional=true && break
+done
+
+if $has_positional; then
+    mise exec -- swiftformat "$@"
+else
+    mise exec -- swiftformat "$@" .
+fi
