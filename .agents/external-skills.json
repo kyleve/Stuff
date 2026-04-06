@@ -1,1 +1,12 @@
-{}
+{
+  "swiftui-pro": {
+	"repo": "twostraws/swiftui-agent-skill",
+	"path": "swiftui-pro",
+	"ref": "61b74001b64b292da8397355464d7c8a4c2c7d89"
+  },
+  "swift-concurrency-pro": {
+	"repo": "twostraws/Swift-Concurrency-Agent-Skill",
+	"path": "swift-concurrency-pro",
+	"ref": "e710f8d577ccbff1ac047aac1594a5683000cb0b"
+  }
+}
