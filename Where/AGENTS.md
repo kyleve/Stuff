@@ -1,6 +1,14 @@
 # Where
 
-The **Where** feature app and its Swift package modules. Repo-wide build, formatting, and agent-sync rules live in the root [`AGENTS.md`](../AGENTS.md).
+There **Where** app is an app designed to track how much time to spend in a given location, usually state by state within the US.
+
+Any time per day spent in a state counts entirely towards a day in that state. So it's possible to be in two states on a given day.
+
+
+
+## Build Information
+
+Repo-wide build, formatting, and agent-sync rules live in the root [`AGENTS.md`](../AGENTS.md).
 
 ## Layout
 
