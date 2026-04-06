@@ -7,8 +7,8 @@ import UIKit
 
 /// Bridges ``BContext`` into UIKit's trait system so that it propagates
 /// automatically through the view-controller and view hierarchy.
-struct BContextTrait: UITraitDefinition {
-    static let defaultValue = BContext()
+public struct BContextTrait: UITraitDefinition {
+    public static let defaultValue = BContext()
 }
 
 extension UITraitCollection {

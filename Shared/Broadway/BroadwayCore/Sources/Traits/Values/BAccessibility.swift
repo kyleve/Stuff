@@ -8,6 +8,20 @@
 import Foundation
 import UIKit
 
+extension BTraits {
+    public var accessibility: BAccessibility {
+        get { self[BAccessibility.self] }
+        set { self[BAccessibility.self] = newValue }
+    }
+}
+
+extension BTraits.Overrides {
+    public var accessibility: BAccessibility? {
+        get { self[BAccessibility.self] }
+        set { self[BAccessibility.self] = newValue }
+    }
+}
+
 /// A snapshot of the device's current accessibility settings.
 ///
 /// Each property mirrors a corresponding `UIAccessibility` class property.
@@ -119,11 +133,30 @@ public struct BAccessibility: Equatable, Hashable, Sendable {
     }
 }
 
+extension BAccessibility: BTraitsValue {
+    public static var defaultValue: Self {
+        .init()
+    }
+
+    @MainActor public static func currentValue(
+        from _: UIViewController,
+    ) -> BAccessibility {
+        .current()
+    }
+
+    @MainActor public static func makeObserver(
+        with _: UIViewController,
+        onChange: @MainActor @escaping @Sendable (BAccessibility) -> Void,
+    ) -> BAccessibility.Observer {
+        .init { _, new in onChange(new) }
+    }
+}
+
 extension BAccessibility {
     /// A provider which returns the current accessibility settings on the device.
     ///
     /// Instead of accessing `UIAccessibility.{...}` directly, utilize `BAccessibility.systemSettings`.
-    public protocol SettingsProvider: AnyObject {
+    public protocol SettingsProvider: AnyObject, Sendable {
         // MARK: Assistive Technologies
 
         var isVoiceOverRunning: Bool { get }
@@ -175,31 +208,11 @@ extension BAccessibility {
 }
 
 extension BAccessibility {
-    /// Keeps a ``BContext``'s accessibility traits in sync with the device
-    /// by delivering change notifications as `(old, new)` pairs.
-    ///
-    /// Retain the returned ``Observer`` for the duration of observation.
-    /// Call ``Observer/start()`` to begin and ``Observer/stop()`` to pause.
-    ///
-    /// - Parameter onChange: Called with `(old, new)` values when a change is detected.
-    /// - Returns: An ``Observer`` that must be retained for the lifetime of observation.
-    @MainActor public static func observe(
-        on notificationCenter: NotificationCenter = .default,
-        with provider: any SettingsProvider = BAccessibility.systemSettings,
-        _ onChange: @MainActor @escaping @Sendable (BAccessibility, BAccessibility) -> Void,
-    ) -> Observer {
-        Observer(
-            notificationCenter: notificationCenter,
-            settingsProvider: provider,
-            onChange: onChange,
-        )
-    }
-
     /// Manages `NotificationCenter` registrations for system accessibility
     /// changes and reports diffs via a callback.
     /// Call ``start()`` and ``stop()`` to control the observation lifecycle.
     @MainActor
-    public final class Observer {
+    public final class Observer: BTraitsValueObserver {
         private let onChange: @MainActor @Sendable (BAccessibility, BAccessibility) -> Void
 
         private let notificationCenter: NotificationCenter
@@ -210,8 +223,8 @@ extension BAccessibility {
         private var isObserving: Bool = false
 
         init(
-            notificationCenter: NotificationCenter,
-            settingsProvider: SettingsProvider,
+            notificationCenter: NotificationCenter = .default,
+            settingsProvider: any SettingsProvider = BAccessibility.systemSettings,
             onChange: @MainActor @escaping @Sendable (BAccessibility, BAccessibility) -> Void,
         ) {
             self.notificationCenter = notificationCenter
@@ -287,7 +300,7 @@ extension BAccessibility {
 }
 
 extension BAccessibility {
-    private final class SystemSettingsProvider: SettingsProvider {
+    private final class SystemSettingsProvider: SettingsProvider, @unchecked Sendable {
         var isVoiceOverRunning: Bool {
             UIAccessibility.isVoiceOverRunning
         }

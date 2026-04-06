@@ -12,31 +12,25 @@ import Foundation
 /// first access and cached for subsequent lookups with the same key.
 public struct BStylesheets: Equatable, @unchecked Sendable {
     /// The current trait values (accessibility, size class, etc.).
-    public var traits: BTraits {
-        get { config.traits }
-        set { config.traits = newValue }
-    }
+    private var traits: BTraits
 
     /// The current theme values.
-    public var themes: BThemes {
-        get { config.themes }
-        set { config.themes = newValue }
+    private var themes: BThemes
+
+    init(traits: BTraits, themes: BThemes) {
+        self.traits = traits
+        self.themes = themes
     }
 
-    /// The inputs that determine stylesheet identity. Two `BStylesheets`
-    /// values are equal when their configurations match, regardless of
-    /// how much of the cache has been lazily populated.
-    var config: Config
-
-    struct Config: Equatable {
-        var traits: BTraits
-        var themes: BThemes
+    /// Keeps the resolver’s trait key in sync with ``BContext/traits``.
+    /// `package` matches the monorepo `-package-name Broadway` set in Tuist (SE-0386).
+    package mutating func updateTraits(_ newTraits: BTraits) {
+        traits = newTraits
     }
 
-    // MARK: Equatable
-
-    public static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.config == rhs.config
+    /// Keeps the resolver’s theme key in sync with ``BContext/themes``.
+    package mutating func updateThemes(_ newThemes: BThemes) {
+        themes = newThemes
     }
 
     // MARK: Lookup
@@ -47,26 +41,30 @@ public struct BStylesheets: Equatable, @unchecked Sendable {
     ///   a dependency cycle, or ``StylesheetError/creationFailed(type:underlying:)``
     ///   if the stylesheet's initializer throws.
     public func get<Stylesheet: BStylesheet>(_: Stylesheet.Type) throws(StylesheetError) -> Stylesheet {
-        let key = Key(stylesheet: .init(Stylesheet.self), traits: traits, themes: themes)
+        let key = Key(
+            stylesheet: .init(Stylesheet.self),
+            traits: traits,
+            themes: themes,
+        )
 
         guard let value = cache[key], let value = value.base as? Stylesheet else {
             let id = TypeIdentifier(Stylesheet.self)
 
-            let creating = _creating._unsafeUnderlyingValue
+            let creating = _creating.wrappedValue._unsafeUnderlyingValue
 
             if let cycleStart = creating.firstIndex(of: id) {
                 let path = creating[cycleStart...].map(\.debugDescription) + [id.debugDescription]
                 throw .cyclicDependency(path: path)
             }
 
-            _creating._unsafeUnderlyingValue.append(id)
-            defer { _creating._unsafeUnderlyingValue.removeLast() }
+            _creating.wrappedValue._unsafeUnderlyingValue.append(id)
+            defer { _creating.wrappedValue._unsafeUnderlyingValue.removeLast() }
 
             let context = SlicingContext(themes: themes, stylesheets: self)
 
             do {
                 let new = try Stylesheet(context: context)
-                _cache._unsafeUnderlyingValue[key] = AnyEquatable(new)
+                _cache.wrappedValue._unsafeUnderlyingValue[key] = AnyEquatable(new)
                 return new
             } catch let error as StylesheetError {
                 throw error
@@ -88,9 +86,9 @@ public struct BStylesheets: Equatable, @unchecked Sendable {
     // MARK: Cache
 
     // TODO: Eventually we should clear this out on memory warnings for sheets not accessed within 10(?) min
-    @CopyOnWrite private var cache: [Key: AnyEquatable] = [:]
+    @EquatableIgnored @CopyOnWrite private var cache: [Key: AnyEquatable] = [:]
 
-    @CopyOnWrite private var creating: [TypeIdentifier] = []
+    @EquatableIgnored @CopyOnWrite private var creating: [TypeIdentifier] = []
 
     /// Cache key combining the stylesheet type with the traits and themes
     /// that were active at creation time.

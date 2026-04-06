@@ -2,115 +2,128 @@
 //  XCTestCaseAdditions.swift
 //  BroadwayTesting
 //
-//
 
-import XCTest
+import UIKit
 
-extension XCTestCase {
-    ///
-    /// Call this method to show a view controller in the test host application
-    /// during a unit test. The view controller will be the size of host application's device.
-    ///
-    /// After the test runs, the view controller will be removed from the view hierarchy.
-    ///
-    /// A test failure will occur if the host application does not exist, or does not have a root view controller.
-    ///
-    public func show<ViewController: UIViewController>(
-        vc viewController: ViewController,
-        loadAndPlaceView: Bool = true,
-        test: (ViewController) throws -> Void,
-    ) rethrows {
-        guard let rootVC = UIApplication.shared.delegate?.window??.rootViewController else {
-            XCTFail("Cannot present a view controller in a test host that does not have a root window.")
+struct ShowError: Error, CustomStringConvertible {
+    var description: String
+
+    init(_ description: String) {
+        self.description = description
+    }
+}
+
+/// Shows a view controller in the test host application's window for the
+/// duration of `perform`. The view controller is added as a child of
+/// the host's root view controller and its view is placed in the window,
+/// triggering the full UIKit appearance lifecycle (`viewIsAppearing`, etc.).
+///
+/// After `perform` returns (or throws), the view controller is removed
+/// from the hierarchy automatically.
+@MainActor
+public func show<ViewController: UIViewController>(
+    _ viewController: ViewController,
+    loadAndPlaceView: Bool = true,
+    perform test: (ViewController) throws -> Void,
+) throws {
+    guard let rootVC = UIApplication.shared.delegate?.window??.rootViewController else {
+        throw ShowError("No root view controller in test host.")
+    }
+
+    rootVC.view.window?.layer.speed = 100
+    rootVC.addChild(viewController)
+    viewController.didMove(toParent: rootVC)
+
+    if loadAndPlaceView {
+        viewController.view.frame = rootVC.view.bounds
+        rootVC.view.addSubview(viewController.view)
+        viewController.view.layoutIfNeeded()
+    }
+
+    defer {
+        if loadAndPlaceView {
+            viewController.view.removeFromSuperview()
+        }
+        viewController.willMove(toParent: nil)
+        viewController.removeFromParent()
+        rootVC.view.window?.layer.speed = 1
+    }
+
+    try autoreleasepool {
+        try test(viewController)
+    }
+}
+
+// MARK: - Run Loop Helpers
+
+@MainActor
+public func waitFor(timeout: TimeInterval = 10.0, predicate: () -> Bool) throws {
+    let runloop = RunLoop.main
+    let deadline = Date(timeIntervalSinceNow: timeout)
+
+    while Date() < deadline {
+        if predicate() {
             return
         }
 
-        rootVC.view.window?.layer.speed = 4
-        rootVC.addChild(viewController)
-        viewController.didMove(toParent: rootVC)
-
-        if loadAndPlaceView {
-            viewController.view.frame = rootVC.view.bounds
-            viewController.view.layoutIfNeeded()
-
-            rootVC.beginAppearanceTransition(true, animated: false)
-            rootVC.view.addSubview(viewController.view)
-            rootVC.endAppearanceTransition()
-        }
-
-        defer {
-            if loadAndPlaceView {
-                viewController.beginAppearanceTransition(false, animated: false)
-                viewController.view.removeFromSuperview()
-                viewController.endAppearanceTransition()
-            }
-
-            viewController.willMove(toParent: nil)
-            viewController.removeFromParent()
-            rootVC.view.window?.layer.speed = 1
-        }
-
-        try autoreleasepool {
-            try test(viewController)
-        }
-    }
-
-    public func waitFor(timeout: TimeInterval = 10.0, predicate: () -> Bool) {
-        let runloop = RunLoop.main
-        let timeout = Date(timeIntervalSinceNow: timeout)
-
-        while Date() < timeout {
-            if predicate() {
-                return
-            }
-
-            runloop.run(mode: .default, before: Date(timeIntervalSinceNow: 0.001))
-        }
-
-        XCTFail("waitUntil timed out waiting for a check to pass.")
-    }
-
-    public func waitFor(timeout: TimeInterval = 10.0, block: (() -> Void) -> Void) {
-        var isDone = false
-
-        waitFor(timeout: timeout, predicate: {
-            block { isDone = true }
-            return isDone
-        })
-    }
-
-    public func waitForOneRunloop() {
-        let runloop = RunLoop.main
         runloop.run(mode: .default, before: Date(timeIntervalSinceNow: 0.001))
     }
 
-    public func determineAverage(for seconds: TimeInterval, using block: () -> Void) {
-        let start = Date()
+    throw WaitError("waitFor timed out waiting for a check to pass.")
+}
 
-        var iterations = 0
+@MainActor
+public func waitFor(timeout: TimeInterval = 10.0, block: (() -> Void) -> Void) throws {
+    var isDone = false
 
-        var lastUpdateDate = Date()
+    try waitFor(timeout: timeout, predicate: {
+        block { isDone = true }
+        return isDone
+    })
+}
 
-        repeat {
-            block()
+@MainActor
+public func waitForOneRunloop() {
+    let runloop = RunLoop.main
+    runloop.run(mode: .default, before: Date(timeIntervalSinceNow: 0.001))
+}
 
-            iterations += 1
+@MainActor
+public func determineAverage(for seconds: TimeInterval, using block: () -> Void) {
+    let start = Date()
 
-            if Date().timeIntervalSince(lastUpdateDate) >= 1 {
-                lastUpdateDate = Date()
-                print("Continuing Test: \(iterations) Iterations...")
-            }
+    var iterations = 0
+    var lastUpdateDate = Date()
 
-        } while Date() < start + seconds
+    repeat {
+        block()
 
-        let end = Date()
+        iterations += 1
 
-        let duration = end.timeIntervalSince(start)
-        let average = duration / TimeInterval(iterations)
+        if Date().timeIntervalSince(lastUpdateDate) >= 1 {
+            lastUpdateDate = Date()
+            print("Continuing Test: \(iterations) Iterations...")
+        }
 
-        print("Iterations: \(iterations), Average Time: \(average)")
+    } while Date() < start + seconds
+
+    let end = Date()
+
+    let duration = end.timeIntervalSince(start)
+    let average = duration / TimeInterval(iterations)
+
+    print("Iterations: \(iterations), Average Time: \(average)")
+}
+
+struct WaitError: Error, CustomStringConvertible {
+    var description: String
+
+    init(_ description: String) {
+        self.description = description
     }
 }
+
+// MARK: - UIView Helpers
 
 extension UIView {
     public var recursiveDescription: String {

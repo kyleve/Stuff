@@ -1,10 +1,21 @@
 @testable import BroadwayCore
 import Testing
+import UIKit
 
 private struct ScaleFactor: BTraitsValue {
+    typealias Observer = NeverObserver
+
     var value: Double
+
     static var defaultValue: Self {
         ScaleFactor(value: 1.0)
+    }
+
+    @MainActor static func makeObserver(
+        with _: UIViewController,
+        onChange _: @MainActor @escaping @Sendable (ScaleFactor) -> Void,
+    ) -> NeverObserver {
+        NeverObserver()
     }
 }
 

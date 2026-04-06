@@ -120,7 +120,7 @@ struct BAccessibilityTests {
 
 // MARK: - Mock SettingsProvider
 
-private final class MockSettingsProvider: BAccessibility.SettingsProvider {
+private final class MockSettingsProvider: BAccessibility.SettingsProvider, @unchecked Sendable {
     var isVoiceOverRunning = false
     var isSwitchControlRunning = false
     var isAssistiveTouchRunning = false
@@ -176,26 +176,18 @@ struct BAccessibilitySettingsProviderTests {
 // MARK: - Observer Tests
 
 @MainActor struct BAccessibilityObserverTests {
-    // MARK: - Factory
-
-    @Test("observe returns an Observer")
-    func observeFactory() {
-        let observer = BAccessibility.observe { _, _ in }
-        _ = observer
-    }
-
     // MARK: - Lifecycle
 
     @Test("start and stop complete without error")
     func startStop() {
-        let observer = BAccessibility.observe { _, _ in }
+        let observer = BAccessibility.Observer { _, _ in }
         observer.start()
         observer.stop()
     }
 
     @Test("Calling start twice is safe")
     func doubleStart() {
-        let observer = BAccessibility.observe { _, _ in }
+        let observer = BAccessibility.Observer { _, _ in }
         observer.start()
         observer.start()
         observer.stop()
@@ -203,13 +195,13 @@ struct BAccessibilitySettingsProviderTests {
 
     @Test("Calling stop without start is safe")
     func stopWithoutStart() {
-        let observer = BAccessibility.observe { _, _ in }
+        let observer = BAccessibility.Observer { _, _ in }
         observer.stop()
     }
 
     @Test("Calling stop twice is safe")
     func doubleStop() {
-        let observer = BAccessibility.observe { _, _ in }
+        let observer = BAccessibility.Observer { _, _ in }
         observer.start()
         observer.stop()
         observer.stop()
@@ -217,7 +209,7 @@ struct BAccessibilitySettingsProviderTests {
 
     @Test("Can restart after stopping")
     func restart() {
-        let observer = BAccessibility.observe { _, _ in }
+        let observer = BAccessibility.Observer { _, _ in }
         observer.start()
         observer.stop()
         observer.start()
@@ -226,7 +218,7 @@ struct BAccessibilitySettingsProviderTests {
 
     @Test("Deallocation after start does not crash")
     func deallocAfterStart() {
-        var observer: BAccessibility.Observer? = BAccessibility.observe { _, _ in }
+        var observer: BAccessibility.Observer? = .init { _, _ in }
         observer?.start()
         observer = nil
         _ = observer
@@ -239,7 +231,7 @@ struct BAccessibilitySettingsProviderTests {
         let center = NotificationCenter()
         var callCount = 0
 
-        let observer = BAccessibility.observe(on: center) { _, _ in
+        let observer = BAccessibility.Observer(notificationCenter: center) { _, _ in
             callCount += 1
         }
         observer.start()
@@ -260,7 +252,7 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var callCount = 0
 
-        let observer = BAccessibility.observe(on: center, with: mock) { _, _ in
+        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { _, _ in
             callCount += 1
         }
         observer.start()
@@ -280,7 +272,7 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var callCount = 0
 
-        let observer = BAccessibility.observe(on: center, with: mock) { _, _ in
+        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { _, _ in
             callCount += 1
         }
         observer.start()
@@ -299,7 +291,7 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var received: (old: BAccessibility, new: BAccessibility)?
 
-        let observer = BAccessibility.observe(on: center, with: mock) { old, new in
+        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { old, new in
             received = (old, new)
         }
         observer.start()
@@ -319,7 +311,7 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var callCount = 0
 
-        let observer = BAccessibility.observe(on: center, with: mock) { _, _ in
+        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { _, _ in
             callCount += 1
         }
         observer.start()
@@ -337,7 +329,7 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var snapshots: [(old: BAccessibility, new: BAccessibility)] = []
 
-        let observer = BAccessibility.observe(on: center, with: mock) { old, new in
+        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { old, new in
             snapshots.append((old, new))
         }
         observer.start()
@@ -366,7 +358,7 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var callCount = 0
 
-        let observer = BAccessibility.observe(on: center, with: mock) { _, _ in
+        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { _, _ in
             callCount += 1
         }
         observer.start()
@@ -384,7 +376,7 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var received: (old: BAccessibility, new: BAccessibility)?
 
-        let observer = BAccessibility.observe(on: center, with: mock) { old, new in
+        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { old, new in
             received = (old, new)
         }
 

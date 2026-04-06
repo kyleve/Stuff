@@ -156,7 +156,7 @@ struct BContextStylesheetTests {
 
         let before = try context.stylesheets.get(TestStylesheet.self)
 
-        context.traits.accessibility = BAccessibility(isVoiceOverRunning: true)
+        context.baseTraits.accessibility = BAccessibility(isVoiceOverRunning: true)
 
         let after = try context.stylesheets.get(TestStylesheet.self)
 
@@ -206,7 +206,7 @@ struct BContextStylesheetTests {
 
     @Test("Circular stylesheet dependency throws cyclicDependency")
     func cycleThrows() {
-        let stylesheets = BStylesheets(config: .init(traits: .init(), themes: .init()))
+        let stylesheets = BStylesheets(traits: .init(), themes: .init())
 
         #expect(throws: StylesheetError.self) {
             _ = try stylesheets.get(CycleA.self)
@@ -215,7 +215,7 @@ struct BContextStylesheetTests {
 
     @Test("cyclicDependency error includes the dependency path")
     func cyclePath() {
-        let stylesheets = BStylesheets(config: .init(traits: .init(), themes: .init()))
+        let stylesheets = BStylesheets(traits: .init(), themes: .init())
 
         let error = #expect(throws: StylesheetError.self) {
             _ = try stylesheets.get(CycleA.self)
@@ -237,7 +237,7 @@ struct BContextStylesheetTests {
 
     @Test("Self-referencing stylesheet throws cyclicDependency")
     func selfCycle() {
-        let stylesheets = BStylesheets(config: .init(traits: .init(), themes: .init()))
+        let stylesheets = BStylesheets(traits: .init(), themes: .init())
 
         #expect(throws: StylesheetError.self) {
             _ = try stylesheets.get(SelfCycle.self)
@@ -246,7 +246,7 @@ struct BContextStylesheetTests {
 
     @Test("Three-node cycle throws cyclicDependency with full path")
     func threeNodeCycle() {
-        let stylesheets = BStylesheets(config: .init(traits: .init(), themes: .init()))
+        let stylesheets = BStylesheets(traits: .init(), themes: .init())
 
         let error = #expect(throws: StylesheetError.self) {
             _ = try stylesheets.get(ThreeNodeCycleA.self)
@@ -261,7 +261,7 @@ struct BContextStylesheetTests {
 
     @Test("Non-cycle error wraps in creationFailed")
     func nonCycleThrow() {
-        let stylesheets = BStylesheets(config: .init(traits: .init(), themes: .init()))
+        let stylesheets = BStylesheets(traits: .init(), themes: .init())
 
         let error = #expect(throws: StylesheetError.self) {
             _ = try stylesheets.get(FailingStylesheet.self)
@@ -276,10 +276,10 @@ struct BContextStylesheetTests {
     func setAndGet() throws {
         var themes = BThemes()
         themes[ColorTheme.self] = .dark
-        let source = BStylesheets(config: .init(traits: .init(), themes: themes))
+        let source = BStylesheets(traits: .init(), themes: themes)
         let sheet = try source.get(TestStylesheet.self)
 
-        var target = BStylesheets(config: .init(traits: .init(), themes: themes))
+        var target = BStylesheets(traits: .init(), themes: themes)
         target.set(sheet)
 
         let retrieved = try target.get(TestStylesheet.self)
@@ -294,7 +294,7 @@ struct BContextStylesheetTests {
         _ = try context.stylesheets.get(CountingStylesheet.self)
         #expect(CountingStylesheet.initCount == 1)
 
-        context.traits.accessibility = BAccessibility(isVoiceOverRunning: true)
+        context.baseTraits.accessibility = BAccessibility(isVoiceOverRunning: true)
         _ = try context.stylesheets.get(CountingStylesheet.self)
         #expect(CountingStylesheet.initCount == 2)
     }
@@ -311,7 +311,7 @@ struct BContextTests {
     @Test("Contexts with different traits are not equal")
     func traitInequality() {
         var a = BContext()
-        a.traits.accessibility = BAccessibility(isVoiceOverRunning: true)
+        a.baseTraits.accessibility = BAccessibility(isVoiceOverRunning: true)
         #expect(a != BContext())
     }
 
@@ -326,16 +326,29 @@ struct BContextTests {
     func traitPropagation() {
         var context = BContext()
         let accessibility = BAccessibility(isVoiceOverRunning: true)
-        context.traits.accessibility = accessibility
-        #expect(context.stylesheets.traits.accessibility == accessibility)
+        context.baseTraits.accessibility = accessibility
+        #expect(context.traits.accessibility == accessibility)
     }
 
     @Test("Theme mutation propagates to stylesheets config")
-    func themePropagation() {
+    func themePropagation() throws {
         var context = BContext()
         context.themes[ColorTheme.self] = .dark
 
-        let theme: ColorTheme = context.stylesheets.themes[ColorTheme.self]
-        #expect(theme == .dark)
+        let sheet = try context.stylesheets.get(TestStylesheet.self)
+        #expect(sheet.color == .dark)
+    }
+
+    @Test("Stylesheets use merged traits when initializer passes non-empty overrides")
+    func stylesheetsTraitsMatchMergedAtInit() {
+        var base = BTraits()
+        base.accessibility = BAccessibility(isVoiceOverRunning: false)
+
+        var overrides = BTraits.Overrides()
+        overrides.accessibility = BAccessibility(isVoiceOverRunning: true)
+
+        let context = BContext(traits: base, overrides: overrides)
+
+        #expect(context.traits.accessibility == BAccessibility(isVoiceOverRunning: true))
     }
 }
