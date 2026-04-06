@@ -6,8 +6,12 @@
 |-------------|---------|--------------|
 | Tuist       | 4.40.0  | `.mise.toml` |
 | SwiftFormat | 0.60.1  | `.mise.toml` |
+| Swift PM    | 6.2     | `Package.swift` (`swift-tools-version`) |
 
-Tuist manifests live at the repo root (`Project.swift`, `Tuist.swift`).
+**Libraries** (**StuffCore**, **WhereCore**, **WhereUI**, **WhereTesting**) are defined in the root [`Package.swift`](Package.swift) (same pattern as Broadway: local package + Tuist for apps and test bundles).
+
+Tuist manifests live at the repo root ([`Project.swift`](Project.swift), [`Tuist.swift`](Tuist.swift)). `Project.swift` references `Package.local(path: .relativeToRoot("."))` and declares the **Where** app, **StuffTestHost**, and unit-test targets that depend on package products.
+
 Run `./ide` (or `./ide -i` to also install dependencies) to regenerate the
 Xcode project, install external agent skills, and point Git at `.githooks/`.
 
@@ -37,10 +41,9 @@ by `./sync-agents`.
 
 ## Targets
 
-- **StuffCore** — iOS framework for shared code ([`Shared/StuffCore/Sources/`](Shared/StuffCore/Sources/)), with hosted unit tests under [`Shared/StuffCore/Tests/`](Shared/StuffCore/Tests/) (Swift Testing, **StuffTestHost**), same as **WhereCore** / **WhereUI** tests.
-- **StuffTestHost** — minimal iOS app used as the unit-test host for UIKit-in-process tests ([`Shared/StuffTestHost/Sources/`](Shared/StuffTestHost/Sources/)); any feature’s hosted iOS tests can depend on this target.
-- **Where** — iOS app under [`Where/Where/`](Where/Where/); **WhereCore**, **WhereUI**, **WhereTesting** live under [`Where/`](Where/); hosted tests use **StuffTestHost**.
-- Add more targets in `Project.swift` using `macApp()`, `framework()`, or the iOS helpers defined there.
+- **Package products** ([`Package.swift`](Package.swift)) — **StuffCore** ([`Shared/StuffCore/Sources/`](Shared/StuffCore/Sources/)), **WhereCore** / **WhereUI** / **WhereTesting** under [`Where/`](Where/).
+- **Tuist targets** ([`Project.swift`](Project.swift)) — **Where** app ([`Where/Where/`](Where/Where/)), **StuffTestHost** ([`Shared/StuffTestHost/`](Shared/StuffTestHost/)), **WhereTests** (app tests, no host), and hosted **\*Tests** bundles (**StuffCoreTests**, **WhereCoreTests**, **WhereUITests**) that depend on **StuffTestHost** + **WhereTesting** + the relevant package product.
+- Add SPM library targets in `Package.swift` and wire apps/tests in `Project.swift` (see existing `unitTests` helper).
 
 ## Deployment
 

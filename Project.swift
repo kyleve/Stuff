@@ -1,102 +1,27 @@
 import ProjectDescription
 
-let macDestinations: Destinations = [.mac]
-let macDeployment: DeploymentTargets = .macOS("26.0")
+let destinations: Destinations = [.iPhone, .iPad]
+let deployment: DeploymentTargets = .iOS("26.0")
 
-/// No `.macCatalyst` here: it pulls iOS targets into macOS `tuist test` runs and breaks signing without a dev team.
-let iosDestinations: Destinations = [.iPhone, .iPad]
-let iosDeployment: DeploymentTargets = .iOS("26.0")
+/// Local Swift package (see root `Package.swift`) for StuffCore, WhereCore, WhereUI, and WhereTesting.
+private let stuffPackage = Package.local(path: .relativeToRoot("."))
 
-func framework(
-    _ name: String,
+func unitTests(
+    name: String,
     bundleIdSuffix: String,
-    pathPrefix: String? = nil,
-    dependencies: [TargetDependency] = [],
-) -> [Target] {
-    let base = pathPrefix.map { "\($0)/\(name)" } ?? name
-    return [
-        .target(
-            name: name,
-            destinations: macDestinations,
-            product: .framework,
-            bundleId: "com.stuff.\(bundleIdSuffix)",
-            deploymentTargets: macDeployment,
-            sources: ["\(base)/Sources/**"],
-            dependencies: dependencies,
-        ),
-        .target(
-            name: "\(name)Tests",
-            destinations: macDestinations,
-            product: .unitTests,
-            bundleId: "com.stuff.\(bundleIdSuffix).tests",
-            deploymentTargets: macDeployment,
-            sources: ["\(base)/Tests/**"],
-            dependencies: [.target(name: name)],
-        ),
-    ]
-}
-
-func macApp(
-    _ name: String,
-    bundleIdSuffix: String,
-    infoPlist: [String: Plist.Value] = [:],
-    dependencies: [TargetDependency] = [],
-) -> [Target] {
-    [
-        .target(
-            name: name,
-            destinations: macDestinations,
-            product: .app,
-            bundleId: "com.stuff.\(bundleIdSuffix)",
-            deploymentTargets: macDeployment,
-            infoPlist: .extendingDefault(with: infoPlist),
-            sources: ["\(name)/Sources/**"],
-            resources: ["\(name)/Resources/**"],
-            dependencies: dependencies,
-        ),
-        .target(
-            name: "\(name)Tests",
-            destinations: macDestinations,
-            product: .unitTests,
-            bundleId: "com.stuff.\(bundleIdSuffix).tests",
-            deploymentTargets: macDeployment,
-            sources: ["\(name)/Tests/**"],
-            dependencies: [.target(name: name)],
-        ),
-    ]
-}
-
-func iosFramework(
-    _ name: String,
-    bundleIdSuffix: String,
-    dependencies: [TargetDependency] = [],
+    productDependency: String,
+    sources: ProjectDescription.SourceFilesList,
 ) -> Target {
     .target(
         name: name,
-        destinations: iosDestinations,
-        product: .framework,
-        bundleId: "com.stuff.\(bundleIdSuffix)",
-        deploymentTargets: iosDeployment,
-        sources: ["Where/\(name)/Sources/**"],
-        dependencies: dependencies,
-    )
-}
-
-func hostedIOSUnitTests(
-    moduleName: String,
-    bundleIdSuffix: String,
-    sourcesRoot: String,
-) -> Target {
-    .target(
-        name: "\(moduleName)Tests",
-        destinations: iosDestinations,
+        destinations: destinations,
         product: .unitTests,
         bundleId: "com.stuff.\(bundleIdSuffix).tests",
-        deploymentTargets: iosDeployment,
-        sources: ["\(sourcesRoot)/\(moduleName)/Tests/**"],
+        deploymentTargets: deployment,
+        sources: sources,
         dependencies: [
-            .target(name: moduleName),
-            .target(name: "WhereTesting"),
+            .package(product: productDependency),
+            .package(product: "WhereTesting"),
             .target(name: "StuffTestHost"),
         ],
     )
@@ -108,22 +33,42 @@ let project = Project(
         defaultKnownRegions: ["en"],
         developmentRegion: "en",
     ),
+    packages: [stuffPackage],
     targets: [
         .target(
-            name: "StuffCore",
-            destinations: iosDestinations,
-            product: .framework,
-            bundleId: "com.stuff.stuffcore",
-            deploymentTargets: iosDeployment,
-            sources: ["Shared/StuffCore/Sources/**"],
-            dependencies: [],
+            name: "Where",
+            destinations: destinations,
+            product: .app,
+            bundleId: "com.stuff.where",
+            deploymentTargets: deployment,
+            infoPlist: .extendingDefault(with: [
+                "UILaunchScreen": .dictionary([:]),
+                "UIApplicationSupportsIndirectInputEvents": .boolean(true),
+            ]),
+            sources: ["Where/Where/Sources/**"],
+            resources: ["Where/Where/Resources/**"],
+            dependencies: [
+                .package(product: "WhereUI"),
+            ],
+        ),
+        .target(
+            name: "WhereTests",
+            destinations: destinations,
+            product: .unitTests,
+            bundleId: "com.stuff.where.tests",
+            deploymentTargets: deployment,
+            sources: ["Where/Where/Tests/**"],
+            dependencies: [
+                .target(name: "Where"),
+                .package(product: "WhereTesting"),
+            ],
         ),
         .target(
             name: "StuffTestHost",
-            destinations: iosDestinations,
+            destinations: destinations,
             product: .app,
             bundleId: "com.stuff.stufftesthost",
-            deploymentTargets: iosDeployment,
+            deploymentTargets: deployment,
             infoPlist: .extendingDefault(with: [
                 "UILaunchScreen": .dictionary([:]),
                 "UIApplicationSceneManifest": .dictionary([
@@ -141,45 +86,23 @@ let project = Project(
             sources: ["Shared/StuffTestHost/Sources/**"],
             dependencies: [],
         ),
-        iosFramework("WhereCore", bundleIdSuffix: "wherecore"),
-        iosFramework("WhereUI", bundleIdSuffix: "whereui", dependencies: [.target(name: "WhereCore")]),
-        .target(
-            name: "WhereTesting",
-            destinations: iosDestinations,
-            product: .framework,
-            bundleId: "com.stuff.wheretesting",
-            deploymentTargets: iosDeployment,
-            sources: ["Where/WhereTesting/Sources/**"],
-            dependencies: [],
+        unitTests(
+            name: "StuffCoreTests",
+            bundleIdSuffix: "stuffcore",
+            productDependency: "StuffCore",
+            sources: ["Shared/StuffCore/Tests/**"],
         ),
-        .target(
-            name: "Where",
-            destinations: iosDestinations,
-            product: .app,
-            bundleId: "com.stuff.where",
-            deploymentTargets: iosDeployment,
-            infoPlist: .extendingDefault(with: [
-                "UILaunchScreen": .dictionary([:]),
-                "UIApplicationSupportsIndirectInputEvents": .boolean(true),
-            ]),
-            sources: ["Where/Where/Sources/**"],
-            resources: ["Where/Where/Resources/**"],
-            dependencies: [.target(name: "WhereUI")],
+        unitTests(
+            name: "WhereCoreTests",
+            bundleIdSuffix: "wherecore",
+            productDependency: "WhereCore",
+            sources: ["Where/WhereCore/Tests/**"],
         ),
-        hostedIOSUnitTests(moduleName: "StuffCore", bundleIdSuffix: "stuffcore", sourcesRoot: "Shared"),
-        hostedIOSUnitTests(moduleName: "WhereCore", bundleIdSuffix: "wherecore", sourcesRoot: "Where"),
-        hostedIOSUnitTests(moduleName: "WhereUI", bundleIdSuffix: "whereui", sourcesRoot: "Where"),
-        .target(
-            name: "WhereTests",
-            destinations: iosDestinations,
-            product: .unitTests,
-            bundleId: "com.stuff.where.tests",
-            deploymentTargets: iosDeployment,
-            sources: ["Where/Where/Tests/**"],
-            dependencies: [
-                .target(name: "Where"),
-                .target(name: "WhereTesting"),
-            ],
+        unitTests(
+            name: "WhereUITests",
+            bundleIdSuffix: "whereui",
+            productDependency: "WhereUI",
+            sources: ["Where/WhereUI/Tests/**"],
         ),
     ],
 )

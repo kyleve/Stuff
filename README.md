@@ -24,7 +24,7 @@ mise install
 ./ide -i
 ```
 
-Run tests with `mise exec -- tuist test` (or open the generated workspace in Xcode).
+Run tests with `mise exec -- tuist test` (or open the generated workspace in Xcode). CI pins an iOS Simulator destination so the full suite stays consistent.
 
 The `./ide` script sets `core.hooksPath` to `.githooks`. The pre-commit hook
 formats staged Swift with SwiftFormat and runs `./sync-agents --git-add` so
@@ -33,7 +33,8 @@ generated Claude files stay in sync with `AGENTS.md`.
 ## Project structure
 
 ```
-Project.swift       Tuist project manifest
+Package.swift       Local Swift package (StuffCore, WhereCore, WhereUI, WhereTesting)
+Project.swift       Tuist manifest (Where app, StuffTestHost, test bundles → SPM)
 Tuist.swift         Tuist configuration
 .mise.toml          Pins Tuist 4.40.0 and SwiftFormat 0.60.1
 .swiftformat        SwiftFormat rules
