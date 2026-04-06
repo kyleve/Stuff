@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+
+# Format staged Swift files in-place, then re-stage them.
+# Note: this formats working-tree content, not the staged blob.
+# Partially-staged files will be fully re-staged after formatting.
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR -- '*.swift')
+
+if [ -n "$staged" ]; then
+    git diff --cached --name-only --diff-filter=ACMR -z -- '*.swift' \
+      | xargs -0 mise exec -- swiftformat
+
+    git diff --cached --name-only --diff-filter=ACMR -z -- '*.swift' \
+      | xargs -0 git add
+fi
+
+# Sync AGENTS.md + .agents/skills → CLAUDE.md + .claude/skills.
+./sync-agents --git-add

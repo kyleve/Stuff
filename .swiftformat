@@ -1,0 +1,5 @@
+--swiftversion 6.1
+--indent 4
+--indentcase true
+--extension-acl on-declarations
+--exclude Derived
