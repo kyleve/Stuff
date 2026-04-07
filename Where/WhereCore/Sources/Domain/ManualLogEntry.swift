@@ -1,7 +1,7 @@
 import Foundation
 
-public struct ManualLogEntry: Equatable, Sendable, Identifiable {
-    public enum Kind: Equatable, Sendable {
+public struct ManualLogEntry: Codable, Equatable, Sendable, Identifiable, Hashable {
+    public enum Kind: String, Codable, Equatable, Sendable {
         case supplemental
         case correction
     }

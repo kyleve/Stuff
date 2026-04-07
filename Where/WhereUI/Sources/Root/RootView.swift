@@ -2,9 +2,14 @@ import SwiftUI
 
 public struct RootView: View {
     @State private var viewModel: RootViewModel
+    @State private var manualEntryViewModel: ManualEntryViewModel
 
-    public init(viewModel: RootViewModel) {
+    public init(
+        viewModel: RootViewModel,
+        manualEntryViewModel: ManualEntryViewModel,
+    ) {
         _viewModel = State(initialValue: viewModel)
+        _manualEntryViewModel = State(initialValue: manualEntryViewModel)
     }
 
     public var body: some View {
@@ -19,10 +24,13 @@ public struct RootView: View {
                     Label("History", systemImage: "clock.arrow.trianglehead.counterclockwise.rotate.90")
                 }
 
-            ManualEntryView()
-                .tabItem {
-                    Label("Manual", systemImage: "square.and.pencil")
-                }
+            ManualEntryView(
+                rootViewModel: viewModel,
+                viewModel: manualEntryViewModel,
+            )
+            .tabItem {
+                Label("Manual", systemImage: "square.and.pencil")
+            }
         }
         .task {
             if viewModel.snapshot == nil {

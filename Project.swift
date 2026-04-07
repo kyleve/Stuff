@@ -44,6 +44,15 @@ let project = Project(
             infoPlist: .extendingDefault(with: [
                 "UILaunchScreen": .dictionary([:]),
                 "UIApplicationSupportsIndirectInputEvents": .boolean(true),
+                "NSLocationAlwaysAndWhenInUseUsageDescription": .string("Where uses your location in the background to build day-by-day tax records."),
+                "NSLocationWhenInUseUsageDescription": .string("Where uses your location to classify the states you visit for tax reporting."),
+                "BGTaskSchedulerPermittedIdentifiers": .array([
+                    .string("com.stuff.where.app-refresh"),
+                ]),
+                "UIBackgroundModes": .array([
+                    .string("location"),
+                    .string("processing"),
+                ]),
             ]),
             sources: ["Where/Where/Sources/**"],
             resources: ["Where/Where/Resources/**"],

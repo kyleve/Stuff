@@ -28,7 +28,7 @@ public struct YearLedgerBuilder: Sendable {
         return allDays.map { day in
             let trackedJurisdictions = recordsByDay[day]?.jurisdictions ?? []
             let manualForDay = (entriesByDay[day] ?? []).sorted { $0.timestamp < $1.timestamp }
-            let finalJurisdictions = resolveFinalJurisdictions(
+            let finalJurisdictions = finalJurisdictions(
                 trackedJurisdictions: trackedJurisdictions,
                 manualEntries: manualForDay,
             )
@@ -65,7 +65,7 @@ public struct YearLedgerBuilder: Sendable {
         )
     }
 
-    private func resolveFinalJurisdictions(
+    public func finalJurisdictions(
         trackedJurisdictions: [TaxJurisdiction],
         manualEntries: [ManualLogEntry],
     ) -> [TaxJurisdiction] {

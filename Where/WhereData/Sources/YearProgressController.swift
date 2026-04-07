@@ -4,19 +4,16 @@ import WhereCore
 public actor YearProgressController: YearProgressProviding {
     private let calendar: Calendar
     private let ledgerBuilder: YearLedgerBuilder
-    private let sampleData: [LocationSample]
-    private let manualEntries: [ManualLogEntry]
+    private let yearDataProvider: any YearDataProviding
     private let dayFormatter: DateFormatter
 
     public init(
         calendar: Calendar = .current,
-        sampleData: [LocationSample]? = nil,
-        manualEntries: [ManualLogEntry]? = nil,
+        yearDataProvider: (any YearDataProviding)? = nil,
     ) {
         self.calendar = calendar
         ledgerBuilder = YearLedgerBuilder(calendar: calendar)
-        self.sampleData = sampleData ?? SampleDataFactory.make(calendar: calendar)
-        self.manualEntries = manualEntries ?? SampleDataFactory.makeManualEntries(calendar: calendar)
+        self.yearDataProvider = yearDataProvider ?? SampleYearDataProvider(calendar: calendar)
         dayFormatter = DateFormatter()
         dayFormatter.calendar = calendar
         dayFormatter.locale = Locale(identifier: "en_US_POSIX")
@@ -24,15 +21,15 @@ public actor YearProgressController: YearProgressProviding {
     }
 
     public func availableYears() async -> [Int] {
-        let years = Set(sampleData.map { calendar.component(.year, from: $0.timestamp) })
-        return years.sorted()
+        await yearDataProvider.availableYears()
     }
 
     public func snapshot(for year: Int) async -> YearProgressSnapshot {
+        let bundle = await yearDataProvider.bundle(for: year)
         let ledgers = ledgerBuilder.makeLedgers(
             year: year,
-            samples: sampleData,
-            manualEntries: manualEntries,
+            samples: bundle.locationSamples,
+            manualEntries: bundle.manualEntries,
         )
         let yearSummary = ledgerBuilder.makeYearSummary(year: year, ledgers: ledgers)
 
@@ -65,14 +62,37 @@ public actor YearProgressController: YearProgressProviding {
             year: year,
             primarySummaries: primary,
             secondarySummaries: secondary,
-            trackingStatus: trackingStatus(for: ledgers),
+            trackingStatus: trackingStatus(
+                for: ledgers,
+                syncCheckpoint: bundle.syncCheckpoint,
+                trackingState: bundle.trackingState,
+            ),
             recentDays: recentDays,
         )
     }
 
-    private func trackingStatus(for ledgers: [DailyStateLedger]) -> TrackingStatus {
+    private func trackingStatus(
+        for ledgers: [DailyStateLedger],
+        syncCheckpoint: SyncCheckpoint,
+        trackingState: TrackingState?,
+    ) -> TrackingStatus {
+        if let trackingState {
+            let runtimeStatus = trackingState.runtimeStatus(at: Date())
+            if runtimeStatus == .needsAttention {
+                return .needsAttention
+            }
+        }
+
         guard !ledgers.isEmpty else {
             return .needsAttention
+        }
+
+        if syncCheckpoint.state == .failed {
+            return .needsAttention
+        }
+
+        if let trackingState, trackingState.runtimeStatus(at: Date()) == .needsReview {
+            return .needsReview
         }
 
         if ledgers.contains(where: \.needsReview) {
@@ -80,78 +100,5 @@ public actor YearProgressController: YearProgressProviding {
         }
 
         return .healthy
-    }
-}
-
-private enum SampleDataFactory {
-    static func make(calendar: Calendar) -> [LocationSample] {
-        let year = calendar.component(.year, from: Date())
-
-        return [
-            makeSample(year: year, month: 1, day: 4, hour: 9, jurisdiction: .california, calendar: calendar),
-            makeSample(year: year, month: 1, day: 4, hour: 20, jurisdiction: .newYork, calendar: calendar),
-            makeSample(year: year, month: 2, day: 10, hour: 8, jurisdiction: .california, calendar: calendar),
-            makeSample(year: year, month: 2, day: 11, hour: 8, jurisdiction: .california, calendar: calendar),
-            makeSample(year: year, month: 2, day: 12, hour: 8, jurisdiction: .unknown, calendar: calendar),
-            makeSample(year: year, month: 2, day: 13, hour: 8, jurisdiction: .newYork, calendar: calendar),
-        ]
-    }
-
-    static func makeManualEntries(calendar: Calendar) -> [ManualLogEntry] {
-        let year = calendar.component(.year, from: Date())
-
-        return [
-            ManualLogEntry(
-                timestamp: makeDate(year: year, month: 2, day: 12, hour: 12, calendar: calendar),
-                jurisdiction: .newYork,
-                note: "Attached ticket for overnight travel",
-                kind: .correction,
-            ),
-            ManualLogEntry(
-                timestamp: makeDate(year: year, month: 1, day: 4, hour: 21, calendar: calendar),
-                jurisdiction: .california,
-                note: "Added airport evidence",
-                kind: .supplemental,
-            ),
-        ]
-    }
-
-    private static func makeSample(
-        year: Int,
-        month: Int,
-        day: Int,
-        hour: Int,
-        jurisdiction: TaxJurisdiction,
-        calendar: Calendar,
-    ) -> LocationSample {
-        let components = DateComponents(
-            calendar: calendar,
-            year: year,
-            month: month,
-            day: day,
-            hour: hour,
-        )
-
-        return LocationSample(
-            timestamp: components.date ?? Date(),
-            jurisdiction: jurisdiction,
-        )
-    }
-
-    private static func makeDate(
-        year: Int,
-        month: Int,
-        day: Int,
-        hour: Int,
-        calendar: Calendar,
-    ) -> Date {
-        DateComponents(
-            calendar: calendar,
-            year: year,
-            month: month,
-            day: day,
-            hour: hour,
-        )
-        .date ?? Date()
     }
 }
