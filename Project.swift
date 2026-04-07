@@ -3,7 +3,7 @@ import ProjectDescription
 let destinations: Destinations = [.iPhone, .iPad]
 let deployment: DeploymentTargets = .iOS("26.0")
 
-/// Local Swift package (see root `Package.swift`) for StuffCore, WhereCore, WhereUI, and WhereTesting.
+/// Local Swift package (see root `Package.swift`) for StuffCore, WhereCore, WhereData, WhereUI, and WhereTesting.
 private let stuffPackage = Package.local(path: .relativeToRoot("."))
 
 func unitTests(
@@ -44,10 +44,20 @@ let project = Project(
             infoPlist: .extendingDefault(with: [
                 "UILaunchScreen": .dictionary([:]),
                 "UIApplicationSupportsIndirectInputEvents": .boolean(true),
+                "NSLocationAlwaysAndWhenInUseUsageDescription": .string("Where uses your location in the background to build day-by-day tax records."),
+                "NSLocationWhenInUseUsageDescription": .string("Where uses your location to classify the states you visit for tax reporting."),
+                "BGTaskSchedulerPermittedIdentifiers": .array([
+                    .string("com.stuff.where.app-refresh"),
+                ]),
+                "UIBackgroundModes": .array([
+                    .string("location"),
+                    .string("processing"),
+                ]),
             ]),
             sources: ["Where/Where/Sources/**"],
             resources: ["Where/Where/Resources/**"],
             dependencies: [
+                .package(product: "WhereData"),
                 .package(product: "WhereUI"),
             ],
         ),
@@ -99,10 +109,28 @@ let project = Project(
             sources: ["Where/WhereCore/Tests/**"],
         ),
         unitTests(
+            name: "WhereDataTests",
+            bundleIdSuffix: "wheredata",
+            productDependency: "WhereData",
+            sources: ["Where/WhereData/Tests/**"],
+        ),
+        unitTests(
             name: "WhereUITests",
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
+        ),
+    ],
+    schemes: [
+        .scheme(
+            name: "WhereUITests",
+            shared: true,
+            buildAction: .buildAction(targets: ["WhereUITests"]),
+            testAction: .targets(
+                ["WhereUITests"],
+                configuration: .debug,
+                options: .options(coverage: true),
+            ),
         ),
     ],
 )

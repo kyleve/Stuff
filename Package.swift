@@ -5,10 +5,12 @@ let package = Package(
     name: "Stuff",
     platforms: [
         .iOS(.v26),
+        .macOS(.v26),
     ],
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
+        .library(name: "WhereData", targets: ["WhereData"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereTesting", targets: ["WhereTesting"]),
     ],
@@ -20,6 +22,13 @@ let package = Package(
         .target(
             name: "WhereCore",
             path: "Where/WhereCore/Sources",
+        ),
+        .target(
+            name: "WhereData",
+            dependencies: [
+                .target(name: "WhereCore"),
+            ],
+            path: "Where/WhereData/Sources",
         ),
         .target(
             name: "WhereUI",
