@@ -1,4 +1,2 @@
-public enum WhereCore {
-    /// Placeholder until location model code lands here.
-    public static let version = 1
-}
+/// Namespace for shared constants as the Where domain expands.
+public enum WhereCore {}
