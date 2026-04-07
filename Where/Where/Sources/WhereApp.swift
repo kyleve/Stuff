@@ -37,8 +37,10 @@ struct WhereApp: App {
         _manualEntryViewModel = State(
             initialValue: ManualEntryViewModel(
                 manager: dataStore.manualEntryController,
+                importer: dataStore.manualDataImportController,
                 exporter: dataStore.yearExportController,
                 yearDataProvider: dataStore.yearDataProvider,
+                resetter: dataStore.resetController,
             ),
         )
 

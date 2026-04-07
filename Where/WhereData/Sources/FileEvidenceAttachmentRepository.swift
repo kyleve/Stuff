@@ -33,8 +33,15 @@ public actor FileEvidenceAttachmentRepository: EvidenceAttachmentRepository {
     }
 
     public func save(_ attachment: EvidenceAttachment) async {
+        await save([attachment])
+    }
+
+    public func save(_ attachments: [EvidenceAttachment]) async {
         var merged = Dictionary(uniqueKeysWithValues: records().map { ($0.id, $0) })
-        merged[attachment.id] = attachment
+        for attachment in attachments {
+            merged[attachment.id] = attachment
+        }
+
         let ordered = merged.values.sorted { lhs, rhs in
             if lhs.createdAt == rhs.createdAt {
                 return lhs.id.uuidString < rhs.id.uuidString
@@ -47,6 +54,10 @@ public actor FileEvidenceAttachmentRepository: EvidenceAttachmentRepository {
 
     public func delete(id: UUID) async {
         store.save(records().filter { $0.id != id })
+    }
+
+    public func removeAll() async {
+        store.save([])
     }
 
     private func records() -> [EvidenceAttachment] {

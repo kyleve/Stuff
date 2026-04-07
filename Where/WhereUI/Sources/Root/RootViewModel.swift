@@ -38,4 +38,8 @@ public final class RootViewModel {
         selectedYear = year
         snapshot = await provider.snapshot(for: year)
     }
+
+    public func reloadAfterDataReset() async {
+        await load()
+    }
 }

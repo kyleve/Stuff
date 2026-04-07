@@ -43,6 +43,10 @@ public actor FileLocationSampleRepository: LocationSampleRepository {
         store.save(ordered)
     }
 
+    public func removeAll() async {
+        store.save([])
+    }
+
     private func records() -> [LocationSample] {
         store.load(defaultValue: seedRecords)
     }

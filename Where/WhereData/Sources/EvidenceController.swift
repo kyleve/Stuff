@@ -37,6 +37,43 @@ public actor EvidenceController {
         return attachment
     }
 
+    public enum BatchImportError: Error, Sendable {
+        case couldNotPersistEvidence
+    }
+
+    public func importEvidence(
+        _ requests: [(manualEntryID: UUID, originalFilename: String, contentType: String, data: Data, createdAt: Date)],
+    ) async throws -> [EvidenceAttachment] {
+        let attachments = requests.map { request in
+            EvidenceAttachment(
+                manualEntryID: request.manualEntryID,
+                originalFilename: request.originalFilename,
+                contentType: request.contentType,
+                byteCount: request.data.count,
+                createdAt: request.createdAt,
+            )
+        }
+
+        guard !attachments.isEmpty else {
+            return []
+        }
+
+        await attachmentRepository.save(attachments)
+
+        for (attachment, request) in zip(attachments, requests) {
+            await fileStore.save(request.data, for: attachment)
+            guard await fileStore.load(for: attachment) != nil else {
+                for persistedAttachment in attachments {
+                    await attachmentRepository.delete(id: persistedAttachment.id)
+                    await fileStore.delete(for: persistedAttachment)
+                }
+                throw BatchImportError.couldNotPersistEvidence
+            }
+        }
+
+        return attachments
+    }
+
     public func loadData(for attachment: EvidenceAttachment) async -> Data? {
         await fileStore.load(for: attachment)
     }

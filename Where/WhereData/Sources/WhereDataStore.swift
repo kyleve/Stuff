@@ -5,6 +5,8 @@ public struct WhereDataStore {
     public let yearDataProvider: RepositoryYearDataProvider
     public let evidenceController: EvidenceController
     public let manualEntryController: ManualEntryController
+    public let manualDataImportController: ManualDataImportController
+    public let resetController: ResetController
     public let syncController: SyncController
     public let yearExportController: YearExportController
     public let locationRepository: any LocationSampleRepository
@@ -14,6 +16,8 @@ public struct WhereDataStore {
         yearDataProvider: RepositoryYearDataProvider,
         evidenceController: EvidenceController,
         manualEntryController: ManualEntryController,
+        manualDataImportController: ManualDataImportController,
+        resetController: ResetController,
         syncController: SyncController,
         yearExportController: YearExportController,
         locationRepository: any LocationSampleRepository,
@@ -22,6 +26,8 @@ public struct WhereDataStore {
         self.yearDataProvider = yearDataProvider
         self.evidenceController = evidenceController
         self.manualEntryController = manualEntryController
+        self.manualDataImportController = manualDataImportController
+        self.resetController = resetController
         self.syncController = syncController
         self.yearExportController = yearExportController
         self.locationRepository = locationRepository
@@ -42,25 +48,16 @@ public struct WhereDataStore {
         fileManager: FileManager = .default,
     ) -> Self {
         let baseURL = defaultBaseURL(fileManager: fileManager)
-        let seedSamples = SampleDataFactory.makeSamples(calendar: calendar)
-        let seedManualEntries = SampleDataFactory.makeManualEntries(calendar: calendar)
-        let seedEvidenceAttachments = SampleDataFactory.makeEvidenceAttachments(
-            manualEntries: seedManualEntries,
-            calendar: calendar,
-        )
         let locationRepository = FileLocationSampleRepository(
             calendar: calendar,
             fileURL: baseURL.appending(path: "location-samples.json"),
-            seedRecords: seedSamples,
         )
         let manualEntryRepository = FileManualLogEntryRepository(
             calendar: calendar,
             fileURL: baseURL.appending(path: "manual-entries.json"),
-            seedRecords: seedManualEntries,
         )
         let evidenceRepository = FileEvidenceAttachmentRepository(
             fileURL: baseURL.appending(path: "evidence-index.json"),
-            seedRecords: seedEvidenceAttachments,
         )
         let syncCheckpointStore = FileSyncCheckpointStore(
             fileURL: baseURL.appending(path: "sync-checkpoint.json"),
@@ -86,6 +83,20 @@ public struct WhereDataStore {
             repository: manualEntryRepository,
             evidenceController: evidenceController,
         )
+        let manualDataImportController = ManualDataImportController(
+            calendar: calendar,
+            manualEntryRepository: manualEntryRepository,
+            manualEntryController: manualEntryController,
+            evidenceController: evidenceController,
+        )
+        let resetController = ResetController(
+            locationRepository: locationRepository,
+            manualEntryRepository: manualEntryRepository,
+            evidenceAttachmentRepository: evidenceRepository,
+            syncCheckpointStore: syncCheckpointStore,
+            trackingStateStore: trackingStateStore,
+            baseDirectoryURL: baseURL,
+        )
         let yearExportController = YearExportController(
             calendar: calendar,
             yearDataProvider: yearDataProvider,
@@ -95,6 +106,8 @@ public struct WhereDataStore {
             yearDataProvider: yearDataProvider,
             evidenceController: evidenceController,
             manualEntryController: manualEntryController,
+            manualDataImportController: manualDataImportController,
+            resetController: resetController,
             syncController: SyncController(store: syncCheckpointStore),
             yearExportController: yearExportController,
             locationRepository: locationRepository,

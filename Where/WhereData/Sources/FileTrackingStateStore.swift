@@ -19,4 +19,12 @@ public actor FileTrackingStateStore: TrackingStateStore {
     public func save(_ state: TrackingState) async {
         store.save(state)
     }
+
+    public func reset() async {
+        store.save(
+            TrackingState(
+                authorizationStatus: .notDetermined,
+            ),
+        )
+    }
 }

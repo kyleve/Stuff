@@ -28,8 +28,15 @@ public actor FileManualLogEntryRepository: ManualLogEntryRepository {
     }
 
     public func save(_ entry: ManualLogEntry) async {
+        await save([entry])
+    }
+
+    public func save(_ entries: [ManualLogEntry]) async {
         var merged = Dictionary(uniqueKeysWithValues: records().map { ($0.id, $0) })
-        merged[entry.id] = entry
+        for entry in entries {
+            merged[entry.id] = entry
+        }
+
         let ordered = merged.values.sorted { lhs, rhs in
             if lhs.timestamp == rhs.timestamp {
                 return lhs.id.uuidString < rhs.id.uuidString
@@ -42,6 +49,10 @@ public actor FileManualLogEntryRepository: ManualLogEntryRepository {
 
     public func delete(id: UUID) async {
         store.save(records().filter { $0.id != id })
+    }
+
+    public func removeAll() async {
+        store.save([])
     }
 
     private func records() -> [ManualLogEntry] {

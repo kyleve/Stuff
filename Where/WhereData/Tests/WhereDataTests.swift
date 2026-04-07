@@ -272,6 +272,210 @@ func manualEntryControllerCreatesPreviewFileURLForEvidence() async throws {
 }
 
 @Test
+func fileManualLogEntryRepositoryBatchSaveMergesImportedEntries() async throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    let repository = FileManualLogEntryRepository(
+        calendar: calendarUTC(),
+        fileURL: directory.appending(path: "manual-entries.json"),
+    )
+    let original = try ManualLogEntry(
+        id: UUID(),
+        timestamp: makeDate(year: 2026, month: 4, day: 5, hour: 9),
+        jurisdiction: .california,
+        note: "Original",
+        kind: .supplemental,
+    )
+    let later = try ManualLogEntry(
+        timestamp: makeDate(year: 2026, month: 4, day: 5, hour: 11),
+        jurisdiction: .newYork,
+        note: "Later",
+        kind: .supplemental,
+    )
+    let updated = ManualLogEntry(
+        id: original.id,
+        timestamp: original.timestamp,
+        jurisdiction: .newYork,
+        note: "Updated",
+        kind: .correction,
+    )
+
+    await repository.save([original, later])
+    await repository.save([updated])
+
+    let entries = await repository.entries(in: 2026)
+
+    #expect(entries == [updated, later])
+}
+
+@Test
+func manualDataImportControllerPreviewsBackfillAcrossYearBoundary() async throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(
+        at: directory,
+        withIntermediateDirectories: true,
+        attributes: nil,
+    )
+    let evidenceURL = directory.appending(path: "ticket.txt")
+    try Data("ticket".utf8).write(to: evidenceURL)
+
+    let controller = makeManualDataImportController(directory: directory)
+    let preview = try await controller.previewBackfill(
+        ManualImportBackfillRequest(
+            startDate: makeDate(year: 2025, month: 12, day: 31, hour: 9),
+            endDate: makeDate(year: 2026, month: 1, day: 2, hour: 9),
+            jurisdiction: .california,
+            note: "Year boundary import",
+            kind: .supplemental,
+            evidenceFiles: [evidenceURL],
+        ),
+    )
+
+    #expect(preview.isValid)
+    #expect(preview.entryCount == 3)
+    #expect(preview.evidenceAttachmentCount == 3)
+    #expect(preview.sharedEvidenceAttachmentCount == 1)
+    #expect(preview.yearSpan == 2025 ... 2026)
+}
+
+@Test
+func manualDataImportControllerImportsPackageManifestWithEvidence() async throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(
+        at: directory.appending(path: "evidence"),
+        withIntermediateDirectories: true,
+        attributes: nil,
+    )
+    let manifest = try ManualImportPackageManifest(
+        entries: [
+            .init(
+                timestamp: makeDate(year: 2026, month: 4, day: 5, hour: 10),
+                jurisdiction: .state("CA"),
+                note: "Imported from manifest",
+                kind: .supplemental,
+                evidenceFilenames: ["ticket.txt"],
+            ),
+        ],
+    )
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .iso8601
+    try encoder.encode(manifest).write(to: directory.appending(path: "manifest.json"))
+    try Data("ticket-data".utf8).write(to: directory.appending(path: "evidence/ticket.txt"))
+
+    let evidenceRepository = FileEvidenceAttachmentRepository(
+        fileURL: directory.appending(path: "evidence-index.json"),
+    )
+    let evidenceController = EvidenceController(
+        attachmentRepository: evidenceRepository,
+        fileStore: FileEvidenceBlobStore(baseDirectoryURL: directory.appending(path: "evidence-store")),
+    )
+    let manualRepository = FileManualLogEntryRepository(
+        calendar: calendarUTC(),
+        fileURL: directory.appending(path: "manual-entries.json"),
+    )
+    let controller = ManualDataImportController(
+        calendar: calendarUTC(),
+        manualEntryRepository: manualRepository,
+        manualEntryController: ManualEntryController(
+            repository: manualRepository,
+            evidenceController: evidenceController,
+        ),
+        evidenceController: evidenceController,
+    )
+
+    let preview = await controller.previewPackage(at: directory)
+    let records = await controller.importPackage(at: directory)
+
+    #expect(preview.isValid)
+    #expect(preview.entryCount == 1)
+    #expect(records.count == 1)
+    #expect(records.first?.entry.jurisdiction == .california)
+    #expect(records.first?.entry.note == "Imported from manifest")
+    #expect(records.first?.attachments.count == 1)
+    #expect(records.first?.attachments.first?.originalFilename == "ticket.txt")
+}
+
+@Test
+func manualDataImportControllerFlagsMissingEvidenceInPackagePreview() async throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(
+        at: directory,
+        withIntermediateDirectories: true,
+        attributes: nil,
+    )
+    let manifest = try ManualImportPackageManifest(
+        entries: [
+            .init(
+                timestamp: makeDate(year: 2026, month: 4, day: 5, hour: 10),
+                jurisdiction: .state("CA"),
+                note: "Missing file",
+                kind: .correction,
+                evidenceFilenames: ["missing-ticket.txt"],
+            ),
+        ],
+    )
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .iso8601
+    try encoder.encode(manifest).write(to: directory.appending(path: "manifest.json"))
+
+    let controller = makeManualDataImportController(directory: directory)
+    let preview = await controller.previewPackage(at: directory)
+
+    #expect(!preview.isValid)
+    #expect(preview.issues.contains { $0.message.contains("Missing evidence file") })
+}
+
+@Test
+func manualDataImportControllerRollsBackEntriesWhenEvidencePersistenceFails() async throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(
+        at: directory,
+        withIntermediateDirectories: true,
+        attributes: nil,
+    )
+    let evidenceURL = directory.appending(path: "ticket.txt")
+    try Data("ticket".utf8).write(to: evidenceURL)
+
+    let manualRepository = FileManualLogEntryRepository(
+        calendar: calendarUTC(),
+        fileURL: directory.appending(path: "manual-entries.json"),
+    )
+    let evidenceRepository = FileEvidenceAttachmentRepository(
+        fileURL: directory.appending(path: "evidence-index.json"),
+    )
+    let evidenceController = EvidenceController(
+        attachmentRepository: evidenceRepository,
+        fileStore: FailingEvidenceFileStore(),
+    )
+    let controller = ManualDataImportController(
+        calendar: calendarUTC(),
+        manualEntryRepository: manualRepository,
+        manualEntryController: ManualEntryController(
+            repository: manualRepository,
+            evidenceController: evidenceController,
+        ),
+        evidenceController: evidenceController,
+    )
+    let entry = try ManualImportEntryDraft(
+        timestamp: makeDate(year: 2026, month: 4, day: 5, hour: 10),
+        jurisdiction: .newYork,
+        note: "Should roll back",
+        kind: .supplemental,
+        evidenceFiles: [evidenceURL],
+    )
+
+    let imported = await controller.importEntries([entry])
+
+    #expect(imported.isEmpty)
+    #expect(await manualRepository.entries(in: 2026).isEmpty)
+    #expect(await evidenceRepository.attachments(for: entry.id).isEmpty)
+}
+
+@Test
 func yearExportControllerBuildsPlainTextAndPDFBundle() async throws {
     let year = 2026
     let generatedAt = try makeDate(year: year, month: 4, day: 6, hour: 18)
@@ -322,6 +526,83 @@ func yearExportControllerBuildsPlainTextAndPDFBundle() async throws {
     #expect(bundle.plaintextFilename == "where-2026-report.txt")
     #expect(bundle.pdfFilename == "where-2026-report.pdf")
     #expect(String(decoding: bundle.pdfData.prefix(8), as: UTF8.self).hasPrefix("%PDF-1.4"))
+}
+
+@Test
+func resetControllerClearsPersistedWhereData() async throws {
+    let directory = FileManager.default.temporaryDirectory
+        .appending(path: UUID().uuidString)
+    let locationRepository = FileLocationSampleRepository(
+        calendar: calendarUTC(),
+        fileURL: directory.appending(path: "location-samples.json"),
+    )
+    let manualRepository = FileManualLogEntryRepository(
+        calendar: calendarUTC(),
+        fileURL: directory.appending(path: "manual-entries.json"),
+    )
+    let evidenceRepository = FileEvidenceAttachmentRepository(
+        fileURL: directory.appending(path: "evidence-index.json"),
+    )
+    let syncCheckpointStore = FileSyncCheckpointStore(
+        fileURL: directory.appending(path: "sync-checkpoint.json"),
+    )
+    let trackingStateStore = FileTrackingStateStore(
+        fileURL: directory.appending(path: "tracking-state.json"),
+    )
+    let evidenceController = EvidenceController(
+        attachmentRepository: evidenceRepository,
+        fileStore: FileEvidenceBlobStore(
+            baseDirectoryURL: directory.appending(path: "evidence"),
+        ),
+    )
+    let resetController = ResetController(
+        locationRepository: locationRepository,
+        manualEntryRepository: manualRepository,
+        evidenceAttachmentRepository: evidenceRepository,
+        syncCheckpointStore: syncCheckpointStore,
+        trackingStateStore: trackingStateStore,
+        baseDirectoryURL: directory,
+    )
+
+    let sample = try LocationSample(
+        timestamp: makeDate(year: 2026, month: 4, day: 5, hour: 9),
+        jurisdiction: .california,
+    )
+    let entry = try ManualLogEntry(
+        timestamp: makeDate(year: 2026, month: 4, day: 5, hour: 10),
+        jurisdiction: .newYork,
+        note: "Reset me",
+        kind: .correction,
+    )
+    await locationRepository.upsert([sample])
+    await manualRepository.save(entry)
+    _ = await evidenceController.importEvidence(
+        manualEntryID: entry.id,
+        originalFilename: "ticket.txt",
+        contentType: "text/plain",
+        data: Data("ticket".utf8),
+    )
+    await syncCheckpointStore.save(
+        SyncCheckpoint(
+            state: .failed,
+            failureReason: "Network",
+        ),
+    )
+    try await trackingStateStore.save(
+        TrackingState(
+            authorizationStatus: .authorizedAlways,
+            lastRecordedSampleAt: makeDate(year: 2026, month: 4, day: 5, hour: 9),
+            isMonitoringActive: true,
+        ),
+    )
+
+    await resetController.resetAllData()
+
+    #expect(await locationRepository.samples(in: 2026).isEmpty)
+    #expect(await manualRepository.entries(in: 2026).isEmpty)
+    #expect(await evidenceRepository.attachments(for: entry.id).isEmpty)
+    #expect(await syncCheckpointStore.checkpoint() == .init(state: .idle))
+    #expect(await trackingStateStore.load() == TrackingState(authorizationStatus: .notDetermined))
 }
 
 @Test
@@ -482,6 +763,31 @@ private func makeDate(
     return try #require(components.date)
 }
 
+private func makeManualDataImportController(directory: URL) -> ManualDataImportController {
+    let manualRepository = FileManualLogEntryRepository(
+        calendar: calendarUTC(),
+        fileURL: directory.appending(path: "manual-entries.json"),
+    )
+    let evidenceController = EvidenceController(
+        attachmentRepository: FileEvidenceAttachmentRepository(
+            fileURL: directory.appending(path: "evidence-index.json"),
+        ),
+        fileStore: FileEvidenceBlobStore(
+            baseDirectoryURL: directory.appending(path: "evidence-store"),
+        ),
+    )
+
+    return ManualDataImportController(
+        calendar: calendarUTC(),
+        manualEntryRepository: manualRepository,
+        manualEntryController: ManualEntryController(
+            repository: manualRepository,
+            evidenceController: evidenceController,
+        ),
+        evidenceController: evidenceController,
+    )
+}
+
 private actor InMemoryLocationSampleRepository: LocationSampleRepository {
     private var samples: [LocationSample] = []
 
@@ -503,6 +809,10 @@ private actor InMemoryLocationSampleRepository: LocationSampleRepository {
         }
         self.samples = merged.values.sorted { $0.timestamp < $1.timestamp }
     }
+
+    func removeAll() async {
+        samples = []
+    }
 }
 
 private actor InMemoryTrackingStateStore: TrackingStateStore {
@@ -519,6 +829,20 @@ private actor InMemoryTrackingStateStore: TrackingStateStore {
     func save(_ state: TrackingState) async {
         self.state = state
     }
+
+    func reset() async {
+        state = TrackingState(authorizationStatus: .notDetermined)
+    }
+}
+
+private actor FailingEvidenceFileStore: EvidenceFileStore {
+    func save(_: Data, for _: EvidenceAttachment) async {}
+
+    func load(for _: EvidenceAttachment) async -> Data? {
+        nil
+    }
+
+    func delete(for _: EvidenceAttachment) async {}
 }
 
 private actor StubLocationWakeSource: LocationWakeSource {

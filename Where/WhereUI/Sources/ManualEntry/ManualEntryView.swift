@@ -13,6 +13,8 @@ struct ManualEntryView: View {
     )
     @State private var isPresentingEditor = false
     @State private var importingEvidenceEntryID: UUID?
+    @State private var isPresentingBackfill = false
+    @State private var isImportingPackage = false
     @State private var isExportingPlainText = false
     @State private var isExportingPDF = false
 
@@ -31,6 +33,30 @@ struct ManualEntryView: View {
             List {
                 Section("Selected Year") {
                     Text(String(rootViewModel.selectedYear))
+                }
+
+                Section("Data") {
+                    Text("Locations and manual entries are stored on device. If you saw unfamiliar content before, it may have come from earlier seeded sample data or persisted local data from a previous run.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    Button("Reset Stored Data", role: .destructive) {
+                        viewModel.requestResetConfirmation()
+                    }
+                }
+
+                Section("Import") {
+                    Text("Backfill prior travel with day-level entries, or import a package with a manifest and evidence files.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    Button("Backfill Days") {
+                        isPresentingBackfill = true
+                    }
+
+                    Button("Import Package") {
+                        isImportingPackage = true
+                    }
                 }
 
                 Section("Export") {
@@ -132,6 +158,13 @@ struct ManualEntryView: View {
                 }
             }
         }
+        .sheet(isPresented: $isPresentingBackfill) {
+            ManualBackfillView(initialDate: Date()) { request in
+                Task {
+                    await viewModel.previewBackfill(request)
+                }
+            }
+        }
         .fileImporter(
             isPresented: Binding(
                 get: { importingEvidenceEntryID != nil },
@@ -170,6 +203,22 @@ struct ManualEntryView: View {
 
             importingEvidenceEntryID = nil
         }
+        .fileImporter(
+            isPresented: $isImportingPackage,
+            allowedContentTypes: allowedPackageTypes,
+            allowsMultipleSelection: false,
+        ) { result in
+            guard
+                case let .success(urls) = result,
+                let directoryURL = urls.first
+            else {
+                return
+            }
+
+            Task {
+                await viewModel.previewPackage(at: directoryURL)
+            }
+        }
         .fileExporter(
             isPresented: $isExportingPlainText,
             document: viewModel.plainTextExportDocument,
@@ -202,6 +251,125 @@ struct ManualEntryView: View {
             }
         } message: {
             Text(viewModel.errorMessage ?? "")
+        }
+        .confirmationDialog(
+            "Reset Stored Data?",
+            isPresented: Binding(
+                get: { viewModel.isShowingResetConfirmation },
+                set: { isPresented in
+                    if !isPresented {
+                        viewModel.dismissResetConfirmation()
+                    }
+                },
+            ),
+            titleVisibility: .visible,
+        ) {
+            Button("Reset All Data", role: .destructive) {
+                Task {
+                    await viewModel.resetAllData(for: rootViewModel.selectedYear)
+                    await rootViewModel.reloadAfterDataReset()
+                }
+            }
+
+            Button("Cancel", role: .cancel) {
+                viewModel.dismissResetConfirmation()
+            }
+        } message: {
+            Text("This removes all stored locations, manual entries, evidence metadata, and export activity from this device.")
+        }
+        .sheet(
+            isPresented: Binding(
+                get: { viewModel.isShowingImportPreview },
+                set: { isPresented in
+                    if !isPresented {
+                        viewModel.dismissImportPreview()
+                    }
+                },
+            ),
+        ) {
+            NavigationStack {
+                List {
+                    if let preview = viewModel.activeImportPreview {
+                        Section("Summary") {
+                            LabeledContent("Source", value: viewModel.importSourceDescription ?? "Import")
+                            LabeledContent("Entries", value: String(preview.entryCount))
+                            LabeledContent("Evidence Attachments", value: String(preview.evidenceAttachmentCount))
+
+                            if let yearSpan = preview.yearSpan {
+                                LabeledContent("Years", value: yearSpan.lowerBound == yearSpan.upperBound ? String(yearSpan.lowerBound) : "\(yearSpan.lowerBound)-\(yearSpan.upperBound)")
+                            }
+
+                            if preview.sharedEvidenceAttachmentCount > 0 {
+                                LabeledContent("Shared Files", value: String(preview.sharedEvidenceAttachmentCount))
+                            }
+                        }
+
+                        if !preview.issues.isEmpty {
+                            Section("Validation") {
+                                ForEach(preview.issues) { issue in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(issue.severity.rawValue.capitalized)
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(issue.severity == .error ? .red : .orange)
+                                        Text(issue.message)
+                                            .font(.footnote)
+                                    }
+                                    .padding(.vertical, 2)
+                                }
+                            }
+                        }
+
+                        if !preview.entries.isEmpty {
+                            Section("Preview") {
+                                ForEach(preview.entries.prefix(20)) { entry in
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(entry.timestamp, format: .dateTime.month().day().year().hour().minute())
+                                            .font(.headline)
+                                        Text(entry.jurisdiction.displayName)
+                                            .foregroundStyle(.secondary)
+
+                                        if !entry.note.isEmpty {
+                                            Text(entry.note)
+                                                .font(.footnote)
+                                        }
+
+                                        if !entry.evidenceFiles.isEmpty {
+                                            Text("\(entry.evidenceFiles.count) evidence file(s)")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    .padding(.vertical, 2)
+                                }
+
+                                if preview.entries.count > 20 {
+                                    Text("Showing first 20 of \(preview.entries.count) entries.")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+                .navigationTitle("Import Preview")
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            viewModel.dismissImportPreview()
+                        }
+                    }
+
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Import") {
+                            Task {
+                                await viewModel.confirmImport(for: rootViewModel.selectedYear)
+                                await rootViewModel.selectYear(rootViewModel.selectedYear)
+                            }
+                        }
+                        .disabled(!(viewModel.activeImportPreview?.isValid ?? false))
+                    }
+                }
+            }
         }
         .quickLookPreview(
             Binding(
@@ -381,5 +549,13 @@ struct ManualEntryView: View {
         }
 
         return jurisdictions.map(\.displayName).joined(separator: ", ")
+    }
+
+    private var allowedPackageTypes: [UTType] {
+        #if os(macOS)
+            [.directory]
+        #else
+            [.folder]
+        #endif
     }
 }

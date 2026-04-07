@@ -15,4 +15,8 @@ public actor FileSyncCheckpointStore: SyncCheckpointStore {
     public func save(_ checkpoint: SyncCheckpoint) async {
         store.save(checkpoint)
     }
+
+    public func reset() async {
+        store.save(.init(state: .idle))
+    }
 }

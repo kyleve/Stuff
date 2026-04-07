@@ -9,30 +9,41 @@ public final class ManualEntryViewModel {
     public private(set) var daySections: [ManualEntryDaySection] = []
     public private(set) var isLoading = false
     public private(set) var errorMessage: String?
+    public private(set) var activeImportPreview: ManualImportPreview?
+    public private(set) var importSourceDescription: String?
+    public private(set) var isShowingImportPreview = false
     public private(set) var plainTextExportDocument: PlainTextExportDocument?
     public private(set) var plainTextFilename = "where-export"
     public private(set) var pdfExportDocument: PDFExportDocument?
     public private(set) var pdfFilename = "where-export"
     public private(set) var previewURL: URL?
     public private(set) var shareURL: URL?
+    public private(set) var isShowingResetConfirmation = false
 
     private let manager: any ManualEntryManaging
+    private let importer: any ManualDataImporting
     private let exporter: any YearExporting
     private let yearDataProvider: any YearDataProviding
+    private let resetter: any WhereDataResetting
     private let ledgerBuilder: YearLedgerBuilder
     private let reportActivityFormatter: DateFormatter
     private var stagedEvidenceURLs: [UUID: URL] = [:]
     private var reportActivities: [Int: [ManualReportFormat: ReportActivityState]] = [:]
+    private var pendingPackageDirectoryURL: URL?
 
     public init(
         manager: any ManualEntryManaging,
+        importer: any ManualDataImporting,
         exporter: any YearExporting,
         yearDataProvider: any YearDataProviding,
+        resetter: any WhereDataResetting,
         calendar: Calendar = .current,
     ) {
         self.manager = manager
+        self.importer = importer
         self.exporter = exporter
         self.yearDataProvider = yearDataProvider
+        self.resetter = resetter
         ledgerBuilder = YearLedgerBuilder(calendar: calendar)
 
         reportActivityFormatter = DateFormatter()
@@ -216,6 +227,79 @@ public final class ManualEntryViewModel {
 
     public func clearError() {
         errorMessage = nil
+    }
+
+    public func previewBackfill(_ request: ManualImportBackfillRequest) async {
+        isLoading = true
+        let preview = await importer.previewBackfill(request)
+        activeImportPreview = preview
+        importSourceDescription = "Backfill"
+        pendingPackageDirectoryURL = nil
+        isShowingImportPreview = true
+        isLoading = false
+    }
+
+    public func previewPackage(at directoryURL: URL) async {
+        isLoading = true
+        let preview = await importer.previewPackage(at: directoryURL)
+        activeImportPreview = preview
+        importSourceDescription = directoryURL.lastPathComponent
+        pendingPackageDirectoryURL = directoryURL
+        isShowingImportPreview = true
+        isLoading = false
+    }
+
+    public func dismissImportPreview() {
+        isShowingImportPreview = false
+        activeImportPreview = nil
+        importSourceDescription = nil
+        pendingPackageDirectoryURL = nil
+    }
+
+    public func confirmImport(for year: Int) async {
+        guard let preview = activeImportPreview, preview.isValid else {
+            errorMessage = "The selected import data needs to be fixed before importing."
+            return
+        }
+
+        isLoading = true
+        let importedRecords: [ManualEntryRecord] = if let pendingPackageDirectoryURL {
+            await importer.importPackage(at: pendingPackageDirectoryURL)
+        } else {
+            await importer.importEntries(preview.entries)
+        }
+        if importedRecords.isEmpty {
+            errorMessage = "The import could not be completed."
+        } else {
+            dismissImportPreview()
+        }
+        await refreshRecords(for: year)
+        isLoading = false
+    }
+
+    public func requestResetConfirmation() {
+        isShowingResetConfirmation = true
+    }
+
+    public func dismissResetConfirmation() {
+        isShowingResetConfirmation = false
+    }
+
+    public func resetAllData(for year: Int) async {
+        isLoading = true
+        defer {
+            isLoading = false
+            isShowingResetConfirmation = false
+        }
+
+        await resetter.resetAllData()
+        previewURL = nil
+        shareURL = nil
+        plainTextExportDocument = nil
+        pdfExportDocument = nil
+        reportActivities.removeAll()
+        stagedEvidenceURLs.removeAll()
+        await refreshRecords(for: year)
     }
 
     private func refreshRecords(for year: Int) async {
