@@ -5,7 +5,14 @@ import os
 /// list of polygons per region; checked in declaration order so the first
 /// match wins (regions are mutually exclusive at our resolution).
 ///
-/// Polygons are loaded from bundled simplified GeoJSON in `Resources/`.
+/// Polygons are loaded from bundled GeoJSON in `Resources/`:
+/// - US states (`Region.california`, `Region.newYork`, ...) come out of a
+///   single `us-states.geojson` indexed by feature `NAME`. Adding another
+///   US state is just a new `Region` case plus an entry in `usStateNames`
+///   below — no new file to bundle.
+/// - Non-US regions (`.canada`, `.europeanUnion`) keep a dedicated
+///   per-region file named after the enum `rawValue`.
+///
 /// Anything not inside any bundled polygon is `.other`.
 public struct RegionAttributor: Sendable {
     private let regionPolygons: [(region: Region, polygons: [GeoPolygon])]
@@ -29,16 +36,34 @@ public struct RegionAttributor: Sendable {
 
     private static let logger = Logger(subsystem: "com.stuff.where", category: "RegionAttributor")
 
+    /// `Region` cases that resolve to a US state in `us-states.geojson`.
+    /// The value is the GeoJSON feature's `properties.NAME`.
+    private static let usStateNames: [Region: String] = [
+        .california: "California",
+        .newYork: "New York",
+    ]
+
     private static func loadFromBundle() -> RegionAttributor {
         let regions: [Region] = [.california, .newYork, .canada, .europeanUnion]
+        let usStateIndex = loadUSStateIndex(matching: Set(usStateNames.values))
+
         var entries: [(region: Region, polygons: [GeoPolygon])] = []
         for region in regions {
+            if let stateName = usStateNames[region] {
+                if let polygons = usStateIndex[stateName] {
+                    entries.append((region, polygons))
+                } else {
+                    // Either the bundle resource is missing entirely (caught
+                    // upstream and logged) or the named feature isn't in the
+                    // file. Either way, this region would silently attribute
+                    // to `.other`; surface it via fault + assertionFailure.
+                    logger.fault("Missing feature \(stateName, privacy: .public) in bundled us-states.geojson for region \(region.rawValue, privacy: .public)")
+                    assertionFailure("Missing feature \(stateName) in us-states.geojson for region \(region.rawValue)")
+                }
+                continue
+            }
+
             guard let url = Bundle.module.url(forResource: region.rawValue, withExtension: "geojson") else {
-                // Missing required bundle resource — everything inside this
-                // region would silently attribute to `.other` if we ignored
-                // it. Log a `fault` so it shows up in Console/os_log in
-                // release, plus `assertionFailure` so debug builds blow up
-                // loudly during development.
                 logger.fault("Missing required bundled GeoJSON for region \(region.rawValue, privacy: .public)")
                 assertionFailure("Missing bundled GeoJSON for region \(region.rawValue)")
                 continue
@@ -53,27 +78,51 @@ public struct RegionAttributor: Sendable {
         }
         return RegionAttributor(regionPolygons: entries)
     }
+
+    /// Loads `us-states.geojson`, decodes only the features whose
+    /// `properties.NAME` is in `wanted`, and returns
+    /// `[NAME: [GeoPolygon]]`. Returns `[:]` (with logging) if the file is
+    /// missing or unparseable; callers then fall back to per-region
+    /// `assertionFailure` reporting so the diagnostic is attached to the
+    /// missing-state name rather than the file as a whole.
+    private static func loadUSStateIndex(matching wanted: Set<String>) -> [String: [GeoPolygon]] {
+        guard let url = Bundle.module.url(forResource: "us-states", withExtension: "geojson") else {
+            logger.fault("Missing required bundled us-states.geojson")
+            assertionFailure("Missing bundled us-states.geojson")
+            return [:]
+        }
+        do {
+            let data = try Data(contentsOf: url)
+            let decoded = try JSONDecoder().decode(GeoJSONFeatureCollection.self, from: data)
+            var index: [String: [GeoPolygon]] = [:]
+            for feature in decoded.features {
+                guard let name = feature.properties?.name, wanted.contains(name) else { continue }
+                index[name, default: []].append(contentsOf: polygons(from: feature.geometry))
+            }
+            return index
+        } catch {
+            logger.fault("Failed to decode bundled us-states.geojson: \(error.localizedDescription, privacy: .public)")
+            assertionFailure("Failed to decode bundled us-states.geojson: \(error)")
+            return [:]
+        }
+    }
 }
 
 private func loadGeoJSONPolygons(at url: URL) throws -> [GeoPolygon] {
     let data = try Data(contentsOf: url)
     let decoded = try JSONDecoder().decode(GeoJSONFeatureCollection.self, from: data)
-    var polygons: [GeoPolygon] = []
-    for feature in decoded.features {
-        switch feature.geometry {
-            case let .polygon(rings):
-                if let exterior = rings.first {
-                    polygons.append(makePolygon(from: exterior))
-                }
-            case let .multiPolygon(polys):
-                for polyRings in polys {
-                    if let exterior = polyRings.first {
-                        polygons.append(makePolygon(from: exterior))
-                    }
-                }
-        }
+    return decoded.features.flatMap { polygons(from: $0.geometry) }
+}
+
+private func polygons(from geometry: GeoJSONGeometry) -> [GeoPolygon] {
+    switch geometry {
+        case let .polygon(rings):
+            rings.first.map { [makePolygon(from: $0)] } ?? []
+        case let .multiPolygon(polys):
+            polys.compactMap { polyRings in
+                polyRings.first.map { makePolygon(from: $0) }
+            }
     }
-    return polygons
 }
 
 private func makePolygon(from ring: [[Double]]) -> GeoPolygon {
@@ -92,6 +141,15 @@ private struct GeoJSONFeatureCollection: Decodable {
 private struct GeoJSONFeature: Decodable {
     let type: String
     let geometry: GeoJSONGeometry
+    let properties: GeoJSONProperties?
+}
+
+private struct GeoJSONProperties: Decodable {
+    let name: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case name = "NAME"
+    }
 }
 
 private enum GeoJSONGeometry: Decodable {

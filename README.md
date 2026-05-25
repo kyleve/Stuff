@@ -49,6 +49,18 @@ Shared/StuffTestHost/  Shared iOS unit-test host app (Sources/)
 Where/              Where iOS app, modules, and tests
 ```
 
+## Acknowledgements
+
+The Where module bundles offline region polygons under
+[`Where/WhereCore/Sources/Resources/`](Where/WhereCore/Sources/Resources/).
+US state boundaries come from
+[eric.clst.org/tech/usgeojson](https://eric.clst.org/tech/usgeojson/)
+(`gz_2010_us_040_00_5m.json`), converted from the
+[US Census Bureau Cartographic Boundary Files](https://www.census.gov/geographies/mapping-files/time-series/geo/cartographic-boundary.html);
+US Government works are in the public domain. See
+[`Where/WhereCore/Sources/Resources/README.md`](Where/WhereCore/Sources/Resources/README.md)
+for per-file provenance.
+
 ## License
 
 Apache 2.0 – see [LICENSE](LICENSE).
