@@ -3,3 +3,13 @@
 --indentcase true
 --extension-acl on-declarations
 --exclude Derived
+
+# SwiftFormat can't enforce "wrap when there are >= N arguments", only
+# "wrap when the unwrapped line exceeds --max-width". 120 columns is
+# tight enough that nearly every real multi-arg function ends up
+# wrapped, while leaving most single-arg calls (including the long-ish
+# `logger.fault("…")` lines) untouched.
+--max-width 120
+--wrap-arguments before-first
+--wrap-parameters before-first
+--wrap-collections before-first

@@ -57,7 +57,10 @@ public struct RegionAttributor: Sendable {
                     // upstream and logged) or the named feature isn't in the
                     // file. Either way, this region would silently attribute
                     // to `.other`; surface it via fault + assertionFailure.
-                    logger.fault("Missing feature \(stateName, privacy: .public) in bundled us-states.geojson for region \(region.rawValue, privacy: .public)")
+                    logger
+                        .fault(
+                            "Missing feature \(stateName, privacy: .public) in bundled us-states.geojson for region \(region.rawValue, privacy: .public)",
+                        )
                     assertionFailure("Missing feature \(stateName) in us-states.geojson for region \(region.rawValue)")
                 }
                 continue
@@ -72,7 +75,10 @@ public struct RegionAttributor: Sendable {
                 let polygons = try loadGeoJSONPolygons(at: url)
                 entries.append((region, polygons))
             } catch {
-                logger.fault("Failed to decode bundled GeoJSON \(region.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                logger
+                    .fault(
+                        "Failed to decode bundled GeoJSON \(region.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)",
+                    )
                 assertionFailure("Failed to decode bundled GeoJSON \(region.rawValue): \(error)")
             }
         }

@@ -36,8 +36,24 @@ enum SimulatedYear {
             originLat: Double, originLng: Double,
             destLat: Double, destLng: Double,
         ) async {
-            await emit(controller: controller, calendar: calendar, month: month, day: day, hour: 6, lat: originLat, lng: originLng)
-            await emit(controller: controller, calendar: calendar, month: month, day: day, hour: 20, lat: destLat, lng: destLng)
+            await emit(
+                controller: controller,
+                calendar: calendar,
+                month: month,
+                day: day,
+                hour: 6,
+                lat: originLat,
+                lng: originLng,
+            )
+            await emit(
+                controller: controller,
+                calendar: calendar,
+                month: month,
+                day: day,
+                hour: 20,
+                lat: destLat,
+                lng: destLng,
+            )
         }
 
         // Jan: SF (31 days)
@@ -73,7 +89,14 @@ enum SimulatedYear {
         for d in 17 ... 28 {
             await emitNoon(month: 5, day: d, lat: paris.lat, lng: paris.lng)
         }
-        await emitFlight(month: 5, day: 29, originLat: paris.lat, originLng: paris.lng, destLat: nyc.lat, destLng: nyc.lng)
+        await emitFlight(
+            month: 5,
+            day: 29,
+            originLat: paris.lat,
+            originLng: paris.lng,
+            destLat: nyc.lat,
+            destLng: nyc.lng,
+        )
         for d in 30 ... 31 {
             await emitNoon(month: 5, day: d, lat: nyc.lat, lng: nyc.lng)
         }
@@ -81,11 +104,25 @@ enum SimulatedYear {
         for d in 1 ... 15 {
             await emitNoon(month: 6, day: d, lat: nyc.lat, lng: nyc.lng)
         }
-        await emitFlight(month: 6, day: 16, originLat: nyc.lat, originLng: nyc.lng, destLat: toronto.lat, destLng: toronto.lng)
+        await emitFlight(
+            month: 6,
+            day: 16,
+            originLat: nyc.lat,
+            originLng: nyc.lng,
+            destLat: toronto.lat,
+            destLng: toronto.lng,
+        )
         for d in 17 ... 21 {
             await emitNoon(month: 6, day: d, lat: toronto.lat, lng: toronto.lng)
         }
-        await emitFlight(month: 6, day: 22, originLat: toronto.lat, originLng: toronto.lng, destLat: nyc.lat, destLng: nyc.lng)
+        await emitFlight(
+            month: 6,
+            day: 22,
+            originLat: toronto.lat,
+            originLng: toronto.lng,
+            destLat: nyc.lat,
+            destLng: nyc.lng,
+        )
         for d in 23 ... 30 {
             await emitNoon(month: 6, day: d, lat: nyc.lat, lng: nyc.lng)
         }

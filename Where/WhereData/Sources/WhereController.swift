@@ -107,7 +107,10 @@ public actor WhereController {
                     // dropped. The stream keeps running so a transient error
                     // doesn't stop tracking, but the failure is visible in
                     // Console and `os_log` traces.
-                    logger.error("Failed to persist GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                    logger
+                        .error(
+                            "Failed to persist GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
+                        )
                 }
             }
         }
