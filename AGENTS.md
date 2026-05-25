@@ -97,3 +97,12 @@ the main conversation stays responsive.
 This rule is specific to remote CI. Local commands — `tuist test`,
 `swift build`, `./swiftformat --lint`, etc. — should still be awaited
 inline in the main conversation.
+
+## Posting on the user's behalf
+
+Anything an agent posts under the user's identity (GitHub PR replies,
+issue comments, review responses, Slack messages, etc.) must be
+prefixed so the reader knows it was AI-generated, not the user
+speaking. Use a short tag like `> _Posted by an AI agent on $USER's
+behalf._` as the first line, then the actual content. Do not omit the
+prefix even when the comment is short or factual.
