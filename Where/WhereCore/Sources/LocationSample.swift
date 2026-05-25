@@ -26,7 +26,7 @@ public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
         id: UUID = UUID(),
         timestamp: Date,
         coordinate: Coordinate,
-        horizontalAccuracy: Double = 0,
+        horizontalAccuracy: Double,
         source: SampleSource,
     ) {
         self.id = id

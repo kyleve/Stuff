@@ -9,6 +9,7 @@ struct InMemoryStoreTests {
         let sample = LocationSample(
             timestamp: Date(timeIntervalSince1970: 1_700_000_000),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
             source: .gpsVisit,
         )
         try await store.addSample(sample)
@@ -21,16 +22,19 @@ struct InMemoryStoreTests {
         let early = LocationSample(
             timestamp: Date(timeIntervalSince1970: 1_000_000_000),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
             source: .manual,
         )
         let middle = LocationSample(
             timestamp: Date(timeIntervalSince1970: 1_500_000_000),
             coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
+            horizontalAccuracy: 0,
             source: .manual,
         )
         let late = LocationSample(
             timestamp: Date(timeIntervalSince1970: 2_000_000_000),
             coordinate: Coordinate(latitude: 48.8566, longitude: 2.3522),
+            horizontalAccuracy: 0,
             source: .manual,
         )
         try await store.addSample(late)
@@ -89,11 +93,13 @@ struct InMemoryStoreTests {
         try await store.addSample(LocationSample(
             timestamp: inside,
             coordinate: Coordinate(latitude: 0, longitude: 0),
+            horizontalAccuracy: 0,
             source: .manual,
         ))
         try await store.addSample(LocationSample(
             timestamp: outside,
             coordinate: Coordinate(latitude: 0, longitude: 0),
+            horizontalAccuracy: 0,
             source: .manual,
         ))
         try await store.addEvidence(

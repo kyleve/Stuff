@@ -172,6 +172,7 @@ enum SimulatedYear {
         try? await controller.ingest(LocationSample(
             timestamp: date,
             coordinate: Coordinate(latitude: lat, longitude: lng),
+            horizontalAccuracy: 0,
             source: .gpsSignificantChange,
         ))
     }

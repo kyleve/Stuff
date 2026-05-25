@@ -60,9 +60,12 @@ public struct DayAggregator: Sendable {
         return YearReport(year: year, days: yearDays, totals: totals)
     }
 
-    /// `DateInterval` spanning the requested calendar year in this aggregator's
-    /// calendar and timezone. Useful for telling a `WhereStore` what range
-    /// of samples to fetch.
+    /// Half-open `DateInterval` spanning the requested calendar year in this
+    /// aggregator's calendar and timezone: `start` is the first instant of
+    /// `year`, `end` is the first instant of `year + 1`. `WhereStore`
+    /// implementations must therefore filter as `timestamp >= start &&
+    /// timestamp < end` so the first instant of the next year is excluded
+    /// (and not double-counted by the next year's report).
     public func yearInterval(year: Int) -> DateInterval {
         var startComponents = DateComponents()
         startComponents.year = year

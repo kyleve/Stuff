@@ -26,6 +26,7 @@ struct WhereControllerTests {
         let sf = LocationSample(
             timestamp: iso("2026-03-15T12:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
             source: .manual,
         )
         try await controller.ingest(sf)
@@ -41,6 +42,7 @@ struct WhereControllerTests {
         try await controller.ingest(LocationSample(
             timestamp: iso("2026-07-04T10:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
             source: .manual,
         ))
         try await controller.addManualDay(
@@ -63,6 +65,7 @@ struct WhereControllerTests {
         try await controller.ingest(LocationSample(
             timestamp: iso("2026-03-15T12:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
             source: .manual,
         ))
         try await controller.clearYear(2026)

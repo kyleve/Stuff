@@ -41,9 +41,4 @@ struct WhereCoreCodableTests {
         #expect(report.days.first?.date == earlier.date)
         #expect(report.days.last?.date == later.date)
     }
-
-    @Test func region_comparableUsesRawValue() {
-        let sorted = [Region.newYork, .california, .other, .canada, .europeanUnion].sorted()
-        #expect(sorted == [.california, .canada, .europeanUnion, .newYork, .other])
-    }
 }

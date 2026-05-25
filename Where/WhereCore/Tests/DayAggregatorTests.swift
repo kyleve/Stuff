@@ -125,6 +125,7 @@ struct DayAggregatorTests {
         return LocationSample(
             timestamp: formatter.date(from: iso) ?? Date(timeIntervalSince1970: 0),
             coordinate: Coordinate(latitude: lat, longitude: lng),
+            horizontalAccuracy: 0,
             source: .manual,
         )
     }

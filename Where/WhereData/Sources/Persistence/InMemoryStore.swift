@@ -16,7 +16,7 @@ public actor InMemoryStore: WhereStore {
 
     public func samples(in interval: DateInterval) async throws -> [LocationSample] {
         samples
-            .filter { interval.contains($0.timestamp) }
+            .filter { Self.halfOpen(interval, contains: $0.timestamp) }
             .sorted { $0.timestamp < $1.timestamp }
     }
 
@@ -34,7 +34,7 @@ public actor InMemoryStore: WhereStore {
 
     public func evidence(in interval: DateInterval) async throws -> [Evidence] {
         evidences
-            .filter { interval.contains($0.evidence.capturedAt) }
+            .filter { Self.halfOpen(interval, contains: $0.evidence.capturedAt) }
             .map(\.evidence)
             .sorted { $0.capturedAt < $1.capturedAt }
     }
@@ -49,15 +49,24 @@ public actor InMemoryStore: WhereStore {
 
     public func manualDays(in interval: DateInterval) async throws -> [DayPresence] {
         manualDayByDate.values
-            .filter { interval.contains($0.date) }
+            .filter { Self.halfOpen(interval, contains: $0.date) }
             .sorted { $0.date < $1.date }
     }
 
     public func clear(in interval: DateInterval) async throws {
-        samples.removeAll { interval.contains($0.timestamp) }
-        evidences.removeAll { interval.contains($0.evidence.capturedAt) }
-        for date in manualDayByDate.keys where interval.contains(date) {
+        samples.removeAll { Self.halfOpen(interval, contains: $0.timestamp) }
+        evidences.removeAll { Self.halfOpen(interval, contains: $0.evidence.capturedAt) }
+        for date in manualDayByDate.keys where Self.halfOpen(interval, contains: date) {
             manualDayByDate.removeValue(forKey: date)
         }
+    }
+
+    /// Half-open `[start, end)` containment, matching `SwiftDataStore`'s
+    /// predicate semantics (and what `DayAggregator.yearInterval` produces).
+    /// `DateInterval.contains(_:)` is closed on both ends, which would
+    /// double-count the first instant of the next year when callers query a
+    /// year interval.
+    private static func halfOpen(_ interval: DateInterval, contains date: Date) -> Bool {
+        date >= interval.start && date < interval.end
     }
 }

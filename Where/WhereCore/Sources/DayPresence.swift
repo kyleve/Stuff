@@ -16,6 +16,11 @@ public struct DayPresence: Hashable, Sendable {
     }
 }
 
+/// Custom `Codable` rather than the synthesized one so we can sort `regions`
+/// on encode. Swift will synthesize `Codable` for `Set<Region>`, but `Set`
+/// iteration order isn't stable, which breaks the JSON snapshot tests in
+/// `SimulatedYearTests`. Sorting by raw value keeps the encoded form
+/// deterministic without forcing a `Comparable` conformance onto `Region`.
 extension DayPresence: Codable {
     private enum CodingKeys: String, CodingKey {
         case date
@@ -25,7 +30,8 @@ extension DayPresence: Codable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(date, forKey: .date)
-        try container.encode(regions.sorted(), forKey: .regions)
+        let sortedRegions = regions.sorted { $0.rawValue < $1.rawValue }
+        try container.encode(sortedRegions, forKey: .regions)
     }
 
     public init(from decoder: Decoder) throws {

@@ -37,7 +37,7 @@ struct MonthlySummary: Hashable {
         let sorted = monthly.keys.sorted().map { m -> Month in
             let entry = monthly[m] ?? (days: [], dualDays: 0, totals: [:])
             let buckets = entry.totals
-                .sorted { $0.key < $1.key }
+                .sorted { $0.key.rawValue < $1.key.rawValue }
                 .map { Bucket(region: $0.key, count: $0.value) }
             return Month(
                 number: m,

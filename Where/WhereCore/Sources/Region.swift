@@ -13,9 +13,3 @@ public enum Region: String, Codable, Sendable, Hashable, CaseIterable {
     case europeanUnion
     case other
 }
-
-extension Region: Comparable {
-    public static func < (lhs: Region, rhs: Region) -> Bool {
-        lhs.rawValue < rhs.rawValue
-    }
-}
