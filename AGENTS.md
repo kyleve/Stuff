@@ -77,3 +77,23 @@ Shared/<TargetName>/
 
 Implementation plans go in `Plans/` and are named
 `<NNN>-<YYYY-MM-DD>-<slug>.md`.
+
+## Working on PR feedback
+
+Do **not** proactively act on PR review comments (bot or human). When new
+comments appear, summarize what's there and ask which ones to address
+before reading more context, editing files, or pushing commits. Wait for
+explicit go-ahead — either the user asking you to handle the feedback,
+or you asking and getting permission first.
+
+## Waiting on CI
+
+Do **not** block the main conversation polling for CI to finish (GitHub
+Actions checks, PR mergeability, etc.). After pushing, report what's
+running and hand the turn back. If CI genuinely needs to be watched to
+completion before continuing, delegate it to a background subagent so
+the main conversation stays responsive.
+
+This rule is specific to remote CI. Local commands — `tuist test`,
+`swift build`, `./swiftformat --lint`, etc. — should still be awaited
+inline in the main conversation.
