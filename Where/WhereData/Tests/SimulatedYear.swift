@@ -33,8 +33,10 @@ enum SimulatedYear {
         func emitFlight(
             month: Int,
             day: Int,
-            originLat: Double, originLng: Double,
-            destLat: Double, destLng: Double,
+            originLat: Double,
+            originLng: Double,
+            destLat: Double,
+            destLng: Double,
         ) async {
             await emit(
                 controller: controller,

@@ -13,3 +13,9 @@
 --wrap-arguments before-first
 --wrap-parameters before-first
 --wrap-collections before-first
+
+# Default is `true`, which lets SwiftFormat keep some args on the same
+# line when wrapping (e.g. `originLat: Double, originLng: Double,`).
+# `false` makes wrapping all-or-nothing: either everything on one
+# line, or one arg/parameter per line.
+--allow-partial-wrapping false
