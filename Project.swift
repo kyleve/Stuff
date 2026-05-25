@@ -11,19 +11,24 @@ func unitTests(
     bundleIdSuffix: String,
     productDependency: String,
     sources: ProjectDescription.SourceFilesList,
+    extraPackageProducts: [String] = [],
 ) -> Target {
-    .target(
+    var dependencies: [TargetDependency] = [
+        .package(product: productDependency),
+        .package(product: "WhereTesting"),
+        .target(name: "StuffTestHost"),
+    ]
+    for product in extraPackageProducts {
+        dependencies.append(.package(product: product))
+    }
+    return .target(
         name: name,
         destinations: destinations,
         product: .unitTests,
         bundleId: "com.stuff.\(bundleIdSuffix).tests",
         deploymentTargets: deployment,
         sources: sources,
-        dependencies: [
-            .package(product: productDependency),
-            .package(product: "WhereTesting"),
-            .target(name: "StuffTestHost"),
-        ],
+        dependencies: dependencies,
     )
 }
 
@@ -97,6 +102,13 @@ let project = Project(
             bundleIdSuffix: "wherecore",
             productDependency: "WhereCore",
             sources: ["Where/WhereCore/Tests/**"],
+        ),
+        unitTests(
+            name: "WhereDataTests",
+            bundleIdSuffix: "wheredata",
+            productDependency: "WhereData",
+            sources: ["Where/WhereData/Tests/**"],
+            extraPackageProducts: ["SnapshotTesting"],
         ),
         unitTests(
             name: "WhereUITests",

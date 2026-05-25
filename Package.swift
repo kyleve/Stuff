@@ -9,8 +9,12 @@ let package = Package(
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
+        .library(name: "WhereData", targets: ["WhereData"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereTesting", targets: ["WhereTesting"]),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.19.2"),
     ],
     targets: [
         .target(
@@ -20,6 +24,16 @@ let package = Package(
         .target(
             name: "WhereCore",
             path: "Where/WhereCore/Sources",
+            resources: [
+                .process("Resources"),
+            ],
+        ),
+        .target(
+            name: "WhereData",
+            dependencies: [
+                .target(name: "WhereCore"),
+            ],
+            path: "Where/WhereData/Sources",
         ),
         .target(
             name: "WhereUI",
