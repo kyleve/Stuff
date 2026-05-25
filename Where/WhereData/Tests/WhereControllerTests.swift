@@ -10,7 +10,9 @@ struct WhereControllerTests {
         DayAggregator(calendar: Calendar(identifier: .gregorian), timeZone: pacific)
     }
 
-    private static func makeController() -> (WhereController, InMemoryStore, ScriptedLocationSource) {
+    private static func makeController()
+        -> (WhereController, InMemoryStore, ScriptedLocationSource)
+    {
         let store = InMemoryStore()
         let source = ScriptedLocationSource()
         let controller = WhereController(

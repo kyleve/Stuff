@@ -61,13 +61,20 @@ public struct RegionAttributor: Sendable {
                         .fault(
                             "Missing feature \(stateName, privacy: .public) in bundled us-states.geojson for region \(region.rawValue, privacy: .public)",
                         )
-                    assertionFailure("Missing feature \(stateName) in us-states.geojson for region \(region.rawValue)")
+                    assertionFailure(
+                        "Missing feature \(stateName) in us-states.geojson for region \(region.rawValue)",
+                    )
                 }
                 continue
             }
 
-            guard let url = Bundle.module.url(forResource: region.rawValue, withExtension: "geojson") else {
-                logger.fault("Missing required bundled GeoJSON for region \(region.rawValue, privacy: .public)")
+            guard let url = Bundle.module
+                .url(forResource: region.rawValue, withExtension: "geojson")
+            else {
+                logger
+                    .fault(
+                        "Missing required bundled GeoJSON for region \(region.rawValue, privacy: .public)",
+                    )
                 assertionFailure("Missing bundled GeoJSON for region \(region.rawValue)")
                 continue
             }
@@ -107,7 +114,10 @@ public struct RegionAttributor: Sendable {
             }
             return index
         } catch {
-            logger.fault("Failed to decode bundled us-states.geojson: \(error.localizedDescription, privacy: .public)")
+            logger
+                .fault(
+                    "Failed to decode bundled us-states.geojson: \(error.localizedDescription, privacy: .public)",
+                )
             assertionFailure("Failed to decode bundled us-states.geojson: \(error)")
             return [:]
         }
@@ -174,7 +184,10 @@ private enum GeoJSONGeometry: Decodable {
             case "Polygon":
                 self = try .polygon(container.decode([[[Double]]].self, forKey: .coordinates))
             case "MultiPolygon":
-                self = try .multiPolygon(container.decode([[[[Double]]]].self, forKey: .coordinates))
+                self = try .multiPolygon(container.decode(
+                    [[[[Double]]]].self,
+                    forKey: .coordinates,
+                ))
             default:
                 throw DecodingError.dataCorruptedError(
                     forKey: .type,

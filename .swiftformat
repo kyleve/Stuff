@@ -5,11 +5,11 @@
 --exclude Derived
 
 # SwiftFormat can't enforce "wrap when there are >= N arguments", only
-# "wrap when the unwrapped line exceeds --max-width". 120 columns is
-# tight enough that nearly every real multi-arg function ends up
-# wrapped, while leaving most single-arg calls (including the long-ish
-# `logger.fault("…")` lines) untouched.
---max-width 120
+# "wrap when the unwrapped line exceeds --max-width". 100 columns is
+# tight enough that almost every 2+ arg function/call wraps. A few
+# long single-arg `logger.fault("…")` lines get chain-split as a
+# nudge to extract the message.
+--max-width 100
 --wrap-arguments before-first
 --wrap-parameters before-first
 --wrap-collections before-first

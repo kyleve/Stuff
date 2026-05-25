@@ -18,7 +18,10 @@ struct SimulatedYearTests {
         return WhereController(
             store: store,
             locationSource: source,
-            aggregator: DayAggregator(calendar: Calendar(identifier: .gregorian), timeZone: pacific),
+            aggregator: DayAggregator(
+                calendar: Calendar(identifier: .gregorian),
+                timeZone: pacific,
+            ),
         )
     }
 
@@ -95,7 +98,11 @@ struct SimulatedYearTests {
         let before = try await controller.yearReport(for: SimulatedYear.year)
 
         // Nov 13 had no data; backfill it with a dual-region manual entry.
-        let date = Self.calendar.date(from: DateComponents(year: SimulatedYear.year, month: 11, day: 13)) ?? Date()
+        let date = Self.calendar.date(from: DateComponents(
+            year: SimulatedYear.year,
+            month: 11,
+            day: 13,
+        )) ?? Date()
         try await controller.addManualDay(date: date, regions: [.california, .newYork])
 
         let after = try await controller.yearReport(for: SimulatedYear.year)

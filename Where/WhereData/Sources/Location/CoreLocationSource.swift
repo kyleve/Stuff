@@ -59,7 +59,9 @@ public final class CoreLocationSource: NSObject, LocationSource {
         manager.requestAlwaysAuthorization()
     }
 
-    fileprivate nonisolated static func status(for raw: CLAuthorizationStatus) -> LocationAuthorizationStatus {
+    fileprivate nonisolated static func status(for raw: CLAuthorizationStatus)
+        -> LocationAuthorizationStatus
+    {
         switch raw {
             case .notDetermined: .notDetermined
             case .restricted: .restricted

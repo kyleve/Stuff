@@ -11,14 +11,20 @@ public struct DayAggregator: Sendable {
     public let calendar: Calendar
     public let timeZone: TimeZone
 
-    public init(calendar: Calendar = Calendar(identifier: .gregorian), timeZone: TimeZone = .current) {
+    public init(
+        calendar: Calendar = Calendar(identifier: .gregorian),
+        timeZone: TimeZone = .current,
+    ) {
         var cal = calendar
         cal.timeZone = timeZone
         self.calendar = cal
         self.timeZone = timeZone
     }
 
-    public func aggregate(samples: [LocationSample], attributor: RegionAttributor) -> [DayPresence] {
+    public func aggregate(
+        samples: [LocationSample],
+        attributor: RegionAttributor,
+    ) -> [DayPresence] {
         var dayRegions: [Date: Set<Region>] = [:]
         for sample in samples {
             let dayStart = calendar.startOfDay(for: sample.timestamp)

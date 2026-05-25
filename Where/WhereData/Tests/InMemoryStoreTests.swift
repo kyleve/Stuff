@@ -79,7 +79,10 @@ struct InMemoryStoreTests {
         try await store.setManualDay(DayPresence(date: date, regions: [.newYork]))
 
         let result = try await store.manualDays(
-            in: DateInterval(start: date.addingTimeInterval(-86400), end: date.addingTimeInterval(86400)),
+            in: DateInterval(
+                start: date.addingTimeInterval(-86400),
+                end: date.addingTimeInterval(86400),
+            ),
         )
         #expect(result.count == 1)
         #expect(result.first?.regions == [.newYork])

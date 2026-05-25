@@ -133,6 +133,8 @@ struct DayAggregatorTests {
     private func startOfDay(forYear year: Int, month: Int, day: Int) -> Date {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = TimeZone(identifier: "America/Los_Angeles") ?? .gmt
-        return cal.date(from: DateComponents(year: year, month: month, day: day)) ?? Date(timeIntervalSince1970: 0)
+        return cal
+            .date(from: DateComponents(year: year, month: month, day: day)) ??
+            Date(timeIntervalSince1970: 0)
     }
 }

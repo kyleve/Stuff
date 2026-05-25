@@ -27,7 +27,15 @@ enum SimulatedYear {
         let toronto = (lat: 43.6532, lng: -79.3832)
 
         func emitNoon(month: Int, day: Int, lat: Double, lng: Double) async {
-            await emit(controller: controller, calendar: calendar, month: month, day: day, hour: 12, lat: lat, lng: lng)
+            await emit(
+                controller: controller,
+                calendar: calendar,
+                month: month,
+                day: day,
+                hour: 12,
+                lat: lat,
+                lng: lng,
+            )
         }
 
         func emitFlight(
@@ -70,7 +78,14 @@ enum SimulatedYear {
         for d in 1 ... 15 {
             await emitNoon(month: 3, day: d, lat: sf.lat, lng: sf.lng)
         }
-        await emitFlight(month: 3, day: 16, originLat: sf.lat, originLng: sf.lng, destLat: nyc.lat, destLng: nyc.lng)
+        await emitFlight(
+            month: 3,
+            day: 16,
+            originLat: sf.lat,
+            originLng: sf.lng,
+            destLat: nyc.lat,
+            destLng: nyc.lng,
+        )
         for d in 17 ... 31 {
             await emitNoon(month: 3, day: d, lat: nyc.lat, lng: nyc.lng)
         }
@@ -78,7 +93,14 @@ enum SimulatedYear {
         for d in 1 ... 15 {
             await emitNoon(month: 4, day: d, lat: nyc.lat, lng: nyc.lng)
         }
-        await emitFlight(month: 4, day: 16, originLat: nyc.lat, originLng: nyc.lng, destLat: sf.lat, destLng: sf.lng)
+        await emitFlight(
+            month: 4,
+            day: 16,
+            originLat: nyc.lat,
+            originLng: nyc.lng,
+            destLat: sf.lat,
+            destLng: sf.lng,
+        )
         for d in 17 ... 30 {
             await emitNoon(month: 4, day: d, lat: sf.lat, lng: sf.lng)
         }
@@ -86,7 +108,14 @@ enum SimulatedYear {
         for d in 1 ... 14 {
             await emitNoon(month: 5, day: d, lat: sf.lat, lng: sf.lng)
         }
-        await emitFlight(month: 5, day: 15, originLat: sf.lat, originLng: sf.lng, destLat: nyc.lat, destLng: nyc.lng)
+        await emitFlight(
+            month: 5,
+            day: 15,
+            originLat: sf.lat,
+            originLng: sf.lng,
+            destLat: nyc.lat,
+            destLng: nyc.lng,
+        )
         await emitNoon(month: 5, day: 16, lat: nyc.lat, lng: nyc.lng)
         for d in 17 ... 28 {
             await emitNoon(month: 5, day: d, lat: paris.lat, lng: paris.lng)
@@ -132,7 +161,14 @@ enum SimulatedYear {
         for d in 1 ... 15 {
             await emitNoon(month: 7, day: d, lat: nyc.lat, lng: nyc.lng)
         }
-        await emitFlight(month: 7, day: 16, originLat: nyc.lat, originLng: nyc.lng, destLat: sf.lat, destLng: sf.lng)
+        await emitFlight(
+            month: 7,
+            day: 16,
+            originLat: nyc.lat,
+            originLng: nyc.lng,
+            destLat: sf.lat,
+            destLng: sf.lng,
+        )
         for d in 17 ... 31 {
             await emitNoon(month: 7, day: d, lat: sf.lat, lng: sf.lng)
         }
@@ -166,17 +202,52 @@ enum SimulatedYear {
         for d in 1 ... 15 {
             await emitNoon(month: 12, day: d, lat: sf.lat, lng: sf.lng)
         }
-        await emitFlight(month: 12, day: 16, originLat: sf.lat, originLng: sf.lng, destLat: nyc.lat, destLng: nyc.lng)
+        await emitFlight(
+            month: 12,
+            day: 16,
+            originLat: sf.lat,
+            originLng: sf.lng,
+            destLat: nyc.lat,
+            destLng: nyc.lng,
+        )
         for d in 17 ... 31 {
             await emitNoon(month: 12, day: d, lat: nyc.lat, lng: nyc.lng)
         }
 
         // Evidence attachments. UUIDs are deterministic so any future snapshot
         // of evidence stays stable.
-        let evidences: [(month: Int, day: Int, kind: EvidenceKind, note: String, region: Region, uuid: String)] = [
-            (3, 16, .planeTicket, "SFO → JFK transcontinental", .california, "00000000-0000-0000-0000-000000000316"),
-            (5, 17, .boardingPass, "JFK → CDG overnight", .europeanUnion, "00000000-0000-0000-0000-000000000517"),
-            (6, 16, .planeTicket, "LGA → YYZ Toronto trip", .canada, "00000000-0000-0000-0000-000000000616"),
+        let evidences: [(
+            month: Int,
+            day: Int,
+            kind: EvidenceKind,
+            note: String,
+            region: Region,
+            uuid: String
+        )] = [
+            (
+                3,
+                16,
+                .planeTicket,
+                "SFO → JFK transcontinental",
+                .california,
+                "00000000-0000-0000-0000-000000000316"
+            ),
+            (
+                5,
+                17,
+                .boardingPass,
+                "JFK → CDG overnight",
+                .europeanUnion,
+                "00000000-0000-0000-0000-000000000517"
+            ),
+            (
+                6,
+                16,
+                .planeTicket,
+                "LGA → YYZ Toronto trip",
+                .canada,
+                "00000000-0000-0000-0000-000000000616"
+            ),
         ]
         for entry in evidences {
             let date = calendar.date(

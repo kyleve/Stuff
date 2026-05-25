@@ -3,7 +3,8 @@ import ProjectDescription
 let destinations: Destinations = [.iPhone, .iPad]
 let deployment: DeploymentTargets = .iOS("26.0")
 
-/// Local Swift package (see root `Package.swift`) for StuffCore, WhereCore, WhereUI, and WhereTesting.
+/// Local Swift package (see root `Package.swift`) for StuffCore, WhereCore, WhereUI, and
+/// WhereTesting.
 private let stuffPackage = Package.local(path: .relativeToRoot("."))
 
 func unitTests(
@@ -82,7 +83,9 @@ let project = Project(
                         "UIWindowSceneSessionRoleApplication": .array([
                             .dictionary([
                                 "UISceneConfigurationName": .string("Default Configuration"),
-                                "UISceneDelegateClassName": .string("$(PRODUCT_MODULE_NAME).SceneDelegate"),
+                                "UISceneDelegateClassName": .string(
+                                    "$(PRODUCT_MODULE_NAME).SceneDelegate",
+                                ),
                             ]),
                         ]),
                     ]),
