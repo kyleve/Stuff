@@ -73,11 +73,6 @@ Shared/<TargetName>/
 - Generated `.xcodeproj` and `Derived/` are git-ignored; never commit them.
 - Bundle IDs follow `com.stuff.<suffix>`.
 
-## Plans
-
-Implementation plans go in `Plans/` and are named
-`<NNN>-<YYYY-MM-DD>-<slug>.md`.
-
 ## Working on PR feedback
 
 Do **not** proactively act on PR review comments (bot or human). When new
