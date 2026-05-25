@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Maps coordinates to the tracked `Region` they fall inside. Backed by a
 /// list of polygons per region; checked in declaration order so the first
@@ -26,17 +27,27 @@ public struct RegionAttributor: Sendable {
         return .other
     }
 
+    private static let logger = Logger(subsystem: "com.stuff.where", category: "RegionAttributor")
+
     private static func loadFromBundle() -> RegionAttributor {
         let regions: [Region] = [.california, .newYork, .canada, .europeanUnion]
         var entries: [(region: Region, polygons: [GeoPolygon])] = []
         for region in regions {
             guard let url = Bundle.module.url(forResource: region.rawValue, withExtension: "geojson") else {
+                // Missing required bundle resource — everything inside this
+                // region would silently attribute to `.other` if we ignored
+                // it. Log a `fault` so it shows up in Console/os_log in
+                // release, plus `assertionFailure` so debug builds blow up
+                // loudly during development.
+                logger.fault("Missing required bundled GeoJSON for region \(region.rawValue, privacy: .public)")
+                assertionFailure("Missing bundled GeoJSON for region \(region.rawValue)")
                 continue
             }
             do {
                 let polygons = try loadGeoJSONPolygons(at: url)
                 entries.append((region, polygons))
             } catch {
+                logger.fault("Failed to decode bundled GeoJSON \(region.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)")
                 assertionFailure("Failed to decode bundled GeoJSON \(region.rawValue): \(error)")
             }
         }

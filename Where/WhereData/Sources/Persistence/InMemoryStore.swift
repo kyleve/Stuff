@@ -25,8 +25,11 @@ public actor InMemoryStore: WhereStore {
     }
 
     public func addEvidence(_ evidence: Evidence, blob: Data?) async throws {
+        // Treat `blob == nil` as "no change" so a metadata edit does not wipe
+        // an existing attachment; mirrors `SwiftDataStore.addEvidence`.
+        let preserved = blob ?? evidences.first { $0.evidence.id == evidence.id }?.blob
         evidences.removeAll { $0.evidence.id == evidence.id }
-        evidences.append((evidence, blob))
+        evidences.append((evidence, preserved))
     }
 
     public func evidence(in interval: DateInterval) async throws -> [Evidence] {

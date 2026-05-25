@@ -9,6 +9,12 @@ import WhereCore
 ///
 /// Evidence blob bytes use `@Attribute(.externalStorage)` so CloudKit can
 /// chunk them as `CKAsset`s.
+///
+/// The `@Model` types deliberately avoid `@Attribute(.unique)` and give every
+/// stored property a default value: SwiftData's CloudKit mirror cannot
+/// enforce unique constraints and requires every property to be optional or
+/// defaulted. Uniqueness is enforced in the actor's `add…` methods via
+/// fetch-then-delete-then-insert.
 @ModelActor
 public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public static func makeContainer(
@@ -30,6 +36,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func addSample(_ sample: LocationSample) async throws {
+        let id = sample.id
+        let existing = try modelContext.fetch(
+            FetchDescriptor<SDLocationSample>(predicate: #Predicate { $0.id == id }),
+        )
+        for record in existing {
+            modelContext.delete(record)
+        }
         let model = SDLocationSample(
             id: sample.id,
             timestamp: sample.timestamp,
@@ -64,6 +77,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let existing = try modelContext.fetch(
             FetchDescriptor<SDEvidence>(predicate: #Predicate { $0.id == id }),
         )
+        // Treat `blob == nil` as "no change" so a metadata-only edit (note,
+        // kind, region) does not wipe a previously stored attachment. Callers
+        // that need to remove the blob explicitly should use `delete(for:)`
+        // from the `EvidenceBlobStore` API.
+        let resolvedBlob: Data? = blob ?? existing.first?.blob
         for record in existing {
             modelContext.delete(record)
         }
@@ -73,7 +91,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             capturedAt: evidence.capturedAt,
             note: evidence.note,
             regionRaw: evidence.region?.rawValue,
-            blob: blob,
+            blob: resolvedBlob,
         )
         modelContext.insert(model)
         try modelContext.save()
@@ -175,12 +193,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
 @Model
 final class SDLocationSample {
-    @Attribute(.unique) var id: UUID
-    var timestamp: Date
-    var latitude: Double
-    var longitude: Double
-    var horizontalAccuracy: Double
-    var sourceRaw: String
+    var id: UUID = UUID()
+    var timestamp: Date = Date.distantPast
+    var latitude: Double = 0
+    var longitude: Double = 0
+    var horizontalAccuracy: Double = 0
+    var sourceRaw: String = ""
 
     init(
         id: UUID,
@@ -211,9 +229,9 @@ final class SDLocationSample {
 
 @Model
 final class SDEvidence {
-    @Attribute(.unique) var id: UUID
-    var kindRaw: String
-    var capturedAt: Date
+    var id: UUID = UUID()
+    var kindRaw: String = ""
+    var capturedAt: Date = Date.distantPast
     var note: String?
     var regionRaw: String?
     @Attribute(.externalStorage) var blob: Data?
@@ -247,8 +265,8 @@ final class SDEvidence {
 
 @Model
 final class SDManualDay {
-    @Attribute(.unique) var dateKey: Date
-    var regionRaws: [String]
+    var dateKey: Date = Date.distantPast
+    var regionRaws: [String] = []
 
     init(dateKey: Date, regionRaws: [String]) {
         self.dateKey = dateKey

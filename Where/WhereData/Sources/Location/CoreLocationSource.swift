@@ -16,13 +16,19 @@ import WhereCore
 ///
 /// Authorization changes are surfaced on `authorizationStream` so the UI
 /// layer can drive the prompt without importing CoreLocation.
-public final class CoreLocationSource: NSObject, LocationSource, @unchecked Sendable {
-    public let sampleStream: AsyncStream<LocationSample>
-    public let authorizationStream: AsyncStream<LocationAuthorizationStatus>
+///
+/// Confined to `@MainActor` because `CLLocationManager` must be created and
+/// driven on a thread with a run loop. Delegate callbacks land on the run
+/// loop of the thread the manager was constructed on (the main thread here),
+/// so the `CLLocationManagerDelegate` methods stay main-actor isolated too.
+@MainActor
+public final class CoreLocationSource: NSObject, LocationSource {
+    public nonisolated let sampleStream: AsyncStream<LocationSample>
+    public nonisolated let authorizationStream: AsyncStream<LocationAuthorizationStatus>
 
     private let manager: CLLocationManager
-    private let sampleContinuation: AsyncStream<LocationSample>.Continuation
-    private let authContinuation: AsyncStream<LocationAuthorizationStatus>.Continuation
+    private nonisolated let sampleContinuation: AsyncStream<LocationSample>.Continuation
+    private nonisolated let authContinuation: AsyncStream<LocationAuthorizationStatus>.Continuation
 
     override public init() {
         var sampleCont: AsyncStream<LocationSample>.Continuation!
@@ -53,7 +59,7 @@ public final class CoreLocationSource: NSObject, LocationSource, @unchecked Send
         manager.requestAlwaysAuthorization()
     }
 
-    fileprivate static func status(for raw: CLAuthorizationStatus) -> LocationAuthorizationStatus {
+    fileprivate nonisolated static func status(for raw: CLAuthorizationStatus) -> LocationAuthorizationStatus {
         switch raw {
             case .notDetermined: .notDetermined
             case .restricted: .restricted
@@ -65,8 +71,13 @@ public final class CoreLocationSource: NSObject, LocationSource, @unchecked Send
     }
 }
 
+/// Delegate methods are intentionally `nonisolated`: they only yield to the
+/// (thread-safe) `AsyncStream.Continuation`s, never touch the `@MainActor`
+/// state, and satisfy a non-isolated `@objc` protocol. CoreLocation still
+/// delivers callbacks on the main run loop (the manager was constructed on
+/// `@MainActor`), so the manager API contract is respected.
 extension CoreLocationSource: CLLocationManagerDelegate {
-    public func locationManager(
+    public nonisolated func locationManager(
         _: CLLocationManager,
         didUpdateLocations locations: [CLLocation],
     ) {
@@ -84,14 +95,20 @@ extension CoreLocationSource: CLLocationManagerDelegate {
         }
     }
 
-    public func locationManager(
+    public nonisolated func locationManager(
         _: CLLocationManager,
         didVisit visit: CLVisit,
     ) {
-        let timestamp: Date = if visit.arrivalDate == .distantPast {
-            Date()
-        } else {
+        // Core Location may deliver visits late or with only one of the two
+        // timestamps populated. Prefer arrival; fall back to departure before
+        // resorting to "now", since "now" would attribute the visit to the
+        // delivery time and could land it on the wrong day/year.
+        let timestamp: Date = if visit.arrivalDate != .distantPast {
             visit.arrivalDate
+        } else if visit.departureDate != .distantPast {
+            visit.departureDate
+        } else {
+            Date()
         }
         let sample = LocationSample(
             timestamp: timestamp,
@@ -105,7 +122,7 @@ extension CoreLocationSource: CLLocationManagerDelegate {
         sampleContinuation.yield(sample)
     }
 
-    public func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+    public nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authContinuation.yield(Self.status(for: manager.authorizationStatus))
     }
 }

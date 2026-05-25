@@ -1,4 +1,5 @@
 import Foundation
+import os
 import WhereCore
 
 /// Top-level API for `WhereData`. Composes a `WhereStore` (persistence) and
@@ -19,6 +20,8 @@ public actor WhereController {
     private let aggregator: DayAggregator
 
     private var ingestTask: Task<Void, Never>?
+
+    private static let logger = Logger(subsystem: "com.stuff.where", category: "WhereController")
 
     public init(
         store: any WhereStore,
@@ -92,10 +95,20 @@ public actor WhereController {
         ingestTask?.cancel()
         let stream = locationSource.sampleStream
         let store = store
+        let logger = Self.logger
         ingestTask = Task {
             for await sample in stream {
                 if Task.isCancelled { break }
-                try? await store.addSample(sample)
+                do {
+                    try await store.addSample(sample)
+                } catch {
+                    // Persistence failures (SwiftData save, CloudKit, etc.)
+                    // are surfaced via `os.Logger` instead of being silently
+                    // dropped. The stream keeps running so a transient error
+                    // doesn't stop tracking, but the failure is visible in
+                    // Console and `os_log` traces.
+                    logger.error("Failed to persist GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
+                }
             }
         }
     }
