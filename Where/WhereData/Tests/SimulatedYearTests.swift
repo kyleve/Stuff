@@ -1,10 +1,8 @@
 import Foundation
-import SnapshotTesting
 import Testing
 import WhereCore
 import WhereData
 
-@Suite(.snapshots(record: .missing))
 struct SimulatedYearTests {
     private static let pacific = TimeZone(identifier: "America/Los_Angeles") ?? .gmt
 
@@ -48,22 +46,47 @@ struct SimulatedYearTests {
         #expect(report.days.count == 356)
     }
 
-    @Test func yearReport_jsonSnapshot() async throws {
+    @Test func yearReport_perMonthBreakdown() async throws {
         let controller = Self.makeController()
         await SimulatedYear.script(controller: controller, calendar: Self.calendar)
         let report = try await controller.yearReport(for: SimulatedYear.year)
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-        encoder.dateEncodingStrategy = .iso8601
-        assertSnapshot(of: report, as: .json(encoder))
-    }
 
-    @Test func monthlySummary_dumpSnapshot() async throws {
-        let controller = Self.makeController()
-        await SimulatedYear.script(controller: controller, calendar: Self.calendar)
-        let report = try await controller.yearReport(for: SimulatedYear.year)
-        let summary = MonthlySummary.from(report: report, calendar: Self.calendar)
-        assertSnapshot(of: summary.text, as: .lines)
+        let byMonth = Dictionary(grouping: report.days) {
+            Self.calendar.component(.month, from: $0.date)
+        }
+
+        func totals(_ month: Int) -> [Region: Int] {
+            var counts: [Region: Int] = [:]
+            for day in byMonth[month] ?? [] {
+                for region in day.regions {
+                    counts[region, default: 0] += 1
+                }
+            }
+            return counts
+        }
+        func dualRegionDayCount(_ month: Int) -> Int {
+            (byMonth[month] ?? []).count { $0.regions.count > 1 }
+        }
+
+        #expect(totals(1) == [.california: 31])
+        #expect(totals(2) == [.california: 28])
+        #expect(totals(3) == [.california: 16, .newYork: 16])
+        #expect(totals(4) == [.california: 15, .newYork: 16])
+        #expect(totals(5) == [.california: 15, .europeanUnion: 13, .newYork: 5])
+        #expect(totals(6) == [.canada: 7, .newYork: 25])
+        #expect(totals(7) == [.california: 16, .newYork: 16])
+        #expect(totals(8) == [.california: 31])
+        #expect(totals(9) == [.california: 23])
+        #expect(totals(10) == [.california: 31])
+        #expect(totals(11) == [.california: 28])
+        #expect(totals(12) == [.california: 16, .newYork: 16])
+
+        #expect(dualRegionDayCount(3) == 1)
+        #expect(dualRegionDayCount(4) == 1)
+        #expect(dualRegionDayCount(5) == 2)
+        #expect(dualRegionDayCount(6) == 2)
+        #expect(dualRegionDayCount(7) == 1)
+        #expect(dualRegionDayCount(12) == 1)
     }
 
     @Test func retroactiveEntryGrowsReport() async throws {

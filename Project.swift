@@ -108,7 +108,6 @@ let project = Project(
             bundleIdSuffix: "wheredata",
             productDependency: "WhereData",
             sources: ["Where/WhereData/Tests/**"],
-            extraPackageProducts: ["SnapshotTesting"],
         ),
         unitTests(
             name: "WhereUITests",
