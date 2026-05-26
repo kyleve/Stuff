@@ -1,6 +1,5 @@
 import Foundation
 import WhereCore
-import WhereData
 
 /// Scripts a year-long sequence of `LocationSample`s, manual day entries,
 /// and evidence attachments into a `WhereController`. The output is the

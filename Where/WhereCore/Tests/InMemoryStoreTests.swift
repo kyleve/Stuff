@@ -1,7 +1,6 @@
 import Foundation
 import Testing
 import WhereCore
-import WhereData
 
 struct InMemoryStoreTests {
     @Test func roundTripsSamples() async throws {

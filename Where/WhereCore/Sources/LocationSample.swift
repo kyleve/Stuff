@@ -14,7 +14,7 @@ public enum SampleSource: String, Codable, Sendable, Hashable, CaseIterable {
 }
 
 /// A single point-in-time observation of where the user was. The smallest
-/// unit of data that flows through `WhereCore` and `WhereData`.
+/// unit of data that flows through `WhereCore`.
 public struct LocationSample: Identifiable, Hashable, Codable, Sendable {
     public let id: UUID
     public let timestamp: Date

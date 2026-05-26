@@ -1,5 +1,4 @@
 import Foundation
-import WhereCore
 
 /// The user's response to the location-permission prompt, as we expose it to
 /// the rest of the app. UI watches `authorizationStream` so it can drive the

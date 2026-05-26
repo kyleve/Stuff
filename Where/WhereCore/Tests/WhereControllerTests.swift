@@ -1,7 +1,6 @@
 import Foundation
 import Testing
 import WhereCore
-import WhereData
 
 struct WhereControllerTests {
     private static let pacific = TimeZone(identifier: "America/Los_Angeles") ?? .gmt

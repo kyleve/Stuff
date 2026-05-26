@@ -9,7 +9,6 @@ let package = Package(
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
-        .library(name: "WhereData", targets: ["WhereData"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereTesting", targets: ["WhereTesting"]),
     ],
@@ -27,13 +26,6 @@ let package = Package(
             resources: [
                 .process("Resources"),
             ],
-        ),
-        .target(
-            name: "WhereData",
-            dependencies: [
-                .target(name: "WhereCore"),
-            ],
-            path: "Where/WhereData/Sources",
         ),
         .target(
             name: "WhereUI",

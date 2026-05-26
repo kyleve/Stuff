@@ -1,5 +1,4 @@
 import Foundation
-import WhereCore
 
 /// In-memory `WhereStore` for tests and SwiftUI previews. Not persisted,
 /// not synced; thread-safe by virtue of being an actor.

@@ -1,9 +1,8 @@
 import Foundation
-import WhereCore
 
-/// Persistence boundary for `WhereData`. Everything that crosses this protocol
-/// is a `WhereCore` value type, so callers (and `WhereController`) never see
-/// SwiftData, CoreData, or CloudKit internals.
+/// Persistence boundary for the Where feature. Everything that crosses
+/// this protocol is a value type, so callers (and `WhereController`)
+/// never see SwiftData, CoreData, or CloudKit internals.
 ///
 /// All methods are `async throws` so the production CloudKit-backed
 /// implementation has somewhere to surface I/O errors.

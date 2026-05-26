@@ -1,9 +1,9 @@
 import Foundation
 import os
-import WhereCore
 
-/// Top-level API for `WhereData`. Composes a `WhereStore` (persistence) and
-/// a `LocationSource` (GPS) behind a small, testable surface.
+/// Top-level API for the Where feature. Composes a `WhereStore`
+/// (persistence) and a `LocationSource` (GPS) behind a small,
+/// testable surface.
 ///
 /// - GPS sampling is opt-in: callers invoke `startGPS()` once the user grants
 ///   authorization. Ingestion runs in an unstructured `Task` owned by the

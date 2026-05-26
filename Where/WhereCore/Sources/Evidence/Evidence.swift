@@ -1,5 +1,4 @@
 import Foundation
-import WhereCore
 
 /// What kind of evidence is attached (a boarding pass, hotel receipt, etc.).
 /// Used to render an appropriate icon in the UI and to bucket evidence in

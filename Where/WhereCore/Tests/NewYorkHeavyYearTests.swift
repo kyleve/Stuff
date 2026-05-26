@@ -1,7 +1,6 @@
 import Foundation
 import Testing
 import WhereCore
-import WhereData
 
 /// Mirror image of `SimulatedYearTests`: scripts a year with far more
 /// time in New York than in California to verify the aggregator and

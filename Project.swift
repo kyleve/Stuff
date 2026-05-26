@@ -107,12 +107,6 @@ let project = Project(
             sources: ["Where/WhereCore/Tests/**"],
         ),
         unitTests(
-            name: "WhereDataTests",
-            bundleIdSuffix: "wheredata",
-            productDependency: "WhereData",
-            sources: ["Where/WhereData/Tests/**"],
-        ),
-        unitTests(
             name: "WhereUITests",
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",

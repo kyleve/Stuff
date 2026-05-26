@@ -1,6 +1,5 @@
 import Foundation
 import SwiftData
-import WhereCore
 
 /// CloudKit-synced `WhereStore` backed by SwiftData. The `@Model` types are
 /// kept `private`-ish (only the `@ModelActor`-isolated container sees them)
