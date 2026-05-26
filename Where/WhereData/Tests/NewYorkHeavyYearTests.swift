@@ -9,6 +9,10 @@ import WhereData
 /// several distinct NY coordinates (Manhattan, Brooklyn, Long Island,
 /// Albany, Rochester, Buffalo) so the test fails if the bundled NY
 /// polygon ever loses coverage of any of them.
+///
+/// Also includes bare-majority tests (CA majority by 1 day, NY
+/// majority by 1 day) to verify the totals correctly identify the
+/// majority region even at the tightest possible split.
 struct NewYorkHeavyYearTests {
     private static let pacific = TimeZone(identifier: "America/Los_Angeles") ?? .gmt
 
@@ -41,26 +45,16 @@ struct NewYorkHeavyYearTests {
     private static let sf = (lat: 37.7749, lng: -122.4194)
     private static let la = (lat: 34.0522, lng: -118.2437)
 
-    /// 304 days NY (across 6 different NY coordinates) and 61 days CA,
-    /// no flights / manual entries / gaps. Designed so the arithmetic
-    /// is trivial to eyeball.
-    private static func script(controller: WhereController) async {
-        let plan: [(month: Int, days: Int, lat: Double, lng: Double)] = [
-            (1, 31, manhattan.lat, manhattan.lng),
-            (2, 28, brooklyn.lat, brooklyn.lng),
-            (3, 31, longIsland.lat, longIsland.lng),
-            (4, 30, albany.lat, albany.lng),
-            (5, 31, sf.lat, sf.lng),
-            (6, 30, la.lat, la.lng),
-            (7, 31, rochester.lat, rochester.lng),
-            (8, 31, buffalo.lat, buffalo.lng),
-            (9, 30, manhattan.lat, manhattan.lng),
-            (10, 31, brooklyn.lat, brooklyn.lng),
-            (11, 30, albany.lat, albany.lng),
-            (12, 31, manhattan.lat, manhattan.lng),
-        ]
+    private typealias PlanEntry = (
+        month: Int,
+        days: ClosedRange<Int>,
+        lat: Double,
+        lng: Double
+    )
+
+    private static func script(controller: WhereController, plan: [PlanEntry]) async {
         for entry in plan {
-            for day in 1 ... entry.days {
+            for day in entry.days {
                 let date = calendar.date(from: DateComponents(
                     year: year,
                     month: entry.month,
@@ -77,9 +71,28 @@ struct NewYorkHeavyYearTests {
         }
     }
 
+    // MARK: - NY heavy (304 NY / 61 CA)
+
+    /// 304 days NY (across 6 different NY coordinates) and 61 days CA,
+    /// no flights / manual entries / gaps.
+    private static let newYorkHeavyPlan: [PlanEntry] = [
+        (1, 1 ... 31, manhattan.lat, manhattan.lng),
+        (2, 1 ... 28, brooklyn.lat, brooklyn.lng),
+        (3, 1 ... 31, longIsland.lat, longIsland.lng),
+        (4, 1 ... 30, albany.lat, albany.lng),
+        (5, 1 ... 31, sf.lat, sf.lng),
+        (6, 1 ... 30, la.lat, la.lng),
+        (7, 1 ... 31, rochester.lat, rochester.lng),
+        (8, 1 ... 31, buffalo.lat, buffalo.lng),
+        (9, 1 ... 30, manhattan.lat, manhattan.lng),
+        (10, 1 ... 31, brooklyn.lat, brooklyn.lng),
+        (11, 1 ... 30, albany.lat, albany.lng),
+        (12, 1 ... 31, manhattan.lat, manhattan.lng),
+    ]
+
     @Test func totalsHaveNewYorkFarAheadOfCalifornia() async throws {
         let controller = Self.makeController()
-        await Self.script(controller: controller)
+        await Self.script(controller: controller, plan: Self.newYorkHeavyPlan)
         let report = try await controller.yearReport(for: Self.year)
 
         #expect(report.totals[.newYork] == 304)
@@ -91,7 +104,7 @@ struct NewYorkHeavyYearTests {
 
     @Test func perMonthBreakdown() async throws {
         let controller = Self.makeController()
-        await Self.script(controller: controller)
+        await Self.script(controller: controller, plan: Self.newYorkHeavyPlan)
         let report = try await controller.yearReport(for: Self.year)
 
         let byMonth = Dictionary(grouping: report.days) {
@@ -123,7 +136,7 @@ struct NewYorkHeavyYearTests {
 
     @Test func everyNewYorkDayResolvesToNewYorkOnly() async throws {
         let controller = Self.makeController()
-        await Self.script(controller: controller)
+        await Self.script(controller: controller, plan: Self.newYorkHeavyPlan)
         let report = try await controller.yearReport(for: Self.year)
 
         // Months 1-4 and 7-12 all script to distinct NY coordinates;
@@ -143,5 +156,69 @@ struct NewYorkHeavyYearTests {
                 )
             }
         }
+    }
+
+    // MARK: - Bare majorities (1-day margin)
+
+    // 2026 is a non-leap year (365 days). Tightest possible majority
+    // is 183 vs 182. Jan-Jun = 31+28+31+30+31+30 = 181 days, so giving
+    // the "majority" region those 6 months + Jul 1-2 (183 days) and
+    // the "minority" region Jul 3-31 + Aug-Dec (29+153 = 182 days)
+    // produces the tightest split possible.
+
+    private static let californiaBareMajorityPlan: [PlanEntry] = [
+        (1, 1 ... 31, sf.lat, sf.lng),
+        (2, 1 ... 28, la.lat, la.lng),
+        (3, 1 ... 31, sf.lat, sf.lng),
+        (4, 1 ... 30, la.lat, la.lng),
+        (5, 1 ... 31, sf.lat, sf.lng),
+        (6, 1 ... 30, la.lat, la.lng),
+        (7, 1 ... 2, sf.lat, sf.lng),
+        (7, 3 ... 31, manhattan.lat, manhattan.lng),
+        (8, 1 ... 31, brooklyn.lat, brooklyn.lng),
+        (9, 1 ... 30, longIsland.lat, longIsland.lng),
+        (10, 1 ... 31, albany.lat, albany.lng),
+        (11, 1 ... 30, rochester.lat, rochester.lng),
+        (12, 1 ... 31, buffalo.lat, buffalo.lng),
+    ]
+
+    private static let newYorkBareMajorityPlan: [PlanEntry] = [
+        (1, 1 ... 31, manhattan.lat, manhattan.lng),
+        (2, 1 ... 28, brooklyn.lat, brooklyn.lng),
+        (3, 1 ... 31, longIsland.lat, longIsland.lng),
+        (4, 1 ... 30, albany.lat, albany.lng),
+        (5, 1 ... 31, rochester.lat, rochester.lng),
+        (6, 1 ... 30, buffalo.lat, buffalo.lng),
+        (7, 1 ... 2, manhattan.lat, manhattan.lng),
+        (7, 3 ... 31, sf.lat, sf.lng),
+        (8, 1 ... 31, la.lat, la.lng),
+        (9, 1 ... 30, sf.lat, sf.lng),
+        (10, 1 ... 31, la.lat, la.lng),
+        (11, 1 ... 30, sf.lat, sf.lng),
+        (12, 1 ... 31, la.lat, la.lng),
+    ]
+
+    @Test func californiaWinsBy_oneDay() async throws {
+        let controller = Self.makeController()
+        await Self.script(controller: controller, plan: Self.californiaBareMajorityPlan)
+        let report = try await controller.yearReport(for: Self.year)
+
+        #expect(report.totals[.california] == 183)
+        #expect(report.totals[.newYork] == 182)
+        #expect(report.totals[.other, default: 0] == 0)
+        #expect((report.totals[.california] ?? 0) - (report.totals[.newYork] ?? 0) == 1)
+        #expect(report.days.count == 365)
+    }
+
+    @Test func newYorkWinsBy_oneDay() async throws {
+        let controller = Self.makeController()
+        await Self.script(controller: controller, plan: Self.newYorkBareMajorityPlan)
+        let report = try await controller.yearReport(for: Self.year)
+
+        #expect(report.totals[.newYork] == 183)
+        #expect(report.totals[.california] == 182)
+        #expect(report.totals[.other, default: 0] == 0)
+        #expect((report.totals[.newYork] ?? 0) - (report.totals[.california] ?? 0) == 1)
+        #expect(report.days.count == 365)
     }
 }
