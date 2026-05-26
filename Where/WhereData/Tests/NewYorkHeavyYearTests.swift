@@ -221,4 +221,70 @@ struct NewYorkHeavyYearTests {
         #expect((report.totals[.newYork] ?? 0) - (report.totals[.california] ?? 0) == 1)
         #expect(report.days.count == 365)
     }
+
+    // MARK: - Back-and-forth every ~8 weeks (2-month stretches)
+
+    // Six 2-month stretches (~8-9 weeks each), alternating between
+    // CA and NY. 2026's calendar gives the second region in each
+    // pairing slightly more days (3-day margin), so swapping which
+    // region starts the year flips the majority. Each stretch uses a
+    // different city to also exercise polygon coverage.
+
+    private static let backAndForthFavorsNewYorkPlan: [PlanEntry] = [
+        (1, 1 ... 31, sf.lat, sf.lng),
+        (2, 1 ... 28, la.lat, la.lng),
+        (3, 1 ... 31, manhattan.lat, manhattan.lng),
+        (4, 1 ... 30, brooklyn.lat, brooklyn.lng),
+        (5, 1 ... 31, sf.lat, sf.lng),
+        (6, 1 ... 30, la.lat, la.lng),
+        (7, 1 ... 31, longIsland.lat, longIsland.lng),
+        (8, 1 ... 31, albany.lat, albany.lng),
+        (9, 1 ... 30, sf.lat, sf.lng),
+        (10, 1 ... 31, la.lat, la.lng),
+        (11, 1 ... 30, rochester.lat, rochester.lng),
+        (12, 1 ... 31, buffalo.lat, buffalo.lng),
+    ]
+
+    private static let backAndForthFavorsCaliforniaPlan: [PlanEntry] = [
+        (1, 1 ... 31, manhattan.lat, manhattan.lng),
+        (2, 1 ... 28, brooklyn.lat, brooklyn.lng),
+        (3, 1 ... 31, sf.lat, sf.lng),
+        (4, 1 ... 30, la.lat, la.lng),
+        (5, 1 ... 31, longIsland.lat, longIsland.lng),
+        (6, 1 ... 30, albany.lat, albany.lng),
+        (7, 1 ... 31, sf.lat, sf.lng),
+        (8, 1 ... 31, la.lat, la.lng),
+        (9, 1 ... 30, rochester.lat, rochester.lng),
+        (10, 1 ... 31, buffalo.lat, buffalo.lng),
+        (11, 1 ... 30, sf.lat, sf.lng),
+        (12, 1 ... 31, la.lat, la.lng),
+    ]
+
+    @Test func backAndForthEvery8Weeks_endsWithNewYorkAhead() async throws {
+        let controller = Self.makeController()
+        await Self.script(controller: controller, plan: Self.backAndForthFavorsNewYorkPlan)
+        let report = try await controller.yearReport(for: Self.year)
+
+        // CA stretches: Jan-Feb (59), May-Jun (61), Sep-Oct (61) = 181
+        // NY stretches: Mar-Apr (61), Jul-Aug (62), Nov-Dec (61) = 184
+        #expect(report.totals[.california] == 181)
+        #expect(report.totals[.newYork] == 184)
+        #expect(report.totals[.other, default: 0] == 0)
+        #expect((report.totals[.newYork] ?? 0) > (report.totals[.california] ?? 0))
+        #expect(report.days.count == 365)
+    }
+
+    @Test func backAndForthEvery8Weeks_endsWithCaliforniaAhead() async throws {
+        let controller = Self.makeController()
+        await Self.script(controller: controller, plan: Self.backAndForthFavorsCaliforniaPlan)
+        let report = try await controller.yearReport(for: Self.year)
+
+        // NY stretches: Jan-Feb (59), May-Jun (61), Sep-Oct (61) = 181
+        // CA stretches: Mar-Apr (61), Jul-Aug (62), Nov-Dec (61) = 184
+        #expect(report.totals[.newYork] == 181)
+        #expect(report.totals[.california] == 184)
+        #expect(report.totals[.other, default: 0] == 0)
+        #expect((report.totals[.california] ?? 0) > (report.totals[.newYork] ?? 0))
+        #expect(report.days.count == 365)
+    }
 }
