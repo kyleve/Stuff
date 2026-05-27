@@ -6,11 +6,15 @@ set -euo pipefail
 git config core.hooksPath .githooks
 
 INSTALL=false
+OPEN=true
 
 for arg in "$@"; do
     case "$arg" in
         -i|--install)
             INSTALL=true
+            ;;
+        --no-open)
+            OPEN=false
             ;;
     esac
 done
@@ -23,5 +27,10 @@ fi
 echo "==> sync-agents --install"
 ./sync-agents --install
 
-echo "==> tuist generate"
-mise exec -- tuist generate
+if [ "$OPEN" = true ]; then
+    echo "==> tuist generate"
+    mise exec -- tuist generate
+else
+    echo "==> tuist generate --no-open"
+    mise exec -- tuist generate --no-open
+fi

@@ -3,7 +3,8 @@ import ProjectDescription
 let destinations: Destinations = [.iPhone, .iPad]
 let deployment: DeploymentTargets = .iOS("26.0")
 
-/// Local Swift package (see root `Package.swift`) for StuffCore, WhereCore, WhereUI, and WhereTesting.
+/// Local Swift package (see root `Package.swift`) for StuffCore, WhereCore, WhereUI, and
+/// WhereTesting.
 private let stuffPackage = Package.local(path: .relativeToRoot("."))
 
 func unitTests(
@@ -11,19 +12,24 @@ func unitTests(
     bundleIdSuffix: String,
     productDependency: String,
     sources: ProjectDescription.SourceFilesList,
+    extraPackageProducts: [String] = [],
 ) -> Target {
-    .target(
+    var dependencies: [TargetDependency] = [
+        .package(product: productDependency),
+        .package(product: "WhereTesting"),
+        .target(name: "StuffTestHost"),
+    ]
+    for product in extraPackageProducts {
+        dependencies.append(.package(product: product))
+    }
+    return .target(
         name: name,
         destinations: destinations,
         product: .unitTests,
         bundleId: "com.stuff.\(bundleIdSuffix).tests",
         deploymentTargets: deployment,
         sources: sources,
-        dependencies: [
-            .package(product: productDependency),
-            .package(product: "WhereTesting"),
-            .target(name: "StuffTestHost"),
-        ],
+        dependencies: dependencies,
     )
 }
 
@@ -77,7 +83,9 @@ let project = Project(
                         "UIWindowSceneSessionRoleApplication": .array([
                             .dictionary([
                                 "UISceneConfigurationName": .string("Default Configuration"),
-                                "UISceneDelegateClassName": .string("$(PRODUCT_MODULE_NAME).SceneDelegate"),
+                                "UISceneDelegateClassName": .string(
+                                    "$(PRODUCT_MODULE_NAME).SceneDelegate",
+                                ),
                             ]),
                         ]),
                     ]),

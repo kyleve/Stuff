@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "Stuff",
+    defaultLocalization: "en",
     platforms: [
         .iOS(.v26),
     ],
@@ -12,6 +13,9 @@ let package = Package(
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereTesting", targets: ["WhereTesting"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.19.2"),
+    ],
     targets: [
         .target(
             name: "StuffCore",
@@ -20,6 +24,9 @@ let package = Package(
         .target(
             name: "WhereCore",
             path: "Where/WhereCore/Sources",
+            resources: [
+                .process("Resources"),
+            ],
         ),
         .target(
             name: "WhereUI",
