@@ -15,16 +15,24 @@ import os
 ///
 /// Anything not inside any bundled polygon is `.other`.
 public struct RegionAttributor: Sendable {
-    private let regionPolygons: [(region: Region, polygons: [GeoPolygon])]
+    private let regionPolygons: [RegionPolygons]
 
     public static let bundled: RegionAttributor = .loadFromBundle()
 
-    init(regionPolygons: [(region: Region, polygons: [GeoPolygon])]) {
+    init(regionPolygons: [RegionPolygons]) {
         self.regionPolygons = regionPolygons
     }
 
     public func region(at coordinate: Coordinate) -> Region {
+        // Per-region bounding-box pre-pass: cheap rectangular comparison
+        // rejects coordinates that can't possibly be inside the
+        // polygons for this region before the more expensive
+        // even-odd ray-cast runs. For our 4-region set the boxes
+        // barely overlap (CA / NY / Canada / EU), so a typical
+        // out-of-set coordinate fails the bbox check 4 times in a row
+        // and never enters `polygon.contains`.
         for entry in regionPolygons {
+            guard entry.boundingBox.contains(coordinate) else { continue }
             for polygon in entry.polygons {
                 if polygon.contains(coordinate) {
                     return entry.region
@@ -37,7 +45,10 @@ public struct RegionAttributor: Sendable {
     private static let logger = Logger(subsystem: "com.stuff.where", category: "RegionAttributor")
 
     /// `Region` cases that resolve to a US state in `us-states.geojson`.
-    /// The value is the GeoJSON feature's `properties.NAME`.
+    /// The value is the GeoJSON feature's `properties.NAME` — **a data
+    /// identifier for matching against the bundled file**, never
+    /// shown to the user. User-facing labels go through
+    /// `Region.localizedName` (string catalog) instead.
     private static let usStateNames: [Region: String] = [
         .california: "California",
         .newYork: "New York",
@@ -47,11 +58,11 @@ public struct RegionAttributor: Sendable {
         let regions: [Region] = [.california, .newYork, .canada, .europeanUnion]
         let usStateIndex = loadUSStateIndex(matching: Set(usStateNames.values))
 
-        var entries: [(region: Region, polygons: [GeoPolygon])] = []
+        var entries: [RegionPolygons] = []
         for region in regions {
             if let stateName = usStateNames[region] {
                 if let polygons = usStateIndex[stateName] {
-                    entries.append((region, polygons))
+                    entries.append(RegionPolygons(region: region, polygons: polygons))
                 } else {
                     // Either the bundle resource is missing entirely (caught
                     // upstream and logged) or the named feature isn't in the
@@ -80,7 +91,7 @@ public struct RegionAttributor: Sendable {
             }
             do {
                 let polygons = try loadGeoJSONPolygons(at: url)
-                entries.append((region, polygons))
+                entries.append(RegionPolygons(region: region, polygons: polygons))
             } catch {
                 logger
                     .fault(
@@ -124,6 +135,31 @@ public struct RegionAttributor: Sendable {
     }
 }
 
+/// One `Region` plus every polygon that defines it. Replaces an earlier
+/// `(region, polygons)` tuple so the value carries a name and a
+/// precomputed `boundingBox` for fast pre-screening in
+/// `RegionAttributor.region(at:)`.
+struct RegionPolygons {
+    let region: Region
+    let polygons: [GeoPolygon]
+    let boundingBox: BoundingBox
+
+    init(region: Region, polygons: [GeoPolygon]) {
+        self.region = region
+        self.polygons = polygons
+        // Empty polygon set ⇒ degenerate bbox that never contains
+        // anything. The loader assertion-failures earlier in the
+        // pipeline already cover the "missing polygons" case, so this
+        // is only the no-op fallback for a truly empty value.
+        boundingBox = BoundingBox.enclosing(polygons) ?? BoundingBox(
+            minLatitude: .infinity,
+            maxLatitude: -.infinity,
+            minLongitude: .infinity,
+            maxLongitude: -.infinity,
+        )
+    }
+}
+
 private func loadGeoJSONPolygons(at url: URL) throws -> [GeoPolygon] {
     let data = try Data(contentsOf: url)
     let decoded = try JSONDecoder().decode(GeoJSONFeatureCollection.self, from: data)
@@ -143,23 +179,46 @@ private func polygons(from geometry: GeoJSONGeometry) -> [GeoPolygon] {
 
 private func makePolygon(from ring: [[Double]]) -> GeoPolygon {
     let vertices = ring.compactMap { pair -> Coordinate? in
-        guard pair.count >= 2 else { return nil }
+        // GeoJSON spec mandates `[longitude, latitude]` (and an
+        // optional altitude as the third entry). Anything shorter is
+        // a malformed bundled file — surface it in debug builds while
+        // still returning nil so the rest of the load can proceed.
+        guard pair.count >= 2 else {
+            assertionFailure(
+                "GeoJSON coordinate pair must have at least 2 components, got \(pair.count)",
+            )
+            return nil
+        }
         return Coordinate(latitude: pair[1], longitude: pair[0])
     }
     return GeoPolygon(vertices: vertices)
 }
 
+// MARK: - GeoJSON decoder helpers
+
+//
+// Thin `Decodable` views over the slice of the GeoJSON 1.0 spec we
+// actually consume: a `FeatureCollection` of `Feature`s whose geometry
+// is a `Polygon` or `MultiPolygon`. Anything else in the spec
+// (`Point`, `LineString`, foreign members, etc.) is ignored.
+
+/// Top-level GeoJSON document we load from `Resources/*.geojson`.
 private struct GeoJSONFeatureCollection: Decodable {
     let type: String
     let features: [GeoJSONFeature]
 }
 
+/// A single feature: geometry plus optional properties (we only read
+/// `NAME` out of the properties bag, for US state lookup).
 private struct GeoJSONFeature: Decodable {
     let type: String
     let geometry: GeoJSONGeometry
     let properties: GeoJSONProperties?
 }
 
+/// Decoded properties bag. The US Census GeoJSON uses uppercase
+/// `NAME`; we project just that field so the rest of the bag is
+/// ignored at decode time.
 private struct GeoJSONProperties: Decodable {
     let name: String?
 
@@ -168,6 +227,10 @@ private struct GeoJSONProperties: Decodable {
     }
 }
 
+/// The two geometry types we accept. `Polygon` is a list of rings
+/// (exterior + optional holes); `MultiPolygon` is a list of those.
+/// Anything else is decoded as a `dataCorruptedError` so unknown
+/// shapes fail loudly rather than silently producing zero polygons.
 private enum GeoJSONGeometry: Decodable {
     case polygon([[[Double]]])
     case multiPolygon([[[[Double]]]])

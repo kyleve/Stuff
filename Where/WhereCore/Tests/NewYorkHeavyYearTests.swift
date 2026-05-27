@@ -13,13 +13,13 @@ import WhereCore
 /// majority by 1 day) to verify the totals correctly identify the
 /// majority region even at the tightest possible split.
 struct NewYorkHeavyYearTests {
-    private static let pacific = TimeZone(identifier: "America/Los_Angeles") ?? .gmt
+    private static let pacific = TimeZone(identifier: "America/Los_Angeles")!
 
-    private static var calendar: Calendar {
+    private static let calendar: Calendar = {
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = pacific
         return cal
-    }
+    }()
 
     private static func makeController() -> WhereController {
         WhereController(

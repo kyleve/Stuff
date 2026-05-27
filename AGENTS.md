@@ -72,6 +72,10 @@ Shared/<TargetName>/
 - **Swift Testing** (`import Testing`) for all unit tests – do not use XCTest.
 - Generated `.xcodeproj` and `Derived/` are git-ignored; never commit them.
 - Bundle IDs follow `com.stuff.<suffix>`.
+- Prefer small named structs over tuples for any value with more than
+  one field or that escapes a single function — tuples are fine as
+  ad-hoc inline returns but should not appear in property types,
+  collection element types, or public API.
 
 ## Working on PR feedback
 

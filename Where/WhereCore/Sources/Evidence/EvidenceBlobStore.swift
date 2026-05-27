@@ -8,7 +8,7 @@ import Foundation
 /// `WhereStore` and `EvidenceBlobStore` and uses `@Attribute(.externalStorage)`
 /// so CloudKit chunks blobs as `CKAsset`s.
 public protocol EvidenceBlobStore: Sendable {
-    func write(_ blob: Data, for id: UUID) async throws
+    func write(blob: Data, for id: UUID) async throws
     func read(for id: UUID) async throws -> Data?
     func delete(for id: UUID) async throws
 }
@@ -19,7 +19,7 @@ public actor InMemoryEvidenceBlobStore: EvidenceBlobStore {
 
     public init() {}
 
-    public func write(_ blob: Data, for id: UUID) async throws {
+    public func write(blob: Data, for id: UUID) async throws {
         blobs[id] = blob
     }
 

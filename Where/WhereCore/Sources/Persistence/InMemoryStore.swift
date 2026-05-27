@@ -9,6 +9,16 @@ public actor InMemoryStore: WhereStore {
 
     public init() {}
 
+    public func perform<T: Sendable>(
+        _ block: @Sendable () async throws -> T,
+    ) async throws -> T {
+        // No save phase here — everything is in-memory and writes are
+        // immediately visible. The block exists for protocol parity
+        // with `SwiftDataStore`, where the save happens at this
+        // boundary.
+        try await block()
+    }
+
     public func addSample(_ sample: LocationSample) async throws {
         samples.append(sample)
     }
@@ -23,9 +33,9 @@ public actor InMemoryStore: WhereStore {
         samples.sorted { $0.timestamp < $1.timestamp }
     }
 
-    public func addEvidence(_ evidence: Evidence, blob: Data?) async throws {
+    public func write(evidence: Evidence, blob: Data?) async throws {
         // Treat `blob == nil` as "no change" so a metadata edit does not wipe
-        // an existing attachment; mirrors `SwiftDataStore.addEvidence`.
+        // an existing attachment; mirrors `SwiftDataStore.write(evidence:blob:)`.
         let preserved = blob ?? evidences.first { $0.evidence.id == evidence.id }?.blob
         evidences.removeAll { $0.evidence.id == evidence.id }
         evidences.append((evidence, preserved))

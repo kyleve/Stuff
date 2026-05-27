@@ -1,4 +1,5 @@
 import Foundation
+import os
 import SwiftData
 
 /// CloudKit-synced `WhereStore` backed by SwiftData. The `@Model` types are
@@ -9,102 +10,147 @@ import SwiftData
 /// Evidence blob bytes use `@Attribute(.externalStorage)` so CloudKit can
 /// chunk them as `CKAsset`s.
 ///
-/// The `@Model` types deliberately avoid `@Attribute(.unique)` and give every
-/// stored property a default value: SwiftData's CloudKit mirror cannot
-/// enforce unique constraints and requires every property to be optional or
-/// defaulted. Uniqueness is enforced in the actor's `add…` methods via
-/// fetch-then-delete-then-insert.
+/// Every `@Model` field is `Optional` with no placeholder default. SwiftData's
+/// CloudKit mirror requires nullable or defaulted properties, and we picked
+/// nullable so "field absent" is distinguishable from "field is a sentinel
+/// value". `toValue()` is therefore allowed to return `nil` when a record is
+/// missing mandatory state; readers `compactMap` and log a fault rather than
+/// crashing on partial data.
+///
+/// Persistence saves happen at the `perform { ... }` boundary, not after each
+/// mutation. Mutating methods stage changes in `modelContext`; the outermost
+/// `perform` flushes them via `modelContext.save()`.
 @ModelActor
 public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
-    public static func makeContainer(
-        inMemory: Bool = false,
-        useCloudKit: Bool = true,
-    ) throws -> ModelContainer {
+    /// Backing storage for a `SwiftDataStore`. CloudKit mode is the
+    /// production default; the other two are for tests and local
+    /// development.
+    public enum Storage: Sendable {
+        /// In-memory only. No disk, no CloudKit. Test/preview default.
+        case inMemory
+        /// On-disk SwiftData store with CloudKit sync disabled.
+        case localOnly
+        /// On-disk SwiftData store backed by the user's private
+        /// CloudKit database. Production default.
+        case cloudKit
+    }
+
+    public static func makeContainer(storage: Storage) throws -> ModelContainer {
         let schema = Schema([
             SDLocationSample.self,
             SDEvidence.self,
             SDManualDay.self,
         ])
-        let cloudKit: ModelConfiguration.CloudKitDatabase = useCloudKit ? .automatic : .none
         let config = ModelConfiguration(
             schema: schema,
-            isStoredInMemoryOnly: inMemory,
-            cloudKitDatabase: cloudKit,
+            isStoredInMemoryOnly: storage == .inMemory,
+            cloudKitDatabase: storage == .cloudKit ? .automatic : .none,
         )
         return try ModelContainer(for: schema, configurations: [config])
     }
 
+    private static let logger = Logger(subsystem: "com.stuff.where", category: "SwiftDataStore")
+
+    /// `perform { ... }` re-entry counter. The outermost block (depth == 1
+    /// at exit) is the one that calls `modelContext.save()`; nested blocks
+    /// just run and let the outer save flush their staged changes.
+    private var performDepth = 0
+
+    public func perform<T: Sendable>(
+        _ block: @Sendable () async throws -> T,
+    ) async throws -> T {
+        performDepth += 1
+        let result: T
+        do {
+            result = try await block()
+        } catch {
+            performDepth -= 1
+            throw error
+        }
+        let wasOutermost = performDepth == 1
+        performDepth -= 1
+        if wasOutermost {
+            try modelContext.save()
+        }
+        return result
+    }
+
     public func addSample(_ sample: LocationSample) async throws {
         let id = sample.id
-        let existing = try modelContext.fetch(
+        if let existing = try modelContext.fetch(
             FetchDescriptor<SDLocationSample>(predicate: #Predicate { $0.id == id }),
-        )
-        for record in existing {
-            modelContext.delete(record)
+        ).first {
+            existing.update(from: sample)
+        } else {
+            modelContext.insert(SDLocationSample(value: sample))
         }
-        let model = SDLocationSample(
-            id: sample.id,
-            timestamp: sample.timestamp,
-            latitude: sample.coordinate.latitude,
-            longitude: sample.coordinate.longitude,
-            horizontalAccuracy: sample.horizontalAccuracy,
-            sourceRaw: sample.source.rawValue,
-        )
-        modelContext.insert(model)
-        try modelContext.save()
     }
 
     public func samples(in interval: DateInterval) async throws -> [LocationSample] {
         let start = interval.start
         let end = interval.end
         var descriptor = FetchDescriptor<SDLocationSample>(
-            predicate: #Predicate { $0.timestamp >= start && $0.timestamp < end },
+            predicate: #Predicate {
+                if let timestamp = $0.timestamp {
+                    timestamp >= start && timestamp < end
+                } else {
+                    false
+                }
+            },
             sortBy: [SortDescriptor(\.timestamp)],
         )
         descriptor.includePendingChanges = true
-        return try modelContext.fetch(descriptor).map { $0.toValue() }
+        return try modelContext.fetch(descriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
     }
 
     public func allSamples() async throws -> [LocationSample] {
         var descriptor = FetchDescriptor<SDLocationSample>(sortBy: [SortDescriptor(\.timestamp)])
         descriptor.includePendingChanges = true
-        return try modelContext.fetch(descriptor).map { $0.toValue() }
+        return try modelContext.fetch(descriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
     }
 
-    public func addEvidence(_ evidence: Evidence, blob: Data?) async throws {
+    public func write(evidence: Evidence, blob: Data?) async throws {
         let id = evidence.id
-        let existing = try modelContext.fetch(
+        if let existing = try modelContext.fetch(
             FetchDescriptor<SDEvidence>(predicate: #Predicate { $0.id == id }),
-        )
-        // Treat `blob == nil` as "no change" so a metadata-only edit (note,
-        // kind, region) does not wipe a previously stored attachment. Callers
-        // that need to remove the blob explicitly should use `delete(for:)`
-        // from the `EvidenceBlobStore` API.
-        let resolvedBlob: Data? = blob ?? existing.first?.blob
-        for record in existing {
-            modelContext.delete(record)
+        ).first {
+            // Treat `blob == nil` as "no change" so a metadata-only edit
+            // (note, kind, region) does not wipe a previously stored
+            // attachment. Callers that need to remove the blob explicitly
+            // use `delete(for:)` from the `EvidenceBlobStore` API.
+            existing.update(from: evidence, blob: blob ?? existing.blob)
+        } else {
+            modelContext.insert(SDEvidence(value: evidence, blob: blob))
         }
-        let model = SDEvidence(
-            id: evidence.id,
-            kindRaw: evidence.kind.rawValue,
-            capturedAt: evidence.capturedAt,
-            note: evidence.note,
-            regionRaw: evidence.region?.rawValue,
-            blob: resolvedBlob,
-        )
-        modelContext.insert(model)
-        try modelContext.save()
     }
 
     public func evidence(in interval: DateInterval) async throws -> [Evidence] {
         let start = interval.start
         let end = interval.end
         var descriptor = FetchDescriptor<SDEvidence>(
-            predicate: #Predicate { $0.capturedAt >= start && $0.capturedAt < end },
+            predicate: #Predicate {
+                if let capturedAt = $0.capturedAt {
+                    capturedAt >= start && capturedAt < end
+                } else {
+                    false
+                }
+            },
             sortBy: [SortDescriptor(\.capturedAt)],
         )
         descriptor.includePendingChanges = true
-        return try modelContext.fetch(descriptor).map { $0.toValue() }
+        return try modelContext.fetch(descriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
     }
 
     public func evidenceBlob(for id: UUID) async throws -> Data? {
@@ -112,11 +158,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return try modelContext.fetch(descriptor).first?.blob
     }
 
-    public func write(_ blob: Data, for id: UUID) async throws {
+    public func write(blob: Data, for id: UUID) async throws {
         let descriptor = FetchDescriptor<SDEvidence>(predicate: #Predicate { $0.id == id })
         guard let record = try modelContext.fetch(descriptor).first else { return }
         record.blob = blob
-        try modelContext.save()
     }
 
     public func read(for id: UUID) async throws -> Data? {
@@ -127,64 +172,85 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let descriptor = FetchDescriptor<SDEvidence>(predicate: #Predicate { $0.id == id })
         guard let record = try modelContext.fetch(descriptor).first else { return }
         record.blob = nil
-        try modelContext.save()
     }
 
     public func setManualDay(_ day: DayPresence) async throws {
         let key = day.date
-        let existing = try modelContext.fetch(
+        if let existing = try modelContext.fetch(
             FetchDescriptor<SDManualDay>(predicate: #Predicate { $0.dateKey == key }),
-        )
-        for record in existing {
-            modelContext.delete(record)
+        ).first {
+            existing.update(from: day)
+        } else {
+            modelContext.insert(SDManualDay(value: day))
         }
-        let model = SDManualDay(
-            dateKey: day.date,
-            regionRaws: day.regions.map(\.rawValue).sorted(),
-        )
-        modelContext.insert(model)
-        try modelContext.save()
     }
 
     public func manualDays(in interval: DateInterval) async throws -> [DayPresence] {
         let start = interval.start
         let end = interval.end
         var descriptor = FetchDescriptor<SDManualDay>(
-            predicate: #Predicate { $0.dateKey >= start && $0.dateKey < end },
+            predicate: #Predicate {
+                if let dateKey = $0.dateKey {
+                    dateKey >= start && dateKey < end
+                } else {
+                    false
+                }
+            },
             sortBy: [SortDescriptor(\.dateKey)],
         )
         descriptor.includePendingChanges = true
-        return try modelContext.fetch(descriptor).map { $0.toValue() }
+        return try modelContext.fetch(descriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
     }
 
     public func clear(in interval: DateInterval) async throws {
         let start = interval.start
         let end = interval.end
         let samples = try modelContext.fetch(
-            FetchDescriptor<SDLocationSample>(
-                predicate: #Predicate { $0.timestamp >= start && $0.timestamp < end },
-            ),
+            FetchDescriptor<SDLocationSample>(predicate: #Predicate {
+                if let timestamp = $0.timestamp {
+                    timestamp >= start && timestamp < end
+                } else {
+                    false
+                }
+            }),
         )
         for record in samples {
             modelContext.delete(record)
         }
         let evidences = try modelContext.fetch(
-            FetchDescriptor<SDEvidence>(
-                predicate: #Predicate { $0.capturedAt >= start && $0.capturedAt < end },
-            ),
+            FetchDescriptor<SDEvidence>(predicate: #Predicate {
+                if let capturedAt = $0.capturedAt {
+                    capturedAt >= start && capturedAt < end
+                } else {
+                    false
+                }
+            }),
         )
         for record in evidences {
             modelContext.delete(record)
         }
         let manuals = try modelContext.fetch(
-            FetchDescriptor<SDManualDay>(
-                predicate: #Predicate { $0.dateKey >= start && $0.dateKey < end },
-            ),
+            FetchDescriptor<SDManualDay>(predicate: #Predicate {
+                if let dateKey = $0.dateKey {
+                    dateKey >= start && dateKey < end
+                } else {
+                    false
+                }
+            }),
         )
         for record in manuals {
             modelContext.delete(record)
         }
-        try modelContext.save()
+    }
+
+    private static func logFault<Record>(forCorrupt _: Record) {
+        logger.fault(
+            "Dropped corrupt SwiftData record of type \(String(describing: Record.self), privacy: .public)",
+        )
     }
 }
 
@@ -192,90 +258,128 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
 @Model
 final class SDLocationSample {
-    var id: UUID = UUID()
-    var timestamp: Date = Date.distantPast
-    var latitude: Double = 0
-    var longitude: Double = 0
-    var horizontalAccuracy: Double = 0
-    var sourceRaw: String = ""
+    var id: UUID?
+    var timestamp: Date?
+    var latitude: Double?
+    var longitude: Double?
+    var horizontalAccuracy: Double?
+    /// Discriminator string from `SampleSource.discriminator`.
+    var sourceRaw: String?
+    /// Populated only when `sourceRaw == "evidenceImplied"`.
+    var evidenceId: UUID?
+    /// Populated only when `sourceRaw == "evidenceImplied"`. Stores the
+    /// `EvidenceKind.discriminator` of the originating evidence; the
+    /// `.other` label is not preserved here (fetch the `Evidence` row
+    /// for that).
+    var evidenceKindRaw: String?
 
-    init(
-        id: UUID,
-        timestamp: Date,
-        latitude: Double,
-        longitude: Double,
-        horizontalAccuracy: Double,
-        sourceRaw: String,
-    ) {
-        self.id = id
-        self.timestamp = timestamp
-        self.latitude = latitude
-        self.longitude = longitude
-        self.horizontalAccuracy = horizontalAccuracy
-        self.sourceRaw = sourceRaw
+    init() {}
+
+    convenience init(value: LocationSample) {
+        self.init()
+        update(from: value)
     }
 
-    func toValue() -> LocationSample {
-        LocationSample(
+    func update(from value: LocationSample) {
+        id = value.id
+        timestamp = value.timestamp
+        latitude = value.coordinate.latitude
+        longitude = value.coordinate.longitude
+        horizontalAccuracy = value.horizontalAccuracy
+        sourceRaw = value.source.discriminator
+        evidenceId = value.source.evidenceId
+        evidenceKindRaw = value.source.evidenceKind?.discriminator
+    }
+
+    func toValue() -> LocationSample? {
+        guard let id, let timestamp, let latitude, let longitude else { return nil }
+        let source = SampleSource.fromDiscriminator(
+            sourceRaw ?? SampleSource.manual.discriminator,
+            evidenceId: evidenceId,
+            evidenceKindRaw: evidenceKindRaw,
+        ) ?? .manual
+        return LocationSample(
             id: id,
             timestamp: timestamp,
             coordinate: Coordinate(latitude: latitude, longitude: longitude),
-            horizontalAccuracy: horizontalAccuracy,
-            source: SampleSource(rawValue: sourceRaw) ?? .manual,
+            horizontalAccuracy: horizontalAccuracy ?? 0,
+            source: source,
         )
     }
 }
 
 @Model
 final class SDEvidence {
-    var id: UUID = UUID()
-    var kindRaw: String = ""
-    var capturedAt: Date = Date.distantPast
+    var id: UUID?
+    /// `EvidenceKind.discriminator` ("planeTicket", "other", etc.).
+    var kindRaw: String?
+    /// User-supplied label for the `.other` catch-all. Nil for every
+    /// other kind.
+    var otherLabel: String?
+    var capturedAt: Date?
     var note: String?
     var regionRaw: String?
+    /// `EvidenceContentType.rawValue` if the attached blob's media type
+    /// has been classified. Optional because old rows pre-date the
+    /// schema and unclassified rows are still readable.
+    var contentTypeRaw: String?
     @Attribute(.externalStorage) var blob: Data?
 
-    init(
-        id: UUID,
-        kindRaw: String,
-        capturedAt: Date,
-        note: String?,
-        regionRaw: String?,
-        blob: Data?,
-    ) {
-        self.id = id
-        self.kindRaw = kindRaw
-        self.capturedAt = capturedAt
-        self.note = note
-        self.regionRaw = regionRaw
+    init() {}
+
+    convenience init(value: Evidence, blob: Data?) {
+        self.init()
+        update(from: value, blob: blob)
+    }
+
+    func update(from value: Evidence, blob: Data?) {
+        id = value.id
+        kindRaw = value.kind.discriminator
+        otherLabel = if case let .other(label) = value.kind { label } else { nil }
+        capturedAt = value.capturedAt
+        note = value.note
+        regionRaw = value.region?.rawValue
+        contentTypeRaw = value.contentType?.rawValue
         self.blob = blob
     }
 
-    func toValue() -> Evidence {
-        Evidence(
+    func toValue() -> Evidence? {
+        guard let id, let kindRaw, let capturedAt else { return nil }
+        let kind = EvidenceKind.fromDiscriminator(kindRaw, otherLabel: otherLabel) ?? .other(nil)
+        let contentType = contentTypeRaw.flatMap { EvidenceContentType(rawValue: $0) }
+        return Evidence(
             id: id,
-            kind: EvidenceKind(rawValue: kindRaw) ?? .other,
+            kind: kind,
             capturedAt: capturedAt,
             region: regionRaw.flatMap { Region(rawValue: $0) },
             note: note,
+            contentType: contentType,
         )
     }
 }
 
 @Model
 final class SDManualDay {
-    var dateKey: Date = Date.distantPast
-    var regionRaws: [String] = []
+    var dateKey: Date?
+    var regionRaws: [String]?
 
-    init(dateKey: Date, regionRaws: [String]) {
-        self.dateKey = dateKey
-        self.regionRaws = regionRaws
+    init() {}
+
+    convenience init(value: DayPresence) {
+        self.init()
+        update(from: value)
     }
 
-    func toValue() -> DayPresence {
-        DayPresence(
+    func update(from value: DayPresence) {
+        dateKey = value.date
+        regionRaws = value.regions.map(\.rawValue).sorted()
+    }
+
+    func toValue() -> DayPresence? {
+        guard let dateKey else { return nil }
+        return DayPresence(
             date: dateKey,
-            regions: Set(regionRaws.compactMap { Region(rawValue: $0) }),
+            regions: Set((regionRaws ?? []).compactMap { Region(rawValue: $0) }),
         )
     }
 }

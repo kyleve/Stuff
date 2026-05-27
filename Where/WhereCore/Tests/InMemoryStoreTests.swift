@@ -57,7 +57,7 @@ struct InMemoryStoreTests {
             note: "JFK → SFO",
         )
         let blob = Data("PDF bytes".utf8)
-        try await store.addEvidence(evidence, blob: blob)
+        try await store.write(evidence: evidence, blob: blob)
 
         let fetched = try await store.evidence(
             in: DateInterval(
@@ -104,8 +104,8 @@ struct InMemoryStoreTests {
             horizontalAccuracy: 0,
             source: .manual,
         ))
-        try await store.addEvidence(
-            Evidence(kind: .other, capturedAt: inside),
+        try await store.write(
+            evidence: Evidence(kind: .other(nil), capturedAt: inside),
             blob: nil,
         )
         try await store.setManualDay(DayPresence(date: inside, regions: [.california]))

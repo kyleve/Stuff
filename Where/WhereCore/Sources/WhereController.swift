@@ -21,6 +21,18 @@ public actor WhereController {
 
     private var ingestTask: Task<Void, Never>?
 
+    /// Samples whose persist call failed (e.g. transient SwiftData / CloudKit
+    /// error). Drained before each new GPS save and on the next `startGPS()`
+    /// so a brief I/O outage doesn't silently drop measurements.
+    private var retryQueue: [LocationSample] = []
+
+    /// Hard cap on the retry queue. Once reached, the oldest pending sample
+    /// is dropped to make room for the newest. Sized to ~12 hours of
+    /// significant-change/Visits ingestion (which fires on the order of
+    /// minutes, not seconds), so reaching the cap means something is very
+    /// wrong with persistence and we'd rather keep recent data than ancient.
+    private static let retryQueueCapacity = 1000
+
     private static let logger = Logger(subsystem: "com.stuff.where", category: "WhereController")
 
     public init(
@@ -42,24 +54,25 @@ public actor WhereController {
     // MARK: - Ingestion
 
     public func ingest(_ sample: LocationSample) async throws {
-        try await store.addSample(sample)
+        try await store.perform { try await store.addSample(sample) }
     }
 
     // MARK: - Retroactive entry
 
     public func addManualSample(_ sample: LocationSample) async throws {
-        try await store.addSample(sample)
+        try await store.perform { try await store.addSample(sample) }
     }
 
     public func addManualDay(date: Date, regions: Set<Region>) async throws {
         let key = aggregator.calendar.startOfDay(for: date)
-        try await store.setManualDay(DayPresence(date: key, regions: regions))
+        let presence = DayPresence(date: key, regions: regions)
+        try await store.perform { try await store.setManualDay(presence) }
     }
 
     // MARK: - Evidence
 
     public func addEvidence(_ evidence: Evidence, blob: Data? = nil) async throws {
-        try await store.addEvidence(evidence, blob: blob)
+        try await store.perform { try await store.write(evidence: evidence, blob: blob) }
     }
 
     public func evidence(for year: Int) async throws -> [Evidence] {
@@ -85,44 +98,94 @@ public actor WhereController {
     }
 
     public func clearYear(_ year: Int) async throws {
-        try await store.clear(in: aggregator.yearInterval(year: year))
+        let interval = aggregator.yearInterval(year: year)
+        try await store.perform { try await store.clear(in: interval) }
     }
 
     // MARK: - GPS lifecycle
 
     public func startGPS() async {
+        // Idempotent: a second call while a stream is already attached
+        // is a no-op so the GPS lifecycle is safe to drive from
+        // multiple call sites (e.g. scene activation + manual button).
+        guard ingestTask == nil else { return }
         await locationSource.start()
-        ingestTask?.cancel()
+        // Flush anything that failed to persist before this session
+        // started, before we attach the new stream.
+        await drainRetryQueue()
         let stream = locationSource.sampleStream
-        let store = store
-        let logger = Self.logger
-        ingestTask = Task {
+        ingestTask = Task { [weak self] in
             for await sample in stream {
                 if Task.isCancelled { break }
-                do {
-                    try await store.addSample(sample)
-                } catch {
-                    // Persistence failures (SwiftData save, CloudKit, etc.)
-                    // are surfaced via `os.Logger` instead of being silently
-                    // dropped. The stream keeps running so a transient error
-                    // doesn't stop tracking, but the failure is visible in
-                    // Console and `os_log` traces.
-                    logger
-                        .error(
-                            "Failed to persist GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
-                        )
-                }
+                guard let self else { break }
+                await processIngestedSample(sample)
             }
         }
     }
 
+    /// Persist one GPS-sourced sample, falling back to the retry queue
+    /// on failure. Drains any backlog first so a single transient
+    /// outage doesn't permanently reorder samples on disk.
+    private func processIngestedSample(_ sample: LocationSample) async {
+        await drainRetryQueue()
+        do {
+            try await store.perform { try await store.addSample(sample) }
+        } catch {
+            // Persistence failures (SwiftData save, CloudKit, etc.)
+            // are surfaced via `os.Logger` instead of being silently
+            // dropped. The stream keeps running so a transient error
+            // doesn't stop tracking, and the sample is queued for
+            // retry on the next save attempt.
+            Self.logger.error(
+                "Failed to persist GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
+            )
+            enqueueForRetry(sample)
+        }
+    }
+
+    private func enqueueForRetry(_ sample: LocationSample) {
+        if retryQueue.count >= Self.retryQueueCapacity {
+            retryQueue.removeFirst()
+        }
+        retryQueue.append(sample)
+    }
+
+    /// Try to flush every queued sample exactly once. Anything that
+    /// still fails is re-queued at the tail; the next call gets the
+    /// chance to retry it.
+    private func drainRetryQueue() async {
+        guard !retryQueue.isEmpty else { return }
+        let pending = retryQueue
+        retryQueue.removeAll(keepingCapacity: true)
+        for sample in pending {
+            do {
+                try await store.perform { try await store.addSample(sample) }
+            } catch {
+                Self.logger.error(
+                    "Retry still failing for GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
+                )
+                enqueueForRetry(sample)
+            }
+        }
+    }
+
+    /// Number of samples currently waiting to be re-persisted. Exposed
+    /// for tests; production callers should treat this as opaque.
+    public var retryQueueDepth: Int {
+        retryQueue.count
+    }
+
     public func stopGPS() async {
-        ingestTask?.cancel()
+        // Idempotent: cheap no-op when nothing is running so this is
+        // safe to call from teardown paths that may run before any
+        // `startGPS()` (e.g. scene background, error recovery).
+        guard let task = ingestTask else { return }
+        task.cancel()
         ingestTask = nil
         await locationSource.stop()
     }
 
-    public func requestAlwaysAuthorization() async {
-        await locationSource.requestAlwaysAuthorization()
+    public func requestLocationPermission() async throws {
+        try await locationSource.requestPermission()
     }
 }
