@@ -188,4 +188,22 @@ public actor WhereController {
     public func requestLocationPermission() async throws {
         try await locationSource.requestPermission()
     }
+
+    // MARK: - Production wiring
+
+    /// Build a controller wired to the production `SwiftDataStore`
+    /// (`.default` storage) and a `CoreLocationSource`. This is the
+    /// app target's single composition point — the app and the UI
+    /// layer stay free of persistence/GPS construction details.
+    ///
+    /// `@MainActor` because `CoreLocationSource` must create its
+    /// `CLLocationManager` on a thread with a run loop. Throws if the
+    /// SwiftData container can't be opened.
+    @MainActor
+    public static func live() throws -> WhereController {
+        let store = try SwiftDataStore(
+            modelContainer: SwiftDataStore.makeContainer(storage: .default),
+        )
+        return WhereController(store: store, locationSource: CoreLocationSource())
+    }
 }
