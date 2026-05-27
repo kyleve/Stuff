@@ -2,22 +2,26 @@ import Foundation
 import Testing
 import WhereCore
 
-struct InMemoryStoreTests {
+/// Direct tests of the `WhereStore` contract against an in-memory
+/// `SwiftDataStore`. `SwiftDataStore.inMemory()` gives each test its
+/// own ephemeral `ModelContainer`, so there is no shared state to
+/// reset across cases.
+struct SwiftDataStoreTests {
     @Test func roundTripsSamples() async throws {
-        let store = InMemoryStore()
+        let store = try SwiftDataStore.inMemory()
         let sample = LocationSample(
             timestamp: Date(timeIntervalSince1970: 1_700_000_000),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsVisit,
         )
-        try await store.addSample(sample)
+        try await store.perform { try await store.addSample(sample) }
         let all = try await store.allSamples()
         #expect(all == [sample])
     }
 
     @Test func samplesAreFilteredByInterval() async throws {
-        let store = InMemoryStore()
+        let store = try SwiftDataStore.inMemory()
         let early = LocationSample(
             timestamp: Date(timeIntervalSince1970: 1_000_000_000),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
@@ -36,9 +40,11 @@ struct InMemoryStoreTests {
             horizontalAccuracy: 0,
             source: .manual,
         )
-        try await store.addSample(late)
-        try await store.addSample(early)
-        try await store.addSample(middle)
+        try await store.perform {
+            try await store.addSample(late)
+            try await store.addSample(early)
+            try await store.addSample(middle)
+        }
 
         let interval = DateInterval(
             start: Date(timeIntervalSince1970: 1_400_000_000),
@@ -49,7 +55,7 @@ struct InMemoryStoreTests {
     }
 
     @Test func evidenceRoundTripsWithBlob() async throws {
-        let store = InMemoryStore()
+        let store = try SwiftDataStore.inMemory()
         let evidence = Evidence(
             kind: .boardingPass,
             capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
@@ -57,7 +63,7 @@ struct InMemoryStoreTests {
             note: "JFK → SFO",
         )
         let blob = Data("PDF bytes".utf8)
-        try await store.write(evidence: evidence, blob: blob)
+        try await store.perform { try await store.write(evidence: evidence, blob: blob) }
 
         let fetched = try await store.evidence(
             in: DateInterval(
@@ -72,10 +78,12 @@ struct InMemoryStoreTests {
     }
 
     @Test func manualDayReplacesByDate() async throws {
-        let store = InMemoryStore()
+        let store = try SwiftDataStore.inMemory()
         let date = Date(timeIntervalSince1970: 1_700_000_000)
-        try await store.setManualDay(DayPresence(date: date, regions: [.california]))
-        try await store.setManualDay(DayPresence(date: date, regions: [.newYork]))
+        try await store.perform {
+            try await store.setManualDay(DayPresence(date: date, regions: [.california]))
+            try await store.setManualDay(DayPresence(date: date, regions: [.newYork]))
+        }
 
         let result = try await store.manualDays(
             in: DateInterval(
@@ -88,34 +96,38 @@ struct InMemoryStoreTests {
     }
 
     @Test func clearWipesIntervalAcrossAllTables() async throws {
-        let store = InMemoryStore()
+        let store = try SwiftDataStore.inMemory()
         let inside = Date(timeIntervalSince1970: 1_700_000_000)
         let outside = Date(timeIntervalSince1970: 2_000_000_000)
 
-        try await store.addSample(LocationSample(
-            timestamp: inside,
-            coordinate: Coordinate(latitude: 0, longitude: 0),
-            horizontalAccuracy: 0,
-            source: .manual,
-        ))
-        try await store.addSample(LocationSample(
-            timestamp: outside,
-            coordinate: Coordinate(latitude: 0, longitude: 0),
-            horizontalAccuracy: 0,
-            source: .manual,
-        ))
-        try await store.write(
-            evidence: Evidence(kind: .other(nil), capturedAt: inside),
-            blob: nil,
-        )
-        try await store.setManualDay(DayPresence(date: inside, regions: [.california]))
+        try await store.perform {
+            try await store.addSample(LocationSample(
+                timestamp: inside,
+                coordinate: Coordinate(latitude: 0, longitude: 0),
+                horizontalAccuracy: 0,
+                source: .manual,
+            ))
+            try await store.addSample(LocationSample(
+                timestamp: outside,
+                coordinate: Coordinate(latitude: 0, longitude: 0),
+                horizontalAccuracy: 0,
+                source: .manual,
+            ))
+            try await store.write(
+                evidence: Evidence(kind: .other(nil), capturedAt: inside),
+                blob: nil,
+            )
+            try await store.setManualDay(DayPresence(date: inside, regions: [.california]))
+        }
 
-        try await store.clear(
-            in: DateInterval(
-                start: inside.addingTimeInterval(-3600),
-                end: inside.addingTimeInterval(3600),
-            ),
-        )
+        try await store.perform {
+            try await store.clear(
+                in: DateInterval(
+                    start: inside.addingTimeInterval(-3600),
+                    end: inside.addingTimeInterval(3600),
+                ),
+            )
+        }
 
         let allSamples = try await store.allSamples()
         #expect(allSamples.count == 1)

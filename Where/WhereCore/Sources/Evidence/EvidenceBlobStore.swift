@@ -12,22 +12,3 @@ public protocol EvidenceBlobStore: Sendable {
     func read(for id: UUID) async throws -> Data?
     func delete(for id: UUID) async throws
 }
-
-/// Trivial in-memory implementation suitable for tests and SwiftUI previews.
-public actor InMemoryEvidenceBlobStore: EvidenceBlobStore {
-    private var blobs: [UUID: Data] = [:]
-
-    public init() {}
-
-    public func write(blob: Data, for id: UUID) async throws {
-        blobs[id] = blob
-    }
-
-    public func read(for id: UUID) async throws -> Data? {
-        blobs[id]
-    }
-
-    public func delete(for id: UUID) async throws {
-        blobs.removeValue(forKey: id)
-    }
-}

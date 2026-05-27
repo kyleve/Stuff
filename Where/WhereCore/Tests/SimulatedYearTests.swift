@@ -11,8 +11,8 @@ struct SimulatedYearTests {
         return cal
     }()
 
-    private static func makeController() -> WhereController {
-        let store = InMemoryStore()
+    private static func makeController() throws -> WhereController {
+        let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource()
         return WhereController(
             store: store,
@@ -25,7 +25,7 @@ struct SimulatedYearTests {
     }
 
     @Test func totalsAddUpAcrossAllRegions() async throws {
-        let controller = Self.makeController()
+        let controller = try Self.makeController()
         await SimulatedYear.script(controller: controller, calendar: Self.calendar)
         let report = try await controller.yearReport(for: SimulatedYear.year)
 
@@ -49,7 +49,7 @@ struct SimulatedYearTests {
     }
 
     @Test func yearReport_perMonthBreakdown() async throws {
-        let controller = Self.makeController()
+        let controller = try Self.makeController()
         await SimulatedYear.script(controller: controller, calendar: Self.calendar)
         let report = try await controller.yearReport(for: SimulatedYear.year)
 
@@ -92,7 +92,7 @@ struct SimulatedYearTests {
     }
 
     @Test func retroactiveEntryGrowsReport() async throws {
-        let controller = Self.makeController()
+        let controller = try Self.makeController()
         await SimulatedYear.script(controller: controller, calendar: Self.calendar)
         let before = try await controller.yearReport(for: SimulatedYear.year)
 
@@ -117,7 +117,7 @@ struct SimulatedYearTests {
     }
 
     @Test func evidenceStillRetrievableAfterScripting() async throws {
-        let controller = Self.makeController()
+        let controller = try Self.makeController()
         await SimulatedYear.script(controller: controller, calendar: Self.calendar)
         let evidence = try await controller.evidence(for: SimulatedYear.year)
         #expect(evidence.count == 3)

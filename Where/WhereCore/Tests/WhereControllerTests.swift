@@ -9,10 +9,10 @@ struct WhereControllerTests {
         DayAggregator(calendar: Calendar(identifier: .gregorian), timeZone: pacific)
     }
 
-    private static func makeController()
-        -> (WhereController, InMemoryStore, ScriptedLocationSource)
+    private static func makeController() throws
+        -> (WhereController, SwiftDataStore, ScriptedLocationSource)
     {
-        let store = InMemoryStore()
+        let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource()
         let controller = WhereController(
             store: store,
@@ -23,7 +23,7 @@ struct WhereControllerTests {
     }
 
     @Test func ingestStoresSamplesAndReportsThem() async throws {
-        let (controller, _, _) = Self.makeController()
+        let (controller, _, _) = try Self.makeController()
         let sf = LocationSample(
             timestamp: iso("2026-03-15T12:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
@@ -39,7 +39,7 @@ struct WhereControllerTests {
     }
 
     @Test func manualDayUnionsWithSamples() async throws {
-        let (controller, _, _) = Self.makeController()
+        let (controller, _, _) = try Self.makeController()
         try await controller.ingest(LocationSample(
             timestamp: iso("2026-07-04T10:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
@@ -62,7 +62,7 @@ struct WhereControllerTests {
     }
 
     @Test func clearYearWipesAndReportsEmpty() async throws {
-        let (controller, _, _) = Self.makeController()
+        let (controller, _, _) = try Self.makeController()
         try await controller.ingest(LocationSample(
             timestamp: iso("2026-03-15T12:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
@@ -76,7 +76,8 @@ struct WhereControllerTests {
     }
 
     @Test func gpsFailuresEnqueueAndDrainOnRecovery() async throws {
-        let store = ToggleFailingStore()
+        let backing = try SwiftDataStore.inMemory()
+        let store = ToggleFailingStore(backing: backing)
         let source = ScriptedLocationSource()
         let controller = WhereController(
             store: store,
@@ -118,7 +119,7 @@ struct WhereControllerTests {
     }
 
     @Test func evidenceRoundTripsViaController() async throws {
-        let (controller, _, _) = Self.makeController()
+        let (controller, _, _) = try Self.makeController()
         let evidence = Evidence(
             kind: .planeTicket,
             capturedAt: iso("2026-04-10T08:00:00-07:00"),
@@ -157,11 +158,16 @@ private func waitUntil(
 private struct ToggleFailingStoreError: Error {}
 
 /// `WhereStore` that lets a test toggle whether `addSample` succeeds.
-/// Every other API forwards to an in-memory backing store so reads
-/// stay deterministic.
+/// Every other API forwards to a real `SwiftDataStore` (in-memory) so
+/// reads stay deterministic and the failure injection point stays
+/// narrow.
 private actor ToggleFailingStore: WhereStore {
-    private let backing = InMemoryStore()
+    private let backing: SwiftDataStore
     private var shouldFail = false
+
+    init(backing: SwiftDataStore) {
+        self.backing = backing
+    }
 
     func setShouldFail(_ value: Bool) {
         shouldFail = value

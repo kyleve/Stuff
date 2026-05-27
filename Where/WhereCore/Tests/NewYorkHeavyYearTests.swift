@@ -21,9 +21,9 @@ struct NewYorkHeavyYearTests {
         return cal
     }()
 
-    private static func makeController() -> WhereController {
-        WhereController(
-            store: InMemoryStore(),
+    private static func makeController() throws -> WhereController {
+        try WhereController(
+            store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
             aggregator: DayAggregator(
                 calendar: Calendar(identifier: .gregorian),
@@ -90,7 +90,7 @@ struct NewYorkHeavyYearTests {
     ]
 
     @Test func totalsHaveNewYorkFarAheadOfCalifornia() async throws {
-        let controller = Self.makeController()
+        let controller = try Self.makeController()
         await Self.script(controller: controller, plan: Self.newYorkHeavyPlan)
         let report = try await controller.yearReport(for: Self.year)
 
@@ -102,7 +102,7 @@ struct NewYorkHeavyYearTests {
     }
 
     @Test func perMonthBreakdown() async throws {
-        let controller = Self.makeController()
+        let controller = try Self.makeController()
         await Self.script(controller: controller, plan: Self.newYorkHeavyPlan)
         let report = try await controller.yearReport(for: Self.year)
 
@@ -134,7 +134,7 @@ struct NewYorkHeavyYearTests {
     }
 
     @Test func everyNewYorkDayResolvesToNewYorkOnly() async throws {
-        let controller = Self.makeController()
+        let controller = try Self.makeController()
         await Self.script(controller: controller, plan: Self.newYorkHeavyPlan)
         let report = try await controller.yearReport(for: Self.year)
 
@@ -198,7 +198,7 @@ struct NewYorkHeavyYearTests {
     ]
 
     @Test func californiaWinsBy_oneDay() async throws {
-        let controller = Self.makeController()
+        let controller = try Self.makeController()
         await Self.script(controller: controller, plan: Self.californiaBareMajorityPlan)
         let report = try await controller.yearReport(for: Self.year)
 
@@ -210,7 +210,7 @@ struct NewYorkHeavyYearTests {
     }
 
     @Test func newYorkWinsBy_oneDay() async throws {
-        let controller = Self.makeController()
+        let controller = try Self.makeController()
         await Self.script(controller: controller, plan: Self.newYorkBareMajorityPlan)
         let report = try await controller.yearReport(for: Self.year)
 
@@ -260,7 +260,7 @@ struct NewYorkHeavyYearTests {
     ]
 
     @Test func backAndForthEvery8Weeks_endsWithNewYorkAhead() async throws {
-        let controller = Self.makeController()
+        let controller = try Self.makeController()
         await Self.script(controller: controller, plan: Self.backAndForthFavorsNewYorkPlan)
         let report = try await controller.yearReport(for: Self.year)
 
@@ -274,7 +274,7 @@ struct NewYorkHeavyYearTests {
     }
 
     @Test func backAndForthEvery8Weeks_endsWithCaliforniaAhead() async throws {
-        let controller = Self.makeController()
+        let controller = try Self.makeController()
         await Self.script(controller: controller, plan: Self.backAndForthFavorsCaliforniaPlan)
         let report = try await controller.yearReport(for: Self.year)
 

@@ -49,6 +49,16 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return try ModelContainer(for: schema, configurations: [config])
     }
 
+    /// Convenience for tests and SwiftUI previews: builds an
+    /// `.inMemory` container and wraps it in a `SwiftDataStore`. Each
+    /// call returns an independent store with its own backing
+    /// container, so callers get a clean slate per use without any
+    /// shared state to reset.
+    public static func inMemory() throws -> SwiftDataStore {
+        let container = try makeContainer(storage: .inMemory)
+        return SwiftDataStore(modelContainer: container)
+    }
+
     private static let logger = Logger(subsystem: "com.stuff.where", category: "SwiftDataStore")
 
     /// `perform { ... }` re-entry counter. The outermost block (depth == 1
