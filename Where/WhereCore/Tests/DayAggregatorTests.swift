@@ -3,7 +3,7 @@ import Testing
 import WhereCore
 
 struct DayAggregatorTests {
-    let attributor = RegionAttributor.bundled
+    let attributor = RegionAttributor.shared
 
     /// All tests pin themselves to America/Los_Angeles so behavior doesn't
     /// shift with the test runner's clock or default locale.

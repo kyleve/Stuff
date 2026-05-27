@@ -1,6 +1,6 @@
 # Bundled region polygons
 
-These GeoJSON files back `RegionAttributor.bundled`. They are loaded once at
+These GeoJSON files back `RegionAttributor.shared`. They are loaded once at
 process start, indexed, and consulted for every coordinate-to-`Region`
 attribution.
 

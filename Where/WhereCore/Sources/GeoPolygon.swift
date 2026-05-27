@@ -17,6 +17,17 @@ struct BoundingBox: Hashable {
             && coordinate.longitude <= maxLongitude
     }
 
+    /// Degenerate "contains nothing" box. Used only as a release-build
+    /// fallback by callers (e.g. `RegionPolygons.init`) that
+    /// `assertionFailure` on empty polygon sets but still need a
+    /// concrete value to satisfy a non-optional property.
+    static let empty = BoundingBox(
+        minLatitude: .infinity,
+        maxLatitude: -.infinity,
+        minLongitude: .infinity,
+        maxLongitude: -.infinity,
+    )
+
     /// The smallest box that contains every vertex of every polygon in
     /// `polygons`. Returns `nil` only when every polygon is empty
     /// (which never happens with bundled GeoJSON; the optional is

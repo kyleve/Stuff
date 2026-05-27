@@ -2,7 +2,7 @@ import Testing
 import WhereCore
 
 struct RegionAttributorTests {
-    let attributor = RegionAttributor.bundled
+    let attributor = RegionAttributor.shared
 
     // MARK: - California
 

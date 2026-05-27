@@ -38,7 +38,7 @@ public actor WhereController {
     public init(
         store: any WhereStore,
         locationSource: any LocationSource,
-        attributor: RegionAttributor = .bundled,
+        attributor: RegionAttributor = .shared,
         aggregator: DayAggregator = DayAggregator(),
     ) {
         self.store = store
