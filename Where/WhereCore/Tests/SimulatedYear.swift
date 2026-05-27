@@ -260,6 +260,7 @@ enum SimulatedYear {
                     capturedAt: date,
                     region: entry.region,
                     note: entry.note,
+                    contentType: .other(nil),
                 ),
                 blob: nil,
             )

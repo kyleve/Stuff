@@ -50,56 +50,38 @@ public enum SampleSource: Sendable, Hashable, Codable {
         evidenceId: UUID? = nil,
         evidenceKindRaw: String? = nil,
     ) -> SampleSource? {
-        switch discriminator {
-            case "gpsVisit": .gpsVisit
-            case "gpsSignificantChange": .gpsSignificantChange
-            case "manual": .manual
-            case "evidenceImplied":
-                if let evidenceId,
-                   let evidenceKindRaw,
-                   let kind = EvidenceKind.fromDiscriminator(evidenceKindRaw)
-                {
-                    .evidenceImplied(id: evidenceId, kind: kind)
-                } else {
-                    nil
-                }
-            default: nil
+        for candidate in knownCases where candidate.discriminator == discriminator {
+            // Exhaustive over `SampleSource` (no `default`): adding a
+            // new case forces a compile error here, surfacing the
+            // discriminator <-> case mapping that needs updating.
+            switch candidate {
+                case .gpsVisit: return .gpsVisit
+                case .gpsSignificantChange: return .gpsSignificantChange
+                case .manual: return .manual
+                case .evidenceImplied:
+                    guard let evidenceId,
+                          let evidenceKindRaw,
+                          let kind = EvidenceKind.fromDiscriminator(evidenceKindRaw)
+                    else { return nil }
+                    return .evidenceImplied(id: evidenceId, kind: kind)
+            }
         }
+        return nil
     }
 
-    private enum CodingKeys: String, CodingKey {
-        case source
-        case evidenceId
-        case evidenceKindRaw
-    }
-
-    public init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let discriminator = try container.decode(String.self, forKey: .source)
-        let evidenceId = try container.decodeIfPresent(UUID.self, forKey: .evidenceId)
-        let evidenceKindRaw = try container.decodeIfPresent(String.self, forKey: .evidenceKindRaw)
-        guard let value = SampleSource.fromDiscriminator(
-            discriminator,
-            evidenceId: evidenceId,
-            evidenceKindRaw: evidenceKindRaw,
-        ) else {
-            throw DecodingError.dataCorruptedError(
-                forKey: .source,
-                in: container,
-                debugDescription: "Unknown or incomplete SampleSource '\(discriminator)'",
-            )
-        }
-        self = value
-    }
-
-    public func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(discriminator, forKey: .source)
-        if case let .evidenceImplied(id, kind) = self {
-            try container.encode(id, forKey: .evidenceId)
-            try container.encode(kind.discriminator, forKey: .evidenceKindRaw)
-        }
-    }
+    /// Used by `fromDiscriminator` to walk every case exhaustively.
+    /// `.evidenceImplied` uses placeholder associated values; they're
+    /// only here to make the case visitable for discriminator
+    /// matching.
+    private static let knownCases: [SampleSource] = [
+        .gpsVisit,
+        .gpsSignificantChange,
+        .manual,
+        .evidenceImplied(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000000")!,
+            kind: .other(nil),
+        ),
+    ]
 }
 
 /// A single point-in-time observation of where the user was. The smallest

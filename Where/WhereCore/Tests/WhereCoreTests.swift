@@ -62,7 +62,10 @@ struct EvidenceKindTests {
     }
 
     @Test func unknownDiscriminator_throws() {
-        let json = Data(#"{"kind":"madeUp"}"#.utf8)
+        // Synthesized `Codable` for enums-with-associated-values uses
+        // the case name as the outer key; an unknown key fails to
+        // match any case and decodes as a `DecodingError`.
+        let json = Data(#"{"madeUp":{}}"#.utf8)
         #expect(throws: DecodingError.self) {
             _ = try JSONDecoder().decode(EvidenceKind.self, from: json)
         }
@@ -101,17 +104,23 @@ struct SampleSourceTests {
     }
 
     @Test func manualSource_dropsEvidenceFieldsInEncoding() throws {
+        // Synthesized `Codable` only emits associated values for the
+        // matching case, so a plain `.manual` encodes without an
+        // `id`/`kind` payload anywhere in the JSON.
         let original = SampleSource.manual
         let data = try JSONEncoder().encode(original)
         let decoded = try JSONDecoder().decode(SampleSource.self, from: data)
         #expect(decoded == .manual)
         let json = try #require(String(data: data, encoding: .utf8))
-        #expect(!json.contains("evidenceId"))
-        #expect(!json.contains("evidenceKindRaw"))
+        #expect(!json.contains("\"id\""))
+        #expect(!json.contains("\"kind\""))
     }
 
     @Test func evidenceImpliedDecoding_missingFields_throws() {
-        let json = Data(#"{"source":"evidenceImplied"}"#.utf8)
+        // Empty `evidenceImplied` payload omits required `id` and
+        // `kind` keys, which the synthesized decoder rejects with a
+        // `DecodingError.keyNotFound`.
+        let json = Data(#"{"evidenceImplied":{}}"#.utf8)
         #expect(throws: DecodingError.self) {
             _ = try JSONDecoder().decode(SampleSource.self, from: json)
         }

@@ -348,10 +348,15 @@ final class SDEvidence {
     var capturedAt: Date?
     var note: String?
     var regionRaw: String?
-    /// `EvidenceContentType.rawValue` if the attached blob's media type
-    /// has been classified. Optional because old rows pre-date the
-    /// schema and unclassified rows are still readable.
-    var contentTypeRaw: String?
+    /// `EvidenceContentType.discriminator` ("pdf", "image", "other", ...).
+    /// Optional only because all SwiftData fields must be optional
+    /// for CloudKit; the value-level `Evidence.contentType` is
+    /// required, and `toValue()` falls back to `.other(nil)` for
+    /// missing/unknown discriminators so legacy rows stay readable.
+    var contentTypeDiscriminator: String?
+    /// User-supplied label for `EvidenceContentType.other`. Nil for
+    /// every other content type.
+    var contentTypeOtherLabel: String?
     @Attribute(.externalStorage) var blob: Data?
 
     init() {}
@@ -368,14 +373,18 @@ final class SDEvidence {
         capturedAt = value.capturedAt
         note = value.note
         regionRaw = value.region?.rawValue
-        contentTypeRaw = value.contentType?.rawValue
+        contentTypeDiscriminator = value.contentType.discriminator
+        contentTypeOtherLabel = if case let .other(label) = value.contentType { label } else { nil }
         self.blob = blob
     }
 
     func toValue() -> Evidence? {
         guard let id, let kindRaw, let capturedAt else { return nil }
         let kind = EvidenceKind.fromDiscriminator(kindRaw, otherLabel: otherLabel) ?? .other(nil)
-        let contentType = contentTypeRaw.flatMap { EvidenceContentType(rawValue: $0) }
+        let contentType = contentTypeDiscriminator
+            .flatMap { EvidenceContentType.fromDiscriminator($0, otherLabel: contentTypeOtherLabel)
+            }
+            ?? .other(nil)
         return Evidence(
             id: id,
             kind: kind,

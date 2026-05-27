@@ -140,6 +140,7 @@ struct WhereControllerTests {
             capturedAt: iso("2026-04-10T08:00:00-07:00"),
             region: .california,
             note: "SFO → JFK",
+            contentType: .plainText,
         )
         let blob = Data("ticket pdf".utf8)
         try await controller.addEvidence(evidence, blob: blob)
