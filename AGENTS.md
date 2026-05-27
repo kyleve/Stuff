@@ -14,6 +14,8 @@ Tuist manifests live at the repo root ([`Project.swift`](Project.swift), [`Tuist
 
 Run `./ide` (or `./ide -i` to also install dependencies) to regenerate the
 Xcode project, install external agent skills, and point Git at `.githooks/`.
+Pass `--no-open` (e.g. `./ide --no-open`) to regenerate without launching
+Xcode — useful from a terminal where you don't want the IDE to grab focus.
 
 Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise), and
 `sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`).
@@ -76,6 +78,39 @@ Shared/<TargetName>/
   one field or that escapes a single function — tuples are fine as
   ad-hoc inline returns but should not appear in property types,
   collection element types, or public API.
+
+## Generating the Xcode project
+
+Agents must never open Xcode on the user's machine — it steals focus and
+disrupts the user's session. Always pass `--no-open` when regenerating:
+
+- `./ide --no-open` instead of `./ide`
+- `mise exec -- tuist generate --no-open` instead of `tuist generate`
+
+`tuist test` / `tuist build` are CLI-only and do not open Xcode, so no
+flag is needed there.
+
+## Working on plans
+
+When implementing a multi-step plan (e.g. the to-do list produced by a
+`/plan` invocation), commit after each step once its local checks
+pass — one commit per to-do, with the test/lint run baked into the
+"definition of done" for that step. This keeps history bisectable and
+lets the plan land piecewise if a later step regresses.
+
+The loop for each to-do is: mark `in_progress`, implement the change,
+run the relevant local checks, commit, mark `completed`, move on.
+
+- Required pre-commit checks: `./swiftformat --lint` and the matching
+  `tuist test` scheme(s). A red bar means the step is not done — fix
+  it before committing, do not stage a broken tree.
+- If a step is pure groundwork (no behavior change, nothing
+  meaningful to test), still commit it on its own so the next step's
+  diff stays focused; say so in the commit body.
+- Each commit message should name the plan step it closes (matching
+  the to-do title is fine) so the chain is readable end-to-end.
+- Do not push until the user asks, unless the plan explicitly says
+  otherwise.
 
 ## Working on PR feedback
 
