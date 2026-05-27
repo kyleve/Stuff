@@ -61,6 +61,21 @@ struct WhereControllerTests {
         #expect(july4?.regions == [.california, .newYork])
     }
 
+    @Test func manualDayReplacesOnSecondCall() async throws {
+        let (controller, _, _) = try Self.makeController()
+        let date = iso("2026-07-04T15:00:00-07:00")
+        try await controller.addManualDay(date: date, regions: [.california])
+        try await controller.addManualDay(date: date, regions: [.newYork])
+
+        let report = try await controller.yearReport(for: 2026)
+        #expect(report.days.count == 1)
+        // Second call should replace, not union, when there are no
+        // GPS samples on the day — proves the store-level upsert on
+        // `setManualDay` (not a delete-then-insert that would let
+        // duplicates accumulate).
+        #expect(report.days.first?.regions == [.newYork])
+    }
+
     @Test func clearYearWipesAndReportsEmpty() async throws {
         let (controller, _, _) = try Self.makeController()
         try await controller.ingest(LocationSample(
