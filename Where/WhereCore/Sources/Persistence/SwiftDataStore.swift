@@ -17,9 +17,29 @@ import SwiftData
 /// missing mandatory state; readers `compactMap` and log a fault rather than
 /// crashing on partial data.
 ///
-/// Persistence saves happen at the `perform { ... }` boundary, not after each
-/// mutation. Mutating methods stage changes in `modelContext`; the outermost
-/// `perform` flushes them via `modelContext.save()`.
+/// ## Context strategy: main is read-only, writes use a per-`perform` peer
+///
+/// The actor's auto-generated `modelContext` (the "main" context) is
+/// treated as **read-only**: every reader (`samples(in:)`,
+/// `evidence(in:)`, ...) called outside a `perform { ... }` block
+/// observes it, and any future SwiftUI `@Query` wired to the store
+/// would observe it too.
+///
+/// Every outermost `perform` call spins up a fresh peer
+/// `ModelContext(modelContainer)` and stashes it in `writerContext`
+/// for the duration of the block. Mutating methods (`add(sample:)`,
+/// `write(evidence:blob:)`, `setManualDay`, `clear(in:)`, and the
+/// `EvidenceBlobStore` writers) trap if called outside a `perform`
+/// body, and otherwise read/write through that peer. Reads issued
+/// *inside* a `perform` also use the peer, so writes-within-the
+/// transaction are visible to subsequent reads in the same block.
+///
+/// On outermost success the peer is `save()`d — that flushes the
+/// batched writes to the persistent store, and the main context
+/// picks the changes up on its next fetch. On outermost throw the
+/// peer is discarded without saving, so a partial transaction
+/// cleanly rolls back. Nested `perform` calls reuse the in-flight
+/// peer so they coalesce into a single transaction.
 @ModelActor
 public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// Backing storage for a `SwiftDataStore`. CloudKit mode is the
@@ -87,35 +107,76 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
     private static let logger = Logger(subsystem: "com.stuff.where", category: "SwiftDataStore")
 
-    /// `perform { ... }` re-entry counter. The outermost block (depth == 1
-    /// at exit) is the one that calls `modelContext.save()`; nested blocks
-    /// just run and let the outer save flush their staged changes.
-    private var performDepth = 0
+    /// Peer `ModelContext` active for the duration of an outermost
+    /// `perform { ... }` block. `nil` outside `perform`. See the
+    /// type doc for the full context-strategy explanation.
+    private var writerContext: ModelContext?
 
     public func perform<T: Sendable>(
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
-        performDepth += 1
-        defer { performDepth -= 1 }
-        let result = try await block()
-        if performDepth == 1 {
-            try modelContext.save()
+        // Nested call: a write transaction is already in flight on
+        // this actor. Reuse its peer so nested writes coalesce into
+        // the same save / discard decision; only the outermost
+        // perform decides commit vs. rollback.
+        if writerContext != nil {
+            return try await block()
         }
-        return result
+        let peer = ModelContext(modelContainer)
+        writerContext = peer
+        do {
+            let result = try await block()
+            // Outermost success: save the peer, which propagates the
+            // batched writes to the persistent store. The main
+            // `modelContext` picks the changes up on its next fetch.
+            try peer.save()
+            writerContext = nil
+            return result
+        } catch {
+            // Outermost throw: drop the peer. Without a save() call
+            // its pending changes never reach the persistent store —
+            // clean rollback of the entire transaction.
+            writerContext = nil
+            throw error
+        }
+    }
+
+    /// The context mutating methods write to. Mutations are
+    /// contract-required to run inside `perform { ... }`; calling
+    /// them outside is a programmer error and traps so the broken
+    /// contract surfaces immediately instead of silently no-op'ing
+    /// the save.
+    private func mutationContext() -> ModelContext {
+        guard let writerContext else {
+            preconditionFailure(
+                "SwiftDataStore mutations must be called inside store.perform { ... }",
+            )
+        }
+        return writerContext
+    }
+
+    /// The context read methods fetch from. Inside `perform`, reads
+    /// use the in-flight peer so writes-within-the-transaction are
+    /// visible to subsequent reads in the same block. Outside, reads
+    /// observe the main `modelContext` (committed state only).
+    private func readContext() -> ModelContext {
+        writerContext ?? modelContext
     }
 
     public func add(sample: LocationSample) async throws {
+        let context = mutationContext()
         let id = sample.id
-        if let existing = try modelContext.fetch(
+        if let existing = try context.fetch(
             FetchDescriptor<SDLocationSample>(predicate: #Predicate { $0.id == id }),
         ).first {
             existing.update(from: sample)
         } else {
-            modelContext.insert(SDLocationSample(value: sample))
+            context.insert(SDLocationSample(value: sample))
         }
     }
 
     public func samples(in interval: DateInterval) async throws -> [LocationSample] {
+        let context = readContext()
         let start = interval.start
         let end = interval.end
         var descriptor = FetchDescriptor<SDLocationSample>(
@@ -129,7 +190,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             sortBy: [SortDescriptor(\.timestamp)],
         )
         descriptor.includePendingChanges = true
-        return try modelContext.fetch(descriptor).compactMap { record in
+        return try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
             if value == nil { Self.logFault(forCorrupt: record) }
             return value
@@ -137,9 +198,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func allSamples() async throws -> [LocationSample] {
+        let context = readContext()
         var descriptor = FetchDescriptor<SDLocationSample>(sortBy: [SortDescriptor(\.timestamp)])
         descriptor.includePendingChanges = true
-        return try modelContext.fetch(descriptor).compactMap { record in
+        return try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
             if value == nil { Self.logFault(forCorrupt: record) }
             return value
@@ -147,8 +209,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func write(evidence: Evidence, blob: Data?) async throws {
+        let context = mutationContext()
         let id = evidence.id
-        if let existing = try modelContext.fetch(
+        if let existing = try context.fetch(
             FetchDescriptor<SDEvidence>(predicate: #Predicate { $0.id == id }),
         ).first {
             // Treat `blob == nil` as "no change" so a metadata-only edit
@@ -157,11 +220,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             // use `delete(for:)` from the `EvidenceBlobStore` API.
             existing.update(from: evidence, blob: blob ?? existing.blob)
         } else {
-            modelContext.insert(SDEvidence(value: evidence, blob: blob))
+            context.insert(SDEvidence(value: evidence, blob: blob))
         }
     }
 
     public func evidence(in interval: DateInterval) async throws -> [Evidence] {
+        let context = readContext()
         let start = interval.start
         let end = interval.end
         var descriptor = FetchDescriptor<SDEvidence>(
@@ -175,7 +239,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             sortBy: [SortDescriptor(\.capturedAt)],
         )
         descriptor.includePendingChanges = true
-        return try modelContext.fetch(descriptor).compactMap { record in
+        return try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
             if value == nil { Self.logFault(forCorrupt: record) }
             return value
@@ -183,13 +247,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func evidenceBlob(for id: UUID) async throws -> Data? {
+        let context = readContext()
         let descriptor = FetchDescriptor<SDEvidence>(predicate: #Predicate { $0.id == id })
-        return try modelContext.fetch(descriptor).first?.blob
+        return try context.fetch(descriptor).first?.blob
     }
 
     public func write(blob: Data, for id: UUID) async throws {
+        let context = mutationContext()
         let descriptor = FetchDescriptor<SDEvidence>(predicate: #Predicate { $0.id == id })
-        guard let record = try modelContext.fetch(descriptor).first else { return }
+        guard let record = try context.fetch(descriptor).first else { return }
         record.blob = blob
     }
 
@@ -198,23 +264,26 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func delete(for id: UUID) async throws {
+        let context = mutationContext()
         let descriptor = FetchDescriptor<SDEvidence>(predicate: #Predicate { $0.id == id })
-        guard let record = try modelContext.fetch(descriptor).first else { return }
+        guard let record = try context.fetch(descriptor).first else { return }
         record.blob = nil
     }
 
     public func setManualDay(_ day: DayPresence) async throws {
+        let context = mutationContext()
         let key = day.date
-        if let existing = try modelContext.fetch(
+        if let existing = try context.fetch(
             FetchDescriptor<SDManualDay>(predicate: #Predicate { $0.dateKey == key }),
         ).first {
             existing.update(from: day)
         } else {
-            modelContext.insert(SDManualDay(value: day))
+            context.insert(SDManualDay(value: day))
         }
     }
 
     public func manualDays(in interval: DateInterval) async throws -> [DayPresence] {
+        let context = readContext()
         let start = interval.start
         let end = interval.end
         var descriptor = FetchDescriptor<SDManualDay>(
@@ -228,7 +297,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             sortBy: [SortDescriptor(\.dateKey)],
         )
         descriptor.includePendingChanges = true
-        return try modelContext.fetch(descriptor).compactMap { record in
+        return try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
             if value == nil { Self.logFault(forCorrupt: record) }
             return value
@@ -236,9 +305,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public func clear(in interval: DateInterval) async throws {
+        let context = mutationContext()
         let start = interval.start
         let end = interval.end
-        let samples = try modelContext.fetch(
+        let samples = try context.fetch(
             FetchDescriptor<SDLocationSample>(predicate: #Predicate {
                 if let timestamp = $0.timestamp {
                     timestamp >= start && timestamp < end
@@ -248,9 +318,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             }),
         )
         for record in samples {
-            modelContext.delete(record)
+            context.delete(record)
         }
-        let evidences = try modelContext.fetch(
+        let evidences = try context.fetch(
             FetchDescriptor<SDEvidence>(predicate: #Predicate {
                 if let capturedAt = $0.capturedAt {
                     capturedAt >= start && capturedAt < end
@@ -260,9 +330,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             }),
         )
         for record in evidences {
-            modelContext.delete(record)
+            context.delete(record)
         }
-        let manuals = try modelContext.fetch(
+        let manuals = try context.fetch(
             FetchDescriptor<SDManualDay>(predicate: #Predicate {
                 if let dateKey = $0.dateKey {
                     dateKey >= start && dateKey < end
@@ -272,7 +342,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             }),
         )
         for record in manuals {
-            modelContext.delete(record)
+            context.delete(record)
         }
     }
 

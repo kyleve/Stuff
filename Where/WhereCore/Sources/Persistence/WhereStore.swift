@@ -10,13 +10,17 @@ import Foundation
 /// All mutating methods (`add(sample:)`, `write(evidence:blob:)`,
 /// `setManualDay`, `clear(in:)`, and the `EvidenceBlobStore` writers)
 /// MUST be called from inside a `perform { ... }` block — the block
-/// boundary is what actually persists the staged changes. Calls made
-/// outside `perform` stage their changes in memory but never flush.
+/// boundary is what owns the underlying write transaction. The
+/// production `SwiftDataStore` implementation traps with a
+/// `preconditionFailure` if a mutation is called outside `perform`.
 public protocol WhereStore: Sendable {
-    /// Run `block` and persist any staged changes when the outermost
-    /// `perform` exits. Nested `perform` calls are coalesced (only the
-    /// outermost call triggers the underlying save), so callers can
-    /// freely compose store operations without doubling up on I/O.
+    /// Run `block` inside a write transaction. On outermost success
+    /// the staged writes are committed atomically; on outermost throw
+    /// the entire transaction is rolled back (no partial writes
+    /// reach the persistent store). Nested `perform` calls are
+    /// coalesced into the in-flight transaction so callers can
+    /// freely compose store operations without doubling up on I/O
+    /// or fragmenting atomicity.
     @discardableResult
     func perform<T: Sendable>(
         _ block: @Sendable () async throws -> T,

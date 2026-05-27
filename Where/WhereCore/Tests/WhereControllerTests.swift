@@ -133,6 +133,58 @@ struct WhereControllerTests {
         await controller.stopGPS()
     }
 
+    @Test func performThrow_rollsBackEntireTransaction() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let s1 = sample(at: "2026-04-10T08:00:00-07:00")
+        let s2 = sample(at: "2026-04-10T09:00:00-07:00")
+
+        struct Boom: Error {}
+        await #expect(throws: Boom.self) {
+            try await store.perform {
+                try await store.add(sample: s1)
+                try await store.add(sample: s2)
+                throw Boom()
+            }
+        }
+
+        let persisted = try await store.allSamples()
+        #expect(persisted.isEmpty, "throwing perform should roll back every staged write")
+    }
+
+    @Test func performSuccess_writesAreVisibleToReadersAfterReturn() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let s = sample(at: "2026-04-10T08:00:00-07:00")
+
+        try await store.perform { try await store.add(sample: s) }
+
+        let persisted = try await store.allSamples()
+        #expect(persisted == [s], "saved peer changes should be visible to the main read context")
+    }
+
+    @Test func readsInsidePerform_seePendingWritesOnPeer() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let s = sample(at: "2026-04-10T08:00:00-07:00")
+
+        let countSeenInsidePerform = try await store.perform { () -> Int in
+            try await store.add(sample: s)
+            return try await store.allSamples().count
+        }
+        #expect(
+            countSeenInsidePerform == 1,
+            "in-flight peer writes should be readable inside the same perform",
+        )
+    }
+
+    private func sample(at isoString: String) -> LocationSample {
+        LocationSample(
+            id: UUID(),
+            timestamp: iso(isoString),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 5,
+            source: .manual,
+        )
+    }
+
     @Test func evidenceRoundTripsViaController() async throws {
         let (controller, _, _) = try Self.makeController()
         let evidence = Evidence(
