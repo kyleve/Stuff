@@ -172,7 +172,7 @@ private func waitUntil(
 
 private struct ToggleFailingStoreError: Error {}
 
-/// `WhereStore` that lets a test toggle whether `addSample` succeeds.
+/// `WhereStore` that lets a test toggle whether `add(sample:)` succeeds.
 /// Every other API forwards to a real `SwiftDataStore` (in-memory) so
 /// reads stay deterministic and the failure injection point stays
 /// narrow.
@@ -200,9 +200,9 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.perform(block)
     }
 
-    func addSample(_ sample: LocationSample) async throws {
+    func add(sample: LocationSample) async throws {
         if shouldFail { throw ToggleFailingStoreError() }
-        try await backing.addSample(sample)
+        try await backing.add(sample: sample)
     }
 
     func samples(in interval: DateInterval) async throws -> [LocationSample] {

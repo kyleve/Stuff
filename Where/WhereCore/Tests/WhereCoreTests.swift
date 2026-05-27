@@ -18,6 +18,17 @@ struct YearReportTests {
     }
 }
 
+struct StorageDefaultTests {
+    @Test func storageDefault_isInMemoryUnderTestRunner() {
+        // We're running under either XCTest or Swift Testing via
+        // `tuist test` / `xcodebuild test` / `swift test`, all of
+        // which set `XCTestConfigurationFilePath`. If this assertion
+        // ever fails, `Storage.default` would let a real test build
+        // write to the user's local SwiftData store — bad.
+        #expect(SwiftDataStore.Storage.default == .inMemory)
+    }
+}
+
 struct RegionTests {
     @Test func localizedName_returnsEnglishStringForEachCase() {
         #expect(Region.california.localizedName == "California")

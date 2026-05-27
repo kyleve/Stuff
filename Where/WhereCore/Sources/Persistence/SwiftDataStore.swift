@@ -33,6 +33,32 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         /// On-disk SwiftData store backed by the user's private
         /// CloudKit database. Production default.
         case cloudKit
+
+        /// Build- and test-aware default suitable for app-level wiring.
+        ///
+        /// - When tests are running (detected via the
+        ///   `XCTestConfigurationFilePath` env var, which both XCTest
+        ///   and Swift Testing under `xcodebuild` / `swift test` set),
+        ///   returns `.inMemory` so tests can't accidentally write
+        ///   into the user's local on-disk store.
+        /// - In debug app builds, returns `.localOnly` so iteration is
+        ///   fast and CloudKit doesn't sync experimental records.
+        /// - In release builds, returns `.cloudKit` for production
+        ///   sync.
+        ///
+        /// Tests that want a specific mode (or that construct stores
+        /// outside `WhereController`) should still pass `.inMemory`
+        /// explicitly via `SwiftDataStore.inMemory()`.
+        public static var `default`: Storage {
+            if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+                return .inMemory
+            }
+            #if DEBUG
+                return .localOnly
+            #else
+                return .cloudKit
+            #endif
+        }
     }
 
     public static func makeContainer(storage: Storage) throws -> ModelContainer {
@@ -70,22 +96,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
         performDepth += 1
-        let result: T
-        do {
-            result = try await block()
-        } catch {
-            performDepth -= 1
-            throw error
-        }
-        let wasOutermost = performDepth == 1
-        performDepth -= 1
-        if wasOutermost {
+        defer { performDepth -= 1 }
+        let result = try await block()
+        if performDepth == 1 {
             try modelContext.save()
         }
         return result
     }
 
-    public func addSample(_ sample: LocationSample) async throws {
+    public func add(sample: LocationSample) async throws {
         let id = sample.id
         if let existing = try modelContext.fetch(
             FetchDescriptor<SDLocationSample>(predicate: #Predicate { $0.id == id }),

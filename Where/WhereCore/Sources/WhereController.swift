@@ -54,13 +54,13 @@ public actor WhereController {
     // MARK: - Ingestion
 
     public func ingest(_ sample: LocationSample) async throws {
-        try await store.perform { try await store.addSample(sample) }
+        try await store.perform { try await store.add(sample: sample) }
     }
 
     // MARK: - Retroactive entry
 
     public func addManualSample(_ sample: LocationSample) async throws {
-        try await store.perform { try await store.addSample(sample) }
+        try await store.perform { try await store.add(sample: sample) }
     }
 
     public func addManualDay(date: Date, regions: Set<Region>) async throws {
@@ -129,7 +129,7 @@ public actor WhereController {
     private func processIngestedSample(_ sample: LocationSample) async {
         await drainRetryQueue()
         do {
-            try await store.perform { try await store.addSample(sample) }
+            try await store.perform { try await store.add(sample: sample) }
         } catch {
             // Persistence failures (SwiftData save, CloudKit, etc.)
             // are surfaced via `os.Logger` instead of being silently
@@ -159,7 +159,7 @@ public actor WhereController {
         retryQueue.removeAll(keepingCapacity: true)
         for sample in pending {
             do {
-                try await store.perform { try await store.addSample(sample) }
+                try await store.perform { try await store.add(sample: sample) }
             } catch {
                 Self.logger.error(
                     "Retry still failing for GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
