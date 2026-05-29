@@ -80,21 +80,10 @@ public actor WhereController {
         through end: Date,
         regions: Set<Region>,
     ) async throws {
-        let calendar = aggregator.calendar
-        let last = calendar.startOfDay(for: end)
-        // Enumerate the day keys up front into an immutable array so the
-        // `@Sendable` transaction body captures a `let`, not a mutable
-        // cursor, across the concurrency boundary.
-        let dayKeys: [Date] = {
-            var keys: [Date] = []
-            var cursor = calendar.startOfDay(for: start)
-            while cursor <= last {
-                keys.append(cursor)
-                guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
-                cursor = calendar.startOfDay(for: next)
-            }
-            return keys
-        }()
+        // `calendarDays` returns an immutable array, so the `@Sendable`
+        // transaction body captures a `let` rather than a mutable cursor
+        // across the concurrency boundary.
+        let dayKeys = start.calendarDays(through: end, in: aggregator.calendar)
         guard !dayKeys.isEmpty else { return }
         try await store.perform {
             for day in dayKeys {
