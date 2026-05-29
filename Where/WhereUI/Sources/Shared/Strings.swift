@@ -338,6 +338,74 @@ enum Strings {
         )
     }
 
+    // MARK: Missing days
+
+    static var missingDaysTitle: String {
+        String(localized: "missingDays.title", defaultValue: "Missing days", bundle: .module)
+    }
+
+    static var missingDaysDone: String {
+        String(localized: "missingDays.done", defaultValue: "Done", bundle: .module)
+    }
+
+    static var missingDaysHeader: String {
+        String(localized: "missingDays.header", defaultValue: "Days to backfill", bundle: .module)
+    }
+
+    static var missingDaysFooter: String {
+        String(
+            localized: "missingDays.footer",
+            defaultValue: "Tap a stretch to record where you were. Today is included until something logs it.",
+            bundle: .module,
+        )
+    }
+
+    static var missingDaysEmptyTitle: String {
+        String(localized: "missingDays.empty.title", defaultValue: "All caught up", bundle: .module)
+    }
+
+    static var missingDaysEmptyDescription: String {
+        String(
+            localized: "missingDays.empty.description",
+            defaultValue: "Every day this year has something logged.",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Missing-day banner
+
+    static var missingBannerTitle: String {
+        String(
+            localized: "missing.banner.title",
+            defaultValue: "Missing days this year",
+            bundle: .module,
+        )
+    }
+
+    static func missingBannerSubtitle(count: Int) -> String {
+        if count == 1 {
+            String(
+                localized: "missing.banner.subtitle.one",
+                defaultValue: "1 day still needs a location. Tap to fill it in.",
+                bundle: .module,
+            )
+        } else {
+            String(
+                localized: "missing.banner.subtitle.other",
+                defaultValue: "\(count) days still need a location. Tap to fill them in.",
+                bundle: .module,
+            )
+        }
+    }
+
+    static var missingBannerAccessibilityHint: String {
+        String(
+            localized: "missing.banner.accessibilityHint",
+            defaultValue: "Opens the list of days that still need logging.",
+            bundle: .module,
+        )
+    }
+
     // MARK: Helpers
 
     private static func localized(_ key: String.LocalizationValue) -> String {
