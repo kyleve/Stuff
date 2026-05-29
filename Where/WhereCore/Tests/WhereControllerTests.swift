@@ -22,6 +22,30 @@ struct WhereControllerTests {
         return (controller, store, source)
     }
 
+    private static var pacificCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = pacific
+        return calendar
+    }
+
+    /// Build a controller with a spy scheduler and a frozen `now` so the
+    /// reminder/badge reconciliation is deterministic.
+    private static func makeReminderController(
+        now: Date,
+        scheduler: SpyReminderScheduler,
+    ) throws -> (WhereController, SwiftDataStore, ScriptedLocationSource) {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource()
+        let controller = WhereController(
+            store: store,
+            locationSource: source,
+            aggregator: makeAggregator(),
+            reminderScheduler: scheduler,
+            now: { now },
+        )
+        return (controller, store, source)
+    }
+
     @Test func ingestStoresSamplesAndReportsThem() async throws {
         let (controller, _, _) = try Self.makeController()
         let sf = LocationSample(
@@ -267,6 +291,95 @@ struct WhereControllerTests {
         let fetchedBlob = try await controller.evidenceBlob(for: evidence.id)
         #expect(fetchedBlob == blob)
     }
+
+    // MARK: - Logging reminders
+
+    @Test func configureRemindersEnabledRequestsAuthAndBadgesTheBacklog() async throws {
+        let now = iso("2026-01-05T09:00:00-08:00")
+        let spy = SpyReminderScheduler()
+        let (controller, _, _) = try Self.makeReminderController(now: now, scheduler: spy)
+
+        await controller.configureReminders(enabled: true, time: .defaultEvening)
+
+        #expect(await spy.authorizationRequests == 1)
+        #expect(await spy.lastEnabled == true)
+        // Jan 1–5 are all unlogged.
+        #expect(await spy.lastBadgeCount == 5)
+        // Rolling window is today + 6 days (Jan 5–11), all still unlogged.
+        #expect(await spy.lastScheduleDays.count == 7)
+        let today = Self.pacificCalendar.startOfDay(for: now)
+        #expect(await spy.lastScheduleDays.contains(today))
+    }
+
+    @Test func configureRemindersDisabledClearsBadgeAndSchedulesNothing() async throws {
+        let spy = SpyReminderScheduler()
+        let (controller, _, _) = try Self.makeReminderController(
+            now: iso("2026-01-05T09:00:00-08:00"),
+            scheduler: spy,
+        )
+
+        await controller.configureReminders(enabled: false, time: .defaultEvening)
+
+        #expect(await spy.authorizationRequests == 0)
+        #expect(await spy.lastEnabled == false)
+        #expect(await spy.lastBadgeCount == 0)
+        #expect(await spy.lastScheduleDays.isEmpty)
+    }
+
+    @Test func loggingTodayViaGPSDropsItsReminderAndLowersBadge() async throws {
+        let now = iso("2026-01-05T09:00:00-08:00")
+        let spy = SpyReminderScheduler()
+        let (controller, _, source) = try Self.makeReminderController(now: now, scheduler: spy)
+        await controller.configureReminders(enabled: true, time: .defaultEvening)
+
+        let today = Self.pacificCalendar.startOfDay(for: now)
+        #expect(await spy.lastBadgeCount == 5)
+        #expect(await spy.lastScheduleDays.contains(today))
+
+        await controller.startGPS()
+        source.emit(LocationSample(
+            timestamp: iso("2026-01-05T12:00:00-08:00"),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
+            source: .gpsSignificantChange,
+        ))
+
+        try await waitUntil { await spy.lastBadgeCount == 4 }
+        #expect(await !spy.lastScheduleDays.contains(today))
+
+        await controller.stopGPS()
+    }
+
+    @Test func manualDayLoggingLowersTheBadge() async throws {
+        let now = iso("2026-03-10T09:00:00-08:00")
+        let spy = SpyReminderScheduler()
+        let (controller, _, _) = try Self.makeReminderController(now: now, scheduler: spy)
+        await controller.configureReminders(enabled: true, time: .defaultEvening)
+
+        // Jan 1 – Mar 10 inclusive is the 69th day of 2026 (a non-leap year).
+        #expect(await spy.lastBadgeCount == 69)
+
+        try await controller.addManualDay(
+            date: iso("2026-03-03T12:00:00-08:00"),
+            regions: [.california],
+        )
+
+        #expect(await spy.lastBadgeCount == 68)
+    }
+
+    @Test func disablingRemindersAfterEnablingClearsEverything() async throws {
+        let now = iso("2026-01-05T09:00:00-08:00")
+        let spy = SpyReminderScheduler()
+        let (controller, _, _) = try Self.makeReminderController(now: now, scheduler: spy)
+
+        await controller.configureReminders(enabled: true, time: .defaultEvening)
+        #expect(await spy.lastBadgeCount == 5)
+
+        await controller.configureReminders(enabled: false, time: .defaultEvening)
+        #expect(await spy.lastEnabled == false)
+        #expect(await spy.lastBadgeCount == 0)
+        #expect(await spy.lastScheduleDays.isEmpty)
+    }
 }
 
 private func iso(_ string: String) -> Date {
@@ -285,6 +398,45 @@ private func waitUntil(
         try await Task.sleep(for: .milliseconds(10))
     }
     Issue.record("waitUntil timed out")
+}
+
+/// Records the calls `WhereController` makes to the reminder scheduler so
+/// tests can assert the badge count, scheduled days, and enabled state without
+/// touching `UNUserNotificationCenter`.
+private actor SpyReminderScheduler: LoggingReminderScheduling {
+    private(set) var authorizationRequests = 0
+    private(set) var reconcileCount = 0
+    private(set) var lastBadgeCount: Int?
+    private(set) var lastScheduleDays: [Date] = []
+    private(set) var lastReminderTime: ReminderTime?
+    private(set) var lastEnabled: Bool?
+    private let authorized: Bool
+
+    init(authorized: Bool = true) {
+        self.authorized = authorized
+    }
+
+    func requestAuthorization() async -> Bool {
+        authorizationRequests += 1
+        return authorized
+    }
+
+    func isAuthorized() async -> Bool {
+        authorized
+    }
+
+    func reconcile(
+        badgeCount: Int,
+        scheduleDays: [Date],
+        reminderTime: ReminderTime,
+        enabled: Bool,
+    ) async {
+        reconcileCount += 1
+        lastBadgeCount = badgeCount
+        lastScheduleDays = scheduleDays
+        lastReminderTime = reminderTime
+        lastEnabled = enabled
+    }
 }
 
 private struct ToggleFailingStoreError: Error {}

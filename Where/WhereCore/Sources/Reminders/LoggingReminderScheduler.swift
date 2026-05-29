@@ -26,6 +26,11 @@ public protocol LoggingReminderScheduling: Sendable {
     /// whether the app is authorized afterward. Safe to call repeatedly.
     func requestAuthorization() async -> Bool
 
+    /// Whether the app is currently authorized to post notifications and set
+    /// the badge. Lets the UI route the user to Settings when they've enabled
+    /// reminders but denied the system permission.
+    func isAuthorized() async -> Bool
+
     /// Reconcile scheduled reminders and the app-icon badge against the current
     /// picture.
     ///
@@ -83,6 +88,16 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
                 "Notification authorization request failed: \(error.localizedDescription, privacy: .public)",
             )
             return false
+        }
+    }
+
+    public func isAuthorized() async -> Bool {
+        let settings = await center.notificationSettings()
+        switch settings.authorizationStatus {
+            case .authorized, .provisional, .ephemeral:
+                return true
+            default:
+                return false
         }
     }
 
