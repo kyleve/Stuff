@@ -1,15 +1,92 @@
 import SwiftUI
 import WhereCore
 
-/// Elsewhere tab: everywhere outside your primary regions. Filled out in a
-/// later step.
+/// Elsewhere tab: every region outside your primary spots, shown as compact
+/// Liquid Glass cards for the selected year.
 struct SecondaryView: View {
     @Environment(WhereModel.self) private var model
 
     var body: some View {
         NavigationStack {
-            Text("Elsewhere")
+            screen
                 .navigationTitle("Elsewhere")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        YearSelector()
+                    }
+                }
         }
     }
+
+    @ViewBuilder
+    private var screen: some View {
+        switch model.loadState {
+            case .loading where model.report == nil:
+                ProgressView("Retracing your steps…")
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            case let .failed(message):
+                ContentUnavailableView {
+                    Label("Couldn't load your year", systemImage: "exclamationmark.icloud")
+                } description: {
+                    Text(message)
+                }
+            default:
+                if model.ranking.secondary.isEmpty {
+                    emptyState
+                } else {
+                    content
+                }
+        }
+    }
+
+    private var content: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(verbatim: "Everywhere else you turned up in \(model.selectedYear).")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                GlassEffectContainer(spacing: 12) {
+                    VStack(spacing: 12) {
+                        ForEach(model.ranking.secondary) { item in
+                            RegionSummaryCard(
+                                regionDays: item,
+                                caption: caption(for: item),
+                                compact: true,
+                            )
+                        }
+                    }
+                }
+            }
+            .padding()
+        }
+    }
+
+    private var emptyState: some View {
+        ContentUnavailableView {
+            Label("Nowhere else logged", systemImage: "globe.americas")
+        } description: {
+            Text(
+                "Spend a day outside your top spots — or log a trip in Settings — and it'll appear here.",
+            )
+        }
+    }
+
+    /// Light whimsy for the briefest stays.
+    private func caption(for item: RegionDays) -> String? {
+        item.days <= 3 ? "Just passing through" : nil
+    }
 }
+
+#if DEBUG
+    #Preview("Loaded") {
+        SecondaryView()
+            .environment(PreviewSupport.loadedModel())
+    }
+
+    #Preview("Empty") {
+        SecondaryView()
+            .environment(PreviewSupport.emptyModel())
+    }
+#endif
