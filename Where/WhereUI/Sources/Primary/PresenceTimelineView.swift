@@ -55,16 +55,19 @@ private struct StintRow: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: UIConstants.Spacings.large) {
             Capsule()
                 .fill(style.tint.gradient)
-                .frame(width: 4, height: 34)
+                .frame(
+                    width: UIConstants.Size.timelineAccentWidth,
+                    height: UIConstants.Size.timelineAccentHeight,
+                )
 
             Text(style.emoji)
                 .font(.title3)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
                 Text(stint.region.localizedName)
                     .font(.headline)
                 Text(dateRange)
@@ -72,14 +75,14 @@ private struct StintRow: View {
                     .foregroundStyle(.secondary)
             }
 
-            Spacer(minLength: 8)
+            Spacer(minLength: UIConstants.Spacings.medium)
 
             Text("\(stint.dayCount) \(stint.dayCount == 1 ? "day" : "days")")
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, UIConstants.Spacings.xSmall)
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(stint.region.localizedName), \(dateRange), \(stint.dayCount) days")
     }

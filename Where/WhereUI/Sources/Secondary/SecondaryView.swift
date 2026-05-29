@@ -41,14 +41,14 @@ struct SecondaryView: View {
 
     private var content: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: UIConstants.Spacings.xLarge) {
                 Text(verbatim: "Everywhere else you turned up in \(model.selectedYear).")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                GlassEffectContainer(spacing: 12) {
-                    VStack(spacing: 12) {
+                GlassEffectContainer(spacing: UIConstants.Spacings.large) {
+                    VStack(spacing: UIConstants.Spacings.large) {
                         ForEach(model.ranking.secondary) { item in
                             RegionSummaryCard(
                                 regionDays: item,

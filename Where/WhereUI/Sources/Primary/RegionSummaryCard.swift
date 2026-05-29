@@ -23,13 +23,16 @@ struct RegionSummaryCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: compact ? 10 : 16) {
-            HStack(spacing: 12) {
+        VStack(
+            alignment: .leading,
+            spacing: compact ? UIConstants.Spacings.regular : UIConstants.Spacings.xxLarge,
+        ) {
+            HStack(spacing: UIConstants.Spacings.large) {
                 Text(style.emoji)
                     .font(compact ? .title2 : .largeTitle)
                     .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
                     Text(regionDays.region.localizedName)
                         .font(compact ? .headline : .title3.weight(.semibold))
                     if let caption {
@@ -47,12 +50,16 @@ struct RegionSummaryCard: View {
                     .accessibilityHidden(true)
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: UIConstants.Spacings.small) {
                 Text(regionDays.days, format: .number)
                     .font(
                         compact
                             ? .system(.title, design: .rounded, weight: .bold)
-                            : .system(size: 46, weight: .bold, design: .rounded),
+                            : .system(
+                                size: UIConstants.Size.heroNumberFontSize,
+                                weight: .bold,
+                                design: .rounded,
+                            ),
                     )
                     .contentTransition(.numericText())
                     .foregroundStyle(style.tint)
@@ -63,7 +70,7 @@ struct RegionSummaryCard: View {
 
             Capsule()
                 .fill(.quaternary)
-                .frame(height: 6)
+                .frame(height: UIConstants.Size.progressBarHeight)
                 .overlay(alignment: .leading) {
                     GeometryReader { proxy in
                         Capsule()
@@ -71,14 +78,18 @@ struct RegionSummaryCard: View {
                             .frame(width: proxy.size.width * fraction)
                     }
                 }
-                .frame(height: 6)
+                .frame(height: UIConstants.Size.progressBarHeight)
                 .accessibilityHidden(true)
         }
-        .padding(compact ? 16 : 22)
+        .padding(compact ? UIConstants.Padding.compactCard : UIConstants.Padding.card)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassEffect(
             .regular.tint(style.tint.opacity(0.18)),
-            in: RoundedRectangle(cornerRadius: compact ? 22 : 28, style: .continuous),
+            in: RoundedRectangle(
+                cornerRadius: compact ? UIConstants.CornerRadius.compactCard : UIConstants
+                    .CornerRadius.card,
+                style: .continuous,
+            ),
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(

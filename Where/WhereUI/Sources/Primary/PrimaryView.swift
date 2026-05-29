@@ -55,10 +55,10 @@ struct PrimaryView: View {
 
     private var content: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: UIConstants.Spacings.xxxLarge) {
                 header
-                GlassEffectContainer(spacing: 16) {
-                    VStack(spacing: 16) {
+                GlassEffectContainer(spacing: UIConstants.Spacings.xxLarge) {
+                    VStack(spacing: UIConstants.Spacings.xxLarge) {
                         ForEach(
                             Array(model.ranking.primary.enumerated()),
                             id: \.element.id,
@@ -78,7 +78,7 @@ struct PrimaryView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: UIConstants.Spacings.xSmall) {
             Text(verbatim: "Where have you been in \(model.selectedYear)?")
                 .font(.largeTitle.bold())
             Text(verbatim: "\(model.trackedDayCount) days on the map so far")
