@@ -5,6 +5,7 @@ import WhereCore
 /// Owns the single `WhereModel`, builds the live controller on appear, and
 /// hands the model down through the environment.
 public struct RootView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @State private var model: WhereModel
 
     /// Inject the app-owned model that was built at launch (so CoreLocation is
@@ -36,6 +37,10 @@ public struct RootView: View {
         .tabBarMinimizeBehavior(.onScrollDown)
         .environment(model)
         .task { await model.start() }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard newPhase == .active else { return }
+            Task { await model.appBecameActive() }
+        }
     }
 }
 

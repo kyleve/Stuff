@@ -157,6 +157,7 @@ public actor WhereController {
     public func clearYear(_ year: Int) async throws {
         let interval = aggregator.yearInterval(year: year)
         try await store.perform { try await store.clear(in: interval) }
+        await reconcileReminders()
     }
 
     // MARK: - GPS lifecycle
@@ -177,7 +178,7 @@ public actor WhereController {
         await locationSource.start()
         // Flush anything that failed to persist before this session
         // started, before we (re)attach the stream consumer.
-        await drainRetryQueue()
+        _ = await drainRetryQueue()
         // Refresh the badge / reminders against whatever the resumed session
         // already knows about (e.g. after a background relaunch).
         await reconcileReminders()
@@ -196,10 +197,11 @@ public actor WhereController {
     /// on failure. Drains any backlog first so a single transient
     /// outage doesn't permanently reorder samples on disk.
     private func processIngestedSample(_ sample: LocationSample) async {
-        await drainRetryQueue()
+        var changedDays = await drainRetryQueue()
         do {
             try await store.perform { try await store.add(sample: sample) }
-            await reconcileRemindersAfterIngest()
+            changedDays.insert(aggregator.calendar.startOfDay(for: sample.timestamp))
+            await reconcileRemindersAfterIngest(changedDays: changedDays)
         } catch {
             // Persistence failures (SwiftData save, CloudKit, etc.)
             // are surfaced via `os.Logger` instead of being silently
@@ -223,13 +225,15 @@ public actor WhereController {
     /// Try to flush every queued sample exactly once. Anything that
     /// still fails is re-queued at the tail; the next call gets the
     /// chance to retry it.
-    private func drainRetryQueue() async {
-        guard !retryQueue.isEmpty else { return }
+    private func drainRetryQueue() async -> Set<Date> {
+        guard !retryQueue.isEmpty else { return [] }
         let pending = retryQueue
         retryQueue.removeAll(keepingCapacity: true)
+        var persistedDays: Set<Date> = []
         for sample in pending {
             do {
                 try await store.perform { try await store.add(sample: sample) }
+                persistedDays.insert(aggregator.calendar.startOfDay(for: sample.timestamp))
             } catch {
                 Self.logger.error(
                     "Retry still failing for GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
@@ -237,6 +241,7 @@ public actor WhereController {
                 enqueueForRetry(sample)
             }
         }
+        return persistedDays
     }
 
     /// Number of samples currently waiting to be re-persisted. Exposed
@@ -308,10 +313,11 @@ public actor WhereController {
     /// Cheap reconcile for the GPS ingest path: only runs when reminders are on
     /// and today isn't already known to be covered, so a burst of
     /// significant-change samples doesn't trigger a full-year scan each time.
-    private func reconcileRemindersAfterIngest() async {
+    private func reconcileRemindersAfterIngest(changedDays: Set<Date>) async {
         guard reminderConfig.enabled else { return }
         let today = aggregator.calendar.startOfDay(for: now())
-        guard todayCoveredByReconcile != today else { return }
+        let changedDayNeedsReconcile = changedDays.contains { $0 != today }
+        guard todayCoveredByReconcile != today || changedDayNeedsReconcile else { return }
         await reconcileReminders()
     }
 
@@ -337,7 +343,7 @@ public actor WhereController {
         let year = calendar.component(.year, from: today)
         do {
             let report = try await yearReport(for: year)
-            let present = Set(report.days.map(\.date))
+            let present = Set(report.days.map { calendar.startOfDay(for: $0.date) })
             let missing = MissingDays.missingDayKeys(
                 year: year,
                 through: today,

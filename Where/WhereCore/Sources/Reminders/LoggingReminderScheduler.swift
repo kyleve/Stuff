@@ -82,7 +82,7 @@ public struct NoopLoggingReminderScheduler: LoggingReminderScheduling {
 public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
     @unchecked Sendable
 {
-    private let center: UNUserNotificationCenter
+    private let center: any NotificationReminderCenter
     private let calendar: Calendar
 
     private static let identifierPrefix = "com.stuff.where.logging-reminder"
@@ -99,7 +99,15 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
             return cal
         }(),
     ) {
-        self.center = center
+        self.center = UNUserNotificationCenterAdapter(center: center)
+        self.calendar = calendar
+    }
+
+    init(
+        notificationCenter: any NotificationReminderCenter,
+        calendar: Calendar,
+    ) {
+        center = notificationCenter
         self.calendar = calendar
     }
 
@@ -115,8 +123,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
     }
 
     public func isAuthorized() async -> Bool {
-        let settings = await center.notificationSettings()
-        switch settings.authorizationStatus {
+        switch await center.authorizationStatus() {
             case .authorized, .provisional, .ephemeral:
                 return true
             default:
@@ -136,13 +143,12 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
             return
         }
 
-        // Without authorization we can neither post alerts nor set the badge,
-        // so there's nothing useful to reconcile.
-        let settings = await center.notificationSettings()
-        switch settings.authorizationStatus {
+        switch await center.authorizationStatus() {
             case .authorized, .provisional, .ephemeral:
                 break
             default:
+                await removeAllOwnedReminders()
+                await setBadge(0)
                 return
         }
 
@@ -154,22 +160,30 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         // Cancel reminders we own that are no longer wanted (the day got logged
         // or fell out of the window).
         let pending = await center.pendingNotificationRequests()
-        let pendingIDs = Set(pending.map(\.identifier))
+        let pendingByID = Dictionary(
+            pending.map { ($0.identifier, $0) },
+            uniquingKeysWith: { first, _ in first },
+        )
+        let pendingIDs = Set(pendingByID.keys)
         let stalePending = pendingIDs.filter { isOwned($0) && desiredIDs[$0] == nil }
-        if !stalePending.isEmpty {
-            center.removePendingNotificationRequests(withIdentifiers: Array(stalePending))
+        let pendingWithWrongTime = desiredIDs.keys.filter { id in
+            guard let request = pendingByID[id] else { return false }
+            return !matchesReminderTime(request, reminderTime)
+        }
+        let pendingToRemove = Set(stalePending).union(pendingWithWrongTime)
+        if !pendingToRemove.isEmpty {
+            await center.removePendingNotificationRequests(withIdentifiers: Array(pendingToRemove))
         }
 
-        let delivered = await center.deliveredNotifications()
-        let staleDelivered = delivered
-            .map(\.request.identifier)
-            .filter { isOwned($0) && desiredIDs[$0] == nil }
+        let deliveredIDs = await center.deliveredNotificationIdentifiers()
+        let staleDelivered = deliveredIDs.filter { isOwned($0) && desiredIDs[$0] == nil }
         if !staleDelivered.isEmpty {
-            center.removeDeliveredNotifications(withIdentifiers: staleDelivered)
+            await center.removeDeliveredNotifications(withIdentifiers: staleDelivered)
         }
 
-        // Schedule the wanted reminders that aren't already pending.
-        for (id, day) in desiredIDs where !pendingIDs.contains(id) {
+        // Schedule new reminders, and replace existing requests whose trigger
+        // time no longer matches the user's setting.
+        for (id, day) in desiredIDs where !pendingIDs.contains(id) || pendingToRemove.contains(id) {
             await scheduleReminder(identifier: id, day: day, time: reminderTime)
         }
 
@@ -201,16 +215,24 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         }
     }
 
+    private func matchesReminderTime(_ request: UNNotificationRequest, _ time: ReminderTime) -> Bool {
+        guard let trigger = request.trigger as? UNCalendarNotificationTrigger else {
+            return false
+        }
+        return trigger.dateComponents.hour == time.hour
+            && trigger.dateComponents.minute == time.minute
+    }
+
     private func removeAllOwnedReminders() async {
         let pending = await center.pendingNotificationRequests()
         let pendingIDs = pending.map(\.identifier).filter(isOwned)
         if !pendingIDs.isEmpty {
-            center.removePendingNotificationRequests(withIdentifiers: pendingIDs)
+            await center.removePendingNotificationRequests(withIdentifiers: pendingIDs)
         }
-        let delivered = await center.deliveredNotifications()
-        let deliveredIDs = delivered.map(\.request.identifier).filter(isOwned)
-        if !deliveredIDs.isEmpty {
-            center.removeDeliveredNotifications(withIdentifiers: deliveredIDs)
+        let deliveredIDs = await center.deliveredNotificationIdentifiers()
+        let ownedDeliveredIDs = deliveredIDs.filter(isOwned)
+        if !ownedDeliveredIDs.isEmpty {
+            await center.removeDeliveredNotifications(withIdentifiers: ownedDeliveredIDs)
         }
     }
 
@@ -234,5 +256,59 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
 
     private func isOwned(_ identifier: String) -> Bool {
         identifier.hasPrefix(Self.identifierPrefix)
+    }
+}
+
+protocol NotificationReminderCenter: Sendable {
+    func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
+    func authorizationStatus() async -> UNAuthorizationStatus
+    func pendingNotificationRequests() async -> [UNNotificationRequest]
+    func deliveredNotificationIdentifiers() async -> [String]
+    func add(_ request: UNNotificationRequest) async throws
+    func removePendingNotificationRequests(withIdentifiers identifiers: [String]) async
+    func removeDeliveredNotifications(withIdentifiers identifiers: [String]) async
+    func setBadgeCount(_ count: Int) async throws
+}
+
+private final class UNUserNotificationCenterAdapter: NotificationReminderCenter,
+    @unchecked Sendable
+{
+    private let center: UNUserNotificationCenter
+
+    init(center: UNUserNotificationCenter) {
+        self.center = center
+    }
+
+    func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool {
+        try await center.requestAuthorization(options: options)
+    }
+
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        let settings = await center.notificationSettings()
+        return settings.authorizationStatus
+    }
+
+    func pendingNotificationRequests() async -> [UNNotificationRequest] {
+        await center.pendingNotificationRequests()
+    }
+
+    func deliveredNotificationIdentifiers() async -> [String] {
+        await center.deliveredNotifications().map(\.request.identifier)
+    }
+
+    func add(_ request: UNNotificationRequest) async throws {
+        try await center.add(request)
+    }
+
+    func removePendingNotificationRequests(withIdentifiers identifiers: [String]) async {
+        center.removePendingNotificationRequests(withIdentifiers: identifiers)
+    }
+
+    func removeDeliveredNotifications(withIdentifiers identifiers: [String]) async {
+        center.removeDeliveredNotifications(withIdentifiers: identifiers)
+    }
+
+    func setBadgeCount(_ count: Int) async throws {
+        try await center.setBadgeCount(count)
     }
 }

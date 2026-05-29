@@ -207,6 +207,17 @@ public final class WhereModel {
         await applyReminderConfiguration()
     }
 
+    /// Refresh state that can change while the app is away, including
+    /// notification permission edits made in Settings and calendar-day rollover.
+    public func appBecameActive() async {
+        bootstrap()
+        guard controller != nil else { return }
+        await syncAuthorization()
+        await reconcileTracking()
+        await refresh()
+        await applyReminderConfiguration()
+    }
+
     /// Read the current authorization status from the controller into our
     /// observable state. Does not surface the permission alert — that's
     /// reserved for explicit user actions.
