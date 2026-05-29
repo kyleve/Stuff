@@ -174,6 +174,29 @@ struct WhereControllerTests {
         await controller.stopGPS()
     }
 
+    @Test func trackingResumesAfterPauseWithoutDroppingSamples() async throws {
+        let (controller, _, source) = try Self.makeController()
+
+        await controller.startGPS()
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { try await controller.yearReport(for: 2026).days.count == 1 }
+
+        // Pause, then resume. A naive implementation cancels the stream
+        // consumer here, leaving the resumed session iterating a finished
+        // stream so this second sample would be silently dropped.
+        await controller.stopGPS()
+        let pausedActive = await controller.isTrackingActive
+        #expect(!pausedActive)
+        await controller.startGPS()
+        let resumedActive = await controller.isTrackingActive
+        #expect(resumedActive)
+
+        source.emit(sample(at: "2026-03-16T12:00:00-07:00"))
+        try await waitUntil { try await controller.yearReport(for: 2026).days.count == 2 }
+
+        await controller.stopGPS()
+    }
+
     @Test func performThrow_rollsBackEntireTransaction() async throws {
         let store = try SwiftDataStore.inMemory()
         let s1 = sample(at: "2026-04-10T08:00:00-07:00")

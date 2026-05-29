@@ -7,7 +7,8 @@ import os
 ///
 /// - GPS sampling is opt-in: callers invoke `startGPS()` once the user grants
 ///   authorization. Ingestion runs in an unstructured `Task` owned by the
-///   actor so it can be cancelled by `stopGPS()` / `deinit`.
+///   actor; `stopGPS()` pauses the underlying monitoring while leaving the
+///   task alive (so the stream can be resumed), and `deinit` cancels it.
 /// - Retroactive entry uses `addManualSample(_:)` (a single coordinate) or
 ///   `addManualDay(date:regions:)` (an authoritative day overlay that unions
 ///   with whatever GPS produced for that day).
@@ -20,6 +21,11 @@ public actor WhereController {
     private let aggregator: DayAggregator
 
     private var ingestTask: Task<Void, Never>?
+
+    /// Whether the underlying location monitoring is currently active. Tracked
+    /// separately from `ingestTask` because the ingestion task outlives a
+    /// `stopGPS()` pause (see `startGPS()` for why).
+    private var isMonitoring = false
 
     /// Samples whose persist call failed (e.g. transient SwiftData / CloudKit
     /// error). Drained before each new GPS save and on the next `startGPS()`
@@ -127,15 +133,24 @@ public actor WhereController {
 
     // MARK: - GPS lifecycle
 
+    /// Begin (or resume) GPS ingestion. Idempotent: a second call while
+    /// monitoring is already active is a no-op, so the lifecycle is safe to
+    /// drive from multiple call sites (e.g. scene activation + a manual
+    /// toggle).
+    ///
+    /// The task that drains `locationSource.sampleStream` is created once and
+    /// then kept alive for the controller's lifetime; `stopGPS()` only pauses
+    /// the underlying monitoring. Cancelling that task would terminate the
+    /// single-consumer `AsyncStream`, so a later `startGPS()` would iterate an
+    /// already-finished stream and silently drop every subsequent sample.
     public func startGPS() async {
-        // Idempotent: a second call while a stream is already attached
-        // is a no-op so the GPS lifecycle is safe to drive from
-        // multiple call sites (e.g. scene activation + manual button).
-        guard ingestTask == nil else { return }
+        guard !isMonitoring else { return }
+        isMonitoring = true
         await locationSource.start()
         // Flush anything that failed to persist before this session
-        // started, before we attach the new stream.
+        // started, before we (re)attach the stream consumer.
         await drainRetryQueue()
+        guard ingestTask == nil else { return }
         let stream = locationSource.sampleStream
         ingestTask = Task { [weak self] in
             for await sample in stream {
@@ -198,13 +213,15 @@ public actor WhereController {
         retryQueue.count
     }
 
+    /// Pause GPS ingestion by stopping the underlying location monitoring.
+    /// Idempotent and safe to call from teardown paths that may run before
+    /// any `startGPS()` (e.g. scene background, error recovery). The
+    /// ingestion task is intentionally left running (see `startGPS()`); it
+    /// simply idles until monitoring resumes. The task is torn down on
+    /// `deinit`.
     public func stopGPS() async {
-        // Idempotent: cheap no-op when nothing is running so this is
-        // safe to call from teardown paths that may run before any
-        // `startGPS()` (e.g. scene background, error recovery).
-        guard let task = ingestTask else { return }
-        task.cancel()
-        ingestTask = nil
+        guard isMonitoring else { return }
+        isMonitoring = false
         await locationSource.stop()
     }
 
@@ -223,9 +240,9 @@ public actor WhereController {
         locationSource.authorizationUpdates
     }
 
-    /// Whether the GPS ingestion stream is currently attached. Exposed so the
-    /// view-model can reconcile its tracking flag with reality after launch.
+    /// Whether GPS monitoring is currently active. Exposed so the view-model
+    /// can reconcile its tracking flag with reality after launch.
     public var isTrackingActive: Bool {
-        ingestTask != nil
+        isMonitoring
     }
 }

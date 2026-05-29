@@ -36,10 +36,13 @@ public final class CoreLocationSource: NSObject, LocationSource {
     private nonisolated let authorizationContinuation: AsyncStream<LocationAuthorizationStatus>
         .Continuation
 
-    /// Continuation for the in-flight `requestPermission()` call. Set
-    /// when the call begins and consumed on the next
-    /// `locationManagerDidChangeAuthorization` callback.
-    private var pendingPermissionContinuation: CheckedContinuation<Void, Error>?
+    /// Continuations for in-flight `requestPermission()` calls. Overlapping
+    /// callers (e.g. rapid taps, or the toggle and the "Grant" button racing)
+    /// are coalesced: only the first call drives the system prompt, and every
+    /// waiter is resumed together on the next authorization callback. Storing
+    /// a single continuation here would let a second request overwrite — and
+    /// thus permanently strand — the first.
+    private var pendingPermissionContinuations: [CheckedContinuation<Void, Error>] = []
 
     override public init() {
         // The "create stream, capture its continuation" two-step is
@@ -98,9 +101,13 @@ public final class CoreLocationSource: NSObject, LocationSource {
         }
 
         // Drive the initial prompt and wait for the user's first decision.
+        // Only the first concurrent caller triggers the system prompt; any
+        // others simply join the waiter list and resume on the same callback.
         try await withCheckedThrowingContinuation { continuation in
-            pendingPermissionContinuation = continuation
-            manager.requestWhenInUseAuthorization()
+            pendingPermissionContinuations.append(continuation)
+            if pendingPermissionContinuations.count == 1 {
+                manager.requestWhenInUseAuthorization()
+            }
         }
 
         // If we only got When-In-Use, kick off the (deferred) Always upgrade
@@ -119,23 +126,37 @@ public final class CoreLocationSource: NSObject, LocationSource {
     /// obtained. This avoids hanging on the deferred Always prompt, which may
     /// never deliver a follow-up callback if the user leaves it at When-In-Use.
     fileprivate func resolvePendingPermission(for status: CLAuthorizationStatus) {
-        guard let continuation = pendingPermissionContinuation else { return }
+        guard !pendingPermissionContinuations.isEmpty else { return }
         switch status {
             case .authorizedAlways, .authorizedWhenInUse:
-                pendingPermissionContinuation = nil
-                continuation.resume()
+                resumePendingPermission(with: .success(()))
             case .denied:
-                pendingPermissionContinuation = nil
-                continuation.resume(throwing: LocationPermissionDeniedError(reason: .denied))
+                resumePendingPermission(
+                    with: .failure(LocationPermissionDeniedError(reason: .denied)),
+                )
             case .restricted:
-                pendingPermissionContinuation = nil
-                continuation.resume(throwing: LocationPermissionDeniedError(reason: .restricted))
+                resumePendingPermission(
+                    with: .failure(LocationPermissionDeniedError(reason: .restricted)),
+                )
             case .notDetermined:
-                // Still waiting on the user; keep the continuation pending.
+                // Still waiting on the user; keep the continuations pending.
                 break
             @unknown default:
-                pendingPermissionContinuation = nil
-                continuation.resume(throwing: LocationPermissionDeniedError(reason: .denied))
+                resumePendingPermission(
+                    with: .failure(LocationPermissionDeniedError(reason: .denied)),
+                )
+        }
+    }
+
+    /// Resume (and clear) every coalesced permission waiter with the same
+    /// outcome. Cleared before resuming so a re-entrant `requestPermission()`
+    /// from a resumed continuation starts a fresh request rather than racing
+    /// the list we're draining.
+    private func resumePendingPermission(with result: Result<Void, Error>) {
+        let waiters = pendingPermissionContinuations
+        pendingPermissionContinuations.removeAll()
+        for waiter in waiters {
+            waiter.resume(with: result)
         }
     }
 
