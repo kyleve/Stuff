@@ -55,6 +55,28 @@
           }
         }
       }
+    },
+    "reminder.notification.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Where before the day ends so we don't miss logging today."
+          }
+        }
+      }
+    },
+    "reminder.notification.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log today's location"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
