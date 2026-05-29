@@ -104,23 +104,34 @@ public final class WhereModel {
         loadState = report == nil ? .idle : .loaded
     }
 
-    /// Build the production controller (SwiftData + CoreLocation) on first
-    /// appearance, sync authorization, resume tracking if appropriate, then
-    /// load the selected year. Safe to call repeatedly; the controller and the
-    /// authorization observer are only set up once.
-    public func start() async {
-        if controller == nil {
-            do {
-                let store = try SwiftDataStore.make()
-                controller = WhereController(
-                    store: store,
-                    locationSource: CoreLocationSource(),
-                )
-            } catch {
-                loadState = .failed(error.localizedDescription)
-                return
-            }
+    /// Synchronously build the production controller (SwiftData +
+    /// CoreLocation) if it doesn't exist yet. Idempotent.
+    ///
+    /// Constructing `CoreLocationSource` here creates the `CLLocationManager`
+    /// and installs its delegate, which CoreLocation requires to happen early
+    /// in app launch so it can deliver significant-change / visit events when
+    /// the app is relaunched into the background after termination. The app
+    /// delegate calls this from `didFinishLaunching`; `start()` also calls it
+    /// to cover the preview/no-delegate path.
+    public func bootstrap() {
+        guard controller == nil else { return }
+        do {
+            let store = try SwiftDataStore.make()
+            controller = WhereController(
+                store: store,
+                locationSource: CoreLocationSource(),
+            )
+        } catch {
+            loadState = .failed(error.localizedDescription)
         }
+    }
+
+    /// Ensure the controller exists, sync authorization, resume tracking if
+    /// appropriate, then load the selected year. Safe to call repeatedly; the
+    /// controller and the authorization observer are only set up once.
+    public func start() async {
+        bootstrap()
+        guard controller != nil else { return }
         await syncAuthorization()
         observeAuthorizationChanges()
         await reconcileTracking()
