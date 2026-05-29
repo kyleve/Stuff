@@ -50,6 +50,12 @@ let project = Project(
             infoPlist: .extendingDefault(with: [
                 "UILaunchScreen": .dictionary([:]),
                 "UIApplicationSupportsIndirectInputEvents": .boolean(true),
+                "NSLocationWhenInUseUsageDescription": .string(
+                    "Where uses your location to figure out which region you're in.",
+                ),
+                "NSLocationAlwaysAndWhenInUseUsageDescription": .string(
+                    "Where checks your location in the background so it can log which region you're in each day.",
+                ),
             ]),
             sources: ["Where/Where/Sources/**"],
             resources: ["Where/Where/Resources/**"],
