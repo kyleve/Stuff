@@ -33,6 +33,16 @@ func unitTests(
     )
 }
 
+/// A shared scheme that builds and tests a single unit-test bundle.
+func testScheme(name: String) -> Scheme {
+    .scheme(
+        name: name,
+        shared: true,
+        buildAction: .buildAction(targets: ["\(name)"]),
+        testAction: .targets(["\(name)"]),
+    )
+}
+
 let project = Project(
     name: "Stuff",
     options: .options(
@@ -118,5 +128,14 @@ let project = Project(
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
         ),
+    ],
+    // Tuist's autogeneration doesn't emit standalone schemes for these two
+    // unit-test bundles (only the aggregate `Stuff-Workspace` scheme covers
+    // them), so declare them explicitly. This lets `tuist test WhereTests` /
+    // `tuist test WhereUITests` target a single bundle without building the
+    // whole workspace.
+    schemes: [
+        testScheme(name: "WhereTests"),
+        testScheme(name: "WhereUITests"),
     ],
 )
