@@ -8,7 +8,9 @@ struct RegionSummaryCard: View {
     var caption: String?
     var compact = false
 
-    /// Days in a typical year; the ambient bar is drawn as a fraction of this.
+    /// Calendar days in the year being summarized; the ambient bar is drawn as
+    /// a fraction of this. Callers pass the selected year's real length
+    /// (`WhereModel.daysInSelectedYear`); the default is only for previews.
     var yearLength = 365
 
     private var style: RegionStyle {

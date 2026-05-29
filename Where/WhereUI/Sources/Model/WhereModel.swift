@@ -41,6 +41,22 @@ public final class WhereModel {
         report?.days.count ?? 0
     }
 
+    /// Number of calendar days in the selected year (365, or 366 in a leap
+    /// year). Region cards scale their ambient progress bar against this rather
+    /// than a hardcoded 365.
+    public var daysInSelectedYear: Int {
+        let calendar = Calendar.current
+        guard
+            let midYear = calendar.date(from: DateComponents(
+                year: selectedYear,
+                month: 6,
+                day: 15,
+            )),
+            let range = calendar.range(of: .day, in: .year, for: midYear)
+        else { return 365 }
+        return range.count
+    }
+
     public static var currentYear: Int {
         Calendar.current.component(.year, from: Date())
     }

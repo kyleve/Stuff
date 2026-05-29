@@ -54,6 +54,7 @@ struct SecondaryView: View {
                                 regionDays: item,
                                 caption: caption(for: item),
                                 compact: true,
+                                yearLength: model.daysInSelectedYear,
                             )
                         }
                     }

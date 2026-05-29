@@ -63,7 +63,11 @@ struct PrimaryView: View {
                             Array(model.ranking.primary.enumerated()),
                             id: \.element.id,
                         ) { index, item in
-                            RegionSummaryCard(regionDays: item, caption: caption(forRank: index))
+                            RegionSummaryCard(
+                                regionDays: item,
+                                caption: caption(forRank: index),
+                                yearLength: model.daysInSelectedYear,
+                            )
                         }
                     }
                 }
