@@ -85,6 +85,9 @@ public final class WhereModel {
     public func select(year: Int) async {
         guard year != selectedYear else { return }
         selectedYear = year
+        // Drop the previous year's report so views fall back to their loading
+        // state instead of rendering stale data under the new year's label.
+        report = nil
         await refresh()
     }
 
@@ -131,8 +134,21 @@ public final class WhereModel {
         }
     }
 
+    /// Turn on background tracking. Confirms (and, if needed, requests)
+    /// location permission first, and only reports `isTracking` once GPS is
+    /// actually running — otherwise the toggle would read "on" while
+    /// CoreLocation silently produces nothing. On denial the Settings alert is
+    /// surfaced and tracking stays off.
     public func startTracking() async {
         guard let controller else { return }
+        do {
+            try await controller.requestLocationPermission()
+            permissionDenied = false
+        } catch {
+            permissionDenied = true
+            isTracking = false
+            return
+        }
         await controller.startGPS()
         isTracking = true
     }
