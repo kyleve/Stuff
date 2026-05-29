@@ -27,6 +27,20 @@ struct StorageDefaultTests {
         // write to the user's local SwiftData store — bad.
         #expect(SwiftDataStore.Storage.default == .inMemory)
     }
+
+    @Test func make_inMemory_roundTripsASample() async throws {
+        let store = try SwiftDataStore.make(storage: .inMemory)
+        let sample = LocationSample(
+            timestamp: Date(timeIntervalSince1970: 1_700_000_000),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 10,
+            source: .manual,
+        )
+        try await store.perform { try await store.add(sample: sample) }
+
+        let stored = try await store.allSamples()
+        #expect(stored.map(\.id) == [sample.id])
+    }
 }
 
 struct RegionTests {
