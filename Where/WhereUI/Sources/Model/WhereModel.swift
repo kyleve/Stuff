@@ -109,6 +109,16 @@ public final class WhereModel {
         }
     }
 
+    public func setManualDays(from start: Date, through end: Date, regions: Set<Region>) async {
+        guard let controller else { return }
+        do {
+            try await controller.addManualDays(from: start, through: end, regions: regions)
+            await refresh()
+        } catch {
+            loadState = .failed(error.localizedDescription)
+        }
+    }
+
     public func requestPermission() async {
         guard let controller else { return }
         do {

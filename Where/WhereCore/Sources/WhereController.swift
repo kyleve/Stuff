@@ -69,6 +69,40 @@ public actor WhereController {
         try await store.perform { try await store.setManualDay(presence) }
     }
 
+    /// Assert `regions` for every calendar day in the inclusive range
+    /// `start...end` (handy for backfilling a trip). Both bounds are
+    /// normalized to start-of-day in the aggregator's calendar, and the
+    /// whole range is written inside a single `perform` transaction so the
+    /// backfill commits (or rolls back) atomically. A `start` later than
+    /// `end` is treated as an empty range and writes nothing.
+    public func addManualDays(
+        from start: Date,
+        through end: Date,
+        regions: Set<Region>,
+    ) async throws {
+        let calendar = aggregator.calendar
+        let last = calendar.startOfDay(for: end)
+        // Enumerate the day keys up front into an immutable array so the
+        // `@Sendable` transaction body captures a `let`, not a mutable
+        // cursor, across the concurrency boundary.
+        let dayKeys: [Date] = {
+            var keys: [Date] = []
+            var cursor = calendar.startOfDay(for: start)
+            while cursor <= last {
+                keys.append(cursor)
+                guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+                cursor = calendar.startOfDay(for: next)
+            }
+            return keys
+        }()
+        guard !dayKeys.isEmpty else { return }
+        try await store.perform {
+            for day in dayKeys {
+                try await store.setManualDay(DayPresence(date: day, regions: regions))
+            }
+        }
+    }
+
     // MARK: - Evidence
 
     public func addEvidence(_ evidence: Evidence, blob: Data? = nil) async throws {
