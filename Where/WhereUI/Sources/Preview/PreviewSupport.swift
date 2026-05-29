@@ -49,6 +49,7 @@
             let controller = WhereController(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
+                reminderScheduler: NoopLoggingReminderScheduler(),
             )
             return WhereModel(
                 controller: controller,
@@ -64,6 +65,7 @@
             let controller = WhereController(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
+                reminderScheduler: NoopLoggingReminderScheduler(),
             )
             return WhereModel(
                 controller: controller,
@@ -89,6 +91,7 @@
             let controller = WhereController(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
+                reminderScheduler: NoopLoggingReminderScheduler(),
             )
             return WhereModel(
                 controller: controller,

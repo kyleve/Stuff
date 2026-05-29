@@ -53,6 +53,29 @@ public protocol LoggingReminderScheduling: Sendable {
     ) async
 }
 
+/// A `LoggingReminderScheduling` that does nothing. For SwiftUI previews and
+/// view-model tests that need a controller without touching
+/// `UNUserNotificationCenter`. Reports unauthorized so the UI's "denied"
+/// affordances stay exercisable.
+public struct NoopLoggingReminderScheduler: LoggingReminderScheduling {
+    public init() {}
+
+    public func requestAuthorization() async -> Bool {
+        false
+    }
+
+    public func isAuthorized() async -> Bool {
+        false
+    }
+
+    public func reconcile(
+        badgeCount _: Int,
+        scheduleDays _: [Date],
+        reminderTime _: ReminderTime,
+        enabled _: Bool,
+    ) async {}
+}
+
 /// Production `LoggingReminderScheduling` backed by `UNUserNotificationCenter`.
 /// Only touches notification requests it owns (matched by identifier prefix) so
 /// it never disturbs notifications from elsewhere in the app.
