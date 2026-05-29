@@ -98,8 +98,17 @@ pass — one commit per to-do, with the test/lint run baked into the
 "definition of done" for that step. This keeps history bisectable and
 lets the plan land piecewise if a later step regresses.
 
+Before the first commit, check out a dedicated feature branch — never
+commit plan work directly onto `main` (or `master`). If you're still on
+the base branch, run `git checkout -b <descriptive-name>` first. Branch
+once at the start of the plan and keep every step's commit on it.
+
 The loop for each to-do is: mark `in_progress`, implement the change,
 run the relevant local checks, commit, mark `completed`, move on.
+
+- Before committing the first to-do, confirm you're on a feature branch
+  (`git rev-parse --abbrev-ref HEAD` should not be `main`/`master`); if
+  it is, create one before staging anything.
 
 - Required pre-commit checks: `./swiftformat --lint` and the matching
   `tuist test` scheme(s). A red bar means the step is not done — fix
