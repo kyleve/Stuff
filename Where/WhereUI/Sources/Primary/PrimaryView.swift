@@ -6,14 +6,28 @@ import WhereCore
 struct PrimaryView: View {
     @Environment(WhereModel.self) private var model
 
+    @State private var showingTimeline = false
+
     var body: some View {
         NavigationStack {
             screen
                 .navigationTitle("Where")
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showingTimeline = true
+                        } label: {
+                            Label("Timeline", systemImage: "calendar.day.timeline.left")
+                        }
+                        .accessibilityIdentifier("where_timeline_button")
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
                         YearSelector()
                     }
+                }
+                .sheet(isPresented: $showingTimeline) {
+                    PresenceTimelineView()
+                        .environment(model)
                 }
         }
     }

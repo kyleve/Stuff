@@ -27,4 +27,13 @@ struct ScreenHostingTests {
             #expect(hosted.view != nil)
         }
     }
+
+    @Test func presenceTimelineViewHostsWithData() throws {
+        let model = PreviewSupport.loadedModel()
+        try show(UIHostingController(rootView: PresenceTimelineView()
+                .environment(model)))
+        { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
 }
