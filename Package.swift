@@ -34,6 +34,9 @@ let package = Package(
                 .target(name: "WhereCore"),
             ],
             path: "Where/WhereUI/Sources",
+            resources: [
+                .process("Resources"),
+            ],
         ),
         .target(
             name: "WhereTesting",

@@ -19,14 +19,12 @@ struct SettingsView: View {
                 manualEntrySection
                 dataSection
             }
-            .navigationTitle("Settings")
-            .alert("Location access needed", isPresented: $model.permissionDenied) {
-                Button("Open Settings") { openSystemSettings() }
-                Button("Not now", role: .cancel) {}
+            .navigationTitle(Strings.settingsTitle)
+            .alert(Strings.settingsPermissionAlertTitle, isPresented: $model.permissionDenied) {
+                Button(Strings.settingsPermissionAlertOpenSettings) { openSystemSettings() }
+                Button(Strings.settingsPermissionAlertNotNow, role: .cancel) {}
             } message: {
-                Text(
-                    "Where needs Always location access to log which region you're in. You can grant it in the Settings app.",
-                )
+                Text(Strings.settingsPermissionAlertMessage)
             }
         }
     }
@@ -34,19 +32,17 @@ struct SettingsView: View {
     private var trackingSection: some View {
         Section {
             Toggle(isOn: trackingBinding) {
-                Label("Track in the background", systemImage: "location.fill")
+                Label(Strings.settingsLocationToggle, systemImage: "location.fill")
             }
             Button {
                 Task { await model.requestPermission() }
             } label: {
-                Label("Grant location access", systemImage: "location.magnifyingglass")
+                Label(Strings.settingsLocationGrant, systemImage: "location.magnifyingglass")
             }
         } header: {
-            Text("Location")
+            Text(Strings.settingsLocationHeader)
         } footer: {
-            Text(
-                "Where watches for visits and big moves to figure out which region you're in. It needs Always access and a little patience.",
-            )
+            Text(Strings.settingsLocationFooter)
         }
     }
 
@@ -55,12 +51,12 @@ struct SettingsView: View {
             NavigationLink {
                 ManualDayEntryView()
             } label: {
-                Label("Log or override a day", systemImage: "calendar.badge.plus")
+                Label(Strings.settingsManualLink, systemImage: "calendar.badge.plus")
             }
         } header: {
-            Text("Manual entry")
+            Text(Strings.settingsManualHeader)
         } footer: {
-            Text("Backfill a trip the GPS missed, or correct a day by hand.")
+            Text(Strings.settingsManualFooter)
         }
     }
 
@@ -79,21 +75,19 @@ struct SettingsView: View {
                 Button(eraseTitle, role: .destructive) {
                     Task { await model.clearSelectedYear() }
                 }
-                Button("Cancel", role: .cancel) {}
+                Button(Strings.settingsDataCancel, role: .cancel) {}
             } message: {
-                Text(
-                    verbatim: "This removes every sample, manual day, and piece of evidence in \(model.selectedYear). It can't be undone.",
-                )
+                Text(Strings.settingsDataConfirmMessage(year: model.selectedYear))
             }
         } header: {
-            Text("Data")
+            Text(Strings.settingsDataHeader)
         } footer: {
-            Text(verbatim: "Acts on the year selected on the Primary tab (\(model.selectedYear)).")
+            Text(Strings.settingsDataFooter(year: model.selectedYear))
         }
     }
 
     private var eraseTitle: String {
-        "Erase \(model.selectedYear) data"
+        Strings.settingsDataErase(year: model.selectedYear)
     }
 
     private var trackingBinding: Binding<Bool> {

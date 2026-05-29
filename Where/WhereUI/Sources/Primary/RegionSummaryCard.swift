@@ -63,7 +63,7 @@ struct RegionSummaryCard: View {
                     )
                     .contentTransition(.numericText())
                     .foregroundStyle(style.tint)
-                Text(regionDays.days == 1 ? "day" : "days")
+                Text(Strings.dayUnit(regionDays.days))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
             }
@@ -93,7 +93,10 @@ struct RegionSummaryCard: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            "\(regionDays.region.localizedName): \(regionDays.days) days",
+            Strings.regionDaysAccessibility(
+                region: regionDays.region.localizedName,
+                days: regionDays.days,
+            ),
         )
     }
 }

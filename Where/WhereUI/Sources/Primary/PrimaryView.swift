@@ -11,13 +11,16 @@ struct PrimaryView: View {
     var body: some View {
         NavigationStack {
             screen
-                .navigationTitle("Where")
+                .navigationTitle(Strings.primaryTitle)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             showingTimeline = true
                         } label: {
-                            Label("Timeline", systemImage: "calendar.day.timeline.left")
+                            Label(
+                                Strings.primaryTimeline,
+                                systemImage: "calendar.day.timeline.left",
+                            )
                         }
                         .accessibilityIdentifier("where_timeline_button")
                     }
@@ -36,11 +39,11 @@ struct PrimaryView: View {
     private var screen: some View {
         switch model.loadState {
             case .loading where model.report == nil:
-                ProgressView("Charting your year…")
+                ProgressView(Strings.primaryLoading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .failed(message):
                 ContentUnavailableView {
-                    Label("Couldn't load your year", systemImage: "exclamationmark.icloud")
+                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
                 } description: {
                     Text(message)
                 }
@@ -79,9 +82,9 @@ struct PrimaryView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: UIConstants.Spacings.xSmall) {
-            Text(verbatim: "Where have you been in \(model.selectedYear)?")
+            Text(Strings.primaryHeaderTitle(year: model.selectedYear))
                 .font(.largeTitle.bold())
-            Text(verbatim: "\(model.trackedDayCount) days on the map so far")
+            Text(Strings.primaryHeaderSubtitle(count: model.trackedDayCount))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -90,21 +93,17 @@ struct PrimaryView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(noTravelsTitle, systemImage: "map")
+            Label(Strings.primaryEmptyTitle(year: model.selectedYear), systemImage: "map")
         } description: {
-            Text("Turn on tracking or add a day in Settings and your top spots will land here.")
+            Text(Strings.primaryEmptyDescription)
         }
-    }
-
-    private var noTravelsTitle: String {
-        "No travels logged for \(model.selectedYear)"
     }
 
     /// Playful rank labels for the top regions.
     private func caption(forRank rank: Int) -> String? {
         switch rank {
-            case 0: "Home base"
-            case 1: "Second home"
+            case 0: Strings.primaryCaptionHomeBase
+            case 1: Strings.primaryCaptionSecondHome
             default: nil
         }
     }

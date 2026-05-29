@@ -18,11 +18,9 @@ struct PresenceTimelineView: View {
             Group {
                 if stints.isEmpty {
                     ContentUnavailableView {
-                        Label("No stays yet", systemImage: "calendar.day.timeline.left")
+                        Label(Strings.timelineEmptyTitle, systemImage: "calendar.day.timeline.left")
                     } description: {
-                        Text(
-                            "Once Where has a run of days in a region, your stays will appear here.",
-                        )
+                        Text(Strings.timelineEmptyDescription)
                     }
                 } else {
                     List(stints) { stint in
@@ -30,18 +28,14 @@ struct PresenceTimelineView: View {
                     }
                 }
             }
-            .navigationTitle(navigationTitle)
+            .navigationTitle(Strings.timelineTitle(year: model.selectedYear))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button(Strings.timelineDone) { dismiss() }
                 }
             }
         }
-    }
-
-    private var navigationTitle: String {
-        "Timeline · \(model.selectedYear)"
     }
 }
 
@@ -77,14 +71,20 @@ private struct StintRow: View {
 
             Spacer(minLength: UIConstants.Spacings.medium)
 
-            Text("\(stint.dayCount) \(stint.dayCount == 1 ? "day" : "days")")
+            Text(Strings.dayCount(stint.dayCount))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
         .padding(.vertical, UIConstants.Spacings.xSmall)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(stint.region.localizedName), \(dateRange), \(stint.dayCount) days")
+        .accessibilityLabel(
+            Strings.timelineRowAccessibility(
+                region: stint.region.localizedName,
+                range: dateRange,
+                days: stint.dayCount,
+            ),
+        )
     }
 
     private var dateRange: String {

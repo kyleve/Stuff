@@ -19,8 +19,8 @@ struct ManualDayEntryView: View {
 
         var title: String {
             switch self {
-                case .singleDay: "Single day"
-                case .range: "Date range"
+                case .singleDay: Strings.manualModeSingleDay
+                case .range: Strings.manualModeRange
             }
         }
     }
@@ -50,7 +50,7 @@ struct ManualDayEntryView: View {
     var body: some View {
         Form {
             Section {
-                Picker("Entry", selection: $mode) {
+                Picker(Strings.manualEntryPickerLabel, selection: $mode) {
                     ForEach(EntryMode.allCases) { mode in
                         Text(mode.title).tag(mode)
                     }
@@ -74,19 +74,19 @@ struct ManualDayEntryView: View {
                     }
                 }
             } header: {
-                Text("Regions")
+                Text(Strings.manualRegionsHeader)
             } footer: {
-                Text("Saving replaces any manual regions you previously set for those days.")
+                Text(Strings.manualRegionsFooter)
             }
         }
-        .navigationTitle("Log a Day")
+        .navigationTitle(Strings.manualTitle)
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: startDate) { _, newValue in
             if endDate < newValue { endDate = newValue }
         }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save") { save() }
+                Button(Strings.manualSave) { save() }
                     .disabled(!canSave)
             }
         }
@@ -97,20 +97,20 @@ struct ManualDayEntryView: View {
         switch mode {
             case .singleDay:
                 DatePicker(
-                    "Day",
+                    Strings.manualDay,
                     selection: $startDate,
                     in: ...Date(),
                     displayedComponents: .date,
                 )
             case .range:
                 DatePicker(
-                    "From",
+                    Strings.manualFrom,
                     selection: $startDate,
                     in: ...Date(),
                     displayedComponents: .date,
                 )
                 DatePicker(
-                    "Through",
+                    Strings.manualThrough,
                     selection: $endDate,
                     in: startDate ... Date(),
                     displayedComponents: .date,
@@ -121,9 +121,9 @@ struct ManualDayEntryView: View {
     private var dateFooter: String {
         switch mode {
             case .singleDay:
-                "Time travel: tell Where where you really were."
+                Strings.manualSingleDayFooter
             case .range:
-                "Backfilling \(dayCount) \(dayCount == 1 ? "day" : "days")."
+                Strings.manualRangeFooter(count: dayCount)
         }
     }
 

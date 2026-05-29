@@ -11,15 +11,15 @@ public struct RootView: View {
 
     public var body: some View {
         TabView {
-            Tab("Primary", systemImage: "star.fill") {
+            Tab(Strings.tabPrimary, systemImage: "star.fill") {
                 PrimaryView()
             }
 
-            Tab("Elsewhere", systemImage: "globe.americas.fill") {
+            Tab(Strings.tabElsewhere, systemImage: "globe.americas.fill") {
                 SecondaryView()
             }
 
-            Tab("Settings", systemImage: "gearshape.fill") {
+            Tab(Strings.tabSettings, systemImage: "gearshape.fill") {
                 SettingsView()
             }
         }

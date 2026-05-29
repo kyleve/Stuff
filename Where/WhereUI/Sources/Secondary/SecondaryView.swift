@@ -9,7 +9,7 @@ struct SecondaryView: View {
     var body: some View {
         NavigationStack {
             screen
-                .navigationTitle("Elsewhere")
+                .navigationTitle(Strings.secondaryTitle)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         YearSelector()
@@ -22,11 +22,11 @@ struct SecondaryView: View {
     private var screen: some View {
         switch model.loadState {
             case .loading where model.report == nil:
-                ProgressView("Retracing your steps…")
+                ProgressView(Strings.secondaryLoading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .failed(message):
                 ContentUnavailableView {
-                    Label("Couldn't load your year", systemImage: "exclamationmark.icloud")
+                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
                 } description: {
                     Text(message)
                 }
@@ -42,7 +42,7 @@ struct SecondaryView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: UIConstants.Spacings.xLarge) {
-                Text(verbatim: "Everywhere else you turned up in \(model.selectedYear).")
+                Text(Strings.secondaryHeader(year: model.selectedYear))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -66,17 +66,15 @@ struct SecondaryView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label("Nowhere else logged", systemImage: "globe.americas")
+            Label(Strings.secondaryEmptyTitle, systemImage: "globe.americas")
         } description: {
-            Text(
-                "Spend a day outside your top spots — or log a trip in Settings — and it'll appear here.",
-            )
+            Text(Strings.secondaryEmptyDescription)
         }
     }
 
     /// Light whimsy for the briefest stays.
     private func caption(for item: RegionDays) -> String? {
-        item.days <= 3 ? "Just passing through" : nil
+        item.days <= 3 ? Strings.secondaryCaptionPassingThrough : nil
     }
 }
 

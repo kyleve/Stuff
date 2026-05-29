@@ -18,16 +18,21 @@ struct YearSelector: View {
                     Task { await model.select(year: year) }
                 } label: {
                     if year == model.selectedYear {
-                        Label { Text(verbatim: "\(year)") } icon: { Image(systemName: "checkmark") }
+                        Label { Text(yearText(year)) } icon: { Image(systemName: "checkmark") }
                     } else {
-                        Text(verbatim: "\(year)")
+                        Text(yearText(year))
                     }
                 }
             }
         } label: {
-            Label { Text(verbatim: "\(model.selectedYear)") } icon: { Image(systemName: "calendar")
+            Label { Text(yearText(model.selectedYear)) } icon: { Image(systemName: "calendar")
             }
         }
         .accessibilityIdentifier("where_year_selector")
+    }
+
+    /// Year without a grouping separator ("2026", not "2,026").
+    private func yearText(_ year: Int) -> String {
+        year.formatted(.number.grouping(.never))
     }
 }
