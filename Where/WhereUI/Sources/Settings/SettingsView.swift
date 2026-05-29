@@ -31,18 +31,48 @@ struct SettingsView: View {
 
     private var trackingSection: some View {
         Section {
+            LocationStatusRow(status: model.authorizationStatus, isTracking: model.isTracking)
+
             Toggle(isOn: trackingBinding) {
                 Label(Strings.settingsLocationToggle, systemImage: "location.fill")
             }
-            Button {
-                Task { await model.requestPermission() }
-            } label: {
-                Label(Strings.settingsLocationGrant, systemImage: "location.magnifyingglass")
+
+            if showGrantButton {
+                Button {
+                    Task { await model.requestPermission() }
+                } label: {
+                    Label(Strings.settingsLocationGrant, systemImage: "location.magnifyingglass")
+                }
+            }
+
+            if showOpenSettingsButton {
+                Button {
+                    openSystemSettings()
+                } label: {
+                    Label(Strings.settingsPermissionAlertOpenSettings, systemImage: "gear")
+                }
             }
         } header: {
             Text(Strings.settingsLocationHeader)
         } footer: {
             Text(Strings.settingsLocationFooter)
+        }
+    }
+
+    /// Re-requesting only helps before the user has made a final decision.
+    private var showGrantButton: Bool {
+        switch model.authorizationStatus {
+            case .notDetermined, .whenInUse: true
+            default: false
+        }
+    }
+
+    /// Once access is denied/restricted (or stuck at When-In-Use), the only way
+    /// forward is the Settings app.
+    private var showOpenSettingsButton: Bool {
+        switch model.authorizationStatus {
+            case .denied, .restricted, .whenInUse: true
+            default: false
         }
     }
 

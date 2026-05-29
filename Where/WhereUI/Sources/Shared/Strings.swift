@@ -164,6 +164,30 @@ enum Strings {
         localized("settings.location.footer")
     }
 
+    static var settingsStatusTracking: String {
+        localized("settings.status.tracking")
+    }
+
+    static var settingsStatusAlwaysPaused: String {
+        localized("settings.status.alwaysPaused")
+    }
+
+    static var settingsStatusWhenInUse: String {
+        localized("settings.status.whenInUse")
+    }
+
+    static var settingsStatusNotDetermined: String {
+        localized("settings.status.notDetermined")
+    }
+
+    static var settingsStatusDenied: String {
+        localized("settings.status.denied")
+    }
+
+    static var settingsStatusRestricted: String {
+        localized("settings.status.restricted")
+    }
+
     static var settingsManualHeader: String {
         localized("settings.manual.header")
     }

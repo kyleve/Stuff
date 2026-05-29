@@ -21,13 +21,32 @@ public final class WhereModel {
     public private(set) var selectedYear: Int
     public private(set) var report: YearReport?
     public private(set) var loadState: LoadState = .idle
+
+    /// Whether background GPS ingestion is currently attached. Reflects reality
+    /// (authorization + the user's intent), not just the last button tap.
     public private(set) var isTracking = false
+
+    /// The latest known location authorization status, kept live via
+    /// `WhereController.authorizationUpdates()`.
+    public private(set) var authorizationStatus: LocationAuthorizationStatus = .notDetermined
 
     /// Set when a location-permission request comes back denied/restricted,
     /// so the UI can offer to open Settings.
     public var permissionDenied = false
 
     private var controller: WhereController?
+    private var authorizationTask: Task<Void, Never>?
+    private let defaults: UserDefaults
+
+    /// Persisted user intent to track in the background. Effective tracking is
+    /// this AND `.always` authorization; we default to `true` so that, once the
+    /// user grants Always, tracking resumes automatically on every launch.
+    private var wantsTracking: Bool {
+        get { defaults.object(forKey: Self.wantsTrackingKey) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Self.wantsTrackingKey) }
+    }
+
+    private static let wantsTrackingKey = "where.wantsBackgroundTracking"
 
     /// Primary/secondary split of the current report, or an empty ranking
     /// while nothing is loaded.
@@ -61,8 +80,12 @@ public final class WhereModel {
         Calendar.current.component(.year, from: Date())
     }
 
-    public init(selectedYear: Int = WhereModel.currentYear) {
+    public init(
+        selectedYear: Int = WhereModel.currentYear,
+        defaults: UserDefaults = .standard,
+    ) {
         self.selectedYear = selectedYear
+        self.defaults = defaults
     }
 
     /// Preview/test seam: inject an already-built controller (and optionally a
@@ -72,16 +95,19 @@ public final class WhereModel {
         controller: WhereController,
         report: YearReport? = nil,
         selectedYear: Int = WhereModel.currentYear,
+        defaults: UserDefaults = .standard,
     ) {
         self.controller = controller
         self.report = report
         self.selectedYear = selectedYear
+        self.defaults = defaults
         loadState = report == nil ? .idle : .loaded
     }
 
     /// Build the production controller (SwiftData + CoreLocation) on first
-    /// appearance, then load the selected year. Safe to call repeatedly; the
-    /// controller is only built once.
+    /// appearance, sync authorization, resume tracking if appropriate, then
+    /// load the selected year. Safe to call repeatedly; the controller and the
+    /// authorization observer are only set up once.
     public func start() async {
         if controller == nil {
             do {
@@ -95,7 +121,45 @@ public final class WhereModel {
                 return
             }
         }
+        await syncAuthorization()
+        observeAuthorizationChanges()
+        await reconcileTracking()
         await refresh()
+    }
+
+    /// Read the current authorization status from the controller into our
+    /// observable state. Does not surface the permission alert — that's
+    /// reserved for explicit user actions.
+    private func syncAuthorization() async {
+        guard let controller else { return }
+        authorizationStatus = await controller.authorizationStatus()
+    }
+
+    /// Subscribe to live authorization changes (prompt results, Settings-app
+    /// edits) so the indicator and tracking state stay in sync. Idempotent.
+    private func observeAuthorizationChanges() {
+        guard authorizationTask == nil, let controller else { return }
+        authorizationTask = Task { @MainActor [weak self] in
+            let updates = await controller.authorizationUpdates()
+            for await status in updates {
+                guard let self else { break }
+                authorizationStatus = status
+                await reconcileTracking()
+            }
+        }
+    }
+
+    /// Start or stop GPS ingestion so it matches the user's intent and the
+    /// current authorization. Tracking only runs with Always authorization.
+    private func reconcileTracking() async {
+        guard let controller else { return }
+        if wantsTracking, authorizationStatus.allowsBackgroundTracking {
+            await controller.startGPS()
+            isTracking = true
+        } else {
+            await controller.stopGPS()
+            isTracking = false
+        }
     }
 
     public func select(year: Int) async {
@@ -138,39 +202,44 @@ public final class WhereModel {
         }
     }
 
+    /// Explicitly (re)request location access, e.g. from the "Grant location
+    /// access" button. Drives the system prompt when possible, then syncs the
+    /// status and reconciles tracking so the UI reflects the outcome.
     public func requestPermission() async {
         guard let controller else { return }
         do {
             try await controller.requestLocationPermission()
             permissionDenied = false
         } catch {
-            // Both `LocationPermissionDeniedError` and any unexpected failure
-            // mean we don't have Always access, so route the user to Settings.
+            // `.denied` / `.restricted` mean re-prompting won't help, so the UI
+            // routes the user to the Settings app.
             permissionDenied = true
         }
+        await syncAuthorization()
+        await reconcileTracking()
     }
 
-    /// Turn on background tracking. Confirms (and, if needed, requests)
-    /// location permission first, and only reports `isTracking` once GPS is
-    /// actually running — otherwise the toggle would read "on" while
-    /// CoreLocation silently produces nothing. On denial the Settings alert is
-    /// surfaced and tracking stays off.
+    /// Turn on background tracking. Records the intent, requests permission if
+    /// needed, then reconciles — `isTracking` only flips on once Always
+    /// authorization is in hand and GPS is actually running. When only
+    /// When-In-Use is granted the indicator guides the user to Settings; on a
+    /// hard denial the Settings alert is surfaced.
     public func startTracking() async {
         guard let controller else { return }
+        wantsTracking = true
         do {
             try await controller.requestLocationPermission()
             permissionDenied = false
         } catch {
             permissionDenied = true
-            isTracking = false
-            return
         }
-        await controller.startGPS()
-        isTracking = true
+        await syncAuthorization()
+        await reconcileTracking()
     }
 
     public func stopTracking() async {
         guard let controller else { return }
+        wantsTracking = false
         await controller.stopGPS()
         isTracking = false
     }
