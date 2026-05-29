@@ -218,6 +218,46 @@ enum Strings {
         localized("settings.manual.footer")
     }
 
+    static var settingsRemindersHeader: String {
+        String(localized: "settings.reminders.header", defaultValue: "Reminders", bundle: .module)
+    }
+
+    static var settingsRemindersToggle: String {
+        String(
+            localized: "settings.reminders.toggle",
+            defaultValue: "Daily logging reminder",
+            bundle: .module,
+        )
+    }
+
+    static var settingsReminderTime: String {
+        String(localized: "settings.reminders.time", defaultValue: "Remind me at", bundle: .module)
+    }
+
+    static var settingsRemindersFooter: String {
+        String(
+            localized: "settings.reminders.footer",
+            defaultValue: "If a day hasn't been logged, we'll nudge you before it ends and badge the app. The reminder clears itself once the day is recorded.",
+            bundle: .module,
+        )
+    }
+
+    static var settingsRemindersOpenSettings: String {
+        String(
+            localized: "settings.reminders.openSettings",
+            defaultValue: "Allow notifications",
+            bundle: .module,
+        )
+    }
+
+    static var settingsRemindersDeniedFooter: String {
+        String(
+            localized: "settings.reminders.deniedFooter",
+            defaultValue: "Notifications are turned off for Where, so reminders and the badge can't appear. Turn them on in Settings.",
+            bundle: .module,
+        )
+    }
+
     static var settingsDataHeader: String {
         localized("settings.data.header")
     }

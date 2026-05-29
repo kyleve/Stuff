@@ -16,6 +16,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 trackingSection
+                remindersSection
                 manualEntrySection
                 dataSection
             }
@@ -74,6 +75,71 @@ struct SettingsView: View {
             case .denied, .restricted, .whenInUse: true
             default: false
         }
+    }
+
+    private var remindersSection: some View {
+        Section {
+            Toggle(isOn: remindersBinding) {
+                Label(Strings.settingsRemindersToggle, systemImage: "bell.badge")
+            }
+
+            if model.remindersEnabled {
+                DatePicker(
+                    Strings.settingsReminderTime,
+                    selection: reminderTimeBinding,
+                    displayedComponents: .hourAndMinute,
+                )
+
+                if !model.notificationsAuthorized {
+                    Button {
+                        openSystemSettings()
+                    } label: {
+                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                    }
+                }
+            }
+        } header: {
+            Text(Strings.settingsRemindersHeader)
+        } footer: {
+            Text(remindersFooter)
+        }
+    }
+
+    private var remindersFooter: String {
+        if model.remindersEnabled, !model.notificationsAuthorized {
+            return Strings.settingsRemindersDeniedFooter
+        }
+        return Strings.settingsRemindersFooter
+    }
+
+    private var remindersBinding: Binding<Bool> {
+        Binding(
+            get: { model.remindersEnabled },
+            set: { isOn in
+                Task { await model.setRemindersEnabled(isOn) }
+            },
+        )
+    }
+
+    private var reminderTimeBinding: Binding<Date> {
+        Binding(
+            get: {
+                Calendar.current.date(
+                    bySettingHour: model.reminderTime.hour,
+                    minute: model.reminderTime.minute,
+                    second: 0,
+                    of: Date(),
+                ) ?? Date()
+            },
+            set: { newValue in
+                let components = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                let time = ReminderTime(
+                    hour: components.hour ?? ReminderTime.defaultEvening.hour,
+                    minute: components.minute ?? ReminderTime.defaultEvening.minute,
+                )
+                Task { await model.setReminderTime(time) }
+            },
+        )
     }
 
     private var manualEntrySection: some View {
