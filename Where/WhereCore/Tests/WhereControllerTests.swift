@@ -76,6 +76,47 @@ struct WhereControllerTests {
         #expect(report.days.first?.regions == [.newYork])
     }
 
+    @Test func addManualDaysBackfillsEveryDayInRange() async throws {
+        let (controller, _, _) = try Self.makeController()
+        try await controller.addManualDays(
+            from: iso("2026-02-10T09:00:00-08:00"),
+            through: iso("2026-02-14T20:00:00-08:00"),
+            regions: [.newYork],
+        )
+
+        let report = try await controller.yearReport(for: 2026)
+        // Feb 10–14 inclusive is five days, each attributed to New York.
+        #expect(report.days.count == 5)
+        #expect(report.totals == [.newYork: 5])
+        #expect(report.days.allSatisfy { $0.regions == [.newYork] })
+    }
+
+    @Test func addManualDaysWithStartAfterEndWritesNothing() async throws {
+        let (controller, _, _) = try Self.makeController()
+        try await controller.addManualDays(
+            from: iso("2026-02-14T00:00:00-08:00"),
+            through: iso("2026-02-10T00:00:00-08:00"),
+            regions: [.california],
+        )
+
+        let report = try await controller.yearReport(for: 2026)
+        #expect(report.days.isEmpty)
+        #expect(report.totals.isEmpty)
+    }
+
+    @Test func addManualDaysSameStartAndEndWritesOneDay() async throws {
+        let (controller, _, _) = try Self.makeController()
+        try await controller.addManualDays(
+            from: iso("2026-02-10T06:00:00-08:00"),
+            through: iso("2026-02-10T23:00:00-08:00"),
+            regions: [.california],
+        )
+
+        let report = try await controller.yearReport(for: 2026)
+        #expect(report.days.count == 1)
+        #expect(report.totals == [.california: 1])
+    }
+
     @Test func clearYearWipesAndReportsEmpty() async throws {
         let (controller, _, _) = try Self.makeController()
         try await controller.ingest(LocationSample(
@@ -129,6 +170,29 @@ struct WhereControllerTests {
         source.emit(sampleC)
         try await waitUntil { await controller.retryQueueDepth == 0 }
         #expect(await store.persistedCount == 3)
+
+        await controller.stopGPS()
+    }
+
+    @Test func trackingResumesAfterPauseWithoutDroppingSamples() async throws {
+        let (controller, _, source) = try Self.makeController()
+
+        await controller.startGPS()
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { try await controller.yearReport(for: 2026).days.count == 1 }
+
+        // Pause, then resume. A naive implementation cancels the stream
+        // consumer here, leaving the resumed session iterating a finished
+        // stream so this second sample would be silently dropped.
+        await controller.stopGPS()
+        let pausedActive = await controller.isTrackingActive
+        #expect(!pausedActive)
+        await controller.startGPS()
+        let resumedActive = await controller.isTrackingActive
+        #expect(resumedActive)
+
+        source.emit(sample(at: "2026-03-16T12:00:00-07:00"))
+        try await waitUntil { try await controller.yearReport(for: 2026).days.count == 2 }
 
         await controller.stopGPS()
     }

@@ -105,6 +105,17 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return SwiftDataStore(modelContainer: container)
     }
 
+    /// App-wiring factory: builds a store for the given storage mode
+    /// (defaulting to the build/test-aware `Storage.default`) and wraps
+    /// it in a `SwiftDataStore`. The `@ModelActor`-generated
+    /// `init(modelContainer:)` is not reachable from other modules, so
+    /// this is the supported entry point for production wiring in the
+    /// app/UI layer.
+    public static func make(storage: Storage = .default) throws -> SwiftDataStore {
+        let container = try makeContainer(storage: storage)
+        return SwiftDataStore(modelContainer: container)
+    }
+
     private static let logger = Logger(subsystem: "com.stuff.where", category: "SwiftDataStore")
 
     /// Peer `ModelContext` active for the duration of an outermost

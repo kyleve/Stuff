@@ -29,14 +29,20 @@ import Foundation
 @MainActor
 public final class CoreLocationSource: NSObject, LocationSource {
     public nonisolated let sampleStream: AsyncStream<LocationSample>
+    public nonisolated let authorizationUpdates: AsyncStream<LocationAuthorizationStatus>
 
     private let manager: CLLocationManager
     private nonisolated let sampleContinuation: AsyncStream<LocationSample>.Continuation
+    private nonisolated let authorizationContinuation: AsyncStream<LocationAuthorizationStatus>
+        .Continuation
 
-    /// Continuation for the in-flight `requestPermission()` call. Set
-    /// when the call begins and consumed on the next
-    /// `locationManagerDidChangeAuthorization` callback.
-    private var pendingPermissionContinuation: CheckedContinuation<Void, Error>?
+    /// Continuations for in-flight `requestPermission()` calls. Overlapping
+    /// callers (e.g. rapid taps, or the toggle and the "Grant" button racing)
+    /// are coalesced: only the first call drives the system prompt, and every
+    /// waiter is resumed together on the next authorization callback. Storing
+    /// a single continuation here would let a second request overwrite — and
+    /// thus permanently strand — the first.
+    private var pendingPermissionContinuations: [CheckedContinuation<Void, Error>] = []
 
     override public init() {
         // The "create stream, capture its continuation" two-step is
@@ -48,6 +54,12 @@ public final class CoreLocationSource: NSObject, LocationSource {
         var sampleCont: AsyncStream<LocationSample>.Continuation!
         sampleStream = AsyncStream { sampleCont = $0 }
         sampleContinuation = sampleCont
+
+        var authCont: AsyncStream<LocationAuthorizationStatus>.Continuation!
+        // Keep only the latest status so a subscriber that attaches slightly
+        // after launch still sees the current value.
+        authorizationUpdates = AsyncStream(bufferingPolicy: .bufferingNewest(1)) { authCont = $0 }
+        authorizationContinuation = authCont
 
         manager = CLLocationManager()
         super.init()
@@ -64,9 +76,11 @@ public final class CoreLocationSource: NSObject, LocationSource {
         manager.stopMonitoringVisits()
     }
 
+    public func currentAuthorization() async -> LocationAuthorizationStatus {
+        Self.map(manager.authorizationStatus)
+    }
+
     public func requestPermission() async throws {
-        // If the user has already answered, resolve synchronously
-        // without re-prompting.
         switch manager.authorizationStatus {
             case .authorizedAlways:
                 return
@@ -74,16 +88,31 @@ public final class CoreLocationSource: NSObject, LocationSource {
                 throw LocationPermissionDeniedError(reason: .denied)
             case .restricted:
                 throw LocationPermissionDeniedError(reason: .restricted)
-            case .authorizedWhenInUse, .notDetermined:
+            case .authorizedWhenInUse:
+                // Already have foreground access. Nudge the Always upgrade;
+                // iOS defers this prompt to the next background transition, so
+                // don't block — the authorization stream reports the result.
+                manager.requestAlwaysAuthorization()
+                return
+            case .notDetermined:
                 break
             @unknown default:
-                break
+                return
         }
 
-        // Otherwise drive the prompt and wait for the next
-        // `locationManagerDidChangeAuthorization` callback.
+        // Drive the initial prompt and wait for the user's first decision.
+        // Only the first concurrent caller triggers the system prompt; any
+        // others simply join the waiter list and resume on the same callback.
         try await withCheckedThrowingContinuation { continuation in
-            pendingPermissionContinuation = continuation
+            pendingPermissionContinuations.append(continuation)
+            if pendingPermissionContinuations.count == 1 {
+                manager.requestWhenInUseAuthorization()
+            }
+        }
+
+        // If we only got When-In-Use, kick off the (deferred) Always upgrade
+        // without blocking; observers learn the outcome via the stream.
+        if manager.authorizationStatus == .authorizedWhenInUse {
             manager.requestAlwaysAuthorization()
         }
     }
@@ -91,36 +120,56 @@ public final class CoreLocationSource: NSObject, LocationSource {
     /// Resume the in-flight `requestPermission()` continuation, if any,
     /// based on the manager's new authorization status. Called from the
     /// `nonisolated` delegate method after it hops back to `@MainActor`.
+    ///
+    /// Any granted status (When-In-Use or Always) resolves successfully — the
+    /// caller inspects `currentAuthorization()` to decide whether Always was
+    /// obtained. This avoids hanging on the deferred Always prompt, which may
+    /// never deliver a follow-up callback if the user leaves it at When-In-Use.
     fileprivate func resolvePendingPermission(for status: CLAuthorizationStatus) {
-        guard let continuation = pendingPermissionContinuation else { return }
-        pendingPermissionContinuation = nil
+        guard !pendingPermissionContinuations.isEmpty else { return }
         switch status {
-            case .authorizedAlways:
-                continuation.resume()
-            case .authorizedWhenInUse:
-                // The user picked While-Using; the app needs Always to
-                // do its job. Treat as denied so the UI shows the
-                // upgrade-to-Always Settings link rather than silently
-                // hanging.
-                continuation.resume(
-                    throwing: LocationPermissionDeniedError(reason: .denied),
-                )
+            case .authorizedAlways, .authorizedWhenInUse:
+                resumePendingPermission(with: .success(()))
             case .denied:
-                continuation.resume(
-                    throwing: LocationPermissionDeniedError(reason: .denied),
+                resumePendingPermission(
+                    with: .failure(LocationPermissionDeniedError(reason: .denied)),
                 )
             case .restricted:
-                continuation.resume(
-                    throwing: LocationPermissionDeniedError(reason: .restricted),
+                resumePendingPermission(
+                    with: .failure(LocationPermissionDeniedError(reason: .restricted)),
                 )
             case .notDetermined:
-                // Still waiting on the user; do not resume. The next
-                // authorization change will land us here again.
-                pendingPermissionContinuation = continuation
+                // Still waiting on the user; keep the continuations pending.
+                break
             @unknown default:
-                continuation.resume(
-                    throwing: LocationPermissionDeniedError(reason: .denied),
+                resumePendingPermission(
+                    with: .failure(LocationPermissionDeniedError(reason: .denied)),
                 )
+        }
+    }
+
+    /// Resume (and clear) every coalesced permission waiter with the same
+    /// outcome. Cleared before resuming so a re-entrant `requestPermission()`
+    /// from a resumed continuation starts a fresh request rather than racing
+    /// the list we're draining.
+    private func resumePendingPermission(with result: Result<Void, Error>) {
+        let waiters = pendingPermissionContinuations
+        pendingPermissionContinuations.removeAll()
+        for waiter in waiters {
+            waiter.resume(with: result)
+        }
+    }
+
+    fileprivate nonisolated static func map(_ status: CLAuthorizationStatus)
+        -> LocationAuthorizationStatus
+    {
+        switch status {
+            case .authorizedAlways: .always
+            case .authorizedWhenInUse: .whenInUse
+            case .denied: .denied
+            case .restricted: .restricted
+            case .notDetermined: .notDetermined
+            @unknown default: .notDetermined
         }
     }
 }
@@ -173,6 +222,9 @@ extension CoreLocationSource: CLLocationManagerDelegate {
 
     public nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         let status = manager.authorizationStatus
+        // Broadcast every change so observers (the UI) stay in sync, including
+        // changes made in the Settings app while we were backgrounded.
+        authorizationContinuation.yield(Self.map(status))
         Task { @MainActor in
             self.resolvePendingPermission(for: status)
         }

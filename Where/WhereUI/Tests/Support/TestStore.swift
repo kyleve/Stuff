@@ -1,0 +1,100 @@
+import Foundation
+import WhereCore
+
+/// Thrown by `TestStore.setManualDay` when failure injection is enabled.
+struct ManualSaveFailure: Error, Equatable {}
+
+/// Test `WhereStore` that forwards to an in-memory `SwiftDataStore` but adds
+/// two hooks the view-model tests need:
+///
+/// - `enableFirstSamplesGate()` suspends the first `samples(in:)` call until
+///   the test releases it, so two `refresh()`es can be forced to complete out
+///   of order (the stale-year race).
+/// - `failManualDays()` makes `setManualDay` throw, so manual-entry error
+///   handling is exercisable without a real persistence fault.
+///
+/// Everything else forwards to the backing store so reads stay deterministic.
+actor TestStore: WhereStore {
+    private let backing: SwiftDataStore
+
+    private var gateFirstSamplesCall = false
+    private var firstSamplesSeen = false
+    private var gate: CheckedContinuation<Void, Never>?
+    private var arrival: CheckedContinuation<Void, Never>?
+
+    private var shouldFailManualDay = false
+
+    init() throws {
+        backing = try SwiftDataStore.inMemory()
+    }
+
+    // MARK: - Test controls
+
+    func enableFirstSamplesGate() {
+        gateFirstSamplesCall = true
+    }
+
+    /// Suspends until the gated first `samples(in:)` call has arrived.
+    func awaitFirstSamplesCall() async {
+        guard !firstSamplesSeen else { return }
+        await withCheckedContinuation { arrival = $0 }
+    }
+
+    func releaseFirstSamplesCall() {
+        gate?.resume()
+        gate = nil
+    }
+
+    func failManualDays() {
+        shouldFailManualDay = true
+    }
+
+    // MARK: - WhereStore
+
+    func perform<T: Sendable>(_ block: @Sendable () async throws -> T) async throws -> T {
+        try await backing.perform(block)
+    }
+
+    func add(sample: LocationSample) async throws {
+        try await backing.add(sample: sample)
+    }
+
+    func samples(in interval: DateInterval) async throws -> [LocationSample] {
+        if gateFirstSamplesCall, !firstSamplesSeen {
+            firstSamplesSeen = true
+            arrival?.resume()
+            arrival = nil
+            await withCheckedContinuation { gate = $0 }
+        }
+        return try await backing.samples(in: interval)
+    }
+
+    func allSamples() async throws -> [LocationSample] {
+        try await backing.allSamples()
+    }
+
+    func write(evidence: Evidence, blob: Data?) async throws {
+        try await backing.write(evidence: evidence, blob: blob)
+    }
+
+    func evidence(in interval: DateInterval) async throws -> [Evidence] {
+        try await backing.evidence(in: interval)
+    }
+
+    func evidenceBlob(for id: UUID) async throws -> Data? {
+        try await backing.evidenceBlob(for: id)
+    }
+
+    func setManualDay(_ day: DayPresence) async throws {
+        if shouldFailManualDay { throw ManualSaveFailure() }
+        try await backing.setManualDay(day)
+    }
+
+    func manualDays(in interval: DateInterval) async throws -> [DayPresence] {
+        try await backing.manualDays(in: interval)
+    }
+
+    func clear(in interval: DateInterval) async throws {
+        try await backing.clear(in: interval)
+    }
+}
