@@ -57,6 +57,17 @@
         }
       }
     },
+    "common.ok" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
     "common.regionDays.accessibility" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -179,6 +190,17 @@
         }
       }
     },
+    "manual.saveError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save that day"
+          }
+        }
+      }
+    },
     "manual.singleDay.footer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -230,6 +252,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Second home"
+          }
+        }
+      }
+    },
+    "primary.elsewhereOnly.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld day logged this year, but none in a headline spot yet. Peek at the Elsewhere tab."
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld days logged this year, but none in a headline spot yet. Peek at the Elsewhere tab."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "primary.elsewhereOnly.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing in your headline spots"
           }
         }
       }

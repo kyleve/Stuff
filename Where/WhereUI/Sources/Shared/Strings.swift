@@ -28,6 +28,10 @@ enum Strings {
         localized("common.loadError.title")
     }
 
+    static var commonOK: String {
+        localized("common.ok")
+    }
+
     /// "1 day" / "5 days" — with the count rendered.
     static func dayCount(_ count: Int) -> String {
         String(localized: "common.dayCount", defaultValue: "\(count) days", bundle: .module)
@@ -62,6 +66,20 @@ enum Strings {
 
     static var primaryEmptyDescription: String {
         localized("primary.empty.description")
+    }
+
+    static var primaryElsewhereOnlyTitle: String {
+        localized("primary.elsewhereOnly.title")
+    }
+
+    /// Shown when there's tracked data, but none of it lands in a primary
+    /// region — points the user at the Elsewhere tab.
+    static func primaryElsewhereOnlyDescription(count: Int) -> String {
+        String(
+            localized: "primary.elsewhereOnly.description",
+            defaultValue: "\(count) days logged this year, but none in a headline spot yet. Peek at the Elsewhere tab.",
+            bundle: .module,
+        )
     }
 
     static var primaryCaptionHomeBase: String {
@@ -276,6 +294,10 @@ enum Strings {
 
     static var manualSave: String {
         localized("manual.save")
+    }
+
+    static var manualSaveErrorTitle: String {
+        localized("manual.saveError.title")
     }
 
     static func manualRangeFooter(count: Int) -> String {

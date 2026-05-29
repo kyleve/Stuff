@@ -184,33 +184,42 @@ public final class WhereModel {
 
     public func refresh() async {
         guard let controller else { return }
+        // Capture the year this fetch is for. `WhereModel` is reentrant while
+        // awaiting `yearReport`, so a rapid second `select(year:)` can start a
+        // newer fetch that finishes first; without this guard a slower older
+        // fetch could install its report under the newer year's label.
+        let requestedYear = selectedYear
         loadState = .loading
         do {
-            report = try await controller.yearReport(for: selectedYear)
+            let report = try await controller.yearReport(for: requestedYear)
+            guard requestedYear == selectedYear else { return }
+            self.report = report
             loadState = .loaded
         } catch {
+            guard requestedYear == selectedYear else { return }
             loadState = .failed(error.localizedDescription)
         }
     }
 
-    public func setManualDay(date: Date, regions: Set<Region>) async {
+    /// Persist a single manual day. Throws on persistence failure so the
+    /// caller (the entry form) can keep itself open and show the error inline
+    /// instead of dismissing as if the save succeeded.
+    public func setManualDay(date: Date, regions: Set<Region>) async throws {
         guard let controller else { return }
-        do {
-            try await controller.addManualDay(date: date, regions: regions)
-            await refresh()
-        } catch {
-            loadState = .failed(error.localizedDescription)
-        }
+        try await controller.addManualDay(date: date, regions: regions)
+        await refresh()
     }
 
-    public func setManualDays(from start: Date, through end: Date, regions: Set<Region>) async {
+    /// Persist a manual day range. Throws on persistence failure (see
+    /// `setManualDay(date:regions:)`).
+    public func setManualDays(
+        from start: Date,
+        through end: Date,
+        regions: Set<Region>,
+    ) async throws {
         guard let controller else { return }
-        do {
-            try await controller.addManualDays(from: start, through: end, regions: regions)
-            await refresh()
-        } catch {
-            loadState = .failed(error.localizedDescription)
-        }
+        try await controller.addManualDays(from: start, through: end, regions: regions)
+        await refresh()
     }
 
     /// Explicitly (re)request location access, e.g. from the "Grant location

@@ -30,6 +30,7 @@ struct ManualDayEntryView: View {
     @State private var endDate = Date()
     @State private var selectedRegions: Set<Region> = []
     @State private var isSaving = false
+    @State private var saveError: String?
 
     private var dayCount: Int {
         let calendar = Calendar.current
@@ -90,6 +91,19 @@ struct ManualDayEntryView: View {
                     .disabled(!canSave)
             }
         }
+        .alert(
+            Strings.manualSaveErrorTitle,
+            isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } },
+            ),
+        ) {
+            Button(Strings.commonOK, role: .cancel) {}
+        } message: {
+            if let saveError {
+                Text(saveError)
+            }
+        }
     }
 
     @ViewBuilder
@@ -142,18 +156,25 @@ struct ManualDayEntryView: View {
 
     private func save() {
         isSaving = true
+        saveError = nil
         Task {
-            switch mode {
-                case .singleDay:
-                    await model.setManualDay(date: startDate, regions: selectedRegions)
-                case .range:
-                    await model.setManualDays(
-                        from: startDate,
-                        through: endDate,
-                        regions: selectedRegions,
-                    )
+            do {
+                switch mode {
+                    case .singleDay:
+                        try await model.setManualDay(date: startDate, regions: selectedRegions)
+                    case .range:
+                        try await model.setManualDays(
+                            from: startDate,
+                            through: endDate,
+                            regions: selectedRegions,
+                        )
+                }
+                dismiss()
+            } catch {
+                // Keep the form up so the user can retry; the save didn't land.
+                saveError = error.localizedDescription
+                isSaving = false
             }
-            dismiss()
         }
     }
 }

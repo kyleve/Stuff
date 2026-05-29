@@ -49,7 +49,14 @@ struct PrimaryView: View {
                 }
             default:
                 if model.ranking.primary.isEmpty {
-                    emptyState
+                    // Distinguish "nothing tracked at all" from "tracked days
+                    // exist, but only in non-headline regions" (e.g. all in
+                    // `.other`) — otherwise the latter wrongly reads as empty.
+                    if model.trackedDayCount == 0 {
+                        emptyState
+                    } else {
+                        elsewhereOnlyState
+                    }
                 } else {
                     content
                 }
@@ -96,6 +103,14 @@ struct PrimaryView: View {
             Label(Strings.primaryEmptyTitle(year: model.selectedYear), systemImage: "map")
         } description: {
             Text(Strings.primaryEmptyDescription)
+        }
+    }
+
+    private var elsewhereOnlyState: some View {
+        ContentUnavailableView {
+            Label(Strings.primaryElsewhereOnlyTitle, systemImage: "globe.americas")
+        } description: {
+            Text(Strings.primaryElsewhereOnlyDescription(count: model.trackedDayCount))
         }
     }
 

@@ -71,5 +71,30 @@
                 selectedYear: year,
             )
         }
+
+        /// A model whose only tracked days are in `.other` — there's data, but
+        /// nothing ranks as "primary". Exercises the Primary tab's distinct
+        /// "nothing in your headline spots" state.
+        @MainActor
+        public static func elsewhereOnlyModel() -> WhereModel {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+            let startOfYear = calendar.date(from: DateComponents(year: year, month: 1, day: 1))!
+            let days = (0 ..< 9).map { offset in
+                DayPresence(
+                    date: calendar.date(byAdding: .day, value: offset, to: startOfYear)!,
+                    regions: [.other],
+                )
+            }
+            let controller = WhereController(
+                store: try! SwiftDataStore.inMemory(),
+                locationSource: ScriptedLocationSource(),
+            )
+            return WhereModel(
+                controller: controller,
+                report: YearReport(year: year, days: days, totals: [.other: days.count]),
+                selectedYear: year,
+            )
+        }
     }
 #endif

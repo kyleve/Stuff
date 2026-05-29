@@ -9,6 +9,22 @@ struct StringsTests {
         #expect(Strings.primaryTitle == "Where")
         #expect(Strings.tabElsewhere == "Elsewhere")
         #expect(Strings.loadErrorTitle == "Couldn't load your year")
+        #expect(Strings.commonOK == "OK")
+        #expect(Strings.manualSaveErrorTitle == "Couldn't save that day")
+        #expect(Strings.primaryElsewhereOnlyTitle == "Nothing in your headline spots")
+    }
+
+    @Test func elsewhereOnlyDescriptionUsesPluralVariations() {
+        #expect(
+            Strings.primaryElsewhereOnlyDescription(count: 1)
+                ==
+                "1 day logged this year, but none in a headline spot yet. Peek at the Elsewhere tab.",
+        )
+        #expect(
+            Strings.primaryElsewhereOnlyDescription(count: 9)
+                ==
+                "9 days logged this year, but none in a headline spot yet. Peek at the Elsewhere tab.",
+        )
     }
 
     @Test func dayCountUsesPluralVariations() {

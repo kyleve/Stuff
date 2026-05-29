@@ -27,6 +27,15 @@ struct RegionRankingTests {
         #expect(ranking.secondary.map(\.region) == [.other])
     }
 
+    @Test func onlyOtherDaysLeavePrimaryEmptyButRankingNonEmpty() {
+        // Drives the Primary tab's "data exists, but not in a headline region"
+        // empty state: `primary` is empty yet there's real tracked data.
+        let ranking = RegionRanking(report: report([.other: 12]))
+        #expect(ranking.primary.isEmpty)
+        #expect(ranking.secondary.map(\.region) == [.other])
+        #expect(!ranking.isEmpty)
+    }
+
     @Test func zeroDayRegionsAreDropped() {
         let ranking = RegionRanking(report: report([
             .california: 5,
