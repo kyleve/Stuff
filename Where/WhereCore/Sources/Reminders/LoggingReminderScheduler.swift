@@ -259,7 +259,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
     }
 }
 
-protocol NotificationReminderCenter: Sendable {
+protocol NotificationReminderCenter {
     func requestAuthorization(options: UNAuthorizationOptions) async throws -> Bool
     func authorizationStatus() async -> UNAuthorizationStatus
     func pendingNotificationRequests() async -> [UNNotificationRequest]
@@ -293,7 +293,8 @@ private final class UNUserNotificationCenterAdapter: NotificationReminderCenter,
     }
 
     func deliveredNotificationIdentifiers() async -> [String] {
-        await center.deliveredNotifications().map(\.request.identifier)
+        let delivered = await center.deliveredNotifications()
+        return delivered.map(\.request.identifier)
     }
 
     func add(_ request: UNNotificationRequest) async throws {
