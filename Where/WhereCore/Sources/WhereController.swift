@@ -211,4 +211,21 @@ public actor WhereController {
     public func requestLocationPermission() async throws {
         try await locationSource.requestPermission()
     }
+
+    /// The current location authorization status.
+    public func authorizationStatus() async -> LocationAuthorizationStatus {
+        await locationSource.currentAuthorization()
+    }
+
+    /// Live stream of authorization-status changes (system prompt results and
+    /// Settings-app changes). Subscribe once and iterate.
+    public func authorizationUpdates() -> AsyncStream<LocationAuthorizationStatus> {
+        locationSource.authorizationUpdates
+    }
+
+    /// Whether the GPS ingestion stream is currently attached. Exposed so the
+    /// view-model can reconcile its tracking flag with reality after launch.
+    public var isTrackingActive: Bool {
+        ingestTask != nil
+    }
 }
