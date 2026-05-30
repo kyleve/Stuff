@@ -16,7 +16,11 @@ struct LoggingReminderSchedulerTests {
             notificationCenter: center,
             calendar: Self.calendar,
         )
-        let day = Self.calendar.date(from: DateComponents(year: 2026, month: 1, day: 5))!
+        let day = try #require(Self.calendar.date(from: DateComponents(
+            year: 2026,
+            month: 1,
+            day: 5,
+        )))
 
         await scheduler.reconcile(
             badgeCount: 1,
@@ -49,7 +53,11 @@ struct LoggingReminderSchedulerTests {
             notificationCenter: center,
             calendar: Self.calendar,
         )
-        let day = Self.calendar.date(from: DateComponents(year: 2026, month: 1, day: 5))!
+        let day = try #require(Self.calendar.date(from: DateComponents(
+            year: 2026,
+            month: 1,
+            day: 5,
+        )))
 
         await scheduler.reconcile(
             badgeCount: 1,
@@ -73,12 +81,12 @@ struct LoggingReminderSchedulerTests {
     }
 }
 
-private extension UNNotificationRequest {
-    var reminderHour: Int? {
+extension UNNotificationRequest {
+    fileprivate var reminderHour: Int? {
         (trigger as? UNCalendarNotificationTrigger)?.dateComponents.hour
     }
 
-    var reminderMinute: Int? {
+    fileprivate var reminderMinute: Int? {
         (trigger as? UNCalendarNotificationTrigger)?.dateComponents.minute
     }
 }
@@ -96,9 +104,9 @@ private final class FakeNotificationReminderCenter: NotificationReminderCenter,
     func requestAuthorization(options _: UNAuthorizationOptions) async throws -> Bool {
         switch status {
             case .authorized, .provisional, .ephemeral:
-                return true
+                true
             default:
-                return false
+                false
         }
     }
 

@@ -125,9 +125,9 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
     public func isAuthorized() async -> Bool {
         switch await center.authorizationStatus() {
             case .authorized, .provisional, .ephemeral:
-                return true
+                true
             default:
-                return false
+                false
         }
     }
 
@@ -215,7 +215,10 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         }
     }
 
-    private func matchesReminderTime(_ request: UNNotificationRequest, _ time: ReminderTime) -> Bool {
+    private func matchesReminderTime(
+        _ request: UNNotificationRequest,
+        _ time: ReminderTime,
+    ) -> Bool {
         guard let trigger = request.trigger as? UNCalendarNotificationTrigger else {
             return false
         }
