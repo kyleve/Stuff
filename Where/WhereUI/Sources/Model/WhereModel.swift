@@ -83,9 +83,11 @@ public final class WhereModel {
     public var missingDays: [MissingDayRange] {
         guard let report, isViewingCurrentYear else { return [] }
         let present = Set(report.days.map(\.date))
+        // Through yesterday: today is still loggable, so it isn't a "missed" day
+        // yet — the evening reminder covers it instead of the banner/backfill.
         return MissingDays.missingRanges(
             year: report.year,
-            through: now(),
+            through: MissingDays.backlogCutoff(asOf: now(), calendar: Self.calendar),
             present: present,
             calendar: Self.calendar,
         )

@@ -93,6 +93,45 @@ struct MissingDaysTests {
         #expect(missing.count == 366)
     }
 
+    // MARK: backlogCutoff
+
+    @Test func backlogCutoffIsTheStartOfTheDayBeforeToday() throws {
+        let now = try #require(
+            Self.calendar.date(from: DateComponents(year: 2026, month: 1, day: 5, hour: 9)),
+        )
+        let cutoff = MissingDays.backlogCutoff(asOf: now, calendar: Self.calendar)
+        #expect(cutoff == Self.day(2026, 1, 4))
+    }
+
+    @Test func backlogExcludesTodayEvenWhenUnlogged() {
+        let now = Self.day(2026, 1, 5)
+        let missing = MissingDays.missingDayKeys(
+            year: 2026,
+            through: MissingDays.backlogCutoff(asOf: now, calendar: Self.calendar),
+            present: [],
+            calendar: Self.calendar,
+        )
+        // Jan 1–4 are missed; today (Jan 5) is still pending, not in the backlog.
+        #expect(missing == [
+            Self.day(2026, 1, 1),
+            Self.day(2026, 1, 2),
+            Self.day(2026, 1, 3),
+            Self.day(2026, 1, 4),
+        ])
+        #expect(!missing.contains(Self.day(2026, 1, 5)))
+    }
+
+    @Test func backlogIsEmptyOnNewYearsDay() {
+        let now = Self.day(2026, 1, 1)
+        let missing = MissingDays.missingDayKeys(
+            year: 2026,
+            through: MissingDays.backlogCutoff(asOf: now, calendar: Self.calendar),
+            present: [],
+            calendar: Self.calendar,
+        )
+        #expect(missing.isEmpty)
+    }
+
     // MARK: ranges
 
     @Test func rangesCollapseConsecutiveDaysAndSplitOnGaps() {

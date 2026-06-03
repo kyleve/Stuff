@@ -344,9 +344,12 @@ public actor WhereController {
         do {
             let report = try await yearReport(for: year)
             let present = Set(report.days.map { calendar.startOfDay(for: $0.date) })
-            let missing = MissingDays.missingDayKeys(
+            // The badge backlog is *past* misses only — today is still loggable,
+            // so it's covered by the forward-looking reminder below rather than
+            // counted as missed (otherwise the app would warn every morning).
+            let backlog = MissingDays.missingDayKeys(
                 year: year,
-                through: today,
+                through: MissingDays.backlogCutoff(asOf: now(), calendar: calendar),
                 present: present,
                 calendar: calendar,
             )
@@ -359,7 +362,7 @@ public actor WhereController {
                 .calendarDays(through: windowEnd, in: calendar)
                 .filter { !present.contains($0) }
             await reminderScheduler.reconcile(
-                badgeCount: missing.count,
+                badgeCount: backlog.count,
                 scheduleDays: scheduleDays,
                 reminderTime: reminderConfig.time,
                 enabled: true,

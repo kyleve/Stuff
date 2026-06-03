@@ -85,6 +85,16 @@ public enum MissingDays {
         return result
     }
 
+    /// The last day that counts toward the *backlog* of missed days as of
+    /// `now`: the day before today. Today is still "pending" — the user can log
+    /// it before the day ends — so it's surfaced by the forward-looking reminder
+    /// rather than counted as already missed. Pass this as `through` for the
+    /// badge / banner / backfill so they don't warn about today every morning.
+    public static func backlogCutoff(asOf now: Date, calendar: Calendar) -> Date {
+        let today = calendar.startOfDay(for: now)
+        return calendar.date(byAdding: .day, value: -1, to: today) ?? today
+    }
+
     /// Convenience: the missing days for a year, already collapsed into ranges.
     public static func missingRanges(
         year: Int,

@@ -34,7 +34,7 @@ struct WhereModelMissingDaysTests {
         )
     }
 
-    @Test func missingDaysForCurrentYearSurfaceTheGapsThroughToday() throws {
+    @Test func missingDaysSurfacePastGapsAndExcludeToday() throws {
         let today = Self.day(2026, 1, 5)
         let present = [Self.day(2026, 1, 2), Self.day(2026, 1, 4)]
         let report = YearReport(
@@ -49,13 +49,14 @@ struct WhereModelMissingDaysTests {
             now: { today },
         )
 
-        // Jan 1, Jan 3, and Jan 5 (today, unlogged) are each isolated gaps.
+        // Jan 1 and Jan 3 are past gaps. Jan 5 (today) is still loggable, so it
+        // isn't surfaced even though it's unlogged.
         #expect(model.missingDays.map(\.start) == [
             Self.day(2026, 1, 1),
             Self.day(2026, 1, 3),
-            Self.day(2026, 1, 5),
         ])
-        #expect(model.missingDayCount == 3)
+        #expect(model.missingDayCount == 2)
+        #expect(!model.missingDays.contains { $0.start == Self.day(2026, 1, 5) })
     }
 
     @Test func missingDaysAreEmptyWhenViewingAPastYear() throws {
