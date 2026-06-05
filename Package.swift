@@ -15,6 +15,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.19.2"),
+        .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
     ],
     targets: [
         .target(
@@ -23,6 +24,9 @@ let package = Package(
         ),
         .target(
             name: "WhereCore",
+            dependencies: [
+                .product(name: "ZIPFoundation", package: "ZIPFoundation"),
+            ],
             path: "Where/WhereCore/Sources",
             resources: [
                 .process("Resources"),
