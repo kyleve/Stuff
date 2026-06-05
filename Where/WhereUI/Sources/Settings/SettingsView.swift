@@ -1,14 +1,29 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 import WhereCore
 
 /// Settings tab: location permission + tracking, retroactive manual entry,
-/// and the destructive "erase a year" action.
+/// whole-database backup export/import, and the destructive "erase a year"
+/// action.
 struct SettingsView: View {
     @Environment(WhereModel.self) private var model
     @Environment(\.openURL) private var openURL
 
     @State private var showClearConfirmation = false
+
+    // Backup export: the built archive, presented in a share sheet, plus the
+    // URL to clean up once that sheet is dismissed.
+    @State private var exportedFile: ExportedFile?
+    @State private var cleanupURL: URL?
+
+    // Backup import: the picked file, the merge/replace choice, and the
+    // success confirmation.
+    @State private var showImporter = false
+    @State private var pendingImportURL: URL?
+    @State private var showStrategyDialog = false
+    @State private var showImportSuccess = false
+    @State private var lastImportSummary: WhereController.ImportSummary?
 
     var body: some View {
         @Bindable var model = model
@@ -17,6 +32,7 @@ struct SettingsView: View {
             Form {
                 trackingSection
                 manualEntrySection
+                backupSection
                 dataSection
             }
             .navigationTitle(Strings.settingsTitle)
@@ -25,6 +41,50 @@ struct SettingsView: View {
                 Button(Strings.settingsPermissionAlertNotNow, role: .cancel) {}
             } message: {
                 Text(Strings.settingsPermissionAlertMessage)
+            }
+            .sheet(item: $exportedFile, onDismiss: cleanupExportedFile) { file in
+                ShareSheet(items: [file.url])
+            }
+            .fileImporter(
+                isPresented: $showImporter,
+                allowedContentTypes: [.zip],
+                onCompletion: handleImportSelection,
+            )
+            .confirmationDialog(
+                Strings.settingsBackupImportStrategyTitle,
+                isPresented: $showStrategyDialog,
+                titleVisibility: .visible,
+                presenting: pendingImportURL,
+            ) { url in
+                Button(Strings.settingsBackupMerge) { runImport(url: url, strategy: .merge) }
+                Button(Strings.settingsBackupReplace, role: .destructive) {
+                    runImport(url: url, strategy: .replace)
+                }
+                Button(Strings.settingsDataCancel, role: .cancel) { pendingImportURL = nil }
+            } message: { _ in
+                Text(Strings.settingsBackupImportStrategyMessage)
+            }
+            .alert(
+                Strings.settingsBackupImportedTitle,
+                isPresented: $showImportSuccess,
+                presenting: lastImportSummary,
+            ) { _ in
+                Button(Strings.commonOK, role: .cancel) {}
+            } message: { summary in
+                Text(Strings.settingsBackupImportedMessage(
+                    samples: summary.sampleCount,
+                    evidence: summary.evidenceCount,
+                    manualDays: summary.manualDayCount,
+                ))
+            }
+            .alert(
+                Strings.settingsBackupErrorTitle,
+                isPresented: backupErrorBinding,
+                presenting: model.backupError,
+            ) { _ in
+                Button(Strings.commonOK, role: .cancel) { model.backupError = nil }
+            } message: { message in
+                Text(message)
             }
         }
     }
@@ -90,6 +150,78 @@ struct SettingsView: View {
         }
     }
 
+    private var backupSection: some View {
+        Section {
+            Button {
+                Task {
+                    if let url = await model.exportBackup() {
+                        cleanupURL = url
+                        exportedFile = ExportedFile(url: url)
+                    }
+                }
+            } label: {
+                if model.backupState == .exporting {
+                    Label { Text(Strings.settingsBackupExporting) } icon: { ProgressView() }
+                } else {
+                    Label(Strings.settingsBackupExport, systemImage: "square.and.arrow.up")
+                }
+            }
+            .disabled(model.backupState != .idle)
+
+            Button {
+                showImporter = true
+            } label: {
+                if model.backupState == .importing {
+                    Label { Text(Strings.settingsBackupImporting) } icon: { ProgressView() }
+                } else {
+                    Label(Strings.settingsBackupImport, systemImage: "square.and.arrow.down")
+                }
+            }
+            .disabled(model.backupState != .idle)
+        } header: {
+            Text(Strings.settingsBackupHeader)
+        } footer: {
+            Text(Strings.settingsBackupFooter)
+        }
+    }
+
+    /// Bridges the model's optional `backupError` to the Bool an `.alert`
+    /// presentation needs, clearing it when the alert is dismissed.
+    private var backupErrorBinding: Binding<Bool> {
+        Binding(
+            get: { model.backupError != nil },
+            set: { presented in if !presented { model.backupError = nil } },
+        )
+    }
+
+    private func handleImportSelection(_ result: Result<URL, any Error>) {
+        switch result {
+            case let .success(url):
+                pendingImportURL = url
+                showStrategyDialog = true
+            case let .failure(error):
+                model.backupError = error.localizedDescription
+        }
+    }
+
+    private func runImport(url: URL, strategy: WhereController.ImportStrategy) {
+        Task {
+            if let summary = await model.importBackup(from: url, strategy: strategy) {
+                lastImportSummary = summary
+                showImportSuccess = true
+            }
+            pendingImportURL = nil
+        }
+    }
+
+    private func cleanupExportedFile() {
+        guard let url = cleanupURL else { return }
+        // The archive lives in a unique temporary subdirectory; remove the
+        // whole thing once the share sheet is gone.
+        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
+        cleanupURL = nil
+    }
+
     private var dataSection: some View {
         Section {
             Button(role: .destructive) {
@@ -139,6 +271,25 @@ struct SettingsView: View {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         openURL(url)
     }
+}
+
+/// Identifiable wrapper so a freshly-built export URL can drive a
+/// `.sheet(item:)` presentation.
+private struct ExportedFile: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+/// Thin `UIActivityViewController` bridge so the exported `.zip` can be
+/// emailed, AirDropped, or saved to Files via the system share sheet.
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context _: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_: UIActivityViewController, context _: Context) {}
 }
 
 #if DEBUG
