@@ -273,4 +273,55 @@ public final class WhereModel {
             loadState = .failed(error.localizedDescription)
         }
     }
+
+    // MARK: - Backup
+
+    /// Where a backup export/import is in its lifecycle, so the UI can show a
+    /// spinner and disable the relevant row while work is in flight.
+    public enum BackupState: Equatable {
+        case idle
+        case exporting
+        case importing
+    }
+
+    public private(set) var backupState: BackupState = .idle
+
+    /// Last backup failure, surfaced as an alert. Mutable so the alert binding
+    /// can clear it on dismiss (mirrors `permissionDenied`).
+    public var backupError: String?
+
+    /// Build a backup `.zip` of the entire database and return its URL for the
+    /// share sheet, or `nil` if the export failed (in which case `backupError`
+    /// is set). The caller is responsible for the returned temporary file.
+    public func exportBackup() async -> URL? {
+        guard let controller else { return nil }
+        backupState = .exporting
+        defer { backupState = .idle }
+        do {
+            return try await controller.exportBackup()
+        } catch {
+            backupError = error.localizedDescription
+            return nil
+        }
+    }
+
+    /// Import a backup file with the chosen merge/replace strategy, refreshing
+    /// the current year afterward. Returns the import summary on success, or
+    /// `nil` on failure (with `backupError` set).
+    public func importBackup(
+        from url: URL,
+        strategy: WhereController.ImportStrategy,
+    ) async -> WhereController.ImportSummary? {
+        guard let controller else { return nil }
+        backupState = .importing
+        defer { backupState = .idle }
+        do {
+            let summary = try await controller.importBackup(from: url, strategy: strategy)
+            await refresh()
+            return summary
+        } catch {
+            backupError = error.localizedDescription
+            return nil
+        }
+    }
 }
