@@ -1,0 +1,127 @@
+import Foundation
+import Testing
+import WhereCore
+
+struct BackupServiceTests {
+    // Whole-second timestamps so the `.iso8601` date strategy (no
+    // fractional seconds) round-trips exactly.
+    private static let exportDate = Date(timeIntervalSince1970: 1_700_000_000)
+    private static let evidenceWithBlobId =
+        UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
+    private static let evidenceNoBlobId = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!
+
+    private static func sampleFixtures() -> [LocationSample] {
+        [
+            LocationSample(
+                id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+                timestamp: Date(timeIntervalSince1970: 1_700_000_000),
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 5,
+                source: .gpsVisit,
+            ),
+            LocationSample(
+                id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+                timestamp: Date(timeIntervalSince1970: 1_700_100_000),
+                coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
+                horizontalAccuracy: 10,
+                source: .evidenceImplied(id: evidenceWithBlobId, kind: .boardingPass),
+            ),
+        ]
+    }
+
+    private static func evidenceFixtures() -> [Evidence] {
+        [
+            Evidence(
+                id: evidenceWithBlobId,
+                kind: .boardingPass,
+                capturedAt: Date(timeIntervalSince1970: 1_700_050_000),
+                region: .california,
+                note: "SFO → JFK",
+                contentType: .pdf,
+            ),
+            Evidence(
+                id: evidenceNoBlobId,
+                kind: .other("ferry ticket"),
+                capturedAt: Date(timeIntervalSince1970: 1_700_060_000),
+                region: nil,
+                note: nil,
+                contentType: .other(nil),
+            ),
+        ]
+    }
+
+    private static func manualDayFixtures() -> [DayPresence] {
+        [
+            DayPresence(
+                date: Date(timeIntervalSince1970: 1_700_000_000),
+                regions: [.california, .newYork],
+            ),
+        ]
+    }
+
+    @Test func archiveFileRoundTripsEveryTableAndBlobs() throws {
+        let service = BackupService()
+        let samples = Self.sampleFixtures()
+        let evidence = Self.evidenceFixtures()
+        let manualDays = Self.manualDayFixtures()
+        let blobs: [UUID: Data] = [Self.evidenceWithBlobId: Data("boarding-pass-pdf".utf8)]
+
+        let url = try service.makeArchiveFile(
+            samples: samples,
+            evidence: evidence,
+            manualDays: manualDays,
+            blobs: blobs,
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        // Email-friendly, date-stamped filename.
+        #expect(url.pathExtension == "zip")
+        #expect(url.lastPathComponent.hasPrefix("Where Backup "))
+
+        let result = try service.readArchive(at: url)
+        #expect(result.archive.formatVersion == BackupArchive.currentFormatVersion)
+        #expect(result.archive.exportedAt == Self.exportDate)
+        #expect(result.archive.samples == samples)
+        #expect(result.archive.evidence == evidence)
+        #expect(result.archive.manualDays == manualDays)
+        // Only the evidence with bytes gets an asset; the other is metadata-only.
+        #expect(result.archive.assets.map(\.evidenceId) == [Self.evidenceWithBlobId])
+        #expect(result.blobs == blobs)
+    }
+
+    @Test func manifestRoundTripsThroughJSON() throws {
+        let archive = BackupArchive(
+            exportedAt: Self.exportDate,
+            samples: Self.sampleFixtures(),
+            evidence: Self.evidenceFixtures(),
+            manualDays: Self.manualDayFixtures(),
+            assets: [BackupAssetEntry(
+                evidenceId: Self.evidenceWithBlobId,
+                filename: "assets/\(Self.evidenceWithBlobId.uuidString)",
+            )],
+        )
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let data = try encoder.encode(archive)
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(BackupArchive.self, from: data)
+
+        #expect(decoded == archive)
+    }
+
+    @Test func readingAFileThatIsNotAZipThrows() throws {
+        let service = BackupService()
+        let bogus = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(UUID().uuidString).zip")
+        try Data("definitely not a zip".utf8).write(to: bogus)
+        defer { try? FileManager.default.removeItem(at: bogus) }
+
+        #expect(throws: (any Error).self) {
+            _ = try service.readArchive(at: bogus)
+        }
+    }
+}
