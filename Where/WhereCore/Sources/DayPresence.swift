@@ -4,7 +4,7 @@ import Foundation
 ///
 /// `regions` is a `Set` because we want union semantics (a day in CA + NY
 /// counts for both).
-public struct DayPresence: Hashable, Sendable {
+public struct DayPresence: Hashable, Sendable, Codable {
     /// Start-of-day in whichever calendar/timezone produced this value.
     public let date: Date
     public let regions: Set<Region>

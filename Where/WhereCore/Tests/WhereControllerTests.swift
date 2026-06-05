@@ -338,6 +338,10 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.evidence(in: interval)
     }
 
+    func allEvidence() async throws -> [Evidence] {
+        try await backing.allEvidence()
+    }
+
     func evidenceBlob(for id: UUID) async throws -> Data? {
         try await backing.evidenceBlob(for: id)
     }
@@ -350,7 +354,15 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.manualDays(in: interval)
     }
 
+    func allManualDays() async throws -> [DayPresence] {
+        try await backing.allManualDays()
+    }
+
     func clear(in interval: DateInterval) async throws {
         try await backing.clear(in: interval)
+    }
+
+    func clearAll() async throws {
+        try await backing.clearAll()
     }
 }
