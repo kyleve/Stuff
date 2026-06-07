@@ -171,12 +171,15 @@ public actor WhereController {
                 blobs[item.id] = blob
             }
         }
-        return try backupService.makeArchiveFile(
-            samples: samples,
-            evidence: evidence,
-            manualDays: manualDays,
-            blobs: blobs,
-        )
+        let backupService = backupService
+        return try await Task.detached(priority: .utility) {
+            try backupService.makeArchiveFile(
+                samples: samples,
+                evidence: evidence,
+                manualDays: manualDays,
+                blobs: blobs,
+            )
+        }.value
     }
 
     /// Read a backup `.zip` and write its contents back into the store inside
@@ -192,7 +195,10 @@ public actor WhereController {
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
 
-        let result = try backupService.readArchive(at: url)
+        let backupService = backupService
+        let result = try await Task.detached(priority: .utility) {
+            try backupService.readArchive(at: url)
+        }.value
         let archive = result.archive
         let blobs = result.blobs
 
