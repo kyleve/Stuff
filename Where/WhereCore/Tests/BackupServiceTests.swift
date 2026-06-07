@@ -90,6 +90,40 @@ struct BackupServiceTests {
         #expect(result.blobs == blobs)
     }
 
+    @Test func authoritativeManualDaySurvivesArchiveRoundTrip() throws {
+        let service = BackupService()
+        let manualDays = [
+            DayPresence(
+                date: Date(timeIntervalSince1970: 1_700_000_000),
+                regions: [.newYork],
+                isAuthoritative: true,
+            ),
+        ]
+        let url = try service.makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: manualDays,
+            blobs: [:],
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let result = try service.readArchive(at: url)
+        #expect(result.archive.manualDays == manualDays)
+        #expect(result.archive.manualDays.first?.isAuthoritative == true)
+    }
+
+    @Test func legacyManualDayWithoutAuthoritativeKeyDecodesAsAdditive() throws {
+        // Simulates a manifest written before `isAuthoritative` existed: the
+        // missing key must decode as additive rather than failing.
+        let json = #"{"date":"2026-07-04T00:00:00Z","regions":["newYork"]}"#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(DayPresence.self, from: Data(json.utf8))
+        #expect(decoded.isAuthoritative == false)
+        #expect(decoded.regions == [.newYork])
+    }
+
     @Test func manifestRoundTripsThroughJSON() throws {
         let archive = BackupArchive(
             exportedAt: Self.exportDate,

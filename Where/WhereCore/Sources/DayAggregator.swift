@@ -5,8 +5,10 @@ import Foundation
 ///
 /// Rule: a day "counts" for a region if **any** sample in that calendar day
 /// fell inside the region. A single day can therefore belong to multiple
-/// regions (e.g. a CA→NY same-day flight). Manual day entries union with
-/// GPS-derived attributions for the same day.
+/// regions (e.g. a CA→NY same-day flight). Additive manual day entries union
+/// with GPS-derived attributions for the same day; authoritative manual day
+/// entries (`DayPresence.isAuthoritative`) replace them, so a user correction
+/// can drop a wrong attribution.
 public struct DayAggregator: Sendable {
     public let calendar: Calendar
     public let timeZone: TimeZone
@@ -46,9 +48,17 @@ public struct DayAggregator: Sendable {
         for day in aggregate(samples: samples, attributor: attributor) {
             dayRegions[day.date, default: []].formUnion(day.regions)
         }
-        for day in manualDays {
+        // Additive manual days union with GPS (backfilling a region GPS
+        // missed). Authoritative manual days are applied afterward so a user
+        // correction *replaces* whatever GPS — or an earlier additive overlay
+        // — produced for that day, letting them remove a wrong attribution.
+        for day in manualDays where !day.isAuthoritative {
             let dayStart = calendar.startOfDay(for: day.date)
             dayRegions[dayStart, default: []].formUnion(day.regions)
+        }
+        for day in manualDays where day.isAuthoritative {
+            let dayStart = calendar.startOfDay(for: day.date)
+            dayRegions[dayStart] = day.regions
         }
 
         let yearDays = dayRegions

@@ -516,6 +516,10 @@ final class SDEvidence {
 final class SDManualDay {
     var dateKey: Date?
     var regionRaws: [String]?
+    /// Whether this manual day replaces (rather than unions with) GPS for its
+    /// date. Optional so the CloudKit mirror stays lightweight-migration-safe;
+    /// pre-existing rows decode as additive (`false`).
+    var isAuthoritative: Bool?
 
     init() {}
 
@@ -527,6 +531,7 @@ final class SDManualDay {
     func update(from value: DayPresence) {
         dateKey = value.date
         regionRaws = value.regions.map(\.rawValue).sorted()
+        isAuthoritative = value.isAuthoritative
     }
 
     func toValue() -> DayPresence? {
@@ -534,6 +539,7 @@ final class SDManualDay {
         return DayPresence(
             date: dateKey,
             regions: Set((regionRaws ?? []).compactMap { Region(rawValue: $0) }),
+            isAuthoritative: isAuthoritative ?? false,
         )
     }
 }

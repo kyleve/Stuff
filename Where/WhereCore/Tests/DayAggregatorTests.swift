@@ -103,6 +103,43 @@ struct DayAggregatorTests {
         #expect(day?.regions == [.california, .newYork])
     }
 
+    @Test func authoritativeManualDayReplacesSamples() {
+        // GPS puts the day in California, but the user authoritatively corrects
+        // it to New York — the wrong California attribution must disappear.
+        let samples = [
+            makeSample(at: "2026-07-04T10:00:00-07:00", lat: 37.7749, lng: -122.4194),
+        ]
+        let override = DayPresence(
+            date: startOfDay(forYear: 2026, month: 7, day: 4),
+            regions: [.newYork],
+            isAuthoritative: true,
+        )
+        let report = aggregator.report(
+            for: 2026,
+            samples: samples,
+            manualDays: [override],
+            attributor: attributor,
+        )
+        let day = report.days.first { $0.date == override.date }
+        #expect(day?.regions == [.newYork])
+        #expect(report.totals == [.newYork: 1])
+    }
+
+    @Test func authoritativeManualDayOverridesAdditiveOnSameDay() {
+        // An additive overlay and an authoritative one on the same day: the
+        // authoritative one wins, dropping the additive region too.
+        let day = startOfDay(forYear: 2026, month: 7, day: 4)
+        let additive = DayPresence(date: day, regions: [.canada])
+        let override = DayPresence(date: day, regions: [.newYork], isAuthoritative: true)
+        let report = aggregator.report(
+            for: 2026,
+            samples: [],
+            manualDays: [additive, override],
+            attributor: attributor,
+        )
+        #expect(report.days.first { $0.date == day }?.regions == [.newYork])
+    }
+
     @Test func reportFiltersOtherYears() {
         let samples = [
             makeSample(at: "2025-12-31T12:00:00-08:00", lat: 37.7749, lng: -122.4194),

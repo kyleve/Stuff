@@ -103,6 +103,18 @@ public actor WhereController {
         await reconcileReminders()
     }
 
+    /// Authoritatively set the regions for a single calendar day, *replacing*
+    /// whatever GPS (or a prior manual overlay) attributed to it. Unlike
+    /// `addManualDay`, this does not union with GPS — it's the "correct a
+    /// wrong attribution" path. The raw GPS samples are left untouched, so the
+    /// fix is non-destructive and undone by clearing the manual day.
+    public func overrideDay(date: Date, regions: Set<Region>) async throws {
+        let key = aggregator.calendar.startOfDay(for: date)
+        let presence = DayPresence(date: key, regions: regions, isAuthoritative: true)
+        try await store.perform { try await store.setManualDay(presence) }
+        await reconcileReminders()
+    }
+
     /// Assert `regions` for every calendar day in the inclusive range
     /// `start...end` (handy for backfilling a trip). Both bounds are
     /// normalized to start-of-day in the aggregator's calendar, and the

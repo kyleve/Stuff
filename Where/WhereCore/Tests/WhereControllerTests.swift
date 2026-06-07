@@ -100,6 +100,41 @@ struct WhereControllerTests {
         #expect(report.days.first?.regions == [.newYork])
     }
 
+    @Test func overrideDayReplacesGPSAttribution() async throws {
+        let (controller, _, _) = try Self.makeController()
+        // A stray GPS sample lands the day in California.
+        try await controller.ingest(LocationSample(
+            timestamp: iso("2026-07-04T10:00:00-07:00"),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
+            source: .gpsVisit,
+        ))
+        // The user corrects it to New York.
+        try await controller.overrideDay(
+            date: iso("2026-07-04T15:00:00-07:00"),
+            regions: [.newYork],
+        )
+
+        let report = try await controller.yearReport(for: 2026)
+        #expect(report.days.count == 1)
+        #expect(report.days.first?.regions == [.newYork])
+        #expect(report.totals == [.newYork: 1])
+    }
+
+    @Test func overrideDayKeepsRawSamplesForUndo() async throws {
+        let (controller, store, _) = try Self.makeController()
+        let stray = sample(at: "2026-07-04T10:00:00-07:00")
+        try await controller.ingest(stray)
+        try await controller.overrideDay(
+            date: iso("2026-07-04T15:00:00-07:00"),
+            regions: [.newYork],
+        )
+
+        // The override is non-destructive: the GPS sample is still on disk, so
+        // clearing the manual day would restore the original attribution.
+        #expect(try await store.allSamples().map(\.id) == [stray.id])
+    }
+
     @Test func addManualDaysBackfillsEveryDayInRange() async throws {
         let (controller, _, _) = try Self.makeController()
         try await controller.addManualDays(
