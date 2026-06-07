@@ -72,15 +72,17 @@ struct WhereModelMissingDaysTests {
         #expect(model.missingDayCount == 0)
     }
 
-    @Test func reminderSettingsDefaultOnAndPersistAcrossModels() async throws {
+    @Test func reminderSettingsDefaultOnAndPersistAcrossModels() throws {
         let defaults = ephemeralDefaults()
         let model = try WhereModel(controller: makeController(), defaults: defaults)
 
         #expect(model.remindersEnabled)
         #expect(model.reminderTime == ReminderTime.defaultEvening)
 
-        await model.setRemindersEnabled(false)
-        await model.setReminderTime(ReminderTime(hour: 7, minute: 30))
+        // Setting the key-path-bindable properties persists synchronously (the
+        // reconcile they kick off runs against the no-op scheduler).
+        model.remindersEnabled = false
+        model.reminderTime = ReminderTime(hour: 7, minute: 30)
         #expect(!model.remindersEnabled)
         #expect(model.reminderTime == ReminderTime(hour: 7, minute: 30))
 

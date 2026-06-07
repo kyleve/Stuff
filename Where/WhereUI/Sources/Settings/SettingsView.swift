@@ -78,15 +78,16 @@ struct SettingsView: View {
     }
 
     private var remindersSection: some View {
-        Section {
-            Toggle(isOn: remindersBinding) {
+        @Bindable var model = model
+        return Section {
+            Toggle(isOn: $model.remindersEnabled) {
                 Label(Strings.settingsRemindersToggle, systemImage: "bell.badge")
             }
 
             if model.remindersEnabled {
                 DatePicker(
                     Strings.settingsReminderTime,
-                    selection: reminderTimeBinding,
+                    selection: $model.reminderTimeOfDay,
                     displayedComponents: .hourAndMinute,
                 )
 
@@ -110,36 +111,6 @@ struct SettingsView: View {
             return Strings.settingsRemindersDeniedFooter
         }
         return Strings.settingsRemindersFooter
-    }
-
-    private var remindersBinding: Binding<Bool> {
-        Binding(
-            get: { model.remindersEnabled },
-            set: { isOn in
-                Task { await model.setRemindersEnabled(isOn) }
-            },
-        )
-    }
-
-    private var reminderTimeBinding: Binding<Date> {
-        Binding(
-            get: {
-                Calendar.current.date(
-                    bySettingHour: model.reminderTime.hour,
-                    minute: model.reminderTime.minute,
-                    second: 0,
-                    of: Date(),
-                ) ?? Date()
-            },
-            set: { newValue in
-                let components = Calendar.current.dateComponents([.hour, .minute], from: newValue)
-                let time = ReminderTime(
-                    hour: components.hour ?? ReminderTime.defaultEvening.hour,
-                    minute: components.minute ?? ReminderTime.defaultEvening.minute,
-                )
-                Task { await model.setReminderTime(time) }
-            },
-        )
     }
 
     private var manualEntrySection: some View {

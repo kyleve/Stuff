@@ -35,11 +35,58 @@ public final class WhereModel {
     public var permissionDenied = false
 
     /// Whether the daily "log before the day ends" reminder is enabled. Persists
-    /// across launches; defaults to on so the safety net is active out of the box.
-    public private(set) var remindersEnabled: Bool
+    /// across launches; defaults to on so the safety net is active out of the
+    /// box. Settable so SwiftUI can drive it through a plain key-path binding;
+    /// the setter persists the intent and reconciles the schedule/badge.
+    public var remindersEnabled: Bool {
+        get { remindersEnabledStorage }
+        set {
+            guard newValue != remindersEnabledStorage else { return }
+            remindersEnabledStorage = newValue
+            defaults.set(newValue, forKey: Self.remindersEnabledKey)
+            Task { await applyReminderConfiguration() }
+        }
+    }
 
-    /// Time of day the daily reminder fires.
-    public private(set) var reminderTime: ReminderTime
+    /// Time of day the daily reminder fires. Persists and reconciles on change.
+    public var reminderTime: ReminderTime {
+        get { reminderTimeStorage }
+        set {
+            guard newValue != reminderTimeStorage else { return }
+            reminderTimeStorage = newValue
+            defaults.set(newValue.hour, forKey: Self.reminderHourKey)
+            defaults.set(newValue.minute, forKey: Self.reminderMinuteKey)
+            Task { await applyReminderConfiguration() }
+        }
+    }
+
+    /// `Date`-typed projection of `reminderTime` for the Settings `DatePicker`,
+    /// which works in `Date`. Lets the view bind `$model.reminderTimeOfDay`
+    /// directly instead of building a closure binding; writes round-trip back
+    /// into `reminderTime` (and its persistence/reconcile).
+    public var reminderTimeOfDay: Date {
+        get {
+            Self.calendar.date(
+                bySettingHour: reminderTime.hour,
+                minute: reminderTime.minute,
+                second: 0,
+                of: now(),
+            ) ?? now()
+        }
+        set {
+            let components = Self.calendar.dateComponents([.hour, .minute], from: newValue)
+            reminderTime = ReminderTime(
+                hour: components.hour ?? ReminderTime.defaultEvening.hour,
+                minute: components.minute ?? ReminderTime.defaultEvening.minute,
+            )
+        }
+    }
+
+    /// Observed backing storage for `remindersEnabled` / `reminderTime`. The
+    /// public computed properties layer persistence + reconciliation onto their
+    /// setters, which a stored property can't express.
+    private var remindersEnabledStorage: Bool
+    private var reminderTimeStorage: ReminderTime
 
     /// Whether the system has granted notification permission. Lets the Settings
     /// UI route the user to the system Settings app when they've enabled
@@ -138,8 +185,8 @@ public final class WhereModel {
         self.selectedYear = selectedYear
         self.defaults = defaults
         self.now = now
-        remindersEnabled = Self.loadRemindersEnabled(from: defaults)
-        reminderTime = Self.loadReminderTime(from: defaults)
+        remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
+        reminderTimeStorage = Self.loadReminderTime(from: defaults)
     }
 
     /// Preview/test seam: inject an already-built controller (and optionally a
@@ -157,8 +204,8 @@ public final class WhereModel {
         self.selectedYear = selectedYear
         self.defaults = defaults
         self.now = now
-        remindersEnabled = Self.loadRemindersEnabled(from: defaults)
-        reminderTime = Self.loadReminderTime(from: defaults)
+        remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
+        reminderTimeStorage = Self.loadReminderTime(from: defaults)
         loadState = report == nil ? .idle : .loaded
     }
 
@@ -344,23 +391,6 @@ public final class WhereModel {
         wantsTracking = false
         await controller.stopGPS()
         isTracking = false
-    }
-
-    /// Turn the daily reminder on or off. Persists the intent, then pushes the
-    /// new configuration to the controller (which prompts for notification
-    /// permission when enabling and reconciles the badge / scheduled reminders).
-    public func setRemindersEnabled(_ enabled: Bool) async {
-        remindersEnabled = enabled
-        defaults.set(enabled, forKey: Self.remindersEnabledKey)
-        await applyReminderConfiguration()
-    }
-
-    /// Change the time of day the reminder fires. Persists and reconciles.
-    public func setReminderTime(_ time: ReminderTime) async {
-        reminderTime = time
-        defaults.set(time.hour, forKey: Self.reminderHourKey)
-        defaults.set(time.minute, forKey: Self.reminderMinuteKey)
-        await applyReminderConfiguration()
     }
 
     /// Push the current reminder intent to the controller and refresh whether
