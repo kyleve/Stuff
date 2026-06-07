@@ -149,3 +149,42 @@ prefixed so the reader knows it was AI-generated, not the user
 speaking. Use a short tag like `> _Posted by an AI agent on $USER's
 behalf._` as the first line, then the actual content. Do not omit the
 prefix even when the comment is short or factual.
+
+## Cursor Cloud specific instructions
+
+Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 26** with
+**Xcode 26+** and **Tuist** (macOS-only). Treat Linux as a partial dev
+environment: formatting and agent sync work; builds, tests, and running the
+**Where** app require macOS (as in CI on `macos-26`).
+
+### What works on Linux
+
+| Check | Command |
+|-------|---------|
+| Trust mise config | `mise trust` (once per clone) |
+| Install SwiftFormat | `mise install swiftformat@0.60.1` |
+| Format lint (CI `format` job equivalent) | `mise exec swiftformat -- swiftformat --lint .` |
+| Agent file sync | `./sync-agents` or `./sync-agents --install` |
+| Git hooks path | `git config core.hooksPath .githooks` (also done by `./ide`) |
+
+Install **Ruby** if missing (`apt-get install ruby`) — required by `sync-agents`.
+
+### What does not work on Linux
+
+- **Tuist** (`mise install` / `mise install tuist` fails: `unsupported env: linux/amd64`)
+- `./ide`, `./swiftformat`, and the pre-commit hook — they call `mise exec -- …`, which tries to install **all** tools from `.mise.toml` including Tuist
+- `tuist test`, `tuist build`, iOS Simulator, and running the **Where** app
+
+On macOS, use the normal `./swiftformat --lint` and `mise exec -- tuist test` flow from the README.
+
+### Full build & test (macOS only)
+
+Matches CI `.github/workflows/ci.yml`:
+
+```bash
+mise install
+./ide --no-open
+./swiftformat --lint
+mise exec -- tuist test --no-selective-testing -- \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
+```
