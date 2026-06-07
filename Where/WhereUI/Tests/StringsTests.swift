@@ -47,4 +47,21 @@ struct StringsTests {
         #expect(Strings.primaryHeaderSubtitle(count: 1) == "1 day on the map so far")
         #expect(Strings.primaryHeaderSubtitle(count: 12) == "12 days on the map so far")
     }
+
+    @Test func backupStringsResolveToCatalogValues() {
+        #expect(Strings.settingsBackupHeader == "Backup")
+        #expect(Strings.settingsBackupExport == "Export data")
+        #expect(Strings.settingsBackupImport == "Import data")
+        #expect(Strings.settingsBackupMerge == "Merge")
+        #expect(Strings.settingsBackupReplace == "Replace all")
+        #expect(Strings.settingsBackupImportedTitle == "Backup imported")
+    }
+
+    @Test func backupImportedMessageSubstitutesAllThreeCountsInOrder() {
+        #expect(
+            Strings.settingsBackupImportedMessage(samples: 3, evidence: 2, manualDays: 5)
+                ==
+                "Imported 3 location samples, 2 pieces of evidence, and 5 manual days.",
+        )
+    }
 }

@@ -257,6 +257,17 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
+    public func allEvidence() async throws -> [Evidence] {
+        let context = readContext()
+        var descriptor = FetchDescriptor<SDEvidence>(sortBy: [SortDescriptor(\.capturedAt)])
+        descriptor.includePendingChanges = true
+        return try context.fetch(descriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
+    }
+
     public func evidenceBlob(for id: UUID) async throws -> Data? {
         let context = readContext()
         let descriptor = FetchDescriptor<SDEvidence>(predicate: #Predicate { $0.id == id })
@@ -315,6 +326,17 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
+    public func allManualDays() async throws -> [DayPresence] {
+        let context = readContext()
+        var descriptor = FetchDescriptor<SDManualDay>(sortBy: [SortDescriptor(\.dateKey)])
+        descriptor.includePendingChanges = true
+        return try context.fetch(descriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
+    }
+
     public func clear(in interval: DateInterval) async throws {
         let context = mutationContext()
         let start = interval.start
@@ -354,6 +376,19 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )
         for record in manuals {
             context.delete(record)
+        }
+    }
+
+    public func clearAll() async throws {
+        let context = mutationContext()
+        for sample in try context.fetch(FetchDescriptor<SDLocationSample>()) {
+            context.delete(sample)
+        }
+        for evidence in try context.fetch(FetchDescriptor<SDEvidence>()) {
+            context.delete(evidence)
+        }
+        for manual in try context.fetch(FetchDescriptor<SDManualDay>()) {
+            context.delete(manual)
         }
     }
 

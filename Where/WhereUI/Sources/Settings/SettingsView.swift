@@ -1,14 +1,24 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 import WhereCore
 
 /// Settings tab: location permission + tracking, retroactive manual entry,
-/// and the destructive "erase a year" action.
+/// whole-database backup export/import, and the destructive "erase a year"
+/// action.
 struct SettingsView: View {
     @Environment(WhereModel.self) private var model
     @Environment(\.openURL) private var openURL
 
     @State private var showClearConfirmation = false
+
+    // Backup import: the picked file, the merge/replace choice, and the
+    // success confirmation.
+    @State private var showImporter = false
+    @State private var pendingImportURL: URL?
+    @State private var showStrategyDialog = false
+    @State private var showImportSuccess = false
+    @State private var lastImportSummary: WhereController.ImportSummary?
 
     var body: some View {
         @Bindable var model = model
@@ -18,6 +28,7 @@ struct SettingsView: View {
                 trackingSection
                 remindersSection
                 manualEntrySection
+                backupSection
                 dataSection
             }
             .navigationTitle(Strings.settingsTitle)
@@ -27,14 +38,56 @@ struct SettingsView: View {
             } message: {
                 Text(Strings.settingsPermissionAlertMessage)
             }
+            .fileImporter(
+                isPresented: $showImporter,
+                allowedContentTypes: [.zip],
+                onCompletion: handleImportSelection,
+            )
+            .confirmationDialog(
+                Strings.settingsBackupImportStrategyTitle,
+                isPresented: $showStrategyDialog,
+                titleVisibility: .visible,
+                presenting: pendingImportURL,
+            ) { url in
+                Button(Strings.settingsBackupMerge) { runImport(url: url, strategy: .merge) }
+                Button(Strings.settingsBackupReplace, role: .destructive) {
+                    runImport(url: url, strategy: .replace)
+                }
+                Button(Strings.settingsDataCancel, role: .cancel) { pendingImportURL = nil }
+            } message: { _ in
+                Text(Strings.settingsBackupImportStrategyMessage)
+            }
+            .alert(
+                Strings.settingsBackupImportedTitle,
+                isPresented: $showImportSuccess,
+                presenting: lastImportSummary,
+            ) { _ in
+                Button(Strings.commonOK, role: .cancel) {}
+            } message: { summary in
+                Text(Strings.settingsBackupImportedMessage(
+                    samples: summary.sampleCount,
+                    evidence: summary.evidenceCount,
+                    manualDays: summary.manualDayCount,
+                ))
+            }
+            .alert(
+                Strings.settingsBackupErrorTitle,
+                isPresented: $model.isShowingBackupError,
+                presenting: model.backupError,
+            ) { _ in
+                Button(Strings.commonOK, role: .cancel) {}
+            } message: { message in
+                Text(message)
+            }
         }
     }
 
     private var trackingSection: some View {
-        Section {
+        @Bindable var model = model
+        return Section {
             LocationStatusRow(status: model.authorizationStatus, isTracking: model.isTracking)
 
-            Toggle(isOn: trackingBinding) {
+            Toggle(isOn: $model.trackingEnabled) {
                 Label(Strings.settingsLocationToggle, systemImage: "location.fill")
             }
 
@@ -127,6 +180,77 @@ struct SettingsView: View {
         }
     }
 
+    private var backupSection: some View {
+        Section {
+            // `ShareLink` builds the archive lazily through `BackupArchiveFile`
+            // and presents the native share sheet (with its own export
+            // progress), so no custom `UIActivityViewController` is needed.
+            ShareLink(
+                item: backupArchiveFile,
+                preview: SharePreview(Strings.settingsBackupShareTitle),
+            ) {
+                Label(Strings.settingsBackupExport, systemImage: "square.and.arrow.up")
+            }
+            .disabled(model.backupState != .idle)
+
+            Button {
+                showImporter = true
+            } label: {
+                if model.backupState == .importing {
+                    importProgressLabel
+                } else {
+                    Label(Strings.settingsBackupImport, systemImage: "square.and.arrow.down")
+                }
+            }
+            .disabled(model.backupState != .idle)
+        } header: {
+            Text(Strings.settingsBackupHeader)
+        } footer: {
+            Text(Strings.settingsBackupFooter)
+        }
+    }
+
+    /// Determinate progress for an in-flight import, driven by
+    /// `model.backupProgress` as the controller writes each row.
+    private var importProgressLabel: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(Strings.settingsBackupImporting, systemImage: "square.and.arrow.down")
+            ProgressView(value: model.backupProgress)
+        }
+    }
+
+    /// Lazily-built backup for `ShareLink`. The closure runs only when the
+    /// share sheet resolves the item; a failed export sets `model.backupError`
+    /// (surfacing the alert) and throws to abort the share.
+    private var backupArchiveFile: BackupArchiveFile {
+        BackupArchiveFile { [model] in
+            guard let url = await model.exportBackup() else {
+                throw CocoaError(.fileWriteUnknown)
+            }
+            return url
+        }
+    }
+
+    private func handleImportSelection(_ result: Result<URL, any Error>) {
+        switch result {
+            case let .success(url):
+                pendingImportURL = url
+                showStrategyDialog = true
+            case let .failure(error):
+                model.backupError = error.localizedDescription
+        }
+    }
+
+    private func runImport(url: URL, strategy: WhereController.ImportStrategy) {
+        Task {
+            if let summary = await model.importBackup(from: url, strategy: strategy) {
+                lastImportSummary = summary
+                showImportSuccess = true
+            }
+            pendingImportURL = nil
+        }
+    }
+
     private var dataSection: some View {
         Section {
             Button(role: .destructive) {
@@ -155,21 +279,6 @@ struct SettingsView: View {
 
     private var eraseTitle: String {
         Strings.settingsDataErase(year: model.selectedYear)
-    }
-
-    private var trackingBinding: Binding<Bool> {
-        Binding(
-            get: { model.isTracking },
-            set: { isOn in
-                Task {
-                    if isOn {
-                        await model.startTracking()
-                    } else {
-                        await model.stopTracking()
-                    }
-                }
-            },
-        )
     }
 
     private func openSystemSettings() {

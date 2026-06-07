@@ -292,6 +292,112 @@ struct WhereControllerTests {
         #expect(fetchedBlob == blob)
     }
 
+    // MARK: - Backup
+
+    private static let backupEvidence = Evidence(
+        id: UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!,
+        kind: .boardingPass,
+        capturedAt: Date(timeIntervalSince1970: 1_700_050_000),
+        region: .california,
+        note: "SFO → JFK",
+        contentType: .pdf,
+    )
+    private static let backupBlob = Data("boarding-pass-pdf".utf8)
+
+    /// Seed a controller's store with one sample, one evidence (with a blob),
+    /// and one manual day so backup tests have all three tables populated.
+    private func seedBackupData(_ controller: WhereController) async throws {
+        try await controller.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await controller.addEvidence(Self.backupEvidence, blob: Self.backupBlob)
+        try await controller.addManualDay(
+            date: iso("2026-07-04T15:00:00-07:00"),
+            regions: [.newYork],
+        )
+    }
+
+    @Test func backupExportThenMergeImportReproducesEveryTable() async throws {
+        let (source, sourceStore, _) = try Self.makeController()
+        try await seedBackupData(source)
+
+        let url = try await source.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let (destination, destinationStore, _) = try Self.makeController()
+        let summary = try await destination.importBackup(from: url, strategy: .merge)
+
+        #expect(summary.sampleCount == 1)
+        #expect(summary.evidenceCount == 1)
+        #expect(summary.manualDayCount == 1)
+
+        #expect(try await destinationStore.allSamples() == sourceStore.allSamples())
+        #expect(try await destinationStore.allEvidence() == sourceStore.allEvidence())
+        #expect(try await destinationStore.allManualDays() == sourceStore.allManualDays())
+        #expect(
+            try await destinationStore.evidenceBlob(for: Self.backupEvidence.id) == Self.backupBlob,
+        )
+    }
+
+    @Test func backupMergeImportKeepsPreexistingRows() async throws {
+        let (source, _, _) = try Self.makeController()
+        try await seedBackupData(source)
+        let url = try await source.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let (destination, destinationStore, _) = try Self.makeController()
+        // A row that exists only on the destination and is absent from the
+        // backup; merge must leave it in place.
+        let preexisting = sample(at: "2026-01-01T09:00:00-08:00")
+        try await destination.addManualSample(preexisting)
+
+        _ = try await destination.importBackup(from: url, strategy: .merge)
+
+        let ids = try await destinationStore.allSamples().map(\.id)
+        #expect(ids.contains(preexisting.id))
+        #expect(ids.count == 2)
+    }
+
+    @Test func backupReplaceImportWipesPreexistingRows() async throws {
+        let (source, sourceStore, _) = try Self.makeController()
+        try await seedBackupData(source)
+        let url = try await source.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let (destination, destinationStore, _) = try Self.makeController()
+        // Pre-existing destination data that the backup does not contain.
+        try await destination.addManualSample(sample(at: "2026-01-01T09:00:00-08:00"))
+        try await destination.addManualDay(
+            date: iso("2026-02-02T10:00:00-08:00"),
+            regions: [.canada],
+        )
+
+        _ = try await destination.importBackup(from: url, strategy: .replace)
+
+        // The store now mirrors the backup exactly — none of the pre-existing
+        // rows survive.
+        #expect(try await destinationStore.allSamples() == sourceStore.allSamples())
+        #expect(try await destinationStore.allManualDays() == sourceStore.allManualDays())
+    }
+
+    @Test func clearAll_removesEveryTable() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let seedSample = sample(at: "2026-03-15T12:00:00-07:00")
+        let seedDay = DayPresence(
+            date: Date(timeIntervalSince1970: 1_700_000_000),
+            regions: [.california],
+        )
+        try await store.perform {
+            try await store.add(sample: seedSample)
+            try await store.write(evidence: Self.backupEvidence, blob: Self.backupBlob)
+            try await store.setManualDay(seedDay)
+        }
+
+        try await store.perform { try await store.clearAll() }
+
+        #expect(try await store.allSamples().isEmpty)
+        #expect(try await store.allEvidence().isEmpty)
+        #expect(try await store.allManualDays().isEmpty)
+    }
+
     // MARK: - Logging reminders
 
     @Test func configureRemindersEnabledRequestsAuthAndBadgesTheBacklog() async throws {
@@ -555,6 +661,10 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.evidence(in: interval)
     }
 
+    func allEvidence() async throws -> [Evidence] {
+        try await backing.allEvidence()
+    }
+
     func evidenceBlob(for id: UUID) async throws -> Data? {
         try await backing.evidenceBlob(for: id)
     }
@@ -567,7 +677,15 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.manualDays(in: interval)
     }
 
+    func allManualDays() async throws -> [DayPresence] {
+        try await backing.allManualDays()
+    }
+
     func clear(in interval: DateInterval) async throws {
         try await backing.clear(in: interval)
+    }
+
+    func clearAll() async throws {
+        try await backing.clearAll()
     }
 }

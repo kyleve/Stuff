@@ -290,6 +290,69 @@ enum Strings {
         )
     }
 
+    // MARK: Settings backup
+
+    static var settingsBackupHeader: String {
+        localized("settings.backup.header")
+    }
+
+    static var settingsBackupFooter: String {
+        localized("settings.backup.footer")
+    }
+
+    static var settingsBackupExport: String {
+        localized("settings.backup.export")
+    }
+
+    /// Title shown in the system share sheet preview for an exported backup.
+    static var settingsBackupShareTitle: String {
+        localized("settings.backup.shareTitle")
+    }
+
+    static var settingsBackupImport: String {
+        localized("settings.backup.import")
+    }
+
+    static var settingsBackupImporting: String {
+        localized("settings.backup.importing")
+    }
+
+    static var settingsBackupErrorTitle: String {
+        localized("settings.backup.errorTitle")
+    }
+
+    static var settingsBackupImportStrategyTitle: String {
+        localized("settings.backup.importStrategy.title")
+    }
+
+    static var settingsBackupImportStrategyMessage: String {
+        localized("settings.backup.importStrategy.message")
+    }
+
+    static var settingsBackupMerge: String {
+        localized("settings.backup.merge")
+    }
+
+    static var settingsBackupReplace: String {
+        localized("settings.backup.replace")
+    }
+
+    static var settingsBackupImportedTitle: String {
+        localized("settings.backup.imported.title")
+    }
+
+    static func settingsBackupImportedMessage(
+        samples: Int,
+        evidence: Int,
+        manualDays: Int,
+    ) -> String {
+        String(
+            localized: "settings.backup.imported.message",
+            defaultValue: "Imported \(samples) location samples, \(evidence) pieces of evidence, and \(manualDays) manual days.",
+            bundle: .module,
+        )
+    }
+
     // MARK: Manual entry
 
     static var manualEntryPickerLabel: String {
