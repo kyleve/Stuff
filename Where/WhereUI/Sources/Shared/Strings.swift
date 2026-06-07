@@ -218,6 +218,46 @@ enum Strings {
         localized("settings.manual.footer")
     }
 
+    static var settingsRemindersHeader: String {
+        String(localized: "settings.reminders.header", defaultValue: "Reminders", bundle: .module)
+    }
+
+    static var settingsRemindersToggle: String {
+        String(
+            localized: "settings.reminders.toggle",
+            defaultValue: "Daily logging reminder",
+            bundle: .module,
+        )
+    }
+
+    static var settingsReminderTime: String {
+        String(localized: "settings.reminders.time", defaultValue: "Remind me at", bundle: .module)
+    }
+
+    static var settingsRemindersFooter: String {
+        String(
+            localized: "settings.reminders.footer",
+            defaultValue: "If a day hasn't been logged, we'll nudge you before it ends and badge the app. The reminder clears itself once the day is recorded.",
+            bundle: .module,
+        )
+    }
+
+    static var settingsRemindersOpenSettings: String {
+        String(
+            localized: "settings.reminders.openSettings",
+            defaultValue: "Allow notifications",
+            bundle: .module,
+        )
+    }
+
+    static var settingsRemindersDeniedFooter: String {
+        String(
+            localized: "settings.reminders.deniedFooter",
+            defaultValue: "Notifications are turned off for Where, so reminders and the badge can't appear. Turn them on in Settings.",
+            bundle: .module,
+        )
+    }
+
     static var settingsDataHeader: String {
         localized("settings.data.header")
     }
@@ -334,6 +374,74 @@ enum Strings {
         String(
             localized: "timeline.row.accessibility",
             defaultValue: "\(region), \(range), \(dayCount(days))",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Missing days
+
+    static var missingDaysTitle: String {
+        String(localized: "missingDays.title", defaultValue: "Missing days", bundle: .module)
+    }
+
+    static var missingDaysDone: String {
+        String(localized: "missingDays.done", defaultValue: "Done", bundle: .module)
+    }
+
+    static var missingDaysHeader: String {
+        String(localized: "missingDays.header", defaultValue: "Days to backfill", bundle: .module)
+    }
+
+    static var missingDaysFooter: String {
+        String(
+            localized: "missingDays.footer",
+            defaultValue: "Tap a stretch to record where you were. Today is included until something logs it.",
+            bundle: .module,
+        )
+    }
+
+    static var missingDaysEmptyTitle: String {
+        String(localized: "missingDays.empty.title", defaultValue: "All caught up", bundle: .module)
+    }
+
+    static var missingDaysEmptyDescription: String {
+        String(
+            localized: "missingDays.empty.description",
+            defaultValue: "Every day this year has something logged.",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Missing-day banner
+
+    static var missingBannerTitle: String {
+        String(
+            localized: "missing.banner.title",
+            defaultValue: "Missing days this year",
+            bundle: .module,
+        )
+    }
+
+    static func missingBannerSubtitle(count: Int) -> String {
+        if count == 1 {
+            String(
+                localized: "missing.banner.subtitle.one",
+                defaultValue: "1 day still needs a location. Tap to fill it in.",
+                bundle: .module,
+            )
+        } else {
+            String(
+                localized: "missing.banner.subtitle.other",
+                defaultValue: "\(count) days still need a location. Tap to fill them in.",
+                bundle: .module,
+            )
+        }
+    }
+
+    static var missingBannerAccessibilityHint: String {
+        String(
+            localized: "missing.banner.accessibilityHint",
+            defaultValue: "Opens the list of days that still need logging.",
             bundle: .module,
         )
     }

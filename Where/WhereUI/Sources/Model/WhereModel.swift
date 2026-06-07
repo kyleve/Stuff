@@ -34,9 +34,69 @@ public final class WhereModel {
     /// so the UI can offer to open Settings.
     public var permissionDenied = false
 
+    /// Whether the daily "log before the day ends" reminder is enabled. Persists
+    /// across launches; defaults to on so the safety net is active out of the
+    /// box. Settable so SwiftUI can drive it through a plain key-path binding;
+    /// the setter persists the intent and reconciles the schedule/badge.
+    public var remindersEnabled: Bool {
+        get { remindersEnabledStorage }
+        set {
+            guard newValue != remindersEnabledStorage else { return }
+            remindersEnabledStorage = newValue
+            defaults.set(newValue, forKey: Self.remindersEnabledKey)
+            Task { await applyReminderConfiguration() }
+        }
+    }
+
+    /// Time of day the daily reminder fires. Persists and reconciles on change.
+    public var reminderTime: ReminderTime {
+        get { reminderTimeStorage }
+        set {
+            guard newValue != reminderTimeStorage else { return }
+            reminderTimeStorage = newValue
+            defaults.set(newValue.hour, forKey: Self.reminderHourKey)
+            defaults.set(newValue.minute, forKey: Self.reminderMinuteKey)
+            Task { await applyReminderConfiguration() }
+        }
+    }
+
+    /// `Date`-typed projection of `reminderTime` for the Settings `DatePicker`,
+    /// which works in `Date`. Lets the view bind `$model.reminderTimeOfDay`
+    /// directly instead of building a closure binding; writes round-trip back
+    /// into `reminderTime` (and its persistence/reconcile).
+    public var reminderTimeOfDay: Date {
+        get {
+            Self.calendar.date(
+                bySettingHour: reminderTime.hour,
+                minute: reminderTime.minute,
+                second: 0,
+                of: now(),
+            ) ?? now()
+        }
+        set {
+            let components = Self.calendar.dateComponents([.hour, .minute], from: newValue)
+            reminderTime = ReminderTime(
+                hour: components.hour ?? ReminderTime.defaultEvening.hour,
+                minute: components.minute ?? ReminderTime.defaultEvening.minute,
+            )
+        }
+    }
+
+    /// Observed backing storage for `remindersEnabled` / `reminderTime`. The
+    /// public computed properties layer persistence + reconciliation onto their
+    /// setters, which a stored property can't express.
+    private var remindersEnabledStorage: Bool
+    private var reminderTimeStorage: ReminderTime
+
+    /// Whether the system has granted notification permission. Lets the Settings
+    /// UI route the user to the system Settings app when they've enabled
+    /// reminders but denied permission.
+    public private(set) var notificationsAuthorized = false
+
     private var controller: WhereController?
     private var authorizationTask: Task<Void, Never>?
     private let defaults: UserDefaults
+    private let now: @Sendable () -> Date
 
     /// Persisted user intent to track in the background. Effective tracking is
     /// this AND `.always` authorization; we default to `true` so that, once the
@@ -47,6 +107,9 @@ public final class WhereModel {
     }
 
     private static let wantsTrackingKey = "where.wantsBackgroundTracking"
+    private static let remindersEnabledKey = "where.remindersEnabled"
+    private static let reminderHourKey = "where.reminderHour"
+    private static let reminderMinuteKey = "where.reminderMinute"
 
     /// Primary/secondary split of the current report, or an empty ranking
     /// while nothing is loaded.
@@ -58,6 +121,40 @@ public final class WhereModel {
     /// Total distinct days with any tracked presence in the loaded year.
     public var trackedDayCount: Int {
         report?.days.count ?? 0
+    }
+
+    /// Unlogged days this year (Jan 1 through today), collapsed into ranges, for
+    /// the warning banner and the backfill flow. Empty unless the user is
+    /// viewing the current year, since past years can't gain "today" coverage by
+    /// opening the app.
+    public var missingDays: [MissingDayRange] {
+        guard let report, isViewingCurrentYear else { return [] }
+        let present = Set(report.days.map(\.date))
+        // Through yesterday: today is still loggable, so it isn't a "missed" day
+        // yet — the evening reminder covers it instead of the banner/backfill.
+        return MissingDays.missingRanges(
+            year: report.year,
+            through: MissingDays.backlogCutoff(asOf: now(), calendar: Self.calendar),
+            present: present,
+            calendar: Self.calendar,
+        )
+    }
+
+    /// Total number of unlogged days behind `missingDays`.
+    public var missingDayCount: Int {
+        missingDays.reduce(0) { $0 + $1.dayCount }
+    }
+
+    private var isViewingCurrentYear: Bool {
+        selectedYear == Self.calendar.component(.year, from: now())
+    }
+
+    /// Gregorian calendar in the current time zone — matches the day keys the
+    /// aggregator produces in `report.days`, so the missing-day math lines up.
+    private static var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        return calendar
     }
 
     /// Number of calendar days in the selected year (365, or 366 in a leap
@@ -83,9 +180,13 @@ public final class WhereModel {
     public init(
         selectedYear: Int = WhereModel.currentYear,
         defaults: UserDefaults = .standard,
+        now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.selectedYear = selectedYear
         self.defaults = defaults
+        self.now = now
+        remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
+        reminderTimeStorage = Self.loadReminderTime(from: defaults)
     }
 
     /// Preview/test seam: inject an already-built controller (and optionally a
@@ -96,12 +197,28 @@ public final class WhereModel {
         report: YearReport? = nil,
         selectedYear: Int = WhereModel.currentYear,
         defaults: UserDefaults = .standard,
+        now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.controller = controller
         self.report = report
         self.selectedYear = selectedYear
         self.defaults = defaults
+        self.now = now
+        remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
+        reminderTimeStorage = Self.loadReminderTime(from: defaults)
         loadState = report == nil ? .idle : .loaded
+    }
+
+    private static func loadRemindersEnabled(from defaults: UserDefaults) -> Bool {
+        defaults.object(forKey: remindersEnabledKey) as? Bool ?? true
+    }
+
+    private static func loadReminderTime(from defaults: UserDefaults) -> ReminderTime {
+        let hour = defaults.object(forKey: reminderHourKey) as? Int ?? ReminderTime.defaultEvening
+            .hour
+        let minute = defaults.object(forKey: reminderMinuteKey) as? Int
+            ?? ReminderTime.defaultEvening.minute
+        return ReminderTime(hour: hour, minute: minute)
     }
 
     /// Synchronously build the production controller (SwiftData +
@@ -136,6 +253,18 @@ public final class WhereModel {
         observeAuthorizationChanges()
         await reconcileTracking()
         await refresh()
+        await applyReminderConfiguration()
+    }
+
+    /// Refresh state that can change while the app is away, including
+    /// notification permission edits made in Settings and calendar-day rollover.
+    public func appBecameActive() async {
+        bootstrap()
+        guard controller != nil else { return }
+        await syncAuthorization()
+        await reconcileTracking()
+        await refresh()
+        await applyReminderConfiguration()
     }
 
     /// Read the current authorization status from the controller into our
@@ -262,6 +391,14 @@ public final class WhereModel {
         wantsTracking = false
         await controller.stopGPS()
         isTracking = false
+    }
+
+    /// Push the current reminder intent to the controller and refresh whether
+    /// the system has granted notification permission.
+    private func applyReminderConfiguration() async {
+        guard let controller else { return }
+        await controller.configureReminders(enabled: remindersEnabled, time: reminderTime)
+        notificationsAuthorized = await controller.notificationAuthorizationGranted()
     }
 
     public func clearSelectedYear() async {

@@ -234,6 +234,116 @@
         }
       }
     },
+    "missing.banner.accessibilityHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Opens the list of days that still need logging."
+          }
+        }
+      }
+    },
+    "missing.banner.subtitle.one" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "1 day still needs a location. Tap to fill it in."
+          }
+        }
+      }
+    },
+    "missing.banner.subtitle.other" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld days still need a location. Tap to fill them in."
+          }
+        }
+      }
+    },
+    "missing.banner.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missing days this year"
+          }
+        }
+      }
+    },
+    "missingDays.done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        }
+      }
+    },
+    "missingDays.empty.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every day this year has something logged."
+          }
+        }
+      }
+    },
+    "missingDays.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All caught up"
+          }
+        }
+      }
+    },
+    "missingDays.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a stretch to record where you were. Today is included until something logs it."
+          }
+        }
+      }
+    },
+    "missingDays.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days to backfill"
+          }
+        }
+      }
+    },
+    "missingDays.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missing days"
+          }
+        }
+      }
+    },
     "primary.caption.homeBase" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -617,6 +727,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Location access needed"
+          }
+        }
+      }
+    },
+    "settings.reminders.deniedFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications are turned off for Where, so reminders and the badge can't appear. Turn them on in Settings."
+          }
+        }
+      }
+    },
+    "settings.reminders.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If a day hasn't been logged, we'll nudge you before it ends and badge the app. The reminder clears itself once the day is recorded."
+          }
+        }
+      }
+    },
+    "settings.reminders.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reminders"
+          }
+        }
+      }
+    },
+    "settings.reminders.openSettings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Allow notifications"
+          }
+        }
+      }
+    },
+    "settings.reminders.time" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remind me at"
+          }
+        }
+      }
+    },
+    "settings.reminders.toggle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily logging reminder"
           }
         }
       }

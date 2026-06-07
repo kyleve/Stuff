@@ -17,7 +17,11 @@ struct WhereModelRefreshTests {
 
     @Test func staleYearFetchDoesNotOverwriteNewerSelection() async throws {
         let store = try TestStore()
-        let controller = WhereController(store: store, locationSource: ScriptedLocationSource())
+        let controller = WhereController(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+        )
 
         // Seed each year with a distinct region so we can tell which report won.
         try await controller.addManualDay(
@@ -54,7 +58,11 @@ struct WhereModelRefreshTests {
     @Test func failedManualSaveThrowsAndLeavesLoadStateAlone() async throws {
         let store = try TestStore()
         await store.failManualDays()
-        let controller = WhereController(store: store, locationSource: ScriptedLocationSource())
+        let controller = WhereController(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+        )
         let model = WhereModel(controller: controller, selectedYear: 2026)
 
         await #expect(throws: ManualSaveFailure.self) {
@@ -72,7 +80,11 @@ struct WhereModelRefreshTests {
     @Test func failedManualRangeSaveThrows() async throws {
         let store = try TestStore()
         await store.failManualDays()
-        let controller = WhereController(store: store, locationSource: ScriptedLocationSource())
+        let controller = WhereController(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+        )
         let model = WhereModel(controller: controller, selectedYear: 2026)
 
         await #expect(throws: ManualSaveFailure.self) {

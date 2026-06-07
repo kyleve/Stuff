@@ -49,6 +49,7 @@
             let controller = WhereController(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
+                reminderScheduler: NoopLoggingReminderScheduler(),
             )
             return WhereModel(
                 controller: controller,
@@ -64,6 +65,7 @@
             let controller = WhereController(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
+                reminderScheduler: NoopLoggingReminderScheduler(),
             )
             return WhereModel(
                 controller: controller,
@@ -89,11 +91,43 @@
             let controller = WhereController(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
+                reminderScheduler: NoopLoggingReminderScheduler(),
             )
             return WhereModel(
                 controller: controller,
                 report: YearReport(year: year, days: days, totals: [.other: days.count]),
                 selectedYear: year,
+            )
+        }
+
+        /// A model whose current year has several unlogged stretches before a
+        /// fixed "today", so the missing-day banner and `MissingDaysView` have
+        /// real gaps to render.
+        @MainActor
+        public static func missingDaysModel() -> WhereModel {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = .current
+            let startOfYear = calendar.date(from: DateComponents(year: year, month: 1, day: 1))!
+            let today = calendar.date(from: DateComponents(year: year, month: 2, day: 10))!
+
+            // A handful of scattered logged days, leaving gaps in between.
+            let loggedOffsets = [0, 1, 2, 8, 9, 20]
+            let days = loggedOffsets.map { offset in
+                DayPresence(
+                    date: calendar.date(byAdding: .day, value: offset, to: startOfYear)!,
+                    regions: [.california],
+                )
+            }
+            let controller = WhereController(
+                store: try! SwiftDataStore.inMemory(),
+                locationSource: ScriptedLocationSource(),
+                reminderScheduler: NoopLoggingReminderScheduler(),
+            )
+            return WhereModel(
+                controller: controller,
+                report: YearReport(year: year, days: days, totals: [.california: days.count]),
+                selectedYear: year,
+                now: { today },
             )
         }
     }
