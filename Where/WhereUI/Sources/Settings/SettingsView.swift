@@ -12,11 +12,6 @@ struct SettingsView: View {
 
     @State private var showClearConfirmation = false
 
-    // Backup export: the built archive, presented in a share sheet, plus the
-    // URL to clean up once that sheet is dismissed.
-    @State private var exportedFile: ExportedFile?
-    @State private var cleanupURL: URL?
-
     // Backup import: the picked file, the merge/replace choice, and the
     // success confirmation.
     @State private var showImporter = false
@@ -41,9 +36,6 @@ struct SettingsView: View {
                 Button(Strings.settingsPermissionAlertNotNow, role: .cancel) {}
             } message: {
                 Text(Strings.settingsPermissionAlertMessage)
-            }
-            .sheet(item: $exportedFile, onDismiss: cleanupExportedFile) { file in
-                ShareSheet(items: [file.url])
             }
             .fileImporter(
                 isPresented: $showImporter,
@@ -79,10 +71,10 @@ struct SettingsView: View {
             }
             .alert(
                 Strings.settingsBackupErrorTitle,
-                isPresented: backupErrorBinding,
+                isPresented: $model.isShowingBackupError,
                 presenting: model.backupError,
             ) { _ in
-                Button(Strings.commonOK, role: .cancel) { model.backupError = nil }
+                Button(Strings.commonOK, role: .cancel) {}
             } message: { message in
                 Text(message)
             }
@@ -90,10 +82,11 @@ struct SettingsView: View {
     }
 
     private var trackingSection: some View {
-        Section {
+        @Bindable var model = model
+        return Section {
             LocationStatusRow(status: model.authorizationStatus, isTracking: model.isTracking)
 
-            Toggle(isOn: trackingBinding) {
+            Toggle(isOn: $model.trackingEnabled) {
                 Label(Strings.settingsLocationToggle, systemImage: "location.fill")
             }
 
@@ -152,19 +145,14 @@ struct SettingsView: View {
 
     private var backupSection: some View {
         Section {
-            Button {
-                Task {
-                    if let url = await model.exportBackup() {
-                        cleanupURL = url
-                        exportedFile = ExportedFile(url: url)
-                    }
-                }
-            } label: {
-                if model.backupState == .exporting {
-                    Label { Text(Strings.settingsBackupExporting) } icon: { ProgressView() }
-                } else {
-                    Label(Strings.settingsBackupExport, systemImage: "square.and.arrow.up")
-                }
+            // `ShareLink` builds the archive lazily through `BackupArchiveFile`
+            // and presents the native share sheet (with its own export
+            // progress), so no custom `UIActivityViewController` is needed.
+            ShareLink(
+                item: backupArchiveFile,
+                preview: SharePreview(Strings.settingsBackupShareTitle),
+            ) {
+                Label(Strings.settingsBackupExport, systemImage: "square.and.arrow.up")
             }
             .disabled(model.backupState != .idle)
 
@@ -172,7 +160,7 @@ struct SettingsView: View {
                 showImporter = true
             } label: {
                 if model.backupState == .importing {
-                    Label { Text(Strings.settingsBackupImporting) } icon: { ProgressView() }
+                    importProgressLabel
                 } else {
                     Label(Strings.settingsBackupImport, systemImage: "square.and.arrow.down")
                 }
@@ -185,13 +173,25 @@ struct SettingsView: View {
         }
     }
 
-    /// Bridges the model's optional `backupError` to the Bool an `.alert`
-    /// presentation needs, clearing it when the alert is dismissed.
-    private var backupErrorBinding: Binding<Bool> {
-        Binding(
-            get: { model.backupError != nil },
-            set: { presented in if !presented { model.backupError = nil } },
-        )
+    /// Determinate progress for an in-flight import, driven by
+    /// `model.backupProgress` as the controller writes each row.
+    private var importProgressLabel: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Label(Strings.settingsBackupImporting, systemImage: "square.and.arrow.down")
+            ProgressView(value: model.backupProgress)
+        }
+    }
+
+    /// Lazily-built backup for `ShareLink`. The closure runs only when the
+    /// share sheet resolves the item; a failed export sets `model.backupError`
+    /// (surfacing the alert) and throws to abort the share.
+    private var backupArchiveFile: BackupArchiveFile {
+        BackupArchiveFile { [model] in
+            guard let url = await model.exportBackup() else {
+                throw CocoaError(.fileWriteUnknown)
+            }
+            return url
+        }
     }
 
     private func handleImportSelection(_ result: Result<URL, any Error>) {
@@ -212,14 +212,6 @@ struct SettingsView: View {
             }
             pendingImportURL = nil
         }
-    }
-
-    private func cleanupExportedFile() {
-        guard let url = cleanupURL else { return }
-        // The archive lives in a unique temporary subdirectory; remove the
-        // whole thing once the share sheet is gone.
-        try? FileManager.default.removeItem(at: url.deletingLastPathComponent())
-        cleanupURL = nil
     }
 
     private var dataSection: some View {
@@ -252,44 +244,10 @@ struct SettingsView: View {
         Strings.settingsDataErase(year: model.selectedYear)
     }
 
-    private var trackingBinding: Binding<Bool> {
-        Binding(
-            get: { model.isTracking },
-            set: { isOn in
-                Task {
-                    if isOn {
-                        await model.startTracking()
-                    } else {
-                        await model.stopTracking()
-                    }
-                }
-            },
-        )
-    }
-
     private func openSystemSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         openURL(url)
     }
-}
-
-/// Identifiable wrapper so a freshly-built export URL can drive a
-/// `.sheet(item:)` presentation.
-private struct ExportedFile: Identifiable {
-    let id = UUID()
-    let url: URL
-}
-
-/// Thin `UIActivityViewController` bridge so the exported `.zip` can be
-/// emailed, AirDropped, or saved to Files via the system share sheet.
-private struct ShareSheet: UIViewControllerRepresentable {
-    let items: [Any]
-
-    func makeUIViewController(context _: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: items, applicationActivities: nil)
-    }
-
-    func updateUIViewController(_: UIActivityViewController, context _: Context) {}
 }
 
 #if DEBUG

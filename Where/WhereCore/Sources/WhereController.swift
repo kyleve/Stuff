@@ -185,9 +185,15 @@ public actor WhereController {
     /// Read a backup `.zip` and write its contents back into the store inside
     /// a single transaction. `.replace` wipes the store first; `.merge` relies
     /// on the store's upsert semantics. Returns counts of what was imported.
+    ///
+    /// `onProgress` is invoked with a fraction in `0...1` as rows are written,
+    /// throttled to whole-percent changes so a large import doesn't flood the
+    /// caller. It runs on the store's executor; a UI caller should marshal it
+    /// back to the main actor (e.g. via an `AsyncStream`).
     public func importBackup(
         from url: URL,
         strategy: ImportStrategy,
+        onProgress: @Sendable (Double) -> Void = { _ in },
     ) async throws -> ImportSummary {
         // Files handed over by the document picker are security-scoped; we
         // must bracket the read with start/stop access or `Data(contentsOf:)`
@@ -201,19 +207,36 @@ public actor WhereController {
         }.value
         let archive = result.archive
         let blobs = result.blobs
+        let total = archive.samples.count + archive.evidence.count + archive.manualDays.count
 
         try await store.perform {
             if strategy == .replace {
                 try await store.clearAll()
             }
+            // `completed`/`report` are local to this `@Sendable` block, so the
+            // running count never crosses the actor boundary; only the
+            // throttled fraction is handed to `onProgress`.
+            var completed = 0
+            var lastPercent = -1
+            func report() {
+                completed += 1
+                guard total > 0 else { return }
+                let percent = Int(Double(completed) / Double(total) * 100)
+                guard percent != lastPercent else { return }
+                lastPercent = percent
+                onProgress(Double(completed) / Double(total))
+            }
             for sample in archive.samples {
                 try await store.add(sample: sample)
+                report()
             }
             for item in archive.evidence {
                 try await store.write(evidence: item, blob: blobs[item.id])
+                report()
             }
             for day in archive.manualDays {
                 try await store.setManualDay(day)
+                report()
             }
         }
 

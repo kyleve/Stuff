@@ -489,17 +489,6 @@
         }
       }
     },
-    "settings.backup.exporting" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preparing backup…"
-          }
-        }
-      }
-    },
     "settings.backup.footer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -606,6 +595,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Replace all"
+          }
+        }
+      }
+    },
+    "settings.backup.shareTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where Backup"
           }
         }
       }

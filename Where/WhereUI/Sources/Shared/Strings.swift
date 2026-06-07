@@ -264,8 +264,9 @@ enum Strings {
         localized("settings.backup.export")
     }
 
-    static var settingsBackupExporting: String {
-        localized("settings.backup.exporting")
+    /// Title shown in the system share sheet preview for an exported backup.
+    static var settingsBackupShareTitle: String {
+        localized("settings.backup.shareTitle")
     }
 
     static var settingsBackupImport: String {

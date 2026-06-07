@@ -78,6 +78,12 @@ Shared/<TargetName>/
   one field or that escapes a single function — tuples are fine as
   ad-hoc inline returns but should not appear in property types,
   collection element types, or public API.
+- Don't build closure-based `Binding(get:set:)` values in SwiftUI views.
+  Bind directly to observable state (`$model.foo`) instead. When a view
+  needs a derived/adapted binding (e.g. mapping an optional error to the
+  `Bool` an `.alert` wants), expose a computed `get`/`set` property on the
+  `@Observable` model and bind to that, keeping the underlying value the
+  single source of truth.
 
 ## Generating the Xcode project
 
