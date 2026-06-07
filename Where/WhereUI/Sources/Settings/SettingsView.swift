@@ -26,6 +26,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 trackingSection
+                remindersSection
                 manualEntrySection
                 backupSection
                 dataSection
@@ -127,6 +128,42 @@ struct SettingsView: View {
             case .denied, .restricted, .whenInUse: true
             default: false
         }
+    }
+
+    private var remindersSection: some View {
+        @Bindable var model = model
+        return Section {
+            Toggle(isOn: $model.remindersEnabled) {
+                Label(Strings.settingsRemindersToggle, systemImage: "bell.badge")
+            }
+
+            if model.remindersEnabled {
+                DatePicker(
+                    Strings.settingsReminderTime,
+                    selection: $model.reminderTimeOfDay,
+                    displayedComponents: .hourAndMinute,
+                )
+
+                if !model.notificationsAuthorized {
+                    Button {
+                        openSystemSettings()
+                    } label: {
+                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                    }
+                }
+            }
+        } header: {
+            Text(Strings.settingsRemindersHeader)
+        } footer: {
+            Text(remindersFooter)
+        }
+    }
+
+    private var remindersFooter: String {
+        if model.remindersEnabled, !model.notificationsAuthorized {
+            return Strings.settingsRemindersDeniedFooter
+        }
+        return Strings.settingsRemindersFooter
     }
 
     private var manualEntrySection: some View {

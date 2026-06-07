@@ -32,6 +32,15 @@ struct ManualDayEntryView: View {
     @State private var isSaving = false
     @State private var saveError: String?
 
+    /// Open with the dates (and single-day vs range mode) preselected — used by
+    /// the backfill flow so tapping a missing range lands on a populated form.
+    init(prefill: MissingDayRange? = nil) {
+        guard let prefill else { return }
+        _mode = State(initialValue: prefill.dayCount > 1 ? .range : .singleDay)
+        _startDate = State(initialValue: prefill.start)
+        _endDate = State(initialValue: prefill.end)
+    }
+
     private var dayCount: Int {
         let calendar = Calendar.current
         let start = calendar.startOfDay(for: startDate)

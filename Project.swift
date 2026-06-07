@@ -129,12 +129,13 @@ let project = Project(
             sources: ["Where/WhereUI/Tests/**"],
         ),
     ],
-    // Tuist's autogeneration doesn't emit standalone schemes for these two
-    // unit-test bundles (only the aggregate `Stuff-Workspace` scheme covers
-    // them), so declare them explicitly. This lets `tuist test WhereTests` /
-    // `tuist test WhereUITests` target a single bundle without building the
-    // whole workspace.
+    // Tuist's autogeneration doesn't emit working standalone test actions for
+    // these unit-test bundles (only the aggregate `Stuff-Workspace` scheme
+    // runs them), so declare them explicitly. This lets `tuist test
+    // WhereCoreTests` / `tuist test WhereTests` / `tuist test WhereUITests`
+    // target a single bundle without building the whole workspace.
     schemes: [
+        testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
     ],

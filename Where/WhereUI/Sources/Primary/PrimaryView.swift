@@ -7,31 +7,45 @@ struct PrimaryView: View {
     @Environment(WhereModel.self) private var model
 
     @State private var showingTimeline = false
+    @State private var showingMissingDays = false
 
     var body: some View {
         NavigationStack {
-            screen
-                .navigationTitle(Strings.primaryTitle)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showingTimeline = true
-                        } label: {
-                            Label(
-                                Strings.primaryTimeline,
-                                systemImage: "calendar.day.timeline.left",
-                            )
-                        }
-                        .accessibilityIdentifier("where_timeline_button")
+            VStack(spacing: 0) {
+                if model.missingDayCount > 0 {
+                    MissingDaysBanner(count: model.missingDayCount) {
+                        showingMissingDays = true
                     }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        YearSelector()
+                    .padding(.horizontal)
+                    .padding(.bottom, UIConstants.Spacings.medium)
+                }
+                screen
+            }
+            .navigationTitle(Strings.primaryTitle)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingTimeline = true
+                    } label: {
+                        Label(
+                            Strings.primaryTimeline,
+                            systemImage: "calendar.day.timeline.left",
+                        )
                     }
+                    .accessibilityIdentifier("where_timeline_button")
                 }
-                .sheet(isPresented: $showingTimeline) {
-                    PresenceTimelineView()
-                        .environment(model)
+                ToolbarItem(placement: .topBarTrailing) {
+                    YearSelector()
                 }
+            }
+            .sheet(isPresented: $showingTimeline) {
+                PresenceTimelineView()
+                    .environment(model)
+            }
+            .sheet(isPresented: $showingMissingDays) {
+                MissingDaysView()
+                    .environment(model)
+            }
         }
     }
 
@@ -124,6 +138,53 @@ struct PrimaryView: View {
     }
 }
 
+/// A tappable Liquid Glass warning that some days this year aren't logged yet,
+/// shown atop the Primary tab. Opens `MissingDaysView` to backfill them.
+private struct MissingDaysBanner: View {
+    let count: Int
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: UIConstants.Spacings.large) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.orange)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
+                    Text(Strings.missingBannerTitle)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(Strings.missingBannerSubtitle(count: count))
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer(minLength: UIConstants.Spacings.small)
+
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+            }
+            .padding(UIConstants.Padding.compactCard)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .glassEffect(
+                .regular.tint(.orange.opacity(0.18)),
+                in: RoundedRectangle(
+                    cornerRadius: UIConstants.CornerRadius.compactCard,
+                    style: .continuous,
+                ),
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("where_missing_days_banner")
+        .accessibilityHint(Strings.missingBannerAccessibilityHint)
+    }
+}
+
 #if DEBUG
     #Preview("Loaded") {
         PrimaryView()
@@ -133,5 +194,10 @@ struct PrimaryView: View {
     #Preview("Empty") {
         PrimaryView()
             .environment(PreviewSupport.emptyModel())
+    }
+
+    #Preview("Missing days") {
+        PrimaryView()
+            .environment(PreviewSupport.missingDaysModel())
     }
 #endif

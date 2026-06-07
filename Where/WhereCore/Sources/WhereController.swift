@@ -20,8 +20,30 @@ public actor WhereController {
     private let attributor: RegionAttributor
     private let aggregator: DayAggregator
     private let backupService = BackupService()
+    private let reminderScheduler: any LoggingReminderScheduling
+    private let now: @Sendable () -> Date
 
     private var ingestTask: Task<Void, Never>?
+
+    /// User intent for the daily "log before the day ends" reminder. Disabled
+    /// until the UI calls `configureReminders(enabled:time:)`, so a freshly
+    /// constructed controller never schedules anything on its own.
+    private var reminderConfig = ReminderConfiguration()
+
+    /// The start-of-day we last reconciled while today already had presence.
+    /// Lets the GPS ingest path skip a full re-scan once today is covered
+    /// (significant-change events can fire many times a day).
+    private var todayCoveredByReconcile: Date?
+
+    /// How many days past today the per-day reminders are scheduled ahead, so a
+    /// stretch where the app never runs still has reminders queued. Today plus
+    /// this many days.
+    private static let reminderWindowDays = 6
+
+    private struct ReminderConfiguration {
+        var enabled = false
+        var time: ReminderTime = .defaultEvening
+    }
 
     /// Whether the underlying location monitoring is currently active. Tracked
     /// separately from `ingestTask` because the ingestion task outlives a
@@ -47,11 +69,15 @@ public actor WhereController {
         locationSource: any LocationSource,
         attributor: RegionAttributor = .shared,
         aggregator: DayAggregator = DayAggregator(),
+        reminderScheduler: any LoggingReminderScheduling = UserNotificationReminderScheduler(),
+        now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.store = store
         self.locationSource = locationSource
         self.attributor = attributor
         self.aggregator = aggregator
+        self.reminderScheduler = reminderScheduler
+        self.now = now
     }
 
     deinit {
@@ -74,6 +100,7 @@ public actor WhereController {
         let key = aggregator.calendar.startOfDay(for: date)
         let presence = DayPresence(date: key, regions: regions)
         try await store.perform { try await store.setManualDay(presence) }
+        await reconcileReminders()
     }
 
     /// Assert `regions` for every calendar day in the inclusive range
@@ -97,6 +124,7 @@ public actor WhereController {
                 try await store.setManualDay(DayPresence(date: day, regions: regions))
             }
         }
+        await reconcileReminders()
     }
 
     // MARK: - Evidence
@@ -130,6 +158,7 @@ public actor WhereController {
     public func clearYear(_ year: Int) async throws {
         let interval = aggregator.yearInterval(year: year)
         try await store.perform { try await store.clear(in: interval) }
+        await reconcileReminders()
     }
 
     // MARK: - Backup
@@ -265,7 +294,10 @@ public actor WhereController {
         await locationSource.start()
         // Flush anything that failed to persist before this session
         // started, before we (re)attach the stream consumer.
-        await drainRetryQueue()
+        _ = await drainRetryQueue()
+        // Refresh the badge / reminders against whatever the resumed session
+        // already knows about (e.g. after a background relaunch).
+        await reconcileReminders()
         guard ingestTask == nil else { return }
         let stream = locationSource.sampleStream
         ingestTask = Task { [weak self] in
@@ -281,9 +313,11 @@ public actor WhereController {
     /// on failure. Drains any backlog first so a single transient
     /// outage doesn't permanently reorder samples on disk.
     private func processIngestedSample(_ sample: LocationSample) async {
-        await drainRetryQueue()
+        var changedDays = await drainRetryQueue()
         do {
             try await store.perform { try await store.add(sample: sample) }
+            changedDays.insert(aggregator.calendar.startOfDay(for: sample.timestamp))
+            await reconcileRemindersAfterIngest(changedDays: changedDays)
         } catch {
             // Persistence failures (SwiftData save, CloudKit, etc.)
             // are surfaced via `os.Logger` instead of being silently
@@ -307,13 +341,15 @@ public actor WhereController {
     /// Try to flush every queued sample exactly once. Anything that
     /// still fails is re-queued at the tail; the next call gets the
     /// chance to retry it.
-    private func drainRetryQueue() async {
-        guard !retryQueue.isEmpty else { return }
+    private func drainRetryQueue() async -> Set<Date> {
+        guard !retryQueue.isEmpty else { return [] }
         let pending = retryQueue
         retryQueue.removeAll(keepingCapacity: true)
+        var persistedDays: Set<Date> = []
         for sample in pending {
             do {
                 try await store.perform { try await store.add(sample: sample) }
+                persistedDays.insert(aggregator.calendar.startOfDay(for: sample.timestamp))
             } catch {
                 Self.logger.error(
                     "Retry still failing for GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
@@ -321,6 +357,7 @@ public actor WhereController {
                 enqueueForRetry(sample)
             }
         }
+        return persistedDays
     }
 
     /// Number of samples currently waiting to be re-persisted. Exposed
@@ -360,5 +397,97 @@ public actor WhereController {
     /// can reconcile its tracking flag with reality after launch.
     public var isTrackingActive: Bool {
         isMonitoring
+    }
+
+    // MARK: - Logging reminders
+
+    /// Set the user's reminder intent (enabled + time of day), request
+    /// notification permission when enabling, then reconcile the scheduled
+    /// reminders and badge. Safe to call on every launch and whenever the user
+    /// changes the setting.
+    public func configureReminders(enabled: Bool, time: ReminderTime) async {
+        reminderConfig = ReminderConfiguration(enabled: enabled, time: time)
+        if enabled {
+            _ = await reminderScheduler.requestAuthorization()
+        }
+        await reconcileReminders()
+    }
+
+    /// Explicitly drive the notification permission prompt (e.g. from a
+    /// Settings toggle). Returns whether the app is authorized afterward.
+    @discardableResult
+    public func requestNotificationAuthorization() async -> Bool {
+        await reminderScheduler.requestAuthorization()
+    }
+
+    /// Whether the app is currently authorized to post reminders / set the
+    /// badge, so the UI can surface an "open Settings" affordance.
+    public func notificationAuthorizationGranted() async -> Bool {
+        await reminderScheduler.isAuthorized()
+    }
+
+    /// Cheap reconcile for the GPS ingest path: only runs when reminders are on
+    /// and today isn't already known to be covered, so a burst of
+    /// significant-change samples doesn't trigger a full-year scan each time.
+    private func reconcileRemindersAfterIngest(changedDays: Set<Date>) async {
+        guard reminderConfig.enabled else { return }
+        let today = aggregator.calendar.startOfDay(for: now())
+        let changedDayNeedsReconcile = changedDays.contains { $0 != today }
+        guard todayCoveredByReconcile != today || changedDayNeedsReconcile else { return }
+        await reconcileReminders()
+    }
+
+    /// Recompute the current-year missing-day picture from the store and push
+    /// it to the scheduler: the badge is the total unlogged days this year, and
+    /// a rolling window of upcoming unlogged days gets per-day reminders. This
+    /// is the single source of truth for "recorded successfully -> drop today's
+    /// reminder and lower the badge".
+    private func reconcileReminders() async {
+        guard reminderConfig.enabled else {
+            await reminderScheduler.reconcile(
+                badgeCount: 0,
+                scheduleDays: [],
+                reminderTime: reminderConfig.time,
+                enabled: false,
+            )
+            todayCoveredByReconcile = nil
+            return
+        }
+
+        let calendar = aggregator.calendar
+        let today = calendar.startOfDay(for: now())
+        let year = calendar.component(.year, from: today)
+        do {
+            let report = try await yearReport(for: year)
+            let present = Set(report.days.map { calendar.startOfDay(for: $0.date) })
+            // The badge backlog is *past* misses only — today is still loggable,
+            // so it's covered by the forward-looking reminder below rather than
+            // counted as missed (otherwise the app would warn every morning).
+            let backlog = MissingDays.missingDayKeys(
+                year: year,
+                through: MissingDays.backlogCutoff(asOf: now(), calendar: calendar),
+                present: present,
+                calendar: calendar,
+            )
+            let windowEnd = calendar.date(
+                byAdding: .day,
+                value: Self.reminderWindowDays,
+                to: today,
+            ) ?? today
+            let scheduleDays = today
+                .calendarDays(through: windowEnd, in: calendar)
+                .filter { !present.contains($0) }
+            await reminderScheduler.reconcile(
+                badgeCount: backlog.count,
+                scheduleDays: scheduleDays,
+                reminderTime: reminderConfig.time,
+                enabled: true,
+            )
+            todayCoveredByReconcile = present.contains(today) ? today : nil
+        } catch {
+            Self.logger.error(
+                "Failed to reconcile logging reminders: \(error.localizedDescription, privacy: .public)",
+            )
+        }
     }
 }
