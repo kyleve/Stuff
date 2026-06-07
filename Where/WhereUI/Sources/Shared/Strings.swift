@@ -108,14 +108,6 @@ enum Strings {
         )
     }
 
-    static func primaryHeaderTitle(year: Int) -> String {
-        String(
-            localized: "primary.header.title",
-            defaultValue: "Where have you been in \(yearText(year))?",
-            bundle: .module,
-        )
-    }
-
     static func primaryHeaderSubtitle(count: Int) -> String {
         String(
             localized: "primary.header.subtitle",

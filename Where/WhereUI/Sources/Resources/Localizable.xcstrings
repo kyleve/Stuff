@@ -456,17 +456,6 @@
         }
       }
     },
-    "primary.header.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Where have you been in %@?"
-          }
-        }
-      }
-    },
     "primary.loading" : {
       "extractionState" : "manual",
       "localizations" : {
