@@ -35,5 +35,6 @@ enum UIConstants {
         static let timelineAccentHeight: CGFloat = 34
         static let heroNumberFontSize: CGFloat = 46
         static let statusIconWidth: CGFloat = 28
+        static let passportEmblemSize: CGFloat = 44
     }
 }

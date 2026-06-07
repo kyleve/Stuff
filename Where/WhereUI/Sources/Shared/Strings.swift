@@ -50,6 +50,16 @@ enum Strings {
         )
     }
 
+    // MARK: Passport
+
+    static var passportCoverSubtitle: String {
+        String(
+            localized: "passport.cover.subtitle",
+            defaultValue: "Travel Passport",
+            bundle: .module,
+        )
+    }
+
     // MARK: Primary
 
     static var primaryTitle: String {

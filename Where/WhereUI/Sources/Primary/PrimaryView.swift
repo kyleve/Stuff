@@ -9,6 +9,10 @@ struct PrimaryView: View {
     @State private var showingTimeline = false
     @State private var showingMissingDays = false
 
+    /// Drives the passport's tilt-reactive holographic sheen. Started/stopped
+    /// with the view's lifecycle; a no-op on hardware without device motion.
+    @State private var tilt = TiltProvider()
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -21,6 +25,8 @@ struct PrimaryView: View {
                 }
                 screen
             }
+            .onAppear { tilt.start() }
+            .onDisappear { tilt.stop() }
             .navigationTitle(Strings.primaryTitle)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -80,7 +86,11 @@ struct PrimaryView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: UIConstants.Spacings.xxxLarge) {
-                header
+                PassportCoverHeader(
+                    year: model.selectedYear,
+                    trackedDayCount: model.trackedDayCount,
+                    tilt: tilt,
+                )
                 GlassEffectContainer(spacing: UIConstants.Spacings.xxLarge) {
                     VStack(spacing: UIConstants.Spacings.xxLarge) {
                         ForEach(
@@ -91,6 +101,7 @@ struct PrimaryView: View {
                                 regionDays: item,
                                 caption: caption(forRank: index),
                                 yearLength: model.daysInSelectedYear,
+                                tilt: tilt,
                             )
                         }
                     }
@@ -99,17 +110,6 @@ struct PrimaryView: View {
             .padding()
         }
         .accessibilityIdentifier("where_root_title")
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: UIConstants.Spacings.xSmall) {
-            Text(Strings.primaryHeaderTitle(year: model.selectedYear))
-                .font(.largeTitle.bold())
-            Text(Strings.primaryHeaderSubtitle(count: model.trackedDayCount))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var emptyState: some View {

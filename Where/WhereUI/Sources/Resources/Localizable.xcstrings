@@ -344,6 +344,17 @@
         }
       }
     },
+    "passport.cover.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Travel Passport"
+          }
+        }
+      }
+    },
     "primary.caption.homeBase" : {
       "extractionState" : "manual",
       "localizations" : {

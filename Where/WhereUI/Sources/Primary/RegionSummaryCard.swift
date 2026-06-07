@@ -13,8 +13,21 @@ struct RegionSummaryCard: View {
     /// (`WhereModel.daysInSelectedYear`); the default is only for previews.
     var yearLength = 365
 
+    /// Drives the holographic stamp sheen. The Primary tab passes its live
+    /// `TiltProvider`; Elsewhere (and previews) pass `nil`, leaving a gentle
+    /// static sheen.
+    var tilt: TiltProvider?
+
     private var style: RegionStyle {
         regionDays.region.style
+    }
+
+    private var cardShape: RoundedRectangle {
+        RoundedRectangle(
+            cornerRadius: compact ? UIConstants.CornerRadius.compactCard : UIConstants
+                .CornerRadius.card,
+            style: .continuous,
+        )
     }
 
     private var fraction: Double {
@@ -83,14 +96,17 @@ struct RegionSummaryCard: View {
         }
         .padding(compact ? UIConstants.Padding.compactCard : UIConstants.Padding.card)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassEffect(
-            .regular.tint(style.tint.opacity(0.18)),
-            in: RoundedRectangle(
-                cornerRadius: compact ? UIConstants.CornerRadius.compactCard : UIConstants
-                    .CornerRadius.card,
-                style: .continuous,
-            ),
+        .glassEffect(.regular.tint(style.tint.opacity(0.18)), in: cardShape)
+        .holographicSheen(
+            roll: tilt?.roll ?? 0,
+            pitch: tilt?.pitch ?? 0,
+            in: cardShape,
+            tint: .white,
+            intensity: compact ? 0.5 : 1,
         )
+        .overlay {
+            cardShape.strokeBorder(style.tint.opacity(0.25), lineWidth: 1)
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             Strings.regionDaysAccessibility(
