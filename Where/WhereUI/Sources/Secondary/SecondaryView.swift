@@ -50,12 +50,17 @@ struct SecondaryView: View {
                 GlassEffectContainer(spacing: UIConstants.Spacings.large) {
                     VStack(spacing: UIConstants.Spacings.large) {
                         ForEach(model.ranking.secondary) { item in
-                            RegionSummaryCard(
-                                regionDays: item,
-                                caption: caption(for: item),
-                                compact: true,
-                                yearLength: model.daysInSelectedYear,
-                            )
+                            NavigationLink {
+                                RegionDaysView(region: item.region)
+                            } label: {
+                                RegionSummaryCard(
+                                    regionDays: item,
+                                    caption: caption(for: item),
+                                    compact: true,
+                                    yearLength: model.daysInSelectedYear,
+                                )
+                            }
+                            .buttonStyle(.plain)
                         }
                     }
                 }

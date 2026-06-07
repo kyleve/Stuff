@@ -48,6 +48,13 @@ struct StringsTests {
         #expect(Strings.primaryHeaderSubtitle(count: 12) == "12 days on the map so far")
     }
 
+    @Test func relabelStringsResolveToCatalogValues() {
+        #expect(Strings.relabelTitle == "Fix this day")
+        #expect(Strings.relabelRegionsHeader == "Where were you?")
+        #expect(Strings.secondaryRegionEmptyTitle == "Nothing to fix")
+        #expect(Strings.secondaryRegionCurrent(regions: "California") == "Counts as California")
+    }
+
     @Test func backupStringsResolveToCatalogValues() {
         #expect(Strings.settingsBackupHeader == "Backup")
         #expect(Strings.settingsBackupExport == "Export data")

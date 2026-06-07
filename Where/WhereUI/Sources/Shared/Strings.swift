@@ -144,6 +144,64 @@ enum Strings {
         )
     }
 
+    // MARK: Elsewhere region detail
+
+    static var secondaryRegionFooter: String {
+        String(
+            localized: "secondary.region.footer",
+            defaultValue: "Tap a day to fix where it counted. Your GPS data stays untouched.",
+            bundle: .module,
+        )
+    }
+
+    static var secondaryRegionEmptyTitle: String {
+        String(
+            localized: "secondary.region.empty.title",
+            defaultValue: "Nothing to fix",
+            bundle: .module,
+        )
+    }
+
+    static var secondaryRegionEmptyDescription: String {
+        String(
+            localized: "secondary.region.empty.description",
+            defaultValue: "No days counted for this region.",
+            bundle: .module,
+        )
+    }
+
+    /// Caption on a day row showing the regions it currently counts for, e.g.
+    /// "Counts as California, New York".
+    static func secondaryRegionCurrent(regions: String) -> String {
+        String(
+            localized: "secondary.region.current",
+            defaultValue: "Counts as \(regions)",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Relabel
+
+    static var relabelTitle: String {
+        String(localized: "relabel.title", defaultValue: "Fix this day", bundle: .module)
+    }
+
+    static var relabelRegionsHeader: String {
+        String(
+            localized: "relabel.regions.header",
+            defaultValue: "Where were you?",
+            bundle: .module,
+        )
+    }
+
+    static var relabelRegionsFooter: String {
+        String(
+            localized: "relabel.regions.footer",
+            defaultValue: "This replaces what was recorded for this day, overriding GPS. Your raw location data is kept, so you can change it back.",
+            bundle: .module,
+        )
+    }
+
     // MARK: Settings
 
     static var settingsTitle: String {

@@ -489,6 +489,39 @@
         }
       }
     },
+    "relabel.regions.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This replaces what was recorded for this day, overriding GPS. Your raw location data is kept, so you can change it back."
+          }
+        }
+      }
+    },
+    "relabel.regions.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where were you?"
+          }
+        }
+      }
+    },
+    "relabel.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fix this day"
+          }
+        }
+      }
+    },
     "secondary.caption.passingThrough" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -540,6 +573,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Retracing your steps…"
+          }
+        }
+      }
+    },
+    "secondary.region.current" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Counts as %@"
+          }
+        }
+      }
+    },
+    "secondary.region.empty.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No days counted for this region."
+          }
+        }
+      }
+    },
+    "secondary.region.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing to fix"
+          }
+        }
+      }
+    },
+    "secondary.region.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a day to fix where it counted. Your GPS data stays untouched."
           }
         }
       }
