@@ -16,6 +16,11 @@ struct PrimaryView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                PassportMasthead(title: Strings.primaryTitle, tilt: tilt)
+                    .padding(.horizontal)
+                    .padding(.top, UIConstants.Spacings.small)
+                    .padding(.bottom, UIConstants.Spacings.medium)
+
                 if model.missingDayCount > 0 {
                     MissingDaysBanner(count: model.missingDayCount, tilt: tilt) {
                         showingMissingDays = true
@@ -147,6 +152,68 @@ struct PrimaryView: View {
             case 1: Strings.primaryCaptionSecondHome
             default: nil
         }
+    }
+}
+
+/// The Primary tab's masthead: the app wordmark embossed in gold foil that
+/// catches a moving specular glint as the device tilts, like the gilt title on
+/// a passport cover. Falls back to a fixed, gentle highlight under Reduce
+/// Motion or on hardware without device motion.
+private struct PassportMasthead: View {
+    let title: String
+    var tilt: TiltProvider?
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Lateral position of the glint, normalized `-1...1`. Pinned to a gentle
+    /// off-center value when motion is unavailable or reduced.
+    private var glintRoll: Double {
+        guard !reduceMotion, let roll = tilt?.roll else { return 0.2 }
+        return min(1, max(-1, roll))
+    }
+
+    var body: some View {
+        let wordmark = Text(verbatim: title.uppercased())
+            .font(.system(
+                size: UIConstants.Size.mastheadFontSize,
+                weight: .heavy,
+                design: .serif,
+            ))
+            .tracking(2)
+
+        return wordmark
+            .foregroundStyle(goldFoil)
+            .overlay {
+                LinearGradient(
+                    colors: [.clear, .white.opacity(0.95), .clear],
+                    startPoint: UnitPoint(x: glintRoll * 0.5 - 0.1, y: 0),
+                    endPoint: UnitPoint(x: glintRoll * 0.5 + 0.6, y: 1),
+                )
+                .blendMode(.plusLighter)
+            }
+            .mask { wordmark }
+            .shadow(
+                color: .black.opacity(0.45),
+                radius: UIConstants.Spacings.xSmall,
+                y: UIConstants.Spacings.xxSmall,
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityLabel(title)
+    }
+
+    /// Brushed-gold gradient that reads as embossed gilt on the dark cover.
+    private var goldFoil: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(red: 1.0, green: 0.93, blue: 0.7),
+                Color(red: 0.86, green: 0.66, blue: 0.32),
+                Color(red: 1.0, green: 0.9, blue: 0.66),
+                Color(red: 0.72, green: 0.52, blue: 0.24),
+            ],
+            startPoint: .top,
+            endPoint: .bottom,
+        )
     }
 }
 

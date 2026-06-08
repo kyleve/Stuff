@@ -433,6 +433,17 @@
         }
       }
     },
+    "primary.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where"
+          }
+        }
+      }
+    },
     "relabel.regions.footer" : {
       "extractionState" : "manual",
       "localizations" : {

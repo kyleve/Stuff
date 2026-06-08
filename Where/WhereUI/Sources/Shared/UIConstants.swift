@@ -55,5 +55,7 @@ enum UIConstants {
         static let stampWatermarkCompact: CGFloat = 96
         /// Point size of the card's faux machine-readable-zone (MRZ) code.
         static let mrzFontSize: CGFloat = 11
+        /// Point size of the Primary tab's gold-foil "Where" masthead.
+        static let mastheadFontSize: CGFloat = 52
     }
 }
