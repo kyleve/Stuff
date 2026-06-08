@@ -17,7 +17,7 @@ struct PrimaryView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 if model.missingDayCount > 0 {
-                    MissingDaysBanner(count: model.missingDayCount) {
+                    MissingDaysBanner(count: model.missingDayCount, tilt: tilt) {
                         showingMissingDays = true
                     }
                     .padding(.horizontal)
@@ -150,35 +150,48 @@ struct PrimaryView: View {
     }
 }
 
-/// A slim, tappable orange pill noting that some days this year aren't logged
-/// yet, shown atop the Primary tab. Opens `MissingDaysView` to backfill them.
+/// A slim, tappable pill inviting you to log the days that don't have a
+/// location yet, shown atop the Primary tab. Twinkles and catches the same
+/// holographic foil as the cards so it reads as an invitation, not an alarm.
+/// Opens `MissingDaysView` to backfill them.
 private struct MissingDaysBanner: View {
     let count: Int
+    var tilt: TiltProvider?
     let action: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Button(action: action) {
             HStack(spacing: UIConstants.Spacings.medium) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.caption)
+                Image(systemName: "sparkles")
+                    .font(.callout)
                     .foregroundStyle(.orange)
+                    .symbolEffect(.variableColor.iterative, isActive: !reduceMotion)
                     .accessibilityHidden(true)
 
                 Text(Strings.missingBannerCompact(count: count))
-                    .font(.footnote.weight(.medium))
+                    .font(.footnote.weight(.semibold))
                     .foregroundStyle(.primary)
 
                 Spacer(minLength: UIConstants.Spacings.small)
 
                 Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.orange)
                     .accessibilityHidden(true)
             }
             .padding(.vertical, UIConstants.Spacings.medium)
             .padding(.horizontal, UIConstants.Spacings.xLarge)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(.regular.tint(.orange.opacity(0.18)), in: Capsule())
+            .glassEffect(.regular.tint(.orange.opacity(0.22)), in: Capsule())
+            .holographicSheen(
+                roll: tilt?.roll ?? 0,
+                pitch: tilt?.pitch ?? 0,
+                in: Capsule(),
+                tint: .orange,
+                intensity: 0.7,
+            )
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("where_missing_days_banner")
