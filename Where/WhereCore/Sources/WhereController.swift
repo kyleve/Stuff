@@ -167,6 +167,16 @@ public actor WhereController {
         )
     }
 
+    /// The raw coordinates recorded inside `region` during `year`, grouped by
+    /// day, so the Elsewhere drill-in can map and name where you actually were.
+    /// Reads the same samples the report is built from; manual overlays don't
+    /// contribute coordinates (see `DayAggregator.locations`).
+    public func locations(in region: Region, year: Int) async throws -> [RegionDayLocations] {
+        let interval = aggregator.yearInterval(year: year)
+        let samples = try await store.samples(in: interval)
+        return aggregator.locations(in: region, samples: samples, attributor: attributor)
+    }
+
     public func clearYear(_ year: Int) async throws {
         let interval = aggregator.yearInterval(year: year)
         try await store.perform { try await store.clear(in: interval) }

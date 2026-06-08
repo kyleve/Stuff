@@ -369,6 +369,15 @@ public final class WhereModel {
         return report.days.filter { $0.regions.contains(region) }
     }
 
+    /// The raw coordinates recorded inside `region` during the selected year,
+    /// grouped by day, for the Elsewhere drill-in's map and place names.
+    /// Returns an empty array (rather than throwing) on failure or before the
+    /// controller is wired up, so the view can simply render nothing.
+    public func locations(in region: Region) async -> [RegionDayLocations] {
+        guard let controller else { return [] }
+        return await (try? controller.locations(in: region, year: selectedYear)) ?? []
+    }
+
     /// Explicitly (re)request location access, e.g. from the "Grant location
     /// access" button. Drives the system prompt when possible, then syncs the
     /// status and reconciles tracking so the UI reflects the outcome.

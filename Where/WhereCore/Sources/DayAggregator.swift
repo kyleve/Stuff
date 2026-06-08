@@ -38,6 +38,29 @@ public struct DayAggregator: Sendable {
             .sorted { $0.date < $1.date }
     }
 
+    /// Group every sample that fell inside `region` by calendar day, keeping
+    /// the raw coordinates so the UI can map and name them. Samples outside
+    /// `region` (per `attributor`) are dropped; days with no in-region samples
+    /// don't appear. Days are sorted ascending.
+    ///
+    /// This intentionally ignores manual day overlays: it reflects where the
+    /// device *actually* recorded points, which is what "where was I?" means —
+    /// a manually relabeled day simply contributes no GPS coordinates here.
+    public func locations(
+        in region: Region,
+        samples: [LocationSample],
+        attributor: RegionAttributor,
+    ) -> [RegionDayLocations] {
+        var byDay: [Date: [Coordinate]] = [:]
+        for sample in samples where attributor.region(at: sample.coordinate) == region {
+            let dayStart = calendar.startOfDay(for: sample.timestamp)
+            byDay[dayStart, default: []].append(sample.coordinate)
+        }
+        return byDay
+            .map { RegionDayLocations(date: $0.key, coordinates: $0.value) }
+            .sorted { $0.date < $1.date }
+    }
+
     public func report(
         for year: Int,
         samples: [LocationSample],

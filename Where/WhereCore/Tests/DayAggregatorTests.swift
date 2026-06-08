@@ -140,6 +140,50 @@ struct DayAggregatorTests {
         #expect(report.days.first { $0.date == day }?.regions == [.newYork])
     }
 
+    @Test func locationsGroupInRegionSamplesByDayAndDropOthers() {
+        let samples = [
+            // Two CA points on the same day, plus an NY point that must be
+            // excluded from the California grouping.
+            makeSample(at: "2026-05-01T09:00:00-07:00", lat: 37.7749, lng: -122.4194),
+            makeSample(at: "2026-05-01T17:00:00-07:00", lat: 34.0522, lng: -118.2437),
+            makeSample(at: "2026-05-01T20:00:00-04:00", lat: 40.7128, lng: -74.0060),
+            // A second California day.
+            makeSample(at: "2026-05-09T12:00:00-07:00", lat: 37.3382, lng: -121.8863),
+        ]
+        let locations = aggregator.locations(
+            in: .california,
+            samples: samples,
+            attributor: attributor,
+        )
+        #expect(locations.count == 2)
+        #expect(locations[0].coordinates.count == 2)
+        #expect(locations[1].coordinates.count == 1)
+        // Sorted ascending by day.
+        #expect(locations[0].date < locations[1].date)
+        // The New York point never lands in the California grouping.
+        #expect(!locations.flatMap(\.coordinates).contains(Coordinate(
+            latitude: 40.7128,
+            longitude: -74.0060,
+        )))
+    }
+
+    @Test func locationsAttributeUnmappedCoordinatesToOther() {
+        let samples = [
+            // Mid-Pacific: inside no bundled polygon, so `.other`.
+            makeSample(at: "2026-06-02T12:00:00+00:00", lat: 0, lng: -160),
+        ]
+        let other = aggregator.locations(in: .other, samples: samples, attributor: attributor)
+        #expect(other.count == 1)
+        #expect(other[0].coordinates.count == 1)
+
+        let california = aggregator.locations(
+            in: .california,
+            samples: samples,
+            attributor: attributor,
+        )
+        #expect(california.isEmpty)
+    }
+
     @Test func reportFiltersOtherYears() {
         let samples = [
             makeSample(at: "2025-12-31T12:00:00-08:00", lat: 37.7749, lng: -122.4194),
