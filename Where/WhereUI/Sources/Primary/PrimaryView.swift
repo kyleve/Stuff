@@ -27,9 +27,15 @@ struct PrimaryView: View {
             }
             .background(elevatedBackground)
             .environment(\.colorScheme, .dark)
-            .navigationTitle(Strings.primaryTitle)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
+                if model.trackedDayCount > 0 {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Text(Strings.dayCount(model.trackedDayCount))
+                            .font(.subheadline.weight(.semibold))
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingTimeline = true
@@ -103,39 +109,25 @@ struct PrimaryView: View {
 
     private var content: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: UIConstants.Spacings.xxxLarge) {
-                header
-                GlassEffectContainer(spacing: UIConstants.Spacings.xxLarge) {
-                    VStack(spacing: UIConstants.Spacings.xxLarge) {
-                        ForEach(
-                            Array(model.ranking.primary.enumerated()),
-                            id: \.element.id,
-                        ) { index, item in
-                            RegionSummaryCard(
-                                regionDays: item,
-                                caption: caption(forRank: index),
-                                yearLength: model.daysInSelectedYear,
-                                year: model.selectedYear,
-                                tilt: tilt,
-                            )
-                        }
+            GlassEffectContainer(spacing: UIConstants.Spacings.xxLarge) {
+                VStack(spacing: UIConstants.Spacings.xxLarge) {
+                    ForEach(
+                        Array(model.ranking.primary.enumerated()),
+                        id: \.element.id,
+                    ) { index, item in
+                        RegionSummaryCard(
+                            regionDays: item,
+                            caption: caption(forRank: index),
+                            yearLength: model.daysInSelectedYear,
+                            year: model.selectedYear,
+                            tilt: tilt,
+                        )
                     }
                 }
             }
             .padding()
         }
         .accessibilityIdentifier("where_root_title")
-    }
-
-    private var header: some View {
-        VStack(alignment: .leading, spacing: UIConstants.Spacings.xSmall) {
-            Text(Strings.primaryHeaderTitle(year: model.selectedYear))
-                .font(.largeTitle.bold())
-            Text(Strings.primaryHeaderSubtitle(count: model.trackedDayCount))
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var emptyState: some View {
@@ -164,49 +156,39 @@ struct PrimaryView: View {
     }
 }
 
-/// A tappable Liquid Glass warning that some days this year aren't logged yet,
-/// shown atop the Primary tab. Opens `MissingDaysView` to backfill them.
+/// A slim, tappable orange pill noting that some days this year aren't logged
+/// yet, shown atop the Primary tab. Opens `MissingDaysView` to backfill them.
 private struct MissingDaysBanner: View {
     let count: Int
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: UIConstants.Spacings.large) {
+            HStack(spacing: UIConstants.Spacings.medium) {
                 Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.title3)
+                    .font(.caption)
                     .foregroundStyle(.orange)
                     .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
-                    Text(Strings.missingBannerTitle)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                    Text(Strings.missingBannerSubtitle(count: count))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.leading)
-                }
+                Text(Strings.missingBannerCompact(count: count))
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.primary)
 
                 Spacer(minLength: UIConstants.Spacings.small)
 
                 Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
                     .accessibilityHidden(true)
             }
-            .padding(UIConstants.Padding.compactCard)
+            .padding(.vertical, UIConstants.Spacings.medium)
+            .padding(.horizontal, UIConstants.Spacings.xLarge)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .glassEffect(
-                .regular.tint(.orange.opacity(0.18)),
-                in: RoundedRectangle(
-                    cornerRadius: UIConstants.CornerRadius.compactCard,
-                    style: .continuous,
-                ),
-            )
+            .glassEffect(.regular.tint(.orange.opacity(0.18)), in: Capsule())
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("where_missing_days_banner")
+        .accessibilityLabel(Strings.missingBannerCompact(count: count))
         .accessibilityHint(Strings.missingBannerAccessibilityHint)
     }
 }

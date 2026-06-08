@@ -52,10 +52,6 @@ enum Strings {
 
     // MARK: Primary
 
-    static var primaryTitle: String {
-        localized("primary.title")
-    }
-
     static var primaryTimeline: String {
         localized("primary.timeline")
     }
@@ -94,22 +90,6 @@ enum Strings {
         String(
             localized: "primary.empty.title",
             defaultValue: "No travels logged for \(yearText(year))",
-            bundle: .module,
-        )
-    }
-
-    static func primaryHeaderTitle(year: Int) -> String {
-        String(
-            localized: "primary.header.title",
-            defaultValue: "Where have you been in \(yearText(year))?",
-            bundle: .module,
-        )
-    }
-
-    static func primaryHeaderSubtitle(count: Int) -> String {
-        String(
-            localized: "primary.header.subtitle",
-            defaultValue: "\(count) days on the map so far",
             bundle: .module,
         )
     }
@@ -535,25 +515,17 @@ enum Strings {
 
     // MARK: Missing-day banner
 
-    static var missingBannerTitle: String {
-        String(
-            localized: "missing.banner.title",
-            defaultValue: "Missing days this year",
-            bundle: .module,
-        )
-    }
-
-    static func missingBannerSubtitle(count: Int) -> String {
+    static func missingBannerCompact(count: Int) -> String {
         if count == 1 {
             String(
-                localized: "missing.banner.subtitle.one",
-                defaultValue: "1 day still needs a location. Tap to fill it in.",
+                localized: "missing.banner.compact.one",
+                defaultValue: "1 day needs a location",
                 bundle: .module,
             )
         } else {
             String(
-                localized: "missing.banner.subtitle.other",
-                defaultValue: "\(count) days still need a location. Tap to fill them in.",
+                localized: "missing.banner.compact.other",
+                defaultValue: "\(count) days need a location",
                 bundle: .module,
             )
         }

@@ -245,35 +245,24 @@
         }
       }
     },
-    "missing.banner.subtitle.one" : {
+    "missing.banner.compact.one" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "1 day still needs a location. Tap to fill it in."
+            "value" : "1 day needs a location"
           }
         }
       }
     },
-    "missing.banner.subtitle.other" : {
+    "missing.banner.compact.other" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld days still need a location. Tap to fill them in."
-          }
-        }
-      }
-    },
-    "missing.banner.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Missing days this year"
+            "value" : "%lld days need a location"
           }
         }
       }
@@ -422,40 +411,6 @@
         }
       }
     },
-    "primary.header.subtitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld day on the map so far"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld days on the map so far"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "primary.header.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Where have you been in %@?"
-          }
-        }
-      }
-    },
     "primary.loading" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -474,17 +429,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Timeline"
-          }
-        }
-      }
-    },
-    "primary.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Where"
           }
         }
       }
