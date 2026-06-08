@@ -58,6 +58,7 @@ struct SecondaryView: View {
                                     caption: caption(for: item),
                                     compact: true,
                                     yearLength: model.daysInSelectedYear,
+                                    year: model.selectedYear,
                                 )
                             }
                             .buttonStyle(.plain)

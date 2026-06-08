@@ -25,8 +25,8 @@ struct PrimaryView: View {
                 }
                 screen
             }
-            .onAppear { tilt.start() }
-            .onDisappear { tilt.stop() }
+            .background(elevatedBackground)
+            .environment(\.colorScheme, .dark)
             .navigationTitle(Strings.primaryTitle)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -44,15 +44,32 @@ struct PrimaryView: View {
                     YearSelector()
                 }
             }
-            .sheet(isPresented: $showingTimeline) {
-                PresenceTimelineView()
-                    .environment(model)
-            }
-            .sheet(isPresented: $showingMissingDays) {
-                MissingDaysView()
-                    .environment(model)
-            }
         }
+        .onAppear { tilt.start() }
+        .onDisappear { tilt.stop() }
+        .sheet(isPresented: $showingTimeline) {
+            PresenceTimelineView()
+                .environment(model)
+        }
+        .sheet(isPresented: $showingMissingDays) {
+            MissingDaysView()
+                .environment(model)
+        }
+    }
+
+    /// A deep, near-black gradient that makes the Primary tab read like a
+    /// passport cover, so the glass cards and their foil sheen feel elevated
+    /// off the page. Forced dark (see `colorScheme` above) regardless of the
+    /// system appearance.
+    private var elevatedBackground: LinearGradient {
+        LinearGradient(
+            colors: [
+                Color(red: 0.07, green: 0.08, blue: 0.13),
+                Color(red: 0.02, green: 0.02, blue: 0.05),
+            ],
+            startPoint: .top,
+            endPoint: .bottom,
+        )
     }
 
     @ViewBuilder
@@ -86,11 +103,7 @@ struct PrimaryView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: UIConstants.Spacings.xxxLarge) {
-                PassportCoverHeader(
-                    year: model.selectedYear,
-                    trackedDayCount: model.trackedDayCount,
-                    tilt: tilt,
-                )
+                header
                 GlassEffectContainer(spacing: UIConstants.Spacings.xxLarge) {
                     VStack(spacing: UIConstants.Spacings.xxLarge) {
                         ForEach(
@@ -101,6 +114,7 @@ struct PrimaryView: View {
                                 regionDays: item,
                                 caption: caption(forRank: index),
                                 yearLength: model.daysInSelectedYear,
+                                year: model.selectedYear,
                                 tilt: tilt,
                             )
                         }
@@ -110,6 +124,17 @@ struct PrimaryView: View {
             .padding()
         }
         .accessibilityIdentifier("where_root_title")
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: UIConstants.Spacings.xSmall) {
+            Text(Strings.primaryHeaderTitle(year: model.selectedYear))
+                .font(.largeTitle.bold())
+            Text(Strings.primaryHeaderSubtitle(count: model.trackedDayCount))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var emptyState: some View {

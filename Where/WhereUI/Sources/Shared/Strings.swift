@@ -50,16 +50,6 @@ enum Strings {
         )
     }
 
-    // MARK: Passport
-
-    static var passportCoverSubtitle: String {
-        String(
-            localized: "passport.cover.subtitle",
-            defaultValue: "Travel Passport",
-            bundle: .module,
-        )
-    }
-
     // MARK: Primary
 
     static var primaryTitle: String {
@@ -104,6 +94,14 @@ enum Strings {
         String(
             localized: "primary.empty.title",
             defaultValue: "No travels logged for \(yearText(year))",
+            bundle: .module,
+        )
+    }
+
+    static func primaryHeaderTitle(year: Int) -> String {
+        String(
+            localized: "primary.header.title",
+            defaultValue: "Where have you been in \(yearText(year))?",
             bundle: .module,
         )
     }

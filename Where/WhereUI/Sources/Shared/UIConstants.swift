@@ -35,6 +35,11 @@ enum UIConstants {
         static let timelineAccentHeight: CGFloat = 34
         static let heroNumberFontSize: CGFloat = 46
         static let statusIconWidth: CGFloat = 28
-        static let passportEmblemSize: CGFloat = 44
+        /// Diameter of the region card's circular "entry stamp" impression.
+        static let entryStamp: CGFloat = 88
+        static let entryStampCompact: CGFloat = 52
+        /// Point size of the oversized region glyph watermarked behind a card.
+        static let stampWatermark: CGFloat = 150
+        static let stampWatermarkCompact: CGFloat = 96
     }
 }
