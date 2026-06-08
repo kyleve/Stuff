@@ -28,6 +28,18 @@ enum UIConstants {
         static let card: CGFloat = 28
     }
 
+    /// Tinted drop-shadow geometry for the region cards, giving them a bold,
+    /// color-saturated lift off the page. Two layers stack: a tight rim glow
+    /// (`cardGlowRadius`) and a broad lift (`cardRadius`).
+    enum Shadow {
+        static let cardRadius: CGFloat = 34
+        static let cardRadiusCompact: CGFloat = 17
+        static let cardGlowRadius: CGFloat = 12
+        static let cardGlowRadiusCompact: CGFloat = 6
+        static let cardOffsetY: CGFloat = 18
+        static let cardOffsetYCompact: CGFloat = 9
+    }
+
     /// One-off element sizes that aren't part of the spacing scale.
     enum Size {
         static let progressBarHeight: CGFloat = 6
@@ -41,5 +53,7 @@ enum UIConstants {
         /// Point size of the oversized region glyph watermarked behind a card.
         static let stampWatermark: CGFloat = 150
         static let stampWatermarkCompact: CGFloat = 96
+        /// Point size of the card's faux machine-readable-zone (MRZ) code.
+        static let mrzFontSize: CGFloat = 11
     }
 }

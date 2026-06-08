@@ -61,30 +61,42 @@ struct RegionSummaryCard: View {
     private var stampPaper: some View {
         ZStack {
             Canvas { context, size in
-                let center = CGPoint(x: size.width * 0.78, y: size.height * 0.5)
-                let spacing: CGFloat = compact ? 14 : 20
                 let wobble: CGFloat = compact ? 2 : 3
                 let lineWidth: CGFloat = compact ? 2 : 3
-                let ringCount = Int(max(size.width, size.height) / spacing)
-                for ring in 1 ... max(1, ringCount) {
-                    let angle = Double(ring) * 0.55
-                    let ringCenter = CGPoint(
-                        x: center.x + CGFloat(cos(angle)) * wobble,
-                        y: center.y + CGFloat(sin(angle)) * wobble,
-                    )
-                    let radius = CGFloat(ring) * spacing
-                    let rect = CGRect(
-                        x: ringCenter.x - radius,
-                        y: ringCenter.y - radius,
-                        width: radius * 2,
-                        height: radius * 2,
-                    )
-                    context.stroke(
-                        Path(ellipseIn: rect),
-                        with: .color(style.tint.opacity(0.08)),
-                        lineWidth: lineWidth,
-                    )
+                func rosette(center: CGPoint, spacing: CGFloat, opacity: Double) {
+                    let ringCount = Int(max(size.width, size.height) / spacing)
+                    for ring in 1 ... max(1, ringCount) {
+                        let angle = Double(ring) * 0.55
+                        let ringCenter = CGPoint(
+                            x: center.x + CGFloat(cos(angle)) * wobble,
+                            y: center.y + CGFloat(sin(angle)) * wobble,
+                        )
+                        let radius = CGFloat(ring) * spacing
+                        let rect = CGRect(
+                            x: ringCenter.x - radius,
+                            y: ringCenter.y - radius,
+                            width: radius * 2,
+                            height: radius * 2,
+                        )
+                        context.stroke(
+                            Path(ellipseIn: rect),
+                            with: .color(style.tint.opacity(opacity)),
+                            lineWidth: lineWidth,
+                        )
+                    }
                 }
+                // A bold rosette behind the stamp, plus a smaller, fainter one
+                // in the opposite corner for denser, layered security print.
+                rosette(
+                    center: CGPoint(x: size.width * 0.8, y: size.height * 0.5),
+                    spacing: compact ? 13 : 18,
+                    opacity: 0.08,
+                )
+                rosette(
+                    center: CGPoint(x: size.width * 0.12, y: size.height * 0.22),
+                    spacing: compact ? 11 : 15,
+                    opacity: 0.05,
+                )
             }
 
             Image(systemName: style.symbolName)
@@ -106,9 +118,9 @@ struct RegionSummaryCard: View {
         .accessibilityHidden(true)
     }
 
-    /// A triple border — a heavy solid outer line, a thin solid mid line, and a
-    /// dashed inner one — that frames the card like the engraved, perforated
-    /// edge of a passport stamp.
+    /// A layered, official-looking frame: a heavy solid outer line, a thin solid
+    /// line, a ring of perforation dots (Primary cards only), and a dashed inner
+    /// line — like the engraved, perforated edge of a passport page.
     private var stampFrame: some View {
         ZStack {
             cardShape
@@ -116,14 +128,56 @@ struct RegionSummaryCard: View {
             cardShape
                 .inset(by: UIConstants.Spacings.small)
                 .strokeBorder(style.tint.opacity(0.35), lineWidth: 1)
+            if !compact {
+                cardShape
+                    .inset(by: UIConstants.Spacings.large)
+                    .strokeBorder(
+                        style.tint.opacity(0.45),
+                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [0.01, 6]),
+                    )
+            }
             cardShape
-                .inset(by: UIConstants.Spacings.large)
+                .inset(by: compact ? UIConstants.Spacings.large : UIConstants.Spacings.xxLarge)
                 .strokeBorder(
                     style.tint.opacity(0.4),
                     style: StrokeStyle(lineWidth: 1, dash: [5, 4]),
                 )
         }
         .allowsHitTesting(false)
+    }
+
+    /// A faux passport machine-readable zone (MRZ): two lines of `<`-filled
+    /// monospaced code derived from the region, year, and day count. Purely
+    /// decorative — hidden from assistive tech.
+    private var machineReadableZone: some View {
+        VStack(alignment: .leading, spacing: UIConstants.Spacings.xSmall) {
+            Rectangle()
+                .fill(style.tint.opacity(0.25))
+                .frame(height: 1)
+            ForEach(Array(mrzLines.enumerated()), id: \.offset) { _, line in
+                Text(verbatim: line)
+                    .font(.system(
+                        size: UIConstants.Size.mrzFontSize,
+                        weight: .medium,
+                        design: .monospaced,
+                    ))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.5)
+            }
+        }
+        .foregroundStyle(style.tint.opacity(0.5))
+        .accessibilityHidden(true)
+    }
+
+    private var mrzLines: [String] {
+        let name = regionDays.region.localizedName.uppercased()
+            .replacingOccurrences(of: " ", with: "<")
+        let code = String(name.prefix(3))
+        let serial = String(format: "%03d", regionDays.days)
+        let line1 = "P<WHR<\(name)".padding(toLength: 34, withPad: "<", startingAt: 0)
+        let line2 = "\(code)<\(year)<<\(serial)DAYS"
+            .padding(toLength: 34, withPad: "<", startingAt: 0)
+        return [line1, line2]
     }
 
     var body: some View {
@@ -186,6 +240,10 @@ struct RegionSummaryCard: View {
                 }
                 .frame(height: UIConstants.Size.progressBarHeight)
                 .accessibilityHidden(true)
+
+            if !compact {
+                machineReadableZone
+            }
         }
         .padding(compact ? UIConstants.Padding.compactCard : UIConstants.Padding.card)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -200,6 +258,17 @@ struct RegionSummaryCard: View {
         )
         .overlay { stampFrame }
         .clipShape(cardShape)
+        .shadow(
+            color: style.tint.opacity(compact ? 0.55 : 0.75),
+            radius: compact
+                ? UIConstants.Shadow.cardGlowRadiusCompact
+                : UIConstants.Shadow.cardGlowRadius,
+        )
+        .shadow(
+            color: style.tint.opacity(compact ? 0.4 : 0.6),
+            radius: compact ? UIConstants.Shadow.cardRadiusCompact : UIConstants.Shadow.cardRadius,
+            y: compact ? UIConstants.Shadow.cardOffsetYCompact : UIConstants.Shadow.cardOffsetY,
+        )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             Strings.regionDaysAccessibility(
