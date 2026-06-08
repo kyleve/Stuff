@@ -30,13 +30,6 @@ struct PrimaryView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
-                if model.trackedDayCount > 0 {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Text(Strings.dayCount(model.trackedDayCount))
-                            .font(.subheadline.weight(.semibold))
-                            .fixedSize()
-                    }
-                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingTimeline = true
