@@ -576,6 +576,17 @@
         }
       }
     },
+    "secondary.region.map.accessibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Map of where you were"
+          }
+        }
+      }
+    },
     "secondary.title" : {
       "extractionState" : "manual",
       "localizations" : {

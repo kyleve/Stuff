@@ -165,6 +165,16 @@ enum Strings {
         )
     }
 
+    /// Accessibility label for the map of recorded points on the region
+    /// drill-in.
+    static var secondaryRegionMapAccessibility: String {
+        String(
+            localized: "secondary.region.map.accessibility",
+            defaultValue: "Map of where you were",
+            bundle: .module,
+        )
+    }
+
     // MARK: Relabel
 
     static var relabelTitle: String {
