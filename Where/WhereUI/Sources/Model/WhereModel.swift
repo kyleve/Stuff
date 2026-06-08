@@ -378,6 +378,14 @@ public final class WhereModel {
         return await (try? controller.locations(in: region, year: selectedYear)) ?? []
     }
 
+    /// One representative coordinate per region for the selected year (the
+    /// most heavily sampled spot in each), for the Elsewhere cards' place-name
+    /// teaser. Empty on failure or before the controller exists.
+    public func representativeCoordinates() async -> [Region: Coordinate] {
+        guard let controller else { return [:] }
+        return await (try? controller.representativeCoordinates(for: selectedYear)) ?? [:]
+    }
+
     /// Explicitly (re)request location access, e.g. from the "Grant location
     /// access" button. Drives the system prompt when possible, then syncs the
     /// status and reconciles tracking so the UI reflects the outcome.

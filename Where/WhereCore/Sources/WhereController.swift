@@ -177,6 +177,15 @@ public actor WhereController {
         return aggregator.locations(in: region, samples: samples, attributor: attributor)
     }
 
+    /// One representative coordinate per region for `year` — the most heavily
+    /// sampled spot in each — so the Elsewhere cards can show a "where" teaser
+    /// with a single geocode per region.
+    public func representativeCoordinates(for year: Int) async throws -> [Region: Coordinate] {
+        let interval = aggregator.yearInterval(year: year)
+        let samples = try await store.samples(in: interval)
+        return aggregator.representativeCoordinates(samples: samples, attributor: attributor)
+    }
+
     public func clearYear(_ year: Int) async throws {
         let interval = aggregator.yearInterval(year: year)
         try await store.perform { try await store.clear(in: interval) }

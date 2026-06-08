@@ -6,6 +6,11 @@ import WhereCore
 struct SecondaryView: View {
     @Environment(WhereModel.self) private var model
 
+    /// Reverse-geocoded "where" teaser per region, loaded asynchronously so
+    /// each card can show the place you turned up most. Empty in
+    /// previews/tests (no raw samples) and until the lookups resolve.
+    @State private var placeNames: [Region: String] = [:]
+
     var body: some View {
         NavigationStack {
             screen
@@ -16,6 +21,20 @@ struct SecondaryView: View {
                     }
                 }
         }
+        .task(id: model.report) { await loadPlaceNames() }
+    }
+
+    /// Pick each secondary region's most-sampled spot and reverse-geocode it,
+    /// so the cards gain a "Paris, France"-style teaser. One geocode per
+    /// region; results are cached by `LocationNamer`.
+    private func loadPlaceNames() async {
+        let coordinates = await model.representativeCoordinates()
+        var names: [Region: String] = [:]
+        for item in model.ranking.secondary {
+            guard let coordinate = coordinates[item.region] else { continue }
+            names[item.region] = await LocationNamer.shared.name(for: coordinate)
+        }
+        placeNames = names
     }
 
     @ViewBuilder
@@ -56,6 +75,7 @@ struct SecondaryView: View {
                                 RegionSummaryCard(
                                     regionDays: item,
                                     caption: caption(for: item),
+                                    places: placeNames[item.region],
                                     compact: true,
                                     yearLength: model.daysInSelectedYear,
                                     year: model.selectedYear,

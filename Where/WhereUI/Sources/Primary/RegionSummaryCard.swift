@@ -7,6 +7,10 @@ import WhereCore
 struct RegionSummaryCard: View {
     let regionDays: RegionDays
     var caption: String?
+    /// An optional reverse-geocoded "where" teaser (e.g. "Paris, France"),
+    /// shown beneath the caption. Used on the Elsewhere cards; `nil` on
+    /// Primary, which intentionally stays a pure passport stamp.
+    var places: String?
     var compact = false
 
     /// Calendar days in the year being summarized; the ambient bar is drawn as
@@ -202,6 +206,12 @@ struct RegionSummaryCard: View {
                             .textCase(.uppercase)
                             .tracking(1)
                             .foregroundStyle(.secondary)
+                    }
+                    if let places {
+                        Label(places, systemImage: "mappin.and.ellipse")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(style.tint)
+                            .lineLimit(1)
                     }
                 }
 

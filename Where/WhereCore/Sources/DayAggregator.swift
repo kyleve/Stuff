@@ -61,6 +61,42 @@ public struct DayAggregator: Sendable {
             .sorted { $0.date < $1.date }
     }
 
+    /// One representative coordinate per region: the point inside the most
+    /// heavily sampled ~5km cell for that region. Lets the Elsewhere cards show
+    /// a single "where" teaser (e.g. the city you spent the most time in)
+    /// without geocoding every point. Regions with no samples are absent.
+    public func representativeCoordinates(
+        samples: [LocationSample],
+        attributor: RegionAttributor,
+    ) -> [Region: Coordinate] {
+        let precision = 20.0
+        var tallies: [Region: [Int: CellTally]] = [:]
+        for sample in samples {
+            let region = attributor.region(at: sample.coordinate)
+            let latBucket = Int((sample.coordinate.latitude * precision).rounded())
+            let lngBucket = Int((sample.coordinate.longitude * precision).rounded())
+            let cell = latBucket &* 100_000 &+ lngBucket
+            if let existing = tallies[region]?[cell] {
+                tallies[region]?[cell] = CellTally(
+                    count: existing.count + 1,
+                    coordinate: existing.coordinate,
+                )
+            } else {
+                tallies[region, default: [:]][cell] = CellTally(
+                    count: 1,
+                    coordinate: sample.coordinate,
+                )
+            }
+        }
+        var representatives: [Region: Coordinate] = [:]
+        for (region, cells) in tallies {
+            if let dominant = cells.values.max(by: { $0.count < $1.count }) {
+                representatives[region] = dominant.coordinate
+            }
+        }
+        return representatives
+    }
+
     public func report(
         for year: Int,
         samples: [LocationSample],
@@ -105,6 +141,14 @@ public struct DayAggregator: Sendable {
     /// implementations must therefore filter as `timestamp >= start &&
     /// timestamp < end` so the first instant of the next year is excluded
     /// (and not double-counted by the next year's report).
+    /// Running tally of one grid cell while picking a region's representative
+    /// coordinate: how many samples landed in the cell, and the first
+    /// coordinate seen there (used verbatim so the pin sits on real data).
+    private struct CellTally {
+        let count: Int
+        let coordinate: Coordinate
+    }
+
     public func yearInterval(year: Int) -> DateInterval {
         var startComponents = DateComponents()
         startComponents.year = year

@@ -184,6 +184,27 @@ struct DayAggregatorTests {
         #expect(california.isEmpty)
     }
 
+    @Test func representativeCoordinatePicksTheMostSampledCellPerRegion() {
+        let samples = [
+            // San Francisco ×3 — the dominant California cell.
+            makeSample(at: "2026-07-01T12:00:00-07:00", lat: 37.7749, lng: -122.4194),
+            makeSample(at: "2026-07-02T12:00:00-07:00", lat: 37.7750, lng: -122.4195),
+            makeSample(at: "2026-07-03T12:00:00-07:00", lat: 37.7748, lng: -122.4193),
+            // Los Angeles ×1 — also California, but fewer samples.
+            makeSample(at: "2026-07-04T12:00:00-07:00", lat: 34.0522, lng: -118.2437),
+            // New York ×1.
+            makeSample(at: "2026-07-05T12:00:00-04:00", lat: 40.7128, lng: -74.0060),
+        ]
+        let representatives = aggregator.representativeCoordinates(
+            samples: samples,
+            attributor: attributor,
+        )
+        // California resolves to the San Francisco cluster, not Los Angeles.
+        #expect(abs((representatives[.california]?.latitude ?? 0) - 37.7749) < 0.01)
+        #expect(representatives[.newYork] != nil)
+        #expect(representatives[.canada] == nil)
+    }
+
     @Test func reportFiltersOtherYears() {
         let samples = [
             makeSample(at: "2025-12-31T12:00:00-08:00", lat: 37.7749, lng: -122.4194),
