@@ -28,6 +28,7 @@ struct PrimaryView: View {
             .background(elevatedBackground)
             .environment(\.colorScheme, .dark)
             .navigationTitle(Strings.primaryTitle)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
