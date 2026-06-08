@@ -34,6 +34,7 @@ struct PrimaryView: View {
                     ToolbarItem(placement: .topBarLeading) {
                         Text(Strings.dayCount(model.trackedDayCount))
                             .font(.subheadline.weight(.semibold))
+                            .fixedSize()
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
