@@ -52,6 +52,7 @@ enum Strings {
 
     // MARK: Primary
 
+    /// The Primary tab's masthead wordmark.
     static var primaryTitle: String {
         localized("primary.title")
     }
@@ -98,22 +99,6 @@ enum Strings {
         )
     }
 
-    static func primaryHeaderTitle(year: Int) -> String {
-        String(
-            localized: "primary.header.title",
-            defaultValue: "Where have you been in \(yearText(year))?",
-            bundle: .module,
-        )
-    }
-
-    static func primaryHeaderSubtitle(count: Int) -> String {
-        String(
-            localized: "primary.header.subtitle",
-            defaultValue: "\(count) days on the map so far",
-            bundle: .module,
-        )
-    }
-
     // MARK: Elsewhere
 
     static var secondaryTitle: String {
@@ -140,6 +125,90 @@ enum Strings {
         String(
             localized: "secondary.header",
             defaultValue: "Everywhere else you turned up in \(yearText(year)).",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Elsewhere region detail
+
+    static var secondaryRegionFooter: String {
+        String(
+            localized: "secondary.region.footer",
+            defaultValue: "Tap a day to fix where it counted. Your GPS data stays untouched.",
+            bundle: .module,
+        )
+    }
+
+    static var secondaryRegionEmptyTitle: String {
+        String(
+            localized: "secondary.region.empty.title",
+            defaultValue: "Nothing to fix",
+            bundle: .module,
+        )
+    }
+
+    static var secondaryRegionEmptyDescription: String {
+        String(
+            localized: "secondary.region.empty.description",
+            defaultValue: "No days counted for this region.",
+            bundle: .module,
+        )
+    }
+
+    /// Caption on a day row showing the regions it currently counts for, e.g.
+    /// "Counts as California, New York".
+    static func secondaryRegionCurrent(regions: String) -> String {
+        String(
+            localized: "secondary.region.current",
+            defaultValue: "Counts as \(regions)",
+            bundle: .module,
+        )
+    }
+
+    /// Accessibility label for the map of recorded points on the region
+    /// drill-in.
+    static var secondaryRegionMapAccessibility: String {
+        String(
+            localized: "secondary.region.map.accessibility",
+            defaultValue: "Map of where you were",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Relabel
+
+    static var relabelTitle: String {
+        String(localized: "relabel.title", defaultValue: "Fix this day", bundle: .module)
+    }
+
+    static var relabelRegionsHeader: String {
+        String(
+            localized: "relabel.regions.header",
+            defaultValue: "Where were you?",
+            bundle: .module,
+        )
+    }
+
+    static var relabelRegionsFooter: String {
+        String(
+            localized: "relabel.regions.footer",
+            defaultValue: "This replaces what was recorded for this day, overriding GPS. Your raw location data is kept, so you can change it back.",
+            bundle: .module,
+        )
+    }
+
+    static var relabelReset: String {
+        String(
+            localized: "relabel.reset",
+            defaultValue: "Reset to GPS-detected location",
+            bundle: .module,
+        )
+    }
+
+    static var relabelResetFooter: String {
+        String(
+            localized: "relabel.reset.footer",
+            defaultValue: "Removes any manual correction for this day and restores the regions detected from GPS. Your raw location data is untouched.",
             bundle: .module,
         )
     }
@@ -477,25 +546,17 @@ enum Strings {
 
     // MARK: Missing-day banner
 
-    static var missingBannerTitle: String {
-        String(
-            localized: "missing.banner.title",
-            defaultValue: "Missing days this year",
-            bundle: .module,
-        )
-    }
-
-    static func missingBannerSubtitle(count: Int) -> String {
+    static func missingBannerCompact(count: Int) -> String {
         if count == 1 {
             String(
-                localized: "missing.banner.subtitle.one",
-                defaultValue: "1 day still needs a location. Tap to fill it in.",
+                localized: "missing.banner.compact.one",
+                defaultValue: "1 day needs a location",
                 bundle: .module,
             )
         } else {
             String(
-                localized: "missing.banner.subtitle.other",
-                defaultValue: "\(count) days still need a location. Tap to fill them in.",
+                localized: "missing.banner.compact.other",
+                defaultValue: "\(count) days need a location",
                 bundle: .module,
             )
         }

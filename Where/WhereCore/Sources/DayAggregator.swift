@@ -5,8 +5,10 @@ import Foundation
 ///
 /// Rule: a day "counts" for a region if **any** sample in that calendar day
 /// fell inside the region. A single day can therefore belong to multiple
-/// regions (e.g. a CA→NY same-day flight). Manual day entries union with
-/// GPS-derived attributions for the same day.
+/// regions (e.g. a CA→NY same-day flight). Additive manual day entries union
+/// with GPS-derived attributions for the same day; authoritative manual day
+/// entries (`DayPresence.isAuthoritative`) replace them, so a user correction
+/// can drop a wrong attribution.
 public struct DayAggregator: Sendable {
     public let calendar: Calendar
     public let timeZone: TimeZone
@@ -36,6 +38,65 @@ public struct DayAggregator: Sendable {
             .sorted { $0.date < $1.date }
     }
 
+    /// Group every sample that fell inside `region` by calendar day, keeping
+    /// the raw coordinates so the UI can map and name them. Samples outside
+    /// `region` (per `attributor`) are dropped; days with no in-region samples
+    /// don't appear. Days are sorted ascending.
+    ///
+    /// This intentionally ignores manual day overlays: it reflects where the
+    /// device *actually* recorded points, which is what "where was I?" means —
+    /// a manually relabeled day simply contributes no GPS coordinates here.
+    public func locations(
+        in region: Region,
+        samples: [LocationSample],
+        attributor: RegionAttributor,
+    ) -> [RegionDayLocations] {
+        var byDay: [Date: [Coordinate]] = [:]
+        for sample in samples where attributor.region(at: sample.coordinate) == region {
+            let dayStart = calendar.startOfDay(for: sample.timestamp)
+            byDay[dayStart, default: []].append(sample.coordinate)
+        }
+        return byDay
+            .map { RegionDayLocations(date: $0.key, coordinates: $0.value) }
+            .sorted { $0.date < $1.date }
+    }
+
+    /// One representative coordinate per region: the point inside the most
+    /// heavily sampled ~5km cell for that region. Lets the Elsewhere cards show
+    /// a single "where" teaser (e.g. the city you spent the most time in)
+    /// without geocoding every point. Regions with no samples are absent.
+    public func representativeCoordinates(
+        samples: [LocationSample],
+        attributor: RegionAttributor,
+    ) -> [Region: Coordinate] {
+        let precision = 20.0
+        var tallies: [Region: [Int: CellTally]] = [:]
+        for sample in samples {
+            let region = attributor.region(at: sample.coordinate)
+            let latBucket = Int((sample.coordinate.latitude * precision).rounded())
+            let lngBucket = Int((sample.coordinate.longitude * precision).rounded())
+            let cell = latBucket &* 100_000 &+ lngBucket
+            if let existing = tallies[region]?[cell] {
+                tallies[region]?[cell] = CellTally(
+                    count: existing.count + 1,
+                    coordinate: existing.coordinate,
+                )
+            } else {
+                tallies[region, default: [:]][cell] = CellTally(
+                    count: 1,
+                    coordinate: sample.coordinate,
+                )
+            }
+        }
+        var representatives: [Region: Coordinate] = [:]
+        for (region, cells) in tallies {
+            if let dominant = cells.values.max(by: { $0.count < $1.count }) {
+                representatives[region] = dominant.coordinate
+            }
+        }
+        return representatives
+    }
+
     public func report(
         for year: Int,
         samples: [LocationSample],
@@ -46,9 +107,17 @@ public struct DayAggregator: Sendable {
         for day in aggregate(samples: samples, attributor: attributor) {
             dayRegions[day.date, default: []].formUnion(day.regions)
         }
-        for day in manualDays {
+        // Additive manual days union with GPS (backfilling a region GPS
+        // missed). Authoritative manual days are applied afterward so a user
+        // correction *replaces* whatever GPS — or an earlier additive overlay
+        // — produced for that day, letting them remove a wrong attribution.
+        for day in manualDays where !day.isAuthoritative {
             let dayStart = calendar.startOfDay(for: day.date)
             dayRegions[dayStart, default: []].formUnion(day.regions)
+        }
+        for day in manualDays where day.isAuthoritative {
+            let dayStart = calendar.startOfDay(for: day.date)
+            dayRegions[dayStart] = day.regions
         }
 
         let yearDays = dayRegions
@@ -72,6 +141,14 @@ public struct DayAggregator: Sendable {
     /// implementations must therefore filter as `timestamp >= start &&
     /// timestamp < end` so the first instant of the next year is excluded
     /// (and not double-counted by the next year's report).
+    /// Running tally of one grid cell while picking a region's representative
+    /// coordinate: how many samples landed in the cell, and the first
+    /// coordinate seen there (used verbatim so the pin sits on real data).
+    private struct CellTally {
+        let count: Int
+        let coordinate: Coordinate
+    }
+
     public func yearInterval(year: Int) -> DateInterval {
         var startComponents = DateComponents()
         startComponents.year = year

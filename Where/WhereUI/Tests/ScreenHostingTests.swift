@@ -1,5 +1,6 @@
 import SwiftUI
 import Testing
+import WhereCore
 import WhereTesting
 @testable import WhereUI
 
@@ -48,6 +49,27 @@ struct ScreenHostingTests {
         let model = PreviewSupport.missingDaysModel()
         #expect(!model.missingDays.isEmpty)
         try show(UIHostingController(rootView: MissingDaysView().environment(model))) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func regionDaysViewHostsWithData() throws {
+        // `elsewhereOnlyModel` has only `.other` days, so the drill-in list
+        // for that region has rows to render.
+        let model = PreviewSupport.elsewhereOnlyModel()
+        let rootView = NavigationStack { RegionDaysView(region: .other) }
+            .environment(model)
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func dayRelabelViewHosts() throws {
+        let model = PreviewSupport.loadedModel()
+        let day = DayPresence(date: .now, regions: [.other])
+        let rootView = NavigationStack { DayRelabelView(day: day) }
+            .environment(model)
+        try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }

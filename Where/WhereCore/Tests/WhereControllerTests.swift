@@ -100,6 +100,101 @@ struct WhereControllerTests {
         #expect(report.days.first?.regions == [.newYork])
     }
 
+    @Test func overrideDayReplacesGPSAttribution() async throws {
+        let (controller, _, _) = try Self.makeController()
+        // A stray GPS sample lands the day in California.
+        try await controller.ingest(LocationSample(
+            timestamp: iso("2026-07-04T10:00:00-07:00"),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
+            source: .gpsVisit,
+        ))
+        // The user corrects it to New York.
+        try await controller.overrideDay(
+            date: iso("2026-07-04T15:00:00-07:00"),
+            regions: [.newYork],
+        )
+
+        let report = try await controller.yearReport(for: 2026)
+        #expect(report.days.count == 1)
+        #expect(report.days.first?.regions == [.newYork])
+        #expect(report.totals == [.newYork: 1])
+    }
+
+    @Test func overrideDayKeepsRawSamplesForUndo() async throws {
+        let (controller, store, _) = try Self.makeController()
+        let stray = sample(at: "2026-07-04T10:00:00-07:00")
+        try await controller.ingest(stray)
+        try await controller.overrideDay(
+            date: iso("2026-07-04T15:00:00-07:00"),
+            regions: [.newYork],
+        )
+
+        // The override is non-destructive: the GPS sample is still on disk, so
+        // clearing the manual day would restore the original attribution.
+        #expect(try await store.allSamples().map(\.id) == [stray.id])
+    }
+
+    @Test func clearManualDayRestoresGPSAttribution() async throws {
+        let (controller, _, _) = try Self.makeController()
+        // GPS puts the day in California.
+        try await controller.ingest(LocationSample(
+            timestamp: iso("2026-07-04T10:00:00-07:00"),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
+            source: .gpsVisit,
+        ))
+        // The user wrongly relabels it to New York, then resets to GPS.
+        try await controller.overrideDay(
+            date: iso("2026-07-04T15:00:00-07:00"),
+            regions: [.newYork],
+        )
+        try await controller.clearManualDay(date: iso("2026-07-04T15:00:00-07:00"))
+
+        let report = try await controller.yearReport(for: 2026)
+        #expect(report.days.first?.regions == [.california])
+        #expect(report.totals == [.california: 1])
+    }
+
+    @Test func clearManualDayIsANoOpWithoutAManualRecord() async throws {
+        let (controller, _, _) = try Self.makeController()
+        try await controller.clearManualDay(date: iso("2026-07-04T15:00:00-07:00"))
+
+        let report = try await controller.yearReport(for: 2026)
+        #expect(report.days.isEmpty)
+    }
+
+    @Test func additiveBackfillPreservesAnAuthoritativeRelabel() async throws {
+        let (controller, _, _) = try Self.makeController()
+        // GPS lands July 4 in California *and* New York (a stray cross-country hit).
+        try await controller.ingest(sample(at: "2026-07-04T10:00:00-07:00"))
+        try await controller.ingest(LocationSample(
+            timestamp: iso("2026-07-04T20:00:00-04:00"),
+            coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
+            horizontalAccuracy: 5,
+            source: .gpsVisit,
+        ))
+        // The user corrects the day to California only, removing the wrong NY hit.
+        try await controller.overrideDay(
+            date: iso("2026-07-04T15:00:00-07:00"),
+            regions: [.california],
+        )
+        // A later range backfill (Canada) sweeps over the same corrected day.
+        try await controller.addManualDays(
+            from: iso("2026-07-01T00:00:00-07:00"),
+            through: iso("2026-07-07T00:00:00-07:00"),
+            regions: [.canada],
+        )
+
+        let report = try await controller.yearReport(for: 2026)
+        let july4 = report.days.first {
+            Self.pacificCalendar.isDate($0.date, inSameDayAs: iso("2026-07-04T12:00:00-07:00"))
+        }
+        // The relabel survives: New York stays removed (GPS is not resurrected)
+        // and the backfilled Canada unions onto the corrected California.
+        #expect(july4?.regions == [.california, .canada])
+    }
+
     @Test func addManualDaysBackfillsEveryDayInRange() async throws {
         let (controller, _, _) = try Self.makeController()
         try await controller.addManualDays(
@@ -671,6 +766,10 @@ private actor ToggleFailingStore: WhereStore {
 
     func setManualDay(_ day: DayPresence) async throws {
         try await backing.setManualDay(day)
+    }
+
+    func clearManualDay(_ date: Date) async throws {
+        try await backing.clearManualDay(date)
     }
 
     func manualDays(in interval: DateInterval) async throws -> [DayPresence] {

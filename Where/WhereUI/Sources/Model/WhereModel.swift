@@ -351,6 +351,50 @@ public final class WhereModel {
         await refresh()
     }
 
+    /// Authoritatively set a day's regions, *replacing* whatever was
+    /// attributed to it (the Elsewhere "fix this day" path) rather than
+    /// unioning. Throws on persistence failure so the editor can stay open and
+    /// surface the error instead of dismissing as if the save succeeded.
+    public func overrideDay(date: Date, regions: Set<Region>) async throws {
+        guard let controller else { return }
+        try await controller.overrideDay(date: date, regions: regions)
+        await refresh()
+    }
+
+    /// Undo a day's manual override/backfill, restoring the GPS-detected
+    /// regions (the relabel "reset to GPS" action). Throws on persistence
+    /// failure so the editor can stay open and surface the error.
+    public func clearManualDay(date: Date) async throws {
+        guard let controller else { return }
+        try await controller.clearManualDay(date: date)
+        await refresh()
+    }
+
+    /// The days in the loaded report whose presence includes `region`, sorted
+    /// ascending (matching `report.days`). Powers the Elsewhere drill-in list
+    /// so the user can see where a region's check-ins landed and correct them.
+    public func days(in region: Region) -> [DayPresence] {
+        guard let report else { return [] }
+        return report.days.filter { $0.regions.contains(region) }
+    }
+
+    /// The raw coordinates recorded inside `region` during the selected year,
+    /// grouped by day, for the Elsewhere drill-in's map and place names.
+    /// Returns an empty array (rather than throwing) on failure or before the
+    /// controller is wired up, so the view can simply render nothing.
+    public func locations(in region: Region) async -> [RegionDayLocations] {
+        guard let controller else { return [] }
+        return await (try? controller.locations(in: region, year: selectedYear)) ?? []
+    }
+
+    /// One representative coordinate per region for the selected year (the
+    /// most heavily sampled spot in each), for the Elsewhere cards' place-name
+    /// teaser. Empty on failure or before the controller exists.
+    public func representativeCoordinates() async -> [Region: Coordinate] {
+        guard let controller else { return [:] }
+        return await (try? controller.representativeCoordinates(for: selectedYear)) ?? [:]
+    }
+
     /// Explicitly (re)request location access, e.g. from the "Grant location
     /// access" button. Drives the system prompt when possible, then syncs the
     /// status and reconciles tracking so the UI reflects the outcome.

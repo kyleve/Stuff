@@ -103,6 +103,28 @@ public actor WhereController {
         await reconcileReminders()
     }
 
+    /// Authoritatively set the regions for a single calendar day, *replacing*
+    /// whatever GPS (or a prior manual overlay) attributed to it. Unlike
+    /// `addManualDay`, this does not union with GPS — it's the "correct a
+    /// wrong attribution" path. The raw GPS samples are left untouched, so the
+    /// fix is non-destructive and undone by `clearManualDay(date:)`.
+    public func overrideDay(date: Date, regions: Set<Region>) async throws {
+        let key = aggregator.calendar.startOfDay(for: date)
+        let presence = DayPresence(date: key, regions: regions, isAuthoritative: true)
+        try await store.perform { try await store.setManualDay(presence) }
+        await reconcileReminders()
+    }
+
+    /// Drop the manual overlay for a single calendar day, restoring the
+    /// GPS-derived attribution (the relabel "reset to GPS" path). A no-op when
+    /// the day has no manual record. Raw samples are never touched, so this
+    /// simply lets the aggregator fall back to whatever GPS recorded.
+    public func clearManualDay(date: Date) async throws {
+        let key = aggregator.calendar.startOfDay(for: date)
+        try await store.perform { try await store.clearManualDay(key) }
+        await reconcileReminders()
+    }
+
     /// Assert `regions` for every calendar day in the inclusive range
     /// `start...end` (handy for backfilling a trip). Both bounds are
     /// normalized to start-of-day in the aggregator's calendar, and the
@@ -153,6 +175,25 @@ public actor WhereController {
             manualDays: manuals,
             attributor: attributor,
         )
+    }
+
+    /// The raw coordinates recorded inside `region` during `year`, grouped by
+    /// day, so the Elsewhere drill-in can map and name where you actually were.
+    /// Reads the same samples the report is built from; manual overlays don't
+    /// contribute coordinates (see `DayAggregator.locations`).
+    public func locations(in region: Region, year: Int) async throws -> [RegionDayLocations] {
+        let interval = aggregator.yearInterval(year: year)
+        let samples = try await store.samples(in: interval)
+        return aggregator.locations(in: region, samples: samples, attributor: attributor)
+    }
+
+    /// One representative coordinate per region for `year` — the most heavily
+    /// sampled spot in each — so the Elsewhere cards can show a "where" teaser
+    /// with a single geocode per region.
+    public func representativeCoordinates(for year: Int) async throws -> [Region: Coordinate] {
+        let interval = aggregator.yearInterval(year: year)
+        let samples = try await store.samples(in: interval)
+        return aggregator.representativeCoordinates(samples: samples, attributor: attributor)
     }
 
     public func clearYear(_ year: Int) async throws {

@@ -6,8 +6,8 @@ import Testing
 /// years are formatted without a grouping separator.
 struct StringsTests {
     @Test func simpleKeysResolveToCatalogValues() {
-        #expect(Strings.primaryTitle == "Where")
         #expect(Strings.tabElsewhere == "Elsewhere")
+        #expect(Strings.primaryTitle == "Where")
         #expect(Strings.loadErrorTitle == "Couldn't load your year")
         #expect(Strings.commonOK == "OK")
         #expect(Strings.manualSaveErrorTitle == "Couldn't save that day")
@@ -44,8 +44,19 @@ struct StringsTests {
 
     @Test func interpolatedStringsSubstituteArguments() {
         #expect(Strings.primaryEmptyTitle(year: 2024) == "No travels logged for 2024")
-        #expect(Strings.primaryHeaderSubtitle(count: 1) == "1 day on the map so far")
-        #expect(Strings.primaryHeaderSubtitle(count: 12) == "12 days on the map so far")
+    }
+
+    @Test func missingBannerCompactUsesPluralVariations() {
+        #expect(Strings.missingBannerCompact(count: 1) == "1 day needs a location")
+        #expect(Strings.missingBannerCompact(count: 8) == "8 days need a location")
+    }
+
+    @Test func relabelStringsResolveToCatalogValues() {
+        #expect(Strings.relabelTitle == "Fix this day")
+        #expect(Strings.relabelRegionsHeader == "Where were you?")
+        #expect(Strings.relabelReset == "Reset to GPS-detected location")
+        #expect(Strings.secondaryRegionEmptyTitle == "Nothing to fix")
+        #expect(Strings.secondaryRegionCurrent(regions: "California") == "Counts as California")
     }
 
     @Test func backupStringsResolveToCatalogValues() {

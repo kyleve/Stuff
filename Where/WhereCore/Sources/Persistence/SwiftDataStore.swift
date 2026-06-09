@@ -298,9 +298,34 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         if let existing = try context.fetch(
             FetchDescriptor<SDManualDay>(predicate: #Predicate { $0.dateKey == key }),
         ).first {
-            existing.update(from: day)
+            existing.update(from: Self.resolved(incoming: day, existing: existing))
         } else {
             context.insert(SDManualDay(value: day))
+        }
+    }
+
+    /// Decide how an incoming manual write combines with the row already on
+    /// disk for that day. An additive (non-authoritative) write — e.g. a
+    /// Settings/range backfill — must not silently downgrade a user's
+    /// authoritative relabel: the row stays authoritative and the backfilled
+    /// regions union in. Every other case replaces wholesale (authoritative
+    /// overrides and additive-over-additive alike), preserving prior behavior.
+    private static func resolved(incoming day: DayPresence, existing: SDManualDay) -> DayPresence {
+        guard existing.isAuthoritative ?? false, !day.isAuthoritative else { return day }
+        let existingRegions = Set((existing.regionRaws ?? []).compactMap { Region(rawValue: $0) })
+        return DayPresence(
+            date: day.date,
+            regions: existingRegions.union(day.regions),
+            isAuthoritative: true,
+        )
+    }
+
+    public func clearManualDay(_ date: Date) async throws {
+        let context = mutationContext()
+        let key = date
+        let descriptor = FetchDescriptor<SDManualDay>(predicate: #Predicate { $0.dateKey == key })
+        for record in try context.fetch(descriptor) {
+            context.delete(record)
         }
     }
 
@@ -516,6 +541,10 @@ final class SDEvidence {
 final class SDManualDay {
     var dateKey: Date?
     var regionRaws: [String]?
+    /// Whether this manual day replaces (rather than unions with) GPS for its
+    /// date. Optional so the CloudKit mirror stays lightweight-migration-safe;
+    /// pre-existing rows decode as additive (`false`).
+    var isAuthoritative: Bool?
 
     init() {}
 
@@ -527,6 +556,7 @@ final class SDManualDay {
     func update(from value: DayPresence) {
         dateKey = value.date
         regionRaws = value.regions.map(\.rawValue).sorted()
+        isAuthoritative = value.isAuthoritative
     }
 
     func toValue() -> DayPresence? {
@@ -534,6 +564,7 @@ final class SDManualDay {
         return DayPresence(
             date: dateKey,
             regions: Set((regionRaws ?? []).compactMap { Region(rawValue: $0) }),
+            isAuthoritative: isAuthoritative ?? false,
         )
     }
 }

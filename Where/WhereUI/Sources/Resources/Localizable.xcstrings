@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "" : {
+
+    },
     "common.day" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -245,35 +248,24 @@
         }
       }
     },
-    "missing.banner.subtitle.one" : {
+    "missing.banner.compact.one" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "1 day still needs a location. Tap to fill it in."
+            "value" : "1 day needs a location"
           }
         }
       }
     },
-    "missing.banner.subtitle.other" : {
+    "missing.banner.compact.other" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld days still need a location. Tap to fill them in."
-          }
-        }
-      }
-    },
-    "missing.banner.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Missing days this year"
+            "value" : "%lld days need a location"
           }
         }
       }
@@ -422,40 +414,6 @@
         }
       }
     },
-    "primary.header.subtitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "variations" : {
-            "plural" : {
-              "one" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld day on the map so far"
-                }
-              },
-              "other" : {
-                "stringUnit" : {
-                  "state" : "translated",
-                  "value" : "%lld days on the map so far"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "primary.header.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Where have you been in %@?"
-          }
-        }
-      }
-    },
     "primary.loading" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -485,6 +443,61 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Where"
+          }
+        }
+      }
+    },
+    "relabel.regions.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This replaces what was recorded for this day, overriding GPS. Your raw location data is kept, so you can change it back."
+          }
+        }
+      }
+    },
+    "relabel.regions.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where were you?"
+          }
+        }
+      }
+    },
+    "relabel.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset to GPS-detected location"
+          }
+        }
+      }
+    },
+    "relabel.reset.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removes any manual correction for this day and restores the regions detected from GPS. Your raw location data is untouched."
+          }
+        }
+      }
+    },
+    "relabel.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fix this day"
           }
         }
       }
@@ -544,6 +557,61 @@
         }
       }
     },
+    "secondary.region.current" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Counts as %@"
+          }
+        }
+      }
+    },
+    "secondary.region.empty.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No days counted for this region."
+          }
+        }
+      }
+    },
+    "secondary.region.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing to fix"
+          }
+        }
+      }
+    },
+    "secondary.region.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap a day to fix where it counted. Your GPS data stays untouched."
+          }
+        }
+      }
+    },
+    "secondary.region.map.accessibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Map of where you were"
+          }
+        }
+      }
+    },
     "secondary.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -551,28 +619,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Elsewhere"
-          }
-        }
-      }
-    },
-    "settings.data.cancel" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancel"
-          }
-        }
-      }
-    },
-    "settings.data.confirmMessage" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This removes every sample, manual day, and piece of evidence in %@. It can't be undone."
           }
         }
       }
@@ -716,6 +762,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Where Backup"
+          }
+        }
+      }
+    },
+    "settings.data.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "settings.data.confirmMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This removes every sample, manual day, and piece of evidence in %@. It can't be undone."
           }
         }
       }
