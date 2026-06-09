@@ -46,6 +46,13 @@ struct DayRelabelView: View {
             } footer: {
                 Text(Strings.relabelRegionsFooter)
             }
+
+            Section {
+                Button(Strings.relabelReset, role: .destructive) { reset() }
+                    .disabled(isSaving)
+            } footer: {
+                Text(Strings.relabelResetFooter)
+            }
         }
         .navigationTitle(Strings.relabelTitle)
         .navigationBarTitleDisplayMode(.inline)
@@ -96,6 +103,21 @@ struct DayRelabelView: View {
                 dismiss()
             } catch {
                 // Keep the form up so the user can retry; the save didn't land.
+                saveError = error.localizedDescription
+                isSaving = false
+            }
+        }
+    }
+
+    private func reset() {
+        isSaving = true
+        saveError = nil
+        Task {
+            do {
+                try await model.clearManualDay(date: day.date)
+                dismiss()
+            } catch {
+                // Keep the form up so the user can retry; nothing was cleared.
                 saveError = error.localizedDescription
                 isSaving = false
             }

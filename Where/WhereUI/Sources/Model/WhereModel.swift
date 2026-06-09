@@ -361,6 +361,15 @@ public final class WhereModel {
         await refresh()
     }
 
+    /// Undo a day's manual override/backfill, restoring the GPS-detected
+    /// regions (the relabel "reset to GPS" action). Throws on persistence
+    /// failure so the editor can stay open and surface the error.
+    public func clearManualDay(date: Date) async throws {
+        guard let controller else { return }
+        try await controller.clearManualDay(date: date)
+        await refresh()
+    }
+
     /// The days in the loaded report whose presence includes `region`, sorted
     /// ascending (matching `report.days`). Powers the Elsewhere drill-in list
     /// so the user can see where a region's check-ins landed and correct them.

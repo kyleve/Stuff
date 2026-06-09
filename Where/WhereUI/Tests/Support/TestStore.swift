@@ -94,6 +94,10 @@ actor TestStore: WhereStore {
         try await backing.setManualDay(day)
     }
 
+    func clearManualDay(_ date: Date) async throws {
+        try await backing.clearManualDay(date)
+    }
+
     func manualDays(in interval: DateInterval) async throws -> [DayPresence] {
         try await backing.manualDays(in: interval)
     }

@@ -54,6 +54,7 @@ struct StringsTests {
     @Test func relabelStringsResolveToCatalogValues() {
         #expect(Strings.relabelTitle == "Fix this day")
         #expect(Strings.relabelRegionsHeader == "Where were you?")
+        #expect(Strings.relabelReset == "Reset to GPS-detected location")
         #expect(Strings.secondaryRegionEmptyTitle == "Nothing to fix")
         #expect(Strings.secondaryRegionCurrent(regions: "California") == "Counts as California")
     }

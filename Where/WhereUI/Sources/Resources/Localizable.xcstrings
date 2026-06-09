@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "" : {
+
+    },
     "common.day" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -466,6 +469,28 @@
         }
       }
     },
+    "relabel.reset" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset to GPS-detected location"
+          }
+        }
+      }
+    },
+    "relabel.reset.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Removes any manual correction for this day and restores the regions detected from GPS. Your raw location data is untouched."
+          }
+        }
+      }
+    },
     "relabel.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -594,28 +619,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Elsewhere"
-          }
-        }
-      }
-    },
-    "settings.data.cancel" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancel"
-          }
-        }
-      }
-    },
-    "settings.data.confirmMessage" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This removes every sample, manual day, and piece of evidence in %@. It can't be undone."
           }
         }
       }
@@ -759,6 +762,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Where Backup"
+          }
+        }
+      }
+    },
+    "settings.data.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "settings.data.confirmMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This removes every sample, manual day, and piece of evidence in %@. It can't be undone."
           }
         }
       }

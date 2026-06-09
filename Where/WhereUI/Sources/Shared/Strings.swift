@@ -197,6 +197,22 @@ enum Strings {
         )
     }
 
+    static var relabelReset: String {
+        String(
+            localized: "relabel.reset",
+            defaultValue: "Reset to GPS-detected location",
+            bundle: .module,
+        )
+    }
+
+    static var relabelResetFooter: String {
+        String(
+            localized: "relabel.reset.footer",
+            defaultValue: "Removes any manual correction for this day and restores the regions detected from GPS. Your raw location data is untouched.",
+            bundle: .module,
+        )
+    }
+
     // MARK: Settings
 
     static var settingsTitle: String {

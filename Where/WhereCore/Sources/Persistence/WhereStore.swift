@@ -8,7 +8,8 @@ import Foundation
 /// implementation has somewhere to surface I/O errors.
 ///
 /// All mutating methods (`add(sample:)`, `write(evidence:blob:)`,
-/// `setManualDay`, `clear(in:)`, and the `EvidenceBlobStore` writers)
+/// `setManualDay`, `clearManualDay`, `clear(in:)`, and the
+/// `EvidenceBlobStore` writers)
 /// MUST be called from inside a `perform { ... }` block — the block
 /// boundary is what owns the underlying write transaction. The
 /// production `SwiftDataStore` implementation traps with a
@@ -41,6 +42,11 @@ public protocol WhereStore: Sendable {
     /// Implementations should treat `day.date` as already normalized to the
     /// start-of-day key (callers via `WhereController` do this for them).
     func setManualDay(_ day: DayPresence) async throws
+    /// Remove the manual presence record for a given calendar day, if any.
+    /// `date` is the start-of-day key (callers via `WhereController` normalize
+    /// it). A no-op when no record exists. Used to undo a relabel/backfill for
+    /// a single day without disturbing raw samples.
+    func clearManualDay(_ date: Date) async throws
     func manualDays(in interval: DateInterval) async throws -> [DayPresence]
     /// Every manual-day record in the store, regardless of `dateKey`. Used
     /// by the whole-database backup export.

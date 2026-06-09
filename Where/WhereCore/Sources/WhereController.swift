@@ -107,11 +107,21 @@ public actor WhereController {
     /// whatever GPS (or a prior manual overlay) attributed to it. Unlike
     /// `addManualDay`, this does not union with GPS — it's the "correct a
     /// wrong attribution" path. The raw GPS samples are left untouched, so the
-    /// fix is non-destructive and undone by clearing the manual day.
+    /// fix is non-destructive and undone by `clearManualDay(date:)`.
     public func overrideDay(date: Date, regions: Set<Region>) async throws {
         let key = aggregator.calendar.startOfDay(for: date)
         let presence = DayPresence(date: key, regions: regions, isAuthoritative: true)
         try await store.perform { try await store.setManualDay(presence) }
+        await reconcileReminders()
+    }
+
+    /// Drop the manual overlay for a single calendar day, restoring the
+    /// GPS-derived attribution (the relabel "reset to GPS" path). A no-op when
+    /// the day has no manual record. Raw samples are never touched, so this
+    /// simply lets the aggregator fall back to whatever GPS recorded.
+    public func clearManualDay(date: Date) async throws {
+        let key = aggregator.calendar.startOfDay(for: date)
+        try await store.perform { try await store.clearManualDay(key) }
         await reconcileReminders()
     }
 
