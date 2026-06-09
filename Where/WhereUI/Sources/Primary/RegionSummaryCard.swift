@@ -200,6 +200,8 @@ struct RegionSummaryCard: View {
                             .weight(.semibold))
                         .textCase(.uppercase)
                         .tracking(compact ? 1 : 1.5)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                     if let caption {
                         Text(caption)
                             .font(.caption2.weight(.semibold))
