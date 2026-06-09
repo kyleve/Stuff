@@ -29,6 +29,13 @@ struct ScreenHostingTests {
         }
     }
 
+    @Test func passportBioPageHostsWithData() throws {
+        let model = PreviewSupport.loadedModel()
+        try show(UIHostingController(rootView: PassportBioPage().environment(model))) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
     @Test func primaryViewHostsWithElsewhereOnlyData() throws {
         let model = PreviewSupport.elsewhereOnlyModel()
         try show(UIHostingController(rootView: PrimaryView().environment(model))) { hosted in

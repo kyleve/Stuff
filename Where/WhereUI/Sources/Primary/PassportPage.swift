@@ -31,6 +31,9 @@ struct PassportPage<Content: View>: View {
         }
         .padding(UIConstants.Padding.passportPage)
         .background { paperStack }
+        // Each booklet page is a discrete container so VoiceOver moves
+        // through the booklet page by page, footer included.
+        .accessibilityElement(children: .contain)
     }
 
     /// The page surface plus the edges of the "pages behind" it, offset

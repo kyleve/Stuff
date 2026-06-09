@@ -75,4 +75,17 @@ struct StringsTests {
                 "Imported 3 location samples, 2 pieces of evidence, and 5 manual days.",
         )
     }
+
+    @Test func passportStringsResolveToCatalogValues() {
+        #expect(Strings.passportSubtitle(year: 2026) == "Document of Presence · 2026")
+        #expect(Strings.passportFieldYear == "Year")
+        #expect(Strings.passportFieldDaysLogged == "Days logged")
+        #expect(Strings.passportFieldRegions == "Regions")
+        #expect(Strings.passportFieldCoverage == "Coverage")
+    }
+
+    @Test func passportPageFooterZeroPadsPageNumbersOnly() {
+        #expect(Strings.passportPageFooter(page: 2, count: 3) == "P. 02 / 03")
+        #expect(Strings.passportPageAccessibility(page: 2, count: 3) == "Page 2 of 3")
+    }
 }
