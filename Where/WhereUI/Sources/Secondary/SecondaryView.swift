@@ -34,6 +34,10 @@ struct SecondaryView: View {
             guard let coordinate = coordinates[item.region] else { continue }
             names[item.region] = await LocationNamer.shared.name(for: coordinate)
         }
+        // Geocoding can outlive the report/year that started it (LocationNamer's
+        // in-flight tasks don't observe cancellation), so a stale run could
+        // publish last and show the wrong year's teasers. Drop it if superseded.
+        guard !Task.isCancelled else { return }
         placeNames = names
     }
 

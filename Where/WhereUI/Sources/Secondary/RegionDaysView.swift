@@ -26,11 +26,19 @@ struct RegionDaysView: View {
         content
             .navigationTitle(region.localizedName)
             .navigationBarTitleDisplayMode(.inline)
-            .task(id: model.selectedYear) { await loadLocations() }
+            // Keyed on the report (not just the year) so the map reloads after a
+            // relabel changes which days count for this region.
+            .task(id: model.report) { await loadLocations() }
     }
 
     private func loadLocations() async {
+        // The day list is report-based (it honors manual overrides) while raw
+        // GPS coordinates are not, so a relabeled-away day could otherwise keep
+        // a stale pin on the map. Restrict pins/points to days still in the list.
+        let listedDates = Set(days.map(\.date))
         let locations = await model.locations(in: region)
+            .filter { listedDates.contains($0.date) }
+        guard !Task.isCancelled else { return }
         coordinatesByDay = Dictionary(
             locations.map { ($0.date, $0.coordinates) },
             uniquingKeysWith: { first, _ in first },
