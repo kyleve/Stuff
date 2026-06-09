@@ -1,8 +1,9 @@
 import SwiftUI
 import WhereCore
 
-/// Home tab: the regions you spend the most days in for the selected year,
-/// shown as prominent Liquid Glass cards.
+/// Home tab: a passport booklet for the selected year — a bio-data page
+/// followed by one stamped page per headline region, flipped through
+/// horizontally.
 struct PrimaryView: View {
     @Environment(WhereModel.self) private var model
 
@@ -13,19 +14,19 @@ struct PrimaryView: View {
     /// with the view's lifecycle; a no-op on hardware without device motion.
     @State private var tilt = TiltProvider()
 
+    /// Which booklet page is showing. Reset to the bio page when the year
+    /// changes, since the new year's region pages may be entirely different.
+    @State private var currentPage: BookletPage? = .bio
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                PassportMasthead(title: Strings.primaryTitle, tilt: tilt)
-                    .padding(.horizontal)
-                    .padding(.top, UIConstants.Spacings.small)
-                    .padding(.bottom, UIConstants.Spacings.medium)
-
                 if model.missingDayCount > 0 {
                     MissingDaysBanner(count: model.missingDayCount, tilt: tilt) {
                         showingMissingDays = true
                     }
                     .padding(.horizontal)
+                    .padding(.top, UIConstants.Spacings.small)
                     .padding(.bottom, UIConstants.Spacings.medium)
                 }
                 screen
@@ -106,27 +107,52 @@ struct PrimaryView: View {
         }
     }
 
+    /// The booklet itself: a horizontally paged scroll of passport pages —
+    /// the bio-data page first, then one stamped page per headline region.
     private var content: some View {
-        ScrollView {
-            GlassEffectContainer(spacing: UIConstants.Spacings.xxLarge) {
-                VStack(spacing: UIConstants.Spacings.xxLarge) {
-                    ForEach(
-                        Array(model.ranking.primary.enumerated()),
-                        id: \.element.id,
-                    ) { index, item in
-                        RegionSummaryCard(
-                            regionDays: item,
-                            caption: caption(forRank: index),
-                            yearLength: model.daysInSelectedYear,
-                            year: model.selectedYear,
-                            tilt: tilt,
-                        )
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 0) {
+                ForEach(Array(pages.enumerated()), id: \.element) { index, page in
+                    PassportPage(pageNumber: index + 1, pageCount: pages.count) {
+                        pageContent(for: page)
                     }
+                    .padding(.horizontal)
+                    .padding(.vertical, UIConstants.Spacings.medium)
+                    .containerRelativeFrame(.horizontal)
                 }
             }
-            .padding()
+            .scrollTargetLayout()
+        }
+        .scrollTargetBehavior(.paging)
+        .scrollPosition(id: $currentPage)
+        .scrollIndicators(.hidden)
+        .onChange(of: model.selectedYear) {
+            currentPage = .bio
         }
         .accessibilityIdentifier("where_root_title")
+    }
+
+    /// The booklet's page order for the loaded year.
+    private var pages: [BookletPage] {
+        [.bio] + model.ranking.primary.map { .region($0.region) }
+    }
+
+    @ViewBuilder
+    private func pageContent(for page: BookletPage) -> some View {
+        switch page {
+            case .bio:
+                PassportBioPage(tilt: tilt)
+            case let .region(region):
+                if let index = model.ranking.primary.firstIndex(where: { $0.region == region }) {
+                    RegionSummaryCard(
+                        regionDays: model.ranking.primary[index],
+                        caption: caption(forRank: index),
+                        yearLength: model.daysInSelectedYear,
+                        year: model.selectedYear,
+                        tilt: tilt,
+                    )
+                }
+        }
     }
 
     private var emptyState: some View {
@@ -153,6 +179,13 @@ struct PrimaryView: View {
             default: nil
         }
     }
+}
+
+/// Identity of one page in the booklet pager, used for scroll-position
+/// tracking.
+private enum BookletPage: Hashable {
+    case bio
+    case region(Region)
 }
 
 /// A slim, tappable pill inviting you to log the days that don't have a

@@ -380,6 +380,28 @@
         }
       }
     },
+    "passport.page.accessibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "passport.page.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "P. %1$@ / %2$@"
+          }
+        }
+      }
+    },
     "passport.subtitle" : {
       "extractionState" : "manual",
       "localizations" : {

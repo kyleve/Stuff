@@ -130,6 +130,26 @@ enum Strings {
         String(localized: "passport.field.coverage", defaultValue: "Coverage", bundle: .module)
     }
 
+    /// The booklet page footer, e.g. "P. 02 / 03".
+    static func passportPageFooter(page: Int, count: Int) -> String {
+        let pageText = String(format: "%02d", page)
+        let countText = String(format: "%02d", count)
+        return String(
+            localized: "passport.page.footer",
+            defaultValue: "P. \(pageText) / \(countText)",
+            bundle: .module,
+        )
+    }
+
+    /// Spoken counterpart of the page footer, e.g. "Page 2 of 3".
+    static func passportPageAccessibility(page: Int, count: Int) -> String {
+        String(
+            localized: "passport.page.accessibility",
+            defaultValue: "Page \(page) of \(count)",
+            bundle: .module,
+        )
+    }
+
     // MARK: Elsewhere
 
     static var secondaryTitle: String {

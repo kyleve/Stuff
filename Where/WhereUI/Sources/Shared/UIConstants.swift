@@ -20,12 +20,27 @@ enum UIConstants {
     enum Padding {
         static let compactCard: CGFloat = 16
         static let card: CGFloat = 22
+        static let passportPage: CGFloat = 20
     }
 
     /// Corner radii for Liquid Glass surfaces.
     enum CornerRadius {
         static let compactCard: CGFloat = 22
         static let card: CGFloat = 28
+        static let passportPage: CGFloat = 32
+    }
+
+    /// Geometry of the booklet's page chrome: the stacked "pages behind" and
+    /// the stitched binding seam.
+    enum Booklet {
+        /// Horizontal step between each page edge peeking out behind the page.
+        static let pageEdgeOffsetX: CGFloat = 5
+        /// Vertical step between each page edge peeking out behind the page.
+        static let pageEdgeOffsetY: CGFloat = 3
+        /// How many page edges peek out behind the front page.
+        static let pageEdgeCount = 2
+        static let bindingSeamLineWidth: CGFloat = 1.5
+        static let bindingSeamDashLength: CGFloat = 6
     }
 
     /// Tinted drop-shadow geometry for the region cards, giving them a bold,
