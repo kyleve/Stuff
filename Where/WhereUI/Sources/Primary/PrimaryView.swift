@@ -18,6 +18,27 @@ struct PrimaryView: View {
     /// changes, since the new year's region pages may be entirely different.
     @State private var currentPage: BookletPage? = .bio
 
+    /// Where the one-time cover-open intro is in its lifecycle. The cover
+    /// renders from the first frame (hiding the load behind it) and is swung
+    /// open by the `task` below; Reduce Motion skips it entirely.
+    private enum CoverState {
+        case closed
+        case opened
+    }
+
+    @State private var coverState: CoverState = .closed
+    @State private var coverAngle: Double = 0
+    @State private var coverOpacity: Double = 1
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// How far each page tilts around its spine while being flipped.
+    private static let pageFlipDegrees: Double = -14
+    private static let pageFlipPerspective: Double = 0.4
+    /// Final swing of the cover-open intro, past edge-on so it reads as a
+    /// cover being thrown open rather than folded flat.
+    private static let coverOpenDegrees: Double = -120
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -30,6 +51,7 @@ struct PrimaryView: View {
                     .padding(.bottom, UIConstants.Spacings.medium)
                 }
                 screen
+                    .overlay { coverOverlay }
             }
             .background(elevatedBackground)
             .environment(\.colorScheme, .dark)
@@ -54,6 +76,7 @@ struct PrimaryView: View {
         }
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
+        .task { await openCover() }
         .sheet(isPresented: $showingTimeline) {
             PresenceTimelineView()
                 .environment(model)
@@ -62,6 +85,50 @@ struct PrimaryView: View {
             MissingDaysView()
                 .environment(model)
         }
+    }
+
+    /// The closed cover sitting over the booklet until the intro swings it
+    /// open around its spine. Sized to match the pages' footprint.
+    @ViewBuilder
+    private var coverOverlay: some View {
+        if coverState != .opened {
+            PassportCover(tilt: tilt)
+                .padding(.horizontal)
+                .padding(.vertical, UIConstants.Spacings.medium)
+                .rotation3DEffect(
+                    .degrees(coverAngle),
+                    axis: (x: 0, y: 1, z: 0),
+                    anchor: .leading,
+                    perspective: 0.3,
+                )
+                .opacity(coverOpacity)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
+    }
+
+    /// Play the one-time cover-open intro: hold the closed cover briefly,
+    /// swing it open around the spine while it fades, then remove it. Reduce
+    /// Motion (or a replayed lifecycle) skips straight to the open booklet.
+    private func openCover() async {
+        guard coverState == .closed else { return }
+        guard !reduceMotion else {
+            coverState = .opened
+            return
+        }
+        // Reset in case a previous run was cancelled mid-swing.
+        coverAngle = 0
+        coverOpacity = 1
+        do {
+            try await Task.sleep(for: .milliseconds(600))
+            withAnimation(.easeInOut(duration: 0.8)) { coverAngle = Self.coverOpenDegrees }
+            withAnimation(.easeIn(duration: 0.35).delay(0.45)) { coverOpacity = 0 }
+            try await Task.sleep(for: .milliseconds(850))
+        } catch {
+            // Cancelled (tab switched away mid-intro); replay on next visit.
+            return
+        }
+        coverState = .opened
     }
 
     /// A deep, near-black gradient that makes the Primary tab read like a
@@ -119,6 +186,19 @@ struct PrimaryView: View {
                     .padding(.horizontal)
                     .padding(.vertical, UIConstants.Spacings.medium)
                     .containerRelativeFrame(.horizontal)
+                    // A slight fold around the spine plus a fade as pages
+                    // enter and leave, so swiping reads as turning pages.
+                    // Reduce Motion keeps the fade but drops the 3D fold.
+                    .scrollTransition(axis: .horizontal) { content, phase in
+                        content
+                            .rotation3DEffect(
+                                .degrees(reduceMotion ? 0 : phase.value * Self.pageFlipDegrees),
+                                axis: (x: 0, y: 1, z: 0),
+                                anchor: .leading,
+                                perspective: Self.pageFlipPerspective,
+                            )
+                            .opacity(1 - abs(phase.value) * 0.25)
+                    }
                 }
             }
             .scrollTargetLayout()

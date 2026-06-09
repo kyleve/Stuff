@@ -41,6 +41,10 @@ enum UIConstants {
         static let pageEdgeCount = 2
         static let bindingSeamLineWidth: CGFloat = 1.5
         static let bindingSeamDashLength: CGFloat = 6
+        /// Strength of the paper-grain speckle overlay on a page surface.
+        static let grainOpacity: Double = 0.04
+        /// Page-surface area, in points², per grain speckle.
+        static let grainAreaPerSpeckle: CGFloat = 90
     }
 
     /// Tinted drop-shadow geometry for the region cards, giving them a bold,
@@ -74,6 +78,8 @@ enum UIConstants {
         static let mastheadFontSize: CGFloat = 52
         /// Diameter of the gold passport crest emblem.
         static let passportCrest: CGFloat = 72
+        /// Point size of the wordmark on the booklet's closed cover.
+        static let coverWordmarkFontSize: CGFloat = 36
         /// Height of the map header on the Elsewhere region drill-in.
         static let regionMapHeight: CGFloat = 220
     }

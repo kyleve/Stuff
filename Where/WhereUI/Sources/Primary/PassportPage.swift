@@ -49,11 +49,36 @@ struct PassportPage<Content: View>: View {
 
             pageShape
                 .fill(Color(red: 0.10, green: 0.10, blue: 0.15))
+                .overlay { paperGrain }
                 .overlay { pageShape.strokeBorder(.white.opacity(0.12), lineWidth: 1) }
                 .overlay(alignment: .leading) { bindingSeam }
         }
         .allowsHitTesting(false)
         .accessibilityHidden(true)
+    }
+
+    /// A faint, deterministic speckle wash that makes the page surface read
+    /// as paper stock instead of a flat fill. Seeded so it doesn't shimmer
+    /// across redraws.
+    private var paperGrain: some View {
+        Canvas { context, size in
+            var rng = SplitMix64(seed: 0x9E37_79B9_7F4A_7C15)
+            let speckles = Int(size.width * size.height / UIConstants.Booklet.grainAreaPerSpeckle)
+            for _ in 0 ..< max(0, speckles) {
+                let origin = CGPoint(
+                    x: CGFloat.random(in: 0 ..< size.width, using: &rng),
+                    y: CGFloat.random(in: 0 ..< size.height, using: &rng),
+                )
+                let alpha = Double.random(in: 0.3 ... 1, using: &rng)
+                context.fill(
+                    Path(CGRect(origin: origin, size: CGSize(width: 1, height: 1))),
+                    with: .color(.white.opacity(alpha)),
+                )
+            }
+        }
+        .opacity(UIConstants.Booklet.grainOpacity)
+        .blendMode(.overlay)
+        .clipShape(pageShape)
     }
 
     /// A dashed vertical line just inside the leading edge — the stitching
@@ -85,6 +110,24 @@ private struct VerticalLine: Shape {
         path.move(to: CGPoint(x: rect.midX, y: rect.minY))
         path.addLine(to: CGPoint(x: rect.midX, y: rect.maxY))
         return path
+    }
+}
+
+/// A tiny seedable PRNG (SplitMix64) so the paper grain is stable across
+/// redraws — `SystemRandomNumberGenerator` can't be seeded.
+private struct SplitMix64: RandomNumberGenerator {
+    private var state: UInt64
+
+    init(seed: UInt64) {
+        state = seed
+    }
+
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        z = (z ^ (z >> 27)) &* 0x94D0_49BB_1331_11EB
+        return z ^ (z >> 31)
     }
 }
 

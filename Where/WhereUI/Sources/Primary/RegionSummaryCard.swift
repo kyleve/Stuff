@@ -27,6 +27,25 @@ struct RegionSummaryCard: View {
     /// static sheen.
     var tilt: TiltProvider?
 
+    /// Whether the entry stamp has been "pressed" onto the page. Flips on
+    /// appearance so the stamp thunks down whenever a card is (re)created —
+    /// including after a year change rebuilds the booklet. Compact cards and
+    /// Reduce Motion skip straight to the resting state.
+    @State private var stamped = false
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// How far the stamp hovers above the page before it's pressed down.
+    private static let stampRaisedScale: CGFloat = 1.35
+    /// Delay before the press, letting the page settle into view first.
+    private static let stampDelay = Duration.milliseconds(300)
+
+    /// The press-down only plays on the big Primary cards, and never under
+    /// Reduce Motion.
+    private var animatesStamp: Bool {
+        !compact && !reduceMotion
+    }
+
     private var style: RegionStyle {
         regionDays.region.style
     }
@@ -220,6 +239,13 @@ struct RegionSummaryCard: View {
                 Spacer(minLength: 0)
 
                 entryStamp
+                    .scaleEffect(stamped ? 1 : Self.stampRaisedScale)
+                    .animation(
+                        animatesStamp ? .spring(duration: 0.4, bounce: 0.45) : nil,
+                        value: stamped,
+                    )
+                    .opacity(stamped ? 1 : 0)
+                    .animation(animatesStamp ? .easeOut(duration: 0.15) : nil, value: stamped)
             }
 
             HStack(alignment: .firstTextBaseline, spacing: UIConstants.Spacings.small) {
@@ -288,6 +314,20 @@ struct RegionSummaryCard: View {
                 days: regionDays.days,
             ),
         )
+        .sensoryFeedback(.impact(weight: .medium), trigger: stamped) { _, pressed in
+            pressed && animatesStamp
+        }
+        .onAppear {
+            guard !stamped else { return }
+            if animatesStamp {
+                Task {
+                    try? await Task.sleep(for: Self.stampDelay)
+                    stamped = true
+                }
+            } else {
+                stamped = true
+            }
+        }
     }
 }
 
