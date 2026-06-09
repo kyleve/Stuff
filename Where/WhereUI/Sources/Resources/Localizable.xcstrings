@@ -336,6 +336,61 @@
         }
       }
     },
+    "passport.field.coverage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Coverage"
+          }
+        }
+      }
+    },
+    "passport.field.daysLogged" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days logged"
+          }
+        }
+      }
+    },
+    "passport.field.regions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regions"
+          }
+        }
+      }
+    },
+    "passport.field.year" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year"
+          }
+        }
+      }
+    },
+    "passport.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Document of Presence · %@"
+          }
+        }
+      }
+    },
     "primary.caption.homeBase" : {
       "extractionState" : "manual",
       "localizations" : {

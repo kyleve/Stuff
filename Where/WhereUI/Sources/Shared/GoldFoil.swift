@@ -4,6 +4,12 @@ import SwiftUI
 /// masthead wordmark, the crest, and the booklet cover. Centralized so every
 /// gilded element catches the same metal and the same moving glint.
 enum GoldFoil {
+    /// A flat brass tone for hairlines and small print that should read as
+    /// the same metal without the full embossed-gradient treatment.
+    static var solid: Color {
+        Color(red: 0.86, green: 0.66, blue: 0.32)
+    }
+
     /// Brushed-gold gradient that reads as embossed gilt on a dark cover.
     static var gradient: LinearGradient {
         LinearGradient(

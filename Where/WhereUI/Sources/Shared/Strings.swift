@@ -99,6 +99,37 @@ enum Strings {
         )
     }
 
+    // MARK: Passport bio page
+
+    /// The bio-data page's subtitle line, e.g. "Document of Presence · 2026".
+    static func passportSubtitle(year: Int) -> String {
+        String(
+            localized: "passport.subtitle",
+            defaultValue: "Document of Presence · \(yearText(year))",
+            bundle: .module,
+        )
+    }
+
+    static var passportFieldYear: String {
+        String(localized: "passport.field.year", defaultValue: "Year", bundle: .module)
+    }
+
+    static var passportFieldDaysLogged: String {
+        String(
+            localized: "passport.field.daysLogged",
+            defaultValue: "Days logged",
+            bundle: .module,
+        )
+    }
+
+    static var passportFieldRegions: String {
+        String(localized: "passport.field.regions", defaultValue: "Regions", bundle: .module)
+    }
+
+    static var passportFieldCoverage: String {
+        String(localized: "passport.field.coverage", defaultValue: "Coverage", bundle: .module)
+    }
+
     // MARK: Elsewhere
 
     static var secondaryTitle: String {
