@@ -163,35 +163,15 @@ private struct PassportMasthead: View {
     let title: String
     var tilt: TiltProvider?
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    /// Lateral position of the glint, normalized `-1...1`. Pinned to a gentle
-    /// off-center value when motion is unavailable or reduced.
-    private var glintRoll: Double {
-        guard !reduceMotion, let roll = tilt?.roll else { return 0.2 }
-        return min(1, max(-1, roll))
-    }
-
     var body: some View {
-        let wordmark = Text(verbatim: title.uppercased())
+        Text(verbatim: title.uppercased())
             .font(.system(
                 size: UIConstants.Size.mastheadFontSize,
                 weight: .heavy,
                 design: .serif,
             ))
             .tracking(2)
-
-        return wordmark
-            .foregroundStyle(goldFoil)
-            .overlay {
-                LinearGradient(
-                    colors: [.clear, .white.opacity(0.95), .clear],
-                    startPoint: UnitPoint(x: glintRoll * 0.5 - 0.1, y: 0),
-                    endPoint: UnitPoint(x: glintRoll * 0.5 + 0.6, y: 1),
-                )
-                .blendMode(.plusLighter)
-            }
-            .mask { wordmark }
+            .goldFoil(tilt: tilt)
             .shadow(
                 color: .black.opacity(0.45),
                 radius: UIConstants.Spacings.xSmall,
@@ -200,20 +180,6 @@ private struct PassportMasthead: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .accessibilityAddTraits(.isHeader)
             .accessibilityLabel(title)
-    }
-
-    /// Brushed-gold gradient that reads as embossed gilt on the dark cover.
-    private var goldFoil: LinearGradient {
-        LinearGradient(
-            colors: [
-                Color(red: 1.0, green: 0.93, blue: 0.7),
-                Color(red: 0.86, green: 0.66, blue: 0.32),
-                Color(red: 1.0, green: 0.9, blue: 0.66),
-                Color(red: 0.72, green: 0.52, blue: 0.24),
-            ],
-            startPoint: .top,
-            endPoint: .bottom,
-        )
     }
 }
 

@@ -57,6 +57,8 @@ enum UIConstants {
         static let mrzFontSize: CGFloat = 11
         /// Point size of the Primary tab's gold-foil "Where" masthead.
         static let mastheadFontSize: CGFloat = 52
+        /// Diameter of the gold passport crest emblem.
+        static let passportCrest: CGFloat = 72
         /// Height of the map header on the Elsewhere region drill-in.
         static let regionMapHeight: CGFloat = 220
     }
