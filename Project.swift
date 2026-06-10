@@ -7,6 +7,13 @@ let deployment: DeploymentTargets = .iOS("26.0")
 /// WhereTesting.
 private let stuffPackage = Package.local(path: .relativeToRoot("."))
 
+/// App Group shared by the Where app and its widget extension so both
+/// processes see the same on-disk SwiftData store (see
+/// `SwiftDataStore.appGroupIdentifier`, which must match).
+let whereAppGroupEntitlements: Entitlements = .dictionary([
+    "com.apple.security.application-groups": .array([.string("group.com.stuff.where")]),
+])
+
 func unitTests(
     name: String,
     bundleIdSuffix: String,
@@ -69,7 +76,28 @@ let project = Project(
             ]),
             sources: ["Where/Where/Sources/**"],
             resources: ["Where/Where/Resources/**"],
+            entitlements: whereAppGroupEntitlements,
             dependencies: [
+                .package(product: "WhereUI"),
+                .target(name: "WhereWidgets"),
+            ],
+        ),
+        .target(
+            name: "WhereWidgets",
+            destinations: destinations,
+            product: .appExtension,
+            bundleId: "com.stuff.where.widgets",
+            deploymentTargets: deployment,
+            infoPlist: .extendingDefault(with: [
+                "CFBundleDisplayName": .string("Where"),
+                "NSExtension": .dictionary([
+                    "NSExtensionPointIdentifier": .string("com.apple.widgetkit-extension"),
+                ]),
+            ]),
+            sources: ["Where/WhereWidgets/Sources/**"],
+            entitlements: whereAppGroupEntitlements,
+            dependencies: [
+                .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
         ),
