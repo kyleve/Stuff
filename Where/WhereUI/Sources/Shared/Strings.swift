@@ -570,6 +570,36 @@ enum Strings {
         )
     }
 
+    // MARK: Widgets
+
+    static var widgetTodayTitle: String {
+        String(localized: "widget.today.title", defaultValue: "Today", bundle: .module)
+    }
+
+    static var widgetTodayEmpty: String {
+        String(
+            localized: "widget.today.empty",
+            defaultValue: "Nothing logged yet",
+            bundle: .module,
+        )
+    }
+
+    static func widgetYearTitle(year: Int) -> String {
+        String(
+            localized: "widget.year.title",
+            defaultValue: "Days in \(yearText(year))",
+            bundle: .module,
+        )
+    }
+
+    static var widgetYearEmpty: String {
+        String(
+            localized: "widget.year.empty",
+            defaultValue: "No days logged",
+            bundle: .module,
+        )
+    }
+
     // MARK: Helpers
 
     private static func localized(_ key: String.LocalizationValue) -> String {
