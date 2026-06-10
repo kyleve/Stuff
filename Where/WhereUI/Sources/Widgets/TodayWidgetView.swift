@@ -14,10 +14,8 @@ public struct TodayWidgetView: View {
         self.snapshot = snapshot
     }
 
-    /// Today's regions in `Region.allCases` declaration order so the layout
-    /// is stable between timeline reloads.
     private var regions: [Region] {
-        Region.allCases.filter { snapshot.dayRegions.contains($0) }
+        snapshot.orderedDayRegions
     }
 
     public var body: some View {

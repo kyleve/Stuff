@@ -17,8 +17,7 @@ public struct YearTotalsWidgetView: View {
     }
 
     private var ranked: [RegionDays] {
-        let report = YearReport(year: snapshot.year, days: [], totals: snapshot.totals)
-        return Array(RegionRanking.ranked(report: report).prefix(max(0, maxRows)))
+        snapshot.rankedTotals(maxRows: maxRows)
     }
 
     public var body: some View {
