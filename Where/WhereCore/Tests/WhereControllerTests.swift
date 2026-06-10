@@ -646,6 +646,72 @@ struct WhereControllerTests {
         #expect(await spy.lastBadgeCount == 0)
         #expect(await spy.lastScheduleDays.isEmpty)
     }
+
+    // MARK: - Widget timeline refresh
+
+    private static func makeWidgetController(
+        refresher: SpyWidgetRefresher,
+        store: (any WhereStore)? = nil,
+    ) throws -> (WhereController, ScriptedLocationSource) {
+        let source = ScriptedLocationSource()
+        let controller = try WhereController(
+            store: store ?? SwiftDataStore.inMemory(),
+            locationSource: source,
+            aggregator: makeAggregator(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: refresher,
+        )
+        return (controller, source)
+    }
+
+    @Test func committedWritesReloadWidgetTimelines() async throws {
+        let refresher = SpyWidgetRefresher()
+        let (controller, _) = try Self.makeWidgetController(refresher: refresher)
+
+        try await controller.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
+        #expect(await refresher.reloadCount == 1)
+
+        let day = iso("2026-07-04T15:00:00-07:00")
+        try await controller.addManualDay(date: day, regions: [.newYork])
+        try await controller.overrideDay(date: day, regions: [.california])
+        try await controller.clearManualDay(date: day)
+        try await controller.clearYear(2026)
+        #expect(await refresher.reloadCount == 5)
+    }
+
+    @Test func gpsIngestReloadsWidgetTimelines() async throws {
+        let refresher = SpyWidgetRefresher()
+        let (controller, source) = try Self.makeWidgetController(refresher: refresher)
+
+        await controller.startGPS()
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { await refresher.reloadCount == 1 }
+
+        await controller.stopGPS()
+    }
+
+    @Test func failedGPSPersistSkipsWidgetReloadUntilRetrySucceeds() async throws {
+        let refresher = SpyWidgetRefresher()
+        let store = try ToggleFailingStore(backing: SwiftDataStore.inMemory())
+        let (controller, source) = try Self.makeWidgetController(
+            refresher: refresher,
+            store: store,
+        )
+
+        await controller.startGPS()
+        await store.setShouldFail(true)
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { await controller.retryQueueDepth == 1 }
+        // Nothing was committed, so the widgets have nothing new to show.
+        #expect(await refresher.reloadCount == 0)
+
+        // The next successful persist drains the backlog and repaints.
+        await store.setShouldFail(false)
+        source.emit(sample(at: "2026-03-15T12:10:00-07:00"))
+        try await waitUntil { await refresher.reloadCount == 1 }
+
+        await controller.stopGPS()
+    }
 }
 
 private func iso(_ string: String) -> Date {
@@ -702,6 +768,17 @@ private actor SpyReminderScheduler: LoggingReminderScheduling {
         lastScheduleDays = scheduleDays
         lastReminderTime = reminderTime
         lastEnabled = enabled
+    }
+}
+
+/// Counts the reload requests `WhereController` sends to WidgetKit so tests
+/// can assert widgets repaint after committed writes — and stay untouched
+/// when a write fails.
+private actor SpyWidgetRefresher: WidgetTimelineRefreshing {
+    private(set) var reloadCount = 0
+
+    func reloadTimelines() async {
+        reloadCount += 1
     }
 }
 

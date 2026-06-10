@@ -50,6 +50,7 @@
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
                 reminderScheduler: NoopLoggingReminderScheduler(),
+                widgetRefresher: NoopWidgetTimelineRefresher(),
             )
             return WhereModel(
                 controller: controller,
@@ -66,6 +67,7 @@
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
                 reminderScheduler: NoopLoggingReminderScheduler(),
+                widgetRefresher: NoopWidgetTimelineRefresher(),
             )
             return WhereModel(
                 controller: controller,
@@ -92,6 +94,7 @@
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
                 reminderScheduler: NoopLoggingReminderScheduler(),
+                widgetRefresher: NoopWidgetTimelineRefresher(),
             )
             return WhereModel(
                 controller: controller,
@@ -122,6 +125,7 @@
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
                 reminderScheduler: NoopLoggingReminderScheduler(),
+                widgetRefresher: NoopWidgetTimelineRefresher(),
             )
             return WhereModel(
                 controller: controller,

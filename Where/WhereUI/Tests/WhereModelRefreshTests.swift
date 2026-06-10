@@ -21,6 +21,7 @@ struct WhereModelRefreshTests {
             store: store,
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
         )
 
         // Seed each year with a distinct region so we can tell which report won.
@@ -62,6 +63,7 @@ struct WhereModelRefreshTests {
             store: store,
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let model = WhereModel(controller: controller, selectedYear: 2026)
 
@@ -84,6 +86,7 @@ struct WhereModelRefreshTests {
             store: store,
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let model = WhereModel(controller: controller, selectedYear: 2026)
 

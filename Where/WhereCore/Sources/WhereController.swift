@@ -21,6 +21,7 @@ public actor WhereController {
     private let aggregator: DayAggregator
     private let backupService = BackupService()
     private let reminderScheduler: any LoggingReminderScheduling
+    private let widgetRefresher: any WidgetTimelineRefreshing
     private let now: @Sendable () -> Date
 
     private var ingestTask: Task<Void, Never>?
@@ -70,6 +71,7 @@ public actor WhereController {
         attributor: RegionAttributor = .shared,
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling = UserNotificationReminderScheduler(),
+        widgetRefresher: any WidgetTimelineRefreshing = WidgetCenterTimelineRefresher(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.store = store
@@ -77,6 +79,7 @@ public actor WhereController {
         self.attributor = attributor
         self.aggregator = aggregator
         self.reminderScheduler = reminderScheduler
+        self.widgetRefresher = widgetRefresher
         self.now = now
     }
 
@@ -88,12 +91,14 @@ public actor WhereController {
 
     public func ingest(_ sample: LocationSample) async throws {
         try await store.perform { try await store.add(sample: sample) }
+        await widgetRefresher.reloadTimelines()
     }
 
     // MARK: - Retroactive entry
 
     public func addManualSample(_ sample: LocationSample) async throws {
         try await store.perform { try await store.add(sample: sample) }
+        await widgetRefresher.reloadTimelines()
     }
 
     public func addManualDay(date: Date, regions: Set<Region>) async throws {
@@ -101,6 +106,7 @@ public actor WhereController {
         let presence = DayPresence(date: key, regions: regions)
         try await store.perform { try await store.setManualDay(presence) }
         await reconcileReminders()
+        await widgetRefresher.reloadTimelines()
     }
 
     /// Authoritatively set the regions for a single calendar day, *replacing*
@@ -113,6 +119,7 @@ public actor WhereController {
         let presence = DayPresence(date: key, regions: regions, isAuthoritative: true)
         try await store.perform { try await store.setManualDay(presence) }
         await reconcileReminders()
+        await widgetRefresher.reloadTimelines()
     }
 
     /// Drop the manual overlay for a single calendar day, restoring the
@@ -123,6 +130,7 @@ public actor WhereController {
         let key = aggregator.calendar.startOfDay(for: date)
         try await store.perform { try await store.clearManualDay(key) }
         await reconcileReminders()
+        await widgetRefresher.reloadTimelines()
     }
 
     /// Assert `regions` for every calendar day in the inclusive range
@@ -147,6 +155,7 @@ public actor WhereController {
             }
         }
         await reconcileReminders()
+        await widgetRefresher.reloadTimelines()
     }
 
     // MARK: - Evidence
@@ -200,6 +209,7 @@ public actor WhereController {
         let interval = aggregator.yearInterval(year: year)
         try await store.perform { try await store.clear(in: interval) }
         await reconcileReminders()
+        await widgetRefresher.reloadTimelines()
     }
 
     // MARK: - Backup
@@ -309,6 +319,7 @@ public actor WhereController {
                 report()
             }
         }
+        await widgetRefresher.reloadTimelines()
 
         return ImportSummary(
             sampleCount: archive.samples.count,
@@ -335,7 +346,10 @@ public actor WhereController {
         await locationSource.start()
         // Flush anything that failed to persist before this session
         // started, before we (re)attach the stream consumer.
-        _ = await drainRetryQueue()
+        let drainedDays = await drainRetryQueue()
+        if !drainedDays.isEmpty {
+            await widgetRefresher.reloadTimelines()
+        }
         // Refresh the badge / reminders against whatever the resumed session
         // already knows about (e.g. after a background relaunch).
         await reconcileReminders()
@@ -359,6 +373,7 @@ public actor WhereController {
             try await store.perform { try await store.add(sample: sample) }
             changedDays.insert(aggregator.calendar.startOfDay(for: sample.timestamp))
             await reconcileRemindersAfterIngest(changedDays: changedDays)
+            await widgetRefresher.reloadTimelines()
         } catch {
             // Persistence failures (SwiftData save, CloudKit, etc.)
             // are surfaced via `os.Logger` instead of being silently
