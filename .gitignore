@@ -1,6 +1,11 @@
 # Tuist managed
 Derived/
 
+## Local mise overrides (e.g. TUIST_DEVELOPMENT_TEAM for on-device signing)
+mise.local.toml
+.mise.local.toml
+.mise.*.local.toml
+
 ## Generated agent files (re-create via ./sync-agents --install)
 CLAUDE.md
 .claude/skills/

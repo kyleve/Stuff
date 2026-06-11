@@ -7,6 +7,18 @@ let deployment: DeploymentTargets = .iOS("26.0")
 /// WhereTesting.
 private let stuffPackage = Package.local(path: .relativeToRoot("."))
 
+/// Apple Developer Team used to code-sign when building to a device, read from
+/// the `TUIST_DEVELOPMENT_TEAM` environment variable so each developer's team ID
+/// stays out of the checked-in project. Set it in `.mise.local.toml` (gitignored)
+/// and it's picked up automatically by `mise exec -- tuist generate` (i.e. `./ide`).
+/// When unset — e.g. on CI or a fresh clone — no `DEVELOPMENT_TEAM` is written and
+/// Xcode falls back to its defaults.
+private let developmentTeam = Environment.developmentTeam.getString(default: "")
+
+private let projectSettings: Settings? = developmentTeam.isEmpty
+    ? nil
+    : .settings(base: ["DEVELOPMENT_TEAM": .string(developmentTeam)])
+
 /// App Group shared by the Where app and its widget extension so both
 /// processes see the same on-disk SwiftData store (see
 /// `SwiftDataStore.appGroupIdentifier`, which must match).
@@ -57,6 +69,7 @@ let project = Project(
         developmentRegion: "en",
     ),
     packages: [stuffPackage],
+    settings: projectSettings,
     targets: [
         .target(
             name: "Where",
