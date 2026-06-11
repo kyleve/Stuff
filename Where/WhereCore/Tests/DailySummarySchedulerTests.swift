@@ -72,6 +72,35 @@ struct DailySummarySchedulerTests {
         #expect(center.addedRequests.count == 2)
     }
 
+    @Test func strayDuplicatesAreRebuiltIntoASingleRequest() async throws {
+        let center = FakeSummaryCenter()
+        let scheduler = UserNotificationDailySummaryScheduler(notificationCenter: center)
+        // Two owned-but-stale requests (e.g. left by an older identifier scheme)
+        // force a full rebuild rather than the leave-it-in-place fast path.
+        let content = UNMutableNotificationContent()
+        try await center.add(UNNotificationRequest(
+            identifier: "com.stuff.where.daily-summary.legacy-1",
+            content: content,
+            trigger: nil,
+        ))
+        try await center.add(UNNotificationRequest(
+            identifier: "com.stuff.where.daily-summary.legacy-2",
+            content: content,
+            trigger: nil,
+        ))
+
+        await scheduler.reconcile(
+            enabled: true,
+            time: ReminderTime(hour: 8, minute: 0),
+            body: "body",
+        )
+
+        #expect(center.pendingRequests.count == 1)
+        #expect(center.pendingRequests.first?.identifier == "com.stuff.where.daily-summary")
+        #expect(center.removedPendingIdentifiers.contains("com.stuff.where.daily-summary.legacy-1"))
+        #expect(center.removedPendingIdentifiers.contains("com.stuff.where.daily-summary.legacy-2"))
+    }
+
     @Test func disablingClearsOwnedRequest() async {
         let center = FakeSummaryCenter()
         let scheduler = UserNotificationDailySummaryScheduler(notificationCenter: center)
