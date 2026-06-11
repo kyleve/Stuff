@@ -3,7 +3,12 @@ import Foundation
 /// Everything the Where widgets render, captured as one `Sendable` value:
 /// which regions the snapshot's day already counts for, plus the per-region
 /// day totals for the calendar year containing that day.
-public struct WidgetSnapshot: Hashable, Sendable {
+///
+/// `Codable` because the app process publishes this (after each committed
+/// store write) to a small JSON file in the shared App Group container,
+/// which the widget extension then reads — see `WidgetSnapshotStore`. The
+/// raw store never crosses the process boundary.
+public struct WidgetSnapshot: Hashable, Sendable, Codable {
     /// Start-of-day (in the reader's calendar) this snapshot describes.
     public let day: Date
     /// The calendar year containing `day`; the year `totals` covers.
@@ -22,10 +27,12 @@ public struct WidgetSnapshot: Hashable, Sendable {
     }
 }
 
-/// Read-side query API for the widget extension: wraps a `WhereStore` and
-/// the pure `DayAggregator` without any of `WhereController`'s GPS or
-/// reminder machinery, which must not run in a widget process. Production
-/// widget wiring pairs this with `SwiftDataStore.readOnly()`.
+/// Computes a `WidgetSnapshot` from a `WhereStore` and the pure
+/// `DayAggregator`, without any of `WhereController`'s GPS or reminder
+/// machinery. Runs in the *app* process: `WhereController` uses it to
+/// rebuild the snapshot after each committed write and publish it to the
+/// shared App Group file (`WidgetSnapshotStore`). The widget process only
+/// reads that file — it never touches the store.
 public struct WidgetDataReader: Sendable {
     private let store: any WhereStore
     private let aggregator: DayAggregator

@@ -1,32 +1,43 @@
+import os
 import WidgetKit
 
-/// Pokes WidgetKit to rebuild the app's widget timelines after the store
-/// changes, so the widgets repaint from fresh data instead of waiting for
-/// the system's own refresh budget. Behind a protocol so `WhereController`
-/// can be driven deterministically from tests (same pattern as
-/// `LoggingReminderScheduling`).
+/// Publishes a freshly-computed `WidgetSnapshot` for the widget extension
+/// to render, then pokes WidgetKit to reload. Called by `WhereController`
+/// after each committed store mutation that can change what a widget shows.
+/// Behind a protocol so the controller can be driven deterministically from
+/// tests (same pattern as `LoggingReminderScheduling`).
 public protocol WidgetTimelineRefreshing: Sendable {
-    /// Ask WidgetKit to re-request the timeline for every widget this app
-    /// provides. Called after each committed store mutation that can change
-    /// what a widget displays.
-    func reloadTimelines() async
+    /// Persist `snapshot` where the widget process can read it, then ask
+    /// WidgetKit to rebuild every timeline.
+    func publish(_ snapshot: WidgetSnapshot) async
 }
 
 /// A `WidgetTimelineRefreshing` that does nothing. For SwiftUI previews and
-/// tests that need a controller without touching `WidgetCenter`.
+/// tests that need a controller without touching the App Group or
+/// `WidgetCenter`.
 public struct NoopWidgetTimelineRefresher: WidgetTimelineRefreshing {
     public init() {}
 
-    public func reloadTimelines() async {}
+    public func publish(_: WidgetSnapshot) async {}
 }
 
-/// Production `WidgetTimelineRefreshing` backed by `WidgetCenter`.
-/// Reloads all timelines rather than per-kind: every Where widget renders
-/// from the same store, so any committed change can affect all of them.
+/// Production `WidgetTimelineRefreshing`: writes the snapshot to the shared
+/// App Group file (`WidgetSnapshotStore`) and reloads all timelines. Reloads
+/// every kind rather than per-kind because all Where widgets render from the
+/// same snapshot, so any committed change can affect all of them.
 public struct WidgetCenterTimelineRefresher: WidgetTimelineRefreshing {
+    private static let logger = Logger(subsystem: "com.stuff.where", category: "WidgetRefresher")
+
     public init() {}
 
-    public func reloadTimelines() async {
+    public func publish(_ snapshot: WidgetSnapshot) async {
+        do {
+            try WidgetSnapshotStore.shared().write(snapshot)
+        } catch {
+            Self.logger.error(
+                "Failed to publish widget snapshot: \(error.localizedDescription, privacy: .public)",
+            )
+        }
         WidgetCenter.shared.reloadAllTimelines()
     }
 }

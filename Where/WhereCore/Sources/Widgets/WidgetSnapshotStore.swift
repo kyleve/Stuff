@@ -1,0 +1,63 @@
+import Foundation
+
+/// Reads and writes the widgets' published `WidgetSnapshot` as a small JSON
+/// file in the App Group container shared by the app and the widget
+/// extension.
+///
+/// Only the app process writes (after each committed store change, via
+/// `WidgetCenterTimelineRefresher`); the widget process only reads. This is
+/// deliberately not SwiftData: the payload is one already-aggregated value,
+/// so a plain `Codable` file avoids the widget paying SwiftData container
+/// startup — and keeps the user's real, CloudKit-synced store private to
+/// the app's own sandbox.
+public struct WidgetSnapshotStore: Sendable {
+    /// Thrown when the App Group container can't be resolved, which means
+    /// the running process is missing the
+    /// `com.apple.security.application-groups` entitlement (or the group
+    /// identifier is misspelled).
+    public struct AppGroupUnavailableError: Error {
+        public init() {}
+    }
+
+    private static let appGroupIdentifier = "group.com.stuff.where"
+    private static let fileName = "widget-snapshot.json"
+
+    /// Directory the snapshot file lives in. Exposed via `init` so tests can
+    /// point at a temp directory; production resolves the App Group via
+    /// `shared()`.
+    private let directory: URL
+
+    public init(directory: URL) {
+        self.directory = directory
+    }
+
+    /// App Group-backed store shared by the app and widget. Throws
+    /// `AppGroupUnavailableError` when the container can't be resolved.
+    public static func shared() throws -> WidgetSnapshotStore {
+        guard let container = FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: appGroupIdentifier,
+        ) else {
+            throw AppGroupUnavailableError()
+        }
+        return WidgetSnapshotStore(directory: container)
+    }
+
+    private var fileURL: URL {
+        directory.appending(path: Self.fileName)
+    }
+
+    /// Atomically replace the published snapshot. Atomic so the widget never
+    /// reads a half-written file.
+    public func write(_ snapshot: WidgetSnapshot) throws {
+        let data = try JSONEncoder().encode(snapshot)
+        try data.write(to: fileURL, options: .atomic)
+    }
+
+    /// The last published snapshot, or `nil` if nothing has been written yet
+    /// or the file can't be read/decoded. A `nil` result is the widget's cue
+    /// to render its placeholder/empty state.
+    public func read() -> WidgetSnapshot? {
+        guard let data = try? Data(contentsOf: fileURL) else { return nil }
+        return try? JSONDecoder().decode(WidgetSnapshot.self, from: data)
+    }
+}

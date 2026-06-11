@@ -22,6 +22,7 @@ public actor WhereController {
     private let backupService = BackupService()
     private let reminderScheduler: any LoggingReminderScheduling
     private let widgetRefresher: any WidgetTimelineRefreshing
+    private let widgetReader: WidgetDataReader
     private let now: @Sendable () -> Date
 
     private var ingestTask: Task<Void, Never>?
@@ -80,6 +81,14 @@ public actor WhereController {
         self.aggregator = aggregator
         self.reminderScheduler = reminderScheduler
         self.widgetRefresher = widgetRefresher
+        // The reader runs in *this* (app) process and shares the controller's
+        // store, calendar, and attributor so the published snapshot's day/year
+        // line up with everything else the controller reports.
+        widgetReader = WidgetDataReader(
+            store: store,
+            aggregator: aggregator,
+            attributor: attributor,
+        )
         self.now = now
     }
 
@@ -91,14 +100,14 @@ public actor WhereController {
 
     public func ingest(_ sample: LocationSample) async throws {
         try await store.perform { try await store.add(sample: sample) }
-        await widgetRefresher.reloadTimelines()
+        await publishWidgetSnapshot()
     }
 
     // MARK: - Retroactive entry
 
     public func addManualSample(_ sample: LocationSample) async throws {
         try await store.perform { try await store.add(sample: sample) }
-        await widgetRefresher.reloadTimelines()
+        await publishWidgetSnapshot()
     }
 
     public func addManualDay(date: Date, regions: Set<Region>) async throws {
@@ -106,7 +115,7 @@ public actor WhereController {
         let presence = DayPresence(date: key, regions: regions)
         try await store.perform { try await store.setManualDay(presence) }
         await reconcileReminders()
-        await widgetRefresher.reloadTimelines()
+        await publishWidgetSnapshot()
     }
 
     /// Authoritatively set the regions for a single calendar day, *replacing*
@@ -119,7 +128,7 @@ public actor WhereController {
         let presence = DayPresence(date: key, regions: regions, isAuthoritative: true)
         try await store.perform { try await store.setManualDay(presence) }
         await reconcileReminders()
-        await widgetRefresher.reloadTimelines()
+        await publishWidgetSnapshot()
     }
 
     /// Drop the manual overlay for a single calendar day, restoring the
@@ -130,7 +139,7 @@ public actor WhereController {
         let key = aggregator.calendar.startOfDay(for: date)
         try await store.perform { try await store.clearManualDay(key) }
         await reconcileReminders()
-        await widgetRefresher.reloadTimelines()
+        await publishWidgetSnapshot()
     }
 
     /// Assert `regions` for every calendar day in the inclusive range
@@ -155,7 +164,7 @@ public actor WhereController {
             }
         }
         await reconcileReminders()
-        await widgetRefresher.reloadTimelines()
+        await publishWidgetSnapshot()
     }
 
     // MARK: - Evidence
@@ -209,7 +218,7 @@ public actor WhereController {
         let interval = aggregator.yearInterval(year: year)
         try await store.perform { try await store.clear(in: interval) }
         await reconcileReminders()
-        await widgetRefresher.reloadTimelines()
+        await publishWidgetSnapshot()
     }
 
     // MARK: - Backup
@@ -319,7 +328,7 @@ public actor WhereController {
                 report()
             }
         }
-        await widgetRefresher.reloadTimelines()
+        await publishWidgetSnapshot()
 
         return ImportSummary(
             sampleCount: archive.samples.count,
@@ -348,7 +357,7 @@ public actor WhereController {
         // started, before we (re)attach the stream consumer.
         let drainedDays = await drainRetryQueue()
         if !drainedDays.isEmpty {
-            await widgetRefresher.reloadTimelines()
+            await publishWidgetSnapshot()
         }
         // Refresh the badge / reminders against whatever the resumed session
         // already knows about (e.g. after a background relaunch).
@@ -373,7 +382,7 @@ public actor WhereController {
             try await store.perform { try await store.add(sample: sample) }
             changedDays.insert(aggregator.calendar.startOfDay(for: sample.timestamp))
             await reconcileRemindersAfterIngest(changedDays: changedDays)
-            await widgetRefresher.reloadTimelines()
+            await publishWidgetSnapshot()
         } catch {
             // Persistence failures (SwiftData save, CloudKit, etc.)
             // are surfaced via `os.Logger` instead of being silently
@@ -453,6 +462,23 @@ public actor WhereController {
     /// can reconcile its tracking flag with reality after launch.
     public var isTrackingActive: Bool {
         isMonitoring
+    }
+
+    // MARK: - Widgets
+
+    /// Recompute today's `WidgetSnapshot` from the store and hand it to the
+    /// refresher to publish + reload. Called after every committed mutation
+    /// that can change what a widget shows. A failure here is non-fatal: the
+    /// widget keeps showing its last published snapshot.
+    private func publishWidgetSnapshot() async {
+        do {
+            let snapshot = try await widgetReader.snapshot(asOf: now())
+            await widgetRefresher.publish(snapshot)
+        } catch {
+            Self.logger.error(
+                "Failed to build widget snapshot: \(error.localizedDescription, privacy: .public)",
+            )
+        }
     }
 
     // MARK: - Logging reminders

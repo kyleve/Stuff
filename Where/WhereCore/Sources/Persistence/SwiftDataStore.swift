@@ -81,110 +81,18 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
-    /// The App Group shared by the Where app and its widget extension.
-    /// On-disk stores live in this container so the widget process can read
-    /// the same database the app writes.
-    private static let appGroupIdentifier = "group.com.stuff.where"
-
-    /// Thrown when the App Group container can't be resolved, which means
-    /// the running process is missing the
-    /// `com.apple.security.application-groups` entitlement (or the group
-    /// identifier is misspelled).
-    public struct AppGroupUnavailableError: Error {}
-
-    private static func makeSchema() -> Schema {
-        Schema([
+    public static func makeContainer(storage: Storage) throws -> ModelContainer {
+        let schema = Schema([
             SDLocationSample.self,
             SDEvidence.self,
             SDManualDay.self,
         ])
-    }
-
-    public static func makeContainer(storage: Storage) throws -> ModelContainer {
-        let schema = makeSchema()
-        let config: ModelConfiguration = switch storage {
-            case .inMemory:
-                ModelConfiguration(
-                    schema: schema,
-                    isStoredInMemoryOnly: true,
-                    cloudKitDatabase: .none,
-                )
-            case .localOnly, .cloudKit:
-                try ModelConfiguration(
-                    schema: schema,
-                    url: preparedSharedStoreURL(),
-                    cloudKitDatabase: storage == .cloudKit ? .automatic : .none,
-                )
-        }
+        let config = ModelConfiguration(
+            schema: schema,
+            isStoredInMemoryOnly: storage == .inMemory,
+            cloudKitDatabase: storage == .cloudKit ? .automatic : .none,
+        )
         return try ModelContainer(for: schema, configurations: [config])
-    }
-
-    /// The shared store URL inside the App Group container. Resolution only
-    /// — no directory creation, no migration — so the read-only widget path
-    /// can use it too.
-    ///
-    /// The file name stays `default.store` (SwiftData's default) even though
-    /// the directory changed: `@Attribute(.externalStorage)` blobs live in a
-    /// hidden `.<storeName>_SUPPORT` directory whose name derives from the
-    /// store file name, so renaming the store would orphan existing blobs.
-    private static func sharedStoreURL() throws -> URL {
-        guard let container = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: appGroupIdentifier,
-        ) else {
-            throw AppGroupUnavailableError()
-        }
-        return container.appending(path: "Library/Application Support/default.store")
-    }
-
-    /// App-process store URL setup: ensures the directory exists and
-    /// performs the one-time move of a legacy store out of the app's
-    /// private Application Support directory (where pre-App-Group versions
-    /// of the app kept it).
-    private static func preparedSharedStoreURL() throws -> URL {
-        let url = try sharedStoreURL()
-        try FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(),
-            withIntermediateDirectories: true,
-        )
-        let legacyURL = URL.applicationSupportDirectory.appending(path: "default.store")
-        try relocateLegacyStore(from: legacyURL, to: url)
-        return url
-    }
-
-    /// One-time migration: moves an on-disk SwiftData store (plus its
-    /// SQLite `-shm`/`-wal` sidecars and the hidden `.<name>_SUPPORT`
-    /// external-storage directory) to a new location. A no-op when there is
-    /// no legacy store, or when the destination store already exists (the
-    /// migration already ran; never clobber newer data with stale files).
-    static func relocateLegacyStore(from legacyStoreURL: URL, to destinationStoreURL: URL) throws {
-        let fileManager = FileManager.default
-        guard fileManager.fileExists(atPath: legacyStoreURL.path),
-              !fileManager.fileExists(atPath: destinationStoreURL.path)
-        else { return }
-
-        let sourceDirectory = legacyStoreURL.deletingLastPathComponent()
-        let destinationDirectory = destinationStoreURL.deletingLastPathComponent()
-        try fileManager.createDirectory(
-            at: destinationDirectory,
-            withIntermediateDirectories: true,
-        )
-
-        var itemNames = [
-            legacyStoreURL.lastPathComponent + "-shm",
-            legacyStoreURL.lastPathComponent + "-wal",
-        ]
-        // External-storage blobs (`.default_SUPPORT/_EXTERNAL_DATA/...`).
-        itemNames.append(
-            "." + legacyStoreURL.deletingPathExtension().lastPathComponent + "_SUPPORT",
-        )
-        for name in itemNames {
-            let source = sourceDirectory.appending(path: name)
-            guard fileManager.fileExists(atPath: source.path) else { continue }
-            try fileManager.moveItem(at: source, to: destinationDirectory.appending(path: name))
-        }
-        // The store file itself moves last so a partial earlier failure
-        // leaves the guard condition intact and the migration re-runs.
-        try fileManager.moveItem(at: legacyStoreURL, to: destinationStoreURL)
     }
 
     /// Convenience for tests and SwiftUI previews: builds an
@@ -205,28 +113,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// app/UI layer.
     public static func make(storage: Storage = .default) throws -> SwiftDataStore {
         let container = try makeContainer(storage: storage)
-        return SwiftDataStore(modelContainer: container)
-    }
-
-    /// Extension-process factory (the widget): opens the same shared
-    /// on-disk store the app writes, but read-only — `allowsSave: false`
-    /// and no CloudKit mirroring, because the app process owns sync and
-    /// all writes. Performs no legacy migration; if the app hasn't created
-    /// the store yet the container starts empty and readers return no data.
-    public static func readOnly() throws -> SwiftDataStore {
-        let schema = makeSchema()
-        let url = try sharedStoreURL()
-        try FileManager.default.createDirectory(
-            at: url.deletingLastPathComponent(),
-            withIntermediateDirectories: true,
-        )
-        let config = ModelConfiguration(
-            schema: schema,
-            url: url,
-            allowsSave: false,
-            cloudKitDatabase: .none,
-        )
-        let container = try ModelContainer(for: schema, configurations: [config])
         return SwiftDataStore(modelContainer: container)
     }
 
