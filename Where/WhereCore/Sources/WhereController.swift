@@ -37,10 +37,31 @@ public actor WhereController {
     /// (significant-change events can fire many times a day).
     private var todayCoveredByReconcile: Date?
 
+    /// The most recently published widget snapshot and when it was published,
+    /// kept in memory so the controller can skip needless rebuilds + WidgetKit
+    /// reloads — see `publishWidgetSnapshotAfterIngest(of:)` (exact
+    /// change-detection on the hot GPS path) and `refreshWidgetSnapshot()` (a
+    /// freshness gate on passive launch/activation refreshes). Reset to `nil`
+    /// only by a cold launch (a fresh controller), which is exactly when one
+    /// publish is desirable to recover from any staleness.
+    private var lastPublished: PublishedWidgetSnapshot?
+
+    private struct PublishedWidgetSnapshot {
+        let snapshot: WidgetSnapshot
+        let publishedAt: Date
+    }
+
     /// How many days past today the per-day reminders are scheduled ahead, so a
     /// stretch where the app never runs still has reminders queued. Today plus
     /// this many days.
     private static let reminderWindowDays = 6
+
+    /// Maximum age of the published widget snapshot before a passive
+    /// launch/activation refresh rebuilds it on the same calendar day. The
+    /// high-frequency GPS path bypasses this via exact change-detection; this
+    /// only throttles lifecycle `refreshWidgetSnapshot()` calls so frequent
+    /// foregrounding doesn't needlessly re-pull the store and reload widgets.
+    private static let widgetSnapshotMaxAge: TimeInterval = 3 * 60 * 60
 
     private struct ReminderConfiguration {
         var enabled = false
@@ -100,7 +121,7 @@ public actor WhereController {
 
     public func ingest(_ sample: LocationSample) async throws {
         try await store.perform { try await store.add(sample: sample) }
-        await publishWidgetSnapshot()
+        await publishWidgetSnapshotAfterIngest(of: sample)
     }
 
     /// Persist many samples in a *single* transaction, rebuilding the widget
@@ -394,12 +415,21 @@ public actor WhereController {
     /// on failure. Drains any backlog first so a single transient
     /// outage doesn't permanently reorder samples on disk.
     private func processIngestedSample(_ sample: LocationSample) async {
-        var changedDays = await drainRetryQueue()
+        let drainedDays = await drainRetryQueue()
         do {
             try await store.perform { try await store.add(sample: sample) }
+            var changedDays = drainedDays
             changedDays.insert(aggregator.calendar.startOfDay(for: sample.timestamp))
             await reconcileRemindersAfterIngest(changedDays: changedDays)
-            await publishWidgetSnapshot()
+            // Exact change-detection on the hot GPS path. If draining
+            // re-persisted samples for other days, those can move the snapshot
+            // too, so fall back to a full rebuild; otherwise let the
+            // single-sample check decide whether anything changed.
+            if drainedDays.isEmpty {
+                await publishWidgetSnapshotAfterIngest(of: sample)
+            } else {
+                await publishWidgetSnapshot()
+            }
         } catch {
             // Persistence failures (SwiftData save, CloudKit, etc.)
             // are surfaced via `os.Logger` instead of being silently
@@ -492,6 +522,17 @@ public actor WhereController {
     /// this on launch and on activation to close that gap. Non-fatal on
     /// failure (see `publishWidgetSnapshot()`).
     public func refreshWidgetSnapshot() async {
+        // Passive refresh: skip the rebuild when we already published a
+        // current-day snapshot recently. A new day, a snapshot older than
+        // `widgetSnapshotMaxAge`, or nothing published yet (cold launch) all
+        // fall through to a full rebuild.
+        if let last = lastPublished {
+            let today = aggregator.calendar.startOfDay(for: now())
+            let isFresh = now().timeIntervalSince(last.publishedAt) < Self.widgetSnapshotMaxAge
+            if last.snapshot.day == today, isFresh {
+                return
+            }
+        }
         await publishWidgetSnapshot()
     }
 
@@ -503,11 +544,31 @@ public actor WhereController {
         do {
             let snapshot = try await widgetReader.snapshot(asOf: now())
             await widgetRefresher.publish(snapshot)
+            lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
         } catch {
             Self.logger.error(
                 "Failed to build widget snapshot: \(error.localizedDescription, privacy: .public)",
             )
         }
+    }
+
+    /// Publish after a single ingested sample, skipping the rebuild + WidgetKit
+    /// reload when the sample provably can't change what the widgets show: it
+    /// falls on the same calendar day as the last published snapshot *and*
+    /// resolves to a region that day already counts. Anything else — a new
+    /// region for the day, a sample on a different day, or no prior snapshot —
+    /// does a full rebuild. (A GPS sample is timestamped ~now, so it can only
+    /// add to its own day; a region already present means the day's regions and
+    /// the year totals are both unchanged.)
+    private func publishWidgetSnapshotAfterIngest(of sample: LocationSample) async {
+        if let last = lastPublished {
+            let day = aggregator.calendar.startOfDay(for: sample.timestamp)
+            let region = attributor.region(at: sample.coordinate)
+            if day == last.snapshot.day, last.snapshot.dayRegions.contains(region) {
+                return
+            }
+        }
+        await publishWidgetSnapshot()
     }
 
     // MARK: - Logging reminders
