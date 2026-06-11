@@ -91,10 +91,19 @@ struct NewYorkHeavyYearTests {
         (12, 1 ... 31, manhattan.lat, manhattan.lng),
     ]
 
+    /// `newYorkHeavyPlan` is asserted against by three tests, so script it
+    /// and build its report exactly once and share. Swift Testing makes a
+    /// fresh suite instance per test, so the cache lives at type scope. The
+    /// bare-majority and back-and-forth tests each script a distinct plan
+    /// once, so they aren't memoized here.
+    private static let newYorkHeavyReport = Task<YearReport, Error> {
+        let controller = try makeController()
+        await script(controller: controller, plan: newYorkHeavyPlan)
+        return try await controller.yearReport(for: year)
+    }
+
     @Test func totalsHaveNewYorkFarAheadOfCalifornia() async throws {
-        let controller = try Self.makeController()
-        await Self.script(controller: controller, plan: Self.newYorkHeavyPlan)
-        let report = try await controller.yearReport(for: Self.year)
+        let report = try await Self.newYorkHeavyReport.value
 
         #expect(report.totals[.newYork] == 304)
         #expect(report.totals[.california] == 61)
@@ -104,9 +113,7 @@ struct NewYorkHeavyYearTests {
     }
 
     @Test func perMonthBreakdown() async throws {
-        let controller = try Self.makeController()
-        await Self.script(controller: controller, plan: Self.newYorkHeavyPlan)
-        let report = try await controller.yearReport(for: Self.year)
+        let report = try await Self.newYorkHeavyReport.value
 
         let byMonth = Dictionary(grouping: report.days) {
             Self.calendar.component(.month, from: $0.date)
@@ -136,9 +143,7 @@ struct NewYorkHeavyYearTests {
     }
 
     @Test func everyNewYorkDayResolvesToNewYorkOnly() async throws {
-        let controller = try Self.makeController()
-        await Self.script(controller: controller, plan: Self.newYorkHeavyPlan)
-        let report = try await controller.yearReport(for: Self.year)
+        let report = try await Self.newYorkHeavyReport.value
 
         // Months 1-4 and 7-12 all script to distinct NY coordinates;
         // no day from those months should leak into CA, .other, etc.
