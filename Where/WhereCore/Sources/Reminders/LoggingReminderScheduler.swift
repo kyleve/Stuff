@@ -16,6 +16,10 @@ public struct ReminderTime: Hashable, Sendable {
     /// 8 PM — late enough that a passive day's GPS has usually landed, early
     /// enough to still act before midnight.
     public static let defaultEvening = ReminderTime(hour: 20, minute: 0)
+
+    /// 8 AM — a morning slot for the daily summary recap, after the previous
+    /// day has fully settled.
+    public static let defaultMorning = ReminderTime(hour: 8, minute: 0)
 }
 
 /// Schedules the per-day local notifications and app-icon badge that nudge the
@@ -273,7 +277,9 @@ protocol NotificationReminderCenter {
     func setBadgeCount(_ count: Int) async throws
 }
 
-private final class UNUserNotificationCenterAdapter: NotificationReminderCenter,
+/// Internal so the daily-summary scheduler in this module can share the same
+/// `UNUserNotificationCenter` bridge rather than duplicating it.
+final class UNUserNotificationCenterAdapter: NotificationReminderCenter,
     @unchecked Sendable
 {
     private let center: UNUserNotificationCenter
