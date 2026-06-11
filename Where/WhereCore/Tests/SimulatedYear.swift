@@ -25,16 +25,20 @@ enum SimulatedYear {
         let paris = (lat: 48.8566, lng: 2.3522)
         let toronto = (lat: 43.6532, lng: -79.3832)
 
+        // Collect the whole year of GPS samples, then persist them in a single
+        // batch (one transaction, one widget-snapshot rebuild) below — see the
+        // `controller.ingest(samples)` call after the day scripting.
+        var samples: [LocationSample] = []
+
         func emitNoon(month: Int, day: Int, lat: Double, lng: Double) async {
-            await emit(
-                controller: controller,
+            samples.append(Self.sample(
                 calendar: calendar,
                 month: month,
                 day: day,
                 hour: 12,
                 lat: lat,
                 lng: lng,
-            )
+            ))
         }
 
         func emitFlight(
@@ -45,24 +49,22 @@ enum SimulatedYear {
             destLat: Double,
             destLng: Double,
         ) async {
-            await emit(
-                controller: controller,
+            samples.append(Self.sample(
                 calendar: calendar,
                 month: month,
                 day: day,
                 hour: 6,
                 lat: originLat,
                 lng: originLng,
-            )
-            await emit(
-                controller: controller,
+            ))
+            samples.append(Self.sample(
                 calendar: calendar,
                 month: month,
                 day: day,
                 hour: 20,
                 lat: destLat,
                 lng: destLng,
-            )
+            ))
         }
 
         // Jan: SF (31 days)
@@ -213,6 +215,10 @@ enum SimulatedYear {
             await emitNoon(month: 12, day: d, lat: nyc.lat, lng: nyc.lng)
         }
 
+        // Persist the entire year's GPS in one transaction so the widget
+        // snapshot is rebuilt once rather than once per sample.
+        try? await controller.ingest(samples)
+
         // Evidence attachments. UUIDs are deterministic so any future snapshot
         // of evidence stays stable.
         let evidences: [(
@@ -267,23 +273,22 @@ enum SimulatedYear {
         }
     }
 
-    private static func emit(
-        controller: WhereController,
+    private static func sample(
         calendar: Calendar,
         month: Int,
         day: Int,
         hour: Int,
         lat: Double,
         lng: Double,
-    ) async {
+    ) -> LocationSample {
         let date = calendar.date(
             from: DateComponents(year: year, month: month, day: day, hour: hour),
         ) ?? Date()
-        try? await controller.ingest(LocationSample(
+        return LocationSample(
             timestamp: date,
             coordinate: Coordinate(latitude: lat, longitude: lng),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
-        ))
+        )
     }
 }

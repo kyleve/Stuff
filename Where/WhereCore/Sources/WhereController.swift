@@ -103,6 +103,23 @@ public actor WhereController {
         await publishWidgetSnapshot()
     }
 
+    /// Persist many samples in a *single* transaction, rebuilding the widget
+    /// snapshot once at the end instead of once per sample. The single-sample
+    /// `ingest(_:)` is the right call for live GPS (events arrive minutes
+    /// apart), but bulk loads — test fixtures, future bulk imports — would
+    /// otherwise open one transaction *and* re-aggregate the whole year per
+    /// sample, which is quadratic in the batch size. An empty batch is a no-op
+    /// (no transaction, no snapshot publish).
+    public func ingest(_ samples: [LocationSample]) async throws {
+        guard !samples.isEmpty else { return }
+        try await store.perform {
+            for sample in samples {
+                try await store.add(sample: sample)
+            }
+        }
+        await publishWidgetSnapshot()
+    }
+
     // MARK: - Retroactive entry
 
     public func addManualSample(_ sample: LocationSample) async throws {
