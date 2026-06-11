@@ -27,6 +27,7 @@ struct SettingsView: View {
             Form {
                 trackingSection
                 remindersSection
+                summarySection
                 manualEntrySection
                 backupSection
                 dataSection
@@ -164,6 +165,42 @@ struct SettingsView: View {
             return Strings.settingsRemindersDeniedFooter
         }
         return Strings.settingsRemindersFooter
+    }
+
+    private var summarySection: some View {
+        @Bindable var model = model
+        return Section {
+            Toggle(isOn: $model.summaryEnabled) {
+                Label(Strings.settingsSummaryToggle, systemImage: "chart.bar.doc.horizontal")
+            }
+
+            if model.summaryEnabled {
+                DatePicker(
+                    Strings.settingsSummaryTime,
+                    selection: $model.summaryTimeOfDay,
+                    displayedComponents: .hourAndMinute,
+                )
+
+                if !model.notificationsAuthorized {
+                    Button {
+                        openSystemSettings()
+                    } label: {
+                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                    }
+                }
+            }
+        } header: {
+            Text(Strings.settingsSummaryHeader)
+        } footer: {
+            Text(summaryFooter)
+        }
+    }
+
+    private var summaryFooter: String {
+        if model.summaryEnabled, !model.notificationsAuthorized {
+            return Strings.settingsSummaryDeniedFooter
+        }
+        return Strings.settingsSummaryFooter
     }
 
     private var manualEntrySection: some View {
