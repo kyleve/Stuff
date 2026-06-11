@@ -646,6 +646,112 @@ struct WhereControllerTests {
         #expect(await spy.lastBadgeCount == 0)
         #expect(await spy.lastScheduleDays.isEmpty)
     }
+
+    // MARK: - Widget snapshot publishing
+
+    private static func makeWidgetController(
+        refresher: SpyWidgetRefresher,
+        store: (any WhereStore)? = nil,
+        now: Date = Date(),
+    ) throws -> (WhereController, ScriptedLocationSource) {
+        let source = ScriptedLocationSource()
+        let controller = try WhereController(
+            store: store ?? SwiftDataStore.inMemory(),
+            locationSource: source,
+            aggregator: makeAggregator(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: refresher,
+            now: { now },
+        )
+        return (controller, source)
+    }
+
+    @Test func committedWritesPublishWidgetSnapshots() async throws {
+        let refresher = SpyWidgetRefresher()
+        // Pin "now" to the day we log so the snapshot's `dayRegions` reflects it.
+        let (controller, _) = try Self.makeWidgetController(
+            refresher: refresher,
+            now: iso("2026-03-15T20:00:00-07:00"),
+        )
+
+        try await controller.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
+        #expect(await refresher.publishCount == 1)
+        // The published snapshot reflects the committed write: SF lands in CA,
+        // both for today and in the year totals.
+        let first = await refresher.lastSnapshot
+        #expect(first?.dayRegions == [.california])
+        #expect(first?.totals == [.california: 1])
+
+        let day = iso("2026-07-04T15:00:00-07:00")
+        try await controller.addManualDay(date: day, regions: [.newYork])
+        try await controller.overrideDay(date: day, regions: [.california])
+        try await controller.clearManualDay(date: day)
+        try await controller.clearYear(2026)
+        #expect(await refresher.publishCount == 5)
+        // After clearing the year, the latest snapshot is empty again.
+        #expect(await refresher.lastSnapshot?.totals.isEmpty == true)
+    }
+
+    @Test func refreshWidgetSnapshotPublishesFromExistingStoreWithoutAMutation() async throws {
+        let store = try SwiftDataStore.inMemory()
+        // Seed data straight into the store, bypassing the controller so
+        // nothing is published — mirrors data that was synced/persisted in a
+        // previous session and is sitting on disk at launch.
+        let seed = sample(at: "2026-03-15T12:00:00-07:00")
+        try await store.perform { try await store.add(sample: seed) }
+
+        let refresher = SpyWidgetRefresher()
+        let (controller, _) = try Self.makeWidgetController(
+            refresher: refresher,
+            store: store,
+            now: iso("2026-03-15T20:00:00-07:00"),
+        )
+
+        // A freshly constructed controller hasn't published anything yet, so
+        // the widget would be blank without an explicit refresh.
+        #expect(await refresher.publishCount == 0)
+
+        await controller.refreshWidgetSnapshot()
+
+        #expect(await refresher.publishCount == 1)
+        let snapshot = await refresher.lastSnapshot
+        #expect(snapshot?.dayRegions == [.california])
+        #expect(snapshot?.totals == [.california: 1])
+    }
+
+    @Test func gpsIngestPublishesWidgetSnapshot() async throws {
+        let refresher = SpyWidgetRefresher()
+        let (controller, source) = try Self.makeWidgetController(refresher: refresher)
+
+        await controller.startGPS()
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { await refresher.publishCount == 1 }
+
+        await controller.stopGPS()
+    }
+
+    @Test func failedGPSPersistSkipsWidgetPublishUntilRetrySucceeds() async throws {
+        let refresher = SpyWidgetRefresher()
+        let store = try ToggleFailingStore(backing: SwiftDataStore.inMemory())
+        let (controller, source) = try Self.makeWidgetController(
+            refresher: refresher,
+            store: store,
+        )
+
+        await controller.startGPS()
+        await store.setShouldFail(true)
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { await controller.retryQueueDepth == 1 }
+        // Nothing was committed, so the widgets have nothing new to show.
+        #expect(await refresher.publishCount == 0)
+
+        // The next successful persist drains the backlog and republishes.
+        await store.setShouldFail(false)
+        source.emit(sample(at: "2026-03-15T12:10:00-07:00"))
+        try await waitUntil { await refresher.publishCount == 1 }
+
+        await controller.stopGPS()
+    }
 }
 
 private func iso(_ string: String) -> Date {
@@ -702,6 +808,25 @@ private actor SpyReminderScheduler: LoggingReminderScheduling {
         lastScheduleDays = scheduleDays
         lastReminderTime = reminderTime
         lastEnabled = enabled
+    }
+}
+
+/// Records the snapshots `WhereController` publishes so tests can assert
+/// widgets repaint with the right data after committed writes — and stay
+/// untouched when a write fails.
+private actor SpyWidgetRefresher: WidgetTimelineRefreshing {
+    private(set) var publishedSnapshots: [WidgetSnapshot] = []
+
+    var publishCount: Int {
+        publishedSnapshots.count
+    }
+
+    var lastSnapshot: WidgetSnapshot? {
+        publishedSnapshots.last
+    }
+
+    func publish(_ snapshot: WidgetSnapshot) async {
+        publishedSnapshots.append(snapshot)
     }
 }
 

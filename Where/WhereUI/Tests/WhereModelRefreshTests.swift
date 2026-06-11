@@ -21,6 +21,7 @@ struct WhereModelRefreshTests {
             store: store,
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
         )
 
         // Seed each year with a distinct region so we can tell which report won.
@@ -62,6 +63,7 @@ struct WhereModelRefreshTests {
             store: store,
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let model = WhereModel(controller: controller, selectedYear: 2026)
 
@@ -84,6 +86,7 @@ struct WhereModelRefreshTests {
             store: store,
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let model = WhereModel(controller: controller, selectedYear: 2026)
 
@@ -94,5 +97,65 @@ struct WhereModelRefreshTests {
                 regions: [.california],
             )
         }
+    }
+
+    // MARK: - Widget snapshot republishing on launch / activation
+
+    /// The widget extension only reads the published snapshot file, so opening
+    /// the app with data already on disk must republish — otherwise the widget
+    /// stays blank/stale until the next write.
+    @Test func startPublishesWidgetSnapshotFromExistingData() async throws {
+        let (model, refresher) = try await makePublishingModel()
+        await model.start()
+        #expect(await refresher.publishCount == 1)
+        #expect(await refresher.lastSnapshot?.totals == [.california: 1])
+    }
+
+    /// Returning to the foreground (e.g. on a new calendar day) recomputes and
+    /// republishes too.
+    @Test func appBecameActiveRepublishesWidgetSnapshot() async throws {
+        let (model, refresher) = try await makePublishingModel()
+        await model.appBecameActive()
+        #expect(await refresher.publishCount == 1)
+        #expect(await refresher.lastSnapshot?.totals == [.california: 1])
+    }
+
+    /// A model whose controller already holds one California day (seeded
+    /// straight into the store so nothing is published yet), wired to a spy
+    /// refresher and a fixed "now" so the year report is deterministic.
+    private func makePublishingModel() async throws -> (WhereModel, SpyWidgetRefresher) {
+        let store = try TestStore()
+        // Seed straight into the store (inside `perform`, as the store
+        // requires) so nothing is published before the model's lifecycle hook.
+        let seed = DayPresence(date: date(year: 2026, month: 3, day: 1), regions: [.california])
+        try await store.perform { try await store.setManualDay(seed) }
+        let refresher = SpyWidgetRefresher()
+        let now = date(year: 2026, month: 3, day: 15)
+        let controller = WhereController(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: refresher,
+            now: { now },
+        )
+        return (WhereModel(controller: controller, selectedYear: 2026), refresher)
+    }
+}
+
+/// Captures the snapshots published through the controller so the model's
+/// launch/activation hooks can be checked for republishing widget data.
+private actor SpyWidgetRefresher: WidgetTimelineRefreshing {
+    private(set) var publishedSnapshots: [WidgetSnapshot] = []
+
+    var publishCount: Int {
+        publishedSnapshots.count
+    }
+
+    var lastSnapshot: WidgetSnapshot? {
+        publishedSnapshots.last
+    }
+
+    func publish(_ snapshot: WidgetSnapshot) async {
+        publishedSnapshots.append(snapshot)
     }
 }

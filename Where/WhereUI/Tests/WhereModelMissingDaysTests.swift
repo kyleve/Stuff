@@ -31,6 +31,7 @@ struct WhereModelMissingDaysTests {
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
         )
     }
 
