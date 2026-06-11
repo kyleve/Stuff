@@ -752,11 +752,97 @@ struct WhereControllerTests {
 
         await controller.stopGPS()
     }
+
+    @Test func redundantGPSSamplesSkipRepublishingButNewRegionsStillPublish() async throws {
+        let refresher = SpyWidgetRefresher()
+        let (controller, _) = try Self.makeWidgetController(
+            refresher: refresher,
+            now: iso("2026-03-15T20:00:00-07:00"),
+        )
+
+        // First CA sample today publishes.
+        try await controller.ingest(sample(at: "2026-03-15T09:00:00-07:00"))
+        #expect(await refresher.publishCount == 1)
+
+        // A second CA sample the same day can't change what the widget shows —
+        // today already counts CA — so it's skipped (no rebuild, no reload).
+        try await controller.ingest(sample(at: "2026-03-15T13:00:00-07:00"))
+        #expect(await refresher.publishCount == 1)
+
+        // A NY sample adds a region to today, which must reach the widget.
+        try await controller.ingest(LocationSample(
+            timestamp: iso("2026-03-15T15:00:00-07:00"),
+            coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
+            horizontalAccuracy: 0,
+            source: .gpsSignificantChange,
+        ))
+        #expect(await refresher.publishCount == 2)
+        #expect(await refresher.lastSnapshot?.dayRegions == [.california, .newYork])
+    }
+
+    @Test func refreshWidgetSnapshotThrottlesUntilStaleOrNewDay() async throws {
+        let refresher = SpyWidgetRefresher()
+        let clock = MutableClock(iso("2026-03-15T08:00:00-07:00"))
+        let store = try SwiftDataStore.inMemory()
+        let seed = sample(at: "2026-03-15T07:00:00-07:00")
+        try await store.perform { try await store.add(sample: seed) }
+        let source = ScriptedLocationSource()
+        let controller = WhereController(
+            store: store,
+            locationSource: source,
+            aggregator: Self.makeAggregator(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: refresher,
+            now: { clock.now },
+        )
+
+        // Cold controller: the first passive refresh always publishes.
+        await controller.refreshWidgetSnapshot()
+        #expect(await refresher.publishCount == 1)
+
+        // Same day, < 3h later: throttled.
+        clock.advance(by: 2 * 60 * 60)
+        await controller.refreshWidgetSnapshot()
+        #expect(await refresher.publishCount == 1)
+
+        // Same day, now > 3h since the last publish: rebuilds.
+        clock.advance(by: 2 * 60 * 60)
+        await controller.refreshWidgetSnapshot()
+        #expect(await refresher.publishCount == 2)
+
+        // A new calendar day always rebuilds, even moments later.
+        clock.advance(by: 24 * 60 * 60)
+        await controller.refreshWidgetSnapshot()
+        #expect(await refresher.publishCount == 3)
+    }
 }
 
 private func iso(_ string: String) -> Date {
     let formatter = ISO8601DateFormatter()
     return formatter.date(from: string) ?? Date(timeIntervalSince1970: 0)
+}
+
+/// A hand-advanced clock so tests can drive `WhereController`'s `now` past the
+/// widget snapshot's freshness window and across a day boundary.
+private final class MutableClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var current: Date
+
+    init(_ start: Date) {
+        current = start
+    }
+
+    var now: Date {
+        lock.lock()
+        defer { lock.unlock() }
+        return current
+    }
+
+    func advance(by interval: TimeInterval) {
+        lock.lock()
+        defer { lock.unlock() }
+        current += interval
+    }
 }
 
 @Sendable
