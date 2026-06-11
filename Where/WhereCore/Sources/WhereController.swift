@@ -21,6 +21,7 @@ public actor WhereController {
     private let aggregator: DayAggregator
     private let backupService = BackupService()
     private let reminderScheduler: any LoggingReminderScheduling
+    private let summaryScheduler: any DailySummaryScheduling
     private let widgetRefresher: any WidgetTimelineRefreshing
     private let widgetReader: WidgetDataReader
     private let now: @Sendable () -> Date
@@ -31,6 +32,11 @@ public actor WhereController {
     /// until the UI calls `configureReminders(enabled:time:)`, so a freshly
     /// constructed controller never schedules anything on its own.
     private var reminderConfig = ReminderConfiguration()
+
+    /// User intent for the daily summary recap. Disabled until the UI calls
+    /// `configureDailySummary(enabled:time:)`, so a freshly constructed
+    /// controller never schedules anything on its own.
+    private var summaryConfig = SummaryConfiguration()
 
     /// The start-of-day we last reconciled while today already had presence.
     /// Lets the GPS ingest path skip a full re-scan once today is covered
@@ -56,6 +62,10 @@ public actor WhereController {
     /// this many days.
     private static let reminderWindowDays = 6
 
+    /// How many top regions the daily summary recap lists, so the notification
+    /// body stays short.
+    private static let summaryRegionLimit = 3
+
     /// Maximum age of the published widget snapshot before a passive
     /// launch/activation refresh rebuilds it on the same calendar day. The
     /// high-frequency GPS path bypasses this via exact change-detection; this
@@ -66,6 +76,11 @@ public actor WhereController {
     private struct ReminderConfiguration {
         var enabled = false
         var time: ReminderTime = .defaultEvening
+    }
+
+    private struct SummaryConfiguration {
+        var enabled = false
+        var time: ReminderTime = .defaultMorning
     }
 
     /// Whether the underlying location monitoring is currently active. Tracked
@@ -93,6 +108,7 @@ public actor WhereController {
         attributor: RegionAttributor = .shared,
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling = UserNotificationReminderScheduler(),
+        summaryScheduler: any DailySummaryScheduling = UserNotificationDailySummaryScheduler(),
         widgetRefresher: any WidgetTimelineRefreshing = WidgetCenterTimelineRefresher(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
@@ -101,6 +117,7 @@ public actor WhereController {
         self.attributor = attributor
         self.aggregator = aggregator
         self.reminderScheduler = reminderScheduler
+        self.summaryScheduler = summaryScheduler
         self.widgetRefresher = widgetRefresher
         // The reader runs in *this* (app) process and shares the controller's
         // store, calendar, and attributor so the published snapshot's day/year
@@ -661,5 +678,80 @@ public actor WhereController {
                 "Failed to reconcile logging reminders: \(error.localizedDescription, privacy: .public)",
             )
         }
+    }
+
+    // MARK: - Daily summary
+
+    /// Set the user's daily-summary intent (enabled + time of day), request
+    /// notification permission when enabling, then reconcile the scheduled
+    /// summary notification. Safe to call on every launch and whenever the user
+    /// changes the setting.
+    public func configureDailySummary(enabled: Bool, time: ReminderTime) async {
+        summaryConfig = SummaryConfiguration(enabled: enabled, time: time)
+        if enabled {
+            _ = await summaryScheduler.requestAuthorization()
+        }
+        await reconcileDailySummary()
+    }
+
+    /// Recompute the year-to-date recap text from the current year's data and
+    /// push it to the summary scheduler. When disabled, the owned notification
+    /// is cleared.
+    private func reconcileDailySummary() async {
+        guard summaryConfig.enabled else {
+            await summaryScheduler.reconcile(enabled: false, time: summaryConfig.time, body: "")
+            return
+        }
+
+        let year = aggregator.calendar.component(.year, from: now())
+        do {
+            let report = try await yearReport(for: year)
+            await summaryScheduler.reconcile(
+                enabled: true,
+                time: summaryConfig.time,
+                body: Self.summaryBody(for: report),
+            )
+        } catch {
+            Self.logger.error(
+                "Failed to reconcile daily summary: \(error.localizedDescription, privacy: .public)",
+            )
+        }
+    }
+
+    /// Build the recap notification body from a year's totals: the top regions
+    /// by day count, e.g. "132 days in California, 40 days in New York". Falls
+    /// back to an empty-state line when nothing has been logged yet.
+    private static func summaryBody(for report: YearReport) -> String {
+        let order = Dictionary(
+            uniqueKeysWithValues: Region.allCases.enumerated().map { ($1, $0) },
+        )
+        let ranked = report.totals
+            .filter { $0.value > 0 }
+            .sorted { lhs, rhs in
+                if lhs.value != rhs.value { return lhs.value > rhs.value }
+                return (order[lhs.key] ?? 0) < (order[rhs.key] ?? 0)
+            }
+            .prefix(summaryRegionLimit)
+
+        guard !ranked.isEmpty else {
+            return String(localized: "summary.notification.body.empty", bundle: .module)
+        }
+
+        return ranked
+            .map { summaryFragment(region: $0.key, days: $0.value) }
+            .joined(separator: ", ")
+    }
+
+    private static func summaryFragment(region: Region, days: Int) -> String {
+        let count = String(
+            localized: "summary.notification.dayCount",
+            defaultValue: "\(days) days",
+            bundle: .module,
+        )
+        return String(
+            localized: "summary.notification.regionDays",
+            defaultValue: "\(count) in \(region.localizedName)",
+            bundle: .module,
+        )
     }
 }
