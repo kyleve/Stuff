@@ -36,3 +36,10 @@ struct YearSelector: View {
         year.formatted(.number.grouping(.never))
     }
 }
+
+#if DEBUG
+    #Preview {
+        YearSelector()
+            .environment(PreviewSupport.loadedModel())
+    }
+#endif

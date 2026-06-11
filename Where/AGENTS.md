@@ -109,6 +109,33 @@ All `WhereCore` `os.Logger` instances use subsystem
 `"com.stuff.where"` with a per-type category. Match that when
 adding new loggers so Console.app filtering stays consistent.
 
+## SwiftUI views & previews
+
+Every SwiftUI view, widget, and other previewable component in `WhereUI`
+**must** ship at least one Xcode preview. This is a hard rule — if you add
+a `struct ... : View` (or a `Widget` / `WidgetBundle`), add a matching
+`#Preview` in the same file before you consider it done. Previews are our
+fastest visual regression check and double as living documentation of each
+view's states.
+
+- Wrap previews in `#if DEBUG ... #endif` and place them at the bottom of
+  the file (see
+  [`RegionSummaryCard.swift`](WhereUI/Sources/Primary/RegionSummaryCard.swift)
+  for the canonical shape).
+- Don't construct controllers, stores, or location sources inline. Pull
+  fixtures from
+  [`PreviewSupport`](WhereUI/Sources/Preview/PreviewSupport.swift) —
+  `loadedModel()`, `emptyModel()`, `elsewhereOnlyModel()`,
+  `missingDaysModel()`, and `sampleReport()` are all synchronous, in-memory,
+  and never touch disk, CloudKit, or CoreLocation. Add a new helper there
+  rather than hand-rolling a `WhereController` in a `#Preview`.
+- Views that read `WhereModel` from the environment need it injected:
+  `.environment(PreviewSupport.loadedModel())` (or whichever model state the
+  preview is exercising).
+- Cover the states that matter, not just the happy path — empty, loaded, and
+  any distinct edge state (e.g. missing-days, elsewhere-only) each deserve a
+  preview when the view renders them differently.
+
 ## Adding things
 
 - **New library target:** add to root
@@ -126,6 +153,10 @@ adding new loggers so Console.app filtering stays consistent.
   the exhaustive switches in `fromDiscriminator(...)` and the
   `knownCases` array — the compiler will surface every site that
   needs updating.
+- **New SwiftUI view / widget:** add a `#Preview` in the same file
+  before you're done (see [SwiftUI views &
+  previews](#swiftui-views--previews)). No previewable component lands
+  without one.
 
 ## Testing
 
