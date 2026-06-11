@@ -38,3 +38,26 @@ private struct YearTotalsWidgetContent: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview("Small", as: .systemSmall) {
+        YearTotalsWidget()
+    } timeline: {
+        WhereWidgetEntry.sample
+        WhereWidgetEntry.previewEmpty
+    }
+
+    #Preview("Medium", as: .systemMedium) {
+        YearTotalsWidget()
+    } timeline: {
+        WhereWidgetEntry.sample
+        WhereWidgetEntry.previewEmpty
+    }
+
+    #Preview("Rectangular", as: .accessoryRectangular) {
+        YearTotalsWidget()
+    } timeline: {
+        WhereWidgetEntry.sample
+        WhereWidgetEntry.previewEmpty
+    }
+#endif

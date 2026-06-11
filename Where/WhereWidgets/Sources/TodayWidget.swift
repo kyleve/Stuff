@@ -42,3 +42,28 @@ private struct TodayWidgetContent: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview("Small", as: .systemSmall) {
+        TodayWidget()
+    } timeline: {
+        WhereWidgetEntry.sample
+        WhereWidgetEntry.previewMultiRegion
+        WhereWidgetEntry.previewEmpty
+    }
+
+    #Preview("Inline", as: .accessoryInline) {
+        TodayWidget()
+    } timeline: {
+        WhereWidgetEntry.previewMultiRegion
+        WhereWidgetEntry.previewEmpty
+    }
+
+    #Preview("Circular", as: .accessoryCircular) {
+        TodayWidget()
+    } timeline: {
+        WhereWidgetEntry.previewMultiRegion
+        WhereWidgetEntry.sample
+        WhereWidgetEntry.previewEmpty
+    }
+#endif
