@@ -62,6 +62,46 @@ struct WhereControllerTests {
         #expect(report.totals == [.california: 1])
     }
 
+    @Test func batchIngestPersistsEverySampleInOneTransaction() async throws {
+        let (controller, _, _) = try Self.makeController()
+        let sf = Coordinate(latitude: 37.7749, longitude: -122.4194)
+        let nyc = Coordinate(latitude: 40.7128, longitude: -74.0060)
+        let samples = [
+            LocationSample(
+                timestamp: iso("2026-01-10T12:00:00-08:00"),
+                coordinate: sf,
+                horizontalAccuracy: 0,
+                source: .gpsSignificantChange,
+            ),
+            LocationSample(
+                timestamp: iso("2026-01-11T12:00:00-08:00"),
+                coordinate: sf,
+                horizontalAccuracy: 0,
+                source: .gpsSignificantChange,
+            ),
+            LocationSample(
+                timestamp: iso("2026-02-01T12:00:00-08:00"),
+                coordinate: nyc,
+                horizontalAccuracy: 0,
+                source: .gpsSignificantChange,
+            ),
+        ]
+        try await controller.ingest(samples)
+
+        let report = try await controller.yearReport(for: 2026)
+        #expect(report.days.count == 3)
+        #expect(report.totals == [.california: 2, .newYork: 1])
+    }
+
+    @Test func batchIngestOfEmptyArrayIsANoOp() async throws {
+        let (controller, _, _) = try Self.makeController()
+        try await controller.ingest([LocationSample]())
+
+        let report = try await controller.yearReport(for: 2026)
+        #expect(report.days.isEmpty)
+        #expect(report.totals.isEmpty)
+    }
+
     @Test func manualDayUnionsWithSamples() async throws {
         let (controller, _, _) = try Self.makeController()
         try await controller.ingest(LocationSample(

@@ -52,6 +52,7 @@ struct NewYorkHeavyYearTests {
     )
 
     private static func script(controller: WhereController, plan: [PlanEntry]) async {
+        var samples: [LocationSample] = []
         for entry in plan {
             for day in entry.days {
                 let date = calendar.date(from: DateComponents(
@@ -60,7 +61,7 @@ struct NewYorkHeavyYearTests {
                     day: day,
                     hour: 12,
                 )) ?? Date()
-                try? await controller.ingest(LocationSample(
+                samples.append(LocationSample(
                     timestamp: date,
                     coordinate: Coordinate(latitude: entry.lat, longitude: entry.lng),
                     horizontalAccuracy: 0,
@@ -68,6 +69,7 @@ struct NewYorkHeavyYearTests {
                 ))
             }
         }
+        try? await controller.ingest(samples)
     }
 
     // MARK: - NY heavy (304 NY / 61 CA)
