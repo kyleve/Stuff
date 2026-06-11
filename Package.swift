@@ -14,7 +14,6 @@ let package = Package(
         .library(name: "WhereTesting", targets: ["WhereTesting"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.19.2"),
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
     ],
     targets: [
