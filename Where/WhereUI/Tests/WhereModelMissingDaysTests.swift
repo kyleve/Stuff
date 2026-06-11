@@ -4,7 +4,7 @@ import WhereCore
 @testable import WhereUI
 
 /// Covers the missing-day computation the banner / backfill read, and the
-/// persistence of the reminder settings.
+/// persistence of the reminder and daily-summary settings.
 @MainActor
 struct WhereModelMissingDaysTests {
     /// Build dates in the same calendar `WhereModel` uses (gregorian, current
@@ -31,6 +31,7 @@ struct WhereModelMissingDaysTests {
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
     }
@@ -91,5 +92,23 @@ struct WhereModelMissingDaysTests {
         let reloaded = try WhereModel(controller: makeController(), defaults: defaults)
         #expect(!reloaded.remindersEnabled)
         #expect(reloaded.reminderTime == ReminderTime(hour: 7, minute: 30))
+    }
+
+    @Test func summarySettingsDefaultOnAndPersistAcrossModels() throws {
+        let defaults = ephemeralDefaults()
+        let model = try WhereModel(controller: makeController(), defaults: defaults)
+
+        #expect(model.summaryEnabled)
+        #expect(model.summaryTime == ReminderTime.defaultMorning)
+
+        model.summaryEnabled = false
+        model.summaryTime = ReminderTime(hour: 9, minute: 15)
+        #expect(!model.summaryEnabled)
+        #expect(model.summaryTime == ReminderTime(hour: 9, minute: 15))
+
+        // A fresh model sharing the same defaults reads back the saved values.
+        let reloaded = try WhereModel(controller: makeController(), defaults: defaults)
+        #expect(!reloaded.summaryEnabled)
+        #expect(reloaded.summaryTime == ReminderTime(hour: 9, minute: 15))
     }
 }

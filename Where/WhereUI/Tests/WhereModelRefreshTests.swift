@@ -135,6 +135,7 @@ struct WhereModelRefreshTests {
             store: store,
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
             widgetRefresher: refresher,
             now: { now },
         )
