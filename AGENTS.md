@@ -17,8 +17,10 @@ Xcode project, install external agent skills, and point Git at `.githooks/`.
 Pass `--no-open` (e.g. `./ide --no-open`) to regenerate without launching
 Xcode — useful from a terminal where you don't want the IDE to grab focus.
 
-Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise), and
-`sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`).
+Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise),
+`sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`),
+and `profile` (prints build/test hot spots — slowest build phases, slowest
+tests, and slow type-check sites; see `./profile --help`).
 
 ## Formatting
 
