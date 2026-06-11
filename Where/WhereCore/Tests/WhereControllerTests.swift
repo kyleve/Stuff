@@ -346,8 +346,11 @@ struct WhereControllerTests {
             source: .gpsSignificantChange,
         )
         source.emit(sampleC)
-        try await waitUntil { await controller.retryQueueDepth == 0 }
-        #expect(await store.persistedCount == 3)
+        // Wait on the true end-state (all three on disk). `retryQueueDepth`
+        // briefly hits 0 mid-drain — the queue is cleared before sampleC is
+        // persisted — so waiting on it instead races the final write.
+        try await waitUntil { await store.persistedCount == 3 }
+        #expect(await controller.retryQueueDepth == 0)
 
         await controller.stopGPS()
     }
