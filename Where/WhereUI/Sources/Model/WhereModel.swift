@@ -248,23 +248,31 @@ public final class WhereModel {
     /// controller and the authorization observer are only set up once.
     public func start() async {
         bootstrap()
-        guard controller != nil else { return }
+        guard let controller else { return }
         await syncAuthorization()
         observeAuthorizationChanges()
         await reconcileTracking()
         await refresh()
         await applyReminderConfiguration()
+        // Republish the widget snapshot from whatever is already on disk so a
+        // cold launch with no writes this session doesn't leave the widget
+        // blank or showing the previous day's "today".
+        await controller.refreshWidgetSnapshot()
     }
 
     /// Refresh state that can change while the app is away, including
     /// notification permission edits made in Settings and calendar-day rollover.
     public func appBecameActive() async {
         bootstrap()
-        guard controller != nil else { return }
+        guard let controller else { return }
         await syncAuthorization()
         await reconcileTracking()
         await refresh()
         await applyReminderConfiguration()
+        // The calendar day may have rolled over while backgrounded; recompute
+        // so the widget's "today" reflects the current day rather than stale
+        // foreground state.
+        await controller.refreshWidgetSnapshot()
     }
 
     /// Read the current authorization status from the controller into our

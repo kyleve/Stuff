@@ -466,6 +466,18 @@ public actor WhereController {
 
     // MARK: - Widgets
 
+    /// Recompute and publish the widget snapshot from whatever the store
+    /// currently holds, without needing a mutation first. The widget extension
+    /// only ever reads the published App Group file, so on a cold launch (no
+    /// writes yet this session) or when the app returns to the foreground on a
+    /// new calendar day, the widget would otherwise keep showing a stale — or
+    /// empty — snapshot until the next write. The app's lifecycle hooks call
+    /// this on launch and on activation to close that gap. Non-fatal on
+    /// failure (see `publishWidgetSnapshot()`).
+    public func refreshWidgetSnapshot() async {
+        await publishWidgetSnapshot()
+    }
+
     /// Recompute today's `WidgetSnapshot` from the store and hand it to the
     /// refresher to publish + reload. Called after every committed mutation
     /// that can change what a widget shows. A failure here is non-fatal: the

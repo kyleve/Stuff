@@ -692,6 +692,33 @@ struct WhereControllerTests {
         #expect(await refresher.lastSnapshot?.totals.isEmpty == true)
     }
 
+    @Test func refreshWidgetSnapshotPublishesFromExistingStoreWithoutAMutation() async throws {
+        let store = try SwiftDataStore.inMemory()
+        // Seed data straight into the store, bypassing the controller so
+        // nothing is published — mirrors data that was synced/persisted in a
+        // previous session and is sitting on disk at launch.
+        let seed = sample(at: "2026-03-15T12:00:00-07:00")
+        try await store.perform { try await store.add(sample: seed) }
+
+        let refresher = SpyWidgetRefresher()
+        let (controller, _) = try Self.makeWidgetController(
+            refresher: refresher,
+            store: store,
+            now: iso("2026-03-15T20:00:00-07:00"),
+        )
+
+        // A freshly constructed controller hasn't published anything yet, so
+        // the widget would be blank without an explicit refresh.
+        #expect(await refresher.publishCount == 0)
+
+        await controller.refreshWidgetSnapshot()
+
+        #expect(await refresher.publishCount == 1)
+        let snapshot = await refresher.lastSnapshot
+        #expect(snapshot?.dayRegions == [.california])
+        #expect(snapshot?.totals == [.california: 1])
+    }
+
     @Test func gpsIngestPublishesWidgetSnapshot() async throws {
         let refresher = SpyWidgetRefresher()
         let (controller, source) = try Self.makeWidgetController(refresher: refresher)
