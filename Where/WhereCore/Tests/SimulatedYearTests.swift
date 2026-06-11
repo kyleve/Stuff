@@ -24,10 +24,28 @@ struct SimulatedYearTests {
         )
     }
 
-    @Test func totalsAddUpAcrossAllRegions() async throws {
-        let controller = try Self.makeController()
-        await SimulatedYear.script(controller: controller, calendar: Self.calendar)
+    /// A scripted controller and its year report. Scripting the year is the
+    /// expensive part (hundreds of samples, point-in-polygon attribution, a
+    /// SwiftData transaction), so the read-only tests below share one copy.
+    private struct Fixture {
+        let controller: WhereController
+        let report: YearReport
+    }
+
+    /// The scripted year is identical for every read-only assertion, so do
+    /// the work exactly once and reuse it. Swift Testing instantiates the
+    /// suite per test, so the cache has to live at type scope.
+    /// `retroactiveEntryGrowsReport` mutates the store, so it keeps its own
+    /// controller rather than touching this shared one.
+    private static let fixture = Task<Fixture, Error> {
+        let controller = try makeController()
+        await SimulatedYear.script(controller: controller, calendar: calendar)
         let report = try await controller.yearReport(for: SimulatedYear.year)
+        return Fixture(controller: controller, report: report)
+    }
+
+    @Test func totalsAddUpAcrossAllRegions() async throws {
+        let report = try await Self.fixture.value.report
 
         #expect(report.totals[.california] == 250)
         #expect(report.totals[.newYork] == 94)
@@ -49,9 +67,7 @@ struct SimulatedYearTests {
     }
 
     @Test func yearReport_perMonthBreakdown() async throws {
-        let controller = try Self.makeController()
-        await SimulatedYear.script(controller: controller, calendar: Self.calendar)
-        let report = try await controller.yearReport(for: SimulatedYear.year)
+        let report = try await Self.fixture.value.report
 
         let byMonth = Dictionary(grouping: report.days) {
             Self.calendar.component(.month, from: $0.date)
@@ -117,9 +133,7 @@ struct SimulatedYearTests {
     }
 
     @Test func evidenceStillRetrievableAfterScripting() async throws {
-        let controller = try Self.makeController()
-        await SimulatedYear.script(controller: controller, calendar: Self.calendar)
-        let evidence = try await controller.evidence(for: SimulatedYear.year)
+        let evidence = try await Self.fixture.value.controller.evidence(for: SimulatedYear.year)
         #expect(evidence.count == 3)
         let kinds = Set(evidence.map(\.kind))
         #expect(kinds == [.planeTicket, .boardingPass])
