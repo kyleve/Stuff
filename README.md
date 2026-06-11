@@ -26,6 +26,8 @@ mise install
 
 Run tests with `mise exec -- tuist test` (or open the generated workspace in Xcode). CI pins an iOS Simulator destination so the full suite stays consistent.
 
+To see where build and test time goes, run `./profile` — it prints the slowest build phases, the slowest tests (per bundle), and any slow type-check sites. It only reports, it never fails; see `./profile --help` for flags (`--build-only`/`--tests-only`, `--device`/`--os`, `--top`, thresholds).
+
 The `./ide` script sets `core.hooksPath` to `.githooks`. The pre-commit hook
 formats staged Swift with SwiftFormat and runs `./sync-agents --git-add` so
 generated Claude files stay in sync with `AGENTS.md`.
@@ -71,6 +73,7 @@ Tuist.swift         Tuist configuration
 ide                 Dev script – hooks, sync-agents, tuist generate
 swiftformat         Run SwiftFormat via mise (default: format `.`)
 sync-agents         Sync AGENTS.md → CLAUDE.md and .claude/skills/
+profile             Report build/test hot spots (see `./profile --help`)
 .githooks/          Git hooks (pre-commit)
 .agents/            External skills manifest (`external-skills.json`)
 AGENTS.md           Repository shape for AI agents
