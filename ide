@@ -5,19 +5,84 @@ set -euo pipefail
 # this only configures the local pre-commit hook.
 git config core.hooksPath .githooks
 
+LOCAL_MISE=".mise.local.toml"
+
+# Persist an Apple Developer Team ID into the gitignored .mise.local.toml so
+# Project.swift can read TUIST_DEVELOPMENT_TEAM and stamp DEVELOPMENT_TEAM into
+# the generated project. This means you don't have to re-pick your team in Xcode
+# after every regeneration, and nothing machine-specific gets committed.
+set_team_id() {
+    local id="$1"
+
+    if [ ! -f "$LOCAL_MISE" ]; then
+        cat > "$LOCAL_MISE" <<EOF
+# Local-only mise config — NOT committed (see .gitignore).
+# Overrides/extends .mise.toml on this machine.
+
+[env]
+# Apple Developer Team ID used by Project.swift to set DEVELOPMENT_TEAM, so you
+# don't have to re-pick your team in Xcode after every \`./ide\` regeneration.
+TUIST_DEVELOPMENT_TEAM = "$id"
+EOF
+        echo "==> wrote $LOCAL_MISE (TUIST_DEVELOPMENT_TEAM=$id)"
+    elif grep -q '^[[:space:]]*TUIST_DEVELOPMENT_TEAM[[:space:]]*=' "$LOCAL_MISE"; then
+        local tmp
+        tmp="$(mktemp)"
+        sed "s|^[[:space:]]*TUIST_DEVELOPMENT_TEAM[[:space:]]*=.*|TUIST_DEVELOPMENT_TEAM = \"$id\"|" "$LOCAL_MISE" > "$tmp"
+        mv "$tmp" "$LOCAL_MISE"
+        echo "==> updated TUIST_DEVELOPMENT_TEAM=$id in $LOCAL_MISE"
+    elif grep -q '^[[:space:]]*\[env\]' "$LOCAL_MISE"; then
+        local tmp
+        tmp="$(mktemp)"
+        awk -v id="$id" '
+            { print }
+            /^[[:space:]]*\[env\][[:space:]]*$/ && !inserted {
+                print "TUIST_DEVELOPMENT_TEAM = \"" id "\""
+                inserted = 1
+            }
+        ' "$LOCAL_MISE" > "$tmp"
+        mv "$tmp" "$LOCAL_MISE"
+        echo "==> added TUIST_DEVELOPMENT_TEAM=$id under [env] in $LOCAL_MISE"
+    else
+        printf '\n[env]\nTUIST_DEVELOPMENT_TEAM = "%s"\n' "$id" >> "$LOCAL_MISE"
+        echo "==> appended [env] TUIST_DEVELOPMENT_TEAM=$id to $LOCAL_MISE"
+    fi
+}
+
 INSTALL=false
 OPEN=true
+TEAM_ID=""
 
-for arg in "$@"; do
-    case "$arg" in
+while [ $# -gt 0 ]; do
+    case "$1" in
         -i|--install)
             INSTALL=true
             ;;
         --no-open)
             OPEN=false
             ;;
+        --team-id)
+            shift
+            TEAM_ID="${1:-}"
+            if [ -z "$TEAM_ID" ]; then
+                echo "error: --team-id requires a value (e.g. ./ide --team-id ABCDE12345)" >&2
+                exit 1
+            fi
+            ;;
+        --team-id=*)
+            TEAM_ID="${1#--team-id=}"
+            if [ -z "$TEAM_ID" ]; then
+                echo "error: --team-id requires a value (e.g. ./ide --team-id ABCDE12345)" >&2
+                exit 1
+            fi
+            ;;
     esac
+    shift
 done
+
+if [ -n "$TEAM_ID" ]; then
+    set_team_id "$TEAM_ID"
+fi
 
 if [ "$INSTALL" = true ]; then
     echo "==> tuist install"
