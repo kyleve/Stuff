@@ -8,14 +8,14 @@
 | SwiftFormat | 0.60.1  | `.mise.toml` |
 | Swift PM    | 6.2     | `Package.swift` (`swift-tools-version`) |
 
-**Libraries** (**StuffCore**, **WhereCore**, **WhereUI**, **WhereTesting**) are defined in the root [`Package.swift`](Package.swift) (same pattern as Broadway: local package + Tuist for apps and test bundles).
+**Libraries** (**StuffCore**, **WhereCore**, **WhereUI**, **WhereTesting**) are defined in the root [`Package.swift`](Package.swift) — local package for libraries, Tuist for apps and test bundles.
 
 Tuist manifests live at the repo root ([`Project.swift`](Project.swift), [`Tuist.swift`](Tuist.swift)). `Project.swift` references `Package.local(path: .relativeToRoot("."))` and declares the **Where** app, **StuffTestHost**, and unit-test targets that depend on package products.
 
 Run `./ide` (or `./ide -i` to also install dependencies) to regenerate the
 Xcode project, install external agent skills, and point Git at `.githooks/`.
-Pass `--no-open` (e.g. `./ide --no-open`) to regenerate without launching
-Xcode — useful from a terminal where you don't want the IDE to grab focus.
+Pass `--no-open` to skip launching Xcode (see [Generating the Xcode
+project](#generating-the-xcode-project)).
 
 Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise),
 `sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`),
@@ -80,18 +80,15 @@ Shared/<TargetName>/
   one field or that escapes a single function — tuples are fine as
   ad-hoc inline returns but should not appear in property types,
   collection element types, or public API.
-- Don't build closure-based `Binding(get:set:)` values in SwiftUI views.
-  Bind directly to observable state (`$model.foo`) instead. When a view
-  needs a derived/adapted binding (e.g. mapping an optional error to the
-  `Bool` an `.alert` wants), expose a computed `get`/`set` property on the
-  `@Observable` model and bind to that, keeping the underlying value the
-  single source of truth.
-- Don't use a bare `default:` in a `switch` over an enum — enumerate every
-  case explicitly so adding a case becomes a compile error instead of
-  silently falling through. For non-frozen enums from other modules (system
-  types like `UNAuthorizationStatus`), handle the known cases explicitly and
-  use `@unknown default:` — that's fine, it only exists for binary forward
-  compatibility and still flags newly added cases at compile time.
+- Don't build closure-based `Binding(get:set:)` values in SwiftUI views; bind
+  directly to observable state (`$model.foo`). For a derived binding (e.g.
+  mapping an optional error to the `Bool` an `.alert` wants), expose a computed
+  `get`/`set` on the `@Observable` model and bind to that, keeping the
+  underlying value the single source of truth.
+- Don't use a bare `default:` in a `switch` over an enum — enumerate every case
+  so adding one is a compile error, not a silent fall-through. For non-frozen
+  enums from other modules (e.g. `UNAuthorizationStatus`), handle known cases
+  explicitly plus `@unknown default:`, which still flags newly added cases.
 
 ## Generating the Xcode project
 
@@ -106,34 +103,19 @@ flag is needed there.
 
 ## Working on plans
 
-When implementing a multi-step plan (e.g. the to-do list produced by a
-`/plan` invocation), commit after each step once its local checks
-pass — one commit per to-do, with the test/lint run baked into the
-"definition of done" for that step. This keeps history bisectable and
-lets the plan land piecewise if a later step regresses.
+Multi-step plans (e.g. a `/plan` to-do list) land one commit per to-do so
+history stays bisectable and can land piecewise. The loop for each to-do:
+mark `in_progress`, implement, run local checks, commit, mark `completed`.
 
-Before the first commit, check out a dedicated feature branch — never
-commit plan work directly onto `main` (or `master`). If you're still on
-the base branch, run `git checkout -b <descriptive-name>` first. Branch
-once at the start of the plan and keep every step's commit on it.
-
-The loop for each to-do is: mark `in_progress`, implement the change,
-run the relevant local checks, commit, mark `completed`, move on.
-
-- Before committing the first to-do, confirm you're on a feature branch
-  (`git rev-parse --abbrev-ref HEAD` should not be `main`/`master`); if
-  it is, create one before staging anything.
-
-- Required pre-commit checks: `./swiftformat --lint` and the matching
-  `tuist test` scheme(s). A red bar means the step is not done — fix
-  it before committing, do not stage a broken tree.
-- If a step is pure groundwork (no behavior change, nothing
-  meaningful to test), still commit it on its own so the next step's
-  diff stays focused; say so in the commit body.
-- Each commit message should name the plan step it closes (matching
-  the to-do title is fine) so the chain is readable end-to-end.
-- Do not push until the user asks, unless the plan explicitly says
-  otherwise.
+- Branch first: `git rev-parse --abbrev-ref HEAD` must not be `main`/`master`.
+  If it is, `git checkout -b <name>` before staging. Branch once; keep every
+  commit on it.
+- Pre-commit checks are part of "done": `./swiftformat --lint` and the matching
+  `tuist test` scheme(s). A red bar means not done — never commit a broken tree.
+- Pure-groundwork steps (no behavior change) still get their own commit; say so
+  in the body.
+- Name the plan step each commit closes (the to-do title is fine).
+- Don't push until the user asks, unless the plan says otherwise.
 
 ## Working on PR feedback
 
@@ -188,8 +170,6 @@ Install **Ruby** if missing (`apt-get install ruby`) — required by `sync-agent
 - **Tuist** (`mise install` / `mise install tuist` fails: `unsupported env: linux/amd64`)
 - `./ide`, `./swiftformat`, and the pre-commit hook — they call `mise exec -- …`, which tries to install **all** tools from `.mise.toml` including Tuist
 - `tuist test`, `tuist build`, iOS Simulator, and running the **Where** app
-
-On macOS, use the normal `./swiftformat --lint` and `mise exec -- tuist test` flow from the README.
 
 ### Full build & test (macOS only)
 
