@@ -24,6 +24,7 @@ struct WhereModelTrackingTests {
             store: SwiftDataStore.inMemory(),
             locationSource: source,
             reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let model = WhereModel(controller: controller, defaults: defaults)

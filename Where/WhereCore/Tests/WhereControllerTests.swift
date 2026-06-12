@@ -46,6 +46,25 @@ struct WhereControllerTests {
         return (controller, store, source)
     }
 
+    /// Build a controller with a spy daily-summary scheduler and a frozen `now`
+    /// so the recap reconciliation is deterministic.
+    private static func makeSummaryController(
+        now: Date,
+        scheduler: SpyDailySummaryScheduler,
+    ) throws -> (WhereController, SwiftDataStore, ScriptedLocationSource) {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource()
+        let controller = WhereController(
+            store: store,
+            locationSource: source,
+            aggregator: makeAggregator(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: scheduler,
+            now: { now },
+        )
+        return (controller, store, source)
+    }
+
     @Test func ingestStoresSamplesAndReportsThem() async throws {
         let (controller, _, _) = try Self.makeController()
         let sf = LocationSample(
@@ -327,8 +346,11 @@ struct WhereControllerTests {
             source: .gpsSignificantChange,
         )
         source.emit(sampleC)
-        try await waitUntil { await controller.retryQueueDepth == 0 }
-        #expect(await store.persistedCount == 3)
+        // Wait on the true end-state (all three on disk). `retryQueueDepth`
+        // briefly hits 0 mid-drain — the queue is cleared before sampleC is
+        // persisted — so waiting on it instead races the final write.
+        try await waitUntil { await store.persistedCount == 3 }
+        #expect(await controller.retryQueueDepth == 0)
 
         await controller.stopGPS()
     }
@@ -687,6 +709,66 @@ struct WhereControllerTests {
         #expect(await spy.lastScheduleDays.isEmpty)
     }
 
+    // MARK: - Daily summary
+
+    @Test func configureDailySummaryEnabledBuildsRankedBody() async throws {
+        let spy = SpyDailySummaryScheduler()
+        let (controller, _, _) = try Self.makeSummaryController(
+            now: iso("2026-01-10T09:00:00-08:00"),
+            scheduler: spy,
+        )
+        try await controller.addManualDay(
+            date: iso("2026-01-01T12:00:00-08:00"),
+            regions: [.california],
+        )
+        try await controller.addManualDay(
+            date: iso("2026-01-02T12:00:00-08:00"),
+            regions: [.california],
+        )
+        try await controller.addManualDay(
+            date: iso("2026-01-03T12:00:00-08:00"),
+            regions: [.california],
+        )
+        try await controller.addManualDay(
+            date: iso("2026-01-04T12:00:00-08:00"),
+            regions: [.newYork],
+        )
+
+        await controller.configureDailySummary(enabled: true, time: .defaultMorning)
+
+        #expect(await spy.authorizationRequests == 1)
+        #expect(await spy.lastEnabled == true)
+        #expect(await spy.lastTime == .defaultMorning)
+        // Ranked by day count desc; the single New York day stays singular.
+        #expect(await spy.lastBody == "3 days in California, 1 day in New York")
+    }
+
+    @Test func configureDailySummaryWithNoDataUsesEmptyBody() async throws {
+        let spy = SpyDailySummaryScheduler()
+        let (controller, _, _) = try Self.makeSummaryController(
+            now: iso("2026-01-10T09:00:00-08:00"),
+            scheduler: spy,
+        )
+
+        await controller.configureDailySummary(enabled: true, time: .defaultMorning)
+
+        #expect(await spy.lastEnabled == true)
+        #expect(await spy.lastBody == "No days logged yet this year.")
+    }
+
+    @Test func configureDailySummaryDisabledSkipsAuthAndSendsDisabled() async throws {
+        let spy = SpyDailySummaryScheduler()
+        let (controller, _, _) = try Self.makeSummaryController(
+            now: iso("2026-01-10T09:00:00-08:00"),
+            scheduler: spy,
+        )
+
+        await controller.configureDailySummary(enabled: false, time: .defaultMorning)
+
+        #expect(await spy.authorizationRequests == 0)
+        #expect(await spy.lastEnabled == false)
+    }
+
     // MARK: - Widget snapshot publishing
 
     private static func makeWidgetController(
@@ -934,6 +1016,38 @@ private actor SpyReminderScheduler: LoggingReminderScheduling {
         lastScheduleDays = scheduleDays
         lastReminderTime = reminderTime
         lastEnabled = enabled
+    }
+}
+
+/// Records the calls `WhereController` makes to the daily-summary scheduler so
+/// tests can assert the recap body and enabled state without touching
+/// `UNUserNotificationCenter`.
+private actor SpyDailySummaryScheduler: DailySummaryScheduling {
+    private(set) var authorizationRequests = 0
+    private(set) var reconcileCount = 0
+    private(set) var lastEnabled: Bool?
+    private(set) var lastTime: ReminderTime?
+    private(set) var lastBody: String?
+    private let authorized: Bool
+
+    init(authorized: Bool = true) {
+        self.authorized = authorized
+    }
+
+    func requestAuthorization() async -> Bool {
+        authorizationRequests += 1
+        return authorized
+    }
+
+    func isAuthorized() async -> Bool {
+        authorized
+    }
+
+    func reconcile(enabled: Bool, time: ReminderTime, body: String) async {
+        reconcileCount += 1
+        lastEnabled = enabled
+        lastTime = time
+        lastBody = body
     }
 }
 

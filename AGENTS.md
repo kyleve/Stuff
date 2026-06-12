@@ -86,6 +86,12 @@ Shared/<TargetName>/
   `Bool` an `.alert` wants), expose a computed `get`/`set` property on the
   `@Observable` model and bind to that, keeping the underlying value the
   single source of truth.
+- Don't use a bare `default:` in a `switch` over an enum — enumerate every
+  case explicitly so adding a case becomes a compile error instead of
+  silently falling through. For non-frozen enums from other modules (system
+  types like `UNAuthorizationStatus`), handle the known cases explicitly and
+  use `@unknown default:` — that's fine, it only exists for binary forward
+  compatibility and still flags newly added cases at compile time.
 
 ## Generating the Xcode project
 

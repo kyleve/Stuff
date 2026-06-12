@@ -327,6 +327,34 @@ enum Strings {
         )
     }
 
+    static var settingsSummaryHeader: String {
+        String(localized: "settings.summary.header", defaultValue: "Daily summary", bundle: .module)
+    }
+
+    static var settingsSummaryToggle: String {
+        String(localized: "settings.summary.toggle", defaultValue: "Daily summary", bundle: .module)
+    }
+
+    static var settingsSummaryTime: String {
+        String(localized: "settings.summary.time", defaultValue: "Send at", bundle: .module)
+    }
+
+    static var settingsSummaryFooter: String {
+        String(
+            localized: "settings.summary.footer",
+            defaultValue: "Get a morning recap of how many days you've logged in each region so far this year.",
+            bundle: .module,
+        )
+    }
+
+    static var settingsSummaryDeniedFooter: String {
+        String(
+            localized: "settings.summary.deniedFooter",
+            defaultValue: "Notifications are turned off for Where, so the daily summary can't appear. Turn them on in Settings.",
+            bundle: .module,
+        )
+    }
+
     static var settingsDataHeader: String {
         localized("settings.data.header")
     }

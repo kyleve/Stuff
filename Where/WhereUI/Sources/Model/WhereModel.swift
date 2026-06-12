@@ -82,11 +82,63 @@ public final class WhereModel {
         }
     }
 
+    /// Whether the daily summary recap notification is enabled. Persists across
+    /// launches; defaults to on so the year-to-date recap arrives out of the
+    /// box. Settable so SwiftUI can drive it through a plain key-path binding;
+    /// the setter persists the intent and reconciles the scheduled summary.
+    public var summaryEnabled: Bool {
+        get { summaryEnabledStorage }
+        set {
+            guard newValue != summaryEnabledStorage else { return }
+            summaryEnabledStorage = newValue
+            defaults.set(newValue, forKey: Self.summaryEnabledKey)
+            Task { await applySummaryConfiguration() }
+        }
+    }
+
+    /// Time of day the daily summary fires. Persists and reconciles on change.
+    public var summaryTime: ReminderTime {
+        get { summaryTimeStorage }
+        set {
+            guard newValue != summaryTimeStorage else { return }
+            summaryTimeStorage = newValue
+            defaults.set(newValue.hour, forKey: Self.summaryHourKey)
+            defaults.set(newValue.minute, forKey: Self.summaryMinuteKey)
+            Task { await applySummaryConfiguration() }
+        }
+    }
+
+    /// `Date`-typed projection of `summaryTime` for the Settings `DatePicker`,
+    /// mirroring `reminderTimeOfDay`. Writes round-trip into `summaryTime` (and
+    /// its persistence/reconcile).
+    public var summaryTimeOfDay: Date {
+        get {
+            Self.calendar.date(
+                bySettingHour: summaryTime.hour,
+                minute: summaryTime.minute,
+                second: 0,
+                of: now(),
+            ) ?? now()
+        }
+        set {
+            let components = Self.calendar.dateComponents([.hour, .minute], from: newValue)
+            summaryTime = ReminderTime(
+                hour: components.hour ?? ReminderTime.defaultMorning.hour,
+                minute: components.minute ?? ReminderTime.defaultMorning.minute,
+            )
+        }
+    }
+
     /// Observed backing storage for `remindersEnabled` / `reminderTime`. The
     /// public computed properties layer persistence + reconciliation onto their
     /// setters, which a stored property can't express.
     private var remindersEnabledStorage: Bool
     private var reminderTimeStorage: ReminderTime
+
+    /// Observed backing storage for `summaryEnabled` / `summaryTime`, mirroring
+    /// the reminder storage above.
+    private var summaryEnabledStorage: Bool
+    private var summaryTimeStorage: ReminderTime
 
     /// Whether the system has granted notification permission. Lets the Settings
     /// UI route the user to the system Settings app when they've enabled
@@ -110,6 +162,9 @@ public final class WhereModel {
     private static let remindersEnabledKey = "where.remindersEnabled"
     private static let reminderHourKey = "where.reminderHour"
     private static let reminderMinuteKey = "where.reminderMinute"
+    private static let summaryEnabledKey = "where.summaryEnabled"
+    private static let summaryHourKey = "where.summaryHour"
+    private static let summaryMinuteKey = "where.summaryMinute"
 
     /// Primary/secondary split of the current report, or an empty ranking
     /// while nothing is loaded.
@@ -187,6 +242,8 @@ public final class WhereModel {
         self.now = now
         remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
         reminderTimeStorage = Self.loadReminderTime(from: defaults)
+        summaryEnabledStorage = Self.loadSummaryEnabled(from: defaults)
+        summaryTimeStorage = Self.loadSummaryTime(from: defaults)
     }
 
     /// Preview/test seam: inject an already-built controller (and optionally a
@@ -206,6 +263,8 @@ public final class WhereModel {
         self.now = now
         remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
         reminderTimeStorage = Self.loadReminderTime(from: defaults)
+        summaryEnabledStorage = Self.loadSummaryEnabled(from: defaults)
+        summaryTimeStorage = Self.loadSummaryTime(from: defaults)
         loadState = report == nil ? .idle : .loaded
     }
 
@@ -218,6 +277,18 @@ public final class WhereModel {
             .hour
         let minute = defaults.object(forKey: reminderMinuteKey) as? Int
             ?? ReminderTime.defaultEvening.minute
+        return ReminderTime(hour: hour, minute: minute)
+    }
+
+    private static func loadSummaryEnabled(from defaults: UserDefaults) -> Bool {
+        defaults.object(forKey: summaryEnabledKey) as? Bool ?? true
+    }
+
+    private static func loadSummaryTime(from defaults: UserDefaults) -> ReminderTime {
+        let hour = defaults.object(forKey: summaryHourKey) as? Int ?? ReminderTime.defaultMorning
+            .hour
+        let minute = defaults.object(forKey: summaryMinuteKey) as? Int
+            ?? ReminderTime.defaultMorning.minute
         return ReminderTime(hour: hour, minute: minute)
     }
 
@@ -254,6 +325,7 @@ public final class WhereModel {
         await reconcileTracking()
         await refresh()
         await applyReminderConfiguration()
+        await applySummaryConfiguration()
         // Republish the widget snapshot from whatever is already on disk so a
         // cold launch with no writes this session doesn't leave the widget
         // blank or showing the previous day's "today".
@@ -269,6 +341,7 @@ public final class WhereModel {
         await reconcileTracking()
         await refresh()
         await applyReminderConfiguration()
+        await applySummaryConfiguration()
         // The calendar day may have rolled over while backgrounded; recompute
         // so the widget's "today" reflects the current day rather than stale
         // foreground state.
@@ -450,6 +523,16 @@ public final class WhereModel {
     private func applyReminderConfiguration() async {
         guard let controller else { return }
         await controller.configureReminders(enabled: remindersEnabled, time: reminderTime)
+        notificationsAuthorized = await controller.notificationAuthorizationGranted()
+    }
+
+    /// Push the current daily-summary intent to the controller and refresh
+    /// whether the system has granted notification permission. Notification
+    /// permission is global, so it shares `notificationsAuthorized` with the
+    /// logging reminder.
+    private func applySummaryConfiguration() async {
+        guard let controller else { return }
+        await controller.configureDailySummary(enabled: summaryEnabled, time: summaryTime)
         notificationsAuthorized = await controller.notificationAuthorizationGranted()
     }
 
