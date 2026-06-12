@@ -279,6 +279,24 @@ enum Strings {
         String(localized: "onboarding.notNow", defaultValue: "Not Now", bundle: .module)
     }
 
+    // MARK: Migration
+
+    static var migrationTitle: String {
+        String(
+            localized: "migration.title",
+            defaultValue: "Updating your data…",
+            bundle: .module,
+        )
+    }
+
+    static var migrationSubtitle: String {
+        String(
+            localized: "migration.subtitle",
+            defaultValue: "This only takes a moment.",
+            bundle: .module,
+        )
+    }
+
     // MARK: Settings
 
     static var settingsTitle: String {
