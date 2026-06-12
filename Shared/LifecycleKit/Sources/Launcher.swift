@@ -42,7 +42,9 @@ public final class Launcher {
     public func run() async {
         guard !hasRun else { return }
         hasRun = true
-        await drive(from: 0)
+        if await runSteps(steps, from: 0) {
+            phase = .ready
+        }
     }
 
     /// Resume the launch from the step that failed. No-op unless the launcher
@@ -53,11 +55,30 @@ public final class Launcher {
         phase = .launching
         driveTask?.cancel()
         driveTask = Task { [weak self] in
-            await self?.drive(from: startIndex)
+            guard let self else { return }
+            if await runSteps(steps, from: startIndex) {
+                phase = .ready
+            }
         }
     }
 
-    private func drive(from startIndex: Int) async {
+    /// Run a teardown `sequence` (logout / erase), then relaunch from the top
+    /// so the app returns to its initial state — e.g. first-run onboarding
+    /// shows again once the teardown clears the "has onboarded" flag.
+    ///
+    /// If a teardown step throws, the launcher parks in `.failed` and does not
+    /// relaunch.
+    public func reset(_ sequence: LaunchSequence) async {
+        phase = .launching
+        guard await runSteps(sequence.steps, from: 0) else { return }
+        hasRun = false
+        await run()
+    }
+
+    /// Walk `steps` from `startIndex`, honoring mode/condition gating and
+    /// presentation triggers. Returns true if every applicable step completed,
+    /// or false if one threw — in which case `phase` is already `.failed`.
+    private func runSteps(_ steps: [LaunchStep], from startIndex: Int) async -> Bool {
         var index = startIndex
         while index < steps.count {
             let step = steps[index]
@@ -80,13 +101,13 @@ public final class Launcher {
             } catch {
                 cancelPresentation()
                 phase = .failed(LaunchFailure(stepID: step.id, error: error))
-                return
+                return false
             }
 
             cancelPresentation()
             index += 1
         }
-        phase = .ready
+        return true
     }
 
     /// Decide whether/when to show the step's presentation, per its trigger.
