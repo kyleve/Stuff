@@ -111,12 +111,11 @@ adding new loggers so Console.app filtering stays consistent.
 
 ## SwiftUI views & previews
 
-Every SwiftUI view, widget, and other previewable component in `WhereUI`
-**must** ship at least one Xcode preview. This is a hard rule — if you add
-a `struct ... : View` (or a `Widget` / `WidgetBundle`), add a matching
-`#Preview` in the same file before you consider it done. Previews are our
-fastest visual regression check and double as living documentation of each
-view's states.
+Every previewable component in `WhereUI` (any `View`, `Widget`, or
+`WidgetBundle`) **must** ship at least one `#Preview` in the same file — a
+hard rule, checked before the component is done. Previews are our fastest
+visual regression check and double as living documentation of each view's
+states.
 
 - Wrap previews in `#if DEBUG ... #endif` and place them at the bottom of
   the file (see
@@ -153,10 +152,8 @@ view's states.
   the exhaustive switches in `fromDiscriminator(...)` and the
   `knownCases` array — the compiler will surface every site that
   needs updating.
-- **New SwiftUI view / widget:** add a `#Preview` in the same file
-  before you're done (see [SwiftUI views &
-  previews](#swiftui-views--previews)). No previewable component lands
-  without one.
+- **New SwiftUI view / widget:** add a `#Preview` in the same file (see
+  [SwiftUI views & previews](#swiftui-views--previews)).
 
 ## Testing
 
