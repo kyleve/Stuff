@@ -120,11 +120,18 @@ public func Work(
 /// A UI-bearing step that presents `presenting` and, by default, suspends
 /// until the view resolves the handle (`complete()`/`fail(_:)`). Pass a custom
 /// `run` if the step also needs to do async work alongside awaiting the UI.
+///
+/// Interactive steps default to `.modes(.foreground)`: a step whose whole job
+/// is to wait for the user would deadlock during a headless background launch
+/// (there is no UI to resolve it), so it is skipped there. Override with
+/// `.modes(.all)` only if `run` can also resolve itself without the UI.
 public func Interactive(
     _ id: String,
     run: @escaping @MainActor (StepHandle) async throws
         -> Void = { try await $0.waitForResolution() },
     @ViewBuilder presenting view: @escaping @MainActor (StepHandle) -> some View,
 ) -> LaunchStep {
-    LaunchStep(id: id, run: run).presenting(view)
+    LaunchStep(id: id, run: run)
+        .presenting(view)
+        .modes(.foreground)
 }
