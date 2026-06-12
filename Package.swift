@@ -40,6 +40,7 @@ let package = Package(
             name: "WhereUI",
             dependencies: [
                 .target(name: "WhereCore"),
+                .target(name: "LifecycleKit"),
             ],
             path: "Where/WhereUI/Sources",
             resources: [

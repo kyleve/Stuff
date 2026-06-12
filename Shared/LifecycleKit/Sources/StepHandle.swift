@@ -32,7 +32,10 @@ public final class StepHandle {
     @ObservationIgnored private var earlyResolution: Result<Void, Error>?
     @ObservationIgnored private var isResolved = false
 
-    init(reason: LaunchReason) {
+    /// Create a standalone handle. The engine creates one per step, but this
+    /// is public so consumers can build and drive their presentation views in
+    /// previews and tests without an engine.
+    public init(reason: LaunchReason) {
         self.reason = reason
     }
 

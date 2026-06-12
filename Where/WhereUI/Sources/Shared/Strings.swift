@@ -213,6 +213,72 @@ enum Strings {
         )
     }
 
+    // MARK: Onboarding
+
+    static var onboardingWelcomeTitle: String {
+        String(
+            localized: "onboarding.welcome.title",
+            defaultValue: "Where have you been?",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingWelcomeDescription: String {
+        String(
+            localized: "onboarding.welcome.description",
+            defaultValue: "Where keeps a private passport of which regions you spend your days in — built for residency and day-count questions.",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingAutomaticTitle: String {
+        String(
+            localized: "onboarding.automatic.title",
+            defaultValue: "It logs itself",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingAutomaticDescription: String {
+        String(
+            localized: "onboarding.automatic.description",
+            defaultValue: "With background location, Where quietly notes the regions you pass through. You can always add or correct days by hand.",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingPrivacyTitle: String {
+        String(
+            localized: "onboarding.privacy.title",
+            defaultValue: "Private by design",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingPrivacyDescription: String {
+        String(
+            localized: "onboarding.privacy.description",
+            defaultValue: "Your location stays on your device and in your own iCloud. Turn on background location to start your passport.",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingContinue: String {
+        String(localized: "onboarding.continue", defaultValue: "Continue", bundle: .module)
+    }
+
+    static var onboardingEnableLocation: String {
+        String(
+            localized: "onboarding.enableLocation",
+            defaultValue: "Enable Location",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingNotNow: String {
+        String(localized: "onboarding.notNow", defaultValue: "Not Now", bundle: .module)
+    }
+
     // MARK: Settings
 
     static var settingsTitle: String {

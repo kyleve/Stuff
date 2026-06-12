@@ -158,7 +158,22 @@ public final class WhereModel {
         set { defaults.set(newValue, forKey: Self.wantsTrackingKey) }
     }
 
+    /// Whether first-run onboarding has been completed. Persisted so onboarding
+    /// shows exactly once; the launch flow gates its onboarding step on this,
+    /// and the reset/erase flow clears it so onboarding returns.
+    public private(set) var hasOnboarded: Bool {
+        get { defaults.bool(forKey: Self.hasOnboardedKey) }
+        set { defaults.set(newValue, forKey: Self.hasOnboardedKey) }
+    }
+
+    /// Mark first-run onboarding complete. Called by `OnboardingView` once the
+    /// user finishes the intro (after the permission prompt resolves).
+    public func completeOnboarding() {
+        hasOnboarded = true
+    }
+
     private static let wantsTrackingKey = "where.wantsBackgroundTracking"
+    private static let hasOnboardedKey = "where.hasOnboarded"
     private static let remindersEnabledKey = "where.remindersEnabled"
     private static let reminderHourKey = "where.reminderHour"
     private static let reminderMinuteKey = "where.reminderMinute"
