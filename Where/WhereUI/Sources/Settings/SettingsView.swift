@@ -118,7 +118,7 @@ struct SettingsView: View {
     private var showGrantButton: Bool {
         switch model.authorizationStatus {
             case .notDetermined, .whenInUse: true
-            default: false
+            case .restricted, .denied, .always: false
         }
     }
 
@@ -127,7 +127,7 @@ struct SettingsView: View {
     private var showOpenSettingsButton: Bool {
         switch model.authorizationStatus {
             case .denied, .restricted, .whenInUse: true
-            default: false
+            case .notDetermined, .always: false
         }
     }
 

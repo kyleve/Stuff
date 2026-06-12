@@ -138,7 +138,9 @@ private final class FakeSummaryCenter: NotificationReminderCenter, @unchecked Se
         switch status {
             case .authorized, .provisional, .ephemeral:
                 true
-            default:
+            case .notDetermined, .denied:
+                false
+            @unknown default:
                 false
         }
     }

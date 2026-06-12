@@ -130,7 +130,9 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         switch await center.authorizationStatus() {
             case .authorized, .provisional, .ephemeral:
                 true
-            default:
+            case .notDetermined, .denied:
+                false
+            @unknown default:
                 false
         }
     }
@@ -150,7 +152,11 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         switch await center.authorizationStatus() {
             case .authorized, .provisional, .ephemeral:
                 break
-            default:
+            case .notDetermined, .denied:
+                await removeAllOwnedReminders()
+                await setBadge(0)
+                return
+            @unknown default:
                 await removeAllOwnedReminders()
                 await setBadge(0)
                 return

@@ -84,7 +84,9 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
         switch await center.authorizationStatus() {
             case .authorized, .provisional, .ephemeral:
                 true
-            default:
+            case .notDetermined, .denied:
+                false
+            @unknown default:
                 false
         }
     }
@@ -98,7 +100,10 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
         switch await center.authorizationStatus() {
             case .authorized, .provisional, .ephemeral:
                 break
-            default:
+            case .notDetermined, .denied:
+                await removeAllOwned()
+                return
+            @unknown default:
                 await removeAllOwned()
                 return
         }
