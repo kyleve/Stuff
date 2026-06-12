@@ -82,6 +82,75 @@ struct LauncherDriveTests {
 }
 
 @MainActor
+struct LauncherForegroundPromotionTests {
+    @Test func enterForegroundReDrivesAndRunsForegroundOnlySteps() async {
+        var executed: [String] = []
+        let launcher = Launcher(reason: .background(.location), sequence: LaunchSequence {
+            Work("store") { _ in executed.append("store") }
+            Work("onboarding") { _ in executed.append("onboarding") }.modes(.foreground)
+        })
+        await launcher.run()
+        // The headless background drive ran only the unrestricted step.
+        #expect(executed == ["store"])
+        #expect(launcher.reason.isBackground)
+
+        await launcher.enterForeground()
+        // Promotion re-drives from the top: the (idempotent) unrestricted step
+        // runs again and the foreground-only step now runs too.
+        #expect(executed == ["store", "store", "onboarding"])
+        #expect(!launcher.reason.isBackground)
+        #expect(launcher.phase.isReady)
+    }
+
+    @Test func enterForegroundIsNoOpForAForegroundLaunch() async {
+        var count = 0
+        let launcher = Launcher(reason: .userForeground, sequence: LaunchSequence {
+            Work("a") { _ in count += 1 }
+        })
+        await launcher.run()
+        await launcher.enterForeground()
+        #expect(count == 1)
+        #expect(launcher.phase.isReady)
+    }
+
+    @Test func enterForegroundWaitsForAnInFlightBackgroundDrive() async throws {
+        var starts = 0
+        var inFlight = 0
+        var maxInFlight = 0
+        let launcher = Launcher(reason: .background(.location), sequence: LaunchSequence {
+            Work("slow") { handle in
+                starts += 1
+                inFlight += 1
+                maxInFlight = max(maxInFlight, inFlight)
+                try await handle.waitForResolution()
+                inFlight -= 1
+            }
+        })
+        let runTask = Task { @MainActor in await launcher.run() }
+        try await waitUntil { launcher.phase.runningStepID == "slow" }
+        let backgroundHandle = launcher.phase.runningHandle
+
+        // Promote while the background drive is still suspended in "slow".
+        let promote = Task { @MainActor in await launcher.enterForeground() }
+        // Even given time to misbehave, promotion must not start a second,
+        // overlapping drive of "slow" while the first is still in flight.
+        try await Task.sleep(for: .milliseconds(20))
+        #expect(starts == 1)
+
+        // Let the background drive finish; only then may the foreground
+        // re-drive begin and run "slow" a second time.
+        backgroundHandle?.complete()
+        try await waitUntil { starts == 2 }
+        launcher.phase.runningHandle?.complete()
+        await runTask.value
+        await promote.value
+
+        #expect(maxInFlight == 1)
+        #expect(launcher.phase.isReady)
+    }
+}
+
+@MainActor
 struct LauncherFailureTests {
     @Test func thrownErrorParksInFailedAndStopsSubsequentSteps() async {
         var executed: [String] = []

@@ -13,18 +13,30 @@ import SwiftUI
 ///   include the launch reason or whose async `condition` is false, awaiting
 ///   each remaining step's body. A thrown error parks the launcher in
 ///   `.failed`; `retry()` resumes from the step that failed.
+/// - `enterForeground()` promotes a launcher that started headless (its
+///   `reason` was `.background`) once a window actually appears, re-driving the
+///   sequence so the now-applicable foreground-only steps (onboarding, etc.)
+///   run.
+///
+/// Every drive is funneled through a single `runTask`, and the promotion /
+/// retry / reset entry points await any in-flight drive before starting a new
+/// one, so two drives never overlap (which would let, e.g., a store-open step
+/// run twice concurrently).
 @MainActor
 @Observable
 public final class Launcher {
     /// The single value the host renders.
     public private(set) var phase: LaunchPhase = .launching
 
-    /// Why the app launched this time.
-    public let reason: LaunchReason
+    /// Why the app launched this time. Mutable because a headless background
+    /// launch can be promoted to a foreground one via `enterForeground()` when
+    /// the user brings the app to the front; the container observes this to
+    /// stop rendering `EmptyView()` and start building real UI.
+    public private(set) var reason: LaunchReason
 
     @ObservationIgnored private let steps: [LaunchStep]
     @ObservationIgnored private var hasRun = false
-    @ObservationIgnored private var driveTask: Task<Void, Never>?
+    @ObservationIgnored private var runTask: Task<Void, Never>?
     @ObservationIgnored private var presentationTask: Task<Void, Never>?
 
     public init(
@@ -38,13 +50,33 @@ public final class Launcher {
     }
 
     /// Walk the sequence once. Safe to call repeatedly; only the first call
-    /// drives the steps.
+    /// drives the steps, and later callers await that drive instead of
+    /// starting a second one.
     public func run() async {
-        guard !hasRun else { return }
-        hasRun = true
-        if await runSteps(steps, from: 0) {
-            phase = .ready
+        guard !hasRun else {
+            await runTask?.value
+            return
         }
+        hasRun = true
+        phase = .launching
+        driveFromTop()
+        await runTask?.value
+    }
+
+    /// Promote a headless background launch to a foreground one and re-drive
+    /// the sequence so foreground-only steps (e.g. onboarding) now run. No-op
+    /// for a launcher that already launched in the foreground.
+    ///
+    /// Call this from the root view's `.task`: it fires only once a window
+    /// exists, which is exactly when a background launch has become a
+    /// user-visible one.
+    public func enterForeground() async {
+        guard reason.isBackground else { return }
+        await runTask?.value
+        reason = .userForeground
+        phase = .launching
+        driveFromTop()
+        await runTask?.value
     }
 
     /// Resume the launch from the step that failed. No-op unless the launcher
@@ -53,13 +85,7 @@ public final class Launcher {
         guard case let .failed(failure) = phase else { return }
         let startIndex = steps.firstIndex { $0.id == failure.stepID } ?? 0
         phase = .launching
-        driveTask?.cancel()
-        driveTask = Task { [weak self] in
-            guard let self else { return }
-            if await runSteps(steps, from: startIndex) {
-                phase = .ready
-            }
-        }
+        driveFromTop(from: startIndex)
     }
 
     /// Run a teardown `sequence` (logout / erase), then relaunch from the top
@@ -69,10 +95,29 @@ public final class Launcher {
     /// If a teardown step throws, the launcher parks in `.failed` and does not
     /// relaunch.
     public func reset(_ sequence: LaunchSequence) async {
+        await runTask?.value
         phase = .launching
-        guard await runSteps(sequence.steps, from: 0) else { return }
-        hasRun = false
-        await run()
+        let task = Task { [weak self] in
+            guard let self else { return }
+            guard await runSteps(sequence.steps, from: 0) else { return }
+            hasRun = true
+            if await runSteps(steps, from: 0) {
+                phase = .ready
+            }
+        }
+        runTask = task
+        await task.value
+    }
+
+    /// Drive `self.steps` from `startIndex` on a fresh `runTask`, landing in
+    /// `.ready` if every applicable step completes.
+    private func driveFromTop(from startIndex: Int = 0) {
+        runTask = Task { [weak self] in
+            guard let self else { return }
+            if await runSteps(steps, from: startIndex) {
+                phase = .ready
+            }
+        }
     }
 
     /// Walk `steps` from `startIndex`, honoring mode/condition gating and

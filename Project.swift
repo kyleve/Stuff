@@ -91,6 +91,7 @@ let project = Project(
             resources: ["Where/Where/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
+                .package(product: "LifecycleKit"),
                 .package(product: "WhereUI"),
                 .target(name: "WhereWidgets"),
             ],

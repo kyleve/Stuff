@@ -146,8 +146,19 @@ public final class WhereModel {
     public private(set) var notificationsAuthorized = false
 
     private var controller: WhereController?
+    /// `CoreLocationSource` built eagerly by `prepareLocation()` (the launch
+    /// prelude) and consumed by `openStore()` when it assembles the controller.
+    /// Installing the `CLLocationManager` + delegate this early lets a
+    /// background relaunch deliver its queued location event before the (async,
+    /// possibly slow) store open finishes.
+    private var pendingLocationSource: CoreLocationSource?
     private var authorizationTask: Task<Void, Never>?
     private let defaults: UserDefaults
+    private let schemaMarker: SchemaVersionMarker
+    /// How `openStore()` opens the persistent store. Defaults to opening the
+    /// real SwiftData container off the main actor (so a slow migration doesn't
+    /// freeze the UI it renders on); a test seam can inject a controllable open.
+    private let storeOpener: @Sendable () async throws -> SwiftDataStore
     private let now: @Sendable () -> Date
 
     /// Persisted user intent to track in the background. Effective tracking is
@@ -250,10 +261,15 @@ public final class WhereModel {
     public init(
         selectedYear: Int = WhereModel.currentYear,
         defaults: UserDefaults = .standard,
+        schemaMarker: SchemaVersionMarker = .standard,
+        storeOpener: @escaping @Sendable () async throws -> SwiftDataStore = WhereModel
+            .defaultStoreOpener,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.selectedYear = selectedYear
         self.defaults = defaults
+        self.schemaMarker = schemaMarker
+        self.storeOpener = storeOpener
         self.now = now
         remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
         reminderTimeStorage = Self.loadReminderTime(from: defaults)
@@ -269,12 +285,15 @@ public final class WhereModel {
         report: YearReport? = nil,
         selectedYear: Int = WhereModel.currentYear,
         defaults: UserDefaults = .standard,
+        schemaMarker: SchemaVersionMarker = .standard,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.controller = controller
         self.report = report
         self.selectedYear = selectedYear
         self.defaults = defaults
+        self.schemaMarker = schemaMarker
+        storeOpener = WhereModel.defaultStoreOpener
         self.now = now
         remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
         reminderTimeStorage = Self.loadReminderTime(from: defaults)
@@ -307,34 +326,74 @@ public final class WhereModel {
         return ReminderTime(hour: hour, minute: minute)
     }
 
-    /// Synchronously build the production controller (SwiftData +
-    /// CoreLocation) if it doesn't exist yet. Idempotent.
+    /// Synchronous launch prelude: create the `CoreLocationSource` (and thus
+    /// the `CLLocationManager` + delegate) right away, without touching the
+    /// store. Idempotent and a no-op once a controller exists (e.g. a
+    /// preview/test that injected one).
     ///
-    /// Constructing `CoreLocationSource` here creates the `CLLocationManager`
-    /// and installs its delegate, which CoreLocation requires to happen early
-    /// in app launch so it can deliver significant-change / visit events when
-    /// the app is relaunched into the background after termination. The app
-    /// delegate calls this from `didFinishLaunching`; `start()` also calls it
-    /// to cover the preview/no-delegate path.
-    public func bootstrap() {
+    /// CoreLocation requires its delegate be installed early in app launch so
+    /// it can deliver the significant-change / visit event that relaunched the
+    /// app into the background after termination. The samples it emits buffer
+    /// in `CoreLocationSource.sampleStream` (an unbounded `AsyncStream`) until
+    /// `openStore()` wires up the controller, so deferring the store open to an
+    /// async step can't drop a queued background event.
+    public func prepareLocation() {
+        guard controller == nil, pendingLocationSource == nil else { return }
+        pendingLocationSource = CoreLocationSource()
+    }
+
+    /// Open the SwiftData store and build the controller. Async (and the heavy
+    /// `ModelContainer` open runs off the main actor) so a slow schema
+    /// migration neither blocks `didFinishLaunching` nor freezes the main actor
+    /// the migration UI renders on. Idempotent and a no-op once a controller
+    /// exists. Throws on persistence failure so the launch step can surface it.
+    public func openStore() async throws {
         guard controller == nil else { return }
-        do {
-            let store = try SwiftDataStore.make()
-            controller = WhereController(
-                store: store,
-                locationSource: CoreLocationSource(),
-            )
-        } catch {
-            loadState = .failed(error.localizedDescription)
-        }
+        let source = pendingLocationSource ?? CoreLocationSource()
+        pendingLocationSource = nil
+        let store = try await storeOpener()
+        // Record only after a successful open, so the next launch's
+        // `migrationExpected` prediction compares against an up-to-date marker.
+        schemaMarker.recordCurrentVersion()
+        controller = WhereController(store: store, locationSource: source)
+    }
+
+    /// Production store opener: build the real SwiftData container on a
+    /// detached task so a slow schema migration runs off the main actor (the
+    /// one the migration UI renders on) instead of freezing it.
+    ///
+    /// `@usableFromInline` so the public `init`'s default argument can name it
+    /// without making the opener itself public API.
+    @usableFromInline
+    static let defaultStoreOpener: @Sendable () async throws -> SwiftDataStore = {
+        try await Task.detached(priority: .userInitiated) {
+            try SwiftDataStore.make()
+        }.value
+    }
+
+    /// Whether opening the store is predicted to run a schema migration (the
+    /// persisted version marker is behind the current schema). The launch
+    /// sequence reads this at the moment the open-store step starts to decide
+    /// whether to present the migration UI; a fresh install reads `false`.
+    public var migrationExpected: Bool {
+        schemaMarker.migrationExpected
     }
 
     /// Ensure the controller exists, sync authorization, resume tracking if
     /// appropriate, then load the selected year. Safe to call repeatedly; the
     /// controller and the authorization observer are only set up once.
+    ///
+    /// This is the imperative equivalent of `WhereLaunch.sequence`, kept for
+    /// previews/tests that drive the model directly without a `Launcher`.
     public func start() async {
-        bootstrap()
-        guard let controller else { return }
+        prepareLocation()
+        do {
+            try await openStore()
+        } catch {
+            loadState = .failed(error.localizedDescription)
+            return
+        }
+        guard controller != nil else { return }
         await syncAuthorization()
         observeAuthorizationChanges()
         await reconcileTracking()
@@ -344,14 +403,18 @@ public final class WhereModel {
         // Republish the widget snapshot from whatever is already on disk so a
         // cold launch with no writes this session doesn't leave the widget
         // blank or showing the previous day's "today".
-        await controller.refreshWidgetSnapshot()
+        await refreshWidgetSnapshot()
     }
 
     /// Refresh state that can change while the app is away, including
     /// notification permission edits made in Settings and calendar-day rollover.
+    ///
+    /// A no-op until the launch has built the controller: opening the store is
+    /// the launcher's job (the async `open-store` step), and re-opening it here
+    /// would race that step on the first foreground. Subsequent foregroundings
+    /// (when the controller already exists) just refresh.
     public func appBecameActive() async {
-        bootstrap()
-        guard let controller else { return }
+        guard controller != nil else { return }
         await syncAuthorization()
         await reconcileTracking()
         await refresh()
@@ -360,20 +423,27 @@ public final class WhereModel {
         // The calendar day may have rolled over while backgrounded; recompute
         // so the widget's "today" reflects the current day rather than stale
         // foreground state.
-        await controller.refreshWidgetSnapshot()
+        await refreshWidgetSnapshot()
+    }
+
+    /// Republish the widget snapshot from whatever is on disk. A launch step
+    /// in its own right (see `WhereLaunch.sequence`).
+    public func refreshWidgetSnapshot() async {
+        await controller?.refreshWidgetSnapshot()
     }
 
     /// Read the current authorization status from the controller into our
     /// observable state. Does not surface the permission alert — that's
-    /// reserved for explicit user actions.
-    private func syncAuthorization() async {
+    /// reserved for explicit user actions. A launch step (see
+    /// `WhereLaunch.sequence`).
+    func syncAuthorization() async {
         guard let controller else { return }
         authorizationStatus = await controller.authorizationStatus()
     }
 
     /// Subscribe to live authorization changes (prompt results, Settings-app
     /// edits) so the indicator and tracking state stay in sync. Idempotent.
-    private func observeAuthorizationChanges() {
+    func observeAuthorizationChanges() {
         guard authorizationTask == nil, let controller else { return }
         authorizationTask = Task { @MainActor [weak self] in
             let updates = await controller.authorizationUpdates()
@@ -386,8 +456,9 @@ public final class WhereModel {
     }
 
     /// Start or stop GPS ingestion so it matches the user's intent and the
-    /// current authorization. Tracking only runs with Always authorization.
-    private func reconcileTracking() async {
+    /// current authorization. Tracking only runs with Always authorization. A
+    /// launch step (see `WhereLaunch.sequence`).
+    func reconcileTracking() async {
         guard let controller else { return }
         if wantsTracking, authorizationStatus.allowsBackgroundTracking {
             await controller.startGPS()
@@ -534,8 +605,9 @@ public final class WhereModel {
     }
 
     /// Push the current reminder intent to the controller and refresh whether
-    /// the system has granted notification permission.
-    private func applyReminderConfiguration() async {
+    /// the system has granted notification permission. A launch step (see
+    /// `WhereLaunch.sequence`).
+    func applyReminderConfiguration() async {
         guard let controller else { return }
         await controller.configureReminders(enabled: remindersEnabled, time: reminderTime)
         notificationsAuthorized = await controller.notificationAuthorizationGranted()
@@ -544,8 +616,8 @@ public final class WhereModel {
     /// Push the current daily-summary intent to the controller and refresh
     /// whether the system has granted notification permission. Notification
     /// permission is global, so it shares `notificationsAuthorized` with the
-    /// logging reminder.
-    private func applySummaryConfiguration() async {
+    /// logging reminder. A launch step (see `WhereLaunch.sequence`).
+    func applySummaryConfiguration() async {
         guard let controller else { return }
         await controller.configureDailySummary(enabled: summaryEnabled, time: summaryTime)
         notificationsAuthorized = await controller.notificationAuthorizationGranted()
