@@ -633,6 +633,55 @@ public final class WhereModel {
         }
     }
 
+    // MARK: - Reset / erase all
+
+    /// Stop GPS and erase every persisted sample, manual day, and piece of
+    /// evidence. The data half of the reset/erase teardown (see
+    /// `WhereLaunch.resetSequence`); throws on persistence failure so the
+    /// reset step parks the launcher in `.failed` rather than silently
+    /// half-erasing.
+    public func eraseAllData() async throws {
+        guard let controller else { return }
+        await controller.stopGPS()
+        isTracking = false
+        try await controller.eraseAllData()
+        report = nil
+        loadState = .idle
+    }
+
+    /// Clear every persisted preference so the next launch behaves like a fresh
+    /// install: onboarding shows again (`hasOnboarded` gone), background
+    /// tracking returns to its default intent, and the reminder/summary
+    /// schedules revert to their defaults. The preferences half of the
+    /// reset/erase teardown.
+    ///
+    /// Removing the keys (rather than writing `false`/`0`) lets the
+    /// default-valued getters report first-install state again; the observed
+    /// reminder/summary storage is reloaded so the Settings UI updates at once.
+    public func resetPreferences() {
+        for key in Self.resettableDefaultsKeys {
+            defaults.removeObject(forKey: key)
+        }
+        remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
+        reminderTimeStorage = Self.loadReminderTime(from: defaults)
+        summaryEnabledStorage = Self.loadSummaryEnabled(from: defaults)
+        summaryTimeStorage = Self.loadSummaryTime(from: defaults)
+    }
+
+    /// Defaults keys cleared by `resetPreferences()`. Excludes the schema
+    /// version marker, which `SchemaVersionMarker` owns and the store-open step
+    /// keeps current.
+    private static let resettableDefaultsKeys = [
+        hasOnboardedKey,
+        wantsTrackingKey,
+        remindersEnabledKey,
+        reminderHourKey,
+        reminderMinuteKey,
+        summaryEnabledKey,
+        summaryHourKey,
+        summaryMinuteKey,
+    ]
+
     // MARK: - Backup
 
     /// Where a backup export/import is in its lifecycle, so the UI can show a

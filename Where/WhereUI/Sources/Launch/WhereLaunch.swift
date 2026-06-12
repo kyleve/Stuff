@@ -54,4 +54,20 @@ public enum WhereLaunch {
             Work("widget-snapshot") { _ in await model.refreshWidgetSnapshot() }
         }
     }
+
+    /// The reverse of `sequence`: the teardown run by Settings' "Erase all data
+    /// & reset". `Launcher.reset` runs these steps, then re-drives `sequence`
+    /// from the top — which, with `hasOnboarded` now cleared, lands back on the
+    /// onboarding step, returning the app to its first-run state.
+    public static func resetSequence(for model: WhereModel) -> LaunchSequence {
+        LaunchSequence {
+            // Stop GPS and wipe the store first, then clear the preferences that
+            // gate the relaunch (onboarding, tracking intent, reminders). If the
+            // erase throws the launcher parks in `.failed` and preferences are
+            // left intact, so a retry re-erases rather than stranding the user
+            // in onboarding atop un-erased data.
+            Work("erase-data") { _ in try await model.eraseAllData() }
+            Work("reset-preferences") { _ in model.resetPreferences() }
+        }
+    }
 }

@@ -276,6 +276,15 @@ public actor WhereController {
         await publishWidgetSnapshot()
     }
 
+    /// Erase every sample, manual day, and piece of evidence in the store, then
+    /// republish an (now empty) widget snapshot. The persistence half of the
+    /// app's "erase all data & reset" teardown; the caller stops GPS and resets
+    /// preferences around it.
+    public func eraseAllData() async throws {
+        try await store.perform { try await store.clearAll() }
+        await publishWidgetSnapshot()
+    }
+
     // MARK: - Backup
 
     /// How an imported backup combines with whatever is already on the device.

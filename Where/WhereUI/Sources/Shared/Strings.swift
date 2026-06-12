@@ -471,6 +471,38 @@ enum Strings {
         )
     }
 
+    static var settingsResetErase: String {
+        String(
+            localized: "settings.reset.erase",
+            defaultValue: "Erase all data & reset",
+            bundle: .module,
+        )
+    }
+
+    static var settingsResetConfirm: String {
+        String(
+            localized: "settings.reset.confirm",
+            defaultValue: "Erase Everything & Reset",
+            bundle: .module,
+        )
+    }
+
+    static var settingsResetMessage: String {
+        String(
+            localized: "settings.reset.message",
+            defaultValue: "This erases every sample, manual day, and piece of evidence on this device and returns you to first-run setup. It can't be undone.",
+            bundle: .module,
+        )
+    }
+
+    static var settingsResetFooter: String {
+        String(
+            localized: "settings.reset.footer",
+            defaultValue: "Starts over from scratch, as if you'd just installed Where.",
+            bundle: .module,
+        )
+    }
+
     // MARK: Settings backup
 
     static var settingsBackupHeader: String {

@@ -9,8 +9,10 @@ import WhereCore
 struct SettingsView: View {
     @Environment(WhereModel.self) private var model
     @Environment(\.openURL) private var openURL
+    @Environment(\.resetData) private var resetData
 
     @State private var showClearConfirmation = false
+    @State private var showResetConfirmation = false
 
     // Backup import: the picked file, the merge/replace choice, and the
     // success confirmation.
@@ -31,6 +33,7 @@ struct SettingsView: View {
                 manualEntrySection
                 backupSection
                 dataSection
+                resetSection
             }
             .navigationTitle(Strings.settingsTitle)
             .alert(Strings.settingsPermissionAlertTitle, isPresented: $model.permissionDenied) {
@@ -316,6 +319,33 @@ struct SettingsView: View {
 
     private var eraseTitle: String {
         Strings.settingsDataErase(year: model.selectedYear)
+    }
+
+    /// Whole-app teardown: wipes every year's data and returns to first-run
+    /// onboarding, run through the launcher via the `resetData` environment
+    /// action (a no-op when no launcher is wired, e.g. previews).
+    private var resetSection: some View {
+        Section {
+            Button(role: .destructive) {
+                showResetConfirmation = true
+            } label: {
+                Label(Strings.settingsResetErase, systemImage: "arrow.counterclockwise")
+            }
+            .confirmationDialog(
+                Strings.settingsResetErase,
+                isPresented: $showResetConfirmation,
+                titleVisibility: .visible,
+            ) {
+                Button(Strings.settingsResetConfirm, role: .destructive) {
+                    resetData()
+                }
+                Button(Strings.settingsDataCancel, role: .cancel) {}
+            } message: {
+                Text(Strings.settingsResetMessage)
+            }
+        } footer: {
+            Text(Strings.settingsResetFooter)
+        }
     }
 
     private func openSystemSettings() {
