@@ -56,15 +56,27 @@ public struct RootView: View {
         })
         // `run()` is idempotent: in the app the delegate already kicked it off,
         // so this is a no-op there; in previews/tests it's what drives the
-        // launch. `enterForeground()` then promotes a background launch now that
-        // a window exists (a no-op for a foreground launch).
+        // launch.
+        //
+        // Promote a background launch only once the scene is genuinely active.
+        // SwiftUI may build this view (and run `.task`) for a scene that iOS
+        // connected in the background; promoting then would flip the launcher to
+        // foreground and build the heavy `TabView` for a launch nobody sees,
+        // defeating the headless path. The `.onChange` below handles the later
+        // background→foreground transition; this initial check covers a launch
+        // that is already active when the view first appears.
         .task {
             await launcher.run()
-            await launcher.enterForeground()
+            if scenePhase == .active {
+                await launcher.enterForeground()
+            }
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else { return }
-            Task { await model.appBecameActive() }
+            Task {
+                await launcher.enterForeground()
+                await model.appBecameActive()
+            }
         }
     }
 }

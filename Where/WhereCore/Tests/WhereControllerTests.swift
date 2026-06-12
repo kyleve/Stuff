@@ -309,6 +309,27 @@ struct WhereControllerTests {
         #expect(report.totals.isEmpty)
     }
 
+    @Test func eraseAllDataWipesEveryYear() async throws {
+        let (controller, _, _) = try Self.makeController()
+        for year in [2024, 2025, 2026] {
+            try await controller.ingest(LocationSample(
+                timestamp: iso("\(year)-03-15T12:00:00-07:00"),
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 0,
+                source: .manual,
+            ))
+        }
+
+        try await controller.eraseAllData()
+
+        // Unlike clearYear, the wipe spans every year, not just the selected one.
+        for year in [2024, 2025, 2026] {
+            let report = try await controller.yearReport(for: year)
+            #expect(report.days.isEmpty)
+            #expect(report.totals.isEmpty)
+        }
+    }
+
     @Test func gpsFailuresEnqueueAndDrainOnRecovery() async throws {
         let backing = try SwiftDataStore.inMemory()
         let store = ToggleFailingStore(backing: backing)
@@ -678,6 +699,26 @@ struct WhereControllerTests {
         try await controller.clearYear(2026)
 
         // Clearing puts all four past days back into the backlog.
+        #expect(await spy.lastBadgeCount == 4)
+    }
+
+    @Test func eraseAllDataReconcilesTheBadge() async throws {
+        let now = iso("2026-01-05T09:00:00-08:00")
+        let spy = SpyReminderScheduler()
+        let (controller, _, _) = try Self.makeReminderController(now: now, scheduler: spy)
+        await controller.configureReminders(enabled: true, time: .defaultEvening)
+
+        try await controller.addManualDay(
+            date: iso("2026-01-01T12:00:00-08:00"),
+            regions: [.california],
+        )
+        // Backlog (Jan 1–4) minus the logged Jan 1 leaves 3.
+        #expect(await spy.lastBadgeCount == 3)
+
+        try await controller.eraseAllData()
+
+        // Erasing everything puts all four past days back into the backlog,
+        // proving the wipe reconciles the badge rather than leaving it stale.
         #expect(await spy.lastBadgeCount == 4)
     }
 

@@ -277,11 +277,15 @@ public actor WhereController {
     }
 
     /// Erase every sample, manual day, and piece of evidence in the store, then
-    /// republish an (now empty) widget snapshot. The persistence half of the
-    /// app's "erase all data & reset" teardown; the caller stops GPS and resets
-    /// preferences around it.
+    /// reconcile the reminder schedule/badge and republish an (now empty) widget
+    /// snapshot. The persistence half of the app's "erase all data & reset"
+    /// teardown; the caller stops GPS and resets preferences around it.
+    ///
+    /// Mirrors `clearYear`'s reconciliation so the badge/reminders reflect the
+    /// now-empty store immediately, rather than relying on a later launch step.
     public func eraseAllData() async throws {
         try await store.perform { try await store.clearAll() }
+        await reconcileReminders()
         await publishWidgetSnapshot()
     }
 
