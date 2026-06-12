@@ -9,6 +9,7 @@ let package = Package(
     ],
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
+        .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereTesting", targets: ["WhereTesting"]),
@@ -20,6 +21,10 @@ let package = Package(
         .target(
             name: "StuffCore",
             path: "Shared/StuffCore/Sources",
+        ),
+        .target(
+            name: "LifecycleKit",
+            path: "Shared/LifecycleKit/Sources",
         ),
         .target(
             name: "WhereCore",

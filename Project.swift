@@ -158,6 +158,12 @@ let project = Project(
             sources: ["Shared/StuffCore/Tests/**"],
         ),
         unitTests(
+            name: "LifecycleKitTests",
+            bundleIdSuffix: "lifecyclekit",
+            productDependency: "LifecycleKit",
+            sources: ["Shared/LifecycleKit/Tests/**"],
+        ),
+        unitTests(
             name: "WhereCoreTests",
             bundleIdSuffix: "wherecore",
             productDependency: "WhereCore",
@@ -176,6 +182,7 @@ let project = Project(
     // WhereCoreTests` / `tuist test WhereTests` / `tuist test WhereUITests`
     // target a single bundle without building the whole workspace.
     schemes: [
+        testScheme(name: "LifecycleKitTests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
