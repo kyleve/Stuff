@@ -14,14 +14,17 @@ import WhereCore
 public enum WhereLaunch {
     /// Build the runner for `model`, launching for `reason`.
     ///
-    /// `initializePrerequisites` (`prepareLocation`) installs the
-    /// `CLLocationManager` synchronously so a background relaunch's queued event
-    /// isn't lost while the async `open-store` step runs.
+    /// A `WhereBootstrap` owns the controller's assembly: its
+    /// `prepareLocation()` runs as the runner's `initializePrerequisites`,
+    /// installing the `CLLocationManager` synchronously so a background
+    /// relaunch's queued event isn't lost while the async `open-store` step
+    /// opens the store and assembles the controller.
     public static func makeLauncher(model: WhereModel, reason: LifecycleReason) -> LifecycleRunner {
-        LifecycleRunner(
+        let bootstrap = WhereBootstrap()
+        return LifecycleRunner(
             reason: reason,
-            initializePrerequisites: { model.prepareLocation() },
-            sequence: sequence(for: model),
+            initializePrerequisites: { bootstrap.prepareLocation() },
+            sequence: sequence(for: model, bootstrap: bootstrap),
         )
     }
 
@@ -29,16 +32,29 @@ public enum WhereLaunch {
     /// `WhereModel.start()` (a parity test guards this); the only additions are
     /// the foreground-only `open-store` presentation and the `onboarding`
     /// gate, neither of which `start()` models.
-    public static func sequence(for model: WhereModel) -> LifecycleSteps {
+    ///
+    /// `bootstrap` assembles the controller in the `open-store` step; callers
+    /// that only inspect the step list (the parity test) can rely on the
+    /// default.
+    public static func sequence(
+        for model: WhereModel,
+        bootstrap: WhereBootstrap = WhereBootstrap(),
+    ) -> LifecycleSteps {
         LifecycleSteps {
-            // Opening the store may run a lightweight migration. Rather than
-            // predict it, key the migration UI off slowness: if the open is
-            // still running after a beat, show MigrationProgressView and hold it
-            // for a readable minimum so a fast open never flashes it.
-            LifecycleStep.work("open-store") { _ in try await model.openStore() }
-                .presenting(after: .milliseconds(500), minVisible: .seconds(1)) {
-                    MigrationProgressView(bridge: $0)
-                }
+            // Open the store and assemble the controller, then hand it to the
+            // model. Skipped when a controller is already attached (a
+            // preview/test injected one) so we never spin up a real store +
+            // CoreLocation behind it. Opening may run a lightweight migration;
+            // rather than predict it, key the migration UI off slowness: if the
+            // open is still running after a beat, show MigrationProgressView and
+            // hold it for a readable minimum so a fast open never flashes it.
+            LifecycleStep.work("open-store") { _ in
+                guard !model.hasController else { return }
+                try await model.attach(controller: bootstrap.makeController())
+            }
+            .presenting(after: .milliseconds(500), minVisible: .seconds(1)) {
+                MigrationProgressView(bridge: $0)
+            }
 
             // First run only. `LifecycleStep.interactive` is `.modes(.foreground)`,
             // so a headless background launch skips it (and never deadlocks
@@ -72,5 +88,42 @@ public enum WhereLaunch {
             LifecycleStep.work("erase-data") { _ in try await model.eraseAllData() }
             LifecycleStep.work("reset-preferences") { _ in model.resetPreferences() }
         }
+    }
+}
+
+/// Owns the launch-time assembly of the `WhereController` so `WhereModel`
+/// consumes a finished controller rather than wiring up persistence and
+/// CoreLocation itself.
+///
+/// `prepareLocation()` runs synchronously as the runner's
+/// `initializePrerequisites`, installing the `CLLocationManager` + delegate
+/// early so a background relaunch's queued significant-change / visit event is
+/// buffered (in `CoreLocationSource.sampleStream`) rather than dropped while
+/// the async `open-store` step runs. `makeController()` then opens the store
+/// off the main actor and assembles the controller from the two.
+@MainActor
+public final class WhereBootstrap {
+    private var locationSource: CoreLocationSource?
+
+    public init() {}
+
+    /// Install the `CLLocationManager` + delegate right away, without touching
+    /// the store. Idempotent.
+    public func prepareLocation() {
+        guard locationSource == nil else { return }
+        locationSource = CoreLocationSource()
+    }
+
+    /// Open the SwiftData store (on a detached task so a slow lightweight
+    /// migration runs off the main actor the migration UI renders on) and
+    /// assemble the controller from it and the prepared location source.
+    /// Throws on persistence failure so the `open-store` step can surface it.
+    public func makeController() async throws -> WhereController {
+        let source = locationSource ?? CoreLocationSource()
+        locationSource = nil
+        let store = try await Task.detached(priority: .userInitiated) {
+            try SwiftDataStore.make()
+        }.value
+        return WhereController(store: store, locationSource: source)
     }
 }

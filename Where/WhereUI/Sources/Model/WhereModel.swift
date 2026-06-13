@@ -145,14 +145,12 @@ public final class WhereModel {
     /// reminders but denied permission.
     public private(set) var notificationsAuthorized = false
 
+    /// The controller the model funnels every mutation through. Nil until the
+    /// launch's `open-store` step assembles one (via `WhereBootstrap`) and
+    /// `attach(controller:)` installs it; a preview/test can inject one up
+    /// front through `init(controller:)`. Every controller-touching method
+    /// tolerates the pre-attach nil by no-op'ing.
     private var controller: WhereController?
-    /// `CoreLocationSource` built eagerly by `prepareLocation()` (the launch's
-    /// `initializePrerequisites`) and consumed by `openStore()` when it
-    /// assembles the controller.
-    /// Installing the `CLLocationManager` + delegate this early lets a
-    /// background relaunch deliver its queued location event before the (async,
-    /// possibly slow) store open finishes.
-    private var pendingLocationSource: CoreLocationSource?
     private var authorizationTask: Task<Void, Never>?
     private let defaults: UserDefaults
     private let now: @Sendable () -> Date
@@ -314,51 +312,32 @@ public final class WhereModel {
         return ReminderTime(hour: hour, minute: minute)
     }
 
-    /// Synchronous launch prerequisite: create the `CoreLocationSource` (and
-    /// thus the `CLLocationManager` + delegate) right away, without touching the
-    /// store. Idempotent and a no-op once a controller exists (e.g. a
-    /// preview/test that injected one).
-    ///
-    /// CoreLocation requires its delegate be installed early in app launch so
-    /// it can deliver the significant-change / visit event that relaunched the
-    /// app into the background after termination. The samples it emits buffer
-    /// in `CoreLocationSource.sampleStream` (an unbounded `AsyncStream`) until
-    /// `openStore()` wires up the controller, so deferring the store open to an
-    /// async step can't drop a queued background event.
-    public func prepareLocation() {
-        guard controller == nil, pendingLocationSource == nil else { return }
-        pendingLocationSource = CoreLocationSource()
+    /// Whether a controller has been attached yet. The launch's `open-store`
+    /// step reads this to skip assembling one when a preview/test injected a
+    /// controller up front.
+    var hasController: Bool {
+        controller != nil
     }
 
-    /// Open the SwiftData store and build the controller. Async (and the heavy
-    /// `ModelContainer` open runs off the main actor) so a slow lightweight
-    /// migration neither blocks `didFinishLaunching` nor freezes the main actor
-    /// the migration UI renders on. Idempotent and a no-op once a controller
-    /// exists. Throws on persistence failure so the launch step can surface it.
-    public func openStore() async throws {
-        guard controller == nil else { return }
-        let source = pendingLocationSource ?? CoreLocationSource()
-        pendingLocationSource = nil
-        let store = try await Task.detached(priority: .userInitiated) {
-            try SwiftDataStore.make()
-        }.value
-        controller = WhereController(store: store, locationSource: source)
+    /// Install the controller the launch's `open-store` step assembled (see
+    /// `WhereBootstrap`). Idempotent — a no-op once a controller exists, so an
+    /// injected preview/test controller is never clobbered. `WhereBootstrap`
+    /// owns *building* the controller (store open + CoreLocation); the model
+    /// just consumes the finished value.
+    public func attach(controller: WhereController) {
+        guard self.controller == nil else { return }
+        self.controller = controller
     }
 
-    /// Ensure the controller exists, sync authorization, resume tracking if
-    /// appropriate, then load the selected year. Safe to call repeatedly; the
-    /// controller and the authorization observer are only set up once.
+    /// Sync authorization, resume tracking if appropriate, then load the
+    /// selected year. Safe to call repeatedly; the authorization observer is
+    /// only set up once.
     ///
     /// This is the imperative equivalent of `WhereLaunch.sequence`, kept for
     /// previews/tests that drive the model directly without a `LifecycleRunner`.
+    /// It assumes a controller is already attached (the tests inject one); with
+    /// no controller it no-ops, since assembling one is `WhereBootstrap`'s job.
     public func start() async {
-        prepareLocation()
-        do {
-            try await openStore()
-        } catch {
-            loadState = .failed(error.localizedDescription)
-            return
-        }
         guard controller != nil else { return }
         await syncAuthorization()
         observeAuthorizationChanges()
