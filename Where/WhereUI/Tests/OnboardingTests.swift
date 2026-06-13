@@ -44,7 +44,7 @@ struct OnboardingViewTests {
                 widgetRefresher: NoopWidgetTimelineRefresher(),
             ),
         )
-        let view = OnboardingView(handle: StepHandle(reason: .userForeground))
+        let view = OnboardingView(bridge: LifecycleStepUIBridge(reason: .userForeground))
             .environment(model)
 
         try show(UIHostingController(rootView: view)) { hosted in

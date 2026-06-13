@@ -8,17 +8,18 @@ import WhereCore
 ///
 /// Presented as the UI of the launch sequence's interactive `onboarding` step.
 /// When the user finishes, it persists `hasOnboarded` and resolves the
-/// `StepHandle` so the launch continues; the existing authorization-sync and
-/// tracking-reconcile steps then pick up whatever permission was granted.
+/// `LifecycleStepUIBridge` so the launch continues; the existing
+/// authorization-sync and tracking-reconcile steps then pick up whatever
+/// permission was granted.
 public struct OnboardingView: View {
     @Environment(WhereModel.self) private var model
-    private let handle: StepHandle
+    private let bridge: LifecycleStepUIBridge
 
     @State private var page = 0
     @State private var isFinishing = false
 
-    public init(handle: StepHandle) {
-        self.handle = handle
+    public init(bridge: LifecycleStepUIBridge) {
+        self.bridge = bridge
     }
 
     private let pages = OnboardingPage.all
@@ -109,7 +110,7 @@ public struct OnboardingView: View {
                 await model.startTracking()
             }
             model.completeOnboarding()
-            handle.complete()
+            bridge.complete()
         }
     }
 }
@@ -146,7 +147,7 @@ struct OnboardingPage: Identifiable {
 
 #if DEBUG
     #Preview {
-        OnboardingView(handle: StepHandle(reason: .userForeground))
+        OnboardingView(bridge: LifecycleStepUIBridge(reason: .userForeground))
             .environment(PreviewSupport.loadedModel())
     }
 #endif

@@ -22,7 +22,7 @@ private func waitUntil(
 }
 
 /// Covers the `WhereLaunch.resetSequence` teardown the Settings "Erase all data
-/// & reset" action runs through `Launcher.reset`: it wipes the store, stops
+/// & reset" action runs through `LifecycleRunner.reset`: it wipes the store, stops
 /// tracking, clears the preferences that gate onboarding, then re-drives the
 /// launch back to its first-run state.
 @MainActor
@@ -114,9 +114,9 @@ struct WhereResetTests {
         // tracking stopped, and the onboarding gate reopened.
         #expect(!model.hasOnboarded)
         #expect(!model.isTracking)
-        #expect(launcher.phase.runningHandle?.presentation != nil)
+        #expect(launcher.phase.runningBridge?.presentation != nil)
 
-        launcher.phase.runningHandle?.complete()
+        launcher.phase.runningBridge?.complete()
         await task.value
 
         #expect(launcher.phase.isReady)
@@ -132,9 +132,9 @@ struct WhereResetTests {
         let model = try makeModel(defaults: ephemeralDefaults())
         model.completeOnboarding()
 
-        let failing = LaunchSequence {
-            Work("erase-data") { _ in throw CocoaError(.fileWriteUnknown) }
-            Work("reset-preferences") { _ in model.resetPreferences() }
+        let failing = LifecycleSteps {
+            LifecycleStep.work("erase-data") { _ in throw CocoaError(.fileWriteUnknown) }
+            LifecycleStep.work("reset-preferences") { _ in model.resetPreferences() }
         }
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()

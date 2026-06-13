@@ -146,8 +146,9 @@ public final class WhereModel {
     public private(set) var notificationsAuthorized = false
 
     private var controller: WhereController?
-    /// `CoreLocationSource` built eagerly by `prepareLocation()` (the launch
-    /// prelude) and consumed by `openStore()` when it assembles the controller.
+    /// `CoreLocationSource` built eagerly by `prepareLocation()` (the launch's
+    /// `initializePrerequisites`) and consumed by `openStore()` when it
+    /// assembles the controller.
     /// Installing the `CLLocationManager` + delegate this early lets a
     /// background relaunch deliver its queued location event before the (async,
     /// possibly slow) store open finishes.
@@ -326,8 +327,8 @@ public final class WhereModel {
         return ReminderTime(hour: hour, minute: minute)
     }
 
-    /// Synchronous launch prelude: create the `CoreLocationSource` (and thus
-    /// the `CLLocationManager` + delegate) right away, without touching the
+    /// Synchronous launch prerequisite: create the `CoreLocationSource` (and
+    /// thus the `CLLocationManager` + delegate) right away, without touching the
     /// store. Idempotent and a no-op once a controller exists (e.g. a
     /// preview/test that injected one).
     ///
@@ -384,7 +385,7 @@ public final class WhereModel {
     /// controller and the authorization observer are only set up once.
     ///
     /// This is the imperative equivalent of `WhereLaunch.sequence`, kept for
-    /// previews/tests that drive the model directly without a `Launcher`.
+    /// previews/tests that drive the model directly without a `LifecycleRunner`.
     public func start() async {
         prepareLocation()
         do {

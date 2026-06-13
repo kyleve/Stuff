@@ -2,19 +2,19 @@ import LifecycleKit
 import SwiftUI
 
 /// The UI shown while a launch step migrates the SwiftData store. Bound to the
-/// step's `StepHandle`: it shows a determinate bar if the step reports
-/// `progress`, otherwise an indeterminate spinner (SwiftData migrations give no
-/// progress callback today), and surfaces the handle's `message` if set.
+/// step's `LifecycleStepUIBridge`: it shows a determinate bar if the step
+/// reports `progress`, otherwise an indeterminate spinner (SwiftData migrations
+/// give no progress callback today), and surfaces the bridge's `message` if set.
 public struct MigrationProgressView: View {
-    private let handle: StepHandle
+    private let bridge: LifecycleStepUIBridge
 
-    public init(handle: StepHandle) {
-        self.handle = handle
+    public init(bridge: LifecycleStepUIBridge) {
+        self.bridge = bridge
     }
 
     public var body: some View {
         VStack(spacing: UIConstants.Spacings.xxxLarge) {
-            if let progress = handle.progress {
+            if let progress = bridge.progress {
                 ProgressView(value: progress) {
                     Text(Strings.migrationTitle)
                 }
@@ -27,7 +27,7 @@ public struct MigrationProgressView: View {
                     .font(.headline)
             }
 
-            Text(handle.message ?? Strings.migrationSubtitle)
+            Text(bridge.message ?? Strings.migrationSubtitle)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -40,13 +40,13 @@ public struct MigrationProgressView: View {
 
 #if DEBUG
     #Preview("Indeterminate") {
-        MigrationProgressView(handle: StepHandle(reason: .userForeground))
+        MigrationProgressView(bridge: LifecycleStepUIBridge(reason: .userForeground))
     }
 
     #Preview("Determinate") {
-        let handle = StepHandle(reason: .userForeground)
-        handle.progress = 0.4
-        handle.message = "Migrating manual days…"
-        return MigrationProgressView(handle: handle)
+        let bridge = LifecycleStepUIBridge(reason: .userForeground)
+        bridge.progress = 0.4
+        bridge.message = "Migrating manual days…"
+        return MigrationProgressView(bridge: bridge)
     }
 #endif

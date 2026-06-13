@@ -86,10 +86,10 @@ struct WhereLaunchTests {
         let task = Task { @MainActor in await launcher.run() }
 
         try await waitUntil { launcher.phase.runningStepID == "onboarding" }
-        #expect(launcher.phase.runningHandle?.presentation != nil)
+        #expect(launcher.phase.runningBridge?.presentation != nil)
 
         // Resolve the gate as OnboardingView would, letting the launch finish.
-        launcher.phase.runningHandle?.complete()
+        launcher.phase.runningBridge?.complete()
         await task.value
         #expect(launcher.phase.isReady)
     }
@@ -170,7 +170,7 @@ struct WhereLaunchTests {
 
         try await waitUntil {
             launcher.phase.runningStepID == "open-store"
-                && launcher.phase.runningHandle?.presentation != nil
+                && launcher.phase.runningBridge?.presentation != nil
         }
 
         await gate.open()

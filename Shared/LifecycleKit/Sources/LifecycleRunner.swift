@@ -1,19 +1,19 @@
 import Observation
 import SwiftUI
 
-/// Drives a `LaunchSequence` to completion, publishing a single observable
+/// Drives a `LifecycleSteps` to completion, publishing a single observable
 /// `phase` the host renders. The engine and every step run on the main actor;
 /// heavy work is expected to be delegated to actors from inside a step's body.
 ///
 /// Lifecycle:
-/// - The synchronous `prelude` runs at `init`, before any async work — use it
-///   for the cheap, must-exist-now wiring a background relaunch can't wait for
-///   (e.g. installing a `CLLocationManager` delegate).
+/// - The synchronous `initializePrerequisites` runs at `init`, before any
+///   async work — use it for the cheap, must-exist-now wiring a background
+///   relaunch can't wait for (e.g. installing a `CLLocationManager` delegate).
 /// - `run()` walks the steps in order, skipping those whose `modes` don't
 ///   include the launch reason or whose async `condition` is false, awaiting
-///   each remaining step's body. A thrown error parks the launcher in
+///   each remaining step's body. A thrown error parks the runner in
 ///   `.failed`; `retry()` resumes from the step that failed.
-/// - `enterForeground()` promotes a launcher that started headless (its
+/// - `enterForeground()` promotes a runner that started headless (its
 ///   `reason` was `.background`) once a window actually appears, re-driving the
 ///   sequence so the now-applicable foreground-only steps (onboarding, etc.)
 ///   run.
@@ -24,29 +24,29 @@ import SwiftUI
 /// run twice concurrently).
 @MainActor
 @Observable
-public final class Launcher {
+public final class LifecycleRunner {
     /// The single value the host renders.
-    public private(set) var phase: LaunchPhase = .launching
+    public private(set) var phase: LifecyclePhase = .launching
 
     /// Why the app launched this time. Mutable because a headless background
     /// launch can be promoted to a foreground one via `enterForeground()` when
     /// the user brings the app to the front; the container observes this to
     /// stop rendering `EmptyView()` and start building real UI.
-    public private(set) var reason: LaunchReason
+    public private(set) var reason: LifecycleReason
 
-    @ObservationIgnored private let steps: [LaunchStep]
+    @ObservationIgnored private let steps: [LifecycleStep]
     @ObservationIgnored private var hasRun = false
     @ObservationIgnored private var runTask: Task<Void, Never>?
     @ObservationIgnored private var presentationTask: Task<Void, Never>?
 
     public init(
-        reason: LaunchReason,
-        prelude: @MainActor () -> Void = {},
-        sequence: LaunchSequence,
+        reason: LifecycleReason,
+        initializePrerequisites: @MainActor () -> Void = {},
+        sequence: LifecycleSteps,
     ) {
         self.reason = reason
         steps = sequence.steps
-        prelude()
+        initializePrerequisites()
     }
 
     /// Walk the sequence once. Safe to call repeatedly; only the first call
@@ -65,7 +65,7 @@ public final class Launcher {
 
     /// Promote a headless background launch to a foreground one and re-drive
     /// the sequence so foreground-only steps (e.g. onboarding) now run. No-op
-    /// for a launcher that already launched in the foreground.
+    /// for a runner that already launched in the foreground.
     ///
     /// Call this from the root view's `.task`: it fires only once a window
     /// exists, which is exactly when a background launch has become a
@@ -79,7 +79,7 @@ public final class Launcher {
         await runTask?.value
     }
 
-    /// Resume the launch from the step that failed. No-op unless the launcher
+    /// Resume the launch from the step that failed. No-op unless the runner
     /// is currently in `.failed`.
     public func retry() {
         guard case let .failed(failure) = phase else { return }
@@ -92,9 +92,9 @@ public final class Launcher {
     /// so the app returns to its initial state — e.g. first-run onboarding
     /// shows again once the teardown clears the "has onboarded" flag.
     ///
-    /// If a teardown step throws, the launcher parks in `.failed` and does not
+    /// If a teardown step throws, the runner parks in `.failed` and does not
     /// relaunch.
-    public func reset(_ sequence: LaunchSequence) async {
+    public func reset(_ sequence: LifecycleSteps) async {
         await runTask?.value
         phase = .launching
         let task = Task { [weak self] in
@@ -123,7 +123,7 @@ public final class Launcher {
     /// Walk `steps` from `startIndex`, honoring mode/condition gating and
     /// presentation triggers. Returns true if every applicable step completed,
     /// or false if one threw — in which case `phase` is already `.failed`.
-    private func runSteps(_ steps: [LaunchStep], from startIndex: Int) async -> Bool {
+    private func runSteps(_ steps: [LifecycleStep], from startIndex: Int) async -> Bool {
         var index = startIndex
         while index < steps.count {
             let step = steps[index]
@@ -137,15 +137,15 @@ public final class Launcher {
                 continue
             }
 
-            let handle = StepHandle(reason: reason)
-            phase = .running(step, handle)
-            activatePresentation(for: step, handle: handle)
+            let bridge = LifecycleStepUIBridge(reason: reason)
+            phase = .running(step, bridge)
+            activatePresentation(for: step, bridge: bridge)
 
             do {
-                try await step.run(handle)
+                try await step.run(bridge)
             } catch {
                 cancelPresentation()
-                phase = .failed(LaunchFailure(stepID: step.id, error: error))
+                phase = .failed(LifecycleFailure(stepID: step.id, error: error))
                 return false
             }
 
@@ -156,20 +156,20 @@ public final class Launcher {
     }
 
     /// Decide whether/when to show the step's presentation, per its trigger.
-    private func activatePresentation(for step: LaunchStep, handle: StepHandle) {
+    private func activatePresentation(for step: LifecycleStep, bridge: LifecycleStepUIBridge) {
         guard let presentation = step.presentation else { return }
         switch presentation.trigger {
             case .always:
-                handle.presentation = presentation.build(handle)
+                bridge.presentation = presentation.build(bridge)
             case let .when(predicate):
                 if predicate() {
-                    handle.presentation = presentation.build(handle)
+                    bridge.presentation = presentation.build(bridge)
                 }
             case let .after(delay):
-                presentationTask = Task { @MainActor [weak handle] in
+                presentationTask = Task { @MainActor [weak bridge] in
                     try? await Task.sleep(for: delay)
-                    guard !Task.isCancelled, let handle else { return }
-                    handle.presentation = presentation.build(handle)
+                    guard !Task.isCancelled, let bridge else { return }
+                    bridge.presentation = presentation.build(bridge)
                 }
         }
     }

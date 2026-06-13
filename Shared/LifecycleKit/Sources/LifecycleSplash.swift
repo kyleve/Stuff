@@ -3,7 +3,7 @@ import SwiftUI
 /// The default placeholder shown while a silent launch step runs and the host
 /// passes no custom splash. Intentionally minimal — a centered spinner on the
 /// system background.
-public struct LaunchSplash: View {
+public struct LifecycleSplash: View {
     public init() {}
 
     public var body: some View {
@@ -16,6 +16,6 @@ public struct LaunchSplash: View {
 
 #if DEBUG
     #Preview {
-        LaunchSplash()
+        LifecycleSplash()
     }
 #endif

@@ -5,23 +5,23 @@ import SwiftUI
 /// A step declares *whether* it should run (`condition`), *which* launch
 /// reasons it applies to (`allowedModes`), the async `run` body, and an
 /// optional `presentation` to show while it runs. Build steps with the
-/// `Work`/`Interactive` helpers and refine them with the chained
-/// `.when`/`.modes`/`.presenting` modifiers.
+/// `LifecycleStep.work(_:_:)` / `LifecycleStep.interactive(...)` factories and
+/// refine them with the chained `.when`/`.modes`/`.presenting` modifiers.
 ///
 /// The closures are `@MainActor`: heavy work should be delegated to actors
 /// from inside `run`, keeping the step itself on the main actor so it can
 /// drive UI directly.
-public struct LaunchStep: Identifiable {
+public struct LifecycleStep: Identifiable {
     public let id: String
 
-    var allowedModes: LaunchModeSet
+    var allowedModes: LifecycleModeSet
     var condition: @MainActor () async -> Bool
-    var run: @MainActor (StepHandle) async throws -> Void
-    var presentation: StepPresentation?
+    var run: @MainActor (LifecycleStepUIBridge) async throws -> Void
+    var presentation: LifecycleStepPresentation?
 
     public init(
         id: String,
-        run: @escaping @MainActor (StepHandle) async throws -> Void,
+        run: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void,
     ) {
         self.id = id
         allowedModes = .all
@@ -40,7 +40,7 @@ public struct LaunchStep: Identifiable {
 
     /// Restrict this step to the given launch reasons (e.g. `.foreground` so
     /// onboarding never runs during a headless background relaunch).
-    public func modes(_ modes: LaunchModeSet) -> Self {
+    public func modes(_ modes: LifecycleModeSet) -> Self {
         var copy = self
         copy.allowedModes = modes
         return copy
@@ -49,7 +49,7 @@ public struct LaunchStep: Identifiable {
     /// Show `view` for the whole time this step runs (e.g. onboarding, whose
     /// entire purpose is the UI).
     public func presenting(
-        @ViewBuilder _ view: @escaping @MainActor (StepHandle) -> some View,
+        @ViewBuilder _ view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,
     ) -> Self {
         present(trigger: .always, view)
     }
@@ -59,7 +59,7 @@ public struct LaunchStep: Identifiable {
     /// step runs silently behind the splash.
     public func presenting(
         when predicate: @escaping @MainActor () -> Bool,
-        @ViewBuilder _ view: @escaping @MainActor (StepHandle) -> some View,
+        @ViewBuilder _ view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,
     ) -> Self {
         present(trigger: .when(predicate), view)
     }
@@ -68,31 +68,65 @@ public struct LaunchStep: Identifiable {
     /// deferred "this is taking a while" UI that never flashes for fast steps.
     public func presenting(
         after delay: Duration,
-        @ViewBuilder _ view: @escaping @MainActor (StepHandle) -> some View,
+        @ViewBuilder _ view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,
     ) -> Self {
         present(trigger: .after(delay), view)
     }
 
     /// Whether this step is allowed to run under `reason` (mode filtering,
     /// independent of the async `condition`).
-    func appliesTo(_ reason: LaunchReason) -> Bool {
+    func appliesTo(_ reason: LifecycleReason) -> Bool {
         allowedModes.contains(reason.modeSet)
     }
 
     private func present(
-        trigger: StepPresentation.Trigger,
-        _ view: @escaping @MainActor (StepHandle) -> some View,
+        trigger: LifecycleStepPresentation.Trigger,
+        _ view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,
     ) -> Self {
         var copy = self
-        copy.presentation = StepPresentation(trigger: trigger) { handle in
-            AnyView(view(handle))
+        copy.presentation = LifecycleStepPresentation(trigger: trigger) { bridge in
+            AnyView(view(bridge))
         }
         return copy
     }
 }
 
+// MARK: - Declarative sugar
+
+extension LifecycleStep {
+    /// A silent unit of launch work: runs `body`, shows nothing of its own (the
+    /// host's splash stays up) unless you add a `.presenting(...)` modifier.
+    public static func work(
+        _ id: String,
+        _ body: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void,
+    ) -> LifecycleStep {
+        LifecycleStep(id: id, run: body)
+    }
+
+    /// A UI-bearing step that presents `presenting` and, by default, suspends
+    /// until the view resolves the bridge (`complete()`/`fail(_:)`). Pass a
+    /// custom `run` if the step also needs to do async work alongside awaiting
+    /// the UI.
+    ///
+    /// Interactive steps default to `.modes(.foreground)`: a step whose whole
+    /// job is to wait for the user would deadlock during a headless background
+    /// launch (there is no UI to resolve it), so it is skipped there. Override
+    /// with `.modes(.all)` only if `run` can also resolve itself without the
+    /// UI.
+    public static func interactive(
+        _ id: String,
+        run: @escaping @MainActor (LifecycleStepUIBridge) async throws
+            -> Void = { try await $0.waitForResolution() },
+        @ViewBuilder presenting view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,
+    ) -> LifecycleStep {
+        LifecycleStep(id: id, run: run)
+            .presenting(view)
+            .modes(.foreground)
+    }
+}
+
 /// A step's optional UI, plus the rule for when to show it while the step runs.
-struct StepPresentation {
+struct LifecycleStepPresentation {
     enum Trigger {
         /// Show as soon as the step starts.
         case always
@@ -103,35 +137,5 @@ struct StepPresentation {
     }
 
     var trigger: Trigger
-    var build: @MainActor (StepHandle) -> AnyView
-}
-
-// MARK: - Declarative sugar
-
-/// A silent unit of launch work: runs `body`, shows nothing of its own (the
-/// host's splash stays up) unless you add a `.presenting(...)` modifier.
-public func Work(
-    _ id: String,
-    _ body: @escaping @MainActor (StepHandle) async throws -> Void,
-) -> LaunchStep {
-    LaunchStep(id: id, run: body)
-}
-
-/// A UI-bearing step that presents `presenting` and, by default, suspends
-/// until the view resolves the handle (`complete()`/`fail(_:)`). Pass a custom
-/// `run` if the step also needs to do async work alongside awaiting the UI.
-///
-/// Interactive steps default to `.modes(.foreground)`: a step whose whole job
-/// is to wait for the user would deadlock during a headless background launch
-/// (there is no UI to resolve it), so it is skipped there. Override with
-/// `.modes(.all)` only if `run` can also resolve itself without the UI.
-public func Interactive(
-    _ id: String,
-    run: @escaping @MainActor (StepHandle) async throws
-        -> Void = { try await $0.waitForResolution() },
-    @ViewBuilder presenting view: @escaping @MainActor (StepHandle) -> some View,
-) -> LaunchStep {
-    LaunchStep(id: id, run: run)
-        .presenting(view)
-        .modes(.foreground)
+    var build: @MainActor (LifecycleStepUIBridge) -> AnyView
 }

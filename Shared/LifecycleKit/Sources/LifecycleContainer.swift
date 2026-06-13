@@ -1,33 +1,33 @@
 import SwiftUI
 
-/// The root view that renders a `Launcher`'s `phase`.
+/// The root view that renders a `LifecycleRunner`'s `phase`.
 ///
 /// The launch sequence is only the *prerequisites*; the destination — the
 /// app's real, "logged-in" UI — is the `content` closure, shown when the
-/// launcher reaches `.ready`. Pass an already-built launcher (created early,
+/// runner reaches `.ready`. Pass an already-built runner (created early,
 /// e.g. in the app delegate, so a headless background launch works without a
 /// window).
 ///
 /// For a background launch, the container renders nothing at all (iOS never
 /// shows UI for a headless relaunch and reclaims memory aggressively), so
-/// `content` is never constructed even once the launcher reaches `.ready`.
-public struct LaunchContainer<Content: View, Splash: View>: View {
-    private let launcher: Launcher
+/// `content` is never constructed even once the runner reaches `.ready`.
+public struct LifecycleContainer<Content: View, Splash: View>: View {
+    private let runner: LifecycleRunner
     private let splash: () -> Splash
     private let content: () -> Content
 
     public init(
-        _ launcher: Launcher,
+        _ runner: LifecycleRunner,
         @ViewBuilder splash: @escaping () -> Splash,
         @ViewBuilder content: @escaping () -> Content,
     ) {
-        self.launcher = launcher
+        self.runner = runner
         self.splash = splash
         self.content = content
     }
 
     public var body: some View {
-        if launcher.reason.isBackground {
+        if runner.reason.isBackground {
             EmptyView()
         } else {
             phaseContent
@@ -35,38 +35,38 @@ public struct LaunchContainer<Content: View, Splash: View>: View {
     }
 
     @ViewBuilder private var phaseContent: some View {
-        switch launcher.phase {
+        switch runner.phase {
             case .launching:
                 splash()
-            case let .running(_, handle):
-                LaunchRunningView(handle: handle, splash: splash)
+            case let .running(_, bridge):
+                LifecycleRunningView(bridge: bridge, splash: splash)
             case let .failed(failure):
-                LaunchFailureView(failure: failure) { launcher.retry() }
+                LifecycleFailureView(failure: failure) { runner.retry() }
             case .ready:
                 content()
         }
     }
 }
 
-extension LaunchContainer where Splash == LaunchSplash {
-    /// Convenience initializer using the built-in `LaunchSplash`.
+extension LifecycleContainer where Splash == LifecycleSplash {
+    /// Convenience initializer using the built-in `LifecycleSplash`.
     public init(
-        _ launcher: Launcher,
+        _ runner: LifecycleRunner,
         @ViewBuilder content: @escaping () -> Content,
     ) {
-        self.init(launcher, splash: { LaunchSplash() }, content: content)
+        self.init(runner, splash: { LifecycleSplash() }, content: content)
     }
 }
 
 /// While a step runs, show its active presentation if it has one, otherwise
-/// fall back to the splash. Observing `handle.presentation` makes a deferred
+/// fall back to the splash. Observing `bridge.presentation` makes a deferred
 /// (`presenting(after:)`) presentation appear without a phase change.
-private struct LaunchRunningView<Splash: View>: View {
-    let handle: StepHandle
+private struct LifecycleRunningView<Splash: View>: View {
+    let bridge: LifecycleStepUIBridge
     let splash: () -> Splash
 
     var body: some View {
-        if let presentation = handle.presentation {
+        if let presentation = bridge.presentation {
             presentation
         } else {
             splash()
@@ -76,9 +76,9 @@ private struct LaunchRunningView<Splash: View>: View {
 
 #if DEBUG
     #Preview("Launching") {
-        LaunchContainer(
-            Launcher(reason: .userForeground, sequence: LaunchSequence {
-                Work("open") { _ in }
+        LifecycleContainer(
+            LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
+                LifecycleStep.work("open") { _ in }
             }),
         ) {
             Text("App content")

@@ -28,8 +28,8 @@ ready ──(reset)──▶ launching ──▶ … ──▶ ready
 The key insight that unifies silent and interactive steps: **an interactive
 step is just an async step that awaits a continuation the presented UI
 resumes.** Onboarding and migration aren't special engine cases — they're steps
-whose `run` suspends on `handle.waitForResolution()` while their `presentation`
-view is shown, and the view calls `handle.complete()`.
+whose `run` suspends on `bridge.waitForResolution()` while their `presentation`
+view is shown, and the view calls `bridge.complete()`.
 
 ## Installation
 
@@ -44,25 +44,28 @@ it to a target's dependencies in [`Package.swift`](../../Package.swift):
 
 ```swift
 // Why we're launching — gates UI-bearing steps.
-public enum LaunchReason { case userForeground, background(BackgroundCause) }
-public struct LaunchModeSet: OptionSet { /* .foreground, .background, .all */ }
+public enum LifecycleReason { case userForeground, background(LifecycleBackgroundCause) }
+public struct LifecycleModeSet: OptionSet { /* .foreground, .background, .all */ }
 
-// One unit of launch work. Build with the Work/Interactive sugar and refine
-// with chained modifiers.
-public struct LaunchStep: Identifiable {
+// One unit of launch work. Build with the .work/.interactive factories and
+// refine with chained modifiers.
+public struct LifecycleStep: Identifiable {
     public func when(_ predicate: @escaping @MainActor () async -> Bool) -> Self
-    public func modes(_ modes: LaunchModeSet) -> Self
+    public func modes(_ modes: LifecycleModeSet) -> Self
     public func presenting(_ view: ...) -> Self                 // always while running
     public func presenting(when: ..., _ view: ...) -> Self      // only if predicate holds at start
     public func presenting(after: Duration, _ view: ...) -> Self // only if still running after delay
+
+    public static func work(_ id: String, _ body: ...) -> LifecycleStep
+    public static func interactive(_ id: String, run: ... = …, presenting: ...) -> LifecycleStep
 }
 
-@resultBuilder public enum LaunchBuilder {}                     // if / if-else / for
-public struct LaunchSequence { public init(@LaunchBuilder _ steps: () -> [LaunchStep]) }
+@resultBuilder public enum LifecycleStepsBuilder {}              // if / if-else / for
+public struct LifecycleSteps { public init(@LifecycleStepsBuilder _ steps: () -> [LifecycleStep]) }
 
 // Bridge between a running step and its presented view.
-@MainActor @Observable public final class StepHandle {
-    public let reason: LaunchReason
+@MainActor @Observable public final class LifecycleStepUIBridge {
+    public let reason: LifecycleReason
     public var progress: Double?      // determinate progress for the view
     public var message: String?
     public func complete()            // UI resumes the step
@@ -70,52 +73,57 @@ public struct LaunchSequence { public init(@LaunchBuilder _ steps: () -> [Launch
     public func waitForResolution() async throws
 }
 
-public enum LaunchPhase { case launching, running(LaunchStep, StepHandle), failed(LaunchFailure), ready }
+public enum LifecyclePhase {
+    case launching, running(LifecycleStep, LifecycleStepUIBridge), failed(LifecycleFailure), ready
+}
 
-@MainActor @Observable public final class Launcher {
-    public private(set) var phase: LaunchPhase
-    public init(reason: LaunchReason, prelude: @MainActor () -> Void = {}, sequence: LaunchSequence)
+@MainActor @Observable public final class LifecycleRunner {
+    public private(set) var phase: LifecyclePhase
+    public init(reason: LifecycleReason,
+                initializePrerequisites: @MainActor () -> Void = {},
+                sequence: LifecycleSteps)
     public func run() async             // walk the steps; idempotent
     public func retry()                 // re-run from the failed step
     public func enterForeground() async // promote a background launch
-    public func reset(_ sequence: LaunchSequence) async // reverse flow → relaunch
+    public func reset(_ sequence: LifecycleSteps) async // reverse flow → relaunch
 }
 ```
 
-Plus free-function sugar so sequences read declaratively:
+Steps are built with the `LifecycleStep.work` / `LifecycleStep.interactive`
+factories so sequences read declaratively:
 
 ```swift
-func Work(_ id: String, _ body: @escaping @MainActor (StepHandle) async throws -> Void) -> LaunchStep
-func Interactive(_ id: String,
-                 run: @escaping @MainActor (StepHandle) async throws -> Void = { try await $0.waitForResolution() },
-                 @ViewBuilder presenting: @escaping @MainActor (StepHandle) -> some View) -> LaunchStep
+LifecycleStep.work(_ id: String, _ body: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void)
+LifecycleStep.interactive(_ id: String,
+    run: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void = { try await $0.waitForResolution() },
+    @ViewBuilder presenting: @escaping @MainActor (LifecycleStepUIBridge) -> some View)
 ```
 
-`Interactive` defaults to `.modes(.foreground)`: a step whose whole job is to
-wait for the user would deadlock during a headless background launch (there's no
-UI to resolve it), so it's skipped there.
+`LifecycleStep.interactive` defaults to `.modes(.foreground)`: a step whose
+whole job is to wait for the user would deadlock during a headless background
+launch (there's no UI to resolve it), so it's skipped there.
 
 ## Where the *final* app UI comes from
 
 The launch sequence is only the **prerequisites**. The destination — the real,
 "logged-in" / default app UI — is **not a step**; it's the `content` closure
-handed to `LaunchContainer`, rendered when (and only when) the launcher reaches
+handed to `LifecycleContainer`, rendered when (and only when) the runner reaches
 `.ready`. (It can't be a step: steps complete and the cursor advances, whereas
 the app UI is terminal and persists for the rest of the process lifetime.)
 
 ```swift
-LaunchContainer(launcher) {       // `content` == the real app, the destination
-    MainTabView()                 // appears once the launcher hits .ready
+LifecycleContainer(runner) {      // `content` == the real app, the destination
+    MainTabView()                 // appears once the runner hits .ready
 }
 ```
 
-`LaunchContainer` renders from `launcher.phase`:
+`LifecycleContainer` renders from `runner.phase`:
 
 | phase | renders |
 |-------|---------|
-| `.launching` / a silent step | `splash()` (defaults to `LaunchSplash`) |
+| `.launching` / a silent step | `splash()` (defaults to `LifecycleSplash`) |
 | `.running` with a presentation | that step's view (onboarding, migration) |
-| `.failed` | `LaunchFailureView { launcher.retry() }` |
+| `.failed` | `LifecycleFailureView { runner.retry() }` |
 | `.ready` | `content()` — the destination UI |
 
 For a **background launch** (`reason.isBackground`) it renders `EmptyView()`
@@ -123,47 +131,47 @@ always — even at `.ready` — so `content()` (the heavy view tree) is never bu
 
 ## Usage
 
-Build the launcher early (e.g. in the app delegate, so a headless background
+Build the runner early (e.g. in the app delegate, so a headless background
 launch works before any window exists) and drive it:
 
 ```swift
 // App delegate / launch site:
-let launcher = Launcher(
+let runner = LifecycleRunner(
     reason: launchOptions?[.location] != nil ? .background(.location) : .userForeground,
-    prelude: { deps.installLocationManager() },   // synchronous, must-exist-now wiring
-    sequence: LaunchSequence {
-        Work("open-store") { _ in try await deps.openStore() }
-            .presenting(when: { deps.migrationPredicted }) { MigrationProgressView(handle: $0) }
+    initializePrerequisites: { deps.installLocationManager() }, // synchronous, must-exist-now wiring
+    sequence: LifecycleSteps {
+        LifecycleStep.work("open-store") { _ in try await deps.openStore() }
+            .presenting(when: { deps.migrationPredicted }) { MigrationProgressView(bridge: $0) }
 
-        Interactive("onboarding") { OnboardingView(handle: $0) }
+        LifecycleStep.interactive("onboarding") { OnboardingView(bridge: $0) }
             .when { !deps.hasOnboarded }
 
-        Work("sync-auth")          { _ in await deps.syncAuthorization() }
-        Work("reconcile-tracking") { _ in await deps.reconcileTracking() }
-        Work("load")               { _ in await deps.refresh() }
+        LifecycleStep.work("sync-auth")          { _ in await deps.syncAuthorization() }
+        LifecycleStep.work("reconcile-tracking") { _ in await deps.reconcileTracking() }
+        LifecycleStep.work("load")               { _ in await deps.refresh() }
     },
 )
-Task { await launcher.run() }
+Task { await runner.run() }
 ```
 
 ```swift
-// Root view: gate the real app behind the launcher.
+// Root view: gate the real app behind the runner.
 struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
-    let launcher: Launcher
+    let runner: LifecycleRunner
 
     var body: some View {
-        LaunchContainer(launcher) { MainTabView() }
+        LifecycleContainer(runner) { MainTabView() }
             // run() is idempotent; promote a background launch only once the
             // scene is genuinely active, so a background-connected scene stays
             // headless.
             .task {
-                await launcher.run()
-                if scenePhase == .active { await launcher.enterForeground() }
+                await runner.run()
+                if scenePhase == .active { await runner.enterForeground() }
             }
             .onChange(of: scenePhase) { _, phase in
                 guard phase == .active else { return }
-                Task { await launcher.enterForeground() }
+                Task { await runner.enterForeground() }
             }
     }
 }
@@ -178,32 +186,33 @@ flag:
 ```swift
 Button("Erase all data & reset", role: .destructive) {
     Task {
-        await launcher.reset(LaunchSequence {
-            Work("erase")  { _ in try await deps.eraseAll() }
-            Work("forget") { _ in deps.resetPreferences() }
+        await runner.reset(LifecycleSteps {
+            LifecycleStep.work("erase")  { _ in try await deps.eraseAll() }
+            LifecycleStep.work("forget") { _ in deps.resetPreferences() }
         })
     }
 }
 ```
 
-If a teardown step throws, the launcher parks in `.failed` and does **not**
+If a teardown step throws, the runner parks in `.failed` and does **not**
 relaunch.
 
 ## Two correctness points designed in deliberately
 
-- **Synchronous prelude vs. async steps.** The `prelude` runs synchronously at
-  `init` for cheap, must-exist-now wiring (e.g. installing a `CLLocationManager`
-  delegate a queued background event can't wait for). Everything expensive —
-  including opening a store that may run a slow migration — belongs in an async
-  step, so it never blocks `didFinishLaunching` (and the system watchdog).
+- **Synchronous `initializePrerequisites` vs. async steps.**
+  `initializePrerequisites` runs synchronously at `init` for cheap,
+  must-exist-now wiring (e.g. installing a `CLLocationManager` delegate a queued
+  background event can't wait for). Everything expensive — including opening a
+  store that may run a slow migration — belongs in an async step, so it never
+  blocks `didFinishLaunching` (and the system watchdog).
 
 - **Background launches build no UI.** iOS connects a background scene without
   displaying it and reclaims such apps first under memory pressure, so a
-  background launch should build *no* view tree. `LaunchContainer` enforces this
-  (`EmptyView()` for any background reason); the work still runs because it's
-  driven from the launch site (`Task { await launcher.run() }`), independent of
-  whether SwiftUI ever builds the hierarchy. When a window genuinely appears,
-  `enterForeground()` promotes the launcher and re-drives so foreground-only
+  background launch should build *no* view tree. `LifecycleContainer` enforces
+  this (`EmptyView()` for any background reason); the work still runs because
+  it's driven from the launch site (`Task { await runner.run() }`), independent
+  of whether SwiftUI ever builds the hierarchy. When a window genuinely appears,
+  `enterForeground()` promotes the runner and re-drives so foreground-only
   steps (onboarding) now run.
 
 All drives (`run` / `enterForeground` / `retry` / `reset`) are serialized
@@ -216,6 +225,6 @@ The engine and views are exercised with Swift Testing + a hosted UI test host.
 What's worth covering when adopting it: step ordering, `.when` gating, mode
 filtering (background skips foreground-only), thrown error → `.failed` +
 `retry()` resuming from the failed step, interactive suspension until
-`handle.complete()`, progress propagation, and `reset()` returning to
+`bridge.complete()`, progress propagation, and `reset()` returning to
 `.launching`. Because a real interactive step suspends, drive it from a `Task`
-and poll `launcher.phase` until it parks, then resolve the handle.
+and poll `runner.phase` until it parks, then resolve the bridge.

@@ -4,23 +4,23 @@ import Testing
 private struct Boom: Error {}
 
 @MainActor
-struct StepHandleTests {
+struct LifecycleStepUIBridgeTests {
     @Test func completeResumesWaiter() async throws {
-        let handle = StepHandle(reason: .userForeground)
+        let bridge = LifecycleStepUIBridge(reason: .userForeground)
         let waiter = Task { @MainActor in
-            try await handle.waitForResolution()
+            try await bridge.waitForResolution()
             return true
         }
         await Task.yield()
-        handle.complete()
+        bridge.complete()
         #expect(try await waiter.value)
     }
 
     @Test func failThrowsFromWaiter() async {
-        let handle = StepHandle(reason: .userForeground)
+        let bridge = LifecycleStepUIBridge(reason: .userForeground)
         let waiter = Task { @MainActor in
             do {
-                try await handle.waitForResolution()
+                try await bridge.waitForResolution()
                 return false
             } catch is Boom {
                 return true
@@ -29,28 +29,28 @@ struct StepHandleTests {
             }
         }
         await Task.yield()
-        handle.fail(Boom())
+        bridge.fail(Boom())
         #expect(await waiter.value)
     }
 
     @Test func resolvingBeforeWaitingStillDelivers() async throws {
-        let handle = StepHandle(reason: .userForeground)
-        handle.complete()
-        try await handle.waitForResolution()
+        let bridge = LifecycleStepUIBridge(reason: .userForeground)
+        bridge.complete()
+        try await bridge.waitForResolution()
     }
 
     @Test func failingBeforeWaitingStillThrows() async {
-        let handle = StepHandle(reason: .userForeground)
-        handle.fail(Boom())
+        let bridge = LifecycleStepUIBridge(reason: .userForeground)
+        bridge.fail(Boom())
         await #expect(throws: Boom.self) {
-            try await handle.waitForResolution()
+            try await bridge.waitForResolution()
         }
     }
 
     @Test func secondResolutionIsIgnored() async throws {
-        let handle = StepHandle(reason: .userForeground)
-        handle.complete()
-        handle.fail(Boom())
-        try await handle.waitForResolution()
+        let bridge = LifecycleStepUIBridge(reason: .userForeground)
+        bridge.complete()
+        bridge.fail(Boom())
+        try await bridge.waitForResolution()
     }
 }

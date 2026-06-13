@@ -5,24 +5,24 @@ import WhereCore
 /// The app's root: the launch sequence gated in front of a Liquid Glass tab bar
 /// over the three top-level screens.
 ///
-/// `LaunchContainer` renders the splash / onboarding / migration UI while the
-/// `Launcher` runs, then the `TabView` (the real "logged-in" UI — the launch
-/// *destination*, not a step) once it reaches `.ready`. The model is built at
-/// launch (so CoreLocation is wired for background relaunch) and shared down
-/// through the environment.
+/// `LifecycleContainer` renders the splash / onboarding / migration UI while
+/// the `LifecycleRunner` runs, then the `TabView` (the real "logged-in" UI —
+/// the launch *destination*, not a step) once it reaches `.ready`. The model is
+/// built at launch (so CoreLocation is wired for background relaunch) and shared
+/// down through the environment.
 public struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var model: WhereModel
-    private let launcher: Launcher
+    private let launcher: LifecycleRunner
 
-    /// Inject the app-owned model + launcher built at launch. The app uses this.
-    public init(model: WhereModel, launcher: Launcher) {
+    /// Inject the app-owned model + runner built at launch. The app uses this.
+    public init(model: WhereModel, launcher: LifecycleRunner) {
         _model = State(initialValue: model)
         self.launcher = launcher
     }
 
     /// Convenience for previews and the hosted UI test: build a model and a
-    /// foreground launcher for it. The launcher isn't run by the app delegate
+    /// foreground runner for it. The runner isn't run by the app delegate
     /// here, so `.task` drives it (see `body`).
     public init() {
         let model = WhereModel()
@@ -31,7 +31,7 @@ public struct RootView: View {
     }
 
     public var body: some View {
-        LaunchContainer(launcher) {
+        LifecycleContainer(launcher) {
             TabView {
                 Tab(Strings.tabPrimary, systemImage: "star.fill") {
                     PrimaryView()

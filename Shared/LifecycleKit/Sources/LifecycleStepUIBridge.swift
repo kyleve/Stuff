@@ -3,7 +3,7 @@ import SwiftUI
 
 /// The bridge between a running step and the UI it presents.
 ///
-/// The engine hands a fresh handle to each step. A *silent* step ignores it;
+/// The engine hands a fresh bridge to each step. A *silent* step ignores it;
 /// an *interactive* step (onboarding, migration) awaits `waitForResolution()`
 /// so the engine pauses while its presented view is on screen, and the view
 /// calls `complete()` (or `fail(_:)`) to resume the launch.
@@ -12,9 +12,9 @@ import SwiftUI
 /// the presented view re-renders as the step reports work.
 @MainActor
 @Observable
-public final class StepHandle {
+public final class LifecycleStepUIBridge {
     /// Why the app is launching, in case a presented view wants to adapt.
-    public let reason: LaunchReason
+    public let reason: LifecycleReason
 
     /// Determinate progress in `0...1` for the presented view to show, or nil
     /// for an indeterminate spinner.
@@ -32,10 +32,10 @@ public final class StepHandle {
     @ObservationIgnored private var earlyResolution: Result<Void, Error>?
     @ObservationIgnored private var isResolved = false
 
-    /// Create a standalone handle. The engine creates one per step, but this
+    /// Create a standalone bridge. The engine creates one per step, but this
     /// is public so consumers can build and drive their presentation views in
     /// previews and tests without an engine.
-    public init(reason: LaunchReason) {
+    public init(reason: LifecycleReason) {
         self.reason = reason
     }
 

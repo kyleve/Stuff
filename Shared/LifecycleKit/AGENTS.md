@@ -3,8 +3,9 @@
 LifecycleKit is an app-agnostic SwiftUI microframework that models app startup
 (and its reverse, reset/teardown) as an ordered, conditional,
 launch-reason-aware sequence of async steps. A `@MainActor @Observable`
-`Launcher` walks the sequence and publishes one `phase`; `LaunchContainer`
-renders it. See [`README.md`](README.md) for the full narrative and usage.
+`LifecycleRunner` walks the sequence and publishes one `phase`;
+`LifecycleContainer` renders it. See [`README.md`](README.md) for the full
+narrative and usage.
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md), which owns build
 system, formatting, and global conventions. Read that first.
@@ -26,43 +27,47 @@ Everything user-facing is `@MainActor`; heavy work is delegated to actors from
 *inside* a step's `run`, so there are no `Sendable` gymnastics on the step
 itself.
 
-- [`Launcher`](Sources/Launcher.swift) – the engine. Runs the synchronous
-  `prelude` at `init`, then `run()` walks the steps, filtering by
-  `reason`/`modes` and the async `condition`, awaiting each body. A throw parks
-  it in `.failed`; `retry()` resumes from the failed step; `enterForeground()`
-  promotes a headless launch; `reset(_:)` runs a teardown sequence then
-  re-drives from the top. **All drives funnel through a single `runTask`** and
-  await any in-flight drive before starting a new one — don't add a drive path
-  that bypasses that serialization.
-- [`LaunchStep`](Sources/LaunchStep.swift) – one unit of work: `id`,
+- [`LifecycleRunner`](Sources/LifecycleRunner.swift) – the engine. Runs the
+  synchronous `initializePrerequisites` at `init`, then `run()` walks the steps,
+  filtering by `reason`/`modes` and the async `condition`, awaiting each body. A
+  throw parks it in `.failed`; `retry()` resumes from the failed step;
+  `enterForeground()` promotes a headless launch; `reset(_:)` runs a teardown
+  sequence then re-drives from the top. **All drives funnel through a single
+  `runTask`** and await any in-flight drive before starting a new one — don't add
+  a drive path that bypasses that serialization.
+- [`LifecycleStep`](Sources/LifecycleStep.swift) – one unit of work: `id`,
   `allowedModes`, async `condition`, `run`, optional `presentation`. Chained
   modifiers (`.when` / `.modes` / `.presenting{,(when:),(after:)}`) return
-  copies. Built via the `Work` / `Interactive` free functions. `Interactive`
-  defaults to `.modes(.foreground)` so it can't deadlock a headless launch.
-- [`LaunchSequence` / `LaunchBuilder`](Sources/LaunchSequence.swift) – a
+  copies. Built via the `LifecycleStep.work` / `LifecycleStep.interactive`
+  factories. `LifecycleStep.interactive` defaults to `.modes(.foreground)` so it
+  can't deadlock a headless launch.
+- [`LifecycleSteps` / `LifecycleStepsBuilder`](Sources/LifecycleSteps.swift) – a
   result builder (`if`/`if-else`/`for`) collecting steps; declaration order is
   run order. `steps` is public so consumers can parity-test the order.
-- [`StepHandle`](Sources/StepHandle.swift) – the bridge to a step's presented
-  view. `progress`/`message`/`presentation` are observable; interactive steps
-  suspend on `waitForResolution()` and the view calls `complete()`/`fail(_:)`.
-  Resolving *before* a caller waits is buffered (`earlyResolution`) so there's
-  no lost-wakeup race — preserve that if you touch it.
-- [`LaunchReason` / `LaunchModeSet` / `BackgroundCause`](Sources/LaunchReason.swift)
+- [`LifecycleStepUIBridge`](Sources/LifecycleStepUIBridge.swift) – the bridge to
+  a step's presented view. `progress`/`message`/`presentation` are observable;
+  interactive steps suspend on `waitForResolution()` and the view calls
+  `complete()`/`fail(_:)`. Resolving *before* a caller waits is buffered
+  (`earlyResolution`) so there's no lost-wakeup race — preserve that if you touch
+  it.
+- [`LifecycleReason` / `LifecycleModeSet` / `LifecycleBackgroundCause`](Sources/LifecycleReason.swift)
   – why the app launched and which steps that allows. `reason.modeSet` is the
   single bit a step's `allowedModes` must contain.
-- [`LaunchPhase` / `LaunchFailure`](Sources/LaunchPhase.swift) – the observable
-  state the host renders, plus `isLaunching`/`isReady`/`runningStepID`/
-  `runningHandle`/`failure` accessors (handy in tests).
-- [`LaunchContainer`](Sources/LaunchContainer.swift) – the root view. Renders
-  `splash` / a step's presentation / [`LaunchFailureView`](Sources/LaunchFailureView.swift)
-  / `content` from `phase`. The destination (`content`, e.g. the app's
-  `TabView`) is **not** a step — it's terminal and shown only at `.ready`.
-- [`LaunchSplash`](Sources/LaunchSplash.swift) – the default placeholder.
+- [`LifecyclePhase` / `LifecycleFailure`](Sources/LifecyclePhase.swift) – the
+  observable state the host renders, plus
+  `isLaunching`/`isReady`/`runningStepID`/`runningBridge`/`failure` accessors
+  (handy in tests).
+- [`LifecycleContainer`](Sources/LifecycleContainer.swift) – the root view.
+  Renders `splash` / a step's presentation /
+  [`LifecycleFailureView`](Sources/LifecycleFailureView.swift) / `content` from
+  `phase`. The destination (`content`, e.g. the app's `TabView`) is **not** a
+  step — it's terminal and shown only at `.ready`.
+- [`LifecycleSplash`](Sources/LifecycleSplash.swift) – the default placeholder.
 
 ## Two invariants to preserve
 
-- **Background launches build no view tree.** `LaunchContainer` returns
-  `EmptyView()` whenever `launcher.reason.isBackground` — even at `.ready` — so
+- **Background launches build no view tree.** `LifecycleContainer` returns
+  `EmptyView()` whenever `runner.reason.isBackground` — even at `.ready` — so
   the heavy `content()` is never constructed for a launch nobody sees. The work
   still runs because it's driven from the launch site, not the view. Don't make
   `content` render for a background reason.
@@ -80,20 +85,20 @@ itself.
 - Steps and the engine are `@MainActor`; if a step needs heavy/off-main work,
   hop to an actor or a detached task inside `run`, not by loosening isolation
   on the step.
-- Every previewable view here ships a `#Preview` (see `LaunchSplash`,
-  `LaunchFailureView`, `LaunchContainer`).
+- Every previewable view here ships a `#Preview` (see `LifecycleSplash`,
+  `LifecycleFailureView`, `LifecycleContainer`).
 
 ## Testing
 
 Tests live in [`Tests/`](Tests) (Swift Testing only, never XCTest). The bundle
 runs in `StuffTestHost`. Patterns:
 
-- Engine behavior ([`LauncherTests`](Tests/LauncherTests.swift),
-  [`LauncherResetTests`](Tests/LauncherResetTests.swift)): build a
-  `LaunchSequence`, run the `Launcher`, assert on `phase`. For an interactive
-  step, drive `run()` from a `Task` and poll `launcher.phase` until it parks on
-  the expected step, then resolve via `runningHandle`.
-- View behavior ([`LaunchContainerTests`](Tests/LaunchContainerTests.swift)):
+- Engine behavior ([`LifecycleRunnerTests`](Tests/LifecycleRunnerTests.swift),
+  [`LifecycleRunnerResetTests`](Tests/LifecycleRunnerResetTests.swift)): build a
+  `LifecycleSteps`, run the `LifecycleRunner`, assert on `phase`. For an
+  interactive step, drive `run()` from a `Task` and poll `runner.phase` until it
+  parks on the expected step, then resolve via `runningBridge`.
+- View behavior ([`LifecycleContainerTests`](Tests/LifecycleContainerTests.swift)):
   host through `StuffTestHost` and assert which branch renders per phase /
   reason (splash, presentation, failure, content, `EmptyView`).
 - Keep tests deterministic: gate async steps behind a test-controlled

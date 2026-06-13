@@ -7,7 +7,7 @@ import WhereUI
 @MainActor
 struct MigrationProgressViewTests {
     @Test func indeterminateRenders() throws {
-        let view = MigrationProgressView(handle: StepHandle(reason: .userForeground))
+        let view = MigrationProgressView(bridge: LifecycleStepUIBridge(reason: .userForeground))
         try show(UIHostingController(rootView: view)) { hosted in
             waitForOneRunloop()
             #expect(hosted.view != nil)
@@ -15,10 +15,10 @@ struct MigrationProgressViewTests {
     }
 
     @Test func determinateWithMessageRenders() throws {
-        let handle = StepHandle(reason: .userForeground)
-        handle.progress = 0.5
-        handle.message = "Migrating manual days…"
-        let view = MigrationProgressView(handle: handle)
+        let bridge = LifecycleStepUIBridge(reason: .userForeground)
+        bridge.progress = 0.5
+        bridge.message = "Migrating manual days…"
+        let view = MigrationProgressView(bridge: bridge)
         try show(UIHostingController(rootView: view)) { hosted in
             waitForOneRunloop()
             #expect(hosted.view != nil)

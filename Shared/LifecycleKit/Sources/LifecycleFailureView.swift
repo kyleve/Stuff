@@ -1,12 +1,12 @@
 import SwiftUI
 
 /// The UI shown when a launch step throws. Describes the failure and offers a
-/// retry that resumes the launcher from the step that failed.
-public struct LaunchFailureView: View {
-    private let failure: LaunchFailure
+/// retry that resumes the runner from the step that failed.
+public struct LifecycleFailureView: View {
+    private let failure: LifecycleFailure
     private let retry: () -> Void
 
-    public init(failure: LaunchFailure, retry: @escaping () -> Void) {
+    public init(failure: LifecycleFailure, retry: @escaping () -> Void) {
         self.failure = failure
         self.retry = retry
     }
@@ -25,8 +25,8 @@ public struct LaunchFailureView: View {
 
 #if DEBUG
     #Preview {
-        LaunchFailureView(
-            failure: LaunchFailure(
+        LifecycleFailureView(
+            failure: LifecycleFailure(
                 stepID: "open-store",
                 error: URLError(.notConnectedToInternet),
             ),
