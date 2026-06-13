@@ -21,11 +21,12 @@ public struct LifecycleStep: Identifiable {
 
     public init(
         id: String,
+        condition: @escaping @MainActor () async -> Bool = { true },
         run: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void,
     ) {
         self.id = id
         allowedModes = .all
-        condition = { true }
+        self.condition = condition
         self.run = run
         presentation = nil
     }

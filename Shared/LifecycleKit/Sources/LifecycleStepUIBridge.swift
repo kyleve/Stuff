@@ -28,9 +28,18 @@ public final class LifecycleStepUIBridge {
     /// (always / when / after); not meant to be set by callers.
     public internal(set) var presentation: AnyView?
 
+    /// Whether the step has been resolved yet, and with what result. Folding the
+    /// old `earlyResolution` + `isResolved` pair into one value makes the two
+    /// impossible to drift: a resolved step always carries its result, and a
+    /// resolution before anyone waits is simply buffered here until the next
+    /// `waitForResolution()` delivers it.
+    private enum Resolution {
+        case pending
+        case resolved(Result<Void, Error>)
+    }
+
     @ObservationIgnored private var continuation: CheckedContinuation<Void, Error>?
-    @ObservationIgnored private var earlyResolution: Result<Void, Error>?
-    @ObservationIgnored private var isResolved = false
+    @ObservationIgnored private var resolution: Resolution = .pending
 
     /// Create a standalone bridge. The engine creates one per step, but this
     /// is public so consumers can build and drive their presentation views in
@@ -51,27 +60,25 @@ public final class LifecycleStepUIBridge {
     }
 
     /// Suspends until `complete()` or `fail(_:)` is called. Resolving before a
-    /// caller starts waiting is supported (the result is delivered on the next
-    /// `waitForResolution()`), so there is no lost-wakeup race.
+    /// caller starts waiting is supported (the buffered result is delivered
+    /// immediately), so there is no lost-wakeup race.
     public func waitForResolution() async throws {
-        if let earlyResolution {
-            self.earlyResolution = nil
-            try earlyResolution.get()
-            return
-        }
-        try await withCheckedThrowingContinuation { continuation in
-            self.continuation = continuation
+        switch resolution {
+            case let .resolved(result):
+                try result.get()
+            case .pending:
+                try await withCheckedThrowingContinuation { continuation in
+                    self.continuation = continuation
+                }
         }
     }
 
     private func resolve(_ result: Result<Void, Error>) {
-        guard !isResolved else { return }
-        isResolved = true
+        guard case .pending = resolution else { return }
+        resolution = .resolved(result)
         if let continuation {
             self.continuation = nil
             continuation.resume(with: result)
-        } else {
-            earlyResolution = result
         }
     }
 }

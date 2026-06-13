@@ -70,6 +70,14 @@ struct LifecycleStepModifierTests {
         #expect(await step.condition() == true)
     }
 
+    @Test func initConditionGatesTheStep() async {
+        var flag = false
+        let step = LifecycleStep(id: "a", condition: { flag }) { _ in }
+        #expect(await step.condition() == false)
+        flag = true
+        #expect(await step.condition() == true)
+    }
+
     @Test func plainWorkHasNoPresentation() {
         #expect(LifecycleStep.work("a") { _ in }.presentation == nil)
     }
