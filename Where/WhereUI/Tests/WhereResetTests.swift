@@ -27,11 +27,11 @@ private func waitUntil(
 /// launch back to its first-run state.
 @MainActor
 struct WhereResetTests {
-    private func ephemeralDefaults(_ label: String = "WhereReset") -> UserDefaults {
-        let suite = "test.\(label).\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        return defaults
+    /// Owns every ephemeral suite this test creates and tears them down when
+    /// the per-test suite instance is released (see `EphemeralDefaults`).
+    private let defaultsStore = EphemeralDefaults()
+    private func ephemeralDefaults() -> UserDefaults {
+        defaultsStore.make("WhereReset")
     }
 
     /// A model with an injected controller (in-memory store, no-op schedulers)

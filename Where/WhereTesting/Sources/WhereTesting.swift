@@ -1,4 +1,36 @@
+import Foundation
 import UIKit
+
+/// Vends uniquely-named ephemeral `UserDefaults` suites and removes every one
+/// it created when it is released, so tests don't leak registered domains /
+/// plist files across the test process (the old per-call
+/// `UserDefaults(suiteName: UUID())` was never torn down).
+///
+/// Hold one per test — e.g. as a suite stored property
+/// (`private let store = EphemeralDefaults()`) — and call `make()`; the suite
+/// instance Swift Testing creates per test owns it, so its `deinit` runs the
+/// cleanup once the test finishes.
+public final class EphemeralDefaults {
+    private var created: [(defaults: UserDefaults, suiteName: String)] = []
+
+    public init() {}
+
+    /// A fresh, empty `UserDefaults` suite. `label` only flavors the suite
+    /// name for debuggability; uniqueness comes from a `UUID`.
+    public func make(_ label: String = "test") -> UserDefaults {
+        let suiteName = "test.\(label).\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.removePersistentDomain(forName: suiteName)
+        created.append((defaults, suiteName))
+        return defaults
+    }
+
+    deinit {
+        for (defaults, suiteName) in created {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+    }
+}
 
 public struct ShowError: Error, CustomStringConvertible {
     public var description: String
