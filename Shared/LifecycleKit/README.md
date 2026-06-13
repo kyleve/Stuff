@@ -159,7 +159,11 @@ let runner = LifecycleRunner(
     initializePrerequisites: { deps.installLocationManager() }, // synchronous, must-exist-now wiring
     sequence: LifecycleSteps {
         LifecycleStep.work("open-store") { _ in try await deps.openStore() }
-            .presenting(when: { deps.migrationPredicted }) { MigrationProgressView(bridge: $0) }
+            // Migration UI keyed off slowness: shown only if the open is still
+            // running after a beat, then held for a readable minimum.
+            .presenting(after: .milliseconds(500), minVisible: .seconds(1)) {
+                MigrationProgressView(bridge: $0)
+            }
 
         LifecycleStep.interactive("onboarding") { OnboardingView(bridge: $0) }
             .when { !deps.hasOnboarded }
@@ -235,7 +239,12 @@ relaunch.
 
 All drives (`run` / `enterForeground` / `retry` / `reset`) are serialized
 through a single internal task, so two never overlap (which would let, e.g., a
-store-open step run twice concurrently).
+store-open step run twice concurrently). A new drive **cancels** the in-flight
+one and awaits it draining before starting: a parked interactive step's
+`waitForResolution()` throws `CancellationError`, which the engine treats as
+"drive cancelled" (stop quietly), distinct from a step throwing (→ `.failed`).
+That's what lets `reset()` / `enterForeground()` interrupt a launch parked on
+onboarding instead of hanging forever behind it.
 
 ## Testing
 

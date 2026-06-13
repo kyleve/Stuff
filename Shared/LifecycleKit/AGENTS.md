@@ -32,13 +32,19 @@ itself.
   filtering by `reason`/`modes` and the async `condition`, awaiting each body. A
   throw parks it in `.failed`; `retry()` resumes from the failed step;
   `enterForeground()` promotes a headless launch; `reset(_:)` runs a teardown
-  sequence then re-drives from the top. **All drives funnel through a single
-  `runTask`** and await any in-flight drive before starting a new one — don't add
-  a drive path that bypasses that serialization.
+  sequence then re-drives from the top. Internal bookkeeping lives in one
+  `State` enum so invalid combinations are unrepresentable. **All drives funnel
+  through a single in-flight task**: a new drive `cancel()`s the previous one
+  and awaits it draining before starting (cancel-and-drain), so two never
+  overlap *and* `reset()`/`enterForeground()` can interrupt a launch parked on
+  an interactive step rather than hanging behind it. A cancelled drive ends as
+  `DriveOutcome.cancelled` (stop quietly), distinct from a thrown step
+  (`.failed`). Don't add a drive path that bypasses that serialization.
 - [`LifecycleStep`](Sources/LifecycleStep.swift) – one unit of work: `id`,
   `allowedModes`, async `condition`, `run`, optional `presentation`. Chained
-  modifiers (`.when` / `.modes` / `.presenting{,(when:),(after:)}`) return
-  copies. Built via the `LifecycleStep.work` / `LifecycleStep.interactive`
+  modifiers (`.when` / `.modes` /
+  `.presenting{,(when:),(after:),(after:minVisible:)}`) return copies. Built via
+  the `LifecycleStep.work` / `LifecycleStep.interactive`
   factories. `LifecycleStep.interactive` defaults to `.modes(.foreground)` so it
   can't deadlock a headless launch.
 - [`LifecycleSteps` / `LifecycleStepsBuilder`](Sources/LifecycleSteps.swift) – a
@@ -47,9 +53,13 @@ itself.
 - [`LifecycleStepUIBridge`](Sources/LifecycleStepUIBridge.swift) – the bridge to
   a step's presented view. `progress`/`message`/`presentation` are observable;
   interactive steps suspend on `waitForResolution()` and the view calls
-  `complete()`/`fail(_:)`. Resolving *before* a caller waits is buffered
-  (`earlyResolution`) so there's no lost-wakeup race — preserve that if you touch
-  it.
+  `complete()`/`fail(_:)`. State is one `Resolution` enum (`pending` /
+  `resolved(Result)`) so the resolved value and the "has resolved" flag can't
+  drift; resolving *before* a caller waits is buffered there (no lost-wakeup
+  race) and a second resolution is ignored. `waitForResolution()` is
+  cancellation-aware — it throws `CancellationError` when the drive is
+  cancelled, which is how the runner drains a parked step. Preserve both if you
+  touch it.
 - [`LifecycleReason` / `LifecycleModeSet` / `LifecycleBackgroundCause`](Sources/LifecycleReason.swift)
   – why the app launched and which steps that allows. `reason.modeSet` is the
   single bit a step's `allowedModes` must contain.
