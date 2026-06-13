@@ -115,7 +115,7 @@ struct LifecycleRunnerForegroundPromotionTests {
         #expect(runner.phase.isReady)
     }
 
-    @Test func enterForegroundWaitsForAnInFlightBackgroundDrive() async throws {
+    @Test func enterForegroundCancelsAndDrainsAnInFlightBackgroundDrive() async throws {
         var starts = 0
         var inFlight = 0
         var maxInFlight = 0
@@ -123,31 +123,55 @@ struct LifecycleRunnerForegroundPromotionTests {
             LifecycleStep.work("slow") { bridge in
                 starts += 1
                 inFlight += 1
+                defer { inFlight -= 1 }
                 maxInFlight = max(maxInFlight, inFlight)
                 try await bridge.waitForResolution()
-                inFlight -= 1
             }
         })
         let runTask = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.runningStepID == "slow" }
-        let backgroundBridge = runner.phase.runningBridge
 
-        // Promote while the background drive is still suspended in "slow".
+        // Promote while the background drive is parked in "slow". Promotion
+        // cancels that drive (its `waitForResolution()` throws), drains it, and
+        // only then re-drives "slow" for the foreground launch — never two at
+        // once.
         let promote = Task { @MainActor in await runner.enterForeground() }
-        // Even given time to misbehave, promotion must not start a second,
-        // overlapping drive of "slow" while the first is still in flight.
-        try await Task.sleep(for: .milliseconds(20))
-        #expect(starts == 1)
-
-        // Let the background drive finish; only then may the foreground
-        // re-drive begin and run "slow" a second time.
-        backgroundBridge?.complete()
         try await waitUntil { starts == 2 }
+
         runner.phase.runningBridge?.complete()
         await runTask.value
         await promote.value
 
         #expect(maxInFlight == 1)
+        #expect(!runner.reason.isBackground)
+        #expect(runner.phase.isReady)
+    }
+}
+
+@MainActor
+struct LifecycleRunnerCancellationTests {
+    @Test func resetCancelsAParkedInteractiveStepInsteadOfHanging() async throws {
+        // Without cooperative cancellation, `reset()` would await the run
+        // drive forever: it is parked on an interactive step waiting for a tap
+        // that never comes.
+        var teardownRan = false
+        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
+            LifecycleStep.interactive("gate") { _ in Text("gate") }
+                // After teardown clears the gate, the relaunch skips it and
+                // runs to completion.
+                .when { !teardownRan }
+        })
+        let runTask = Task { @MainActor in await runner.run() }
+        try await waitUntil { runner.phase.runningStepID == "gate" }
+
+        await runner.reset(LifecycleSteps {
+            LifecycleStep.work("teardown") { _ in teardownRan = true }
+        })
+
+        await runTask.value
+        #expect(teardownRan)
+        // The cancelled gate was treated as a drained drive, not a failure.
+        #expect(runner.phase.failure == nil)
         #expect(runner.phase.isReady)
     }
 }

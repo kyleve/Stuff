@@ -53,4 +53,21 @@ struct LifecycleStepUIBridgeTests {
         bridge.fail(Boom())
         try await bridge.waitForResolution()
     }
+
+    @Test func cancellingTheWaiterThrowsCancellationError() async {
+        let bridge = LifecycleStepUIBridge(reason: .userForeground)
+        let waiter = Task { @MainActor in
+            do {
+                try await bridge.waitForResolution()
+                return "resolved"
+            } catch is CancellationError {
+                return "cancelled"
+            } catch {
+                return "other"
+            }
+        }
+        await Task.yield()
+        waiter.cancel()
+        #expect(await waiter.value == "cancelled")
+    }
 }

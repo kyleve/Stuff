@@ -18,25 +18,44 @@ import SwiftUI
 ///   sequence so the now-applicable foreground-only steps (onboarding, etc.)
 ///   run.
 ///
-/// Every drive is funneled through a single `runTask`, and the promotion /
-/// retry / reset entry points await any in-flight drive before starting a new
-/// one, so two drives never overlap (which would let, e.g., a store-open step
-/// run twice concurrently).
+/// Drives never overlap. The internal `State` folds the launch reason, the
+/// "has run" flag, and the in-flight drive task into one value so invalid
+/// combinations are unrepresentable; `reason` and `phase` are its public
+/// projections. A new drive (`run`/`retry`/`enterForeground`/`reset`) cancels
+/// the in-flight one and awaits it draining before starting — cooperative
+/// cancellation (a parked `waitForResolution()` throws `CancellationError`)
+/// keeps that drain from hanging behind an interactive step waiting on a tap
+/// that will never come.
 @MainActor
 @Observable
 public final class LifecycleRunner {
     /// The single value the host renders.
     public private(set) var phase: LifecyclePhase = .launching
 
-    /// Why the app launched this time. Mutable because a headless background
-    /// launch can be promoted to a foreground one via `enterForeground()` when
-    /// the user brings the app to the front; the container observes this to
-    /// stop rendering `EmptyView()` and start building real UI.
-    public private(set) var reason: LifecycleReason
+    /// The runner's drive lifecycle. One value so e.g. "not started yet" can't
+    /// also hold a drive task, and the launch reason always travels with it.
+    private enum State {
+        /// Built; `run()` not yet called. Carries the reason it will launch with.
+        case notStarted(LifecycleReason)
+        /// `run()` (or a re-drive) has started. Carries the current reason and
+        /// the most recent drive task — which may already have completed, so
+        /// late `run()`/`reset()`/`enterForeground()` callers can await it.
+        case running(reason: LifecycleReason, task: Task<Void, Never>)
+    }
+
+    private var state: State
+
+    /// Why the app launched this time. A headless background launch can be
+    /// promoted to a foreground one via `enterForeground()`; the container
+    /// observes this to stop rendering `EmptyView()` and start building real UI.
+    public var reason: LifecycleReason {
+        switch state {
+            case let .notStarted(reason): reason
+            case let .running(reason, _): reason
+        }
+    }
 
     @ObservationIgnored private let steps: [LifecycleStep]
-    @ObservationIgnored private var hasRun = false
-    @ObservationIgnored private var runTask: Task<Void, Never>?
     @ObservationIgnored private var presentationTask: Task<Void, Never>?
 
     public init(
@@ -44,23 +63,27 @@ public final class LifecycleRunner {
         initializePrerequisites: @MainActor () -> Void = {},
         sequence: LifecycleSteps,
     ) {
-        self.reason = reason
+        state = .notStarted(reason)
         steps = sequence.steps
         initializePrerequisites()
+    }
+
+    /// The in-flight (or most recently finished) drive task, if `run()` has
+    /// been called.
+    private var currentTask: Task<Void, Never>? {
+        if case let .running(_, task) = state { task } else { nil }
     }
 
     /// Walk the sequence once. Safe to call repeatedly; only the first call
     /// drives the steps, and later callers await that drive instead of
     /// starting a second one.
     public func run() async {
-        guard !hasRun else {
-            await runTask?.value
-            return
+        switch state {
+            case let .notStarted(reason):
+                await drive(reason: reason, from: 0)
+            case let .running(_, task):
+                await task.value
         }
-        hasRun = true
-        phase = .launching
-        driveFromTop()
-        await runTask?.value
     }
 
     /// Promote a headless background launch to a foreground one and re-drive
@@ -72,11 +95,7 @@ public final class LifecycleRunner {
     /// user-visible one.
     public func enterForeground() async {
         guard reason.isBackground else { return }
-        await runTask?.value
-        reason = .userForeground
-        phase = .launching
-        driveFromTop()
-        await runTask?.value
+        await drive(reason: .userForeground, from: 0)
     }
 
     /// Resume the launch from the step that failed. No-op unless the runner
@@ -84,8 +103,8 @@ public final class LifecycleRunner {
     public func retry() {
         guard case let .failed(failure) = phase else { return }
         let startIndex = steps.firstIndex { $0.id == failure.stepID } ?? 0
-        phase = .launching
-        driveFromTop(from: startIndex)
+        let reason = reason
+        Task { await drive(reason: reason, from: startIndex) }
     }
 
     /// Run a teardown `sequence` (logout / erase), then relaunch from the top
@@ -95,37 +114,61 @@ public final class LifecycleRunner {
     /// If a teardown step throws, the runner parks in `.failed` and does not
     /// relaunch.
     public func reset(_ sequence: LifecycleSteps) async {
-        await runTask?.value
+        let previous = currentTask
+        previous?.cancel()
+        let reason = reason
         phase = .launching
         let task = Task { [weak self] in
             guard let self else { return }
-            guard await runSteps(sequence.steps, from: 0) else { return }
-            hasRun = true
-            if await runSteps(steps, from: 0) {
+            await previous?.value
+            guard case .completed = await runSteps(sequence.steps, from: 0) else { return }
+            if case .completed = await runSteps(steps, from: 0) {
                 phase = .ready
             }
         }
-        runTask = task
+        state = .running(reason: reason, task: task)
         await task.value
     }
 
-    /// Drive `self.steps` from `startIndex` on a fresh `runTask`, landing in
-    /// `.ready` if every applicable step completes.
-    private func driveFromTop(from startIndex: Int = 0) {
-        runTask = Task { [weak self] in
+    /// Cancel any in-flight drive, then drive `self.steps` from `startIndex` on
+    /// a fresh task, landing in `.ready` if every applicable step completes.
+    /// The new task drains the cancelled one before running, so two drives
+    /// never overlap.
+    private func drive(reason newReason: LifecycleReason, from startIndex: Int) async {
+        let previous = currentTask
+        previous?.cancel()
+        phase = .launching
+        let task = Task { [weak self] in
             guard let self else { return }
-            if await runSteps(steps, from: startIndex) {
+            await previous?.value
+            if case .completed = await runSteps(steps, from: startIndex) {
                 phase = .ready
             }
         }
+        state = .running(reason: newReason, task: task)
+        await task.value
+    }
+
+    private enum DriveOutcome {
+        /// Every applicable step finished.
+        case completed
+        /// A step threw a non-cancellation error; `phase` is now `.failed`.
+        case failed
+        /// The drive was superseded (cancelled); `phase` is left for the
+        /// drive that cancelled it to set.
+        case cancelled
     }
 
     /// Walk `steps` from `startIndex`, honoring mode/condition gating and
-    /// presentation triggers. Returns true if every applicable step completed,
-    /// or false if one threw — in which case `phase` is already `.failed`.
-    private func runSteps(_ steps: [LifecycleStep], from startIndex: Int) async -> Bool {
+    /// presentation triggers.
+    private func runSteps(_ steps: [LifecycleStep], from startIndex: Int) async -> DriveOutcome {
         var index = startIndex
         while index < steps.count {
+            if Task.isCancelled {
+                cancelPresentation()
+                return .cancelled
+            }
+
             let step = steps[index]
 
             guard step.appliesTo(reason) else {
@@ -143,16 +186,19 @@ public final class LifecycleRunner {
 
             do {
                 try await step.run(bridge)
+            } catch is CancellationError {
+                cancelPresentation()
+                return .cancelled
             } catch {
                 cancelPresentation()
                 phase = .failed(LifecycleFailure(stepID: step.id, error: error))
-                return false
+                return .failed
             }
 
             cancelPresentation()
             index += 1
         }
-        return true
+        return .completed
     }
 
     /// Decide whether/when to show the step's presentation, per its trigger.

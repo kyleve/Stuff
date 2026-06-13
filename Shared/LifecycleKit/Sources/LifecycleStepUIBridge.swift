@@ -62,14 +62,32 @@ public final class LifecycleStepUIBridge {
     /// Suspends until `complete()` or `fail(_:)` is called. Resolving before a
     /// caller starts waiting is supported (the buffered result is delivered
     /// immediately), so there is no lost-wakeup race.
+    ///
+    /// Cancelling the surrounding task resumes the wait by throwing
+    /// `CancellationError`, which lets the engine drain a parked interactive
+    /// step when a new drive supersedes it (rather than hanging on a tap that
+    /// will never come).
     public func waitForResolution() async throws {
-        switch resolution {
-            case let .resolved(result):
-                try result.get()
-            case .pending:
-                try await withCheckedThrowingContinuation { continuation in
-                    self.continuation = continuation
-                }
+        try await withTaskCancellationHandler {
+            switch resolution {
+                case let .resolved(result):
+                    try result.get()
+                case .pending:
+                    try await withCheckedThrowingContinuation { continuation in
+                        // A cancellation could land before we store the
+                        // continuation; if so, resolution is already set, so
+                        // deliver it here instead of parking forever.
+                        if case let .resolved(result) = resolution {
+                            continuation.resume(with: result)
+                        } else {
+                            self.continuation = continuation
+                        }
+                    }
+            }
+        } onCancel: {
+            Task { @MainActor [weak self] in
+                self?.resolve(.failure(CancellationError()))
+            }
         }
     }
 
