@@ -83,7 +83,15 @@ public struct OnboardingView: View {
         } else {
             VStack(spacing: UIConstants.Spacings.large) {
                 Button {
-                    finish(requestingPermission: true)
+                    // Request Always-location right here so the system prompt
+                    // maps 1:1 to the tap; the launch's tracking-reconcile step
+                    // picks up whatever was granted.
+                    guard !isFinishing else { return }
+                    isFinishing = true
+                    Task {
+                        await model.startTracking()
+                        completeAndContinue()
+                    }
                 } label: {
                     Text(Strings.onboardingEnableLocation)
                         .frame(maxWidth: .infinity)
@@ -92,7 +100,9 @@ public struct OnboardingView: View {
                 .controlSize(.large)
 
                 Button(Strings.onboardingNotNow) {
-                    finish(requestingPermission: false)
+                    guard !isFinishing else { return }
+                    isFinishing = true
+                    completeAndContinue()
                 }
                 .controlSize(.large)
             }
@@ -100,18 +110,12 @@ public struct OnboardingView: View {
         }
     }
 
-    private func finish(requestingPermission: Bool) {
-        guard !isFinishing else { return }
-        isFinishing = true
-        Task {
-            // Requesting permission here is the whole point of asking now; the
-            // launch flow's tracking-reconcile step picks up the result.
-            if requestingPermission {
-                await model.startTracking()
-            }
-            model.completeOnboarding()
-            bridge.complete()
-        }
+    /// Persist that onboarding is done and resolve the step's bridge so the
+    /// launch continues. Shared by the "Enable Location" and "Not now" taps;
+    /// the permission request, when wanted, is made by the button before this.
+    private func completeAndContinue() {
+        model.completeOnboarding()
+        bridge.complete()
     }
 }
 
