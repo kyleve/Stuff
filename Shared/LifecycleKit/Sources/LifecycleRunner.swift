@@ -57,6 +57,10 @@ public final class LifecycleRunner {
 
     @ObservationIgnored private let steps: [LifecycleStep]
     @ObservationIgnored private var presentationTask: Task<Void, Never>?
+    /// When a deferred (`presenting(after:)`) presentation actually appeared,
+    /// and the minimum it must stay up, so a fast finish doesn't flash it away.
+    @ObservationIgnored private var deferredShownAt: ContinuousClock.Instant?
+    @ObservationIgnored private var deferredMinVisible: Duration = .zero
 
     public init(
         reason: LifecycleReason,
@@ -195,6 +199,7 @@ public final class LifecycleRunner {
                 return .failed
             }
 
+            await holdDeferredPresentation()
             cancelPresentation()
             index += 1
         }
@@ -211,17 +216,32 @@ public final class LifecycleRunner {
                 if predicate() {
                     bridge.presentation = presentation.build(bridge)
                 }
-            case let .after(delay):
-                presentationTask = Task { @MainActor [weak bridge] in
+            case let .after(delay, minVisible):
+                deferredMinVisible = minVisible
+                presentationTask = Task { @MainActor [weak self, weak bridge] in
                     try? await Task.sleep(for: delay)
-                    guard !Task.isCancelled, let bridge else { return }
+                    guard !Task.isCancelled, let self, let bridge else { return }
                     bridge.presentation = presentation.build(bridge)
+                    deferredShownAt = .now
                 }
+        }
+    }
+
+    /// If a deferred presentation actually appeared, keep it up until its
+    /// `minVisible` window elapses, so a step that finishes right after the UI
+    /// appears doesn't flash it away.
+    private func holdDeferredPresentation() async {
+        guard let shownAt = deferredShownAt else { return }
+        let remaining = deferredMinVisible - shownAt.duration(to: .now)
+        if remaining > .zero {
+            try? await Task.sleep(for: remaining)
         }
     }
 
     private func cancelPresentation() {
         presentationTask?.cancel()
         presentationTask = nil
+        deferredShownAt = nil
+        deferredMinVisible = .zero
     }
 }

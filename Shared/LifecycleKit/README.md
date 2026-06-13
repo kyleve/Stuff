@@ -55,6 +55,7 @@ public struct LifecycleStep: Identifiable {
     public func presenting(_ view: ...) -> Self                 // always while running
     public func presenting(when: ..., _ view: ...) -> Self      // only if predicate holds at start
     public func presenting(after: Duration, _ view: ...) -> Self // only if still running after delay
+    public func presenting(after: Duration, minVisible: Duration, _ view: ...) -> Self // …and hold once shown
 
     public static func work(_ id: String, _ body: ...) -> LifecycleStep
     public static func interactive(_ id: String, run: ... = …, presenting: ...) -> LifecycleStep
@@ -123,8 +124,25 @@ LifecycleContainer(runner) {      // `content` == the real app, the destination
 |-------|---------|
 | `.launching` / a silent step | `splash()` (defaults to `LifecycleSplash`) |
 | `.running` with a presentation | that step's view (onboarding, migration) |
-| `.failed` | `LifecycleFailureView { runner.retry() }` |
+| `.failed` | `failure(_:retry:)` (defaults to `LifecycleFailureView`) |
 | `.ready` | `content()` — the destination UI |
+
+The `splash` and `failure` views are caller-injectable; the convenience
+initializers above default them to the built-ins. The container also publishes
+the runner into the environment as `\.lifecycleRunner` (optional, so reads stay
+safe with no container above), letting nested views reach `retry()`/`reset()`
+without prop-drilling:
+
+```swift
+struct ResetButton: View {
+    @Environment(\.lifecycleRunner) private var runner
+    var body: some View {
+        Button("Erase & reset", role: .destructive) {
+            Task { await runner?.reset(teardownSteps) }
+        }
+    }
+}
+```
 
 For a **background launch** (`reason.isBackground`) it renders `EmptyView()`
 always — even at `.ready` — so `content()` (the heavy view tree) is never built.

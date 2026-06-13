@@ -288,6 +288,26 @@ struct LifecycleRunnerInteractiveTests {
         await task.value
     }
 
+    @Test func minVisibleHoldsADeferredPresentationAfterTheStepFinishes() async throws {
+        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
+            LifecycleStep.work("slow") { bridge in try await bridge.waitForResolution() }
+                .presenting(after: .milliseconds(10), minVisible: .milliseconds(300)) { _ in
+                    Text("x")
+                }
+        })
+        let task = Task { @MainActor in await runner.run() }
+        try await waitUntil { runner.phase.runningStepID == "slow" }
+        try await waitUntil { runner.phase.runningBridge?.presentation != nil }
+
+        // Finish the step right after the deferred UI appeared; minVisible must
+        // keep the runner from reaching .ready until the hold window elapses.
+        let shownAt = ContinuousClock.now
+        runner.phase.runningBridge?.complete()
+        try await waitUntil(timeout: .seconds(2)) { runner.phase.isReady }
+        #expect(shownAt.duration(to: .now) >= .milliseconds(200))
+        await task.value
+    }
+
     @Test func progressIsReadableWhileStepRuns() async throws {
         let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
             LifecycleStep.interactive("p", run: { bridge in

@@ -28,6 +28,18 @@ private struct ProbeView: View {
     }
 }
 
+/// Reads the runner the container publishes into the environment and reports
+/// whether it was present when this view laid out.
+private struct EnvironmentRunnerProbe: View {
+    @Environment(\.lifecycleRunner) private var runner
+    let mark: (Bool) -> Void
+
+    var body: some View {
+        mark(runner != nil)
+        return Color.clear.frame(width: 1, height: 1)
+    }
+}
+
 @MainActor
 private func makeContainer(
     _ runner: LifecycleRunner,
@@ -116,5 +128,20 @@ struct LifecycleContainerTests {
             #expect(!flags.content)
             #expect(!flags.splash)
         }
+    }
+
+    @Test func publishesTheRunnerIntoTheEnvironment() async throws {
+        var sawRunner = false
+        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {})
+        await runner.run()
+        #expect(runner.phase.isReady)
+
+        let container = LifecycleContainer(runner) {
+            EnvironmentRunnerProbe { sawRunner = $0 }
+        }
+        try show(UIHostingController(rootView: container)) { _ in
+            try waitFor { sawRunner }
+        }
+        #expect(sawRunner)
     }
 }

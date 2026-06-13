@@ -58,10 +58,13 @@ itself.
   `isLaunching`/`isReady`/`runningStepID`/`runningBridge`/`failure` accessors
   (handy in tests).
 - [`LifecycleContainer`](Sources/LifecycleContainer.swift) – the root view.
-  Renders `splash` / a step's presentation /
-  [`LifecycleFailureView`](Sources/LifecycleFailureView.swift) / `content` from
-  `phase`. The destination (`content`, e.g. the app's `TabView`) is **not** a
-  step — it's terminal and shown only at `.ready`.
+  Renders `splash` / a step's presentation / `failure` / `content` from
+  `phase`. The `splash` and `failure` views are caller-injectable (convenience
+  inits default them to [`LifecycleSplash`](Sources/LifecycleSplash.swift) /
+  [`LifecycleFailureView`](Sources/LifecycleFailureView.swift)), and the runner
+  is published into the environment as `\.lifecycleRunner` (optional) so nested
+  views can reach `retry()`/`reset()`. The destination (`content`, e.g. the
+  app's `TabView`) is **not** a step — it's terminal and shown only at `.ready`.
 - [`LifecycleSplash`](Sources/LifecycleSplash.swift) – the default placeholder.
 
 ## Two invariants to preserve

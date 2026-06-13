@@ -71,7 +71,19 @@ public struct LifecycleStep: Identifiable {
         after delay: Duration,
         @ViewBuilder _ view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,
     ) -> Self {
-        present(trigger: .after(delay), view)
+        present(trigger: .after(delay: delay, minVisible: .zero), view)
+    }
+
+    /// Show `view` only if the step is still running after `delay`, and once it
+    /// appears keep it on screen for at least `minVisible` even if the step
+    /// finishes — so slow-open UI that *does* appear never flickers away
+    /// instantly.
+    public func presenting(
+        after delay: Duration,
+        minVisible: Duration,
+        @ViewBuilder _ view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,
+    ) -> Self {
+        present(trigger: .after(delay: delay, minVisible: minVisible), view)
     }
 
     /// Whether this step is allowed to run under `reason` (mode filtering,
@@ -133,8 +145,9 @@ struct LifecycleStepPresentation {
         case always
         /// Show at step start only if the predicate holds.
         case when(@MainActor () -> Bool)
-        /// Show only if the step is still running after the delay.
-        case after(Duration)
+        /// Show only if the step is still running after `delay`, then keep it up
+        /// for at least `minVisible` once shown.
+        case after(delay: Duration, minVisible: Duration)
     }
 
     var trigger: Trigger

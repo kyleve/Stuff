@@ -49,11 +49,10 @@ public struct RootView: View {
         }
         .environment(model)
         // Settings' "Erase all data & reset" runs the teardown through the
-        // launcher, which wipes data + preferences and re-drives the launch
+        // `LifecycleRunner` that `LifecycleContainer` publishes into the
+        // environment, which wipes data + preferences and re-drives the launch
         // sequence back to onboarding.
-        .environment(\.resetData, ResetDataAction {
-            Task { await launcher.reset(WhereLaunch.resetSequence(for: model)) }
-        })
+        //
         // `run()` is idempotent: in the app the delegate already kicked it off,
         // so this is a no-op there; in previews/tests it's what drives the
         // launch.

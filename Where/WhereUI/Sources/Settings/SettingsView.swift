@@ -1,3 +1,4 @@
+import LifecycleKit
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -9,7 +10,7 @@ import WhereCore
 struct SettingsView: View {
     @Environment(WhereModel.self) private var model
     @Environment(\.openURL) private var openURL
-    @Environment(\.resetData) private var resetData
+    @Environment(\.lifecycleRunner) private var runner
 
     @State private var showClearConfirmation = false
     @State private var showResetConfirmation = false
@@ -322,8 +323,9 @@ struct SettingsView: View {
     }
 
     /// Whole-app teardown: wipes every year's data and returns to first-run
-    /// onboarding, run through the launcher via the `resetData` environment
-    /// action (a no-op when no launcher is wired, e.g. previews).
+    /// onboarding, run through the `LifecycleRunner` published into the
+    /// environment by `LifecycleContainer`. A no-op when no runner is above
+    /// (e.g. previews), since the optional environment value is then nil.
     private var resetSection: some View {
         Section {
             Button(role: .destructive) {
@@ -337,7 +339,7 @@ struct SettingsView: View {
                 titleVisibility: .visible,
             ) {
                 Button(Strings.settingsResetConfirm, role: .destructive) {
-                    resetData()
+                    requestReset()
                 }
                 Button(Strings.settingsDataCancel, role: .cancel) {}
             } message: {
@@ -346,6 +348,11 @@ struct SettingsView: View {
         } footer: {
             Text(Strings.settingsResetFooter)
         }
+    }
+
+    private func requestReset() {
+        guard let runner else { return }
+        Task { await runner.reset(WhereLaunch.resetSequence(for: model)) }
     }
 
     private func openSystemSettings() {
