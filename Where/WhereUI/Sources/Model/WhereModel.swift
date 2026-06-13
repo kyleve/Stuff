@@ -580,16 +580,17 @@ public final class WhereModel {
 
     // MARK: - Reset / erase all
 
-    /// Stop GPS and erase every persisted sample, manual day, and piece of
-    /// evidence. The data half of the reset/erase teardown (see
-    /// `WhereLaunch.resetSequence`); throws on persistence failure so the
-    /// reset step parks the launcher in `.failed` rather than silently
-    /// half-erasing.
+    /// Erase all persisted data and return the app to a clean slate. A thin
+    /// pass-through to `WhereController.reset()`, which owns *what* gets cleared
+    /// (GPS stop + store wipe + reminder/badge reconcile + empty widget
+    /// snapshot); the model only mirrors the outcome into its own observable
+    /// state. The data half of the reset/erase teardown (see
+    /// `WhereLaunch.resetSequence`); throws on persistence failure so the reset
+    /// step parks the launcher in `.failed` rather than silently half-erasing.
     public func eraseAllData() async throws {
         guard let controller else { return }
-        await controller.stopGPS()
+        try await controller.reset()
         isTracking = false
-        try await controller.eraseAllData()
         report = nil
         loadState = .idle
     }

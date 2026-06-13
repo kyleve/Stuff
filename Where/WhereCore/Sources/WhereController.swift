@@ -278,8 +278,7 @@ public actor WhereController {
 
     /// Erase every sample, manual day, and piece of evidence in the store, then
     /// reconcile the reminder schedule/badge and republish an (now empty) widget
-    /// snapshot. The persistence half of the app's "erase all data & reset"
-    /// teardown; the caller stops GPS and resets preferences around it.
+    /// snapshot. The store half of `reset()`.
     ///
     /// Mirrors `clearYear`'s reconciliation so the badge/reminders reflect the
     /// now-empty store immediately, rather than relying on a later launch step.
@@ -287,6 +286,20 @@ public actor WhereController {
         try await store.perform { try await store.clearAll() }
         await reconcileReminders()
         await publishWidgetSnapshot()
+    }
+
+    /// Return the controller to a clean slate for the app's "erase all data &
+    /// reset" teardown: stop GPS so nothing writes into the wiped store, then
+    /// erase everything and reconcile the badge/reminders and widget against the
+    /// now-empty data (`eraseAllData()`).
+    ///
+    /// This owns *what* gets cleared in Core, so the caller (`WhereModel`) only
+    /// mirrors the outcome into its own UI state and clears app preferences
+    /// (UserDefaults), which aren't Core data. Throws on persistence failure so
+    /// the caller can surface it rather than silently half-erasing.
+    public func reset() async throws {
+        await stopGPS()
+        try await eraseAllData()
     }
 
     // MARK: - Backup

@@ -330,6 +330,22 @@ struct WhereControllerTests {
         }
     }
 
+    @Test func resetStopsTrackingAndWipesTheStore() async throws {
+        let (controller, _, source) = try Self.makeController()
+        await controller.startGPS()
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { try await controller.yearReport(for: 2026).days.count == 1 }
+        #expect(await controller.isTrackingActive)
+
+        try await controller.reset()
+
+        // reset() owns the full teardown: GPS stopped and every year wiped.
+        #expect(await !(controller.isTrackingActive))
+        let report = try await controller.yearReport(for: 2026)
+        #expect(report.days.isEmpty)
+        #expect(report.totals.isEmpty)
+    }
+
     @Test func gpsFailuresEnqueueAndDrainOnRecovery() async throws {
         let backing = try SwiftDataStore.inMemory()
         let store = ToggleFailingStore(backing: backing)
