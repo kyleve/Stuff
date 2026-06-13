@@ -2,15 +2,6 @@ import Foundation
 import os
 import SwiftData
 
-/// The result of opening the store via `SwiftDataStore.open`: the store plus
-/// whether a schema migration was expected (the persisted version marker was
-/// behind the current schema). The launch flow uses `migrationWasExpected` to
-/// decide whether to present migration UI.
-public struct OpenedStore: Sendable {
-    public let store: SwiftDataStore
-    public let migrationWasExpected: Bool
-}
-
 /// CloudKit-synced `WhereStore` backed by SwiftData. The `@Model` types are
 /// kept `private`-ish (only the `@ModelActor`-isolated container sees them)
 /// so callers never accidentally touch a SwiftData record outside the
@@ -91,17 +82,18 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public static func makeContainer(storage: Storage) throws -> ModelContainer {
-        let schema = Schema(versionedSchema: WhereCurrentSchema.self)
+        // A plain `Schema` of the live models. SwiftData runs implicit
+        // lightweight migration when the on-disk store predates an additive
+        // change (new optional fields, new models); the launch flow shows
+        // migration UI purely off slowness, not a predicted version, so no
+        // `VersionedSchema`/`SchemaMigrationPlan` scaffolding is needed.
+        let schema = Schema([SDLocationSample.self, SDEvidence.self, SDManualDay.self])
         let config = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,
             cloudKitDatabase: storage == .cloudKit ? .automatic : .none,
         )
-        return try ModelContainer(
-            for: schema,
-            migrationPlan: WhereMigrationPlan.self,
-            configurations: [config],
-        )
+        return try ModelContainer(for: schema, configurations: [config])
     }
 
     /// Convenience for tests and SwiftUI previews: builds an
@@ -123,25 +115,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public static func make(storage: Storage = .default) throws -> SwiftDataStore {
         let container = try makeContainer(storage: storage)
         return SwiftDataStore(modelContainer: container)
-    }
-
-    /// App-wiring factory that also reports whether a schema migration was
-    /// expected when the store opened, so the launch flow can decide whether
-    /// to show migration UI.
-    ///
-    /// The `marker` is read *before* opening (to predict a migration), the
-    /// container is opened (running any migration), then the marker is updated
-    /// to the current version. Tests inject an ephemeral marker; production
-    /// uses the shared app-group `.standard` marker.
-    public static func open(
-        storage: Storage = .default,
-        marker: SchemaVersionMarker = .standard,
-    ) throws -> OpenedStore {
-        let migrationWasExpected = marker.migrationExpected
-        let container = try makeContainer(storage: storage)
-        let store = SwiftDataStore(modelContainer: container)
-        marker.recordCurrentVersion()
-        return OpenedStore(store: store, migrationWasExpected: migrationWasExpected)
     }
 
     private static let logger = Logger(subsystem: "com.stuff.where", category: "SwiftDataStore")

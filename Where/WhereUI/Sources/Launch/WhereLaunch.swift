@@ -31,11 +31,14 @@ public enum WhereLaunch {
     /// gate, neither of which `start()` models.
     public static func sequence(for model: WhereModel) -> LifecycleSteps {
         LifecycleSteps {
-            // Opening the store may run a schema migration; show the migration
-            // UI only when one is predicted (the version marker is behind the
-            // current schema), otherwise the splash stays up behind a fast open.
+            // Opening the store may run a lightweight migration. Rather than
+            // predict it, key the migration UI off slowness: if the open is
+            // still running after a beat, show MigrationProgressView and hold it
+            // for a readable minimum so a fast open never flashes it.
             LifecycleStep.work("open-store") { _ in try await model.openStore() }
-                .presenting(when: { model.migrationExpected }) { MigrationProgressView(bridge: $0) }
+                .presenting(after: .milliseconds(500), minVisible: .seconds(1)) {
+                    MigrationProgressView(bridge: $0)
+                }
 
             // First run only. `LifecycleStep.interactive` is `.modes(.foreground)`,
             // so a headless background launch skips it (and never deadlocks

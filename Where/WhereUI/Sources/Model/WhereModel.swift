@@ -155,11 +155,6 @@ public final class WhereModel {
     private var pendingLocationSource: CoreLocationSource?
     private var authorizationTask: Task<Void, Never>?
     private let defaults: UserDefaults
-    private let schemaMarker: SchemaVersionMarker
-    /// How `openStore()` opens the persistent store. Defaults to opening the
-    /// real SwiftData container off the main actor (so a slow migration doesn't
-    /// freeze the UI it renders on); a test seam can inject a controllable open.
-    private let storeOpener: @Sendable () async throws -> SwiftDataStore
     private let now: @Sendable () -> Date
 
     /// Persisted user intent to track in the background. Effective tracking is
@@ -262,15 +257,10 @@ public final class WhereModel {
     public init(
         selectedYear: Int = WhereModel.currentYear,
         defaults: UserDefaults = .standard,
-        schemaMarker: SchemaVersionMarker = .standard,
-        storeOpener: @escaping @Sendable () async throws -> SwiftDataStore = WhereModel
-            .defaultStoreOpener,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.selectedYear = selectedYear
         self.defaults = defaults
-        self.schemaMarker = schemaMarker
-        self.storeOpener = storeOpener
         self.now = now
         remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
         reminderTimeStorage = Self.loadReminderTime(from: defaults)
@@ -286,15 +276,12 @@ public final class WhereModel {
         report: YearReport? = nil,
         selectedYear: Int = WhereModel.currentYear,
         defaults: UserDefaults = .standard,
-        schemaMarker: SchemaVersionMarker = .standard,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.controller = controller
         self.report = report
         self.selectedYear = selectedYear
         self.defaults = defaults
-        self.schemaMarker = schemaMarker
-        storeOpener = WhereModel.defaultStoreOpener
         self.now = now
         remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
         reminderTimeStorage = Self.loadReminderTime(from: defaults)
@@ -344,7 +331,7 @@ public final class WhereModel {
     }
 
     /// Open the SwiftData store and build the controller. Async (and the heavy
-    /// `ModelContainer` open runs off the main actor) so a slow schema
+    /// `ModelContainer` open runs off the main actor) so a slow lightweight
     /// migration neither blocks `didFinishLaunching` nor freezes the main actor
     /// the migration UI renders on. Idempotent and a no-op once a controller
     /// exists. Throws on persistence failure so the launch step can surface it.
@@ -352,32 +339,10 @@ public final class WhereModel {
         guard controller == nil else { return }
         let source = pendingLocationSource ?? CoreLocationSource()
         pendingLocationSource = nil
-        let store = try await storeOpener()
-        // Record only after a successful open, so the next launch's
-        // `migrationExpected` prediction compares against an up-to-date marker.
-        schemaMarker.recordCurrentVersion()
-        controller = WhereController(store: store, locationSource: source)
-    }
-
-    /// Production store opener: build the real SwiftData container on a
-    /// detached task so a slow schema migration runs off the main actor (the
-    /// one the migration UI renders on) instead of freezing it.
-    ///
-    /// `@usableFromInline` so the public `init`'s default argument can name it
-    /// without making the opener itself public API.
-    @usableFromInline
-    static let defaultStoreOpener: @Sendable () async throws -> SwiftDataStore = {
-        try await Task.detached(priority: .userInitiated) {
+        let store = try await Task.detached(priority: .userInitiated) {
             try SwiftDataStore.make()
         }.value
-    }
-
-    /// Whether opening the store is predicted to run a schema migration (the
-    /// persisted version marker is behind the current schema). The launch
-    /// sequence reads this at the moment the open-store step starts to decide
-    /// whether to present the migration UI; a fresh install reads `false`.
-    public var migrationExpected: Bool {
-        schemaMarker.migrationExpected
+        controller = WhereController(store: store, locationSource: source)
     }
 
     /// Ensure the controller exists, sync authorization, resume tracking if
@@ -669,9 +634,7 @@ public final class WhereModel {
         summaryTimeStorage = Self.loadSummaryTime(from: defaults)
     }
 
-    /// Defaults keys cleared by `resetPreferences()`. Excludes the schema
-    /// version marker, which `SchemaVersionMarker` owns and the store-open step
-    /// keeps current.
+    /// Defaults keys cleared by `resetPreferences()`.
     private static let resettableDefaultsKeys = [
         hasOnboardedKey,
         wantsTrackingKey,
