@@ -3,12 +3,12 @@ import Testing
 import WhereCore
 @testable import WhereUI
 
-/// Covers `WhereModel`'s refresh/save error handling that the PR review bots
+/// Covers `WhereSession`'s refresh/save error handling that the PR review bots
 /// flagged: out-of-order year fetches must not install stale data, and a
 /// failed manual save must surface as an error rather than silently
 /// "succeeding".
 @MainActor
-struct WhereModelRefreshTests {
+struct WhereSessionRefreshTests {
     private func date(year: Int, month: Int, day: Int) -> Date {
         Calendar.current.date(
             from: DateComponents(year: year, month: month, day: day, hour: 12),
@@ -34,26 +34,26 @@ struct WhereModelRefreshTests {
             regions: [.california],
         )
 
-        let model = WhereModel(services: services, selectedYear: 2026)
+        let session = WhereSession(services: services, selectedYear: 2026)
         await store.enableFirstSamplesGate()
 
         // Start the 2024 fetch; it suspends inside the gated `samples(in:)`.
-        let stale = Task { await model.select(year: 2024) }
+        let stale = Task { await session.select(year: 2024) }
         await store.awaitFirstSamplesCall()
 
         // The 2026 fetch runs to completion while 2024 is still in flight.
-        await model.select(year: 2026)
-        #expect(model.report?.year == 2026)
+        await session.select(year: 2026)
+        #expect(session.report?.year == 2026)
 
         // Now let the slower 2024 fetch finish — it must be discarded.
         await store.releaseFirstSamplesCall()
         await stale.value
 
-        #expect(model.selectedYear == 2026)
-        #expect(model.report?.year == 2026)
-        #expect(model.report?.totals[.california] == 1)
-        #expect(model.report?.totals[.newYork] == nil)
-        #expect(model.loadState == .loaded)
+        #expect(session.selectedYear == 2026)
+        #expect(session.report?.year == 2026)
+        #expect(session.report?.totals[.california] == 1)
+        #expect(session.report?.totals[.newYork] == nil)
+        #expect(session.loadState == .loaded)
     }
 
     @Test func failedManualSaveThrowsAndLeavesLoadStateAlone() async throws {
@@ -65,10 +65,10 @@ struct WhereModelRefreshTests {
             reminderScheduler: NoopLoggingReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let model = WhereModel(services: services, selectedYear: 2026)
+        let session = WhereSession(services: services, selectedYear: 2026)
 
         await #expect(throws: ManualSaveFailure.self) {
-            try await model.setManualDay(
+            try await session.setManualDay(
                 date: self.date(year: 2026, month: 1, day: 2),
                 regions: [.california],
             )
@@ -76,7 +76,7 @@ struct WhereModelRefreshTests {
 
         // A failed save must not flip the whole screen into the error state;
         // the form surfaces the error inline instead.
-        #expect(model.loadState == .idle)
+        #expect(session.loadState == .idle)
     }
 
     @Test func failedManualRangeSaveThrows() async throws {
@@ -88,10 +88,10 @@ struct WhereModelRefreshTests {
             reminderScheduler: NoopLoggingReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let model = WhereModel(services: services, selectedYear: 2026)
+        let session = WhereSession(services: services, selectedYear: 2026)
 
         await #expect(throws: ManualSaveFailure.self) {
-            try await model.setManualDays(
+            try await session.setManualDays(
                 from: self.date(year: 2026, month: 1, day: 2),
                 through: self.date(year: 2026, month: 1, day: 4),
                 regions: [.california],
@@ -105,8 +105,8 @@ struct WhereModelRefreshTests {
     /// the app with data already on disk must republish — otherwise the widget
     /// stays blank/stale until the next write.
     @Test func startPublishesWidgetSnapshotFromExistingData() async throws {
-        let (model, refresher) = try await makePublishingModel()
-        await model.start()
+        let (session, refresher) = try await makePublishingSession()
+        await session.start()
         #expect(await refresher.publishCount == 1)
         #expect(await refresher.lastSnapshot?.totals == [.california: 1])
     }
@@ -114,19 +114,19 @@ struct WhereModelRefreshTests {
     /// Returning to the foreground (e.g. on a new calendar day) recomputes and
     /// republishes too.
     @Test func appBecameActiveRepublishesWidgetSnapshot() async throws {
-        let (model, refresher) = try await makePublishingModel()
-        await model.appBecameActive()
+        let (session, refresher) = try await makePublishingSession()
+        await session.appBecameActive()
         #expect(await refresher.publishCount == 1)
         #expect(await refresher.lastSnapshot?.totals == [.california: 1])
     }
 
-    /// A model whose services already hold one California day (seeded
+    /// A session whose services already hold one California day (seeded
     /// straight into the store so nothing is published yet), wired to a spy
     /// refresher and a fixed "now" so the year report is deterministic.
-    private func makePublishingModel() async throws -> (WhereModel, SpyWidgetRefresher) {
+    private func makePublishingSession() async throws -> (WhereSession, SpyWidgetRefresher) {
         let store = try TestStore()
         // Seed straight into the store (inside `perform`, as the store
-        // requires) so nothing is published before the model's lifecycle hook.
+        // requires) so nothing is published before the session's lifecycle hook.
         let seed = DayPresence(date: date(year: 2026, month: 3, day: 1), regions: [.california])
         try await store.perform { try await store.setManualDay(seed) }
         let refresher = SpyWidgetRefresher()
@@ -139,12 +139,13 @@ struct WhereModelRefreshTests {
             widgetRefresher: refresher,
             now: { now },
         )
-        return (WhereModel(services: services, selectedYear: 2026), refresher)
+        return (WhereSession(services: services, selectedYear: 2026), refresher)
     }
 }
 
-/// Captures the snapshots published through the widget publisher so the model's
-/// launch/activation hooks can be checked for republishing widget data.
+/// Captures the snapshots published through the widget publisher so the
+/// session's launch/activation hooks can be checked for republishing widget
+/// data.
 private actor SpyWidgetRefresher: WidgetTimelineRefreshing {
     private(set) var publishedSnapshots: [WidgetSnapshot] = []
 

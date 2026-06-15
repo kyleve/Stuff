@@ -2,10 +2,15 @@
     import Foundation
     import WhereCore
 
-    /// Preview/test fixtures for `WhereUI`. Provides both a synchronous sample
-    /// `YearReport` (for static display previews) and an in-memory
-    /// `WhereServices` (for interactive previews that exercise the live read
-    /// path) — neither touches disk, CloudKit, or CoreLocation.
+    /// Preview/test fixtures for `WhereUI`. Provides a synchronous sample
+    /// `YearReport` (for static display previews) plus ready-to-render
+    /// `WhereModel`/`WhereSession` values backed by in-memory `WhereServices`
+    /// (for interactive previews that exercise the live read path) — none of it
+    /// touches disk, CloudKit, or CoreLocation.
+    ///
+    /// Logged-in views read `@Environment(WhereSession.self)`, so they take a
+    /// `*Session()` fixture; the app-level shell (Settings reset, onboarding)
+    /// reads `WhereModel`, so it takes a `*Model()` fixture.
     public enum PreviewSupport {
         public static let year = 2026
 
@@ -40,47 +45,44 @@
             return YearReport(year: year, days: days, totals: totals)
         }
 
-        /// A ready-to-render model with the sample report injected and in-memory
-        /// services behind it. Synchronous, so it drops straight into `#Preview`.
+        /// In-memory, no-op-backed services shared by every preview fixture.
         @MainActor
-        public static func loadedModel() -> WhereModel {
-            let services = WhereServices(
+        static func previewServices() -> WhereServices {
+            WhereServices(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
                 reminderScheduler: NoopLoggingReminderScheduler(),
                 summaryScheduler: NoopDailySummaryScheduler(),
                 widgetRefresher: NoopWidgetTimelineRefresher(),
-            )
-            return WhereModel(
-                services: services,
-                report: sampleReport(),
-                selectedYear: year,
             )
         }
 
-        /// An empty model (in-memory services, no data) for empty-state
+        // MARK: - Sessions (logged-in views)
+
+        /// A ready-to-render session with the sample report injected and
+        /// in-memory services behind it. Synchronous, so it drops straight into
+        /// `#Preview`.
+        @MainActor
+        public static func loadedSession() -> WhereSession {
+            WhereSession(services: previewServices(), report: sampleReport(), selectedYear: year)
+        }
+
+        /// An empty session (in-memory services, no data) for empty-state
         /// previews.
         @MainActor
-        public static func emptyModel() -> WhereModel {
-            let services = WhereServices(
-                store: try! SwiftDataStore.inMemory(),
-                locationSource: ScriptedLocationSource(),
-                reminderScheduler: NoopLoggingReminderScheduler(),
-                summaryScheduler: NoopDailySummaryScheduler(),
-                widgetRefresher: NoopWidgetTimelineRefresher(),
-            )
-            return WhereModel(
-                services: services,
+        public static func emptySession() -> WhereSession {
+            WhereSession(
+                services: previewServices(),
                 report: YearReport(year: year, days: [], totals: [:]),
                 selectedYear: year,
             )
         }
 
-        /// A model whose only tracked days are in `.other` — there's data, but
+        /// A session whose only tracked days are in `.other` — there's data, but
         /// nothing ranks as "primary". Exercises the Primary tab's distinct
         /// "nothing in your headline spots" state.
         @MainActor
-        public static func elsewhereOnlyModel() -> WhereModel {
+        public static func elsewhereOnlySession() -> WhereSession {
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
             let startOfYear = calendar.date(from: DateComponents(year: year, month: 1, day: 1))!
@@ -90,25 +92,18 @@
                     regions: [.other],
                 )
             }
-            let services = WhereServices(
-                store: try! SwiftDataStore.inMemory(),
-                locationSource: ScriptedLocationSource(),
-                reminderScheduler: NoopLoggingReminderScheduler(),
-                summaryScheduler: NoopDailySummaryScheduler(),
-                widgetRefresher: NoopWidgetTimelineRefresher(),
-            )
-            return WhereModel(
-                services: services,
+            return WhereSession(
+                services: previewServices(),
                 report: YearReport(year: year, days: days, totals: [.other: days.count]),
                 selectedYear: year,
             )
         }
 
-        /// A model whose current year has several unlogged stretches before a
+        /// A session whose current year has several unlogged stretches before a
         /// fixed "today", so the missing-day banner and `MissingDaysView` have
         /// real gaps to render.
         @MainActor
-        public static func missingDaysModel() -> WhereModel {
+        public static func missingDaysSession() -> WhereSession {
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = .current
             let startOfYear = calendar.date(from: DateComponents(year: year, month: 1, day: 1))!
@@ -122,19 +117,22 @@
                     regions: [.california],
                 )
             }
-            let services = WhereServices(
-                store: try! SwiftDataStore.inMemory(),
-                locationSource: ScriptedLocationSource(),
-                reminderScheduler: NoopLoggingReminderScheduler(),
-                summaryScheduler: NoopDailySummaryScheduler(),
-                widgetRefresher: NoopWidgetTimelineRefresher(),
-            )
-            return WhereModel(
-                services: services,
+            return WhereSession(
+                services: previewServices(),
                 report: YearReport(year: year, days: days, totals: [.california: days.count]),
                 selectedYear: year,
                 now: { today },
             )
+        }
+
+        // MARK: - Models (app-level shell)
+
+        /// A ready-to-render app model with the sample report injected and
+        /// in-memory services behind it (so its `session` is built up front).
+        /// Synchronous, so it drops straight into `#Preview`.
+        @MainActor
+        public static func loadedModel() -> WhereModel {
+            WhereModel(services: previewServices(), report: sampleReport(), selectedYear: year)
         }
     }
 #endif

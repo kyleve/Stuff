@@ -48,6 +48,11 @@ public struct RootView: View {
             .tabBarMinimizeBehavior(.onScrollDown)
         }
         .environment(model)
+        // The logged-in session appears once `open-store` builds it. Injected
+        // as an optional `Observable`, so the `TabView`'s `@Environment(WhereSession.self)`
+        // views resolve it (they only render at `.ready`, by which point it's
+        // present) and re-inject when a reset rebuilds it.
+        .environment(model.session)
         // Settings' "Erase all data & reset" runs the teardown through the
         // `LifecycleRunner` that `LifecycleContainer` publishes into the
         // environment, which wipes data + preferences and re-drives the launch
@@ -74,7 +79,7 @@ public struct RootView: View {
             guard newPhase == .active else { return }
             Task {
                 await launcher.enterForeground()
-                await model.appBecameActive()
+                await model.session?.appBecameActive()
             }
         }
     }

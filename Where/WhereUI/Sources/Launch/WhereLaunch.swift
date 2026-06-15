@@ -7,9 +7,10 @@ import WhereCore
 ///
 /// The sequence is only the *prerequisites*; the destination — the real tab UI
 /// — is `LifecycleContainer`'s `content` (see `RootView`), shown once the
-/// runner reaches `.ready`. It mirrors the imperative `WhereModel.start()`:
+/// runner reaches `.ready`. It mirrors the imperative `WhereSession.start()`:
 /// CoreLocation is wired synchronously in `initializePrerequisites`, then the
-/// store opens and the rest of the work runs as ordered async steps.
+/// store opens, the session is built, and the rest of the work runs as ordered
+/// async steps.
 @MainActor
 public enum WhereLaunch {
     /// Build the runner for `model`, launching for `reason`.
@@ -29,8 +30,8 @@ public enum WhereLaunch {
     }
 
     /// The ordered launch steps. The work steps run in the same order as
-    /// `WhereModel.start()` (a parity test guards this); the only additions are
-    /// the foreground-only `open-store` presentation and the `onboarding`
+    /// `WhereSession.start()` (a parity test guards this); the only additions
+    /// are the foreground-only `open-store` presentation and the `onboarding`
     /// gate, neither of which `start()` models.
     ///
     /// `bootstrap` assembles the services in the `open-store` step; callers
@@ -41,16 +42,21 @@ public enum WhereLaunch {
         bootstrap: WhereBootstrap = WhereBootstrap(),
     ) -> LifecycleSteps {
         LifecycleSteps {
-            // Open the store and assemble the services, then hand them to the
-            // model. Skipped when services are already attached (a
-            // preview/test injected them) so we never spin up a real store +
-            // CoreLocation behind it. Opening may run a lightweight migration;
-            // rather than predict it, key the migration UI off slowness: if the
-            // open is still running after a beat, show MigrationProgressView and
-            // hold it for a readable minimum so a fast open never flashes it.
+            // Open the store, assemble the services, and create the session.
+            // The build is skipped when services are already retained (a
+            // preview/test injected them, or a prior session before a reset) so
+            // we never spin up a real store + CoreLocation behind it; the
+            // session is then (re)created from the retained layer. Opening may
+            // run a lightweight migration; rather than predict it, key the
+            // migration UI off slowness: if the open is still running after a
+            // beat, show MigrationProgressView and hold it for a readable
+            // minimum so a fast open never flashes it.
             LifecycleStep.work("open-store") { _ in
-                guard !model.hasServices else { return }
-                try await model.attach(services: bootstrap.makeServices())
+                guard model.session == nil else { return }
+                if !model.hasServices {
+                    try await model.attach(services: bootstrap.makeServices())
+                }
+                model.startSession()
             }
             .presenting(after: .milliseconds(500), minVisible: .seconds(1)) {
                 MigrationProgressView(bridge: $0)
@@ -63,14 +69,17 @@ public enum WhereLaunch {
                 .when { !model.hasOnboarded }
 
             LifecycleStep.work("sync-auth") { _ in
-                await model.syncAuthorization()
-                model.observeAuthorizationChanges()
+                await model.session?.syncAuthorization()
+                model.session?.observeAuthorizationChanges()
             }
-            LifecycleStep.work("reconcile-tracking") { _ in await model.reconcileTracking() }
-            LifecycleStep.work("load-year") { _ in await model.refresh() }
-            LifecycleStep.work("reminders") { _ in await model.applyReminderConfiguration() }
-            LifecycleStep.work("summary") { _ in await model.applySummaryConfiguration() }
-            LifecycleStep.work("widget-snapshot") { _ in await model.refreshWidgetSnapshot() }
+            LifecycleStep
+                .work("reconcile-tracking") { _ in await model.session?.reconcileTracking() }
+            LifecycleStep.work("load-year") { _ in await model.session?.refresh() }
+            LifecycleStep
+                .work("reminders") { _ in await model.session?.applyReminderConfiguration() }
+            LifecycleStep.work("summary") { _ in await model.session?.applySummaryConfiguration() }
+            LifecycleStep
+                .work("widget-snapshot") { _ in await model.session?.refreshWidgetSnapshot() }
         }
     }
 
@@ -80,12 +89,17 @@ public enum WhereLaunch {
     /// back on the onboarding step, returning the app to its first-run state.
     public static func resetSequence(for model: WhereModel) -> LifecycleSteps {
         LifecycleSteps {
-            // Stop GPS and wipe the store first, then clear the preferences that
-            // gate the relaunch (onboarding, tracking intent, reminders). If the
-            // erase throws the runner parks in `.failed` and preferences are
-            // left intact, so a retry re-erases rather than stranding the user
-            // in onboarding atop un-erased data.
-            LifecycleStep.work("erase-data") { _ in try await model.eraseAllData() }
+            // Stop GPS and wipe the store first, then drop the session and clear
+            // the preferences that gate the relaunch (onboarding, tracking
+            // intent, reminders). If the erase throws the runner parks in
+            // `.failed`, the session and preferences are left intact, so a retry
+            // re-erases rather than stranding the user in onboarding atop
+            // un-erased data. Dropping the session here makes the re-driven
+            // `sequence` rebuild a fresh one over the erased store.
+            LifecycleStep.work("erase-data") { _ in
+                try await model.eraseAllData()
+                model.endSession()
+            }
             LifecycleStep.work("reset-preferences") { _ in model.resetPreferences() }
         }
     }

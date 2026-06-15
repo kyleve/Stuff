@@ -8,15 +8,15 @@ import WhereUI
 /// and "Grant does nothing" bugs: tracking and the authorization indicator must
 /// reflect real authorization + persisted intent, not just the last tap.
 @MainActor
-struct WhereModelTrackingTests {
+struct WhereSessionTrackingTests {
     private func makePreferences() -> WherePreferences {
         WherePreferences(store: InMemoryKeyValueStore())
     }
 
-    private func makeModel(
+    private func makeSession(
         status: LocationAuthorizationStatus,
         preferences: WherePreferences,
-    ) throws -> (WhereModel, ScriptedLocationSource) {
+    ) throws -> (WhereSession, ScriptedLocationSource) {
         let source = ScriptedLocationSource(authorizationStatus: status)
         let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
@@ -25,61 +25,64 @@ struct WhereModelTrackingTests {
             summaryScheduler: NoopDailySummaryScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let model = WhereModel(services: services, preferences: preferences)
-        return (model, source)
+        let session = WhereSession(services: services, preferences: preferences)
+        return (session, source)
     }
 
     @Test func launchWithAlwaysResumesTracking() async throws {
-        let (model, _) = try makeModel(status: .always, preferences: makePreferences())
-        await model.start()
-        #expect(model.authorizationStatus == .always)
-        #expect(model.isTracking)
-        #expect(!model.permissionDenied)
+        let (session, _) = try makeSession(status: .always, preferences: makePreferences())
+        await session.start()
+        #expect(session.authorizationStatus == .always)
+        #expect(session.isTracking)
+        #expect(!session.permissionDenied)
     }
 
     @Test func launchWithWhenInUseDoesNotTrack() async throws {
-        let (model, _) = try makeModel(status: .whenInUse, preferences: makePreferences())
-        await model.start()
-        #expect(model.authorizationStatus == .whenInUse)
-        #expect(!model.isTracking)
+        let (session, _) = try makeSession(status: .whenInUse, preferences: makePreferences())
+        await session.start()
+        #expect(session.authorizationStatus == .whenInUse)
+        #expect(!session.isTracking)
     }
 
     @Test func launchWithDeniedDoesNotTrackOrAlert() async throws {
-        let (model, _) = try makeModel(status: .denied, preferences: makePreferences())
-        await model.start()
-        #expect(model.authorizationStatus == .denied)
-        #expect(!model.isTracking)
+        let (session, _) = try makeSession(status: .denied, preferences: makePreferences())
+        await session.start()
+        #expect(session.authorizationStatus == .denied)
+        #expect(!session.isTracking)
         // Launch must not pop the Settings alert; that's reserved for taps.
-        #expect(!model.permissionDenied)
+        #expect(!session.permissionDenied)
     }
 
     @Test func stoppingTrackingPersistsAcrossLaunches() async throws {
         let preferences = makePreferences()
-        let (model, _) = try makeModel(status: .always, preferences: preferences)
-        await model.start()
-        #expect(model.isTracking)
+        let (session, _) = try makeSession(status: .always, preferences: preferences)
+        await session.start()
+        #expect(session.isTracking)
 
-        await model.stopTracking()
-        #expect(!model.isTracking)
+        await session.stopTracking()
+        #expect(!session.isTracking)
 
-        // A fresh model sharing the same preferences should stay paused even
+        // A fresh session sharing the same preferences should stay paused even
         // though authorization is still Always.
-        let (relaunched, _) = try makeModel(status: .always, preferences: preferences)
+        let (relaunched, _) = try makeSession(status: .always, preferences: preferences)
         await relaunched.start()
         #expect(!relaunched.isTracking)
     }
 
     @Test func grantingLaterStartsTrackingViaLiveUpdates() async throws {
-        let (model, source) = try makeModel(status: .notDetermined, preferences: makePreferences())
-        await model.start()
-        #expect(!model.isTracking)
+        let (session, source) = try makeSession(
+            status: .notDetermined,
+            preferences: makePreferences(),
+        )
+        await session.start()
+        #expect(!session.isTracking)
 
         // Simulate the user granting Always in the system prompt / Settings.
         source.emitAuthorization(.always)
 
-        await waitUntil { model.isTracking }
-        #expect(model.authorizationStatus == .always)
-        #expect(model.isTracking)
+        await waitUntil { session.isTracking }
+        #expect(session.authorizationStatus == .always)
+        #expect(session.isTracking)
     }
 
     private func waitUntil(

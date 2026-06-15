@@ -32,6 +32,8 @@ struct OnboardingModelTests {
 @MainActor
 struct OnboardingViewTests {
     @Test func onboardingViewRenders() throws {
+        // Onboarding reads both the app model and the logged-in session; the
+        // injected services build the session up front, so inject both.
         let model = try WhereModel(
             services: WhereServices(
                 store: SwiftDataStore.inMemory(),
@@ -43,6 +45,7 @@ struct OnboardingViewTests {
         )
         let view = OnboardingView(bridge: LifecycleStepUIBridge(reason: .userForeground))
             .environment(model)
+            .environment(model.session)
 
         try show(UIHostingController(rootView: view)) { hosted in
             waitForOneRunloop()

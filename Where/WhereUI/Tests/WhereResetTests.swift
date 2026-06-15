@@ -23,29 +23,34 @@ private func waitUntil(
 
 /// Covers the `WhereLaunch.resetSequence` teardown the Settings "Erase all data
 /// & reset" action runs through `LifecycleRunner.reset`: it wipes the store, stops
-/// tracking, clears the preferences that gate onboarding, then re-drives the
-/// launch back to its first-run state.
+/// tracking, drops the session, clears the preferences that gate onboarding, then
+/// re-drives the launch back to its first-run state.
 @MainActor
 struct WhereResetTests {
     private func makePreferences() -> WherePreferences {
         WherePreferences(store: InMemoryKeyValueStore())
     }
 
-    /// A model with injected services (in-memory store, no-op schedulers)
-    /// so the flow runs without touching real CoreLocation, the disk, or the
-    /// notification center.
-    private func makeModel(
+    private func makeServices(
         status: LocationAuthorizationStatus = .always,
-        preferences: WherePreferences,
-    ) throws -> WhereModel {
-        let services = try WhereServices(
+    ) throws -> WhereServices {
+        try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(authorizationStatus: status),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        return WhereModel(services: services, preferences: preferences)
+    }
+
+    /// A model with injected services (in-memory store, no-op schedulers)
+    /// so the flow runs without touching real CoreLocation, the disk, or the
+    /// notification center. The injected services build the session up front.
+    private func makeModel(
+        status: LocationAuthorizationStatus = .always,
+        preferences: WherePreferences,
+    ) throws -> WhereModel {
+        try WhereModel(services: makeServices(status: status), preferences: preferences)
     }
 
     @Test func resetSequenceErasesThenClearsPreferences() throws {
@@ -55,10 +60,12 @@ struct WhereResetTests {
     }
 
     @Test func resetPreferencesRestoresFirstInstallDefaults() throws {
-        let model = try makeModel(preferences: makePreferences())
+        let preferences = makePreferences()
+        let model = try makeModel(preferences: preferences)
+        let session = try #require(model.session)
         model.completeOnboarding()
-        model.remindersEnabled = false
-        model.summaryEnabled = false
+        session.remindersEnabled = false
+        session.summaryEnabled = false
         #expect(model.hasOnboarded)
 
         model.resetPreferences()
@@ -66,27 +73,49 @@ struct WhereResetTests {
         // Removing the keys lets the default-valued getters report first-install
         // state again: onboarding returns and reminders/summary default back on.
         #expect(!model.hasOnboarded)
-        #expect(model.remindersEnabled)
-        #expect(model.summaryEnabled)
+        // A fresh session re-reads the now-cleared preferences and sees the
+        // restored defaults (the live session caches its values, so the reset
+        // is observed by the rebuilt session the relaunch creates).
+        let reloaded = try WhereSession(services: makeServices(), preferences: preferences)
+        #expect(reloaded.remindersEnabled)
+        #expect(reloaded.summaryEnabled)
     }
 
     @Test func eraseAllDataClearsTheStoreAndStopsTracking() async throws {
         let model = try makeModel(status: .always, preferences: makePreferences())
         model.completeOnboarding()
-        await model.start()
-        #expect(model.isTracking) // .always authorization resumed GPS
+        let session = try #require(model.session)
+        await session.start()
+        #expect(session.isTracking) // .always authorization resumed GPS
 
-        try await model.setManualDay(date: Date(), regions: [.california])
-        #expect(model.trackedDayCount == 1)
+        try await session.setManualDay(date: Date(), regions: [.california])
+        #expect(session.trackedDayCount == 1)
 
         try await model.eraseAllData()
-        #expect(!model.isTracking)
-        #expect(model.trackedDayCount == 0)
+        #expect(!session.isTracking)
+        #expect(session.trackedDayCount == 0)
 
         // The store really is empty, not just the in-memory report: a reload
         // from disk finds nothing.
-        await model.refresh()
-        #expect(model.trackedDayCount == 0)
+        await session.refresh()
+        #expect(session.trackedDayCount == 0)
+    }
+
+    @Test func endSessionDropsTheSessionAndRelaunchRebuildsIt() async throws {
+        let model = try makeModel(status: .always, preferences: makePreferences())
+        model.completeOnboarding()
+        let original = try #require(model.session)
+
+        model.endSession()
+        #expect(model.session == nil)
+
+        // The re-driven launch rebuilds a fresh session from the retained
+        // (still-open) services rather than reopening the store.
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        await launcher.run()
+        #expect(launcher.phase.isReady)
+        let rebuilt = try #require(model.session)
+        #expect(rebuilt !== original)
     }
 
     @Test func resetReturnsToOnboardingWithDataErased() async throws {
@@ -96,8 +125,9 @@ struct WhereResetTests {
         await launcher.run()
         #expect(launcher.phase.isReady)
 
-        try await model.setManualDay(date: Date(), regions: [.california])
-        #expect(model.trackedDayCount == 1)
+        let session = try #require(model.session)
+        try await session.setManualDay(date: Date(), regions: [.california])
+        #expect(session.trackedDayCount == 1)
 
         // reset re-drives the launch, which parks on onboarding again (now that
         // hasOnboarded is cleared), so reset() doesn't return until onboarding
@@ -107,10 +137,12 @@ struct WhereResetTests {
         }
         try await waitUntil { launcher.phase.runningStepID == "onboarding" }
 
-        // Teardown ran before the relaunch reached onboarding: data erased,
-        // tracking stopped, and the onboarding gate reopened.
+        // Teardown ran before the relaunch reached onboarding: data erased, the
+        // session dropped + rebuilt, and the onboarding gate reopened.
         #expect(!model.hasOnboarded)
-        #expect(!model.isTracking)
+        let rebuilt = try #require(model.session)
+        #expect(rebuilt !== session)
+        #expect(!rebuilt.isTracking)
         #expect(launcher.phase.runningBridge?.presentation != nil)
 
         launcher.phase.runningBridge?.complete()
@@ -118,7 +150,7 @@ struct WhereResetTests {
 
         #expect(launcher.phase.isReady)
         // load-year reran against the now-empty store.
-        #expect(model.trackedDayCount == 0)
+        #expect(model.session?.trackedDayCount == 0)
     }
 
     @Test func resetFailureParksLauncherAndKeepsPreferences() async throws {

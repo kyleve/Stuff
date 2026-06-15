@@ -12,7 +12,11 @@ import WhereCore
 /// authorization-sync and tracking-reconcile steps then pick up whatever
 /// permission was granted.
 public struct OnboardingView: View {
+    // Onboarding straddles both: it persists the app-level `hasOnboarded` flag
+    // (model) and kicks off background tracking through the session, which the
+    // `open-store` step has already built by the time this step runs.
     @Environment(WhereModel.self) private var model
+    @Environment(WhereSession.self) private var session
     private let bridge: LifecycleStepUIBridge
 
     @State private var page = 0
@@ -89,7 +93,7 @@ public struct OnboardingView: View {
                     guard !isFinishing else { return }
                     isFinishing = true
                     Task {
-                        await model.startTracking()
+                        await session.startTracking()
                         completeAndContinue()
                     }
                 } label: {
@@ -153,5 +157,6 @@ struct OnboardingPage: Identifiable {
     #Preview {
         OnboardingView(bridge: LifecycleStepUIBridge(reason: .userForeground))
             .environment(PreviewSupport.loadedModel())
+            .environment(PreviewSupport.loadedSession())
     }
 #endif

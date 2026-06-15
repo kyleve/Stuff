@@ -4,7 +4,7 @@ import WhereCore
 /// Elsewhere tab: every region outside your primary spots, shown as compact
 /// Liquid Glass cards for the selected year.
 struct SecondaryView: View {
-    @Environment(WhereModel.self) private var model
+    @Environment(WhereSession.self) private var session
 
     /// Reverse-geocoded "where" teaser per region, loaded asynchronously so
     /// each card can show the place you turned up most. Empty in
@@ -21,16 +21,16 @@ struct SecondaryView: View {
                     }
                 }
         }
-        .task(id: model.report) { await loadPlaceNames() }
+        .task(id: session.report) { await loadPlaceNames() }
     }
 
     /// Pick each secondary region's most-sampled spot and reverse-geocode it,
     /// so the cards gain a "Paris, France"-style teaser. One geocode per
     /// region; results are cached by `LocationNamer`.
     private func loadPlaceNames() async {
-        let coordinates = await model.representativeCoordinates()
+        let coordinates = await session.representativeCoordinates()
         var names: [Region: String] = [:]
-        for item in model.ranking.secondary {
+        for item in session.ranking.secondary {
             guard let coordinate = coordinates[item.region] else { continue }
             names[item.region] = await LocationNamer.shared.name(for: coordinate)
         }
@@ -43,8 +43,8 @@ struct SecondaryView: View {
 
     @ViewBuilder
     private var screen: some View {
-        switch model.loadState {
-            case .loading where model.report == nil:
+        switch session.loadState {
+            case .loading where session.report == nil:
                 ProgressView(Strings.secondaryLoading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .failed(message):
@@ -54,7 +54,7 @@ struct SecondaryView: View {
                     Text(message)
                 }
             default:
-                if model.ranking.secondary.isEmpty {
+                if session.ranking.secondary.isEmpty {
                     emptyState
                 } else {
                     content
@@ -65,14 +65,14 @@ struct SecondaryView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: UIConstants.Spacings.xLarge) {
-                Text(Strings.secondaryHeader(year: model.selectedYear))
+                Text(Strings.secondaryHeader(year: session.selectedYear))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 GlassEffectContainer(spacing: UIConstants.Spacings.large) {
                     VStack(spacing: UIConstants.Spacings.large) {
-                        ForEach(model.ranking.secondary) { item in
+                        ForEach(session.ranking.secondary) { item in
                             NavigationLink {
                                 RegionDaysView(region: item.region)
                             } label: {
@@ -81,8 +81,8 @@ struct SecondaryView: View {
                                     caption: caption(for: item),
                                     places: placeNames[item.region],
                                     compact: true,
-                                    yearLength: model.daysInSelectedYear,
-                                    year: model.selectedYear,
+                                    yearLength: session.daysInSelectedYear,
+                                    year: session.selectedYear,
                                 )
                             }
                             .buttonStyle(.plain)
@@ -111,11 +111,11 @@ struct SecondaryView: View {
 #if DEBUG
     #Preview("Loaded") {
         SecondaryView()
-            .environment(PreviewSupport.loadedModel())
+            .environment(PreviewSupport.loadedSession())
     }
 
     #Preview("Empty") {
         SecondaryView()
-            .environment(PreviewSupport.emptyModel())
+            .environment(PreviewSupport.emptySession())
     }
 #endif

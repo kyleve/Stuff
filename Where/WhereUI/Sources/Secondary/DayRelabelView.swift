@@ -7,7 +7,7 @@ import WhereCore
 /// be removed. The raw GPS samples are left untouched (see
 /// `DayJournal.overrideDay`), so the fix is reversible.
 struct DayRelabelView: View {
-    @Environment(WhereModel.self) private var model
+    @Environment(WhereSession.self) private var session
     @Environment(\.dismiss) private var dismiss
 
     let day: DayPresence
@@ -99,7 +99,7 @@ struct DayRelabelView: View {
         saveError = nil
         Task {
             do {
-                try await model.overrideDay(date: day.date, regions: selectedRegions)
+                try await session.overrideDay(date: day.date, regions: selectedRegions)
                 dismiss()
             } catch {
                 // Keep the form up so the user can retry; the save didn't land.
@@ -114,7 +114,7 @@ struct DayRelabelView: View {
         saveError = nil
         Task {
             do {
-                try await model.clearManualDay(date: day.date)
+                try await session.clearManualDay(date: day.date)
                 dismiss()
             } catch {
                 // Keep the form up so the user can retry; nothing was cleared.
@@ -129,7 +129,7 @@ struct DayRelabelView: View {
     #Preview {
         NavigationStack {
             DayRelabelView(day: DayPresence(date: .now, regions: [.other]))
-                .environment(PreviewSupport.loadedModel())
+                .environment(PreviewSupport.loadedSession())
         }
     }
 #endif

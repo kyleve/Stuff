@@ -22,7 +22,7 @@ private func waitUntil(
 }
 
 /// Covers the `WhereLaunch` sequence the app drives at startup: the step order
-/// (parity with `WhereModel.start()`), the onboarding gate, and the headless
+/// (parity with `WhereSession.start()`), the onboarding gate, and the headless
 /// background path.
 @MainActor
 struct WhereLaunchTests {
@@ -48,7 +48,7 @@ struct WhereLaunchTests {
     }
 
     @Test func sequenceStepsRunInStartParityOrder() throws {
-        // The work steps mirror WhereModel.start()'s order; the only insertions
+        // The work steps mirror WhereSession.start()'s order; the only insertions
         // are open-store's migration presentation and the onboarding gate.
         let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.sequence(for: model).steps.map(\.id)
@@ -72,7 +72,7 @@ struct WhereLaunchTests {
         #expect(launcher.phase.isReady)
         // .always authorization → the reconcile-tracking step resumed GPS,
         // proving the post-onboarding steps ran.
-        #expect(model.isTracking)
+        #expect(model.session?.isTracking == true)
     }
 
     @Test func firstRunForegroundLaunchPresentsOnboarding() async throws {
@@ -116,6 +116,6 @@ struct WhereLaunchTests {
         #expect(launcher.phase.isReady)
         #expect(launcher.reason.isBackground)
         // The minimal background steps still ran (reconcile-tracking resumed GPS).
-        #expect(model.isTracking)
+        #expect(model.session?.isTracking == true)
     }
 }
