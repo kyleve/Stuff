@@ -21,46 +21,12 @@ public actor WhereController {
     private let aggregator: DayAggregator
     private let reportReader: ReportReader
     private let backupService = BackupService()
-    private let reminderScheduler: any LoggingReminderScheduling
-    private let summaryScheduler: any DailySummaryScheduling
+    private let reminderReconciler: ReminderReconciler
+    private let summaryReconciler: DailySummaryReconciler
     private let widgetPublisher: WidgetSnapshotPublisher
     private let now: @Sendable () -> Date
 
     private var ingestTask: Task<Void, Never>?
-
-    /// User intent for the daily "log before the day ends" reminder. Disabled
-    /// until the UI calls `configureReminders(enabled:time:)`, so a freshly
-    /// constructed controller never schedules anything on its own.
-    private var reminderConfig = ReminderConfiguration()
-
-    /// User intent for the daily summary recap. Disabled until the UI calls
-    /// `configureDailySummary(enabled:time:)`, so a freshly constructed
-    /// controller never schedules anything on its own.
-    private var summaryConfig = SummaryConfiguration()
-
-    /// The start-of-day we last reconciled while today already had presence.
-    /// Lets the GPS ingest path skip a full re-scan once today is covered
-    /// (significant-change events can fire many times a day).
-    private var todayCoveredByReconcile: Date?
-
-    /// How many days past today the per-day reminders are scheduled ahead, so a
-    /// stretch where the app never runs still has reminders queued. Today plus
-    /// this many days.
-    private static let reminderWindowDays = 6
-
-    /// How many top regions the daily summary recap lists, so the notification
-    /// body stays short.
-    private static let summaryRegionLimit = 3
-
-    private struct ReminderConfiguration {
-        var enabled = false
-        var time: ReminderTime = .defaultEvening
-    }
-
-    private struct SummaryConfiguration {
-        var enabled = false
-        var time: ReminderTime = .defaultMorning
-    }
 
     /// Whether the underlying location monitoring is currently active. Tracked
     /// separately from `ingestTask` because the ingestion task outlives a
@@ -96,8 +62,18 @@ public actor WhereController {
         self.attributor = attributor
         self.aggregator = aggregator
         reportReader = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
-        self.reminderScheduler = reminderScheduler
-        self.summaryScheduler = summaryScheduler
+        reminderReconciler = ReminderReconciler(
+            scheduler: reminderScheduler,
+            reportReader: reportReader,
+            calendar: aggregator.calendar,
+            now: now,
+        )
+        summaryReconciler = DailySummaryReconciler(
+            scheduler: summaryScheduler,
+            reportReader: reportReader,
+            calendar: aggregator.calendar,
+            now: now,
+        )
         // The reader runs in *this* (app) process and shares the controller's
         // store, calendar, and attributor so the published snapshot's day/year
         // line up with everything else the controller reports.
@@ -155,7 +131,7 @@ public actor WhereController {
         let key = aggregator.calendar.startOfDay(for: date)
         let presence = DayPresence(date: key, regions: regions)
         try await store.perform { try await store.setManualDay(presence) }
-        await reconcileReminders()
+        await reminderReconciler.reconcile()
         await widgetPublisher.publish()
     }
 
@@ -168,7 +144,7 @@ public actor WhereController {
         let key = aggregator.calendar.startOfDay(for: date)
         let presence = DayPresence(date: key, regions: regions, isAuthoritative: true)
         try await store.perform { try await store.setManualDay(presence) }
-        await reconcileReminders()
+        await reminderReconciler.reconcile()
         await widgetPublisher.publish()
     }
 
@@ -179,7 +155,7 @@ public actor WhereController {
     public func clearManualDay(date: Date) async throws {
         let key = aggregator.calendar.startOfDay(for: date)
         try await store.perform { try await store.clearManualDay(key) }
-        await reconcileReminders()
+        await reminderReconciler.reconcile()
         await widgetPublisher.publish()
     }
 
@@ -204,7 +180,7 @@ public actor WhereController {
                 try await store.setManualDay(DayPresence(date: day, regions: regions))
             }
         }
-        await reconcileReminders()
+        await reminderReconciler.reconcile()
         await widgetPublisher.publish()
     }
 
@@ -246,7 +222,7 @@ public actor WhereController {
     public func clearYear(_ year: Int) async throws {
         let interval = aggregator.yearInterval(year: year)
         try await store.perform { try await store.clear(in: interval) }
-        await reconcileReminders()
+        await reminderReconciler.reconcile()
         await widgetPublisher.publish()
     }
 
@@ -258,7 +234,7 @@ public actor WhereController {
     /// now-empty store immediately, rather than relying on a later launch step.
     public func eraseAllData() async throws {
         try await store.perform { try await store.clearAll() }
-        await reconcileReminders()
+        await reminderReconciler.reconcile()
         await widgetPublisher.publish()
     }
 
@@ -416,7 +392,7 @@ public actor WhereController {
         }
         // Refresh the badge / reminders against whatever the resumed session
         // already knows about (e.g. after a background relaunch).
-        await reconcileReminders()
+        await reminderReconciler.reconcile()
         guard ingestTask == nil else { return }
         let stream = locationSource.sampleStream
         ingestTask = Task { [weak self] in
@@ -437,7 +413,7 @@ public actor WhereController {
             try await store.perform { try await store.add(sample: sample) }
             var changedDays = drainedDays
             changedDays.insert(aggregator.calendar.startOfDay(for: sample.timestamp))
-            await reconcileRemindersAfterIngest(changedDays: changedDays)
+            await reminderReconciler.reconcileAfterIngest(changedDays: changedDays)
             // Exact change-detection on the hot GPS path. If draining
             // re-persisted samples for other days, those can move the snapshot
             // too, so fall back to a full rebuild; otherwise let the
@@ -549,89 +525,20 @@ public actor WhereController {
     /// reminders and badge. Safe to call on every launch and whenever the user
     /// changes the setting.
     public func configureReminders(enabled: Bool, time: ReminderTime) async {
-        reminderConfig = ReminderConfiguration(enabled: enabled, time: time)
-        if enabled {
-            _ = await reminderScheduler.requestAuthorization()
-        }
-        await reconcileReminders()
+        await reminderReconciler.configure(enabled: enabled, time: time)
     }
 
     /// Explicitly drive the notification permission prompt (e.g. from a
     /// Settings toggle). Returns whether the app is authorized afterward.
     @discardableResult
     public func requestNotificationAuthorization() async -> Bool {
-        await reminderScheduler.requestAuthorization()
+        await reminderReconciler.requestAuthorization()
     }
 
     /// Whether the app is currently authorized to post reminders / set the
     /// badge, so the UI can surface an "open Settings" affordance.
     public func notificationAuthorizationGranted() async -> Bool {
-        await reminderScheduler.isAuthorized()
-    }
-
-    /// Cheap reconcile for the GPS ingest path: only runs when reminders are on
-    /// and today isn't already known to be covered, so a burst of
-    /// significant-change samples doesn't trigger a full-year scan each time.
-    private func reconcileRemindersAfterIngest(changedDays: Set<Date>) async {
-        guard reminderConfig.enabled else { return }
-        let today = aggregator.calendar.startOfDay(for: now())
-        let changedDayNeedsReconcile = changedDays.contains { $0 != today }
-        guard todayCoveredByReconcile != today || changedDayNeedsReconcile else { return }
-        await reconcileReminders()
-    }
-
-    /// Recompute the current-year missing-day picture from the store and push
-    /// it to the scheduler: the badge is the total unlogged days this year, and
-    /// a rolling window of upcoming unlogged days gets per-day reminders. This
-    /// is the single source of truth for "recorded successfully -> drop today's
-    /// reminder and lower the badge".
-    private func reconcileReminders() async {
-        guard reminderConfig.enabled else {
-            await reminderScheduler.reconcile(
-                badgeCount: 0,
-                scheduleDays: [],
-                reminderTime: reminderConfig.time,
-                enabled: false,
-            )
-            todayCoveredByReconcile = nil
-            return
-        }
-
-        let calendar = aggregator.calendar
-        let today = calendar.startOfDay(for: now())
-        let year = calendar.component(.year, from: today)
-        do {
-            let report = try await yearReport(for: year)
-            let present = Set(report.days.map { calendar.startOfDay(for: $0.date) })
-            // The badge backlog is *past* misses only — today is still loggable,
-            // so it's covered by the forward-looking reminder below rather than
-            // counted as missed (otherwise the app would warn every morning).
-            let backlog = MissingDays.missingDayKeys(
-                year: year,
-                through: MissingDays.backlogCutoff(asOf: now(), calendar: calendar),
-                present: present,
-                calendar: calendar,
-            )
-            let windowEnd = calendar.date(
-                byAdding: .day,
-                value: Self.reminderWindowDays,
-                to: today,
-            ) ?? today
-            let scheduleDays = today
-                .calendarDays(through: windowEnd, in: calendar)
-                .filter { !present.contains($0) }
-            await reminderScheduler.reconcile(
-                badgeCount: backlog.count,
-                scheduleDays: scheduleDays,
-                reminderTime: reminderConfig.time,
-                enabled: true,
-            )
-            todayCoveredByReconcile = present.contains(today) ? today : nil
-        } catch {
-            Self.logger.error(
-                "Failed to reconcile logging reminders: \(error.localizedDescription, privacy: .public)",
-            )
-        }
+        await reminderReconciler.isAuthorized()
     }
 
     // MARK: - Daily summary
@@ -641,71 +548,6 @@ public actor WhereController {
     /// summary notification. Safe to call on every launch and whenever the user
     /// changes the setting.
     public func configureDailySummary(enabled: Bool, time: ReminderTime) async {
-        summaryConfig = SummaryConfiguration(enabled: enabled, time: time)
-        if enabled {
-            _ = await summaryScheduler.requestAuthorization()
-        }
-        await reconcileDailySummary()
-    }
-
-    /// Recompute the year-to-date recap text from the current year's data and
-    /// push it to the summary scheduler. When disabled, the owned notification
-    /// is cleared.
-    private func reconcileDailySummary() async {
-        guard summaryConfig.enabled else {
-            await summaryScheduler.reconcile(enabled: false, time: summaryConfig.time, body: "")
-            return
-        }
-
-        let year = aggregator.calendar.component(.year, from: now())
-        do {
-            let report = try await yearReport(for: year)
-            await summaryScheduler.reconcile(
-                enabled: true,
-                time: summaryConfig.time,
-                body: Self.summaryBody(for: report),
-            )
-        } catch {
-            Self.logger.error(
-                "Failed to reconcile daily summary: \(error.localizedDescription, privacy: .public)",
-            )
-        }
-    }
-
-    /// Build the recap notification body from a year's totals: the top regions
-    /// by day count, e.g. "132 days in California, 40 days in New York". Falls
-    /// back to an empty-state line when nothing has been logged yet.
-    private static func summaryBody(for report: YearReport) -> String {
-        let order = Dictionary(
-            uniqueKeysWithValues: Region.allCases.enumerated().map { ($1, $0) },
-        )
-        let ranked = report.totals
-            .filter { $0.value > 0 }
-            .sorted { lhs, rhs in
-                if lhs.value != rhs.value { return lhs.value > rhs.value }
-                return (order[lhs.key] ?? 0) < (order[rhs.key] ?? 0)
-            }
-            .prefix(summaryRegionLimit)
-
-        guard !ranked.isEmpty else {
-            return String(localized: "summary.notification.body.empty", bundle: .module)
-        }
-
-        return ranked
-            .map { summaryFragment(region: $0.key, days: $0.value) }
-            .joined(separator: ", ")
-    }
-
-    private static func summaryFragment(region: Region, days: Int) -> String {
-        let count = String(
-            localized: "summary.notification.dayCount",
-            defaultValue: "\(days) days",
-            bundle: .module,
-        )
-        return String(
-            localized: "summary.notification.regionDays",
-            defaultValue: "\(count) in \(region.localizedName)",
-            bundle: .module,
-        )
+        await summaryReconciler.configure(enabled: enabled, time: time)
     }
 }
