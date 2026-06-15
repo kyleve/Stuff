@@ -1,14 +1,13 @@
 import Foundation
-import os
 
 /// Top-level API for the Where feature. Composes a `WhereStore`
-/// (persistence) and a `LocationSource` (GPS) behind a small,
-/// testable surface.
+/// (persistence) with focused collaborators — a `LocationIngestor` (GPS), a
+/// `WidgetSnapshotPublisher`, and the reminder / daily-summary reconcilers —
+/// behind a small, testable surface.
 ///
 /// - GPS sampling is opt-in: callers invoke `startGPS()` once the user grants
-///   authorization. Ingestion runs in an unstructured `Task` owned by the
-///   actor; `stopGPS()` pauses the underlying monitoring while leaving the
-///   task alive (so the stream can be resumed), and `deinit` cancels it.
+///   authorization; the `LocationIngestor` owns the monitoring lifecycle and
+///   stream.
 /// - Retroactive entry uses `addManualSample(_:)` (a single coordinate) or
 ///   `addManualDay(date:regions:)` (an authoritative day overlay that unions
 ///   with whatever GPS produced for that day).
@@ -16,36 +15,13 @@ import os
 ///   the injected `DayAggregator` and returns a snapshot-stable `YearReport`.
 public actor WhereController {
     private let store: any WhereStore
-    private let locationSource: any LocationSource
-    private let attributor: RegionAttributor
     private let aggregator: DayAggregator
     private let reportReader: ReportReader
     private let backupService = BackupService()
     private let reminderReconciler: ReminderReconciler
     private let summaryReconciler: DailySummaryReconciler
     private let widgetPublisher: WidgetSnapshotPublisher
-    private let now: @Sendable () -> Date
-
-    private var ingestTask: Task<Void, Never>?
-
-    /// Whether the underlying location monitoring is currently active. Tracked
-    /// separately from `ingestTask` because the ingestion task outlives a
-    /// `stopGPS()` pause (see `startGPS()` for why).
-    private var isMonitoring = false
-
-    /// Samples whose persist call failed (e.g. transient SwiftData / CloudKit
-    /// error). Drained before each new GPS save and on the next `startGPS()`
-    /// so a brief I/O outage doesn't silently drop measurements.
-    private var retryQueue: [LocationSample] = []
-
-    /// Hard cap on the retry queue. Once reached, the oldest pending sample
-    /// is dropped to make room for the newest. Sized to ~12 hours of
-    /// significant-change/Visits ingestion (which fires on the order of
-    /// minutes, not seconds), so reaching the cap means something is very
-    /// wrong with persistence and we'd rather keep recent data than ancient.
-    private static let retryQueueCapacity = 1000
-
-    private static let logger = Logger(subsystem: "com.stuff.where", category: "WhereController")
+    private let locationIngestor: LocationIngestor
 
     public init(
         store: any WhereStore,
@@ -58,16 +34,15 @@ public actor WhereController {
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.store = store
-        self.locationSource = locationSource
-        self.attributor = attributor
         self.aggregator = aggregator
         reportReader = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
-        reminderReconciler = ReminderReconciler(
+        let reminders = ReminderReconciler(
             scheduler: reminderScheduler,
             reportReader: reportReader,
             calendar: aggregator.calendar,
             now: now,
         )
+        reminderReconciler = reminders
         summaryReconciler = DailySummaryReconciler(
             scheduler: summaryScheduler,
             reportReader: reportReader,
@@ -82,18 +57,39 @@ public actor WhereController {
             aggregator: aggregator,
             attributor: attributor,
         )
-        widgetPublisher = WidgetSnapshotPublisher(
+        let widgets = WidgetSnapshotPublisher(
             widgetReader: widgetReader,
             widgetRefresher: widgetRefresher,
             attributor: attributor,
             calendar: aggregator.calendar,
             now: now,
         )
-        self.now = now
-    }
-
-    deinit {
-        ingestTask?.cancel()
+        widgetPublisher = widgets
+        // After each committed GPS persist, reconcile the badge/reminders and
+        // republish the widget snapshot. A live single sample uses the cheap
+        // change-detection unless a drain also re-persisted other days; a
+        // resume/drain-only batch reconciles fully and publishes only if it
+        // actually persisted anything.
+        locationIngestor = LocationIngestor(
+            store: store,
+            locationSource: locationSource,
+            calendar: aggregator.calendar,
+            onPersisted: { outcome in
+                if let sample = outcome.liveSample {
+                    await reminders.reconcileAfterIngest(changedDays: outcome.changedDays)
+                    if outcome.needsFullWidgetRebuild {
+                        await widgets.publish()
+                    } else {
+                        await widgets.publishAfterIngest(of: sample)
+                    }
+                } else {
+                    await reminders.reconcile()
+                    if outcome.needsFullWidgetRebuild {
+                        await widgets.publish()
+                    }
+                }
+            },
+        )
     }
 
     // MARK: - Ingestion
@@ -370,138 +366,46 @@ public actor WhereController {
 
     // MARK: - GPS lifecycle
 
-    /// Begin (or resume) GPS ingestion. Idempotent: a second call while
-    /// monitoring is already active is a no-op, so the lifecycle is safe to
-    /// drive from multiple call sites (e.g. scene activation + a manual
-    /// toggle).
-    ///
-    /// The task that drains `locationSource.sampleStream` is created once and
-    /// then kept alive for the controller's lifetime; `stopGPS()` only pauses
-    /// the underlying monitoring. Cancelling that task would terminate the
-    /// single-consumer `AsyncStream`, so a later `startGPS()` would iterate an
-    /// already-finished stream and silently drop every subsequent sample.
+    /// Begin (or resume) GPS ingestion. Idempotent and safe to drive from
+    /// multiple call sites (scene activation + a manual toggle); delegates to
+    /// the `LocationIngestor`, which owns the monitoring + stream lifecycle.
     public func startGPS() async {
-        guard !isMonitoring else { return }
-        isMonitoring = true
-        await locationSource.start()
-        // Flush anything that failed to persist before this session
-        // started, before we (re)attach the stream consumer.
-        let drainedDays = await drainRetryQueue()
-        if !drainedDays.isEmpty {
-            await widgetPublisher.publish()
-        }
-        // Refresh the badge / reminders against whatever the resumed session
-        // already knows about (e.g. after a background relaunch).
-        await reminderReconciler.reconcile()
-        guard ingestTask == nil else { return }
-        let stream = locationSource.sampleStream
-        ingestTask = Task { [weak self] in
-            for await sample in stream {
-                if Task.isCancelled { break }
-                guard let self else { break }
-                await processIngestedSample(sample)
-            }
-        }
-    }
-
-    /// Persist one GPS-sourced sample, falling back to the retry queue
-    /// on failure. Drains any backlog first so a single transient
-    /// outage doesn't permanently reorder samples on disk.
-    private func processIngestedSample(_ sample: LocationSample) async {
-        let drainedDays = await drainRetryQueue()
-        do {
-            try await store.perform { try await store.add(sample: sample) }
-            var changedDays = drainedDays
-            changedDays.insert(aggregator.calendar.startOfDay(for: sample.timestamp))
-            await reminderReconciler.reconcileAfterIngest(changedDays: changedDays)
-            // Exact change-detection on the hot GPS path. If draining
-            // re-persisted samples for other days, those can move the snapshot
-            // too, so fall back to a full rebuild; otherwise let the
-            // single-sample check decide whether anything changed.
-            if drainedDays.isEmpty {
-                await widgetPublisher.publishAfterIngest(of: sample)
-            } else {
-                await widgetPublisher.publish()
-            }
-        } catch {
-            // Persistence failures (SwiftData save, CloudKit, etc.)
-            // are surfaced via `os.Logger` instead of being silently
-            // dropped. The stream keeps running so a transient error
-            // doesn't stop tracking, and the sample is queued for
-            // retry on the next save attempt.
-            Self.logger.error(
-                "Failed to persist GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
-            )
-            enqueueForRetry(sample)
-        }
-    }
-
-    private func enqueueForRetry(_ sample: LocationSample) {
-        if retryQueue.count >= Self.retryQueueCapacity {
-            retryQueue.removeFirst()
-        }
-        retryQueue.append(sample)
-    }
-
-    /// Try to flush every queued sample exactly once. Anything that
-    /// still fails is re-queued at the tail; the next call gets the
-    /// chance to retry it.
-    private func drainRetryQueue() async -> Set<Date> {
-        guard !retryQueue.isEmpty else { return [] }
-        let pending = retryQueue
-        retryQueue.removeAll(keepingCapacity: true)
-        var persistedDays: Set<Date> = []
-        for sample in pending {
-            do {
-                try await store.perform { try await store.add(sample: sample) }
-                persistedDays.insert(aggregator.calendar.startOfDay(for: sample.timestamp))
-            } catch {
-                Self.logger.error(
-                    "Retry still failing for GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
-                )
-                enqueueForRetry(sample)
-            }
-        }
-        return persistedDays
-    }
-
-    /// Number of samples currently waiting to be re-persisted. Exposed
-    /// for tests; production callers should treat this as opaque.
-    public var retryQueueDepth: Int {
-        retryQueue.count
+        await locationIngestor.start()
     }
 
     /// Pause GPS ingestion by stopping the underlying location monitoring.
-    /// Idempotent and safe to call from teardown paths that may run before
-    /// any `startGPS()` (e.g. scene background, error recovery). The
-    /// ingestion task is intentionally left running (see `startGPS()`); it
-    /// simply idles until monitoring resumes. The task is torn down on
-    /// `deinit`.
+    /// Idempotent and safe to call from teardown paths that may run before any
+    /// `startGPS()`. The ingestion task is left running (see `LocationIngestor`)
+    /// and idles until monitoring resumes.
     public func stopGPS() async {
-        guard isMonitoring else { return }
-        isMonitoring = false
-        await locationSource.stop()
+        await locationIngestor.stop()
     }
 
     public func requestLocationPermission() async throws {
-        try await locationSource.requestPermission()
+        try await locationIngestor.requestPermission()
     }
 
     /// The current location authorization status.
     public func authorizationStatus() async -> LocationAuthorizationStatus {
-        await locationSource.currentAuthorization()
+        await locationIngestor.authorizationStatus()
     }
 
     /// Live stream of authorization-status changes (system prompt results and
     /// Settings-app changes). Subscribe once and iterate.
-    public func authorizationUpdates() -> AsyncStream<LocationAuthorizationStatus> {
-        locationSource.authorizationUpdates
+    public func authorizationUpdates() async -> AsyncStream<LocationAuthorizationStatus> {
+        await locationIngestor.authorizationUpdates()
     }
 
     /// Whether GPS monitoring is currently active. Exposed so the view-model
     /// can reconcile its tracking flag with reality after launch.
     public var isTrackingActive: Bool {
-        isMonitoring
+        get async { await locationIngestor.isActive }
+    }
+
+    /// Number of samples currently waiting to be re-persisted. Exposed for
+    /// tests; production callers should treat this as opaque.
+    public var retryQueueDepth: Int {
+        get async { await locationIngestor.retryQueueDepth }
     }
 
     // MARK: - Widgets
