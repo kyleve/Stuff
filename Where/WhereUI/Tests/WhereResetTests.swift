@@ -153,6 +153,43 @@ struct WhereResetTests {
         #expect(model.session?.trackedDayCount == 0)
     }
 
+    @Test func resetDropsSessionClearsPreferencesAndReturnsToOnboarding() async throws {
+        // The end-to-end reset cycle: a user who has onboarded, turned the
+        // reminders/summary off, and logged a day runs "Erase all data & reset".
+        let preferences = makePreferences()
+        let model = try makeModel(status: .always, preferences: preferences)
+        let original = try #require(model.session)
+        model.completeOnboarding()
+        original.remindersEnabled = false
+        original.summaryEnabled = false
+
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        await launcher.run()
+        try await original.setManualDay(date: Date(), regions: [.california])
+        #expect(original.trackedDayCount == 1)
+
+        // Drive the reset and finish the onboarding it re-drives into.
+        let task = Task { @MainActor in
+            await launcher.reset(WhereLaunch.resetSequence(for: model))
+        }
+        try await waitUntil { launcher.phase.runningStepID == LaunchStepID.onboarding.rawValue }
+
+        // Mid-relaunch: the session was dropped and rebuilt fresh, preferences
+        // were cleared (onboarding gate reopened), and the rebuilt session reads
+        // the restored reminder/summary defaults — not the off state above.
+        let rebuilt = try #require(model.session)
+        #expect(rebuilt !== original)
+        #expect(!model.hasOnboarded)
+        #expect(rebuilt.remindersEnabled)
+        #expect(rebuilt.summaryEnabled)
+
+        launcher.phase.runningBridge?.complete()
+        await task.value
+        #expect(launcher.phase.isReady)
+        // The store was wiped: the rebuilt session's reloaded report is empty.
+        #expect(model.session?.trackedDayCount == 0)
+    }
+
     @Test func resetFailureParksLauncherAndKeepsPreferences() async throws {
         // A teardown whose erase step throws parks the launcher in .failed on
         // that step and never reaches reset-preferences, so the onboarding flag
