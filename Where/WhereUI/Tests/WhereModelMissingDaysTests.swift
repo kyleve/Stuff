@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import WhereCore
+import WhereTesting
 @testable import WhereUI
 
 /// Covers the missing-day computation the banner / backfill read, and the
@@ -19,11 +20,8 @@ struct WhereModelMissingDaysTests {
         calendar.date(from: DateComponents(year: year, month: month, day: day))!
     }
 
-    private func ephemeralDefaults() -> UserDefaults {
-        let suite = "test.WhereModelMissingDays.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        return defaults
+    private func makePreferences() -> WherePreferences {
+        WherePreferences(store: InMemoryKeyValueStore())
     }
 
     private func makeController() throws -> WhereController {
@@ -75,8 +73,8 @@ struct WhereModelMissingDaysTests {
     }
 
     @Test func reminderSettingsDefaultOnAndPersistAcrossModels() throws {
-        let defaults = ephemeralDefaults()
-        let model = try WhereModel(controller: makeController(), defaults: defaults)
+        let preferences = makePreferences()
+        let model = try WhereModel(controller: makeController(), preferences: preferences)
 
         #expect(model.remindersEnabled)
         #expect(model.reminderTime == ReminderTime.defaultEvening)
@@ -88,15 +86,15 @@ struct WhereModelMissingDaysTests {
         #expect(!model.remindersEnabled)
         #expect(model.reminderTime == ReminderTime(hour: 7, minute: 30))
 
-        // A fresh model sharing the same defaults reads back the saved values.
-        let reloaded = try WhereModel(controller: makeController(), defaults: defaults)
+        // A fresh model sharing the same preferences reads back the saved values.
+        let reloaded = try WhereModel(controller: makeController(), preferences: preferences)
         #expect(!reloaded.remindersEnabled)
         #expect(reloaded.reminderTime == ReminderTime(hour: 7, minute: 30))
     }
 
     @Test func summarySettingsDefaultOnAndPersistAcrossModels() throws {
-        let defaults = ephemeralDefaults()
-        let model = try WhereModel(controller: makeController(), defaults: defaults)
+        let preferences = makePreferences()
+        let model = try WhereModel(controller: makeController(), preferences: preferences)
 
         #expect(model.summaryEnabled)
         #expect(model.summaryTime == ReminderTime.defaultMorning)
@@ -106,8 +104,8 @@ struct WhereModelMissingDaysTests {
         #expect(!model.summaryEnabled)
         #expect(model.summaryTime == ReminderTime(hour: 9, minute: 15))
 
-        // A fresh model sharing the same defaults reads back the saved values.
-        let reloaded = try WhereModel(controller: makeController(), defaults: defaults)
+        // A fresh model sharing the same preferences reads back the saved values.
+        let reloaded = try WhereModel(controller: makeController(), preferences: preferences)
         #expect(!reloaded.summaryEnabled)
         #expect(reloaded.summaryTime == ReminderTime(hour: 9, minute: 15))
     }

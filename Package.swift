@@ -49,6 +49,9 @@ let package = Package(
         ),
         .target(
             name: "WhereTesting",
+            dependencies: [
+                .target(name: "WhereCore"),
+            ],
             path: "Where/WhereTesting/Sources",
         ),
     ],

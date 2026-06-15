@@ -43,7 +43,7 @@ public final class WhereModel {
         set {
             guard newValue != remindersEnabledStorage else { return }
             remindersEnabledStorage = newValue
-            defaults.set(newValue, forKey: Self.remindersEnabledKey)
+            preferences.remindersEnabled = newValue
             Task { await applyReminderConfiguration() }
         }
     }
@@ -54,8 +54,7 @@ public final class WhereModel {
         set {
             guard newValue != reminderTimeStorage else { return }
             reminderTimeStorage = newValue
-            defaults.set(newValue.hour, forKey: Self.reminderHourKey)
-            defaults.set(newValue.minute, forKey: Self.reminderMinuteKey)
+            preferences.reminderTime = newValue
             Task { await applyReminderConfiguration() }
         }
     }
@@ -91,7 +90,7 @@ public final class WhereModel {
         set {
             guard newValue != summaryEnabledStorage else { return }
             summaryEnabledStorage = newValue
-            defaults.set(newValue, forKey: Self.summaryEnabledKey)
+            preferences.summaryEnabled = newValue
             Task { await applySummaryConfiguration() }
         }
     }
@@ -102,8 +101,7 @@ public final class WhereModel {
         set {
             guard newValue != summaryTimeStorage else { return }
             summaryTimeStorage = newValue
-            defaults.set(newValue.hour, forKey: Self.summaryHourKey)
-            defaults.set(newValue.minute, forKey: Self.summaryMinuteKey)
+            preferences.summaryTime = newValue
             Task { await applySummaryConfiguration() }
         }
     }
@@ -152,23 +150,27 @@ public final class WhereModel {
     /// tolerates the pre-attach nil by no-op'ing.
     private var controller: WhereController?
     private var authorizationTask: Task<Void, Never>?
-    private let defaults: UserDefaults
+
+    /// The persisted user intent (onboarding, tracking, reminder/summary
+    /// schedules) the model mirrors into its observable storage. Owns the
+    /// defaults keys and the `reset()` the erase flow runs.
+    let preferences: WherePreferences
     private let now: @Sendable () -> Date
 
     /// Persisted user intent to track in the background. Effective tracking is
     /// this AND `.always` authorization; we default to `true` so that, once the
     /// user grants Always, tracking resumes automatically on every launch.
     private var wantsTracking: Bool {
-        get { defaults.object(forKey: Self.wantsTrackingKey) as? Bool ?? true }
-        set { defaults.set(newValue, forKey: Self.wantsTrackingKey) }
+        get { preferences.wantsTracking }
+        set { preferences.wantsTracking = newValue }
     }
 
     /// Whether first-run onboarding has been completed. Persisted so onboarding
     /// shows exactly once; the launch flow gates its onboarding step on this,
     /// and the reset/erase flow clears it so onboarding returns.
     public private(set) var hasOnboarded: Bool {
-        get { defaults.bool(forKey: Self.hasOnboardedKey) }
-        set { defaults.set(newValue, forKey: Self.hasOnboardedKey) }
+        get { preferences.hasOnboarded }
+        set { preferences.hasOnboarded = newValue }
     }
 
     /// Mark first-run onboarding complete. Called by `OnboardingView` once the
@@ -176,15 +178,6 @@ public final class WhereModel {
     public func completeOnboarding() {
         hasOnboarded = true
     }
-
-    private static let wantsTrackingKey = "where.wantsBackgroundTracking"
-    private static let hasOnboardedKey = "where.hasOnboarded"
-    private static let remindersEnabledKey = "where.remindersEnabled"
-    private static let reminderHourKey = "where.reminderHour"
-    private static let reminderMinuteKey = "where.reminderMinute"
-    private static let summaryEnabledKey = "where.summaryEnabled"
-    private static let summaryHourKey = "where.summaryHour"
-    private static let summaryMinuteKey = "where.summaryMinute"
 
     /// Primary/secondary split of the current report, or an empty ranking
     /// while nothing is loaded.
@@ -254,16 +247,16 @@ public final class WhereModel {
 
     public init(
         selectedYear: Int = WhereModel.currentYear,
-        defaults: UserDefaults = .standard,
+        preferences: WherePreferences = WherePreferences(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.selectedYear = selectedYear
-        self.defaults = defaults
+        self.preferences = preferences
         self.now = now
-        remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
-        reminderTimeStorage = Self.loadReminderTime(from: defaults)
-        summaryEnabledStorage = Self.loadSummaryEnabled(from: defaults)
-        summaryTimeStorage = Self.loadSummaryTime(from: defaults)
+        remindersEnabledStorage = preferences.remindersEnabled
+        reminderTimeStorage = preferences.reminderTime
+        summaryEnabledStorage = preferences.summaryEnabled
+        summaryTimeStorage = preferences.summaryTime
     }
 
     /// Preview/test seam: inject an already-built controller (and optionally a
@@ -273,43 +266,19 @@ public final class WhereModel {
         controller: WhereController,
         report: YearReport? = nil,
         selectedYear: Int = WhereModel.currentYear,
-        defaults: UserDefaults = .standard,
+        preferences: WherePreferences = WherePreferences(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.controller = controller
         self.report = report
         self.selectedYear = selectedYear
-        self.defaults = defaults
+        self.preferences = preferences
         self.now = now
-        remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
-        reminderTimeStorage = Self.loadReminderTime(from: defaults)
-        summaryEnabledStorage = Self.loadSummaryEnabled(from: defaults)
-        summaryTimeStorage = Self.loadSummaryTime(from: defaults)
+        remindersEnabledStorage = preferences.remindersEnabled
+        reminderTimeStorage = preferences.reminderTime
+        summaryEnabledStorage = preferences.summaryEnabled
+        summaryTimeStorage = preferences.summaryTime
         loadState = report == nil ? .idle : .loaded
-    }
-
-    private static func loadRemindersEnabled(from defaults: UserDefaults) -> Bool {
-        defaults.object(forKey: remindersEnabledKey) as? Bool ?? true
-    }
-
-    private static func loadReminderTime(from defaults: UserDefaults) -> ReminderTime {
-        let hour = defaults.object(forKey: reminderHourKey) as? Int ?? ReminderTime.defaultEvening
-            .hour
-        let minute = defaults.object(forKey: reminderMinuteKey) as? Int
-            ?? ReminderTime.defaultEvening.minute
-        return ReminderTime(hour: hour, minute: minute)
-    }
-
-    private static func loadSummaryEnabled(from defaults: UserDefaults) -> Bool {
-        defaults.object(forKey: summaryEnabledKey) as? Bool ?? true
-    }
-
-    private static func loadSummaryTime(from defaults: UserDefaults) -> ReminderTime {
-        let hour = defaults.object(forKey: summaryHourKey) as? Int ?? ReminderTime.defaultMorning
-            .hour
-        let minute = defaults.object(forKey: summaryMinuteKey) as? Int
-            ?? ReminderTime.defaultMorning.minute
-        return ReminderTime(hour: hour, minute: minute)
     }
 
     /// Whether a controller has been attached yet. The launch's `open-store`
@@ -601,30 +570,17 @@ public final class WhereModel {
     /// schedules revert to their defaults. The preferences half of the
     /// reset/erase teardown.
     ///
-    /// Removing the keys (rather than writing `false`/`0`) lets the
-    /// default-valued getters report first-install state again; the observed
-    /// reminder/summary storage is reloaded so the Settings UI updates at once.
+    /// `WherePreferences.reset()` removes the keys (rather than writing
+    /// `false`/`0`) so the default-valued getters report first-install state
+    /// again; the observed reminder/summary storage is reloaded so the Settings
+    /// UI updates at once.
     public func resetPreferences() {
-        for key in Self.resettableDefaultsKeys {
-            defaults.removeObject(forKey: key)
-        }
-        remindersEnabledStorage = Self.loadRemindersEnabled(from: defaults)
-        reminderTimeStorage = Self.loadReminderTime(from: defaults)
-        summaryEnabledStorage = Self.loadSummaryEnabled(from: defaults)
-        summaryTimeStorage = Self.loadSummaryTime(from: defaults)
+        preferences.reset()
+        remindersEnabledStorage = preferences.remindersEnabled
+        reminderTimeStorage = preferences.reminderTime
+        summaryEnabledStorage = preferences.summaryEnabled
+        summaryTimeStorage = preferences.summaryTime
     }
-
-    /// Defaults keys cleared by `resetPreferences()`.
-    private static let resettableDefaultsKeys = [
-        hasOnboardedKey,
-        wantsTrackingKey,
-        remindersEnabledKey,
-        reminderHourKey,
-        reminderMinuteKey,
-        summaryEnabledKey,
-        summaryHourKey,
-        summaryMinuteKey,
-    ]
 
     // MARK: - Backup
 

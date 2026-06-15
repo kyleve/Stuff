@@ -8,26 +8,23 @@ import WhereUI
 
 @MainActor
 struct OnboardingModelTests {
-    private func ephemeralDefaults() -> UserDefaults {
-        let suite = "test.Onboarding.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        return defaults
+    private func makePreferences() -> WherePreferences {
+        WherePreferences(store: InMemoryKeyValueStore())
     }
 
     @Test func hasOnboardedDefaultsFalse() {
-        let model = WhereModel(defaults: ephemeralDefaults())
+        let model = WhereModel(preferences: makePreferences())
         #expect(!model.hasOnboarded)
     }
 
     @Test func completeOnboardingPersists() {
-        let defaults = ephemeralDefaults()
-        let model = WhereModel(defaults: defaults)
+        let preferences = makePreferences()
+        let model = WhereModel(preferences: preferences)
         model.completeOnboarding()
         #expect(model.hasOnboarded)
 
-        // A fresh model over the same defaults sees onboarding as done.
-        let relaunched = WhereModel(defaults: defaults)
+        // A fresh model over the same preferences sees onboarding as done.
+        let relaunched = WhereModel(preferences: preferences)
         #expect(relaunched.hasOnboarded)
     }
 }

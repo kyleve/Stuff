@@ -27,11 +27,8 @@ private func waitUntil(
 /// launch back to its first-run state.
 @MainActor
 struct WhereResetTests {
-    /// Owns every ephemeral suite this test creates and tears them down when
-    /// the per-test suite instance is released (see `EphemeralDefaults`).
-    private let defaultsStore = EphemeralDefaults()
-    private func ephemeralDefaults() -> UserDefaults {
-        defaultsStore.make("WhereReset")
+    private func makePreferences() -> WherePreferences {
+        WherePreferences(store: InMemoryKeyValueStore())
     }
 
     /// A model with an injected controller (in-memory store, no-op schedulers)
@@ -39,7 +36,7 @@ struct WhereResetTests {
     /// notification center.
     private func makeModel(
         status: LocationAuthorizationStatus = .always,
-        defaults: UserDefaults,
+        preferences: WherePreferences,
     ) throws -> WhereModel {
         let controller = try WhereController(
             store: SwiftDataStore.inMemory(),
@@ -48,17 +45,17 @@ struct WhereResetTests {
             summaryScheduler: NoopDailySummaryScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        return WhereModel(controller: controller, defaults: defaults)
+        return WhereModel(controller: controller, preferences: preferences)
     }
 
     @Test func resetSequenceErasesThenClearsPreferences() throws {
-        let model = try makeModel(defaults: ephemeralDefaults())
+        let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.resetSequence(for: model).steps.map(\.id)
         #expect(ids == ["erase-data", "reset-preferences"])
     }
 
     @Test func resetPreferencesRestoresFirstInstallDefaults() throws {
-        let model = try makeModel(defaults: ephemeralDefaults())
+        let model = try makeModel(preferences: makePreferences())
         model.completeOnboarding()
         model.remindersEnabled = false
         model.summaryEnabled = false
@@ -74,7 +71,7 @@ struct WhereResetTests {
     }
 
     @Test func eraseAllDataClearsTheStoreAndStopsTracking() async throws {
-        let model = try makeModel(status: .always, defaults: ephemeralDefaults())
+        let model = try makeModel(status: .always, preferences: makePreferences())
         model.completeOnboarding()
         await model.start()
         #expect(model.isTracking) // .always authorization resumed GPS
@@ -93,7 +90,7 @@ struct WhereResetTests {
     }
 
     @Test func resetReturnsToOnboardingWithDataErased() async throws {
-        let model = try makeModel(status: .always, defaults: ephemeralDefaults())
+        let model = try makeModel(status: .always, preferences: makePreferences())
         model.completeOnboarding()
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
@@ -129,7 +126,7 @@ struct WhereResetTests {
         // that step and never reaches reset-preferences, so the onboarding flag
         // is preserved rather than stranding the user in onboarding atop
         // un-erased data.
-        let model = try makeModel(defaults: ephemeralDefaults())
+        let model = try makeModel(preferences: makePreferences())
         model.completeOnboarding()
 
         let failing = LifecycleSteps {

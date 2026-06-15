@@ -1,21 +1,19 @@
 import Foundation
 import Testing
 import WhereCore
+import WhereTesting
 import WhereUI
 
 /// Covers that the model's launch / foreground lifecycle hooks actually drive
 /// the daily-summary configuration down to the controller's scheduler.
 @MainActor
 struct WhereModelSummaryTests {
-    private func ephemeralDefaults() -> UserDefaults {
-        let suite = "test.WhereModelSummary.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        return defaults
+    private func makePreferences() -> WherePreferences {
+        WherePreferences(store: InMemoryKeyValueStore())
     }
 
     private func makeModel(
-        defaults: UserDefaults,
+        preferences: WherePreferences,
         scheduler: SpyDailySummaryScheduler,
     ) throws -> WhereModel {
         let controller = try WhereController(
@@ -25,12 +23,12 @@ struct WhereModelSummaryTests {
             summaryScheduler: scheduler,
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        return WhereModel(controller: controller, defaults: defaults)
+        return WhereModel(controller: controller, preferences: preferences)
     }
 
     @Test func startConfiguresDailySummary() async throws {
         let spy = SpyDailySummaryScheduler()
-        let model = try makeModel(defaults: ephemeralDefaults(), scheduler: spy)
+        let model = try makeModel(preferences: makePreferences(), scheduler: spy)
 
         await model.start()
 
@@ -41,7 +39,7 @@ struct WhereModelSummaryTests {
 
     @Test func appBecameActiveConfiguresDailySummary() async throws {
         let spy = SpyDailySummaryScheduler()
-        let model = try makeModel(defaults: ephemeralDefaults(), scheduler: spy)
+        let model = try makeModel(preferences: makePreferences(), scheduler: spy)
 
         await model.appBecameActive()
 
@@ -51,7 +49,7 @@ struct WhereModelSummaryTests {
 
     @Test func startWithSummaryDisabledReconcilesDisabled() async throws {
         let spy = SpyDailySummaryScheduler()
-        let model = try makeModel(defaults: ephemeralDefaults(), scheduler: spy)
+        let model = try makeModel(preferences: makePreferences(), scheduler: spy)
         // Disabling persists synchronously, so the launch hook sees it off and
         // never requests authorization.
         model.summaryEnabled = false

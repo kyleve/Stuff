@@ -1,6 +1,7 @@
 import Foundation
 import Testing
 import WhereCore
+import WhereTesting
 import WhereUI
 
 /// Covers the launch-time reconciliation that fixes the "toggle is always off"
@@ -8,16 +9,13 @@ import WhereUI
 /// reflect real authorization + persisted intent, not just the last tap.
 @MainActor
 struct WhereModelTrackingTests {
-    private func ephemeralDefaults() -> UserDefaults {
-        let suite = "test.WhereModelTracking.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        return defaults
+    private func makePreferences() -> WherePreferences {
+        WherePreferences(store: InMemoryKeyValueStore())
     }
 
     private func makeModel(
         status: LocationAuthorizationStatus,
-        defaults: UserDefaults,
+        preferences: WherePreferences,
     ) throws -> (WhereModel, ScriptedLocationSource) {
         let source = ScriptedLocationSource(authorizationStatus: status)
         let controller = try WhereController(
@@ -27,12 +25,12 @@ struct WhereModelTrackingTests {
             summaryScheduler: NoopDailySummaryScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let model = WhereModel(controller: controller, defaults: defaults)
+        let model = WhereModel(controller: controller, preferences: preferences)
         return (model, source)
     }
 
     @Test func launchWithAlwaysResumesTracking() async throws {
-        let (model, _) = try makeModel(status: .always, defaults: ephemeralDefaults())
+        let (model, _) = try makeModel(status: .always, preferences: makePreferences())
         await model.start()
         #expect(model.authorizationStatus == .always)
         #expect(model.isTracking)
@@ -40,14 +38,14 @@ struct WhereModelTrackingTests {
     }
 
     @Test func launchWithWhenInUseDoesNotTrack() async throws {
-        let (model, _) = try makeModel(status: .whenInUse, defaults: ephemeralDefaults())
+        let (model, _) = try makeModel(status: .whenInUse, preferences: makePreferences())
         await model.start()
         #expect(model.authorizationStatus == .whenInUse)
         #expect(!model.isTracking)
     }
 
     @Test func launchWithDeniedDoesNotTrackOrAlert() async throws {
-        let (model, _) = try makeModel(status: .denied, defaults: ephemeralDefaults())
+        let (model, _) = try makeModel(status: .denied, preferences: makePreferences())
         await model.start()
         #expect(model.authorizationStatus == .denied)
         #expect(!model.isTracking)
@@ -56,23 +54,23 @@ struct WhereModelTrackingTests {
     }
 
     @Test func stoppingTrackingPersistsAcrossLaunches() async throws {
-        let defaults = ephemeralDefaults()
-        let (model, _) = try makeModel(status: .always, defaults: defaults)
+        let preferences = makePreferences()
+        let (model, _) = try makeModel(status: .always, preferences: preferences)
         await model.start()
         #expect(model.isTracking)
 
         await model.stopTracking()
         #expect(!model.isTracking)
 
-        // A fresh model sharing the same defaults should stay paused even
+        // A fresh model sharing the same preferences should stay paused even
         // though authorization is still Always.
-        let (relaunched, _) = try makeModel(status: .always, defaults: defaults)
+        let (relaunched, _) = try makeModel(status: .always, preferences: preferences)
         await relaunched.start()
         #expect(!relaunched.isTracking)
     }
 
     @Test func grantingLaterStartsTrackingViaLiveUpdates() async throws {
-        let (model, source) = try makeModel(status: .notDetermined, defaults: ephemeralDefaults())
+        let (model, source) = try makeModel(status: .notDetermined, preferences: makePreferences())
         await model.start()
         #expect(!model.isTracking)
 

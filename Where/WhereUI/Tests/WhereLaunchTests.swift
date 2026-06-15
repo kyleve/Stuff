@@ -26,11 +26,8 @@ private func waitUntil(
 /// background path.
 @MainActor
 struct WhereLaunchTests {
-    /// Owns every ephemeral suite this test creates and tears them down when
-    /// the per-test suite instance is released (see `EphemeralDefaults`).
-    private let defaultsStore = EphemeralDefaults()
-    private func ephemeralDefaults() -> UserDefaults {
-        defaultsStore.make("WhereLaunch")
+    private func makePreferences() -> WherePreferences {
+        WherePreferences(store: InMemoryKeyValueStore())
     }
 
     /// A model with an injected controller (in-memory store, no-op schedulers)
@@ -38,7 +35,7 @@ struct WhereLaunchTests {
     /// disk, or the notification center.
     private func makeModel(
         status: LocationAuthorizationStatus = .always,
-        defaults: UserDefaults,
+        preferences: WherePreferences,
     ) throws -> WhereModel {
         let controller = try WhereController(
             store: SwiftDataStore.inMemory(),
@@ -47,13 +44,13 @@ struct WhereLaunchTests {
             summaryScheduler: NoopDailySummaryScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        return WhereModel(controller: controller, defaults: defaults)
+        return WhereModel(controller: controller, preferences: preferences)
     }
 
     @Test func sequenceStepsRunInStartParityOrder() throws {
         // The work steps mirror WhereModel.start()'s order; the only insertions
         // are open-store's migration presentation and the onboarding gate.
-        let model = try makeModel(defaults: ephemeralDefaults())
+        let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.sequence(for: model).steps.map(\.id)
         #expect(ids == [
             "open-store",
@@ -68,7 +65,7 @@ struct WhereLaunchTests {
     }
 
     @Test func coldForegroundLaunchReachesReadyAndReconcilesTracking() async throws {
-        let model = try makeModel(status: .always, defaults: ephemeralDefaults())
+        let model = try makeModel(status: .always, preferences: makePreferences())
         model.completeOnboarding() // not a first run
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
@@ -79,7 +76,7 @@ struct WhereLaunchTests {
     }
 
     @Test func firstRunForegroundLaunchPresentsOnboarding() async throws {
-        let model = try makeModel(status: .notDetermined, defaults: ephemeralDefaults())
+        let model = try makeModel(status: .notDetermined, preferences: makePreferences())
         #expect(!model.hasOnboarded)
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         let task = Task { @MainActor in await launcher.run() }
@@ -94,13 +91,13 @@ struct WhereLaunchTests {
     }
 
     @Test func secondLaunchSkipsOnboarding() async throws {
-        let defaults = ephemeralDefaults()
-        let first = try makeModel(defaults: defaults)
+        let preferences = makePreferences()
+        let first = try makeModel(preferences: preferences)
         first.completeOnboarding()
 
-        // A fresh model over the same defaults sees onboarding as done, so the
+        // A fresh model over the same preferences sees onboarding as done, so the
         // gate's condition is false and the launch never parks on onboarding.
-        let model = try makeModel(defaults: defaults)
+        let model = try makeModel(preferences: preferences)
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         let task = Task { @MainActor in await launcher.run() }
         try await waitUntil { launcher.phase.isReady }
@@ -112,7 +109,7 @@ struct WhereLaunchTests {
         // Not onboarded — but a headless background launch must skip the
         // foreground-only onboarding step (waiting for a tap with no UI would
         // deadlock) and still run the rest.
-        let model = try makeModel(status: .always, defaults: ephemeralDefaults())
+        let model = try makeModel(status: .always, preferences: makePreferences())
         #expect(!model.hasOnboarded)
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .background(.location))
         await launcher.run()
