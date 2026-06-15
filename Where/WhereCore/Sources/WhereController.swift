@@ -19,6 +19,7 @@ public actor WhereController {
     private let locationSource: any LocationSource
     private let attributor: RegionAttributor
     private let aggregator: DayAggregator
+    private let reportReader: ReportReader
     private let backupService = BackupService()
     private let reminderScheduler: any LoggingReminderScheduling
     private let summaryScheduler: any DailySummaryScheduling
@@ -116,6 +117,7 @@ public actor WhereController {
         self.locationSource = locationSource
         self.attributor = attributor
         self.aggregator = aggregator
+        reportReader = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
         self.reminderScheduler = reminderScheduler
         self.summaryScheduler = summaryScheduler
         self.widgetRefresher = widgetRefresher
@@ -239,15 +241,7 @@ public actor WhereController {
     // MARK: - Reporting
 
     public func yearReport(for year: Int) async throws -> YearReport {
-        let interval = aggregator.yearInterval(year: year)
-        let samples = try await store.samples(in: interval)
-        let manuals = try await store.manualDays(in: interval)
-        return aggregator.report(
-            for: year,
-            samples: samples,
-            manualDays: manuals,
-            attributor: attributor,
-        )
+        try await reportReader.yearReport(for: year)
     }
 
     /// The raw coordinates recorded inside `region` during `year`, grouped by
@@ -255,18 +249,14 @@ public actor WhereController {
     /// Reads the same samples the report is built from; manual overlays don't
     /// contribute coordinates (see `DayAggregator.locations`).
     public func locations(in region: Region, year: Int) async throws -> [RegionDayLocations] {
-        let interval = aggregator.yearInterval(year: year)
-        let samples = try await store.samples(in: interval)
-        return aggregator.locations(in: region, samples: samples, attributor: attributor)
+        try await reportReader.locations(in: region, year: year)
     }
 
     /// One representative coordinate per region for `year` — the most heavily
     /// sampled spot in each — so the Elsewhere cards can show a "where" teaser
     /// with a single geocode per region.
     public func representativeCoordinates(for year: Int) async throws -> [Region: Coordinate] {
-        let interval = aggregator.yearInterval(year: year)
-        let samples = try await store.samples(in: interval)
-        return aggregator.representativeCoordinates(samples: samples, attributor: attributor)
+        try await reportReader.representativeCoordinates(for: year)
     }
 
     public func clearYear(_ year: Int) async throws {
