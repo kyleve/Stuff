@@ -23,8 +23,7 @@ public actor WhereController {
     private let backupService = BackupService()
     private let reminderScheduler: any LoggingReminderScheduling
     private let summaryScheduler: any DailySummaryScheduling
-    private let widgetRefresher: any WidgetTimelineRefreshing
-    private let widgetReader: WidgetDataReader
+    private let widgetPublisher: WidgetSnapshotPublisher
     private let now: @Sendable () -> Date
 
     private var ingestTask: Task<Void, Never>?
@@ -44,20 +43,6 @@ public actor WhereController {
     /// (significant-change events can fire many times a day).
     private var todayCoveredByReconcile: Date?
 
-    /// The most recently published widget snapshot and when it was published,
-    /// kept in memory so the controller can skip needless rebuilds + WidgetKit
-    /// reloads — see `publishWidgetSnapshotAfterIngest(of:)` (exact
-    /// change-detection on the hot GPS path) and `refreshWidgetSnapshot()` (a
-    /// freshness gate on passive launch/activation refreshes). Reset to `nil`
-    /// only by a cold launch (a fresh controller), which is exactly when one
-    /// publish is desirable to recover from any staleness.
-    private var lastPublished: PublishedWidgetSnapshot?
-
-    private struct PublishedWidgetSnapshot {
-        let snapshot: WidgetSnapshot
-        let publishedAt: Date
-    }
-
     /// How many days past today the per-day reminders are scheduled ahead, so a
     /// stretch where the app never runs still has reminders queued. Today plus
     /// this many days.
@@ -66,13 +51,6 @@ public actor WhereController {
     /// How many top regions the daily summary recap lists, so the notification
     /// body stays short.
     private static let summaryRegionLimit = 3
-
-    /// Maximum age of the published widget snapshot before a passive
-    /// launch/activation refresh rebuilds it on the same calendar day. The
-    /// high-frequency GPS path bypasses this via exact change-detection; this
-    /// only throttles lifecycle `refreshWidgetSnapshot()` calls so frequent
-    /// foregrounding doesn't needlessly re-pull the store and reload widgets.
-    private static let widgetSnapshotMaxAge: TimeInterval = 3 * 60 * 60
 
     private struct ReminderConfiguration {
         var enabled = false
@@ -120,14 +98,20 @@ public actor WhereController {
         reportReader = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
         self.reminderScheduler = reminderScheduler
         self.summaryScheduler = summaryScheduler
-        self.widgetRefresher = widgetRefresher
         // The reader runs in *this* (app) process and shares the controller's
         // store, calendar, and attributor so the published snapshot's day/year
         // line up with everything else the controller reports.
-        widgetReader = WidgetDataReader(
+        let widgetReader = WidgetDataReader(
             store: store,
             aggregator: aggregator,
             attributor: attributor,
+        )
+        widgetPublisher = WidgetSnapshotPublisher(
+            widgetReader: widgetReader,
+            widgetRefresher: widgetRefresher,
+            attributor: attributor,
+            calendar: aggregator.calendar,
+            now: now,
         )
         self.now = now
     }
@@ -140,7 +124,7 @@ public actor WhereController {
 
     public func ingest(_ sample: LocationSample) async throws {
         try await store.perform { try await store.add(sample: sample) }
-        await publishWidgetSnapshotAfterIngest(of: sample)
+        await widgetPublisher.publishAfterIngest(of: sample)
     }
 
     /// Persist many samples in a *single* transaction, rebuilding the widget
@@ -157,14 +141,14 @@ public actor WhereController {
                 try await store.add(sample: sample)
             }
         }
-        await publishWidgetSnapshot()
+        await widgetPublisher.publish()
     }
 
     // MARK: - Retroactive entry
 
     public func addManualSample(_ sample: LocationSample) async throws {
         try await store.perform { try await store.add(sample: sample) }
-        await publishWidgetSnapshot()
+        await widgetPublisher.publish()
     }
 
     public func addManualDay(date: Date, regions: Set<Region>) async throws {
@@ -172,7 +156,7 @@ public actor WhereController {
         let presence = DayPresence(date: key, regions: regions)
         try await store.perform { try await store.setManualDay(presence) }
         await reconcileReminders()
-        await publishWidgetSnapshot()
+        await widgetPublisher.publish()
     }
 
     /// Authoritatively set the regions for a single calendar day, *replacing*
@@ -185,7 +169,7 @@ public actor WhereController {
         let presence = DayPresence(date: key, regions: regions, isAuthoritative: true)
         try await store.perform { try await store.setManualDay(presence) }
         await reconcileReminders()
-        await publishWidgetSnapshot()
+        await widgetPublisher.publish()
     }
 
     /// Drop the manual overlay for a single calendar day, restoring the
@@ -196,7 +180,7 @@ public actor WhereController {
         let key = aggregator.calendar.startOfDay(for: date)
         try await store.perform { try await store.clearManualDay(key) }
         await reconcileReminders()
-        await publishWidgetSnapshot()
+        await widgetPublisher.publish()
     }
 
     /// Assert `regions` for every calendar day in the inclusive range
@@ -221,7 +205,7 @@ public actor WhereController {
             }
         }
         await reconcileReminders()
-        await publishWidgetSnapshot()
+        await widgetPublisher.publish()
     }
 
     // MARK: - Evidence
@@ -263,7 +247,7 @@ public actor WhereController {
         let interval = aggregator.yearInterval(year: year)
         try await store.perform { try await store.clear(in: interval) }
         await reconcileReminders()
-        await publishWidgetSnapshot()
+        await widgetPublisher.publish()
     }
 
     /// Erase every sample, manual day, and piece of evidence in the store, then
@@ -275,7 +259,7 @@ public actor WhereController {
     public func eraseAllData() async throws {
         try await store.perform { try await store.clearAll() }
         await reconcileReminders()
-        await publishWidgetSnapshot()
+        await widgetPublisher.publish()
     }
 
     /// Return the controller to a clean slate for the app's "erase all data &
@@ -399,7 +383,7 @@ public actor WhereController {
                 report()
             }
         }
-        await publishWidgetSnapshot()
+        await widgetPublisher.publish()
 
         return ImportSummary(
             sampleCount: archive.samples.count,
@@ -428,7 +412,7 @@ public actor WhereController {
         // started, before we (re)attach the stream consumer.
         let drainedDays = await drainRetryQueue()
         if !drainedDays.isEmpty {
-            await publishWidgetSnapshot()
+            await widgetPublisher.publish()
         }
         // Refresh the badge / reminders against whatever the resumed session
         // already knows about (e.g. after a background relaunch).
@@ -459,9 +443,9 @@ public actor WhereController {
             // too, so fall back to a full rebuild; otherwise let the
             // single-sample check decide whether anything changed.
             if drainedDays.isEmpty {
-                await publishWidgetSnapshotAfterIngest(of: sample)
+                await widgetPublisher.publishAfterIngest(of: sample)
             } else {
-                await publishWidgetSnapshot()
+                await widgetPublisher.publish()
             }
         } catch {
             // Persistence failures (SwiftData save, CloudKit, etc.)
@@ -552,56 +536,10 @@ public actor WhereController {
     /// writes yet this session) or when the app returns to the foreground on a
     /// new calendar day, the widget would otherwise keep showing a stale — or
     /// empty — snapshot until the next write. The app's lifecycle hooks call
-    /// this on launch and on activation to close that gap. Non-fatal on
-    /// failure (see `publishWidgetSnapshot()`).
+    /// this on launch and on activation; the publisher's freshness gate decides
+    /// whether a rebuild is actually needed.
     public func refreshWidgetSnapshot() async {
-        // Passive refresh: skip the rebuild when we already published a
-        // current-day snapshot recently. A new day, a snapshot older than
-        // `widgetSnapshotMaxAge`, or nothing published yet (cold launch) all
-        // fall through to a full rebuild.
-        if let last = lastPublished {
-            let today = aggregator.calendar.startOfDay(for: now())
-            let isFresh = now().timeIntervalSince(last.publishedAt) < Self.widgetSnapshotMaxAge
-            if last.snapshot.day == today, isFresh {
-                return
-            }
-        }
-        await publishWidgetSnapshot()
-    }
-
-    /// Recompute today's `WidgetSnapshot` from the store and hand it to the
-    /// refresher to publish + reload. Called after every committed mutation
-    /// that can change what a widget shows. A failure here is non-fatal: the
-    /// widget keeps showing its last published snapshot.
-    private func publishWidgetSnapshot() async {
-        do {
-            let snapshot = try await widgetReader.snapshot(asOf: now())
-            await widgetRefresher.publish(snapshot)
-            lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
-        } catch {
-            Self.logger.error(
-                "Failed to build widget snapshot: \(error.localizedDescription, privacy: .public)",
-            )
-        }
-    }
-
-    /// Publish after a single ingested sample, skipping the rebuild + WidgetKit
-    /// reload when the sample provably can't change what the widgets show: it
-    /// falls on the same calendar day as the last published snapshot *and*
-    /// resolves to a region that day already counts. Anything else — a new
-    /// region for the day, a sample on a different day, or no prior snapshot —
-    /// does a full rebuild. (A GPS sample is timestamped ~now, so it can only
-    /// add to its own day; a region already present means the day's regions and
-    /// the year totals are both unchanged.)
-    private func publishWidgetSnapshotAfterIngest(of sample: LocationSample) async {
-        if let last = lastPublished {
-            let day = aggregator.calendar.startOfDay(for: sample.timestamp)
-            let region = attributor.region(at: sample.coordinate)
-            if day == last.snapshot.day, last.snapshot.dayRegions.contains(region) {
-                return
-            }
-        }
-        await publishWidgetSnapshot()
+        await widgetPublisher.refreshIfStale()
     }
 
     // MARK: - Logging reminders
