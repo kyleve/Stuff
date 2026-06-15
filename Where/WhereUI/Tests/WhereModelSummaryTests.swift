@@ -5,7 +5,7 @@ import WhereTesting
 import WhereUI
 
 /// Covers that the model's launch / foreground lifecycle hooks actually drive
-/// the daily-summary configuration down to the controller's scheduler.
+/// the daily-summary configuration down to the summary reconciler's scheduler.
 @MainActor
 struct WhereModelSummaryTests {
     private func makePreferences() -> WherePreferences {
@@ -16,14 +16,14 @@ struct WhereModelSummaryTests {
         preferences: WherePreferences,
         scheduler: SpyDailySummaryScheduler,
     ) throws -> WhereModel {
-        let controller = try WhereController(
+        let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: scheduler,
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        return WhereModel(controller: controller, preferences: preferences)
+        return WhereModel(services: services, preferences: preferences)
     }
 
     @Test func startConfiguresDailySummary() async throws {

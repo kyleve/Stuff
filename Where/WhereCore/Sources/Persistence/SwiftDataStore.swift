@@ -67,7 +67,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         ///   sync.
         ///
         /// Tests that want a specific mode (or that construct stores
-        /// outside `WhereController`) should still pass `.inMemory`
+        /// outside `WhereServices`) should still pass `.inMemory`
         /// explicitly via `SwiftDataStore.inMemory()`.
         public static var `default`: Storage {
             if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {

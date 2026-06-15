@@ -3,7 +3,7 @@ import os
 
 /// Owns the daily summary recap intent and the reconciliation that recomputes
 /// the year-to-date recap text and pushes it to the summary scheduler.
-actor DailySummaryReconciler {
+public actor DailySummaryReconciler {
     private let scheduler: any DailySummaryScheduling
     private let reportReader: ReportReader
     private let calendar: Calendar
@@ -44,7 +44,7 @@ actor DailySummaryReconciler {
     /// notification permission when enabling, then reconcile the scheduled
     /// summary notification. Safe to call on every launch and whenever the user
     /// changes the setting.
-    func configure(enabled: Bool, time: ReminderTime) async {
+    public func configure(enabled: Bool, time: ReminderTime) async {
         config = Configuration(enabled: enabled, time: time)
         if enabled {
             _ = await scheduler.requestAuthorization()

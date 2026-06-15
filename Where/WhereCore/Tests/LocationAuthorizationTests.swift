@@ -3,22 +3,22 @@ import Testing
 import WhereCore
 
 struct LocationAuthorizationTests {
-    private func makeController(
+    private func makeServices(
         status: LocationAuthorizationStatus,
-    ) throws -> (WhereController, ScriptedLocationSource) {
+    ) throws -> (WhereServices, ScriptedLocationSource) {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource(authorizationStatus: status)
-        return (WhereController(store: store, locationSource: source), source)
+        return (WhereServices(store: store, locationSource: source), source)
     }
 
     @Test func authorizationStatusReflectsSource() async throws {
-        let (controller, _) = try makeController(status: .whenInUse)
-        #expect(await controller.authorizationStatus() == .whenInUse)
+        let (services, _) = try makeServices(status: .whenInUse)
+        #expect(await services.ingestor.authorizationStatus() == .whenInUse)
     }
 
     @Test func authorizationUpdatesYieldChanges() async throws {
-        let (controller, source) = try makeController(status: .notDetermined)
-        let updates = await controller.authorizationUpdates()
+        let (services, source) = try makeServices(status: .notDetermined)
+        let updates = await services.ingestor.authorizationUpdates()
         source.emitAuthorization(.always)
 
         var received: LocationAuthorizationStatus?

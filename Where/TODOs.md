@@ -14,7 +14,6 @@
 - Add snapshot images to a new test target
 
 ## P1s (Should do)
-- `WhereController` is getting quite big. Break it up into one parent controller with children.
 - `WhereModel` is also getting quite large. Break it up into one parent with children we can pass down.
 - Rewrite controller layer to be a state machine so invariants can’t exist
 - SwiftData browser
@@ -42,5 +41,6 @@
 ## P1s (Should do)
 - Export / import system (JSON? Zip?)
 - Schedule local push notifications if we haven’t recorded for the day yet
+- refactor: `WhereController` is getting quite big. Break it up into one parent controller with children. (dissolved into `WhereServices` + focused collaborators)
 
 ## P2s (Nice to have)

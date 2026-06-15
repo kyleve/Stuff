@@ -30,21 +30,21 @@ struct WhereLaunchTests {
         WherePreferences(store: InMemoryKeyValueStore())
     }
 
-    /// A model with an injected controller (in-memory store, no-op schedulers)
+    /// A model with injected services (in-memory store, no-op schedulers)
     /// so the launch sequence runs without touching real CoreLocation, the
     /// disk, or the notification center.
     private func makeModel(
         status: LocationAuthorizationStatus = .always,
         preferences: WherePreferences,
     ) throws -> WhereModel {
-        let controller = try WhereController(
+        let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(authorizationStatus: status),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        return WhereModel(controller: controller, preferences: preferences)
+        return WhereModel(services: services, preferences: preferences)
     }
 
     @Test func sequenceStepsRunInStartParityOrder() throws {

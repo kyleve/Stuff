@@ -46,12 +46,30 @@ XCTest — see the root rules).
 Public surface is small and `Sendable`; values cross the persistence
 boundary, never SwiftData records.
 
-- [`WhereController`](WhereCore/Sources/WhereController.swift) –
-  top-level actor. Composes a `WhereStore` and a `LocationSource`.
-  Owns the GPS ingestion `Task` (idempotent `startGPS()` /
-  `stopGPS()`) and a bounded retry queue for transient persistence
-  failures. Use this as the entry point — don't talk to the store
-  or location source directly from UI.
+- [`WhereServices`](WhereCore/Sources/WhereServices.swift) –
+  the feature's service layer: a small `Sendable` container assembled
+  once by `WhereBootstrap` that composes a `WhereStore` and a
+  `LocationSource` into focused collaborators. Use this as the entry
+  point — don't talk to the store or location source directly from UI.
+  Collaborators (each `WhereCore`, unit-tested in isolation):
+    - `ReportReader` (`struct`) – pure reads: `yearReport`, location
+      projections.
+    - `LocationIngestor` (`actor`) – live GPS ingestion: the monitoring
+      lifecycle (idempotent `start()` / `stop()`), the single-consumer
+      sample stream, a bounded retry queue for transient persistence
+      failures, and authorization.
+    - `DayJournal` (`actor`) – user-sourced writes: manual days, range
+      backfills, overrides, clears, evidence — each followed by its
+      reminder reconcile + widget publish.
+    - `ReminderReconciler` / `DailySummaryReconciler` (`actor`s) – the
+      notification intent + badge/schedule (and recap-body)
+      reconciliation.
+    - `WidgetSnapshotPublisher` (`actor`) – owns the published widget
+      snapshot + the rebuild/throttle policy.
+    - `BackupCoordinator` (`actor`) – backup export/import
+      (`ImportStrategy` / `ImportSummary` live here).
+  The one cross-collaborator op is `WhereServices.reset()` (stop GPS,
+  then wipe the store) — the app's erase/teardown path.
 - [`LocationSample`](WhereCore/Sources/LocationSample.swift) +
   [`SampleSource`](WhereCore/Sources/LocationSample.swift) – the
   atomic observation unit. `SampleSource` distinguishes
@@ -127,7 +145,7 @@ states.
   `loadedModel()`, `emptyModel()`, `elsewhereOnlyModel()`,
   `missingDaysModel()`, and `sampleReport()` are all synchronous, in-memory,
   and never touch disk, CloudKit, or CoreLocation. Add a new helper there
-  rather than hand-rolling a `WhereController` in a `#Preview`.
+  rather than hand-rolling `WhereServices` in a `#Preview`.
 - Views that read `WhereModel` from the environment need it injected:
   `.environment(PreviewSupport.loadedModel())` (or whichever model state the
   preview is exercising).
@@ -159,9 +177,9 @@ states.
 
 - Use the `unitTests` helper in `Project.swift`; the test bundle
   runs in `StuffTestHost` and links `WhereTesting` automatically.
-- Use `ScriptedLocationSource` to drive `WhereController` from
-  tests — never instantiate `CoreLocationSource` outside production
-  wiring.
+- Use `ScriptedLocationSource` to drive `WhereServices` (its
+  `LocationIngestor`) from tests — never instantiate
+  `CoreLocationSource` outside production wiring.
 - Use `SwiftDataStore.inMemory()` for persistence tests so you
   never touch the user's on-disk / CloudKit store.
 - UI tests that need a UIKit window go through `show(_:perform:)`

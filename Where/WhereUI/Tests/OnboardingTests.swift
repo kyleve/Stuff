@@ -33,7 +33,7 @@ struct OnboardingModelTests {
 struct OnboardingViewTests {
     @Test func onboardingViewRenders() throws {
         let model = try WhereModel(
-            controller: WhereController(
+            services: WhereServices(
                 store: SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
                 reminderScheduler: NoopLoggingReminderScheduler(),

@@ -4,7 +4,7 @@ import WhereCore
 /// Retroactively assert which regions a calendar day — or a whole range of
 /// days — belongs to. This overrides any prior manual entry for those days
 /// and unions with whatever GPS recorded (see
-/// `WhereController.addManualDay` / `addManualDays`).
+/// `DayJournal.addManualDay` / `addManualDays`).
 struct ManualDayEntryView: View {
     @Environment(WhereModel.self) private var model
     @Environment(\.dismiss) private var dismiss

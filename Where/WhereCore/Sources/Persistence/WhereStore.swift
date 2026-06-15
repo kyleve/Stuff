@@ -1,7 +1,7 @@
 import Foundation
 
 /// Persistence boundary for the Where feature. Everything that crosses
-/// this protocol is a value type, so callers (and `WhereController`)
+/// this protocol is a value type, so callers (the `WhereServices` collaborators)
 /// never see SwiftData, CoreData, or CloudKit internals.
 ///
 /// All methods are `async throws` so the production CloudKit-backed
@@ -40,10 +40,10 @@ public protocol WhereStore: Sendable {
 
     /// Set (or replace) the manual presence record for a given calendar day.
     /// Implementations should treat `day.date` as already normalized to the
-    /// start-of-day key (callers via `WhereController` do this for them).
+    /// start-of-day key (callers via `DayJournal` do this for them).
     func setManualDay(_ day: DayPresence) async throws
     /// Remove the manual presence record for a given calendar day, if any.
-    /// `date` is the start-of-day key (callers via `WhereController` normalize
+    /// `date` is the start-of-day key (callers via `DayJournal` normalize
     /// it). A no-op when no record exists. Used to undo a relabel/backfill for
     /// a single day without disturbing raw samples.
     func clearManualDay(_ date: Date) async throws
@@ -53,7 +53,7 @@ public protocol WhereStore: Sendable {
     func allManualDays() async throws -> [DayPresence]
 
     /// Erase all samples / evidence / manual entries whose timestamp lies in
-    /// the given interval. Used by `WhereController.clearYear`.
+    /// the given interval. Used by `DayJournal.clearYear`.
     func clear(in interval: DateInterval) async throws
 
     /// Erase every sample / evidence / manual entry in the store. Used by the

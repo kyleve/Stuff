@@ -2,10 +2,11 @@ import Foundation
 import Observation
 import WhereCore
 
-/// Observable view-model bridging the SwiftUI layer to the `WhereController`
-/// actor. Owns the selected year, the loaded `YearReport`, and the GPS /
-/// permission state, and funnels every mutation through the controller so the
-/// views stay free of persistence and CoreLocation details.
+/// Observable view-model bridging the SwiftUI layer to `WhereServices`.
+/// Owns the selected year, the loaded `YearReport`, and the GPS /
+/// permission state, and funnels every mutation through the services'
+/// collaborators so the views stay free of persistence and CoreLocation
+/// details.
 @MainActor
 @Observable
 public final class WhereModel {
@@ -27,7 +28,7 @@ public final class WhereModel {
     public private(set) var isTracking = false
 
     /// The latest known location authorization status, kept live via
-    /// `WhereController.authorizationUpdates()`.
+    /// `LocationIngestor.authorizationUpdates()`.
     public private(set) var authorizationStatus: LocationAuthorizationStatus = .notDetermined
 
     /// Set when a location-permission request comes back denied/restricted,
@@ -143,12 +144,12 @@ public final class WhereModel {
     /// reminders but denied permission.
     public private(set) var notificationsAuthorized = false
 
-    /// The controller the model funnels every mutation through. Nil until the
-    /// launch's `open-store` step assembles one (via `WhereBootstrap`) and
-    /// `attach(controller:)` installs it; a preview/test can inject one up
-    /// front through `init(controller:)`. Every controller-touching method
+    /// The services the model funnels every mutation through. Nil until the
+    /// launch's `open-store` step assembles them (via `WhereBootstrap`) and
+    /// `attach(services:)` installs them; a preview/test can inject them up
+    /// front through `init(services:)`. Every services-touching method
     /// tolerates the pre-attach nil by no-op'ing.
-    private var controller: WhereController?
+    private var services: WhereServices?
     private var authorizationTask: Task<Void, Never>?
 
     /// The persisted user intent (onboarding, tracking, reminder/summary
@@ -259,17 +260,17 @@ public final class WhereModel {
         summaryTimeStorage = preferences.summaryTime
     }
 
-    /// Preview/test seam: inject an already-built controller (and optionally a
+    /// Preview/test seam: inject already-built services (and optionally a
     /// preloaded report) so SwiftUI previews and unit tests skip the live
     /// SwiftData + CoreLocation wiring.
     public init(
-        controller: WhereController,
+        services: WhereServices,
         report: YearReport? = nil,
         selectedYear: Int = WhereModel.currentYear,
         preferences: WherePreferences = WherePreferences(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
-        self.controller = controller
+        self.services = services
         self.report = report
         self.selectedYear = selectedYear
         self.preferences = preferences
@@ -281,21 +282,21 @@ public final class WhereModel {
         loadState = report == nil ? .idle : .loaded
     }
 
-    /// Whether a controller has been attached yet. The launch's `open-store`
-    /// step reads this to skip assembling one when a preview/test injected a
-    /// controller up front.
-    var hasController: Bool {
-        controller != nil
+    /// Whether services have been attached yet. The launch's `open-store`
+    /// step reads this to skip assembling them when a preview/test injected
+    /// services up front.
+    var hasServices: Bool {
+        services != nil
     }
 
-    /// Install the controller the launch's `open-store` step assembled (see
-    /// `WhereBootstrap`). Idempotent — a no-op once a controller exists, so an
-    /// injected preview/test controller is never clobbered. `WhereBootstrap`
-    /// owns *building* the controller (store open + CoreLocation); the model
+    /// Install the services the launch's `open-store` step assembled (see
+    /// `WhereBootstrap`). Idempotent — a no-op once services exist, so an
+    /// injected preview/test value is never clobbered. `WhereBootstrap`
+    /// owns *building* the services (store open + CoreLocation); the model
     /// just consumes the finished value.
-    public func attach(controller: WhereController) {
-        guard self.controller == nil else { return }
-        self.controller = controller
+    public func attach(services: WhereServices) {
+        guard self.services == nil else { return }
+        self.services = services
     }
 
     /// Sync authorization, resume tracking if appropriate, then load the
@@ -304,10 +305,10 @@ public final class WhereModel {
     ///
     /// This is the imperative equivalent of `WhereLaunch.sequence`, kept for
     /// previews/tests that drive the model directly without a `LifecycleRunner`.
-    /// It assumes a controller is already attached (the tests inject one); with
-    /// no controller it no-ops, since assembling one is `WhereBootstrap`'s job.
+    /// It assumes services are already attached (the tests inject them); with
+    /// no services it no-ops, since assembling them is `WhereBootstrap`'s job.
     public func start() async {
-        guard controller != nil else { return }
+        guard services != nil else { return }
         await syncAuthorization()
         observeAuthorizationChanges()
         await reconcileTracking()
@@ -323,12 +324,12 @@ public final class WhereModel {
     /// Refresh state that can change while the app is away, including
     /// notification permission edits made in Settings and calendar-day rollover.
     ///
-    /// A no-op until the launch has built the controller: opening the store is
+    /// A no-op until the launch has built the services: opening the store is
     /// the launcher's job (the async `open-store` step), and re-opening it here
     /// would race that step on the first foreground. Subsequent foregroundings
-    /// (when the controller already exists) just refresh.
+    /// (when the services already exist) just refresh.
     public func appBecameActive() async {
-        guard controller != nil else { return }
+        guard services != nil else { return }
         await syncAuthorization()
         await reconcileTracking()
         await refresh()
@@ -343,24 +344,24 @@ public final class WhereModel {
     /// Republish the widget snapshot from whatever is on disk. A launch step
     /// in its own right (see `WhereLaunch.sequence`).
     public func refreshWidgetSnapshot() async {
-        await controller?.refreshWidgetSnapshot()
+        await services?.widgets.refreshIfStale()
     }
 
-    /// Read the current authorization status from the controller into our
+    /// Read the current authorization status from the ingestor into our
     /// observable state. Does not surface the permission alert — that's
     /// reserved for explicit user actions. A launch step (see
     /// `WhereLaunch.sequence`).
     func syncAuthorization() async {
-        guard let controller else { return }
-        authorizationStatus = await controller.authorizationStatus()
+        guard let services else { return }
+        authorizationStatus = await services.ingestor.authorizationStatus()
     }
 
     /// Subscribe to live authorization changes (prompt results, Settings-app
     /// edits) so the indicator and tracking state stay in sync. Idempotent.
     func observeAuthorizationChanges() {
-        guard authorizationTask == nil, let controller else { return }
+        guard authorizationTask == nil, let services else { return }
         authorizationTask = Task { @MainActor [weak self] in
-            let updates = await controller.authorizationUpdates()
+            let updates = await services.ingestor.authorizationUpdates()
             for await status in updates {
                 guard let self else { break }
                 authorizationStatus = status
@@ -373,12 +374,12 @@ public final class WhereModel {
     /// current authorization. Tracking only runs with Always authorization. A
     /// launch step (see `WhereLaunch.sequence`).
     func reconcileTracking() async {
-        guard let controller else { return }
+        guard let services else { return }
         if wantsTracking, authorizationStatus.allowsBackgroundTracking {
-            await controller.startGPS()
+            await services.ingestor.start()
             isTracking = true
         } else {
-            await controller.stopGPS()
+            await services.ingestor.stop()
             isTracking = false
         }
     }
@@ -393,7 +394,7 @@ public final class WhereModel {
     }
 
     public func refresh() async {
-        guard let controller else { return }
+        guard let services else { return }
         // Capture the year this fetch is for. `WhereModel` is reentrant while
         // awaiting `yearReport`, so a rapid second `select(year:)` can start a
         // newer fetch that finishes first; without this guard a slower older
@@ -401,7 +402,7 @@ public final class WhereModel {
         let requestedYear = selectedYear
         loadState = .loading
         do {
-            let report = try await controller.yearReport(for: requestedYear)
+            let report = try await services.reports.yearReport(for: requestedYear)
             guard requestedYear == selectedYear else { return }
             self.report = report
             loadState = .loaded
@@ -415,8 +416,8 @@ public final class WhereModel {
     /// caller (the entry form) can keep itself open and show the error inline
     /// instead of dismissing as if the save succeeded.
     public func setManualDay(date: Date, regions: Set<Region>) async throws {
-        guard let controller else { return }
-        try await controller.addManualDay(date: date, regions: regions)
+        guard let services else { return }
+        try await services.journal.addManualDay(date: date, regions: regions)
         await refresh()
     }
 
@@ -427,8 +428,8 @@ public final class WhereModel {
         through end: Date,
         regions: Set<Region>,
     ) async throws {
-        guard let controller else { return }
-        try await controller.addManualDays(from: start, through: end, regions: regions)
+        guard let services else { return }
+        try await services.journal.addManualDays(from: start, through: end, regions: regions)
         await refresh()
     }
 
@@ -437,8 +438,8 @@ public final class WhereModel {
     /// unioning. Throws on persistence failure so the editor can stay open and
     /// surface the error instead of dismissing as if the save succeeded.
     public func overrideDay(date: Date, regions: Set<Region>) async throws {
-        guard let controller else { return }
-        try await controller.overrideDay(date: date, regions: regions)
+        guard let services else { return }
+        try await services.journal.overrideDay(date: date, regions: regions)
         await refresh()
     }
 
@@ -446,8 +447,8 @@ public final class WhereModel {
     /// regions (the relabel "reset to GPS" action). Throws on persistence
     /// failure so the editor can stay open and surface the error.
     public func clearManualDay(date: Date) async throws {
-        guard let controller else { return }
-        try await controller.clearManualDay(date: date)
+        guard let services else { return }
+        try await services.journal.clearManualDay(date: date)
         await refresh()
     }
 
@@ -462,27 +463,27 @@ public final class WhereModel {
     /// The raw coordinates recorded inside `region` during the selected year,
     /// grouped by day, for the Elsewhere drill-in's map and place names.
     /// Returns an empty array (rather than throwing) on failure or before the
-    /// controller is wired up, so the view can simply render nothing.
+    /// services are wired up, so the view can simply render nothing.
     public func locations(in region: Region) async -> [RegionDayLocations] {
-        guard let controller else { return [] }
-        return await (try? controller.locations(in: region, year: selectedYear)) ?? []
+        guard let services else { return [] }
+        return await (try? services.reports.locations(in: region, year: selectedYear)) ?? []
     }
 
     /// One representative coordinate per region for the selected year (the
     /// most heavily sampled spot in each), for the Elsewhere cards' place-name
-    /// teaser. Empty on failure or before the controller exists.
+    /// teaser. Empty on failure or before the services exist.
     public func representativeCoordinates() async -> [Region: Coordinate] {
-        guard let controller else { return [:] }
-        return await (try? controller.representativeCoordinates(for: selectedYear)) ?? [:]
+        guard let services else { return [:] }
+        return await (try? services.reports.representativeCoordinates(for: selectedYear)) ?? [:]
     }
 
     /// Explicitly (re)request location access, e.g. from the "Grant location
     /// access" button. Drives the system prompt when possible, then syncs the
     /// status and reconciles tracking so the UI reflects the outcome.
     public func requestPermission() async {
-        guard let controller else { return }
+        guard let services else { return }
         do {
-            try await controller.requestLocationPermission()
+            try await services.ingestor.requestPermission()
             permissionDenied = false
         } catch {
             // `.denied` / `.restricted` mean re-prompting won't help, so the UI
@@ -499,10 +500,10 @@ public final class WhereModel {
     /// When-In-Use is granted the indicator guides the user to Settings; on a
     /// hard denial the Settings alert is surfaced.
     public func startTracking() async {
-        guard let controller else { return }
+        guard let services else { return }
         wantsTracking = true
         do {
-            try await controller.requestLocationPermission()
+            try await services.ingestor.requestPermission()
             permissionDenied = false
         } catch {
             permissionDenied = true
@@ -512,35 +513,35 @@ public final class WhereModel {
     }
 
     public func stopTracking() async {
-        guard let controller else { return }
+        guard let services else { return }
         wantsTracking = false
-        await controller.stopGPS()
+        await services.ingestor.stop()
         isTracking = false
     }
 
-    /// Push the current reminder intent to the controller and refresh whether
-    /// the system has granted notification permission. A launch step (see
-    /// `WhereLaunch.sequence`).
+    /// Push the current reminder intent to the reminder reconciler and refresh
+    /// whether the system has granted notification permission. A launch step
+    /// (see `WhereLaunch.sequence`).
     func applyReminderConfiguration() async {
-        guard let controller else { return }
-        await controller.configureReminders(enabled: remindersEnabled, time: reminderTime)
-        notificationsAuthorized = await controller.notificationAuthorizationGranted()
+        guard let services else { return }
+        await services.reminders.configure(enabled: remindersEnabled, time: reminderTime)
+        notificationsAuthorized = await services.reminders.isAuthorized()
     }
 
-    /// Push the current daily-summary intent to the controller and refresh
-    /// whether the system has granted notification permission. Notification
-    /// permission is global, so it shares `notificationsAuthorized` with the
-    /// logging reminder. A launch step (see `WhereLaunch.sequence`).
+    /// Push the current daily-summary intent to the summary reconciler and
+    /// refresh whether the system has granted notification permission.
+    /// Notification permission is global, so it shares `notificationsAuthorized`
+    /// with the logging reminder. A launch step (see `WhereLaunch.sequence`).
     func applySummaryConfiguration() async {
-        guard let controller else { return }
-        await controller.configureDailySummary(enabled: summaryEnabled, time: summaryTime)
-        notificationsAuthorized = await controller.notificationAuthorizationGranted()
+        guard let services else { return }
+        await services.summary.configure(enabled: summaryEnabled, time: summaryTime)
+        notificationsAuthorized = await services.reminders.isAuthorized()
     }
 
     public func clearSelectedYear() async {
-        guard let controller else { return }
+        guard let services else { return }
         do {
-            try await controller.clearYear(selectedYear)
+            try await services.journal.clearYear(selectedYear)
             await refresh()
         } catch {
             loadState = .failed(error.localizedDescription)
@@ -550,15 +551,15 @@ public final class WhereModel {
     // MARK: - Reset / erase all
 
     /// Erase all persisted data and return the app to a clean slate. A thin
-    /// pass-through to `WhereController.reset()`, which owns *what* gets cleared
+    /// pass-through to `WhereServices.reset()`, which owns *what* gets cleared
     /// (GPS stop + store wipe + reminder/badge reconcile + empty widget
     /// snapshot); the model only mirrors the outcome into its own observable
     /// state. The data half of the reset/erase teardown (see
     /// `WhereLaunch.resetSequence`); throws on persistence failure so the reset
     /// step parks the launcher in `.failed` rather than silently half-erasing.
     public func eraseAllData() async throws {
-        guard let controller else { return }
-        try await controller.reset()
+        guard let services else { return }
+        try await services.reset()
         isTracking = false
         report = nil
         loadState = .idle
@@ -621,7 +622,7 @@ public final class WhereModel {
     /// share sheet, or `nil` if the export failed (in which case `backupError`
     /// is set). The caller is responsible for the returned temporary file.
     public func exportBackup() async -> URL? {
-        guard let controller else { return nil }
+        guard let services else { return nil }
         if let previous = previousExportDirectory {
             try? FileManager.default.removeItem(at: previous)
             previousExportDirectory = nil
@@ -629,7 +630,7 @@ public final class WhereModel {
         backupState = .exporting
         defer { backupState = .idle }
         do {
-            let url = try await controller.exportBackup()
+            let url = try await services.backup.exportBackup()
             previousExportDirectory = url.deletingLastPathComponent()
             return url
         } catch {
@@ -643,9 +644,9 @@ public final class WhereModel {
     /// `nil` on failure (with `backupError` set).
     public func importBackup(
         from url: URL,
-        strategy: WhereController.ImportStrategy,
-    ) async -> WhereController.ImportSummary? {
-        guard let controller else { return nil }
+        strategy: BackupCoordinator.ImportStrategy,
+    ) async -> BackupCoordinator.ImportSummary? {
+        guard let services else { return nil }
         backupState = .importing
         backupProgress = 0
         defer {
@@ -653,8 +654,8 @@ public final class WhereModel {
             backupProgress = 0
         }
 
-        // The controller reports progress from its own executor; funnel it
-        // through an ordered stream and apply it to `backupProgress` on the
+        // The backup coordinator reports progress from its own executor; funnel
+        // it through an ordered stream and apply it to `backupProgress` on the
         // main actor so SwiftUI sees in-order, hop-free updates.
         let (progress, continuation) = AsyncStream<Double>.makeStream()
         let observer = Task { @MainActor [weak self] in
@@ -665,7 +666,7 @@ public final class WhereModel {
         defer { observer.cancel() }
 
         do {
-            let summary = try await controller.importBackup(from: url, strategy: strategy) {
+            let summary = try await services.backup.importBackup(from: url, strategy: strategy) {
                 continuation.yield($0)
             }
             continuation.finish()

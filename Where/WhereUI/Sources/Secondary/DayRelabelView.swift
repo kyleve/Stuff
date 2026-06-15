@@ -5,7 +5,7 @@ import WhereCore
 /// (which unions with GPS to backfill), saving here *overrides* the day — it
 /// replaces whatever GPS or a prior entry recorded, so a wrong attribution can
 /// be removed. The raw GPS samples are left untouched (see
-/// `WhereController.overrideDay`), so the fix is reversible.
+/// `DayJournal.overrideDay`), so the fix is reversible.
 struct DayRelabelView: View {
     @Environment(WhereModel.self) private var model
     @Environment(\.dismiss) private var dismiss

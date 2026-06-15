@@ -7,7 +7,7 @@ extension Date {
     /// an empty array when `end` falls before `self`.
     ///
     /// Used to fan a date range out into per-day keys (e.g. backfilling a trip
-    /// via `WhereController.addManualDays`).
+    /// via `DayJournal.addManualDays`).
     public func calendarDays(through end: Date, in calendar: Calendar) -> [Date] {
         let first = calendar.startOfDay(for: self)
         let last = calendar.startOfDay(for: end)

@@ -4,9 +4,8 @@
 
     /// Preview/test fixtures for `WhereUI`. Provides both a synchronous sample
     /// `YearReport` (for static display previews) and an in-memory
-    /// `WhereController` seeded via `addManualDay` (for interactive previews
-    /// that exercise the live read path) — neither touches disk, CloudKit, or
-    /// CoreLocation.
+    /// `WhereServices` (for interactive previews that exercise the live read
+    /// path) — neither touches disk, CloudKit, or CoreLocation.
     public enum PreviewSupport {
         public static let year = 2026
 
@@ -20,7 +19,7 @@
             RegionDays(region: .other, days: 7),
         ]
 
-        /// A believable `YearReport` built directly (no controller needed), so
+        /// A believable `YearReport` built directly (no services needed), so
         /// `#Preview` blocks can render real content synchronously.
         public static func sampleReport() -> YearReport {
             var calendar = Calendar(identifier: .gregorian)
@@ -41,12 +40,11 @@
             return YearReport(year: year, days: days, totals: totals)
         }
 
-        /// A ready-to-render model with the sample report injected and an
-        /// in-memory controller behind it. Synchronous, so it drops straight
-        /// into `#Preview`.
+        /// A ready-to-render model with the sample report injected and in-memory
+        /// services behind it. Synchronous, so it drops straight into `#Preview`.
         @MainActor
         public static func loadedModel() -> WhereModel {
-            let controller = WhereController(
+            let services = WhereServices(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
                 reminderScheduler: NoopLoggingReminderScheduler(),
@@ -54,17 +52,17 @@
                 widgetRefresher: NoopWidgetTimelineRefresher(),
             )
             return WhereModel(
-                controller: controller,
+                services: services,
                 report: sampleReport(),
                 selectedYear: year,
             )
         }
 
-        /// An empty model (in-memory controller, no data) for empty-state
+        /// An empty model (in-memory services, no data) for empty-state
         /// previews.
         @MainActor
         public static func emptyModel() -> WhereModel {
-            let controller = WhereController(
+            let services = WhereServices(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
                 reminderScheduler: NoopLoggingReminderScheduler(),
@@ -72,7 +70,7 @@
                 widgetRefresher: NoopWidgetTimelineRefresher(),
             )
             return WhereModel(
-                controller: controller,
+                services: services,
                 report: YearReport(year: year, days: [], totals: [:]),
                 selectedYear: year,
             )
@@ -92,7 +90,7 @@
                     regions: [.other],
                 )
             }
-            let controller = WhereController(
+            let services = WhereServices(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
                 reminderScheduler: NoopLoggingReminderScheduler(),
@@ -100,7 +98,7 @@
                 widgetRefresher: NoopWidgetTimelineRefresher(),
             )
             return WhereModel(
-                controller: controller,
+                services: services,
                 report: YearReport(year: year, days: days, totals: [.other: days.count]),
                 selectedYear: year,
             )
@@ -124,7 +122,7 @@
                     regions: [.california],
                 )
             }
-            let controller = WhereController(
+            let services = WhereServices(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
                 reminderScheduler: NoopLoggingReminderScheduler(),
@@ -132,7 +130,7 @@
                 widgetRefresher: NoopWidgetTimelineRefresher(),
             )
             return WhereModel(
-                controller: controller,
+                services: services,
                 report: YearReport(year: year, days: days, totals: [.california: days.count]),
                 selectedYear: year,
                 now: { today },

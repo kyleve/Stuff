@@ -20,7 +20,7 @@ public struct LocationPermissionDeniedError: Error, Sendable, Hashable {
     }
 }
 
-/// Abstraction over the source of `LocationSample`s. `WhereController`
+/// Abstraction over the source of `LocationSample`s. `LocationIngestor`
 /// streams from `sampleStream`; production wires a `CoreLocationSource`
 /// (Visits + significant-change), tests wire a `ScriptedLocationSource`.
 ///

@@ -14,7 +14,7 @@ import os
 ///
 /// `lastPublished` is only `nil` on a cold launch (a fresh instance), which is
 /// exactly when one publish is desirable to recover from any staleness.
-actor WidgetSnapshotPublisher {
+public actor WidgetSnapshotPublisher {
     private let widgetReader: WidgetDataReader
     private let widgetRefresher: any WidgetTimelineRefreshing
     private let attributor: RegionAttributor
@@ -62,7 +62,7 @@ actor WidgetSnapshotPublisher {
     /// current-day snapshot was published recently. A new day, a snapshot older
     /// than `maxAge`, or nothing published yet (cold launch) all fall through to
     /// a full rebuild.
-    func refreshIfStale() async {
+    public func refreshIfStale() async {
         if let last = lastPublished {
             let today = calendar.startOfDay(for: now())
             let isFresh = now().timeIntervalSince(last.publishedAt) < maxAge

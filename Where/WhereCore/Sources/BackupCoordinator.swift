@@ -4,9 +4,8 @@ import Foundation
 /// the widget snapshot after an import lands new data.
 ///
 /// Public so its `ImportStrategy` / `ImportSummary` types stay nameable from the
-/// UI (today via the transitional `WhereController` typealiases, after the
-/// dissolve directly through `WhereServices.backup`); construction stays
-/// in-module via the internal `init`.
+/// UI directly through `WhereServices.backup`; construction stays in-module via
+/// the internal `init`.
 public actor BackupCoordinator {
     /// How an imported backup combines with whatever is already on the device.
     public enum ImportStrategy: Sendable {
@@ -44,7 +43,7 @@ public actor BackupCoordinator {
     /// Serialize the entire store (all three tables plus evidence blobs) to a
     /// `.zip` in the temporary directory and return its URL. The caller owns the
     /// file: share it, then delete it (or its parent directory).
-    func exportBackup() async throws -> URL {
+    public func exportBackup() async throws -> URL {
         let samples = try await store.allSamples()
         let evidence = try await store.allEvidence()
         let manualDays = try await store.allManualDays()
@@ -73,7 +72,7 @@ public actor BackupCoordinator {
     /// throttled to whole-percent changes so a large import doesn't flood the
     /// caller. It runs on the store's executor; a UI caller should marshal it
     /// back to the main actor (e.g. via an `AsyncStream`).
-    func importBackup(
+    public func importBackup(
         from url: URL,
         strategy: ImportStrategy,
         onProgress: @Sendable (Double) -> Void = { _ in },

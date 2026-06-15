@@ -14,12 +14,12 @@ struct WhereModelBackupTests {
         )!
     }
 
-    private func seed(_ controller: WhereController) async throws {
-        try await controller.addManualDay(
+    private func seed(_ services: WhereServices) async throws {
+        try await services.journal.addManualDay(
             date: date(year: 2026, month: 3, day: 1),
             regions: [.california],
         )
-        try await controller.addEvidence(
+        try await services.journal.addEvidence(
             Evidence(
                 kind: .boardingPass,
                 capturedAt: date(year: 2026, month: 3, day: 1),
@@ -32,9 +32,9 @@ struct WhereModelBackupTests {
 
     @Test func exportThenImportRoundTripsThroughTheModel() async throws {
         let sourceStore = try SwiftDataStore.inMemory()
-        let source = WhereController(store: sourceStore, locationSource: ScriptedLocationSource())
+        let source = WhereServices(store: sourceStore, locationSource: ScriptedLocationSource())
         try await seed(source)
-        let sourceModel = WhereModel(controller: source, selectedYear: 2026)
+        let sourceModel = WhereModel(services: source, selectedYear: 2026)
 
         let url = try #require(await sourceModel.exportBackup())
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
@@ -42,11 +42,11 @@ struct WhereModelBackupTests {
         #expect(sourceModel.backupError == nil)
 
         let destinationStore = try SwiftDataStore.inMemory()
-        let destination = WhereController(
+        let destination = WhereServices(
             store: destinationStore,
             locationSource: ScriptedLocationSource(),
         )
-        let destinationModel = WhereModel(controller: destination, selectedYear: 2026)
+        let destinationModel = WhereModel(services: destination, selectedYear: 2026)
 
         let summary = try #require(
             await destinationModel.importBackup(from: url, strategy: .merge),
@@ -61,8 +61,8 @@ struct WhereModelBackupTests {
 
     @Test func importingABogusFileSetsBackupError() async throws {
         let store = try SwiftDataStore.inMemory()
-        let controller = WhereController(store: store, locationSource: ScriptedLocationSource())
-        let model = WhereModel(controller: controller, selectedYear: 2026)
+        let services = WhereServices(store: store, locationSource: ScriptedLocationSource())
+        let model = WhereModel(services: services, selectedYear: 2026)
 
         let bogus = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(UUID().uuidString).zip")

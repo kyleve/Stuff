@@ -17,7 +17,7 @@ struct WhereModelRefreshTests {
 
     @Test func staleYearFetchDoesNotOverwriteNewerSelection() async throws {
         let store = try TestStore()
-        let controller = WhereController(
+        let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
@@ -25,16 +25,16 @@ struct WhereModelRefreshTests {
         )
 
         // Seed each year with a distinct region so we can tell which report won.
-        try await controller.addManualDay(
+        try await services.journal.addManualDay(
             date: date(year: 2024, month: 3, day: 1),
             regions: [.newYork],
         )
-        try await controller.addManualDay(
+        try await services.journal.addManualDay(
             date: date(year: 2026, month: 3, day: 1),
             regions: [.california],
         )
 
-        let model = WhereModel(controller: controller, selectedYear: 2026)
+        let model = WhereModel(services: services, selectedYear: 2026)
         await store.enableFirstSamplesGate()
 
         // Start the 2024 fetch; it suspends inside the gated `samples(in:)`.
@@ -59,13 +59,13 @@ struct WhereModelRefreshTests {
     @Test func failedManualSaveThrowsAndLeavesLoadStateAlone() async throws {
         let store = try TestStore()
         await store.failManualDays()
-        let controller = WhereController(
+        let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let model = WhereModel(controller: controller, selectedYear: 2026)
+        let model = WhereModel(services: services, selectedYear: 2026)
 
         await #expect(throws: ManualSaveFailure.self) {
             try await model.setManualDay(
@@ -82,13 +82,13 @@ struct WhereModelRefreshTests {
     @Test func failedManualRangeSaveThrows() async throws {
         let store = try TestStore()
         await store.failManualDays()
-        let controller = WhereController(
+        let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let model = WhereModel(controller: controller, selectedYear: 2026)
+        let model = WhereModel(services: services, selectedYear: 2026)
 
         await #expect(throws: ManualSaveFailure.self) {
             try await model.setManualDays(
@@ -120,7 +120,7 @@ struct WhereModelRefreshTests {
         #expect(await refresher.lastSnapshot?.totals == [.california: 1])
     }
 
-    /// A model whose controller already holds one California day (seeded
+    /// A model whose services already hold one California day (seeded
     /// straight into the store so nothing is published yet), wired to a spy
     /// refresher and a fixed "now" so the year report is deterministic.
     private func makePublishingModel() async throws -> (WhereModel, SpyWidgetRefresher) {
@@ -131,7 +131,7 @@ struct WhereModelRefreshTests {
         try await store.perform { try await store.setManualDay(seed) }
         let refresher = SpyWidgetRefresher()
         let now = date(year: 2026, month: 3, day: 15)
-        let controller = WhereController(
+        let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
@@ -139,11 +139,11 @@ struct WhereModelRefreshTests {
             widgetRefresher: refresher,
             now: { now },
         )
-        return (WhereModel(controller: controller, selectedYear: 2026), refresher)
+        return (WhereModel(services: services, selectedYear: 2026), refresher)
     }
 }
 
-/// Captures the snapshots published through the controller so the model's
+/// Captures the snapshots published through the widget publisher so the model's
 /// launch/activation hooks can be checked for republishing widget data.
 private actor SpyWidgetRefresher: WidgetTimelineRefreshing {
     private(set) var publishedSnapshots: [WidgetSnapshot] = []

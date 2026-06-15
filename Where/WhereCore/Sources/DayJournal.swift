@@ -7,7 +7,7 @@ import Foundation
 /// Every write runs inside a single `store.perform` transaction and then
 /// *awaits* its reminder reconcile / widget publish in sequence, so the existing
 /// "a write fully commits before a reconcile/publish reads it" property holds.
-actor DayJournal {
+public actor DayJournal {
     private let store: any WhereStore
     private let aggregator: DayAggregator
     private let reminders: ReminderReconciler
@@ -27,7 +27,7 @@ actor DayJournal {
 
     // MARK: - Ingestion
 
-    func ingest(_ sample: LocationSample) async throws {
+    public func ingest(_ sample: LocationSample) async throws {
         try await store.perform { try await store.add(sample: sample) }
         await widgets.publishAfterIngest(of: sample)
     }
@@ -38,7 +38,7 @@ actor DayJournal {
     /// apart), but bulk loads — test fixtures, future bulk imports — would
     /// otherwise open one transaction *and* re-aggregate the whole year per
     /// sample, which is quadratic in the batch size. An empty batch is a no-op.
-    func ingest(_ samples: [LocationSample]) async throws {
+    public func ingest(_ samples: [LocationSample]) async throws {
         guard !samples.isEmpty else { return }
         try await store.perform {
             for sample in samples {
@@ -50,12 +50,12 @@ actor DayJournal {
 
     // MARK: - Retroactive entry
 
-    func addManualSample(_ sample: LocationSample) async throws {
+    public func addManualSample(_ sample: LocationSample) async throws {
         try await store.perform { try await store.add(sample: sample) }
         await widgets.publish()
     }
 
-    func addManualDay(date: Date, regions: Set<Region>) async throws {
+    public func addManualDay(date: Date, regions: Set<Region>) async throws {
         let key = aggregator.calendar.startOfDay(for: date)
         let presence = DayPresence(date: key, regions: regions)
         try await store.perform { try await store.setManualDay(presence) }
@@ -68,7 +68,7 @@ actor DayJournal {
     /// `addManualDay`, this does not union with GPS — it's the "correct a wrong
     /// attribution" path. The raw GPS samples are left untouched, so the fix is
     /// non-destructive and undone by `clearManualDay(date:)`.
-    func overrideDay(date: Date, regions: Set<Region>) async throws {
+    public func overrideDay(date: Date, regions: Set<Region>) async throws {
         let key = aggregator.calendar.startOfDay(for: date)
         let presence = DayPresence(date: key, regions: regions, isAuthoritative: true)
         try await store.perform { try await store.setManualDay(presence) }
@@ -80,7 +80,7 @@ actor DayJournal {
     /// GPS-derived attribution (the relabel "reset to GPS" path). A no-op when
     /// the day has no manual record. Raw samples are never touched, so this
     /// simply lets the aggregator fall back to whatever GPS recorded.
-    func clearManualDay(date: Date) async throws {
+    public func clearManualDay(date: Date) async throws {
         let key = aggregator.calendar.startOfDay(for: date)
         try await store.perform { try await store.clearManualDay(key) }
         await reminders.reconcile()
@@ -93,7 +93,7 @@ actor DayJournal {
     /// written inside a single `perform` transaction so the backfill commits
     /// (or rolls back) atomically. A `start` later than `end` is treated as an
     /// empty range and writes nothing.
-    func addManualDays(
+    public func addManualDays(
         from start: Date,
         through end: Date,
         regions: Set<Region>,
@@ -114,7 +114,7 @@ actor DayJournal {
 
     // MARK: - Clearing
 
-    func clearYear(_ year: Int) async throws {
+    public func clearYear(_ year: Int) async throws {
         let interval = aggregator.yearInterval(year: year)
         try await store.perform { try await store.clear(in: interval) }
         await reminders.reconcile()
@@ -126,7 +126,7 @@ actor DayJournal {
     /// snapshot. The store half of the app's reset/erase teardown. Mirrors
     /// `clearYear`'s reconciliation so the badge/reminders reflect the now-empty
     /// store immediately rather than relying on a later launch step.
-    func eraseAllData() async throws {
+    public func eraseAllData() async throws {
         try await store.perform { try await store.clearAll() }
         await reminders.reconcile()
         await widgets.publish()
@@ -134,15 +134,15 @@ actor DayJournal {
 
     // MARK: - Evidence
 
-    func addEvidence(_ evidence: Evidence, blob: Data? = nil) async throws {
+    public func addEvidence(_ evidence: Evidence, blob: Data? = nil) async throws {
         try await store.perform { try await store.write(evidence: evidence, blob: blob) }
     }
 
-    func evidence(for year: Int) async throws -> [Evidence] {
+    public func evidence(for year: Int) async throws -> [Evidence] {
         try await store.evidence(in: aggregator.yearInterval(year: year))
     }
 
-    func evidenceBlob(for id: UUID) async throws -> Data? {
+    public func evidenceBlob(for id: UUID) async throws -> Data? {
         try await store.evidenceBlob(for: id)
     }
 }

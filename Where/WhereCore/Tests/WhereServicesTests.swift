@@ -2,24 +2,31 @@ import Foundation
 import Testing
 import WhereCore
 
-struct WhereControllerTests {
+/// Integration coverage for the assembled `WhereServices`: the cross-collaborator
+/// wiring that no single focused suite owns — the ingestor's post-persist hook
+/// fanning out to reminders + widgets, the exact backlog/badge math across the
+/// journal + report reader + reminder reconciler, the daily-summary recap body,
+/// and the `reset()` teardown. The per-collaborator suites (DayJournalTests,
+/// BackupCoordinatorTests, ReminderReconcilerTests, …) cover each piece in
+/// isolation; these prove they work together once `WhereServices` glues them up.
+struct WhereServicesTests {
     private static let pacific = TimeZone(identifier: "America/Los_Angeles")!
 
     private static func makeAggregator() -> DayAggregator {
         DayAggregator(calendar: Calendar(identifier: .gregorian), timeZone: pacific)
     }
 
-    private static func makeController() throws
-        -> (WhereController, SwiftDataStore, ScriptedLocationSource)
+    private static func makeServices() throws
+        -> (WhereServices, SwiftDataStore, ScriptedLocationSource)
     {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource()
-        let controller = WhereController(
+        let services = WhereServices(
             store: store,
             locationSource: source,
             aggregator: makeAggregator(),
         )
-        return (controller, store, source)
+        return (services, store, source)
     }
 
     private static var pacificCalendar: Calendar {
@@ -28,33 +35,33 @@ struct WhereControllerTests {
         return calendar
     }
 
-    /// Build a controller with a spy scheduler and a frozen `now` so the
+    /// Build services with a spy scheduler and a frozen `now` so the
     /// reminder/badge reconciliation is deterministic.
-    private static func makeReminderController(
+    private static func makeReminderServices(
         now: Date,
         scheduler: SpyReminderScheduler,
-    ) throws -> (WhereController, SwiftDataStore, ScriptedLocationSource) {
+    ) throws -> (WhereServices, SwiftDataStore, ScriptedLocationSource) {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource()
-        let controller = WhereController(
+        let services = WhereServices(
             store: store,
             locationSource: source,
             aggregator: makeAggregator(),
             reminderScheduler: scheduler,
             now: { now },
         )
-        return (controller, store, source)
+        return (services, store, source)
     }
 
-    /// Build a controller with a spy daily-summary scheduler and a frozen `now`
+    /// Build services with a spy daily-summary scheduler and a frozen `now`
     /// so the recap reconciliation is deterministic.
-    private static func makeSummaryController(
+    private static func makeSummaryServices(
         now: Date,
         scheduler: SpyDailySummaryScheduler,
-    ) throws -> (WhereController, SwiftDataStore, ScriptedLocationSource) {
+    ) throws -> (WhereServices, SwiftDataStore, ScriptedLocationSource) {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource()
-        let controller = WhereController(
+        let services = WhereServices(
             store: store,
             locationSource: source,
             aggregator: makeAggregator(),
@@ -62,27 +69,27 @@ struct WhereControllerTests {
             summaryScheduler: scheduler,
             now: { now },
         )
-        return (controller, store, source)
+        return (services, store, source)
     }
 
     @Test func ingestStoresSamplesAndReportsThem() async throws {
-        let (controller, _, _) = try Self.makeController()
+        let (services, _, _) = try Self.makeServices()
         let sf = LocationSample(
             timestamp: iso("2026-03-15T12:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .manual,
         )
-        try await controller.ingest(sf)
+        try await services.journal.ingest(sf)
 
-        let report = try await controller.yearReport(for: 2026)
+        let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.count == 1)
         #expect(report.days.first?.regions == [.california])
         #expect(report.totals == [.california: 1])
     }
 
     @Test func batchIngestPersistsEverySampleInOneTransaction() async throws {
-        let (controller, _, _) = try Self.makeController()
+        let (services, _, _) = try Self.makeServices()
         let sf = Coordinate(latitude: 37.7749, longitude: -122.4194)
         let nyc = Coordinate(latitude: 40.7128, longitude: -74.0060)
         let samples = [
@@ -105,36 +112,36 @@ struct WhereControllerTests {
                 source: .gpsSignificantChange,
             ),
         ]
-        try await controller.ingest(samples)
+        try await services.journal.ingest(samples)
 
-        let report = try await controller.yearReport(for: 2026)
+        let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.count == 3)
         #expect(report.totals == [.california: 2, .newYork: 1])
     }
 
     @Test func batchIngestOfEmptyArrayIsANoOp() async throws {
-        let (controller, _, _) = try Self.makeController()
-        try await controller.ingest([LocationSample]())
+        let (services, _, _) = try Self.makeServices()
+        try await services.journal.ingest([LocationSample]())
 
-        let report = try await controller.yearReport(for: 2026)
+        let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.isEmpty)
         #expect(report.totals.isEmpty)
     }
 
     @Test func manualDayUnionsWithSamples() async throws {
-        let (controller, _, _) = try Self.makeController()
-        try await controller.ingest(LocationSample(
+        let (services, _, _) = try Self.makeServices()
+        try await services.journal.ingest(LocationSample(
             timestamp: iso("2026-07-04T10:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .manual,
         ))
-        try await controller.addManualDay(
+        try await services.journal.addManualDay(
             date: iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
         )
 
-        let report = try await controller.yearReport(for: 2026)
+        let report = try await services.reports.yearReport(for: 2026)
         let july4 = report.days.first { day in
             var cal = Calendar(identifier: .gregorian)
             cal.timeZone = TimeZone(identifier: "America/Los_Angeles") ?? .gmt
@@ -145,12 +152,12 @@ struct WhereControllerTests {
     }
 
     @Test func manualDayReplacesOnSecondCall() async throws {
-        let (controller, _, _) = try Self.makeController()
+        let (services, _, _) = try Self.makeServices()
         let date = iso("2026-07-04T15:00:00-07:00")
-        try await controller.addManualDay(date: date, regions: [.california])
-        try await controller.addManualDay(date: date, regions: [.newYork])
+        try await services.journal.addManualDay(date: date, regions: [.california])
+        try await services.journal.addManualDay(date: date, regions: [.newYork])
 
-        let report = try await controller.yearReport(for: 2026)
+        let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.count == 1)
         // Second call should replace, not union, when there are no
         // GPS samples on the day — proves the store-level upsert on
@@ -160,31 +167,31 @@ struct WhereControllerTests {
     }
 
     @Test func overrideDayReplacesGPSAttribution() async throws {
-        let (controller, _, _) = try Self.makeController()
+        let (services, _, _) = try Self.makeServices()
         // A stray GPS sample lands the day in California.
-        try await controller.ingest(LocationSample(
+        try await services.journal.ingest(LocationSample(
             timestamp: iso("2026-07-04T10:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsVisit,
         ))
         // The user corrects it to New York.
-        try await controller.overrideDay(
+        try await services.journal.overrideDay(
             date: iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
         )
 
-        let report = try await controller.yearReport(for: 2026)
+        let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.count == 1)
         #expect(report.days.first?.regions == [.newYork])
         #expect(report.totals == [.newYork: 1])
     }
 
     @Test func overrideDayKeepsRawSamplesForUndo() async throws {
-        let (controller, store, _) = try Self.makeController()
+        let (services, store, _) = try Self.makeServices()
         let stray = sample(at: "2026-07-04T10:00:00-07:00")
-        try await controller.ingest(stray)
-        try await controller.overrideDay(
+        try await services.journal.ingest(stray)
+        try await services.journal.overrideDay(
             date: iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
         )
@@ -195,57 +202,57 @@ struct WhereControllerTests {
     }
 
     @Test func clearManualDayRestoresGPSAttribution() async throws {
-        let (controller, _, _) = try Self.makeController()
+        let (services, _, _) = try Self.makeServices()
         // GPS puts the day in California.
-        try await controller.ingest(LocationSample(
+        try await services.journal.ingest(LocationSample(
             timestamp: iso("2026-07-04T10:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsVisit,
         ))
         // The user wrongly relabels it to New York, then resets to GPS.
-        try await controller.overrideDay(
+        try await services.journal.overrideDay(
             date: iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
         )
-        try await controller.clearManualDay(date: iso("2026-07-04T15:00:00-07:00"))
+        try await services.journal.clearManualDay(date: iso("2026-07-04T15:00:00-07:00"))
 
-        let report = try await controller.yearReport(for: 2026)
+        let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.first?.regions == [.california])
         #expect(report.totals == [.california: 1])
     }
 
     @Test func clearManualDayIsANoOpWithoutAManualRecord() async throws {
-        let (controller, _, _) = try Self.makeController()
-        try await controller.clearManualDay(date: iso("2026-07-04T15:00:00-07:00"))
+        let (services, _, _) = try Self.makeServices()
+        try await services.journal.clearManualDay(date: iso("2026-07-04T15:00:00-07:00"))
 
-        let report = try await controller.yearReport(for: 2026)
+        let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.isEmpty)
     }
 
     @Test func additiveBackfillPreservesAnAuthoritativeRelabel() async throws {
-        let (controller, _, _) = try Self.makeController()
+        let (services, _, _) = try Self.makeServices()
         // GPS lands July 4 in California *and* New York (a stray cross-country hit).
-        try await controller.ingest(sample(at: "2026-07-04T10:00:00-07:00"))
-        try await controller.ingest(LocationSample(
+        try await services.journal.ingest(sample(at: "2026-07-04T10:00:00-07:00"))
+        try await services.journal.ingest(LocationSample(
             timestamp: iso("2026-07-04T20:00:00-04:00"),
             coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
             horizontalAccuracy: 5,
             source: .gpsVisit,
         ))
         // The user corrects the day to California only, removing the wrong NY hit.
-        try await controller.overrideDay(
+        try await services.journal.overrideDay(
             date: iso("2026-07-04T15:00:00-07:00"),
             regions: [.california],
         )
         // A later range backfill (Canada) sweeps over the same corrected day.
-        try await controller.addManualDays(
+        try await services.journal.addManualDays(
             from: iso("2026-07-01T00:00:00-07:00"),
             through: iso("2026-07-07T00:00:00-07:00"),
             regions: [.canada],
         )
 
-        let report = try await controller.yearReport(for: 2026)
+        let report = try await services.reports.yearReport(for: 2026)
         let july4 = report.days.first {
             Self.pacificCalendar.isDate($0.date, inSameDayAs: iso("2026-07-04T12:00:00-07:00"))
         }
@@ -255,14 +262,14 @@ struct WhereControllerTests {
     }
 
     @Test func addManualDaysBackfillsEveryDayInRange() async throws {
-        let (controller, _, _) = try Self.makeController()
-        try await controller.addManualDays(
+        let (services, _, _) = try Self.makeServices()
+        try await services.journal.addManualDays(
             from: iso("2026-02-10T09:00:00-08:00"),
             through: iso("2026-02-14T20:00:00-08:00"),
             regions: [.newYork],
         )
 
-        let report = try await controller.yearReport(for: 2026)
+        let report = try await services.reports.yearReport(for: 2026)
         // Feb 10–14 inclusive is five days, each attributed to New York.
         #expect(report.days.count == 5)
         #expect(report.totals == [.newYork: 5])
@@ -270,49 +277,49 @@ struct WhereControllerTests {
     }
 
     @Test func addManualDaysWithStartAfterEndWritesNothing() async throws {
-        let (controller, _, _) = try Self.makeController()
-        try await controller.addManualDays(
+        let (services, _, _) = try Self.makeServices()
+        try await services.journal.addManualDays(
             from: iso("2026-02-14T00:00:00-08:00"),
             through: iso("2026-02-10T00:00:00-08:00"),
             regions: [.california],
         )
 
-        let report = try await controller.yearReport(for: 2026)
+        let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.isEmpty)
         #expect(report.totals.isEmpty)
     }
 
     @Test func addManualDaysSameStartAndEndWritesOneDay() async throws {
-        let (controller, _, _) = try Self.makeController()
-        try await controller.addManualDays(
+        let (services, _, _) = try Self.makeServices()
+        try await services.journal.addManualDays(
             from: iso("2026-02-10T06:00:00-08:00"),
             through: iso("2026-02-10T23:00:00-08:00"),
             regions: [.california],
         )
 
-        let report = try await controller.yearReport(for: 2026)
+        let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.count == 1)
         #expect(report.totals == [.california: 1])
     }
 
     @Test func clearYearWipesAndReportsEmpty() async throws {
-        let (controller, _, _) = try Self.makeController()
-        try await controller.ingest(LocationSample(
+        let (services, _, _) = try Self.makeServices()
+        try await services.journal.ingest(LocationSample(
             timestamp: iso("2026-03-15T12:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .manual,
         ))
-        try await controller.clearYear(2026)
-        let report = try await controller.yearReport(for: 2026)
+        try await services.journal.clearYear(2026)
+        let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.isEmpty)
         #expect(report.totals.isEmpty)
     }
 
     @Test func eraseAllDataWipesEveryYear() async throws {
-        let (controller, _, _) = try Self.makeController()
+        let (services, _, _) = try Self.makeServices()
         for year in [2024, 2025, 2026] {
-            try await controller.ingest(LocationSample(
+            try await services.journal.ingest(LocationSample(
                 timestamp: iso("\(year)-03-15T12:00:00-07:00"),
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
@@ -320,28 +327,28 @@ struct WhereControllerTests {
             ))
         }
 
-        try await controller.eraseAllData()
+        try await services.journal.eraseAllData()
 
         // Unlike clearYear, the wipe spans every year, not just the selected one.
         for year in [2024, 2025, 2026] {
-            let report = try await controller.yearReport(for: year)
+            let report = try await services.reports.yearReport(for: year)
             #expect(report.days.isEmpty)
             #expect(report.totals.isEmpty)
         }
     }
 
     @Test func resetStopsTrackingAndWipesTheStore() async throws {
-        let (controller, _, source) = try Self.makeController()
-        await controller.startGPS()
+        let (services, _, source) = try Self.makeServices()
+        await services.ingestor.start()
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
-        try await waitUntil { try await controller.yearReport(for: 2026).days.count == 1 }
-        #expect(await controller.isTrackingActive)
+        try await waitUntil { try await services.reports.yearReport(for: 2026).days.count == 1 }
+        #expect(await services.ingestor.isActive)
 
-        try await controller.reset()
+        try await services.reset()
 
         // reset() owns the full teardown: GPS stopped and every year wiped.
-        #expect(await !(controller.isTrackingActive))
-        let report = try await controller.yearReport(for: 2026)
+        #expect(await !(services.ingestor.isActive))
+        let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.isEmpty)
         #expect(report.totals.isEmpty)
     }
@@ -350,12 +357,12 @@ struct WhereControllerTests {
         let backing = try SwiftDataStore.inMemory()
         let store = ToggleFailingStore(backing: backing)
         let source = ScriptedLocationSource()
-        let controller = WhereController(
+        let services = WhereServices(
             store: store,
             locationSource: source,
             aggregator: Self.makeAggregator(),
         )
-        await controller.startGPS()
+        await services.ingestor.start()
 
         let sampleA = LocationSample(
             timestamp: iso("2026-03-15T12:00:00-07:00"),
@@ -372,7 +379,7 @@ struct WhereControllerTests {
         await store.setShouldFail(true)
         source.emit(sampleA)
         source.emit(sampleB)
-        try await waitUntil { await controller.retryQueueDepth == 2 }
+        try await waitUntil { await services.ingestor.retryQueueDepth == 2 }
         #expect(await store.persistedCount == 0)
 
         await store.setShouldFail(false)
@@ -387,32 +394,32 @@ struct WhereControllerTests {
         // briefly hits 0 mid-drain — the queue is cleared before sampleC is
         // persisted — so waiting on it instead races the final write.
         try await waitUntil { await store.persistedCount == 3 }
-        #expect(await controller.retryQueueDepth == 0)
+        #expect(await services.ingestor.retryQueueDepth == 0)
 
-        await controller.stopGPS()
+        await services.ingestor.stop()
     }
 
     @Test func trackingResumesAfterPauseWithoutDroppingSamples() async throws {
-        let (controller, _, source) = try Self.makeController()
+        let (services, _, source) = try Self.makeServices()
 
-        await controller.startGPS()
+        await services.ingestor.start()
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
-        try await waitUntil { try await controller.yearReport(for: 2026).days.count == 1 }
+        try await waitUntil { try await services.reports.yearReport(for: 2026).days.count == 1 }
 
         // Pause, then resume. A naive implementation cancels the stream
         // consumer here, leaving the resumed session iterating a finished
         // stream so this second sample would be silently dropped.
-        await controller.stopGPS()
-        let pausedActive = await controller.isTrackingActive
+        await services.ingestor.stop()
+        let pausedActive = await services.ingestor.isActive
         #expect(!pausedActive)
-        await controller.startGPS()
-        let resumedActive = await controller.isTrackingActive
+        await services.ingestor.start()
+        let resumedActive = await services.ingestor.isActive
         #expect(resumedActive)
 
         source.emit(sample(at: "2026-03-16T12:00:00-07:00"))
-        try await waitUntil { try await controller.yearReport(for: 2026).days.count == 2 }
+        try await waitUntil { try await services.reports.yearReport(for: 2026).days.count == 2 }
 
-        await controller.stopGPS()
+        await services.ingestor.stop()
     }
 
     @Test func performThrow_rollsBackEntireTransaction() async throws {
@@ -467,8 +474,8 @@ struct WhereControllerTests {
         )
     }
 
-    @Test func evidenceRoundTripsViaController() async throws {
-        let (controller, _, _) = try Self.makeController()
+    @Test func evidenceRoundTripsViaJournal() async throws {
+        let (services, _, _) = try Self.makeServices()
         let evidence = Evidence(
             kind: .planeTicket,
             capturedAt: iso("2026-04-10T08:00:00-07:00"),
@@ -477,12 +484,12 @@ struct WhereControllerTests {
             contentType: .plainText,
         )
         let blob = Data("ticket pdf".utf8)
-        try await controller.addEvidence(evidence, blob: blob)
+        try await services.journal.addEvidence(evidence, blob: blob)
 
-        let fetched = try await controller.evidence(for: 2026)
+        let fetched = try await services.journal.evidence(for: 2026)
         #expect(fetched == [evidence])
 
-        let fetchedBlob = try await controller.evidenceBlob(for: evidence.id)
+        let fetchedBlob = try await services.journal.evidenceBlob(for: evidence.id)
         #expect(fetchedBlob == blob)
     }
 
@@ -498,26 +505,26 @@ struct WhereControllerTests {
     )
     private static let backupBlob = Data("boarding-pass-pdf".utf8)
 
-    /// Seed a controller's store with one sample, one evidence (with a blob),
+    /// Seed a journal's store with one sample, one evidence (with a blob),
     /// and one manual day so backup tests have all three tables populated.
-    private func seedBackupData(_ controller: WhereController) async throws {
-        try await controller.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
-        try await controller.addEvidence(Self.backupEvidence, blob: Self.backupBlob)
-        try await controller.addManualDay(
+    private func seedBackupData(_ services: WhereServices) async throws {
+        try await services.journal.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await services.journal.addEvidence(Self.backupEvidence, blob: Self.backupBlob)
+        try await services.journal.addManualDay(
             date: iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
         )
     }
 
     @Test func backupExportThenMergeImportReproducesEveryTable() async throws {
-        let (source, sourceStore, _) = try Self.makeController()
+        let (source, sourceStore, _) = try Self.makeServices()
         try await seedBackupData(source)
 
-        let url = try await source.exportBackup()
+        let url = try await source.backup.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
-        let (destination, destinationStore, _) = try Self.makeController()
-        let summary = try await destination.importBackup(from: url, strategy: .merge)
+        let (destination, destinationStore, _) = try Self.makeServices()
+        let summary = try await destination.backup.importBackup(from: url, strategy: .merge)
 
         #expect(summary.sampleCount == 1)
         #expect(summary.evidenceCount == 1)
@@ -532,18 +539,18 @@ struct WhereControllerTests {
     }
 
     @Test func backupMergeImportKeepsPreexistingRows() async throws {
-        let (source, _, _) = try Self.makeController()
+        let (source, _, _) = try Self.makeServices()
         try await seedBackupData(source)
-        let url = try await source.exportBackup()
+        let url = try await source.backup.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
-        let (destination, destinationStore, _) = try Self.makeController()
+        let (destination, destinationStore, _) = try Self.makeServices()
         // A row that exists only on the destination and is absent from the
         // backup; merge must leave it in place.
         let preexisting = sample(at: "2026-01-01T09:00:00-08:00")
-        try await destination.addManualSample(preexisting)
+        try await destination.journal.addManualSample(preexisting)
 
-        _ = try await destination.importBackup(from: url, strategy: .merge)
+        _ = try await destination.backup.importBackup(from: url, strategy: .merge)
 
         let ids = try await destinationStore.allSamples().map(\.id)
         #expect(ids.contains(preexisting.id))
@@ -551,20 +558,20 @@ struct WhereControllerTests {
     }
 
     @Test func backupReplaceImportWipesPreexistingRows() async throws {
-        let (source, sourceStore, _) = try Self.makeController()
+        let (source, sourceStore, _) = try Self.makeServices()
         try await seedBackupData(source)
-        let url = try await source.exportBackup()
+        let url = try await source.backup.exportBackup()
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
 
-        let (destination, destinationStore, _) = try Self.makeController()
+        let (destination, destinationStore, _) = try Self.makeServices()
         // Pre-existing destination data that the backup does not contain.
-        try await destination.addManualSample(sample(at: "2026-01-01T09:00:00-08:00"))
-        try await destination.addManualDay(
+        try await destination.journal.addManualSample(sample(at: "2026-01-01T09:00:00-08:00"))
+        try await destination.journal.addManualDay(
             date: iso("2026-02-02T10:00:00-08:00"),
             regions: [.canada],
         )
 
-        _ = try await destination.importBackup(from: url, strategy: .replace)
+        _ = try await destination.backup.importBackup(from: url, strategy: .replace)
 
         // The store now mirrors the backup exactly — none of the pre-existing
         // rows survive.
@@ -597,9 +604,9 @@ struct WhereControllerTests {
     @Test func configureRemindersEnabledRequestsAuthAndBadgesTheBacklog() async throws {
         let now = iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
-        let (controller, _, _) = try Self.makeReminderController(now: now, scheduler: spy)
+        let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
 
-        await controller.configureReminders(enabled: true, time: .defaultEvening)
+        await services.reminders.configure(enabled: true, time: .defaultEvening)
 
         #expect(await spy.authorizationRequests == 1)
         #expect(await spy.lastEnabled == true)
@@ -613,12 +620,12 @@ struct WhereControllerTests {
 
     @Test func configureRemindersDisabledClearsBadgeAndSchedulesNothing() async throws {
         let spy = SpyReminderScheduler()
-        let (controller, _, _) = try Self.makeReminderController(
+        let (services, _, _) = try Self.makeReminderServices(
             now: iso("2026-01-05T09:00:00-08:00"),
             scheduler: spy,
         )
 
-        await controller.configureReminders(enabled: false, time: .defaultEvening)
+        await services.reminders.configure(enabled: false, time: .defaultEvening)
 
         #expect(await spy.authorizationRequests == 0)
         #expect(await spy.lastEnabled == false)
@@ -629,15 +636,15 @@ struct WhereControllerTests {
     @Test func loggingTodayViaGPSCancelsItsScheduledReminder() async throws {
         let now = iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
-        let (controller, _, source) = try Self.makeReminderController(now: now, scheduler: spy)
-        await controller.configureReminders(enabled: true, time: .defaultEvening)
+        let (services, _, source) = try Self.makeReminderServices(now: now, scheduler: spy)
+        await services.reminders.configure(enabled: true, time: .defaultEvening)
 
         let today = Self.pacificCalendar.startOfDay(for: now)
         // Today is a forward nudge, not part of the backlog (Jan 1–4 = 4 days).
         #expect(await spy.lastBadgeCount == 4)
         #expect(await spy.lastScheduleDays.contains(today))
 
-        await controller.startGPS()
+        await services.ingestor.start()
         source.emit(LocationSample(
             timestamp: iso("2026-01-05T12:00:00-08:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
@@ -649,16 +656,16 @@ struct WhereControllerTests {
         try await waitUntil { await !spy.lastScheduleDays.contains(today) }
         #expect(await spy.lastBadgeCount == 4)
 
-        await controller.stopGPS()
+        await services.ingestor.stop()
     }
 
     @Test func loggingPastDayViaGPSAfterTodayIsCoveredStillReconciles() async throws {
         let now = iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
-        let (controller, _, source) = try Self.makeReminderController(now: now, scheduler: spy)
-        await controller.configureReminders(enabled: true, time: .defaultEvening)
+        let (services, _, source) = try Self.makeReminderServices(now: now, scheduler: spy)
+        await services.reminders.configure(enabled: true, time: .defaultEvening)
 
-        await controller.startGPS()
+        await services.ingestor.start()
         source.emit(LocationSample(
             timestamp: iso("2026-01-05T12:00:00-08:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
@@ -668,7 +675,7 @@ struct WhereControllerTests {
         try await waitUntil { await spy.lastBadgeCount == 4 }
 
         // Visits can arrive late with their original timestamp. Even after the
-        // controller knows today is covered, filling a past gap must lower the
+        // reconciler knows today is covered, filling a past gap must lower the
         // backlog badge.
         source.emit(LocationSample(
             timestamp: iso("2026-01-03T12:00:00-08:00"),
@@ -679,19 +686,19 @@ struct WhereControllerTests {
 
         try await waitUntil { await spy.lastBadgeCount == 3 }
 
-        await controller.stopGPS()
+        await services.ingestor.stop()
     }
 
     @Test func manualDayLoggingAPastDayLowersTheBadge() async throws {
         let now = iso("2026-03-10T09:00:00-08:00")
         let spy = SpyReminderScheduler()
-        let (controller, _, _) = try Self.makeReminderController(now: now, scheduler: spy)
-        await controller.configureReminders(enabled: true, time: .defaultEvening)
+        let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
+        await services.reminders.configure(enabled: true, time: .defaultEvening)
 
         // Backlog is Jan 1 – Mar 9 (today, Mar 10, is excluded): 68 days of 2026.
         #expect(await spy.lastBadgeCount == 68)
 
-        try await controller.addManualDay(
+        try await services.journal.addManualDay(
             date: iso("2026-03-03T12:00:00-08:00"),
             regions: [.california],
         )
@@ -702,17 +709,17 @@ struct WhereControllerTests {
     @Test func clearCurrentYearReconcilesTheBadge() async throws {
         let now = iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
-        let (controller, _, _) = try Self.makeReminderController(now: now, scheduler: spy)
-        await controller.configureReminders(enabled: true, time: .defaultEvening)
+        let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
+        await services.reminders.configure(enabled: true, time: .defaultEvening)
 
-        try await controller.addManualDay(
+        try await services.journal.addManualDay(
             date: iso("2026-01-01T12:00:00-08:00"),
             regions: [.california],
         )
         // Backlog (Jan 1–4) minus the logged Jan 1 leaves 3.
         #expect(await spy.lastBadgeCount == 3)
 
-        try await controller.clearYear(2026)
+        try await services.journal.clearYear(2026)
 
         // Clearing puts all four past days back into the backlog.
         #expect(await spy.lastBadgeCount == 4)
@@ -721,17 +728,17 @@ struct WhereControllerTests {
     @Test func eraseAllDataReconcilesTheBadge() async throws {
         let now = iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
-        let (controller, _, _) = try Self.makeReminderController(now: now, scheduler: spy)
-        await controller.configureReminders(enabled: true, time: .defaultEvening)
+        let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
+        await services.reminders.configure(enabled: true, time: .defaultEvening)
 
-        try await controller.addManualDay(
+        try await services.journal.addManualDay(
             date: iso("2026-01-01T12:00:00-08:00"),
             regions: [.california],
         )
         // Backlog (Jan 1–4) minus the logged Jan 1 leaves 3.
         #expect(await spy.lastBadgeCount == 3)
 
-        try await controller.eraseAllData()
+        try await services.journal.eraseAllData()
 
         // Erasing everything puts all four past days back into the backlog,
         // proving the wipe reconciles the badge rather than leaving it stale.
@@ -741,10 +748,10 @@ struct WhereControllerTests {
     @Test func changingReminderTimeReconcilesWithTheNewTime() async throws {
         let now = iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
-        let (controller, _, _) = try Self.makeReminderController(now: now, scheduler: spy)
+        let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
 
-        await controller.configureReminders(enabled: true, time: .defaultEvening)
-        await controller.configureReminders(enabled: true, time: ReminderTime(hour: 7, minute: 30))
+        await services.reminders.configure(enabled: true, time: .defaultEvening)
+        await services.reminders.configure(enabled: true, time: ReminderTime(hour: 7, minute: 30))
 
         #expect(await spy.authorizationRequests == 2)
         #expect(await spy.reconcileCount == 2)
@@ -755,12 +762,12 @@ struct WhereControllerTests {
     @Test func disablingRemindersAfterEnablingClearsEverything() async throws {
         let now = iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
-        let (controller, _, _) = try Self.makeReminderController(now: now, scheduler: spy)
+        let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
 
-        await controller.configureReminders(enabled: true, time: .defaultEvening)
+        await services.reminders.configure(enabled: true, time: .defaultEvening)
         #expect(await spy.lastBadgeCount == 4)
 
-        await controller.configureReminders(enabled: false, time: .defaultEvening)
+        await services.reminders.configure(enabled: false, time: .defaultEvening)
         #expect(await spy.lastEnabled == false)
         #expect(await spy.lastBadgeCount == 0)
         #expect(await spy.lastScheduleDays.isEmpty)
@@ -770,28 +777,28 @@ struct WhereControllerTests {
 
     @Test func configureDailySummaryEnabledBuildsRankedBody() async throws {
         let spy = SpyDailySummaryScheduler()
-        let (controller, _, _) = try Self.makeSummaryController(
+        let (services, _, _) = try Self.makeSummaryServices(
             now: iso("2026-01-10T09:00:00-08:00"),
             scheduler: spy,
         )
-        try await controller.addManualDay(
+        try await services.journal.addManualDay(
             date: iso("2026-01-01T12:00:00-08:00"),
             regions: [.california],
         )
-        try await controller.addManualDay(
+        try await services.journal.addManualDay(
             date: iso("2026-01-02T12:00:00-08:00"),
             regions: [.california],
         )
-        try await controller.addManualDay(
+        try await services.journal.addManualDay(
             date: iso("2026-01-03T12:00:00-08:00"),
             regions: [.california],
         )
-        try await controller.addManualDay(
+        try await services.journal.addManualDay(
             date: iso("2026-01-04T12:00:00-08:00"),
             regions: [.newYork],
         )
 
-        await controller.configureDailySummary(enabled: true, time: .defaultMorning)
+        await services.summary.configure(enabled: true, time: .defaultMorning)
 
         #expect(await spy.authorizationRequests == 1)
         #expect(await spy.lastEnabled == true)
@@ -802,12 +809,12 @@ struct WhereControllerTests {
 
     @Test func configureDailySummaryWithNoDataUsesEmptyBody() async throws {
         let spy = SpyDailySummaryScheduler()
-        let (controller, _, _) = try Self.makeSummaryController(
+        let (services, _, _) = try Self.makeSummaryServices(
             now: iso("2026-01-10T09:00:00-08:00"),
             scheduler: spy,
         )
 
-        await controller.configureDailySummary(enabled: true, time: .defaultMorning)
+        await services.summary.configure(enabled: true, time: .defaultMorning)
 
         #expect(await spy.lastEnabled == true)
         #expect(await spy.lastBody == "No days logged yet this year.")
@@ -815,12 +822,12 @@ struct WhereControllerTests {
 
     @Test func configureDailySummaryDisabledSkipsAuthAndSendsDisabled() async throws {
         let spy = SpyDailySummaryScheduler()
-        let (controller, _, _) = try Self.makeSummaryController(
+        let (services, _, _) = try Self.makeSummaryServices(
             now: iso("2026-01-10T09:00:00-08:00"),
             scheduler: spy,
         )
 
-        await controller.configureDailySummary(enabled: false, time: .defaultMorning)
+        await services.summary.configure(enabled: false, time: .defaultMorning)
 
         #expect(await spy.authorizationRequests == 0)
         #expect(await spy.lastEnabled == false)
@@ -828,13 +835,13 @@ struct WhereControllerTests {
 
     // MARK: - Widget snapshot publishing
 
-    private static func makeWidgetController(
+    private static func makeWidgetServices(
         refresher: SpyWidgetRefresher,
         store: (any WhereStore)? = nil,
         now: Date = Date(),
-    ) throws -> (WhereController, ScriptedLocationSource) {
+    ) throws -> (WhereServices, ScriptedLocationSource) {
         let source = ScriptedLocationSource()
-        let controller = try WhereController(
+        let services = try WhereServices(
             store: store ?? SwiftDataStore.inMemory(),
             locationSource: source,
             aggregator: makeAggregator(),
@@ -842,18 +849,18 @@ struct WhereControllerTests {
             widgetRefresher: refresher,
             now: { now },
         )
-        return (controller, source)
+        return (services, source)
     }
 
     @Test func committedWritesPublishWidgetSnapshots() async throws {
         let refresher = SpyWidgetRefresher()
         // Pin "now" to the day we log so the snapshot's `dayRegions` reflects it.
-        let (controller, _) = try Self.makeWidgetController(
+        let (services, _) = try Self.makeWidgetServices(
             refresher: refresher,
             now: iso("2026-03-15T20:00:00-07:00"),
         )
 
-        try await controller.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await services.journal.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
         #expect(await refresher.publishCount == 1)
         // The published snapshot reflects the committed write: SF lands in CA,
         // both for today and in the year totals.
@@ -862,10 +869,10 @@ struct WhereControllerTests {
         #expect(first?.totals == [.california: 1])
 
         let day = iso("2026-07-04T15:00:00-07:00")
-        try await controller.addManualDay(date: day, regions: [.newYork])
-        try await controller.overrideDay(date: day, regions: [.california])
-        try await controller.clearManualDay(date: day)
-        try await controller.clearYear(2026)
+        try await services.journal.addManualDay(date: day, regions: [.newYork])
+        try await services.journal.overrideDay(date: day, regions: [.california])
+        try await services.journal.clearManualDay(date: day)
+        try await services.journal.clearYear(2026)
         #expect(await refresher.publishCount == 5)
         // After clearing the year, the latest snapshot is empty again.
         #expect(await refresher.lastSnapshot?.totals.isEmpty == true)
@@ -873,24 +880,24 @@ struct WhereControllerTests {
 
     @Test func refreshWidgetSnapshotPublishesFromExistingStoreWithoutAMutation() async throws {
         let store = try SwiftDataStore.inMemory()
-        // Seed data straight into the store, bypassing the controller so
+        // Seed data straight into the store, bypassing the journal so
         // nothing is published — mirrors data that was synced/persisted in a
         // previous session and is sitting on disk at launch.
         let seed = sample(at: "2026-03-15T12:00:00-07:00")
         try await store.perform { try await store.add(sample: seed) }
 
         let refresher = SpyWidgetRefresher()
-        let (controller, _) = try Self.makeWidgetController(
+        let (services, _) = try Self.makeWidgetServices(
             refresher: refresher,
             store: store,
             now: iso("2026-03-15T20:00:00-07:00"),
         )
 
-        // A freshly constructed controller hasn't published anything yet, so
+        // Freshly constructed services haven't published anything yet, so
         // the widget would be blank without an explicit refresh.
         #expect(await refresher.publishCount == 0)
 
-        await controller.refreshWidgetSnapshot()
+        await services.widgets.refreshIfStale()
 
         #expect(await refresher.publishCount == 1)
         let snapshot = await refresher.lastSnapshot
@@ -900,27 +907,27 @@ struct WhereControllerTests {
 
     @Test func gpsIngestPublishesWidgetSnapshot() async throws {
         let refresher = SpyWidgetRefresher()
-        let (controller, source) = try Self.makeWidgetController(refresher: refresher)
+        let (services, source) = try Self.makeWidgetServices(refresher: refresher)
 
-        await controller.startGPS()
+        await services.ingestor.start()
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
         try await waitUntil { await refresher.publishCount == 1 }
 
-        await controller.stopGPS()
+        await services.ingestor.stop()
     }
 
     @Test func failedGPSPersistSkipsWidgetPublishUntilRetrySucceeds() async throws {
         let refresher = SpyWidgetRefresher()
         let store = try ToggleFailingStore(backing: SwiftDataStore.inMemory())
-        let (controller, source) = try Self.makeWidgetController(
+        let (services, source) = try Self.makeWidgetServices(
             refresher: refresher,
             store: store,
         )
 
-        await controller.startGPS()
+        await services.ingestor.start()
         await store.setShouldFail(true)
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
-        try await waitUntil { await controller.retryQueueDepth == 1 }
+        try await waitUntil { await services.ingestor.retryQueueDepth == 1 }
         // Nothing was committed, so the widgets have nothing new to show.
         #expect(await refresher.publishCount == 0)
 
@@ -929,27 +936,27 @@ struct WhereControllerTests {
         source.emit(sample(at: "2026-03-15T12:10:00-07:00"))
         try await waitUntil { await refresher.publishCount == 1 }
 
-        await controller.stopGPS()
+        await services.ingestor.stop()
     }
 
     @Test func redundantGPSSamplesSkipRepublishingButNewRegionsStillPublish() async throws {
         let refresher = SpyWidgetRefresher()
-        let (controller, _) = try Self.makeWidgetController(
+        let (services, _) = try Self.makeWidgetServices(
             refresher: refresher,
             now: iso("2026-03-15T20:00:00-07:00"),
         )
 
         // First CA sample today publishes.
-        try await controller.ingest(sample(at: "2026-03-15T09:00:00-07:00"))
+        try await services.journal.ingest(sample(at: "2026-03-15T09:00:00-07:00"))
         #expect(await refresher.publishCount == 1)
 
         // A second CA sample the same day can't change what the widget shows —
         // today already counts CA — so it's skipped (no rebuild, no reload).
-        try await controller.ingest(sample(at: "2026-03-15T13:00:00-07:00"))
+        try await services.journal.ingest(sample(at: "2026-03-15T13:00:00-07:00"))
         #expect(await refresher.publishCount == 1)
 
         // A NY sample adds a region to today, which must reach the widget.
-        try await controller.ingest(LocationSample(
+        try await services.journal.ingest(LocationSample(
             timestamp: iso("2026-03-15T15:00:00-07:00"),
             coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
             horizontalAccuracy: 0,
@@ -966,7 +973,7 @@ struct WhereControllerTests {
         let seed = sample(at: "2026-03-15T07:00:00-07:00")
         try await store.perform { try await store.add(sample: seed) }
         let source = ScriptedLocationSource()
-        let controller = WhereController(
+        let services = WhereServices(
             store: store,
             locationSource: source,
             aggregator: Self.makeAggregator(),
@@ -975,23 +982,23 @@ struct WhereControllerTests {
             now: { clock.now },
         )
 
-        // Cold controller: the first passive refresh always publishes.
-        await controller.refreshWidgetSnapshot()
+        // Cold publisher: the first passive refresh always publishes.
+        await services.widgets.refreshIfStale()
         #expect(await refresher.publishCount == 1)
 
         // Same day, < 3h later: throttled.
         clock.advance(by: 2 * 60 * 60)
-        await controller.refreshWidgetSnapshot()
+        await services.widgets.refreshIfStale()
         #expect(await refresher.publishCount == 1)
 
         // Same day, now > 3h since the last publish: rebuilds.
         clock.advance(by: 2 * 60 * 60)
-        await controller.refreshWidgetSnapshot()
+        await services.widgets.refreshIfStale()
         #expect(await refresher.publishCount == 2)
 
         // A new calendar day always rebuilds, even moments later.
         clock.advance(by: 24 * 60 * 60)
-        await controller.refreshWidgetSnapshot()
+        await services.widgets.refreshIfStale()
         #expect(await refresher.publishCount == 3)
     }
 }
@@ -1001,7 +1008,7 @@ private func iso(_ string: String) -> Date {
     return formatter.date(from: string) ?? Date(timeIntervalSince1970: 0)
 }
 
-/// A hand-advanced clock so tests can drive `WhereController`'s `now` past the
+/// A hand-advanced clock so tests can drive `WhereServices`' `now` past the
 /// widget snapshot's freshness window and across a day boundary.
 private final class MutableClock: @unchecked Sendable {
     private let lock = NSLock()
@@ -1037,8 +1044,8 @@ private func waitUntil(
     Issue.record("waitUntil timed out")
 }
 
-/// Records the calls `WhereController` makes to the reminder scheduler so
-/// tests can assert the badge count, scheduled days, and enabled state without
+/// Records the calls the reminder reconciler makes to its scheduler so tests
+/// can assert the badge count, scheduled days, and enabled state without
 /// touching `UNUserNotificationCenter`.
 private actor SpyReminderScheduler: LoggingReminderScheduling {
     private(set) var authorizationRequests = 0
@@ -1076,8 +1083,8 @@ private actor SpyReminderScheduler: LoggingReminderScheduling {
     }
 }
 
-/// Records the calls `WhereController` makes to the daily-summary scheduler so
-/// tests can assert the recap body and enabled state without touching
+/// Records the calls the summary reconciler makes to its scheduler so tests
+/// can assert the recap body and enabled state without touching
 /// `UNUserNotificationCenter`.
 private actor SpyDailySummaryScheduler: DailySummaryScheduling {
     private(set) var authorizationRequests = 0
@@ -1108,7 +1115,7 @@ private actor SpyDailySummaryScheduler: DailySummaryScheduling {
     }
 }
 
-/// Records the snapshots `WhereController` publishes so tests can assert
+/// Records the snapshots the widget publisher emits so tests can assert
 /// widgets repaint with the right data after committed writes — and stay
 /// untouched when a write fails.
 private actor SpyWidgetRefresher: WidgetTimelineRefreshing {

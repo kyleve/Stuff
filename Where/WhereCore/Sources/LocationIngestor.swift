@@ -6,7 +6,7 @@ import os
 /// persistence failures, and authorization. Persisted samples are reported back
 /// through an injected post-persist hook, so this actor stays unaware of
 /// reminders and widgets — the assembler wires those in.
-actor LocationIngestor {
+public actor LocationIngestor {
     /// What a persist batch changed, handed to the post-persist hook so the
     /// assembler can reconcile reminders + republish widgets appropriately.
     struct IngestOutcome {
@@ -79,7 +79,7 @@ actor LocationIngestor {
     /// underlying monitoring. Cancelling that task would terminate the
     /// single-consumer `AsyncStream`, so a later `start()` would iterate an
     /// already-finished stream and silently drop every subsequent sample.
-    func start() async {
+    public func start() async {
         guard !isMonitoring else { return }
         isMonitoring = true
         await locationSource.start()
@@ -107,7 +107,7 @@ actor LocationIngestor {
     /// `start()`. The ingestion task is intentionally left running (see
     /// `start()`); it idles until monitoring resumes, and is torn down on
     /// `deinit`.
-    func stop() async {
+    public func stop() async {
         guard isMonitoring else { return }
         isMonitoring = false
         await locationSource.stop()
@@ -115,28 +115,28 @@ actor LocationIngestor {
 
     /// Whether GPS monitoring is currently active. Exposed so the view-model can
     /// reconcile its tracking flag with reality after launch.
-    var isActive: Bool {
+    public var isActive: Bool {
         isMonitoring
     }
 
     /// Number of samples currently waiting to be re-persisted. Exposed for
     /// tests; production callers should treat this as opaque.
-    var retryQueueDepth: Int {
+    public var retryQueueDepth: Int {
         retryQueue.count
     }
 
-    func requestPermission() async throws {
+    public func requestPermission() async throws {
         try await locationSource.requestPermission()
     }
 
     /// The current location authorization status.
-    func authorizationStatus() async -> LocationAuthorizationStatus {
+    public func authorizationStatus() async -> LocationAuthorizationStatus {
         await locationSource.currentAuthorization()
     }
 
     /// Live stream of authorization-status changes (system prompt results and
     /// Settings-app changes). Subscribe once and iterate.
-    func authorizationUpdates() -> AsyncStream<LocationAuthorizationStatus> {
+    public func authorizationUpdates() -> AsyncStream<LocationAuthorizationStatus> {
         locationSource.authorizationUpdates
     }
 

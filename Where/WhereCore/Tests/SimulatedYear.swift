@@ -2,7 +2,7 @@ import Foundation
 import WhereCore
 
 /// Scripts a year-long sequence of `LocationSample`s, manual day entries,
-/// and evidence attachments into a `WhereController`. The output is the
+/// and evidence attachments into a `WhereServices`. The output is the
 /// fixture both unit assertions and snapshot tests read from.
 ///
 /// Designed so the day arithmetic is easy to eyeball:
@@ -18,7 +18,7 @@ import WhereCore
 enum SimulatedYear {
     static let year = 2026
 
-    static func script(controller: WhereController, calendar: Calendar) async {
+    static func script(services: WhereServices, calendar: Calendar) async {
         let sf = (lat: 37.7749, lng: -122.4194)
         let la = (lat: 34.0522, lng: -118.2437)
         let nyc = (lat: 40.7128, lng: -74.0060)
@@ -27,7 +27,7 @@ enum SimulatedYear {
 
         // Collect the whole year of GPS samples, then persist them in a single
         // batch (one transaction, one widget-snapshot rebuild) below — see the
-        // `controller.ingest(samples)` call after the day scripting.
+        // `services.journal.ingest(samples)` call after the day scripting.
         var samples: [LocationSample] = []
 
         func emitNoon(month: Int, day: Int, lat: Double, lng: Double) async {
@@ -194,7 +194,7 @@ enum SimulatedYear {
         }
         for d in 8 ... 12 {
             let date = calendar.date(from: DateComponents(year: year, month: 11, day: d)) ?? Date()
-            try? await controller.addManualDay(date: date, regions: [.california])
+            try? await services.journal.addManualDay(date: date, regions: [.california])
         }
         for d in 15 ... 30 {
             await emitNoon(month: 11, day: d, lat: sf.lat, lng: sf.lng)
@@ -217,7 +217,7 @@ enum SimulatedYear {
 
         // Persist the entire year's GPS in one transaction so the widget
         // snapshot is rebuilt once rather than once per sample.
-        try? await controller.ingest(samples)
+        try? await services.journal.ingest(samples)
 
         // Evidence attachments. UUIDs are deterministic so any future snapshot
         // of evidence stays stable.
@@ -259,7 +259,7 @@ enum SimulatedYear {
                 from: DateComponents(year: year, month: entry.month, day: entry.day, hour: 8),
             ) ?? Date()
             let id = UUID(uuidString: entry.uuid) ?? UUID()
-            try? await controller.addEvidence(
+            try? await services.journal.addEvidence(
                 Evidence(
                     id: id,
                     kind: entry.kind,

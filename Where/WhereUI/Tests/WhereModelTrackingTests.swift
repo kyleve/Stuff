@@ -18,14 +18,14 @@ struct WhereModelTrackingTests {
         preferences: WherePreferences,
     ) throws -> (WhereModel, ScriptedLocationSource) {
         let source = ScriptedLocationSource(authorizationStatus: status)
-        let controller = try WhereController(
+        let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: source,
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let model = WhereModel(controller: controller, preferences: preferences)
+        let model = WhereModel(services: services, preferences: preferences)
         return (model, source)
     }
 

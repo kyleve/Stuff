@@ -24,8 +24,8 @@ struct WhereModelMissingDaysTests {
         WherePreferences(store: InMemoryKeyValueStore())
     }
 
-    private func makeController() throws -> WhereController {
-        try WhereController(
+    private func makeServices() throws -> WhereServices {
+        try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
@@ -43,7 +43,7 @@ struct WhereModelMissingDaysTests {
             totals: [.california: present.count],
         )
         let model = try WhereModel(
-            controller: makeController(),
+            services: makeServices(),
             report: report,
             selectedYear: 2026,
             now: { today },
@@ -62,7 +62,7 @@ struct WhereModelMissingDaysTests {
     @Test func missingDaysAreEmptyWhenViewingAPastYear() throws {
         let today = Self.day(2026, 6, 1)
         let model = try WhereModel(
-            controller: makeController(),
+            services: makeServices(),
             report: YearReport(year: 2025, days: [], totals: [:]),
             selectedYear: 2025,
             now: { today },
@@ -74,7 +74,7 @@ struct WhereModelMissingDaysTests {
 
     @Test func reminderSettingsDefaultOnAndPersistAcrossModels() throws {
         let preferences = makePreferences()
-        let model = try WhereModel(controller: makeController(), preferences: preferences)
+        let model = try WhereModel(services: makeServices(), preferences: preferences)
 
         #expect(model.remindersEnabled)
         #expect(model.reminderTime == ReminderTime.defaultEvening)
@@ -87,14 +87,14 @@ struct WhereModelMissingDaysTests {
         #expect(model.reminderTime == ReminderTime(hour: 7, minute: 30))
 
         // A fresh model sharing the same preferences reads back the saved values.
-        let reloaded = try WhereModel(controller: makeController(), preferences: preferences)
+        let reloaded = try WhereModel(services: makeServices(), preferences: preferences)
         #expect(!reloaded.remindersEnabled)
         #expect(reloaded.reminderTime == ReminderTime(hour: 7, minute: 30))
     }
 
     @Test func summarySettingsDefaultOnAndPersistAcrossModels() throws {
         let preferences = makePreferences()
-        let model = try WhereModel(controller: makeController(), preferences: preferences)
+        let model = try WhereModel(services: makeServices(), preferences: preferences)
 
         #expect(model.summaryEnabled)
         #expect(model.summaryTime == ReminderTime.defaultMorning)
@@ -105,7 +105,7 @@ struct WhereModelMissingDaysTests {
         #expect(model.summaryTime == ReminderTime(hour: 9, minute: 15))
 
         // A fresh model sharing the same preferences reads back the saved values.
-        let reloaded = try WhereModel(controller: makeController(), preferences: preferences)
+        let reloaded = try WhereModel(services: makeServices(), preferences: preferences)
         #expect(!reloaded.summaryEnabled)
         #expect(reloaded.summaryTime == ReminderTime(hour: 9, minute: 15))
     }

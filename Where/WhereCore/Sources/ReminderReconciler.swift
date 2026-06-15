@@ -9,7 +9,7 @@ import os
 /// today's reminder and lower the badge": every committed write that can change
 /// the day picture calls `reconcile()` (or the cheaper `reconcileAfterIngest`
 /// on the hot GPS path).
-actor ReminderReconciler {
+public actor ReminderReconciler {
     private let scheduler: any LoggingReminderScheduling
     private let reportReader: ReportReader
     private let calendar: Calendar
@@ -56,7 +56,7 @@ actor ReminderReconciler {
     /// notification permission when enabling, then reconcile the scheduled
     /// reminders and badge. Safe to call on every launch and whenever the user
     /// changes the setting.
-    func configure(enabled: Bool, time: ReminderTime) async {
+    public func configure(enabled: Bool, time: ReminderTime) async {
         config = Configuration(enabled: enabled, time: time)
         if enabled {
             _ = await scheduler.requestAuthorization()
@@ -67,13 +67,13 @@ actor ReminderReconciler {
     /// Explicitly drive the notification permission prompt (e.g. from a
     /// Settings toggle). Returns whether the app is authorized afterward.
     @discardableResult
-    func requestAuthorization() async -> Bool {
+    public func requestAuthorization() async -> Bool {
         await scheduler.requestAuthorization()
     }
 
     /// Whether the app is currently authorized to post reminders / set the
     /// badge, so the UI can surface an "open Settings" affordance.
-    func isAuthorized() async -> Bool {
+    public func isAuthorized() async -> Bool {
         await scheduler.isAuthorized()
     }
 

@@ -21,7 +21,7 @@ struct SettingsView: View {
     @State private var pendingImportURL: URL?
     @State private var showStrategyDialog = false
     @State private var showImportSuccess = false
-    @State private var lastImportSummary: WhereController.ImportSummary?
+    @State private var lastImportSummary: BackupCoordinator.ImportSummary?
 
     var body: some View {
         @Bindable var model = model
@@ -252,7 +252,7 @@ struct SettingsView: View {
     }
 
     /// Determinate progress for an in-flight import, driven by
-    /// `model.backupProgress` as the controller writes each row.
+    /// `model.backupProgress` as the backup coordinator writes each row.
     private var importProgressLabel: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(Strings.settingsBackupImporting, systemImage: "square.and.arrow.down")
@@ -282,7 +282,7 @@ struct SettingsView: View {
         }
     }
 
-    private func runImport(url: URL, strategy: WhereController.ImportStrategy) {
+    private func runImport(url: URL, strategy: BackupCoordinator.ImportStrategy) {
         Task {
             if let summary = await model.importBackup(from: url, strategy: strategy) {
                 lastImportSummary = summary
