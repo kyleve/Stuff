@@ -2,6 +2,38 @@ import LifecycleKit
 import SwiftUI
 import WhereCore
 
+/// Stable identifiers for the steps in `WhereLaunch.sequence` and
+/// `resetSequence`. Raw strings drift silently (a typo just creates a new,
+/// untracked step); an enum makes each ID a compile-checked symbol and gives
+/// the launch/reset parity tests a single source of truth.
+public enum LaunchStepID: String {
+    /// Open the SwiftData store, assemble the services, and build the session.
+    /// The foreground-only migration UI hangs off this step.
+    case openStore = "open-store"
+    /// First-run onboarding gate. Foreground-only, so a headless background
+    /// relaunch skips it.
+    case onboarding
+    /// Read location authorization into the session and start observing live
+    /// changes.
+    case syncAuth = "sync-auth"
+    /// Start or stop GPS ingestion to match the user's intent + authorization.
+    case reconcileTracking = "reconcile-tracking"
+    /// Load the selected year's report into the session.
+    case loadYear = "load-year"
+    /// Push the logging-reminder schedule + backlog badge to the reconciler.
+    case reminders
+    /// Push the daily-summary recap to the reconciler.
+    case summary
+    /// Republish the widget snapshot from whatever is already on disk.
+    case widgetSnapshot = "widget-snapshot"
+
+    /// Reset teardown: stop GPS, wipe the store, and drop the session.
+    case eraseData = "erase-data"
+    /// Reset teardown: clear the persisted preferences that gate the relaunch
+    /// (onboarding flag, tracking intent, reminder/summary schedules).
+    case resetPreferences = "reset-preferences"
+}
+
 /// Assembles the Where app's cold-launch sequence and the `LifecycleRunner`
 /// that drives it.
 ///
@@ -51,7 +83,7 @@ public enum WhereLaunch {
             // migration UI off slowness: if the open is still running after a
             // beat, show MigrationProgressView and hold it for a readable
             // minimum so a fast open never flashes it.
-            LifecycleStep.work("open-store") { _ in
+            LifecycleStep.work(LaunchStepID.openStore.rawValue) { _ in
                 guard model.session == nil else { return }
                 if !model.hasServices {
                     try await model.attach(services: bootstrap.makeServices())
@@ -65,21 +97,28 @@ public enum WhereLaunch {
             // First run only. `LifecycleStep.interactive` is `.modes(.foreground)`,
             // so a headless background launch skips it (and never deadlocks
             // waiting for a tap that can't come).
-            LifecycleStep.interactive("onboarding") { OnboardingView(bridge: $0) }
+            LifecycleStep
+                .interactive(LaunchStepID.onboarding.rawValue) { OnboardingView(bridge: $0) }
                 .when { !model.hasOnboarded }
 
-            LifecycleStep.work("sync-auth") { _ in
+            LifecycleStep.work(LaunchStepID.syncAuth.rawValue) { _ in
                 await model.session?.syncAuthorization()
                 model.session?.observeAuthorizationChanges()
             }
+            LifecycleStep.work(LaunchStepID.reconcileTracking.rawValue) { _ in
+                await model.session?.reconcileTracking()
+            }
             LifecycleStep
-                .work("reconcile-tracking") { _ in await model.session?.reconcileTracking() }
-            LifecycleStep.work("load-year") { _ in await model.session?.refresh() }
-            LifecycleStep
-                .work("reminders") { _ in await model.session?.applyReminderConfiguration() }
-            LifecycleStep.work("summary") { _ in await model.session?.applySummaryConfiguration() }
-            LifecycleStep
-                .work("widget-snapshot") { _ in await model.session?.refreshWidgetSnapshot() }
+                .work(LaunchStepID.loadYear.rawValue) { _ in await model.session?.refresh() }
+            LifecycleStep.work(LaunchStepID.reminders.rawValue) { _ in
+                await model.session?.applyReminderConfiguration()
+            }
+            LifecycleStep.work(LaunchStepID.summary.rawValue) { _ in
+                await model.session?.applySummaryConfiguration()
+            }
+            LifecycleStep.work(LaunchStepID.widgetSnapshot.rawValue) { _ in
+                await model.session?.refreshWidgetSnapshot()
+            }
         }
     }
 
@@ -96,11 +135,12 @@ public enum WhereLaunch {
             // re-erases rather than stranding the user in onboarding atop
             // un-erased data. Dropping the session here makes the re-driven
             // `sequence` rebuild a fresh one over the erased store.
-            LifecycleStep.work("erase-data") { _ in
+            LifecycleStep.work(LaunchStepID.eraseData.rawValue) { _ in
                 try await model.eraseAllData()
                 model.endSession()
             }
-            LifecycleStep.work("reset-preferences") { _ in model.resetPreferences() }
+            LifecycleStep
+                .work(LaunchStepID.resetPreferences.rawValue) { _ in model.resetPreferences() }
         }
     }
 }

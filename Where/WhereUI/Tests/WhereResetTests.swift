@@ -56,7 +56,7 @@ struct WhereResetTests {
     @Test func resetSequenceErasesThenClearsPreferences() throws {
         let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.resetSequence(for: model).steps.map(\.id)
-        #expect(ids == ["erase-data", "reset-preferences"])
+        #expect(ids == [LaunchStepID.eraseData, .resetPreferences].map(\.rawValue))
     }
 
     @Test func resetPreferencesRestoresFirstInstallDefaults() throws {
@@ -135,7 +135,7 @@ struct WhereResetTests {
         let task = Task { @MainActor in
             await launcher.reset(WhereLaunch.resetSequence(for: model))
         }
-        try await waitUntil { launcher.phase.runningStepID == "onboarding" }
+        try await waitUntil { launcher.phase.runningStepID == LaunchStepID.onboarding.rawValue }
 
         // Teardown ran before the relaunch reached onboarding: data erased, the
         // session dropped + rebuilt, and the onboarding gate reopened.
@@ -162,15 +162,19 @@ struct WhereResetTests {
         model.completeOnboarding()
 
         let failing = LifecycleSteps {
-            LifecycleStep.work("erase-data") { _ in throw CocoaError(.fileWriteUnknown) }
-            LifecycleStep.work("reset-preferences") { _ in model.resetPreferences() }
+            LifecycleStep.work(LaunchStepID.eraseData.rawValue) { _ in
+                throw CocoaError(.fileWriteUnknown)
+            }
+            LifecycleStep.work(LaunchStepID.resetPreferences.rawValue) { _ in
+                model.resetPreferences()
+            }
         }
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
         #expect(launcher.phase.isReady)
 
         await launcher.reset(failing)
-        #expect(launcher.phase.failure?.stepID == "erase-data")
+        #expect(launcher.phase.failure?.stepID == LaunchStepID.eraseData.rawValue)
         #expect(model.hasOnboarded) // reset-preferences never ran
     }
 }

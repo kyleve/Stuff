@@ -53,15 +53,15 @@ struct WhereLaunchTests {
         let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.sequence(for: model).steps.map(\.id)
         #expect(ids == [
-            "open-store",
-            "onboarding",
-            "sync-auth",
-            "reconcile-tracking",
-            "load-year",
-            "reminders",
-            "summary",
-            "widget-snapshot",
-        ])
+            LaunchStepID.openStore,
+            .onboarding,
+            .syncAuth,
+            .reconcileTracking,
+            .loadYear,
+            .reminders,
+            .summary,
+            .widgetSnapshot,
+        ].map(\.rawValue))
     }
 
     @Test func coldForegroundLaunchReachesReadyAndReconcilesTracking() async throws {
@@ -81,7 +81,7 @@ struct WhereLaunchTests {
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         let task = Task { @MainActor in await launcher.run() }
 
-        try await waitUntil { launcher.phase.runningStepID == "onboarding" }
+        try await waitUntil { launcher.phase.runningStepID == LaunchStepID.onboarding.rawValue }
         #expect(launcher.phase.runningBridge?.presentation != nil)
 
         // Resolve the gate as OnboardingView would, letting the launch finish.
