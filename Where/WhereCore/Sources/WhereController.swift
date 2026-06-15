@@ -2,8 +2,9 @@ import Foundation
 
 /// Top-level API for the Where feature. Composes a `WhereStore`
 /// (persistence) with focused collaborators — a `LocationIngestor` (GPS), a
-/// `WidgetSnapshotPublisher`, and the reminder / daily-summary reconcilers —
-/// behind a small, testable surface.
+/// `WidgetSnapshotPublisher`, the reminder / daily-summary reconcilers, a
+/// `DayJournal` (user-sourced writes), and a `BackupCoordinator` (export /
+/// import) — behind a small, testable surface.
 ///
 /// - GPS sampling is opt-in: callers invoke `startGPS()` once the user grants
 ///   authorization; the `LocationIngestor` owns the monitoring lifecycle and
@@ -14,14 +15,13 @@ import Foundation
 /// - `yearReport(for:)` reads everything in the requested calendar year via
 ///   the injected `DayAggregator` and returns a snapshot-stable `YearReport`.
 public actor WhereController {
-    private let store: any WhereStore
-    private let aggregator: DayAggregator
     private let reportReader: ReportReader
-    private let backupService = BackupService()
     private let reminderReconciler: ReminderReconciler
     private let summaryReconciler: DailySummaryReconciler
     private let widgetPublisher: WidgetSnapshotPublisher
     private let locationIngestor: LocationIngestor
+    private let journal: DayJournal
+    private let backupCoordinator: BackupCoordinator
 
     public init(
         store: any WhereStore,
@@ -33,8 +33,6 @@ public actor WhereController {
         widgetRefresher: any WidgetTimelineRefreshing = WidgetCenterTimelineRefresher(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
-        self.store = store
-        self.aggregator = aggregator
         reportReader = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
         let reminders = ReminderReconciler(
             scheduler: reminderScheduler,
@@ -90,108 +88,63 @@ public actor WhereController {
                 }
             },
         )
+        journal = DayJournal(
+            store: store,
+            aggregator: aggregator,
+            reminders: reminders,
+            widgets: widgets,
+        )
+        backupCoordinator = BackupCoordinator(store: store, widgets: widgets)
     }
 
     // MARK: - Ingestion
 
     public func ingest(_ sample: LocationSample) async throws {
-        try await store.perform { try await store.add(sample: sample) }
-        await widgetPublisher.publishAfterIngest(of: sample)
+        try await journal.ingest(sample)
     }
 
-    /// Persist many samples in a *single* transaction, rebuilding the widget
-    /// snapshot once at the end instead of once per sample. The single-sample
-    /// `ingest(_:)` is the right call for live GPS (events arrive minutes
-    /// apart), but bulk loads — test fixtures, future bulk imports — would
-    /// otherwise open one transaction *and* re-aggregate the whole year per
-    /// sample, which is quadratic in the batch size. An empty batch is a no-op
-    /// (no transaction, no snapshot publish).
     public func ingest(_ samples: [LocationSample]) async throws {
-        guard !samples.isEmpty else { return }
-        try await store.perform {
-            for sample in samples {
-                try await store.add(sample: sample)
-            }
-        }
-        await widgetPublisher.publish()
+        try await journal.ingest(samples)
     }
 
     // MARK: - Retroactive entry
 
     public func addManualSample(_ sample: LocationSample) async throws {
-        try await store.perform { try await store.add(sample: sample) }
-        await widgetPublisher.publish()
+        try await journal.addManualSample(sample)
     }
 
     public func addManualDay(date: Date, regions: Set<Region>) async throws {
-        let key = aggregator.calendar.startOfDay(for: date)
-        let presence = DayPresence(date: key, regions: regions)
-        try await store.perform { try await store.setManualDay(presence) }
-        await reminderReconciler.reconcile()
-        await widgetPublisher.publish()
+        try await journal.addManualDay(date: date, regions: regions)
     }
 
-    /// Authoritatively set the regions for a single calendar day, *replacing*
-    /// whatever GPS (or a prior manual overlay) attributed to it. Unlike
-    /// `addManualDay`, this does not union with GPS — it's the "correct a
-    /// wrong attribution" path. The raw GPS samples are left untouched, so the
-    /// fix is non-destructive and undone by `clearManualDay(date:)`.
     public func overrideDay(date: Date, regions: Set<Region>) async throws {
-        let key = aggregator.calendar.startOfDay(for: date)
-        let presence = DayPresence(date: key, regions: regions, isAuthoritative: true)
-        try await store.perform { try await store.setManualDay(presence) }
-        await reminderReconciler.reconcile()
-        await widgetPublisher.publish()
+        try await journal.overrideDay(date: date, regions: regions)
     }
 
-    /// Drop the manual overlay for a single calendar day, restoring the
-    /// GPS-derived attribution (the relabel "reset to GPS" path). A no-op when
-    /// the day has no manual record. Raw samples are never touched, so this
-    /// simply lets the aggregator fall back to whatever GPS recorded.
     public func clearManualDay(date: Date) async throws {
-        let key = aggregator.calendar.startOfDay(for: date)
-        try await store.perform { try await store.clearManualDay(key) }
-        await reminderReconciler.reconcile()
-        await widgetPublisher.publish()
+        try await journal.clearManualDay(date: date)
     }
 
-    /// Assert `regions` for every calendar day in the inclusive range
-    /// `start...end` (handy for backfilling a trip). Both bounds are
-    /// normalized to start-of-day in the aggregator's calendar, and the
-    /// whole range is written inside a single `perform` transaction so the
-    /// backfill commits (or rolls back) atomically. A `start` later than
-    /// `end` is treated as an empty range and writes nothing.
     public func addManualDays(
         from start: Date,
         through end: Date,
         regions: Set<Region>,
     ) async throws {
-        // `calendarDays` returns an immutable array, so the `@Sendable`
-        // transaction body captures a `let` rather than a mutable cursor
-        // across the concurrency boundary.
-        let dayKeys = start.calendarDays(through: end, in: aggregator.calendar)
-        guard !dayKeys.isEmpty else { return }
-        try await store.perform {
-            for day in dayKeys {
-                try await store.setManualDay(DayPresence(date: day, regions: regions))
-            }
-        }
-        await reminderReconciler.reconcile()
-        await widgetPublisher.publish()
+        try await journal.addManualDays(from: start, through: end, regions: regions)
     }
 
     // MARK: - Evidence
 
     public func addEvidence(_ evidence: Evidence, blob: Data? = nil) async throws {
-        try await store.perform { try await store.write(evidence: evidence, blob: blob) }
+        try await journal.addEvidence(evidence, blob: blob)
     }
 
     public func evidence(for year: Int) async throws -> [Evidence] {
-        try await store.evidence(in: aggregator.yearInterval(year: year))
+        try await journal.evidence(for: year)
     }
 
     public func evidenceBlob(for id: UUID) async throws -> Data? {
-        try await store.evidenceBlob(for: id)
+        try await journal.evidenceBlob(for: id)
     }
 
     // MARK: - Reporting
@@ -216,22 +169,11 @@ public actor WhereController {
     }
 
     public func clearYear(_ year: Int) async throws {
-        let interval = aggregator.yearInterval(year: year)
-        try await store.perform { try await store.clear(in: interval) }
-        await reminderReconciler.reconcile()
-        await widgetPublisher.publish()
+        try await journal.clearYear(year)
     }
 
-    /// Erase every sample, manual day, and piece of evidence in the store, then
-    /// reconcile the reminder schedule/badge and republish an (now empty) widget
-    /// snapshot. The store half of `reset()`.
-    ///
-    /// Mirrors `clearYear`'s reconciliation so the badge/reminders reflect the
-    /// now-empty store immediately, rather than relying on a later launch step.
     public func eraseAllData() async throws {
-        try await store.perform { try await store.clearAll() }
-        await reminderReconciler.reconcile()
-        await widgetPublisher.publish()
+        try await journal.eraseAllData()
     }
 
     /// Return the controller to a clean slate for the app's "erase all data &
@@ -250,117 +192,25 @@ public actor WhereController {
 
     // MARK: - Backup
 
-    /// How an imported backup combines with whatever is already on the device.
-    public enum ImportStrategy: Sendable {
-        /// Upsert the imported rows into the existing data (by `id` for
-        /// samples/evidence, by day key for manual days), leaving anything
-        /// not present in the file untouched.
-        case merge
-        /// Erase the whole store first so the device ends up mirroring the
-        /// file exactly.
-        case replace
-    }
+    /// Transitional aliases so call sites (`SettingsView`, `WhereModel`) keep
+    /// compiling while `ImportStrategy`/`ImportSummary` live on
+    /// `BackupCoordinator`. Removed in `ctl-dissolve`.
+    public typealias ImportStrategy = BackupCoordinator.ImportStrategy
+    public typealias ImportSummary = BackupCoordinator.ImportSummary
 
-    /// Counts of what an import wrote, for a user-facing confirmation.
-    public struct ImportSummary: Sendable, Hashable {
-        public let sampleCount: Int
-        public let evidenceCount: Int
-        public let manualDayCount: Int
-
-        public init(sampleCount: Int, evidenceCount: Int, manualDayCount: Int) {
-            self.sampleCount = sampleCount
-            self.evidenceCount = evidenceCount
-            self.manualDayCount = manualDayCount
-        }
-    }
-
-    /// Serialize the entire store (all three tables plus evidence blobs) to a
-    /// `.zip` in the temporary directory and return its URL. The caller owns
-    /// the file: share it, then delete it (or its parent directory).
     public func exportBackup() async throws -> URL {
-        let samples = try await store.allSamples()
-        let evidence = try await store.allEvidence()
-        let manualDays = try await store.allManualDays()
-        var blobs: [UUID: Data] = [:]
-        for item in evidence {
-            if let blob = try await store.evidenceBlob(for: item.id) {
-                blobs[item.id] = blob
-            }
-        }
-        let backupService = backupService
-        return try await Task.detached(priority: .utility) {
-            try backupService.makeArchiveFile(
-                samples: samples,
-                evidence: evidence,
-                manualDays: manualDays,
-                blobs: blobs,
-            )
-        }.value
+        try await backupCoordinator.exportBackup()
     }
 
-    /// Read a backup `.zip` and write its contents back into the store inside
-    /// a single transaction. `.replace` wipes the store first; `.merge` relies
-    /// on the store's upsert semantics. Returns counts of what was imported.
-    ///
-    /// `onProgress` is invoked with a fraction in `0...1` as rows are written,
-    /// throttled to whole-percent changes so a large import doesn't flood the
-    /// caller. It runs on the store's executor; a UI caller should marshal it
-    /// back to the main actor (e.g. via an `AsyncStream`).
     public func importBackup(
         from url: URL,
         strategy: ImportStrategy,
         onProgress: @Sendable (Double) -> Void = { _ in },
     ) async throws -> ImportSummary {
-        // Files handed over by the document picker are security-scoped; we
-        // must bracket the read with start/stop access or `Data(contentsOf:)`
-        // fails with a permissions error.
-        let accessing = url.startAccessingSecurityScopedResource()
-        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-
-        let backupService = backupService
-        let result = try await Task.detached(priority: .utility) {
-            try backupService.readArchive(at: url)
-        }.value
-        let archive = result.archive
-        let blobs = result.blobs
-        let total = archive.samples.count + archive.evidence.count + archive.manualDays.count
-
-        try await store.perform {
-            if strategy == .replace {
-                try await store.clearAll()
-            }
-            // `completed`/`report` are local to this `@Sendable` block, so the
-            // running count never crosses the actor boundary; only the
-            // throttled fraction is handed to `onProgress`.
-            var completed = 0
-            var lastPercent = -1
-            func report() {
-                completed += 1
-                guard total > 0 else { return }
-                let percent = Int(Double(completed) / Double(total) * 100)
-                guard percent != lastPercent else { return }
-                lastPercent = percent
-                onProgress(Double(completed) / Double(total))
-            }
-            for sample in archive.samples {
-                try await store.add(sample: sample)
-                report()
-            }
-            for item in archive.evidence {
-                try await store.write(evidence: item, blob: blobs[item.id])
-                report()
-            }
-            for day in archive.manualDays {
-                try await store.setManualDay(day)
-                report()
-            }
-        }
-        await widgetPublisher.publish()
-
-        return ImportSummary(
-            sampleCount: archive.samples.count,
-            evidenceCount: archive.evidence.count,
-            manualDayCount: archive.manualDays.count,
+        try await backupCoordinator.importBackup(
+            from: url,
+            strategy: strategy,
+            onProgress: onProgress,
         )
     }
 
