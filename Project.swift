@@ -150,7 +150,15 @@ let project = Project(
                 ]),
             ]),
             sources: ["Shared/StuffTestHost/Sources/**"],
-            dependencies: [],
+            // Hosted Swift Testing bundles run inside StuffTestHost, so WhereCore's
+            // `Bundle.module` resolves against the host app's main bundle at runtime.
+            // Depending on WhereCore here makes Tuist embed `Stuff_WhereCore.bundle`
+            // (its GeoJSON region data) into the host, so code the tests touch — e.g.
+            // the lazy `RegionAttributor.shared` — finds its resources instead of
+            // trapping in the `Bundle.module` accessor.
+            dependencies: [
+                .package(product: "WhereCore"),
+            ],
         ),
         unitTests(
             name: "StuffCoreTests",
