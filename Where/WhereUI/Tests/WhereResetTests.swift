@@ -53,6 +53,23 @@ struct WhereResetTests {
         try WhereModel(services: makeServices(status: status), preferences: preferences)
     }
 
+    /// A model plus the scripted location source backing it, so a test can push
+    /// authorization changes through the shared stream after the launch.
+    private func makeModelWithSource(
+        status: LocationAuthorizationStatus = .always,
+        preferences: WherePreferences,
+    ) throws -> (WhereModel, ScriptedLocationSource) {
+        let source = ScriptedLocationSource(authorizationStatus: status)
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: source,
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        return (WhereModel(services: services, preferences: preferences), source)
+    }
+
     @Test func resetSequenceErasesThenClearsPreferences() throws {
         let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.resetSequence(for: model).steps.map(\.id)
@@ -116,6 +133,44 @@ struct WhereResetTests {
         #expect(launcher.phase.isReady)
         let rebuilt = try #require(model.session)
         #expect(rebuilt !== original)
+    }
+
+    @Test func authorizationChangeReachesTheRebuiltSessionAfterReset() async throws {
+        // Regression: after a reset, a live authorization change must reach the
+        // rebuilt session. This guards two things together — the source fans
+        // `authorizationUpdates` out per subscriber (`AuthorizationStatusBroadcaster`)
+        // so the rebuilt session gets its own stream, and `WhereSession.deinit`
+        // cancels the dropped session's observer so it stops competing for it.
+        let preferences = makePreferences()
+        let (model, source) = try makeModelWithSource(status: .always, preferences: preferences)
+        model.completeOnboarding()
+        weak var weakOriginal = model.session
+
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        await launcher.run()
+        #expect(launcher.phase.isReady)
+
+        // Reset re-drives into onboarding (hasOnboarded cleared); complete it so
+        // the relaunch rebuilds a fresh session and reaches .ready.
+        let task = Task { @MainActor in
+            await launcher.reset(WhereLaunch.resetSequence(for: model))
+        }
+        try await waitUntil { launcher.phase.runningStepID == LaunchStepID.onboarding.rawValue }
+        launcher.phase.runningBridge?.complete()
+        await task.value
+        #expect(launcher.phase.isReady)
+
+        // The original session was torn down, so only the rebuilt session is left
+        // observing the shared stream.
+        #expect(weakOriginal == nil)
+        let rebuilt = try #require(model.session)
+        #expect(rebuilt.authorizationStatus == .always)
+
+        // A Settings-app authorization change arrives through the shared stream
+        // and reaches the rebuilt session rather than the defunct original's
+        // observer.
+        source.emitAuthorization(.denied)
+        try await waitUntil { rebuilt.authorizationStatus == .denied }
     }
 
     @Test func resetReturnsToOnboardingWithDataErased() async throws {

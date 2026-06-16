@@ -154,7 +154,12 @@ public final class WhereSession {
     /// The services every mutation funnels through. Non-optional: a session only
     /// exists once `WhereModel` has assembled the service layer.
     let services: WhereServices
-    private var authorizationTask: Task<Void, Never>?
+    /// `@ObservationIgnored` (it's plumbing, not observable UI state) and
+    /// `nonisolated(unsafe)` so the `deinit` can cancel it. The unsafety is sound:
+    /// every read/write is on the main actor except the `deinit`, which by
+    /// definition runs with no other live references, so there is no concurrent
+    /// access to race.
+    @ObservationIgnored private nonisolated(unsafe) var authorizationTask: Task<Void, Never>?
 
     /// The persisted user intent (tracking, reminder/summary schedules) the
     /// session mirrors into its observable storage. Owned by `WhereModel` and
@@ -253,6 +258,16 @@ public final class WhereSession {
         summaryEnabledStorage = preferences.summaryEnabled
         summaryTimeStorage = preferences.summaryTime
         loadState = report == nil ? .idle : .loaded
+    }
+
+    /// Cancel the authorization observer when the session is dropped (e.g. the
+    /// reset teardown rebuilds a fresh session over the same retained services).
+    /// Each session subscribes to its own `authorizationUpdates` stream (fanned
+    /// out by `AuthorizationStatusBroadcaster`); cancelling here tears this
+    /// session's subscription down promptly rather than letting the task linger
+    /// until the next status change resumes it.
+    deinit {
+        authorizationTask?.cancel()
     }
 
     /// Sync authorization, resume tracking if appropriate, then load the
