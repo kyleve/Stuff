@@ -38,7 +38,7 @@ struct LifecycleRunnerDriveTests {
         var executed: [String] = []
         let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
             LifecycleStep.work("a") { _ in executed.append("a") }
-            LifecycleStep.work("skip") { _ in executed.append("skip") }.when { false }
+            LifecycleStep.work("skip", condition: { false }) { _ in executed.append("skip") }
             LifecycleStep.work("c") { _ in executed.append("c") }
         })
         await runner.run()
@@ -49,8 +49,8 @@ struct LifecycleRunnerDriveTests {
         var executed: [String] = []
         let runner = LifecycleRunner(reason: .background(.location), sequence: LifecycleSteps {
             LifecycleStep.work("always") { _ in executed.append("always") }
-            LifecycleStep.work("fg") { _ in executed.append("fg") }.modes(.foreground)
-            LifecycleStep.work("bg") { _ in executed.append("bg") }.modes(.background)
+            LifecycleStep.work("fg", modes: .foreground) { _ in executed.append("fg") }
+            LifecycleStep.work("bg", modes: .background) { _ in executed.append("bg") }
         })
         await runner.run()
         #expect(executed == ["always", "bg"])
@@ -61,7 +61,7 @@ struct LifecycleRunnerDriveTests {
         let runner = LifecycleRunner(reason: .background(.location), sequence: LifecycleSteps {
             LifecycleStep.work("a") { _ in executed.append("a") }
             LifecycleStep
-                .interactive("onboarding", run: { _ in executed.append("onboarding") }) { _ in
+                .interactive("onboarding", perform: { _ in executed.append("onboarding") }) { _ in
                     Text("onboarding")
                 }
             LifecycleStep.work("c") { _ in executed.append("c") }
@@ -88,8 +88,8 @@ struct LifecycleRunnerForegroundPromotionTests {
         var executed: [String] = []
         let runner = LifecycleRunner(reason: .background(.location), sequence: LifecycleSteps {
             LifecycleStep.work("store") { _ in executed.append("store") }
-            LifecycleStep.work("onboarding") { _ in executed.append("onboarding") }
-                .modes(.foreground)
+            LifecycleStep
+                .work("onboarding", modes: .foreground) { _ in executed.append("onboarding") }
         })
         await runner.run()
         // The headless background drive ran only the unrestricted step.
@@ -156,10 +156,11 @@ struct LifecycleRunnerCancellationTests {
         // that never comes.
         var teardownRan = false
         let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
-            LifecycleStep.interactive("gate") { _ in Text("gate") }
-                // After teardown clears the gate, the relaunch skips it and
-                // runs to completion.
-                .when { !teardownRan }
+            // After teardown clears the gate, the relaunch skips it and runs to
+            // completion.
+            LifecycleStep.interactive("gate", condition: { !teardownRan }) { _ in
+                Text("gate")
+            }
         })
         let runTask = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.isRunning("gate") }
@@ -310,7 +311,7 @@ struct LifecycleRunnerInteractiveTests {
 
     @Test func progressIsReadableWhileStepRuns() async throws {
         let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
-            LifecycleStep.interactive("p", run: { bridge in
+            LifecycleStep.interactive("p", perform: { bridge in
                 bridge.progress = 0.5
                 try await bridge.waitForResolution()
             }) { _ in Text("p") }

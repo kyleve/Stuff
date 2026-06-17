@@ -38,7 +38,7 @@ struct LifecycleStepsBuilderTests {
 }
 
 @MainActor
-struct LifecycleStepModifierTests {
+struct LifecycleStepConfigurationTests {
     @Test func defaultStepAppliesToEveryReason() {
         let step = LifecycleStep.work("a") { _ in }
         #expect(step.appliesTo(.userForeground))
@@ -46,13 +46,13 @@ struct LifecycleStepModifierTests {
     }
 
     @Test func foregroundOnlyStepSkipsBackground() {
-        let step = LifecycleStep.work("a") { _ in }.modes(.foreground)
+        let step = LifecycleStep.work("a", modes: .foreground) { _ in }
         #expect(step.appliesTo(.userForeground))
         #expect(!step.appliesTo(.background(.location)))
     }
 
     @Test func backgroundOnlyStepSkipsForeground() {
-        let step = LifecycleStep.work("a") { _ in }.modes(.background)
+        let step = LifecycleStep.work("a", modes: .background) { _ in }
         #expect(!step.appliesTo(.userForeground))
         #expect(step.appliesTo(.background(.remoteNotification)))
     }
@@ -62,9 +62,9 @@ struct LifecycleStepModifierTests {
         #expect(await step.condition())
     }
 
-    @Test func whenModifierStoresPredicate() async {
+    @Test func workConditionGatesTheStep() async {
         var flag = false
-        let step = LifecycleStep.work("a") { _ in }.when { flag }
+        let step = LifecycleStep.work("a", condition: { flag }) { _ in }
         #expect(await step.condition() == false)
         flag = true
         #expect(await step.condition() == true)

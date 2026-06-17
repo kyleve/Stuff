@@ -47,18 +47,19 @@ it to a target's dependencies in [`Package.swift`](../../Package.swift):
 public enum LifecycleReason { case userForeground, background(LifecycleBackgroundCause) }
 public struct LifecycleModeSet: OptionSet { /* .foreground, .background, .all */ }
 
-// One unit of launch work. Build with the .work/.interactive factories and
-// refine with chained modifiers.
+// One unit of launch work. `condition`/`modes` are set at construction (init /
+// .work / .interactive parameters); attach UI with the .presenting modifiers.
 public struct LifecycleStep: Identifiable {
-    public func when(_ predicate: @escaping @MainActor () async -> Bool) -> Self
-    public func modes(_ modes: LifecycleModeSet) -> Self
+    public init(id: AnyHashable, modes: LifecycleModeSet = .all,
+                condition: @escaping @MainActor () async -> Bool = { true },
+                perform: ...)
     public func presenting(_ view: ...) -> Self                 // always while running
     public func presenting(when: ..., _ view: ...) -> Self      // only if predicate holds at start
     public func presenting(after: Duration, _ view: ...) -> Self // only if still running after delay
     public func presenting(after: Duration, minVisible: Duration, _ view: ...) -> Self // …and hold once shown
 
-    public static func work(_ id: AnyHashable, _ body: ...) -> LifecycleStep
-    public static func interactive(_ id: AnyHashable, run: ... = …, presenting: ...) -> LifecycleStep
+    public static func work(_ id: AnyHashable, modes: ... = .all, condition: ... = …, _ perform: ...) -> LifecycleStep
+    public static func interactive(_ id: AnyHashable, modes: ... = .foreground, condition: ... = …, perform: ... = …, presenting: ...) -> LifecycleStep
 }
 
 @resultBuilder public enum LifecycleStepsBuilder {}              // if / if-else / for
@@ -94,13 +95,18 @@ Steps are built with the `LifecycleStep.work` / `LifecycleStep.interactive`
 factories so sequences read declaratively:
 
 ```swift
-LifecycleStep.work(_ id: AnyHashable, _ body: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void)
+LifecycleStep.work(_ id: AnyHashable,
+    modes: LifecycleModeSet = .all,
+    condition: @escaping @MainActor () async -> Bool = { true },
+    _ perform: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void)
 LifecycleStep.interactive(_ id: AnyHashable,
-    run: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void = { try await $0.waitForResolution() },
+    modes: LifecycleModeSet = .foreground,
+    condition: @escaping @MainActor () async -> Bool = { true },
+    perform: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void = { try await $0.waitForResolution() },
     @ViewBuilder presenting: @escaping @MainActor (LifecycleStepUIBridge) -> some View)
 ```
 
-`LifecycleStep.interactive` defaults to `.modes(.foreground)`: a step whose
+`LifecycleStep.interactive` defaults to `modes: .foreground`: a step whose
 whole job is to wait for the user would deadlock during a headless background
 launch (there's no UI to resolve it), so it's skipped there.
 
@@ -165,8 +171,9 @@ let runner = LifecycleRunner(
                 MigrationProgressView(bridge: $0)
             }
 
-        LifecycleStep.interactive("onboarding") { OnboardingView(bridge: $0) }
-            .when { !deps.hasOnboarded }
+        LifecycleStep.interactive("onboarding", condition: { !deps.hasOnboarded }) {
+            OnboardingView(bridge: $0)
+        }
 
         LifecycleStep.work("sync-auth")          { _ in await deps.syncAuthorization() }
         LifecycleStep.work("reconcile-tracking") { _ in await deps.reconcileTracking() }
@@ -243,15 +250,15 @@ store-open step run twice concurrently). A new drive **cancels** the in-flight
 one and awaits it draining before starting: a parked interactive step's
 `waitForResolution()` throws `CancellationError`, which the engine treats as
 "drive cancelled" (stop quietly), distinct from a step throwing (→ `.failed`).
-That's what lets `reset()` / `enterForeground()` interrupt a launch parked on
+That's what lets `teardown()` / `enterForeground()` interrupt a launch parked on
 onboarding instead of hanging forever behind it.
 
 ## Testing
 
 The engine and views are exercised with Swift Testing + a hosted UI test host.
-What's worth covering when adopting it: step ordering, `.when` gating, mode
+What's worth covering when adopting it: step ordering, `condition` gating, mode
 filtering (background skips foreground-only), thrown error → `.failed` +
 `retry()` resuming from the failed step, interactive suspension until
-`bridge.complete()`, progress propagation, and `reset()` returning to
+`bridge.complete()`, progress propagation, and `teardown()` returning to
 `.launching`. Because a real interactive step suspends, drive it from a `Task`
 and poll `runner.phase` until it parks, then resolve the bridge.

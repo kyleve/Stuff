@@ -220,7 +220,7 @@ public final class LifecycleRunner {
             activatePresentation(for: step, bridge: bridge)
 
             do {
-                try await step.run(bridge)
+                try await step.perform(bridge)
             } catch is CancellationError {
                 cancelPresentation()
                 return .cancelled

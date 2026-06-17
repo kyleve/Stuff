@@ -3,13 +3,14 @@ import SwiftUI
 /// One unit of launch work.
 ///
 /// A step declares *whether* it should run (`condition`), *which* launch
-/// reasons it applies to (`allowedModes`), the async `run` body, and an
-/// optional `presentation` to show while it runs. Build steps with the
-/// `LifecycleStep.work(_:_:)` / `LifecycleStep.interactive(...)` factories and
-/// refine them with the chained `.when`/`.modes`/`.presenting` modifiers.
+/// reasons it applies to (`allowedModes`), the async `perform` body, and an
+/// optional `presentation` to show while it runs. `condition` and `allowedModes`
+/// are fixed at construction (init / `work` / `interactive` parameters) rather
+/// than chained modifiers, so a step's run gating is visible where it's built;
+/// UI is attached afterwards with the `.presenting` modifiers.
 ///
 /// The closures are `@MainActor`: heavy work should be delegated to actors
-/// from inside `run`, keeping the step itself on the main actor so it can
+/// from inside `perform`, keeping the step itself on the main actor so it can
 /// drive UI directly.
 public struct LifecycleStep: Identifiable {
     /// Stable identity used for retry/teardown matching and parity tests. Typed
@@ -19,35 +20,27 @@ public struct LifecycleStep: Identifiable {
 
     var allowedModes: LifecycleModeSet
     var condition: @MainActor () async -> Bool
-    var run: @MainActor (LifecycleStepUIBridge) async throws -> Void
+    var perform: @MainActor (LifecycleStepUIBridge) async throws -> Void
     var presentation: LifecycleStepPresentation?
 
+    /// - Parameters:
+    ///   - id: stable identity for retry/teardown matching.
+    ///   - modes: which launch reasons this step runs under (e.g. `.foreground`
+    ///     so onboarding never runs during a headless background relaunch).
+    ///   - condition: run this step only when the predicate holds at the moment
+    ///     the engine reaches it.
+    ///   - perform: the async work; delegate heavy lifting to actors from here.
     public init(
         id: AnyHashable,
+        modes: LifecycleModeSet = .all,
         condition: @escaping @MainActor () async -> Bool = { true },
-        run: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void,
+        perform: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void,
     ) {
         self.id = id
-        allowedModes = .all
+        allowedModes = modes
         self.condition = condition
-        self.run = run
+        self.perform = perform
         presentation = nil
-    }
-
-    /// Only run this step when `predicate` returns true at the moment the
-    /// engine reaches it. Replaces any previously set condition.
-    public func when(_ predicate: @escaping @MainActor () async -> Bool) -> Self {
-        var copy = self
-        copy.condition = predicate
-        return copy
-    }
-
-    /// Restrict this step to the given launch reasons (e.g. `.foreground` so
-    /// onboarding never runs during a headless background relaunch).
-    public func modes(_ modes: LifecycleModeSet) -> Self {
-        var copy = self
-        copy.allowedModes = modes
-        return copy
     }
 
     /// Show `view` for the whole time this step runs (e.g. onboarding, whose
@@ -110,34 +103,36 @@ public struct LifecycleStep: Identifiable {
 // MARK: - Declarative sugar
 
 extension LifecycleStep {
-    /// A silent unit of launch work: runs `body`, shows nothing of its own (the
-    /// host's splash stays up) unless you add a `.presenting(...)` modifier.
+    /// A silent unit of launch work: runs `perform`, shows nothing of its own
+    /// (the host's splash stays up) unless you add a `.presenting(...)` modifier.
     public static func work(
         _ id: AnyHashable,
-        _ body: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void,
+        modes: LifecycleModeSet = .all,
+        condition: @escaping @MainActor () async -> Bool = { true },
+        _ perform: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void,
     ) -> LifecycleStep {
-        LifecycleStep(id: id, run: body)
+        LifecycleStep(id: id, modes: modes, condition: condition, perform: perform)
     }
 
     /// A UI-bearing step that presents `presenting` and, by default, suspends
     /// until the view resolves the bridge (`complete()`/`fail(_:)`). Pass a
-    /// custom `run` if the step also needs to do async work alongside awaiting
-    /// the UI.
+    /// custom `perform` if the step also needs to do async work alongside
+    /// awaiting the UI.
     ///
-    /// Interactive steps default to `.modes(.foreground)`: a step whose whole
+    /// Interactive steps default to `modes: .foreground`: a step whose whole
     /// job is to wait for the user would deadlock during a headless background
-    /// launch (there is no UI to resolve it), so it is skipped there. Override
-    /// with `.modes(.all)` only if `run` can also resolve itself without the
-    /// UI.
+    /// launch (there is no UI to resolve it), so it is skipped there. Pass
+    /// `modes: .all` only if `perform` can also resolve itself without the UI.
     public static func interactive(
         _ id: AnyHashable,
-        run: @escaping @MainActor (LifecycleStepUIBridge) async throws
+        modes: LifecycleModeSet = .foreground,
+        condition: @escaping @MainActor () async -> Bool = { true },
+        perform: @escaping @MainActor (LifecycleStepUIBridge) async throws
             -> Void = { try await $0.waitForResolution() },
         @ViewBuilder presenting view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,
     ) -> LifecycleStep {
-        LifecycleStep(id: id, run: run)
+        LifecycleStep(id: id, modes: modes, condition: condition, perform: perform)
             .presenting(view)
-            .modes(.foreground)
     }
 }
 

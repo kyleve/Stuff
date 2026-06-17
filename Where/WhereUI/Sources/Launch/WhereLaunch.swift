@@ -94,12 +94,13 @@ public enum WhereLaunch {
                 MigrationProgressView(bridge: $0)
             }
 
-            // First run only. `LifecycleStep.interactive` is `.modes(.foreground)`,
-            // so a headless background launch skips it (and never deadlocks
-            // waiting for a tap that can't come).
-            LifecycleStep
-                .interactive(LaunchStepID.onboarding) { OnboardingView(bridge: $0) }
-                .when { !model.hasOnboarded }
+            // First run only. `LifecycleStep.interactive` defaults to
+            // `modes: .foreground`, so a headless background launch skips it (and
+            // never deadlocks waiting for a tap that can't come).
+            LifecycleStep.interactive(
+                LaunchStepID.onboarding,
+                condition: { !model.hasOnboarded },
+            ) { OnboardingView(bridge: $0) }
 
             LifecycleStep.work(LaunchStepID.syncAuth) { _ in
                 await model.session?.syncAuthorization()
@@ -123,7 +124,7 @@ public enum WhereLaunch {
     }
 
     /// The reverse of `sequence`: the teardown run by Settings' "Erase all data
-    /// & reset". `LifecycleRunner.reset` runs these steps, then re-drives
+    /// & reset". `LifecycleRunner.teardown` runs these steps, then re-drives
     /// `sequence` from the top — which, with `hasOnboarded` now cleared, lands
     /// back on the onboarding step, returning the app to its first-run state.
     public static func resetSequence(for model: WhereModel) -> LifecycleSteps {
