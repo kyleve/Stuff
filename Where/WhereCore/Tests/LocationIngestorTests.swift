@@ -29,15 +29,36 @@ struct LocationIngestorTests {
         }
     }
 
+    /// In-memory stand-in for the durable outbox: `load()` returns whatever was
+    /// last `save`d, so two ingestors sharing one instance models the on-disk
+    /// backlog surviving a relaunch.
+    private actor SpyLocationOutbox: LocationOutbox {
+        private(set) var contents: [LocationSample]
+
+        init(_ contents: [LocationSample] = []) {
+            self.contents = contents
+        }
+
+        func load() async -> [LocationSample] {
+            contents
+        }
+
+        func save(_ samples: [LocationSample]) async {
+            contents = samples
+        }
+    }
+
     private static func makeIngestor(
         store: any WhereStore,
         source: ScriptedLocationSource,
         recorder: OutcomeRecorder,
+        outbox: any LocationOutbox = NoOpLocationOutbox(),
     ) -> LocationIngestor {
         LocationIngestor(
             store: store,
             locationSource: source,
             calendar: calendar(),
+            outbox: outbox,
             onPersisted: { outcome in await recorder.record(outcome) },
         )
     }
@@ -139,6 +160,89 @@ struct LocationIngestorTests {
         source.emit(sample(at: "2026-03-15T13:00:00-07:00"))
         try await Task.sleep(for: .milliseconds(100))
         #expect(try await store.allSamples().count == 1)
+    }
+
+    @Test func failedPersistMirrorsToTheDurableOutbox() async throws {
+        let backing = try SwiftDataStore.inMemory()
+        let store = ToggleFailingStore(backing: backing)
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let outbox = SpyLocationOutbox()
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: OutcomeRecorder(),
+            outbox: outbox,
+        )
+        await ingestor.start()
+
+        await store.setShouldFail(true)
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { await ingestor.retryQueueDepth == 1 }
+
+        // The failed sample is mirrored durably, not just held in memory — so it
+        // can be recovered if the process dies before the next successful save.
+        #expect(await outbox.contents.count == 1)
+    }
+
+    @Test func durableBacklogDrainsOnTheNextLaunch() async throws {
+        let backing = try SwiftDataStore.inMemory()
+        let failing = ToggleFailingStore(backing: backing)
+        let outbox = SpyLocationOutbox()
+
+        // First launch: the store is down, so the sample lands only in the
+        // durable backlog (the app could now be killed).
+        let source1 = ScriptedLocationSource(authorizationStatus: .always)
+        let ingestor1 = Self.makeIngestor(
+            store: failing,
+            source: source1,
+            recorder: OutcomeRecorder(),
+            outbox: outbox,
+        )
+        await ingestor1.start()
+        await failing.setShouldFail(true)
+        source1.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { await ingestor1.retryQueueDepth == 1 }
+        #expect(await outbox.contents.count == 1)
+
+        // Second launch: a brand-new ingestor over the *same* durable outbox and
+        // a now-healthy store drains the backlog on start() — no data lost.
+        let source2 = ScriptedLocationSource(authorizationStatus: .always)
+        let ingestor2 = Self.makeIngestor(
+            store: backing,
+            source: source2,
+            recorder: OutcomeRecorder(),
+            outbox: outbox,
+        )
+        await ingestor2.start()
+
+        try await waitUntil { await (try? backing.allSamples().count) == 1 }
+        #expect(await ingestor2.retryQueueDepth == 0)
+        #expect(await outbox.contents.isEmpty)
+    }
+
+    @Test func quiesceClearsTheDurableOutbox() async throws {
+        let backing = try SwiftDataStore.inMemory()
+        let store = ToggleFailingStore(backing: backing)
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let outbox = SpyLocationOutbox()
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: OutcomeRecorder(),
+            outbox: outbox,
+        )
+        await ingestor.start()
+
+        await store.setShouldFail(true)
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { await ingestor.retryQueueDepth == 1 }
+        #expect(await outbox.contents.count == 1)
+
+        // A reset/erase teardown must wipe the durable backlog too, or it would
+        // re-drain into the freshly erased store on the next launch.
+        await ingestor.quiesce()
+        #expect(await ingestor.retryQueueDepth == 0)
+        #expect(await outbox.contents.isEmpty)
     }
 
     @Test func authorizationReflectsTheSource() async throws {

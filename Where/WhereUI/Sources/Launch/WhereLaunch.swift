@@ -185,7 +185,11 @@ public final class WhereBootstrap {
         let store = try await Task.detached(priority: .userInitiated) {
             try SwiftDataStore.make()
         }.value
-        return WhereServices(store: store, locationSource: source)
+        return WhereServices(
+            store: store,
+            locationSource: source,
+            locationOutbox: FileLocationOutbox.applicationSupport(),
+        )
     }
 }
 

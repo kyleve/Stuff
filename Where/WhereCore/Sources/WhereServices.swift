@@ -34,6 +34,7 @@ public struct WhereServices: Sendable {
         reminderScheduler: any LoggingReminderScheduling = UserNotificationReminderScheduler(),
         summaryScheduler: any DailySummaryScheduling = UserNotificationDailySummaryScheduler(),
         widgetRefresher: any WidgetTimelineRefreshing = WidgetCenterTimelineRefresher(),
+        locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let reports = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
@@ -73,6 +74,7 @@ public struct WhereServices: Sendable {
             store: store,
             locationSource: locationSource,
             calendar: aggregator.calendar,
+            outbox: locationOutbox,
             onPersisted: { outcome in
                 if let sample = outcome.liveSample {
                     await reminders.reconcileAfterIngest(changedDays: outcome.changedDays)

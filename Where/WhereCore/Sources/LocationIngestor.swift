@@ -2,10 +2,11 @@ import Foundation
 import os
 
 /// Owns live GPS ingestion: the location-monitoring lifecycle, the
-/// single-consumer sample stream, the retry queue that survives transient
-/// persistence failures, and authorization. Persisted samples are reported back
-/// through an injected post-persist hook, so this actor stays unaware of
-/// reminders and widgets — the assembler wires those in.
+/// single-consumer sample stream, the retry queue (mirrored to a durable
+/// `LocationOutbox` so it survives transient persistence failures *and* app
+/// relaunches), and authorization. Persisted samples are reported back through
+/// an injected post-persist hook, so this actor stays unaware of reminders and
+/// widgets — the assembler wires those in.
 public actor LocationIngestor {
     /// What a persist batch changed, handed to the post-persist hook so the
     /// assembler can reconcile reminders + republish widgets appropriately.
@@ -30,6 +31,10 @@ public actor LocationIngestor {
     private let locationSource: any LocationSource
     private let calendar: Calendar
     private let onPersisted: PostPersistHook
+    /// Durable mirror of `retryQueue`, so a backlog survives the process dying
+    /// mid-outage. Loaded once on the first `start()` and rewritten whenever the
+    /// queue changes; cleared by `quiesce()`.
+    private let outbox: any LocationOutbox
 
     private var ingestTask: Task<Void, Never>?
 
@@ -51,8 +56,14 @@ public actor LocationIngestor {
 
     /// Samples whose persist call failed (e.g. transient SwiftData / CloudKit
     /// error). Drained before each new GPS save and on the next `start()` so a
-    /// brief I/O outage doesn't silently drop measurements.
+    /// brief I/O outage doesn't silently drop measurements. Mirrored to `outbox`
+    /// on every change so the backlog also survives a relaunch.
     private var retryQueue: [LocationSample] = []
+
+    /// Whether the durable backlog has been merged into `retryQueue` yet. Loaded
+    /// exactly once (first `start()`); afterwards `retryQueue` is authoritative
+    /// and a reload could lose items the outbox failed to persist.
+    private var didLoadDurableBacklog = false
 
     /// Hard cap on the retry queue. Once reached, the oldest pending sample is
     /// dropped to make room for the newest. Sized to ~12 hours of
@@ -69,11 +80,13 @@ public actor LocationIngestor {
         store: any WhereStore,
         locationSource: any LocationSource,
         calendar: Calendar,
+        outbox: any LocationOutbox = NoOpLocationOutbox(),
         onPersisted: @escaping PostPersistHook,
     ) {
         self.store = store
         self.locationSource = locationSource
         self.calendar = calendar
+        self.outbox = outbox
         self.onPersisted = onPersisted
     }
 
@@ -97,6 +110,12 @@ public actor LocationIngestor {
         guard !isMonitoring else { return }
         isMonitoring = true
         await locationSource.start()
+        // Seed the in-memory queue from the durable backlog once, so samples that
+        // failed to persist in a prior launch get retried now.
+        if !didLoadDurableBacklog {
+            didLoadDurableBacklog = true
+            retryQueue = await outbox.load() + retryQueue
+        }
         // Flush anything that failed to persist before this session started,
         // before we (re)attach the stream consumer.
         let drainedDays = await drainRetryQueue()
@@ -129,10 +148,11 @@ public actor LocationIngestor {
 
     /// Stop ingestion and guarantee nothing else writes until the next
     /// `start()`: stop monitoring, refuse further streamed samples, wait for any
-    /// persist already in flight to commit, then drop the retry backlog. The
-    /// app's reset/erase teardown awaits this before wiping the store (see
-    /// `WhereServices.reset`), so a late GPS event can't repopulate it and a
-    /// stale queue can't re-drain into it on the next `start()`.
+    /// persist already in flight to commit, then drop the retry backlog — both
+    /// the in-memory queue and its durable outbox. The app's reset/erase teardown
+    /// awaits this before wiping the store (see `WhereServices.reset`), so a late
+    /// GPS event can't repopulate it and a stale backlog can't re-drain into it on
+    /// the next `start()`.
     ///
     /// Unlike `stop()` (a normal pause that keeps the backlog for when
     /// monitoring resumes), `quiesce()` clears it — the store is about to be
@@ -145,6 +165,9 @@ public actor LocationIngestor {
         // settle first, then clear the backlog — so nothing re-adds after.
         await inFlightIngest?.value
         retryQueue.removeAll()
+        // Clear the durable mirror too; the store is about to be erased, so the
+        // backlog must not re-drain into it on the next launch.
+        await outbox.save([])
     }
 
     /// Whether GPS monitoring is currently active. Exposed so the view-model can
@@ -213,6 +236,7 @@ public actor LocationIngestor {
                 "Failed to persist GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
             )
             enqueueForRetry(sample)
+            await outbox.save(retryQueue)
         }
     }
 
@@ -224,7 +248,8 @@ public actor LocationIngestor {
     }
 
     /// Try to flush every queued sample exactly once. Anything that still fails
-    /// is re-queued at the tail; the next call gets the chance to retry it.
+    /// is re-queued at the tail; the next call gets the chance to retry it. The
+    /// durable backlog is rewritten to match the post-drain queue.
     private func drainRetryQueue() async -> Set<Date> {
         guard !retryQueue.isEmpty else { return [] }
         let pending = retryQueue
@@ -241,6 +266,7 @@ public actor LocationIngestor {
                 enqueueForRetry(sample)
             }
         }
+        await outbox.save(retryQueue)
         return persistedDays
     }
 }
