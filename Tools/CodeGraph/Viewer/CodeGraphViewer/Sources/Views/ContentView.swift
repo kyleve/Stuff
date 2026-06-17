@@ -25,7 +25,8 @@ struct ContentView: View {
     @ViewBuilder
     private var content: some View {
         if let graph = store.graph {
-            GraphSummaryView(graph: graph)
+            GraphContainer(graph: graph)
+                .id(graph.generatedAt)
         } else {
             EmptyStateView(error: store.loadError) { isImporting = true }
         }
@@ -49,5 +50,25 @@ struct ContentView: View {
                 }
             }
         }
+    }
+}
+
+/// Owns the per-graph view model and hosts the canvas + inspector. Keyed by the
+/// graph's timestamp so a hot reload rebuilds it from the new snapshot.
+private struct GraphContainer: View {
+    @State private var model: GraphViewModel
+
+    init(graph: CodeGraph) {
+        _model = State(initialValue: GraphViewModel(graph: graph))
+    }
+
+    var body: some View {
+        @Bindable var model = model
+        GraphCanvasView(model: model)
+            .inspector(isPresented: $model.isInspectorPresented) {
+                InspectorView(model: model, nodeID: model.selection ?? "")
+                    .inspectorColumnWidth(min: 250, ideal: 310, max: 440)
+            }
+            .task { model.relayout() }
     }
 }
