@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-06-16T22:00:00Z",
+  "repoPath": "/Users/kve/Development/Stuff2",
+  "commit": null,
+  "modules": [
+    { "name": "WhereCore", "kind": "library", "dependencies": ["Foundation"] },
+    { "name": "WhereUI", "kind": "library", "dependencies": ["WhereCore"] },
+    { "name": "Foundation", "kind": "external", "dependencies": [] }
+  ],
+  "nodes": [
+    { "id": "module:WhereCore", "name": "WhereCore", "kind": "module", "module": "WhereCore", "origin": "firstParty", "isGeneric": false },
+    { "id": "module:WhereUI", "name": "WhereUI", "kind": "module", "module": "WhereUI", "origin": "firstParty", "isGeneric": false },
+    { "id": "module:Foundation", "name": "Foundation", "kind": "module", "module": "Foundation", "origin": "external", "isGeneric": false },
+
+    { "id": "s:WhereCore10WhereStoreP", "name": "WhereStore", "kind": "protocol", "module": "WhereCore", "origin": "firstParty", "parentID": "module:WhereCore", "file": "Where/WhereCore/Sources/Persistence/WhereStore.swift", "line": 17, "isGeneric": false },
+    { "id": "s:WhereCore16EvidenceBlobStoreP", "name": "EvidenceBlobStore", "kind": "protocol", "module": "WhereCore", "origin": "firstParty", "parentID": "module:WhereCore", "file": "Where/WhereCore/Sources/Evidence/EvidenceBlobStore.swift", "line": 10, "isGeneric": false },
+    { "id": "s:WhereCore14LocationSourceP", "name": "LocationSource", "kind": "protocol", "module": "WhereCore", "origin": "firstParty", "parentID": "module:WhereCore", "file": "Where/WhereCore/Sources/Location/LocationSource.swift", "line": 30, "isGeneric": false },
+    { "id": "s:WhereCore13SwiftDataStoreC", "name": "SwiftDataStore", "kind": "actor", "module": "WhereCore", "origin": "firstParty", "parentID": "module:WhereCore", "file": "Where/WhereCore/Sources/Persistence/SwiftDataStore.swift", "line": 44, "isGeneric": false },
+    { "id": "s:WhereCore18CoreLocationSourceC", "name": "CoreLocationSource", "kind": "class", "module": "WhereCore", "origin": "firstParty", "parentID": "module:WhereCore", "file": "Where/WhereCore/Sources/Location/CoreLocationSource.swift", "line": 12, "isGeneric": false },
+    { "id": "s:WhereCore13WhereServicesV", "name": "WhereServices", "kind": "struct", "module": "WhereCore", "origin": "firstParty", "parentID": "module:WhereCore", "file": "Where/WhereCore/Sources/WhereServices.swift", "line": 20, "isGeneric": false },
+    { "id": "s:WhereCore10YearReportV", "name": "YearReport", "kind": "struct", "module": "WhereCore", "origin": "firstParty", "parentID": "module:WhereCore", "file": "Where/WhereCore/Sources/YearReport.swift", "line": 8, "isGeneric": false },
+
+    { "id": "s:WhereUI11WhereSessionC", "name": "WhereSession", "kind": "class", "module": "WhereUI", "origin": "firstParty", "parentID": "module:WhereUI", "file": "Where/WhereUI/Sources/Model/WhereSession.swift", "line": 19, "isGeneric": false },
+    { "id": "s:WhereUI9WhereModelC", "name": "WhereModel", "kind": "class", "module": "WhereUI", "origin": "firstParty", "parentID": "module:WhereUI", "file": "Where/WhereUI/Sources/Model/WhereModel.swift", "line": 24, "isGeneric": false },
+    { "id": "s:WhereUI11WhereSessionC9LoadStateO", "name": "LoadState", "kind": "enum", "module": "WhereUI", "origin": "firstParty", "parentID": "s:WhereUI11WhereSessionC", "file": "Where/WhereUI/Sources/Model/WhereSession.swift", "line": 22, "isGeneric": false },
+
+    { "id": "s:WhereUI11WhereSessionC8servicesvp", "name": "services", "kind": "property", "module": "WhereUI", "origin": "firstParty", "parentID": "s:WhereUI11WhereSessionC", "file": "Where/WhereUI/Sources/Model/WhereSession.swift", "line": 30 },
+    { "id": "s:WhereUI11WhereSessionC6reportvp", "name": "report", "kind": "property", "module": "WhereUI", "origin": "firstParty", "parentID": "s:WhereUI11WhereSessionC", "file": "Where/WhereUI/Sources/Model/WhereSession.swift", "line": 30 },
+    { "id": "s:WhereUI11WhereSessionC12startSessionyyF", "name": "startSession()", "kind": "method", "module": "WhereUI", "origin": "firstParty", "parentID": "s:WhereUI11WhereSessionC", "file": "Where/WhereUI/Sources/Model/WhereSession.swift", "line": 120 },
+    { "id": "s:WhereUI9WhereModelC7sessionvp", "name": "session", "kind": "property", "module": "WhereUI", "origin": "firstParty", "parentID": "s:WhereUI9WhereModelC", "file": "Where/WhereUI/Sources/Model/WhereModel.swift", "line": 40 },
+
+    { "id": "c:objc(cs)NSObject", "name": "NSObject", "kind": "class", "module": "Foundation", "origin": "external", "parentID": "module:Foundation", "isGeneric": false },
+    { "id": "s:10Foundation4DataV", "name": "Data", "kind": "struct", "module": "Foundation", "origin": "external", "parentID": "module:Foundation", "isGeneric": false }
+  ],
+  "edges": [
+    { "id": "e1", "source": "module:WhereUI", "target": "module:WhereCore", "kind": "moduleDependency", "count": 1 },
+    { "id": "e2", "source": "module:WhereCore", "target": "module:Foundation", "kind": "moduleDependency", "count": 1 },
+
+    { "id": "e3", "source": "s:WhereCore13SwiftDataStoreC", "target": "s:WhereCore10WhereStoreP", "kind": "conformance", "count": 1 },
+    { "id": "e4", "source": "s:WhereCore13SwiftDataStoreC", "target": "s:WhereCore16EvidenceBlobStoreP", "kind": "conformance", "count": 1 },
+    { "id": "e5", "source": "s:WhereCore18CoreLocationSourceC", "target": "s:WhereCore14LocationSourceP", "kind": "conformance", "count": 1 },
+    { "id": "e6", "source": "s:WhereCore18CoreLocationSourceC", "target": "c:objc(cs)NSObject", "kind": "inheritance", "count": 1 },
+
+    { "id": "e7", "source": "s:WhereUI11WhereSessionC", "target": "s:WhereUI11WhereSessionC9LoadStateO", "kind": "member", "count": 1 },
+    { "id": "e8", "source": "s:WhereUI11WhereSessionC", "target": "s:WhereUI11WhereSessionC8servicesvp", "kind": "member", "count": 1 },
+    { "id": "e9", "source": "s:WhereUI11WhereSessionC", "target": "s:WhereUI11WhereSessionC6reportvp", "kind": "member", "count": 1 },
+    { "id": "e10", "source": "s:WhereUI11WhereSessionC", "target": "s:WhereUI11WhereSessionC12startSessionyyF", "kind": "member", "count": 1 },
+    { "id": "e11", "source": "s:WhereUI9WhereModelC", "target": "s:WhereUI9WhereModelC7sessionvp", "kind": "member", "count": 1 },
+
+    { "id": "e12", "source": "s:WhereUI11WhereSessionC", "target": "s:WhereCore13WhereServicesV", "kind": "propertyType", "viaMemberID": "s:WhereUI11WhereSessionC8servicesvp", "count": 1 },
+    { "id": "e13", "source": "s:WhereUI11WhereSessionC", "target": "s:WhereCore10YearReportV", "kind": "propertyType", "viaMemberID": "s:WhereUI11WhereSessionC6reportvp", "count": 1 },
+    { "id": "e14", "source": "s:WhereUI9WhereModelC", "target": "s:WhereUI11WhereSessionC", "kind": "propertyType", "viaMemberID": "s:WhereUI9WhereModelC7sessionvp", "count": 1 },
+
+    { "id": "e15", "source": "s:WhereCore13WhereServicesV", "target": "s:WhereCore10WhereStoreP", "kind": "propertyType", "count": 2 },
+    { "id": "e16", "source": "s:WhereCore13WhereServicesV", "target": "s:WhereCore14LocationSourceP", "kind": "propertyType", "count": 1 },
+
+    { "id": "e17", "source": "s:WhereUI9WhereModelC", "target": "s:WhereUI11WhereSessionC", "kind": "construction", "count": 1 },
+    { "id": "e18", "source": "s:WhereUI11WhereSessionC", "target": "s:WhereCore13WhereServicesV", "kind": "paramOrReturnType", "viaMemberID": "s:WhereUI11WhereSessionC12startSessionyyF", "count": 1 },
+
+    { "id": "e19", "source": "s:WhereCore10YearReportV", "target": "s:10Foundation4DataV", "kind": "reference", "count": 1 },
+    { "id": "e20", "source": "s:WhereCore13SwiftDataStoreC", "target": "s:WhereCore10YearReportV", "kind": "paramOrReturnType", "count": 3 }
+  ]
+}
