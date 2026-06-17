@@ -92,9 +92,14 @@ public struct BackupService: Sendable {
         var assetEntries: [BackupAssetEntry] = []
         for item in evidence {
             guard let blob = blobs[item.id] else { continue }
-            let filename = "\(Self.assetsDirectory)/\(item.id.uuidString)"
-            try blob.write(to: staging.appendingPathComponent(filename))
-            assetEntries.append(BackupAssetEntry(evidenceId: item.id, filename: filename))
+            // Drain each write's file-I/O scratch (URL/Data bridging) per
+            // iteration so a large evidence set doesn't pile up autoreleased
+            // temporaries until the whole export finishes.
+            try autoreleasepool {
+                let filename = "\(Self.assetsDirectory)/\(item.id.uuidString)"
+                try blob.write(to: staging.appendingPathComponent(filename))
+                assetEntries.append(BackupAssetEntry(evidenceId: item.id, filename: filename))
+            }
         }
 
         let archive = BackupArchive(
@@ -155,14 +160,19 @@ public struct BackupService: Sendable {
 
         var blobs: [UUID: Data] = [:]
         for entry in archive.assets {
-            let assetURL = extractDir.appendingPathComponent(entry.filename)
-            guard let data = try? Data(contentsOf: assetURL) else {
-                Self.logger.fault(
-                    "Backup asset missing for evidence \(entry.evidenceId, privacy: .public); skipping blob",
-                )
-                continue
+            // Drain the per-read bridging scratch each iteration so walking a
+            // large asset set doesn't accumulate transient temporaries (the
+            // decoded blobs themselves are retained in `blobs`).
+            autoreleasepool {
+                let assetURL = extractDir.appendingPathComponent(entry.filename)
+                guard let data = try? Data(contentsOf: assetURL) else {
+                    Self.logger.fault(
+                        "Backup asset missing for evidence \(entry.evidenceId, privacy: .public); skipping blob",
+                    )
+                    return
+                }
+                blobs[entry.evidenceId] = data
             }
-            blobs[entry.evidenceId] = data
         }
         return ReadResult(archive: archive, blobs: blobs)
     }
