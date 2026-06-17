@@ -25,12 +25,17 @@ Tools/CodeGraph/run.sh
 
 That builds the extractor, runs `tuist generate` + `xcodebuild
 build-for-testing` to produce a fresh index, harvests the graph into
-`Tools/CodeGraph/.codegraph/graph.json`, then builds and opens the viewer.
-Pick the printed `graph.json` from the open panel **once** — the app keeps a
-security-scoped bookmark and reopens it automatically next launch.
+`Tools/CodeGraph/.codegraph/graph.json`, then builds and **opens the viewer
+directly on that file** (via `open -a` — no open panel, since `.codegraph/` is
+hidden). The app keeps a security-scoped bookmark and reopens it automatically
+next launch.
 
 Re-running anything that rewrites `graph.json` (the script, or watch mode
 below) hot-reloads the open viewer.
+
+To load a graph by hand you can also **drag a `graph.json` onto the window**, or
+use the **Open** button (in the open panel, ⌘⇧. toggles hidden files and ⌘⇧G
+lets you type a path).
 
 > Requires macOS with Xcode 26+ and the toolchain pinned in [`.mise.toml`](../../.mise.toml)
 > (Tuist). The viewer is iOS 26 / Mac Catalyst, matching the rest of the repo.

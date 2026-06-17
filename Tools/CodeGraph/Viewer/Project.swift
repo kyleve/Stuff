@@ -31,6 +31,18 @@ let project = Project(
                 "UILaunchScreen": .dictionary([:]),
                 "CFBundleDisplayName": .string("CodeGraph"),
                 "UIApplicationSupportsIndirectInputEvents": .boolean(true),
+                // Declare we can view JSON so `open -a CodeGraph graph.json`
+                // (used by run.sh) hands the file to us via onOpenURL with a
+                // sandbox grant. Rank Alternate so we don't steal the user's
+                // default .json association.
+                "CFBundleDocumentTypes": .array([
+                    .dictionary([
+                        "CFBundleTypeName": .string("Code graph"),
+                        "CFBundleTypeRole": .string("Viewer"),
+                        "LSHandlerRank": .string("Alternate"),
+                        "LSItemContentTypes": .array([.string("public.json")]),
+                    ]),
+                ]),
             ]),
             sources: ["CodeGraphViewer/Sources/**"],
             entitlements: .dictionary([

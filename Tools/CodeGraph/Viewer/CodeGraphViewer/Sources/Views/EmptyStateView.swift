@@ -20,11 +20,17 @@ struct EmptyStateView: View {
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 420)
             }
-            Button(action: onOpen) {
-                Label("Open graph.json", systemImage: "folder")
+            VStack(spacing: 10) {
+                Button(action: onOpen) {
+                    Label("Open graph.json", systemImage: "folder")
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+
+                Text("or drag a graph.json onto the window")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
 
             if let error {
                 Label(error, systemImage: "exclamationmark.triangle.fill")

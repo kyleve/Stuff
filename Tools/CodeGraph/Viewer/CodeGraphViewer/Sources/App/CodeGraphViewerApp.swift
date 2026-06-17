@@ -9,6 +9,7 @@ struct CodeGraphViewerApp: App {
             ContentView()
                 .environment(store)
                 .task { store.restore() }
+                .onOpenURL { store.open($0) }
         }
     }
 }

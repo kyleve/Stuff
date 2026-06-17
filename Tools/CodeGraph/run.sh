@@ -46,18 +46,20 @@ xcrun xcodebuild build \
   >/dev/null
 
 app="$derived/Build/Products/Debug-maccatalyst/CodeGraphViewer.app"
-echo "==> [4/4] opening $app"
-open "$app"
+echo "==> [4/4] opening the viewer on $graph"
+# Hand the graph straight to the app so nobody has to find it in the hidden
+# .codegraph/ directory through an open panel.
+open -a "$app" "$graph"
 
 cat <<EOF
 
 Graph written to:
   $graph
 
-Pick that file from the viewer's open panel once. The app keeps a
+The viewer opened directly on it (no open panel needed). It keeps a
 security-scoped bookmark and hot-reloads whenever graph.json changes, so you
-can leave it open and re-run this script — or run a live extract that rewrites
-the graph as you build:
+can leave it open and re-run this script. You can also drag a graph.json onto
+the window, or run a live extract that rewrites the graph as you build:
 
   $here/.build/release/code-graph-extract --repo "$repo" --watch
 EOF

@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct ContentView: View {
     @Environment(GraphStore.self) private var store
     @State private var isImporting = false
+    @State private var isDropTargeted = false
 
     var body: some View {
         NavigationStack {
@@ -19,6 +20,20 @@ struct ContentView: View {
                         store.open(url)
                     }
                 }
+                .dropDestination(for: URL.self) { urls, _ in
+                    guard let url = urls.first(where: \.isFileURL) else { return false }
+                    store.open(url)
+                    return true
+                } isTargeted: { isDropTargeted = $0 }
+                .overlay {
+                    if isDropTargeted {
+                        RoundedRectangle(cornerRadius: 14)
+                            .strokeBorder(.tint, style: StrokeStyle(lineWidth: 3, dash: [10, 6]))
+                            .padding(10)
+                            .allowsHitTesting(false)
+                    }
+                }
+                .animation(.easeInOut(duration: 0.12), value: isDropTargeted)
         }
     }
 
