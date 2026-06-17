@@ -26,6 +26,14 @@ public final class LifecycleStepUIBridge {
     /// The view the host should show right now, or nil to fall back to the
     /// splash. Set by the engine according to the step's presentation trigger
     /// (always / when / after); not meant to be set by callers.
+    ///
+    /// Type-erased to `AnyView` on purpose: this is one observable storage slot
+    /// that holds *whichever* step is currently presenting, and different steps
+    /// present different concrete view types. `some View` can't express that — an
+    /// opaque type is a single concrete type fixed at the declaration, so it'd
+    /// force every step to present the same view. The erasure is contained to
+    /// this one property (and `LifecycleStepPresentation.build`); steps' own
+    /// `presenting` closures stay `some View`.
     public internal(set) var presentation: AnyView?
 
     /// Whether the step has been resolved yet, and with what result. Folding the

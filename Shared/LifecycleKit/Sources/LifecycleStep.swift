@@ -152,5 +152,10 @@ struct LifecycleStepPresentation {
     /// Once shown, keep the view up for at least this long even if the step
     /// finishes first (`.zero` = no hold).
     var minVisible: Duration
+    /// Builds the step's view, type-erased to `AnyView`. Erasure is required so a
+    /// heterogeneous `[LifecycleStep]` can share one element type without leaking
+    /// each step's concrete view type into `LifecycleStep`/`LifecycleSteps`; the
+    /// public `presenting` API still takes `some View`. See
+    /// `LifecycleStepUIBridge.presentation` for the full rationale.
     var build: @MainActor (LifecycleStepUIBridge) -> AnyView
 }
