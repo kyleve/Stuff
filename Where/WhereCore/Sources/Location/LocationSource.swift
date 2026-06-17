@@ -20,7 +20,7 @@ public struct LocationPermissionDeniedError: Error, Sendable, Hashable {
     }
 }
 
-/// Abstraction over the source of `LocationSample`s. `WhereController`
+/// Abstraction over the source of `LocationSample`s. `LocationIngestor`
 /// streams from `sampleStream`; production wires a `CoreLocationSource`
 /// (Visits + significant-change), tests wire a `ScriptedLocationSource`.
 ///
@@ -58,10 +58,16 @@ public protocol LocationSource: AnyObject, Sendable {
 /// Drive authorization with `emitAuthorization(_:)`.
 public final class ScriptedLocationSource: LocationSource, @unchecked Sendable {
     public let sampleStream: AsyncStream<LocationSample>
-    public let authorizationUpdates: AsyncStream<LocationAuthorizationStatus>
+
+    /// Each access returns an independent subscription, mirroring
+    /// `CoreLocationSource`, so a test driving several serial observers (e.g. a
+    /// session rebuilt after a reset) doesn't have them share one stream.
+    public var authorizationUpdates: AsyncStream<LocationAuthorizationStatus> {
+        authorizationBroadcaster.subscribe()
+    }
 
     private let sampleContinuation: AsyncStream<LocationSample>.Continuation
-    private let authorizationContinuation: AsyncStream<LocationAuthorizationStatus>.Continuation
+    private let authorizationBroadcaster = AuthorizationStatusBroadcaster()
     private let permissionResult: Result<Void, LocationPermissionDeniedError>
 
     private let lock = NSLock()
@@ -80,10 +86,6 @@ public final class ScriptedLocationSource: LocationSource, @unchecked Sendable {
         var sampleCont: AsyncStream<LocationSample>.Continuation!
         sampleStream = AsyncStream { sampleCont = $0 }
         sampleContinuation = sampleCont
-
-        var authCont: AsyncStream<LocationAuthorizationStatus>.Continuation!
-        authorizationUpdates = AsyncStream { authCont = $0 }
-        authorizationContinuation = authCont
 
         self.permissionResult = permissionResult
         _status = authorizationStatus
@@ -108,11 +110,11 @@ public final class ScriptedLocationSource: LocationSource, @unchecked Sendable {
     /// CoreLocation would after a prompt or a Settings change.
     public func emitAuthorization(_ status: LocationAuthorizationStatus) {
         lock.withLock { _status = status }
-        authorizationContinuation.yield(status)
+        authorizationBroadcaster.send(status)
     }
 
     public func finish() {
         sampleContinuation.finish()
-        authorizationContinuation.finish()
+        authorizationBroadcaster.finishAll()
     }
 }

@@ -67,7 +67,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         ///   sync.
         ///
         /// Tests that want a specific mode (or that construct stores
-        /// outside `WhereController`) should still pass `.inMemory`
+        /// outside `WhereServices`) should still pass `.inMemory`
         /// explicitly via `SwiftDataStore.inMemory()`.
         public static var `default`: Storage {
             if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
@@ -82,11 +82,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     public static func makeContainer(storage: Storage) throws -> ModelContainer {
-        let schema = Schema([
-            SDLocationSample.self,
-            SDEvidence.self,
-            SDManualDay.self,
-        ])
+        // A plain `Schema` of the live models. SwiftData runs implicit
+        // lightweight migration when the on-disk store predates an additive
+        // change (new optional fields, new models); the launch flow shows
+        // migration UI purely off slowness, not a predicted version, so no
+        // `VersionedSchema`/`SchemaMigrationPlan` scaffolding is needed.
+        let schema = Schema([SDLocationSample.self, SDEvidence.self, SDManualDay.self])
         let config = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,

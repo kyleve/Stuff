@@ -1,38 +1,36 @@
 import Foundation
 import Testing
 import WhereCore
+import WhereTesting
 import WhereUI
 
-/// Covers that the model's launch / foreground lifecycle hooks actually drive
-/// the daily-summary configuration down to the controller's scheduler.
+/// Covers that the session's launch / foreground lifecycle hooks actually drive
+/// the daily-summary configuration down to the summary reconciler's scheduler.
 @MainActor
-struct WhereModelSummaryTests {
-    private func ephemeralDefaults() -> UserDefaults {
-        let suite = "test.WhereModelSummary.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suite)!
-        defaults.removePersistentDomain(forName: suite)
-        return defaults
+struct WhereSessionSummaryTests {
+    private func makePreferences() -> WherePreferences {
+        WherePreferences(store: InMemoryKeyValueStore())
     }
 
-    private func makeModel(
-        defaults: UserDefaults,
+    private func makeSession(
+        preferences: WherePreferences,
         scheduler: SpyDailySummaryScheduler,
-    ) throws -> WhereModel {
-        let controller = try WhereController(
+    ) throws -> WhereSession {
+        let services = try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: scheduler,
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        return WhereModel(controller: controller, defaults: defaults)
+        return WhereSession(services: services, preferences: preferences)
     }
 
     @Test func startConfiguresDailySummary() async throws {
         let spy = SpyDailySummaryScheduler()
-        let model = try makeModel(defaults: ephemeralDefaults(), scheduler: spy)
+        let session = try makeSession(preferences: makePreferences(), scheduler: spy)
 
-        await model.start()
+        await session.start()
 
         #expect(await spy.authorizationRequests >= 1)
         #expect(await spy.reconcileCount >= 1)
@@ -41,9 +39,9 @@ struct WhereModelSummaryTests {
 
     @Test func appBecameActiveConfiguresDailySummary() async throws {
         let spy = SpyDailySummaryScheduler()
-        let model = try makeModel(defaults: ephemeralDefaults(), scheduler: spy)
+        let session = try makeSession(preferences: makePreferences(), scheduler: spy)
 
-        await model.appBecameActive()
+        await session.appBecameActive()
 
         #expect(await spy.reconcileCount >= 1)
         #expect(await spy.lastEnabled == true)
@@ -51,20 +49,21 @@ struct WhereModelSummaryTests {
 
     @Test func startWithSummaryDisabledReconcilesDisabled() async throws {
         let spy = SpyDailySummaryScheduler()
-        let model = try makeModel(defaults: ephemeralDefaults(), scheduler: spy)
+        let session = try makeSession(preferences: makePreferences(), scheduler: spy)
         // Disabling persists synchronously, so the launch hook sees it off and
         // never requests authorization.
-        model.summaryEnabled = false
+        session.summaryEnabled = false
 
-        await model.start()
+        await session.start()
 
         #expect(await spy.authorizationRequests == 0)
         #expect(await spy.lastEnabled == false)
     }
 }
 
-/// Records the calls the model funnels into the daily-summary scheduler so the
-/// lifecycle wiring can be asserted without touching `UNUserNotificationCenter`.
+/// Records the calls the session funnels into the daily-summary scheduler so
+/// the lifecycle wiring can be asserted without touching
+/// `UNUserNotificationCenter`.
 private actor SpyDailySummaryScheduler: DailySummaryScheduling {
     private(set) var authorizationRequests = 0
     private(set) var reconcileCount = 0

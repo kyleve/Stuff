@@ -4,9 +4,9 @@ import WhereCore
 /// Retroactively assert which regions a calendar day — or a whole range of
 /// days — belongs to. This overrides any prior manual entry for those days
 /// and unions with whatever GPS recorded (see
-/// `WhereController.addManualDay` / `addManualDays`).
+/// `DayJournal.addManualDay` / `addManualDays`).
 struct ManualDayEntryView: View {
-    @Environment(WhereModel.self) private var model
+    @Environment(WhereSession.self) private var session
     @Environment(\.dismiss) private var dismiss
 
     private enum EntryMode: Hashable, CaseIterable, Identifiable {
@@ -170,9 +170,9 @@ struct ManualDayEntryView: View {
             do {
                 switch mode {
                     case .singleDay:
-                        try await model.setManualDay(date: startDate, regions: selectedRegions)
+                        try await session.setManualDay(date: startDate, regions: selectedRegions)
                     case .range:
-                        try await model.setManualDays(
+                        try await session.setManualDays(
                             from: startDate,
                             through: endDate,
                             regions: selectedRegions,
@@ -193,6 +193,6 @@ struct ManualDayEntryView: View {
         NavigationStack {
             ManualDayEntryView()
         }
-        .environment(PreviewSupport.loadedModel())
+        .environment(PreviewSupport.loadedSession())
     }
 #endif

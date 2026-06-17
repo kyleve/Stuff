@@ -8,13 +8,24 @@
 
 # Open issues
 
+## PX (Exploratory)
+- Thinking outloud, every write into the DB results in various "view" and output changes; but nothing really changes beyond that if writes havent happened. What if we established a pipeline that is:
+	1) Write into DB
+	2) Kick off async jobs to re-evaluate DB contents
+	3) Write out views into a table
+	4) Consumers consume those view changes
+This feels like it might result in a cleaner "pipeline-esque" code layout, and also importantly, will short-circuit a lot of work?
+- I still think _WhereServices_' sub-services should be optional based on the current state of the application. Worth trying to see what happens. Or better yet, decompose it all into an enum representing "logged in" vs "logged out" state.
+- For logging out / resetting, why do we need to delete all the DB entries? Could we just write the DB into a folder, and on reset, move to another one?
+- Noticed when I don't move for a day, nothing gets recorded. I assume this is because we're relying on GPS updates for updates in the background. Any way to guarantee a daily boot outside of GPS?
+
 ## P0s (Must do)
+- Remove the `waitForOneRunloop` calls added to UI tests; it's a flake paradise.
 - Performance pass (How often is the app booting? Can we only do it on changes of say, 1km or more?)
 - Schedule local push notifications if we haven’t recorded for the day yet
 - Add snapshot images to a new test target
 
 ## P1s (Should do)
-- `WhereController` is getting quite big. Break it up into one parent controller with children.
 - `WhereModel` is also getting quite large. Break it up into one parent with children we can pass down.
 - Rewrite controller layer to be a state machine so invariants can’t exist
 - SwiftData browser
@@ -42,5 +53,6 @@
 ## P1s (Should do)
 - Export / import system (JSON? Zip?)
 - Schedule local push notifications if we haven’t recorded for the day yet
+- refactor: `WhereController` is getting quite big. Break it up into one parent controller with children. (dissolved into `WhereServices` + focused collaborators)
 
 ## P2s (Nice to have)

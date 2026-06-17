@@ -91,6 +91,7 @@ let project = Project(
             resources: ["Where/Where/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
+                .package(product: "LifecycleKit"),
                 .package(product: "WhereUI"),
                 .target(name: "WhereWidgets"),
             ],
@@ -149,13 +150,27 @@ let project = Project(
                 ]),
             ]),
             sources: ["Shared/StuffTestHost/Sources/**"],
-            dependencies: [],
+            // Hosted Swift Testing bundles run inside StuffTestHost, so WhereCore's
+            // `Bundle.module` resolves against the host app's main bundle at runtime.
+            // Depending on WhereCore here makes Tuist embed `Stuff_WhereCore.bundle`
+            // (its GeoJSON region data) into the host, so code the tests touch — e.g.
+            // the lazy `RegionAttributor.shared` — finds its resources instead of
+            // trapping in the `Bundle.module` accessor.
+            dependencies: [
+                .package(product: "WhereCore"),
+            ],
         ),
         unitTests(
             name: "StuffCoreTests",
             bundleIdSuffix: "stuffcore",
             productDependency: "StuffCore",
             sources: ["Shared/StuffCore/Tests/**"],
+        ),
+        unitTests(
+            name: "LifecycleKitTests",
+            bundleIdSuffix: "lifecyclekit",
+            productDependency: "LifecycleKit",
+            sources: ["Shared/LifecycleKit/Tests/**"],
         ),
         unitTests(
             name: "WhereCoreTests",
@@ -168,6 +183,7 @@ let project = Project(
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
+            extraPackageProducts: ["LifecycleKit"],
         ),
     ],
     // Tuist's autogeneration doesn't emit working standalone test actions for
@@ -176,6 +192,7 @@ let project = Project(
     // WhereCoreTests` / `tuist test WhereTests` / `tuist test WhereUITests`
     // target a single bundle without building the whole workspace.
     schemes: [
+        testScheme(name: "LifecycleKitTests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),

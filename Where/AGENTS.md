@@ -46,12 +46,31 @@ XCTest — see the root rules).
 Public surface is small and `Sendable`; values cross the persistence
 boundary, never SwiftData records.
 
-- [`WhereController`](WhereCore/Sources/WhereController.swift) –
-  top-level actor. Composes a `WhereStore` and a `LocationSource`.
-  Owns the GPS ingestion `Task` (idempotent `startGPS()` /
-  `stopGPS()`) and a bounded retry queue for transient persistence
-  failures. Use this as the entry point — don't talk to the store
-  or location source directly from UI.
+- [`WhereServices`](WhereCore/Sources/WhereServices.swift) –
+  the feature's service layer: a small `Sendable` container assembled
+  once by `WhereBootstrap` that composes a `WhereStore` and a
+  `LocationSource` into focused collaborators. Use this as the entry
+  point — don't talk to the store or location source directly from UI.
+  Collaborators (each `WhereCore`, unit-tested in isolation):
+    - `ReportReader` (`struct`) – pure reads: `yearReport`, location
+      projections.
+    - `LocationIngestor` (`actor`) – live GPS ingestion: the monitoring
+      lifecycle (idempotent `start()` / `stop()`, plus `quiesce()` that stops
+      the source and drains any in-flight persist for a clean erase), the
+      single-consumer sample stream, a bounded retry queue for transient
+      persistence failures, and authorization.
+    - `DayJournal` (`actor`) – user-sourced writes: manual days, range
+      backfills, overrides, clears, evidence — each followed by its
+      reminder reconcile + widget publish.
+    - `ReminderReconciler` / `DailySummaryReconciler` (`actor`s) – the
+      notification intent + badge/schedule (and recap-body)
+      reconciliation.
+    - `WidgetSnapshotPublisher` (`actor`) – owns the published widget
+      snapshot + the rebuild/throttle policy.
+    - `BackupCoordinator` (`actor`) – backup export/import
+      (`ImportStrategy` / `ImportSummary` live here).
+  The one cross-collaborator op is `WhereServices.reset()` (quiesce GPS
+  ingestion, then wipe the store) — the app's erase/teardown path.
 - [`LocationSample`](WhereCore/Sources/LocationSample.swift) +
   [`SampleSource`](WhereCore/Sources/LocationSample.swift) – the
   atomic observation unit. `SampleSource` distinguishes
@@ -109,6 +128,37 @@ All `WhereCore` `os.Logger` instances use subsystem
 `"com.stuff.where"` with a per-type category. Match that when
 adding new loggers so Console.app filtering stays consistent.
 
+## App model & launch (`WhereUI`)
+
+The app target is tiny; `WhereUI` owns the model layer and the launch flow,
+driven by [`LifecycleKit`](../Shared/LifecycleKit) (read its
+[`AGENTS.md`](../Shared/LifecycleKit/AGENTS.md) for the engine).
+
+- [`WhereModel`](WhereUI/Sources/Model/WhereModel.swift) (`@MainActor
+  @Observable`) – the long-lived, app-level model: the onboarding gate, the
+  persisted `WherePreferences`, and an **optional** `WhereSession`. It lives for
+  the whole process and is built *before* the store opens, so a background
+  relaunch can wire CoreLocation first.
+- [`WhereSession`](WhereUI/Sources/Model/WhereSession.swift) (`@MainActor
+  @Observable`) – the logged-in, services-backed state (`selectedYear`,
+  `report`, `loadState`, tracking/authorization, reminder + summary settings,
+  backup) over a **non-optional** `WhereServices`. Created by the launch's
+  `open-store` step (`startSession()`), dropped on reset (`endSession()`), and
+  read by logged-in views via `@Environment(WhereSession.self)` — so there are
+  no `guard let session` checks sprinkled through the UI.
+- [`WhereLaunch`](WhereUI/Sources/Launch/WhereLaunch.swift) – assembles the
+  cold-launch `LifecycleSteps` and its reverse `resetSequence` (erase + reset),
+  with steps named by the typed `LaunchStepID` enum (a parity test guards step
+  order against `WhereSession.start()`). The nested `WhereBootstrap` owns the
+  service assembly: `prepareLocation()` runs as the runner's synchronous
+  `initializePrerequisites` (installs `CLLocationManager` so a queued background
+  event isn't lost), and `makeServices()` opens the store off the main actor.
+- [`RootView`](WhereUI/Sources/RootView.swift) wraps the real `TabView` in a
+  `LifecycleContainer`, gating `enterForeground()` on `scenePhase == .active` so
+  a headless background launch stays UI-less.
+  [`AppDelegate`](Where/Sources/AppDelegate.swift) picks the `LifecycleReason`
+  from `launchOptions` and drives the runner.
+
 ## SwiftUI views & previews
 
 Every previewable component in `WhereUI` (any `View`, `Widget`, or
@@ -121,16 +171,18 @@ states.
   the file (see
   [`RegionSummaryCard.swift`](WhereUI/Sources/Primary/RegionSummaryCard.swift)
   for the canonical shape).
-- Don't construct controllers, stores, or location sources inline. Pull
+- Don't construct services, stores, or location sources inline. Pull
   fixtures from
   [`PreviewSupport`](WhereUI/Sources/Preview/PreviewSupport.swift) —
-  `loadedModel()`, `emptyModel()`, `elsewhereOnlyModel()`,
-  `missingDaysModel()`, and `sampleReport()` are all synchronous, in-memory,
-  and never touch disk, CloudKit, or CoreLocation. Add a new helper there
-  rather than hand-rolling a `WhereController` in a `#Preview`.
-- Views that read `WhereModel` from the environment need it injected:
-  `.environment(PreviewSupport.loadedModel())` (or whichever model state the
-  preview is exercising).
+  `loadedSession()`, `emptySession()`, `elsewhereOnlySession()`,
+  `missingDaysSession()`, `loadedModel()`, and `sampleReport()` are all
+  synchronous, in-memory, and never touch disk, CloudKit, or CoreLocation. Add a
+  new helper there rather than hand-rolling `WhereServices` in a `#Preview`.
+- Inject whatever the view reads from the environment: logged-in views read
+  `@Environment(WhereSession.self)`, so pass a `*Session()` fixture
+  (`.environment(PreviewSupport.loadedSession())`); the app-level shell
+  (onboarding, Settings reset) reads `WhereModel`, so pass
+  `.environment(PreviewSupport.loadedModel())`.
 - Cover the states that matter, not just the happy path — empty, loaded, and
   any distinct edge state (e.g. missing-days, elsewhere-only) each deserve a
   preview when the view renders them differently.
@@ -159,9 +211,9 @@ states.
 
 - Use the `unitTests` helper in `Project.swift`; the test bundle
   runs in `StuffTestHost` and links `WhereTesting` automatically.
-- Use `ScriptedLocationSource` to drive `WhereController` from
-  tests — never instantiate `CoreLocationSource` outside production
-  wiring.
+- Use `ScriptedLocationSource` to drive `WhereServices` (its
+  `LocationIngestor`) from tests — never instantiate
+  `CoreLocationSource` outside production wiring.
 - Use `SwiftDataStore.inMemory()` for persistence tests so you
   never touch the user's on-disk / CloudKit store.
 - UI tests that need a UIKit window go through `show(_:perform:)`

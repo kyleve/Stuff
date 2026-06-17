@@ -27,4 +27,26 @@ jobs:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
       # Pin the iOS Simulator so hosted tests and signing stay predictable (all test targets are iOS).
-      - run: mise exec -- tuist test --no-selective-testing -- -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
+      - name: Build & Test
+        run: mise exec -- tuist test --no-selective-testing -- -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
+      # Hosted tests can crash the test-host process on CI without leaving any error
+      # in Tuist's summarized log. On failure, capture crash reports + the .xcresult
+      # bundle (which holds the per-test crash backtraces) and upload them for analysis.
+      - name: Collect test diagnostics
+        if: ${{ failure() }}
+        run: |
+          mkdir -p diagnostics/crashes diagnostics/xcresult
+          cp -R "$HOME/Library/Logs/DiagnosticReports/." diagnostics/crashes/ 2>/dev/null || true
+          find "$HOME/Library/Developer/Xcode/DerivedData" -maxdepth 6 -name '*.xcresult' \
+            -exec cp -R {} diagnostics/xcresult/ \; 2>/dev/null || true
+          cp -R "$HOME/.local/state/tuist/sessions" diagnostics/tuist-sessions 2>/dev/null || true
+          echo '--- collected diagnostics ---'
+          find diagnostics -maxdepth 3 | head -200
+      - name: Upload test diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics
+          path: diagnostics
+          if-no-files-found: warn
+          retention-days: 7

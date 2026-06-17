@@ -5,11 +5,11 @@ import WhereCore
 /// year — "California, Jan 1 – Feb 3", "New York, Feb 3 – Mar 10", and so on.
 /// Presented as a sheet from the Primary tab.
 struct PresenceTimelineView: View {
-    @Environment(WhereModel.self) private var model
+    @Environment(WhereSession.self) private var session
     @Environment(\.dismiss) private var dismiss
 
     private var stints: [RegionStint] {
-        guard let report = model.report else { return [] }
+        guard let report = session.report else { return [] }
         return PresenceTimeline.stints(from: report)
     }
 
@@ -28,7 +28,7 @@ struct PresenceTimelineView: View {
                     }
                 }
             }
-            .navigationTitle(Strings.timelineTitle(year: model.selectedYear))
+            .navigationTitle(Strings.timelineTitle(year: session.selectedYear))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -99,6 +99,6 @@ private struct StintRow: View {
 #if DEBUG
     #Preview {
         PresenceTimelineView()
-            .environment(PreviewSupport.loadedModel())
+            .environment(PreviewSupport.loadedSession())
     }
 #endif

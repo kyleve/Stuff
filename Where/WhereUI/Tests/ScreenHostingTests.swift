@@ -9,75 +9,80 @@ import WhereTesting
 @MainActor
 struct ScreenHostingTests {
     @Test func primaryViewHostsWithData() throws {
-        let model = PreviewSupport.loadedModel()
-        try show(UIHostingController(rootView: PrimaryView().environment(model))) { hosted in
+        let session = PreviewSupport.loadedSession()
+        try show(UIHostingController(rootView: PrimaryView().environment(session))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func secondaryViewHostsWithData() throws {
-        let model = PreviewSupport.loadedModel()
-        try show(UIHostingController(rootView: SecondaryView().environment(model))) { hosted in
+        let session = PreviewSupport.loadedSession()
+        try show(UIHostingController(rootView: SecondaryView().environment(session))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func settingsViewHosts() throws {
+        // Settings reads both the app model (reset) and the logged-in session.
         let model = PreviewSupport.loadedModel()
-        try show(UIHostingController(rootView: SettingsView().environment(model))) { hosted in
+        let session = PreviewSupport.loadedSession()
+        let rootView = SettingsView()
+            .environment(model)
+            .environment(session)
+        try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func primaryViewHostsWithElsewhereOnlyData() throws {
-        let model = PreviewSupport.elsewhereOnlyModel()
-        try show(UIHostingController(rootView: PrimaryView().environment(model))) { hosted in
+        let session = PreviewSupport.elsewhereOnlySession()
+        try show(UIHostingController(rootView: PrimaryView().environment(session))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func primaryViewHostsTheMissingDaysBanner() throws {
-        let model = PreviewSupport.missingDaysModel()
+        let session = PreviewSupport.missingDaysSession()
         // The fixture must have gaps, otherwise the banner branch never renders.
-        #expect(model.missingDayCount > 0)
-        try show(UIHostingController(rootView: PrimaryView().environment(model))) { hosted in
+        #expect(session.missingDayCount > 0)
+        try show(UIHostingController(rootView: PrimaryView().environment(session))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func missingDaysViewHostsWithRanges() throws {
-        let model = PreviewSupport.missingDaysModel()
-        #expect(!model.missingDays.isEmpty)
-        try show(UIHostingController(rootView: MissingDaysView().environment(model))) { hosted in
+        let session = PreviewSupport.missingDaysSession()
+        #expect(!session.missingDays.isEmpty)
+        try show(UIHostingController(rootView: MissingDaysView().environment(session))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func regionDaysViewHostsWithData() throws {
-        // `elsewhereOnlyModel` has only `.other` days, so the drill-in list
+        // `elsewhereOnlySession` has only `.other` days, so the drill-in list
         // for that region has rows to render.
-        let model = PreviewSupport.elsewhereOnlyModel()
+        let session = PreviewSupport.elsewhereOnlySession()
         let rootView = NavigationStack { RegionDaysView(region: .other) }
-            .environment(model)
+            .environment(session)
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func dayRelabelViewHosts() throws {
-        let model = PreviewSupport.loadedModel()
+        let session = PreviewSupport.loadedSession()
         let day = DayPresence(date: .now, regions: [.other])
         let rootView = NavigationStack { DayRelabelView(day: day) }
-            .environment(model)
+            .environment(session)
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func presenceTimelineViewHostsWithData() throws {
-        let model = PreviewSupport.loadedModel()
+        let session = PreviewSupport.loadedSession()
         try show(UIHostingController(rootView: PresenceTimelineView()
-                .environment(model)))
+                .environment(session)))
         { hosted in
             #expect(hosted.view != nil)
         }

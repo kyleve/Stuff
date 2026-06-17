@@ -2,9 +2,9 @@ import os
 import WidgetKit
 
 /// Publishes a freshly-computed `WidgetSnapshot` for the widget extension
-/// to render, then pokes WidgetKit to reload. Called by `WhereController`
+/// to render, then pokes WidgetKit to reload. Called by `WidgetSnapshotPublisher`
 /// after each committed store mutation that can change what a widget shows.
-/// Behind a protocol so the controller can be driven deterministically from
+/// Behind a protocol so the publisher can be driven deterministically from
 /// tests (same pattern as `LoggingReminderScheduling`).
 public protocol WidgetTimelineRefreshing: Sendable {
     /// Persist `snapshot` where the widget process can read it, then ask

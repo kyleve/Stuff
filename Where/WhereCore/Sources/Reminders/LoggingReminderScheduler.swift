@@ -23,8 +23,8 @@ public struct ReminderTime: Hashable, Sendable {
 }
 
 /// Schedules the per-day local notifications and app-icon badge that nudge the
-/// user to log a day before it ends. Behind a protocol so `WhereController` can
-/// drive it deterministically from tests.
+/// user to log a day before it ends. Behind a protocol so `ReminderReconciler`
+/// can drive it deterministically from tests.
 public protocol LoggingReminderScheduling: Sendable {
     /// Ask the system for permission to post alerts/sounds/badges. Returns
     /// whether the app is authorized afterward. Safe to call repeatedly.

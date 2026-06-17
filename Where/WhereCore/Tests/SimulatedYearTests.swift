@@ -11,10 +11,10 @@ struct SimulatedYearTests {
         return cal
     }()
 
-    private static func makeController() throws -> WhereController {
+    private static func makeServices() throws -> WhereServices {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource()
-        return WhereController(
+        return WhereServices(
             store: store,
             locationSource: source,
             aggregator: DayAggregator(
@@ -24,11 +24,11 @@ struct SimulatedYearTests {
         )
     }
 
-    /// A scripted controller and its year report. Scripting the year is the
+    /// Scripted services and their year report. Scripting the year is the
     /// expensive part (hundreds of samples, point-in-polygon attribution, a
     /// SwiftData transaction), so the read-only tests below share one copy.
     private struct Fixture {
-        let controller: WhereController
+        let services: WhereServices
         let report: YearReport
     }
 
@@ -36,12 +36,12 @@ struct SimulatedYearTests {
     /// the work exactly once and reuse it. Swift Testing instantiates the
     /// suite per test, so the cache has to live at type scope.
     /// `retroactiveEntryGrowsReport` mutates the store, so it keeps its own
-    /// controller rather than touching this shared one.
+    /// services rather than touching this shared one.
     private static let fixture = Task<Fixture, Error> {
-        let controller = try makeController()
-        await SimulatedYear.script(controller: controller, calendar: calendar)
-        let report = try await controller.yearReport(for: SimulatedYear.year)
-        return Fixture(controller: controller, report: report)
+        let services = try makeServices()
+        await SimulatedYear.script(services: services, calendar: calendar)
+        let report = try await services.reports.yearReport(for: SimulatedYear.year)
+        return Fixture(services: services, report: report)
     }
 
     @Test func totalsAddUpAcrossAllRegions() async throws {
@@ -108,9 +108,9 @@ struct SimulatedYearTests {
     }
 
     @Test func retroactiveEntryGrowsReport() async throws {
-        let controller = try Self.makeController()
-        await SimulatedYear.script(controller: controller, calendar: Self.calendar)
-        let before = try await controller.yearReport(for: SimulatedYear.year)
+        let services = try Self.makeServices()
+        await SimulatedYear.script(services: services, calendar: Self.calendar)
+        let before = try await services.reports.yearReport(for: SimulatedYear.year)
 
         // Nov 13 had no data; backfill it with a dual-region manual entry.
         let date = Self.calendar.date(from: DateComponents(
@@ -118,9 +118,9 @@ struct SimulatedYearTests {
             month: 11,
             day: 13,
         )) ?? Date()
-        try await controller.addManualDay(date: date, regions: [.california, .newYork])
+        try await services.journal.addManualDay(date: date, regions: [.california, .newYork])
 
-        let after = try await controller.yearReport(for: SimulatedYear.year)
+        let after = try await services.reports.yearReport(for: SimulatedYear.year)
         #expect(after.days.count == before.days.count + 1)
 
         let nov13 = after.days.first { day in
@@ -133,7 +133,8 @@ struct SimulatedYearTests {
     }
 
     @Test func evidenceStillRetrievableAfterScripting() async throws {
-        let evidence = try await Self.fixture.value.controller.evidence(for: SimulatedYear.year)
+        let evidence = try await Self.fixture.value.services.journal
+            .evidence(for: SimulatedYear.year)
         #expect(evidence.count == 3)
         let kinds = Set(evidence.map(\.kind))
         #expect(kinds == [.planeTicket, .boardingPass])

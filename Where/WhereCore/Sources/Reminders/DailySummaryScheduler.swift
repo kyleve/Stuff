@@ -4,7 +4,7 @@ import UserNotifications
 
 /// Schedules the single repeating local notification that gives the user a
 /// daily recap of where they've been this year. Behind a protocol so
-/// `WhereController` can drive it deterministically from tests.
+/// `DailySummaryReconciler` can drive it deterministically from tests.
 public protocol DailySummaryScheduling: Sendable {
     /// Ask the system for permission to post alerts/sounds. Returns whether the
     /// app is authorized afterward. Safe to call repeatedly.

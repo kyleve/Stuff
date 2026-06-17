@@ -11,7 +11,7 @@ import ZIPFoundation
 /// ```
 ///
 /// The service is pure file I/O over value types — it never touches
-/// SwiftData. `WhereController` owns reading the store and committing an
+/// SwiftData. `BackupCoordinator` owns reading the store and committing an
 /// import transaction; this type only marshals bytes to and from the zip.
 public struct BackupService: Sendable {
     /// Decoded contents of a backup archive: the manifest plus the evidence

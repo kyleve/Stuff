@@ -28,11 +28,11 @@ public struct WidgetSnapshot: Hashable, Sendable, Codable {
 }
 
 /// Computes a `WidgetSnapshot` from a `WhereStore` and the pure
-/// `DayAggregator`, without any of `WhereController`'s GPS or reminder
-/// machinery. Runs in the *app* process: `WhereController` uses it to
-/// rebuild the snapshot after each committed write and publish it to the
-/// shared App Group file (`WidgetSnapshotStore`). The widget process only
-/// reads that file — it never touches the store.
+/// `DayAggregator`, without any of the GPS or reminder machinery. Runs in the
+/// *app* process: `WidgetSnapshotPublisher` uses it to rebuild the snapshot
+/// after each committed write and publish it to the shared App Group file
+/// (`WidgetSnapshotStore`). The widget process only reads that file — it never
+/// touches the store.
 public struct WidgetDataReader: Sendable {
     private let store: any WhereStore
     private let aggregator: DayAggregator

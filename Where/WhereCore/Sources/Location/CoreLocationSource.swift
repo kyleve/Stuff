@@ -29,12 +29,18 @@ import Foundation
 @MainActor
 public final class CoreLocationSource: NSObject, LocationSource {
     public nonisolated let sampleStream: AsyncStream<LocationSample>
-    public nonisolated let authorizationUpdates: AsyncStream<LocationAuthorizationStatus>
+
+    /// Each access returns an independent subscription (see
+    /// `AuthorizationStatusBroadcaster`), so multiple or serial observers — e.g.
+    /// a `WhereSession` rebuilt after a reset — each get their own stream rather
+    /// than fighting over (and tearing down) a single shared one.
+    public nonisolated var authorizationUpdates: AsyncStream<LocationAuthorizationStatus> {
+        authorizationBroadcaster.subscribe()
+    }
 
     private let manager: CLLocationManager
     private nonisolated let sampleContinuation: AsyncStream<LocationSample>.Continuation
-    private nonisolated let authorizationContinuation: AsyncStream<LocationAuthorizationStatus>
-        .Continuation
+    private nonisolated let authorizationBroadcaster = AuthorizationStatusBroadcaster()
 
     /// Continuations for in-flight `requestPermission()` calls. Overlapping
     /// callers (e.g. rapid taps, or the toggle and the "Grant" button racing)
@@ -54,12 +60,6 @@ public final class CoreLocationSource: NSObject, LocationSource {
         var sampleCont: AsyncStream<LocationSample>.Continuation!
         sampleStream = AsyncStream { sampleCont = $0 }
         sampleContinuation = sampleCont
-
-        var authCont: AsyncStream<LocationAuthorizationStatus>.Continuation!
-        // Keep only the latest status so a subscriber that attaches slightly
-        // after launch still sees the current value.
-        authorizationUpdates = AsyncStream(bufferingPolicy: .bufferingNewest(1)) { authCont = $0 }
-        authorizationContinuation = authCont
 
         manager = CLLocationManager()
         super.init()
@@ -224,7 +224,7 @@ extension CoreLocationSource: CLLocationManagerDelegate {
         let status = manager.authorizationStatus
         // Broadcast every change so observers (the UI) stay in sync, including
         // changes made in the Settings app while we were backgrounded.
-        authorizationContinuation.yield(Self.map(status))
+        authorizationBroadcaster.send(Self.map(status))
         Task { @MainActor in
             self.resolvePendingPermission(for: status)
         }

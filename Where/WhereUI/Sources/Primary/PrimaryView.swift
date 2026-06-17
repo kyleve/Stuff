@@ -4,7 +4,7 @@ import WhereCore
 /// Home tab: the regions you spend the most days in for the selected year,
 /// shown as prominent Liquid Glass cards.
 struct PrimaryView: View {
-    @Environment(WhereModel.self) private var model
+    @Environment(WhereSession.self) private var session
 
     @State private var showingTimeline = false
     @State private var showingMissingDays = false
@@ -21,8 +21,8 @@ struct PrimaryView: View {
                     .padding(.top, UIConstants.Spacings.small)
                     .padding(.bottom, UIConstants.Spacings.medium)
 
-                if model.missingDayCount > 0 {
-                    MissingDaysBanner(count: model.missingDayCount, tilt: tilt) {
+                if session.missingDayCount > 0 {
+                    MissingDaysBanner(count: session.missingDayCount, tilt: tilt) {
                         showingMissingDays = true
                     }
                     .padding(.horizontal)
@@ -55,11 +55,11 @@ struct PrimaryView: View {
         .onDisappear { tilt.stop() }
         .sheet(isPresented: $showingTimeline) {
             PresenceTimelineView()
-                .environment(model)
+                .environment(session)
         }
         .sheet(isPresented: $showingMissingDays) {
             MissingDaysView()
-                .environment(model)
+                .environment(session)
         }
     }
 
@@ -80,8 +80,8 @@ struct PrimaryView: View {
 
     @ViewBuilder
     private var screen: some View {
-        switch model.loadState {
-            case .loading where model.report == nil:
+        switch session.loadState {
+            case .loading where session.report == nil:
                 ProgressView(Strings.primaryLoading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .failed(message):
@@ -91,11 +91,11 @@ struct PrimaryView: View {
                     Text(message)
                 }
             default:
-                if model.ranking.primary.isEmpty {
+                if session.ranking.primary.isEmpty {
                     // Distinguish "nothing tracked at all" from "tracked days
                     // exist, but only in non-headline regions" (e.g. all in
                     // `.other`) — otherwise the latter wrongly reads as empty.
-                    if model.trackedDayCount == 0 {
+                    if session.trackedDayCount == 0 {
                         emptyState
                     } else {
                         elsewhereOnlyState
@@ -111,14 +111,14 @@ struct PrimaryView: View {
             GlassEffectContainer(spacing: UIConstants.Spacings.xxLarge) {
                 VStack(spacing: UIConstants.Spacings.xxLarge) {
                     ForEach(
-                        Array(model.ranking.primary.enumerated()),
+                        Array(session.ranking.primary.enumerated()),
                         id: \.element.id,
                     ) { index, item in
                         RegionSummaryCard(
                             regionDays: item,
                             caption: caption(forRank: index),
-                            yearLength: model.daysInSelectedYear,
-                            year: model.selectedYear,
+                            yearLength: session.daysInSelectedYear,
+                            year: session.selectedYear,
                             tilt: tilt,
                         )
                     }
@@ -131,7 +131,7 @@ struct PrimaryView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(Strings.primaryEmptyTitle(year: model.selectedYear), systemImage: "map")
+            Label(Strings.primaryEmptyTitle(year: session.selectedYear), systemImage: "map")
         } description: {
             Text(Strings.primaryEmptyDescription)
         }
@@ -141,7 +141,7 @@ struct PrimaryView: View {
         ContentUnavailableView {
             Label(Strings.primaryElsewhereOnlyTitle, systemImage: "globe.americas")
         } description: {
-            Text(Strings.primaryElsewhereOnlyDescription(count: model.trackedDayCount))
+            Text(Strings.primaryElsewhereOnlyDescription(count: session.trackedDayCount))
         }
     }
 
@@ -270,16 +270,16 @@ private struct MissingDaysBanner: View {
 #if DEBUG
     #Preview("Loaded") {
         PrimaryView()
-            .environment(PreviewSupport.loadedModel())
+            .environment(PreviewSupport.loadedSession())
     }
 
     #Preview("Empty") {
         PrimaryView()
-            .environment(PreviewSupport.emptyModel())
+            .environment(PreviewSupport.emptySession())
     }
 
     #Preview("Missing days") {
         PrimaryView()
-            .environment(PreviewSupport.missingDaysModel())
+            .environment(PreviewSupport.missingDaysSession())
     }
 #endif

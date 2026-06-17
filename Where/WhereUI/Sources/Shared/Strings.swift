@@ -213,6 +213,90 @@ enum Strings {
         )
     }
 
+    // MARK: Onboarding
+
+    static var onboardingWelcomeTitle: String {
+        String(
+            localized: "onboarding.welcome.title",
+            defaultValue: "Where have you been?",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingWelcomeDescription: String {
+        String(
+            localized: "onboarding.welcome.description",
+            defaultValue: "Where keeps a private passport of which regions you spend your days in — built for residency and day-count questions.",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingAutomaticTitle: String {
+        String(
+            localized: "onboarding.automatic.title",
+            defaultValue: "It logs itself",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingAutomaticDescription: String {
+        String(
+            localized: "onboarding.automatic.description",
+            defaultValue: "With background location, Where quietly notes the regions you pass through. You can always add or correct days by hand.",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingPrivacyTitle: String {
+        String(
+            localized: "onboarding.privacy.title",
+            defaultValue: "Private by design",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingPrivacyDescription: String {
+        String(
+            localized: "onboarding.privacy.description",
+            defaultValue: "Your location stays on your device and in your own iCloud. Turn on background location to start your passport.",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingContinue: String {
+        String(localized: "onboarding.continue", defaultValue: "Continue", bundle: .module)
+    }
+
+    static var onboardingEnableLocation: String {
+        String(
+            localized: "onboarding.enableLocation",
+            defaultValue: "Enable Location",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingNotNow: String {
+        String(localized: "onboarding.notNow", defaultValue: "Not Now", bundle: .module)
+    }
+
+    // MARK: Migration
+
+    static var migrationTitle: String {
+        String(
+            localized: "migration.title",
+            defaultValue: "Updating your data…",
+            bundle: .module,
+        )
+    }
+
+    static var migrationSubtitle: String {
+        String(
+            localized: "migration.subtitle",
+            defaultValue: "This only takes a moment.",
+            bundle: .module,
+        )
+    }
+
     // MARK: Settings
 
     static var settingsTitle: String {
@@ -383,6 +467,38 @@ enum Strings {
         String(
             localized: "settings.data.footer",
             defaultValue: "Acts on the year selected on the Primary tab (\(yearText(year))).",
+            bundle: .module,
+        )
+    }
+
+    static var settingsResetErase: String {
+        String(
+            localized: "settings.reset.erase",
+            defaultValue: "Erase all data & reset",
+            bundle: .module,
+        )
+    }
+
+    static var settingsResetConfirm: String {
+        String(
+            localized: "settings.reset.confirm",
+            defaultValue: "Erase Everything & Reset",
+            bundle: .module,
+        )
+    }
+
+    static var settingsResetMessage: String {
+        String(
+            localized: "settings.reset.message",
+            defaultValue: "This erases every sample, manual day, and piece of evidence on this device and returns you to first-run setup. It can't be undone.",
+            bundle: .module,
+        )
+    }
+
+    static var settingsResetFooter: String {
+        String(
+            localized: "settings.reset.footer",
+            defaultValue: "Starts over from scratch, as if you'd just installed Where.",
             bundle: .module,
         )
     }

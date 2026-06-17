@@ -6,7 +6,7 @@ import WhereCore
 /// backfill where they were. Presented as a sheet from the Primary tab's
 /// warning banner.
 struct MissingDaysView: View {
-    @Environment(WhereModel.self) private var model
+    @Environment(WhereSession.self) private var session
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -24,7 +24,7 @@ struct MissingDaysView: View {
 
     @ViewBuilder
     private var content: some View {
-        if model.missingDays.isEmpty {
+        if session.missingDays.isEmpty {
             ContentUnavailableView {
                 Label(Strings.missingDaysEmptyTitle, systemImage: "checkmark.circle")
             } description: {
@@ -33,7 +33,7 @@ struct MissingDaysView: View {
         } else {
             List {
                 Section {
-                    ForEach(model.missingDays) { range in
+                    ForEach(session.missingDays) { range in
                         NavigationLink {
                             ManualDayEntryView(prefill: range)
                         } label: {
@@ -86,6 +86,6 @@ private struct MissingDayRow: View {
 #if DEBUG
     #Preview {
         MissingDaysView()
-            .environment(PreviewSupport.missingDaysModel())
+            .environment(PreviewSupport.missingDaysSession())
     }
 #endif

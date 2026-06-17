@@ -21,8 +21,8 @@ struct NewYorkHeavyYearTests {
         return cal
     }()
 
-    private static func makeController() throws -> WhereController {
-        try WhereController(
+    private static func makeServices() throws -> WhereServices {
+        try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
             aggregator: DayAggregator(
@@ -51,7 +51,7 @@ struct NewYorkHeavyYearTests {
         lng: Double
     )
 
-    private static func script(controller: WhereController, plan: [PlanEntry]) async {
+    private static func script(services: WhereServices, plan: [PlanEntry]) async {
         var samples: [LocationSample] = []
         for entry in plan {
             for day in entry.days {
@@ -69,7 +69,7 @@ struct NewYorkHeavyYearTests {
                 ))
             }
         }
-        try? await controller.ingest(samples)
+        try? await services.journal.ingest(samples)
     }
 
     // MARK: - NY heavy (304 NY / 61 CA)
@@ -97,9 +97,9 @@ struct NewYorkHeavyYearTests {
     /// bare-majority and back-and-forth tests each script a distinct plan
     /// once, so they aren't memoized here.
     private static let newYorkHeavyReport = Task<YearReport, Error> {
-        let controller = try makeController()
-        await script(controller: controller, plan: newYorkHeavyPlan)
-        return try await controller.yearReport(for: year)
+        let services = try makeServices()
+        await script(services: services, plan: newYorkHeavyPlan)
+        return try await services.reports.yearReport(for: year)
     }
 
     @Test func totalsHaveNewYorkFarAheadOfCalifornia() async throws {
@@ -205,9 +205,9 @@ struct NewYorkHeavyYearTests {
     ]
 
     @Test func californiaWinsBy_oneDay() async throws {
-        let controller = try Self.makeController()
-        await Self.script(controller: controller, plan: Self.californiaBareMajorityPlan)
-        let report = try await controller.yearReport(for: Self.year)
+        let services = try Self.makeServices()
+        await Self.script(services: services, plan: Self.californiaBareMajorityPlan)
+        let report = try await services.reports.yearReport(for: Self.year)
 
         #expect(report.totals[.california] == 183)
         #expect(report.totals[.newYork] == 182)
@@ -217,9 +217,9 @@ struct NewYorkHeavyYearTests {
     }
 
     @Test func newYorkWinsBy_oneDay() async throws {
-        let controller = try Self.makeController()
-        await Self.script(controller: controller, plan: Self.newYorkBareMajorityPlan)
-        let report = try await controller.yearReport(for: Self.year)
+        let services = try Self.makeServices()
+        await Self.script(services: services, plan: Self.newYorkBareMajorityPlan)
+        let report = try await services.reports.yearReport(for: Self.year)
 
         #expect(report.totals[.newYork] == 183)
         #expect(report.totals[.california] == 182)
@@ -267,9 +267,9 @@ struct NewYorkHeavyYearTests {
     ]
 
     @Test func backAndForthEvery8Weeks_endsWithNewYorkAhead() async throws {
-        let controller = try Self.makeController()
-        await Self.script(controller: controller, plan: Self.backAndForthFavorsNewYorkPlan)
-        let report = try await controller.yearReport(for: Self.year)
+        let services = try Self.makeServices()
+        await Self.script(services: services, plan: Self.backAndForthFavorsNewYorkPlan)
+        let report = try await services.reports.yearReport(for: Self.year)
 
         // CA stretches: Jan-Feb (59), May-Jun (61), Sep-Oct (61) = 181
         // NY stretches: Mar-Apr (61), Jul-Aug (62), Nov-Dec (61) = 184
@@ -281,9 +281,9 @@ struct NewYorkHeavyYearTests {
     }
 
     @Test func backAndForthEvery8Weeks_endsWithCaliforniaAhead() async throws {
-        let controller = try Self.makeController()
-        await Self.script(controller: controller, plan: Self.backAndForthFavorsCaliforniaPlan)
-        let report = try await controller.yearReport(for: Self.year)
+        let services = try Self.makeServices()
+        await Self.script(services: services, plan: Self.backAndForthFavorsCaliforniaPlan)
+        let report = try await services.reports.yearReport(for: Self.year)
 
         // NY stretches: Jan-Feb (59), May-Jun (61), Sep-Oct (61) = 181
         // CA stretches: Mar-Apr (61), Jul-Aug (62), Nov-Dec (61) = 184

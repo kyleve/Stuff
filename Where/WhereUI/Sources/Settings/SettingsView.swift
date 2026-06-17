@@ -1,3 +1,4 @@
+import LifecycleKit
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -7,10 +8,15 @@ import WhereCore
 /// whole-database backup export/import, and the destructive "erase a year"
 /// action.
 struct SettingsView: View {
+    // Most settings live on the logged-in session; `model` is kept only to
+    // drive the reset sequence (which rebuilds the session from scratch).
     @Environment(WhereModel.self) private var model
+    @Environment(WhereSession.self) private var session
     @Environment(\.openURL) private var openURL
+    @Environment(\.lifecycleRunner) private var runner
 
     @State private var showClearConfirmation = false
+    @State private var showResetConfirmation = false
 
     // Backup import: the picked file, the merge/replace choice, and the
     // success confirmation.
@@ -18,10 +24,10 @@ struct SettingsView: View {
     @State private var pendingImportURL: URL?
     @State private var showStrategyDialog = false
     @State private var showImportSuccess = false
-    @State private var lastImportSummary: WhereController.ImportSummary?
+    @State private var lastImportSummary: BackupCoordinator.ImportSummary?
 
     var body: some View {
-        @Bindable var model = model
+        @Bindable var session = session
 
         NavigationStack {
             Form {
@@ -31,9 +37,10 @@ struct SettingsView: View {
                 manualEntrySection
                 backupSection
                 dataSection
+                resetSection
             }
             .navigationTitle(Strings.settingsTitle)
-            .alert(Strings.settingsPermissionAlertTitle, isPresented: $model.permissionDenied) {
+            .alert(Strings.settingsPermissionAlertTitle, isPresented: $session.permissionDenied) {
                 Button(Strings.settingsPermissionAlertOpenSettings) { openSystemSettings() }
                 Button(Strings.settingsPermissionAlertNotNow, role: .cancel) {}
             } message: {
@@ -73,8 +80,8 @@ struct SettingsView: View {
             }
             .alert(
                 Strings.settingsBackupErrorTitle,
-                isPresented: $model.isShowingBackupError,
-                presenting: model.backupError,
+                isPresented: $session.isShowingBackupError,
+                presenting: session.backupError,
             ) { _ in
                 Button(Strings.commonOK, role: .cancel) {}
             } message: { message in
@@ -84,17 +91,17 @@ struct SettingsView: View {
     }
 
     private var trackingSection: some View {
-        @Bindable var model = model
+        @Bindable var session = session
         return Section {
-            LocationStatusRow(status: model.authorizationStatus, isTracking: model.isTracking)
+            LocationStatusRow(status: session.authorizationStatus, isTracking: session.isTracking)
 
-            Toggle(isOn: $model.trackingEnabled) {
+            Toggle(isOn: $session.trackingEnabled) {
                 Label(Strings.settingsLocationToggle, systemImage: "location.fill")
             }
 
             if showGrantButton {
                 Button {
-                    Task { await model.requestPermission() }
+                    Task { await session.requestPermission() }
                 } label: {
                     Label(Strings.settingsLocationGrant, systemImage: "location.magnifyingglass")
                 }
@@ -116,7 +123,7 @@ struct SettingsView: View {
 
     /// Re-requesting only helps before the user has made a final decision.
     private var showGrantButton: Bool {
-        switch model.authorizationStatus {
+        switch session.authorizationStatus {
             case .notDetermined, .whenInUse: true
             case .restricted, .denied, .always: false
         }
@@ -125,27 +132,27 @@ struct SettingsView: View {
     /// Once access is denied/restricted (or stuck at When-In-Use), the only way
     /// forward is the Settings app.
     private var showOpenSettingsButton: Bool {
-        switch model.authorizationStatus {
+        switch session.authorizationStatus {
             case .denied, .restricted, .whenInUse: true
             case .notDetermined, .always: false
         }
     }
 
     private var remindersSection: some View {
-        @Bindable var model = model
+        @Bindable var session = session
         return Section {
-            Toggle(isOn: $model.remindersEnabled) {
+            Toggle(isOn: $session.remindersEnabled) {
                 Label(Strings.settingsRemindersToggle, systemImage: "bell.badge")
             }
 
-            if model.remindersEnabled {
+            if session.remindersEnabled {
                 DatePicker(
                     Strings.settingsReminderTime,
-                    selection: $model.reminderTimeOfDay,
+                    selection: $session.reminderTimeOfDay,
                     displayedComponents: .hourAndMinute,
                 )
 
-                if !model.notificationsAuthorized {
+                if !session.notificationsAuthorized {
                     Button {
                         openSystemSettings()
                     } label: {
@@ -161,27 +168,27 @@ struct SettingsView: View {
     }
 
     private var remindersFooter: String {
-        if model.remindersEnabled, !model.notificationsAuthorized {
+        if session.remindersEnabled, !session.notificationsAuthorized {
             return Strings.settingsRemindersDeniedFooter
         }
         return Strings.settingsRemindersFooter
     }
 
     private var summarySection: some View {
-        @Bindable var model = model
+        @Bindable var session = session
         return Section {
-            Toggle(isOn: $model.summaryEnabled) {
+            Toggle(isOn: $session.summaryEnabled) {
                 Label(Strings.settingsSummaryToggle, systemImage: "chart.bar.doc.horizontal")
             }
 
-            if model.summaryEnabled {
+            if session.summaryEnabled {
                 DatePicker(
                     Strings.settingsSummaryTime,
-                    selection: $model.summaryTimeOfDay,
+                    selection: $session.summaryTimeOfDay,
                     displayedComponents: .hourAndMinute,
                 )
 
-                if !model.notificationsAuthorized {
+                if !session.notificationsAuthorized {
                     Button {
                         openSystemSettings()
                     } label: {
@@ -197,7 +204,7 @@ struct SettingsView: View {
     }
 
     private var summaryFooter: String {
-        if model.summaryEnabled, !model.notificationsAuthorized {
+        if session.summaryEnabled, !session.notificationsAuthorized {
             return Strings.settingsSummaryDeniedFooter
         }
         return Strings.settingsSummaryFooter
@@ -228,18 +235,18 @@ struct SettingsView: View {
             ) {
                 Label(Strings.settingsBackupExport, systemImage: "square.and.arrow.up")
             }
-            .disabled(model.backupState != .idle)
+            .disabled(session.backupState != .idle)
 
             Button {
                 showImporter = true
             } label: {
-                if model.backupState == .importing {
+                if session.backupState == .importing {
                     importProgressLabel
                 } else {
                     Label(Strings.settingsBackupImport, systemImage: "square.and.arrow.down")
                 }
             }
-            .disabled(model.backupState != .idle)
+            .disabled(session.backupState != .idle)
         } header: {
             Text(Strings.settingsBackupHeader)
         } footer: {
@@ -248,20 +255,20 @@ struct SettingsView: View {
     }
 
     /// Determinate progress for an in-flight import, driven by
-    /// `model.backupProgress` as the controller writes each row.
+    /// `session.backupProgress` as the backup coordinator writes each row.
     private var importProgressLabel: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(Strings.settingsBackupImporting, systemImage: "square.and.arrow.down")
-            ProgressView(value: model.backupProgress)
+            ProgressView(value: session.backupProgress)
         }
     }
 
     /// Lazily-built backup for `ShareLink`. The closure runs only when the
-    /// share sheet resolves the item; a failed export sets `model.backupError`
+    /// share sheet resolves the item; a failed export sets `session.backupError`
     /// (surfacing the alert) and throws to abort the share.
     private var backupArchiveFile: BackupArchiveFile {
-        BackupArchiveFile { [model] in
-            guard let url = await model.exportBackup() else {
+        BackupArchiveFile { [session] in
+            guard let url = await session.exportBackup() else {
                 throw CocoaError(.fileWriteUnknown)
             }
             return url
@@ -274,13 +281,13 @@ struct SettingsView: View {
                 pendingImportURL = url
                 showStrategyDialog = true
             case let .failure(error):
-                model.backupError = error.localizedDescription
+                session.backupError = error.localizedDescription
         }
     }
 
-    private func runImport(url: URL, strategy: WhereController.ImportStrategy) {
+    private func runImport(url: URL, strategy: BackupCoordinator.ImportStrategy) {
         Task {
-            if let summary = await model.importBackup(from: url, strategy: strategy) {
+            if let summary = await session.importBackup(from: url, strategy: strategy) {
                 lastImportSummary = summary
                 showImportSuccess = true
             }
@@ -301,21 +308,54 @@ struct SettingsView: View {
                 titleVisibility: .visible,
             ) {
                 Button(eraseTitle, role: .destructive) {
-                    Task { await model.clearSelectedYear() }
+                    Task { await session.clearSelectedYear() }
                 }
                 Button(Strings.settingsDataCancel, role: .cancel) {}
             } message: {
-                Text(Strings.settingsDataConfirmMessage(year: model.selectedYear))
+                Text(Strings.settingsDataConfirmMessage(year: session.selectedYear))
             }
         } header: {
             Text(Strings.settingsDataHeader)
         } footer: {
-            Text(Strings.settingsDataFooter(year: model.selectedYear))
+            Text(Strings.settingsDataFooter(year: session.selectedYear))
         }
     }
 
     private var eraseTitle: String {
-        Strings.settingsDataErase(year: model.selectedYear)
+        Strings.settingsDataErase(year: session.selectedYear)
+    }
+
+    /// Whole-app teardown: wipes every year's data and returns to first-run
+    /// onboarding, run through the `LifecycleRunner` published into the
+    /// environment by `LifecycleContainer`. A no-op when no runner is above
+    /// (e.g. previews), since the optional environment value is then nil.
+    private var resetSection: some View {
+        Section {
+            Button(role: .destructive) {
+                showResetConfirmation = true
+            } label: {
+                Label(Strings.settingsResetErase, systemImage: "arrow.counterclockwise")
+            }
+            .confirmationDialog(
+                Strings.settingsResetErase,
+                isPresented: $showResetConfirmation,
+                titleVisibility: .visible,
+            ) {
+                Button(Strings.settingsResetConfirm, role: .destructive) {
+                    requestReset()
+                }
+                Button(Strings.settingsDataCancel, role: .cancel) {}
+            } message: {
+                Text(Strings.settingsResetMessage)
+            }
+        } footer: {
+            Text(Strings.settingsResetFooter)
+        }
+    }
+
+    private func requestReset() {
+        guard let runner else { return }
+        Task { await runner.reset(WhereLaunch.resetSequence(for: model)) }
     }
 
     private func openSystemSettings() {
@@ -328,5 +368,6 @@ struct SettingsView: View {
     #Preview {
         SettingsView()
             .environment(PreviewSupport.loadedModel())
+            .environment(PreviewSupport.loadedSession())
     }
 #endif

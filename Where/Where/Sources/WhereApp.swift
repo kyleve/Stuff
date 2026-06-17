@@ -7,7 +7,7 @@ struct WhereApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(model: appDelegate.model)
+            RootView(model: appDelegate.model, launcher: appDelegate.launcher)
         }
     }
 }
