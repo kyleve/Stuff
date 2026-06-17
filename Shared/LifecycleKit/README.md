@@ -14,22 +14,22 @@ LifecycleKit depends only on SwiftUI + Foundation + Observation — no app code.
 
 ## Mental model
 
-Launch is a pipeline. The engine awaits each step in order; a "transition" is
-just advancing the cursor, and a thrown error short-circuits to `.failed`.
+Launch is a pipeline. The engine awaits each step in order; advancing to the
+next step just moves the cursor, and a thrown error short-circuits to `.failed`.
 
 ```
 launching ──▶ running ──▶ running ──▶ … ──▶ ready
                  │                            ▲
                  └──▶ failed ──(retry)────────┘
 
-ready ──(reset)──▶ launching ──▶ … ──▶ ready
+ready ──(teardown)──▶ launching ──▶ … ──▶ ready
 ```
 
 The key insight that unifies silent and interactive steps: **an interactive
 step is just an async step that awaits a continuation the presented UI
 resumes.** Onboarding and migration aren't special engine cases — they're steps
-whose `run` suspends on `bridge.waitForResolution()` while their `presentation`
-view is shown, and the view calls `bridge.complete()`.
+whose `perform` suspends on `bridge.waitForResolution()` while their
+`presentation` view is shown, and the view calls `bridge.complete()`.
 
 ## Installation
 
@@ -264,7 +264,7 @@ relaunch; `retry()` resumes the teardown from the failed step, then relaunches.
   `enterForeground()` promotes the runner and re-drives so foreground-only
   steps (onboarding) now run.
 
-All drives (`run` / `enterForeground` / `retry` / `reset`) are serialized
+All drives (`run` / `enterForeground` / `retry` / `teardown`) are serialized
 through a single internal task, so two never overlap (which would let, e.g., a
 store-open step run twice concurrently). A new drive **cancels** the in-flight
 one and awaits it draining before starting: a parked interactive step's

@@ -37,14 +37,13 @@ itself.
   there (not the launch) before relaunching. Drive bookkeeping lives in one
   `State` enum so invalid combinations are unrepresentable; transient per-step
   presentation state (deferred timer, `minVisible` clock) is a *local*
-  `ActivePresentation` owned by `runStep`, so it can't outlive the step. Keep new
-  transient state similarly scoped rather than adding stored properties. **All
-  drives funnel
-  through a single in-flight task**: a new drive `cancel()`s the previous one
-  and awaits it draining before starting (cancel-and-drain), so two never
-  overlap *and* `teardown()`/`enterForeground()` can interrupt a launch parked on
-  an interactive step rather than hanging behind it. A cancelled drive ends as
-  `DriveOutcome.cancelled` (stop quietly), distinct from a thrown step
+  `ActivePresentation` owned by `runStep`, so it can't outlive the step. Keep
+  new transient state similarly scoped rather than adding stored properties.
+  **All drives funnel through a single in-flight task**: a new drive `cancel()`s
+  the previous one and awaits it draining before starting (cancel-and-drain), so
+  two never overlap *and* `teardown()`/`enterForeground()` can interrupt a launch
+  parked on an interactive step rather than hanging behind it. A cancelled drive
+  ends as `DriveOutcome.cancelled` (stop quietly), distinct from a thrown step
   (`.failed`). Don't add a drive path that bypasses that serialization.
 - [`LifecycleStep`](Sources/LifecycleStep.swift) – one unit of work: `id`,
   `allowedModes`, async `condition`, `perform`, optional `presentation`. Run
