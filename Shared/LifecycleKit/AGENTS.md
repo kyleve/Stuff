@@ -125,5 +125,9 @@ runs in `StuffTestHost`. Patterns:
 - View behavior ([`LifecycleContainerTests`](Tests/LifecycleContainerTests.swift)):
   host through `StuffTestHost` and assert which branch renders per phase /
   reason (splash, presentation, failure, content, `EmptyView`).
+- Property/adversarial coverage ([`LifecycleRunnerFuzzTests`](Tests/LifecycleRunnerFuzzTests.swift)):
+  a seeded `SplitMix64` generates random step sequences (modes / conditions /
+  throws / flaky-then-succeed) and checks the runner against an independent
+  model. Keep cases seed-reproducible so a failure replays exactly.
 - Keep tests deterministic: gate async steps behind a test-controlled
   continuation rather than racing real timing.
