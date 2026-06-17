@@ -1,4 +1,4 @@
-import LifecycleKit
+@testable import LifecycleKit
 import SwiftUI
 import Testing
 import WhereTesting
@@ -21,14 +21,15 @@ private struct ProbeView: View {
     }
 }
 
-/// Reads the runner the container publishes into the environment and reports
-/// whether it was present when this view laid out.
+/// Reads the runner proxy the container publishes into the environment and
+/// reports whether it was connected (i.e. carried a runner) when this view laid
+/// out.
 private struct EnvironmentRunnerProbe: View {
     @Environment(\.lifecycleRunner) private var runner
     let mark: (Bool) -> Void
 
     var body: some View {
-        mark(runner != nil)
+        mark(runner.base != nil)
         return Color.clear.frame(width: 1, height: 1)
     }
 }
@@ -159,5 +160,24 @@ struct LifecycleContainerTests {
             try waitFor { sawRunner }
         }
         #expect(sawRunner)
+    }
+
+    @Test func defaultRunnerProxyIsDisconnected() {
+        // The environment default: nothing to drive, so callers no-op (debug
+        // asserts) rather than dereferencing a missing runner.
+        #expect(LifecycleRunnerProxy().base == nil)
+    }
+
+    @Test func connectedProxyForwardsTeardownToTheRunner() async {
+        var tornDown = false
+        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {})
+        await runner.run()
+        #expect(runner.phase.isReady)
+
+        await LifecycleRunnerProxy(runner).teardown(LifecycleSteps {
+            LifecycleStep.work("teardown") { _ in tornDown = true }
+        })
+        #expect(tornDown)
+        #expect(runner.phase.isReady)
     }
 }
