@@ -61,7 +61,7 @@ final class GraphViewModel {
 
     /// A readable starting set: the classic "is-a"/ownership edges plus the two
     /// most informative data-flow kinds. The rest are opt-in via filters.
-    static let defaultEdgeKinds: Set<EdgeKind> = [
+    nonisolated static let defaultEdgeKinds: Set<EdgeKind> = [
         .inheritance,
         .conformance,
         .propertyType,
@@ -71,7 +71,7 @@ final class GraphViewModel {
     ]
 
     /// Primary (non-member, non-module) node kinds the kind filter governs.
-    static let filterableKinds: Set<NodeKind> = [
+    nonisolated static let filterableKinds: Set<NodeKind> = [
         .class,
         .struct,
         .enum,
@@ -106,6 +106,14 @@ final class GraphViewModel {
     private let engine = LayoutEngine()
     private var layoutTask: Task<Void, Never>?
 
+    private let persistence = ViewerPersistence()
+    private var record = ViewerRecord()
+    private(set) var savedViews: [SavedView] = []
+    /// Suppresses relayout/persist side effects while a batch of state is being
+    /// applied (restore / apply saved view).
+    private var isBatching = false
+    private var saveTask: Task<Void, Never>?
+
     init(graph: CodeGraph) {
         self.graph = graph
         var byID = [String: Node](minimumCapacity: graph.nodes.count)
@@ -129,6 +137,9 @@ final class GraphViewModel {
         outgoingByID = outgoing
         incomingByID = incoming
         allModuleNames = Set(graph.nodes.map(\.module)).sorted()
+        record = persistence.load(repoPath: graph.repoPath)
+        savedViews = record.savedViews
+        apply(record.current)
         rebuildVisible()
     }
 
@@ -188,16 +199,91 @@ final class GraphViewModel {
         positions[id] = point
         pinned[id] = point
         relayout()
+        scheduleSave()
     }
 
     func unpin(_ id: String) {
         pinned.removeValue(forKey: id)
         relayout()
+        scheduleSave()
     }
 
     func unpinAll() {
         pinned.removeAll()
         relayout()
+        scheduleSave()
+    }
+
+    // MARK: - Persistence & saved views
+
+    func saveCurrentView(named name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        record.savedViews.append(SavedView(name: trimmed, state: captureState()))
+        savedViews = record.savedViews
+        persistNow()
+    }
+
+    func applyView(_ view: SavedView) {
+        apply(view.state)
+        rebuildVisible()
+        relayout()
+        scheduleSave()
+    }
+
+    func deleteView(_ view: SavedView) {
+        record.savedViews.removeAll { $0.id == view.id }
+        savedViews = record.savedViews
+        persistNow()
+    }
+
+    /// Apply a persisted state to the current graph, dropping references to
+    /// symbols that no longer exist (reconciliation after a re-extract).
+    private func apply(_ state: ViewerState) {
+        isBatching = true
+        pinned = state.pins.filter { nodesByID[$0.key] != nil }
+        expanded = state.expanded.filter { nodesByID[$0] != nil }
+        focusRoot = state.focusRoot.flatMap { nodesByID[$0] != nil ? $0 : nil }
+        focusDepth = state.focusDepth
+        showExternal = state.showExternal
+        showTests = state.showTests
+        showModules = state.showModules
+        includedEdgeKinds = state.includedEdgeKinds
+        includedNodeKinds = state.includedNodeKinds
+        hiddenModules = state.hiddenModules
+        nameQuery = state.nameQuery
+        isBatching = false
+    }
+
+    private func captureState() -> ViewerState {
+        ViewerState(
+            pins: pinned,
+            expanded: expanded,
+            focusRoot: focusRoot,
+            focusDepth: focusDepth,
+            showExternal: showExternal,
+            showTests: showTests,
+            showModules: showModules,
+            includedEdgeKinds: includedEdgeKinds,
+            includedNodeKinds: includedNodeKinds,
+            hiddenModules: hiddenModules,
+            nameQuery: nameQuery,
+        )
+    }
+
+    private func scheduleSave() {
+        guard !isBatching else { return }
+        saveTask?.cancel()
+        saveTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(400))
+            guard !Task.isCancelled else { return }
+            self?.persistNow()
+        }
+    }
+
+    private func persistNow() {
+        record.current = captureState()
+        persistence.save(record, repoPath: graph.repoPath)
     }
 
     // MARK: - Filtering
@@ -333,8 +419,10 @@ final class GraphViewModel {
 
     /// Recompute the visible set and re-run the layout.
     func invalidate() {
+        guard !isBatching else { return }
         rebuildVisible()
         relayout()
+        scheduleSave()
     }
 
     // MARK: - Layout

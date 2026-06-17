@@ -58,6 +58,8 @@ struct ContentView: View {
 private struct GraphContainer: View {
     @State private var model: GraphViewModel
     @State private var showingFilters = false
+    @State private var showingSaveView = false
+    @State private var newViewName = ""
 
     init(graph: CodeGraph) {
         _model = State(initialValue: GraphViewModel(graph: graph))
@@ -73,6 +75,16 @@ private struct GraphContainer: View {
             .toolbar { toolbar }
             .popover(isPresented: $showingFilters) {
                 FilterPanel(model: model)
+            }
+            .alert("Save view", isPresented: $showingSaveView) {
+                TextField("Name", text: $newViewName)
+                Button("Save") {
+                    model.saveCurrentView(named: newViewName)
+                    newViewName = ""
+                }
+                Button("Cancel", role: .cancel) { newViewName = "" }
+            } message: {
+                Text("Remember the current filters, pins, and focus.")
             }
             .task { model.relayout() }
     }
@@ -98,11 +110,35 @@ private struct GraphContainer: View {
             }
         }
         ToolbarItem(placement: .primaryAction) {
+            viewsMenu
+        }
+        ToolbarItem(placement: .primaryAction) {
             Button {
                 showingFilters = true
             } label: {
                 Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
             }
+        }
+    }
+
+    private var viewsMenu: some View {
+        Menu {
+            Button("Save Current View…", systemImage: "plus") {
+                showingSaveView = true
+            }
+            if !model.savedViews.isEmpty {
+                Divider()
+                ForEach(model.savedViews) { view in
+                    Menu(view.name) {
+                        Button("Apply", systemImage: "checkmark") { model.applyView(view) }
+                        Button("Delete", systemImage: "trash", role: .destructive) {
+                            model.deleteView(view)
+                        }
+                    }
+                }
+            }
+        } label: {
+            Label("Views", systemImage: "rectangle.stack")
         }
     }
 }
