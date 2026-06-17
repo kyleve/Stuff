@@ -153,7 +153,7 @@ struct WhereResetTests {
         // Reset re-drives into onboarding (hasOnboarded cleared); complete it so
         // the relaunch rebuilds a fresh session and reaches .ready.
         let task = Task { @MainActor in
-            await launcher.reset(WhereLaunch.resetSequence(for: model))
+            await launcher.teardown(WhereLaunch.resetSequence(for: model))
         }
         try await waitUntil { launcher.phase.runningStepID == LaunchStepID.onboarding.rawValue }
         launcher.phase.runningBridge?.complete()
@@ -188,7 +188,7 @@ struct WhereResetTests {
         // hasOnboarded is cleared), so reset() doesn't return until onboarding
         // is resolved — drive it from a task and wait for the parked step.
         let task = Task { @MainActor in
-            await launcher.reset(WhereLaunch.resetSequence(for: model))
+            await launcher.teardown(WhereLaunch.resetSequence(for: model))
         }
         try await waitUntil { launcher.phase.runningStepID == LaunchStepID.onboarding.rawValue }
 
@@ -225,7 +225,7 @@ struct WhereResetTests {
 
         // Drive the reset and finish the onboarding it re-drives into.
         let task = Task { @MainActor in
-            await launcher.reset(WhereLaunch.resetSequence(for: model))
+            await launcher.teardown(WhereLaunch.resetSequence(for: model))
         }
         try await waitUntil { launcher.phase.runningStepID == LaunchStepID.onboarding.rawValue }
 
@@ -265,7 +265,7 @@ struct WhereResetTests {
         await launcher.run()
         #expect(launcher.phase.isReady)
 
-        await launcher.reset(failing)
+        await launcher.teardown(failing)
         #expect(launcher.phase.failure?.stepID == LaunchStepID.eraseData.rawValue)
         #expect(model.hasOnboarded) // reset-preferences never ran
     }

@@ -3,7 +3,7 @@ import SwiftUI
 extension EnvironmentValues {
     /// The running `LifecycleRunner`, published by `LifecycleContainer` so
     /// nested views (a custom failure view, a Settings "reset" button) can
-    /// reach `retry()`/`reset()` without prop-drilling. Nil when no container
+    /// reach `retry()`/`teardown()` without prop-drilling. Nil when no container
     /// is above — previews and isolated tests — so reads stay safe.
     @Entry public var lifecycleRunner: LifecycleRunner?
 }

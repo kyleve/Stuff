@@ -15,7 +15,7 @@ struct LifecycleRunnerResetTests {
         #expect(events == ["launch"])
         #expect(runner.phase.isReady)
 
-        await runner.reset(LifecycleSteps {
+        await runner.teardown(LifecycleSteps {
             LifecycleStep.work("teardown") { _ in events.append("teardown") }
         })
         #expect(events == ["launch", "teardown", "launch"])
@@ -27,7 +27,7 @@ struct LifecycleRunnerResetTests {
         let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {})
         await runner.run()
 
-        await runner.reset(LifecycleSteps {
+        await runner.teardown(LifecycleSteps {
             LifecycleStep.work("stop-gps") { _ in events.append("stop-gps") }
             LifecycleStep.work("clear-store") { _ in events.append("clear-store") }
             LifecycleStep.work("clear-widget") { _ in events.append("clear-widget") }
@@ -40,7 +40,7 @@ struct LifecycleRunnerResetTests {
         await runner.run()
 
         let task = Task { @MainActor in
-            await runner.reset(LifecycleSteps {
+            await runner.teardown(LifecycleSteps {
                 LifecycleStep.interactive("signing-out") { _ in Text("Signing out") }
             })
         }
@@ -60,7 +60,7 @@ struct LifecycleRunnerResetTests {
         await runner.run()
         relaunched = false
 
-        await runner.reset(LifecycleSteps {
+        await runner.teardown(LifecycleSteps {
             LifecycleStep.work("teardown") { _ in throw ResetError() }
         })
         #expect(runner.phase.failure?.stepID == "teardown")
@@ -76,7 +76,7 @@ struct LifecycleRunnerResetTests {
         await runner.run()
         events.removeAll()
 
-        await runner.reset(LifecycleSteps {
+        await runner.teardown(LifecycleSteps {
             LifecycleStep.work("erase") { _ in
                 events.append("erase")
                 if shouldFailErase { throw ResetError() }
@@ -104,7 +104,7 @@ struct LifecycleRunnerResetTests {
         await runner.run()
         events.removeAll()
 
-        await runner.reset(LifecycleSteps {
+        await runner.teardown(LifecycleSteps {
             LifecycleStep.work("erase") { _ in events.append("erase") }
             LifecycleStep.work("clear-prefs") { _ in
                 events.append("clear-prefs")

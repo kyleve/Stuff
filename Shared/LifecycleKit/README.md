@@ -86,7 +86,7 @@ public enum LifecyclePhase {
     public func run() async             // walk the steps; idempotent
     public func retry()                 // re-run from the failed step
     public func enterForeground() async // promote a background launch
-    public func reset(_ sequence: LifecycleSteps) async // reverse flow → relaunch
+    public func teardown(_ sequence: LifecycleSteps) async // reverse flow → relaunch
 }
 ```
 
@@ -130,7 +130,7 @@ LifecycleContainer(runner) {      // `content` == the real app, the destination
 The `splash` and `failure` views are caller-injectable; the convenience
 initializers above default them to the built-ins. The container also publishes
 the runner into the environment as `\.lifecycleRunner` (optional, so reads stay
-safe with no container above), letting nested views reach `retry()`/`reset()`
+safe with no container above), letting nested views reach `retry()`/`teardown()`
 without prop-drilling:
 
 ```swift
@@ -138,7 +138,7 @@ struct ResetButton: View {
     @Environment(\.lifecycleRunner) private var runner
     var body: some View {
         Button("Erase & reset", role: .destructive) {
-            Task { await runner?.reset(teardownSteps) }
+            Task { await runner?.teardown(teardownSteps) }
         }
     }
 }
@@ -208,7 +208,7 @@ flag:
 ```swift
 Button("Erase all data & reset", role: .destructive) {
     Task {
-        await runner.reset(LifecycleSteps {
+        await runner.teardown(LifecycleSteps {
             LifecycleStep.work("erase")  { _ in try await deps.eraseAll() }
             LifecycleStep.work("forget") { _ in deps.resetPreferences() }
         })

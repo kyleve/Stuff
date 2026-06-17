@@ -151,7 +151,7 @@ struct LifecycleRunnerForegroundPromotionTests {
 @MainActor
 struct LifecycleRunnerCancellationTests {
     @Test func resetCancelsAParkedInteractiveStepInsteadOfHanging() async throws {
-        // Without cooperative cancellation, `reset()` would await the run
+        // Without cooperative cancellation, `teardown()` would await the run
         // drive forever: it is parked on an interactive step waiting for a tap
         // that never comes.
         var teardownRan = false
@@ -164,7 +164,7 @@ struct LifecycleRunnerCancellationTests {
         let runTask = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.runningStepID == "gate" }
 
-        await runner.reset(LifecycleSteps {
+        await runner.teardown(LifecycleSteps {
             LifecycleStep.work("teardown") { _ in teardownRan = true }
         })
 

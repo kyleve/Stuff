@@ -21,7 +21,7 @@ import SwiftUI
 /// Drives never overlap. The internal `State` folds the launch reason, the
 /// "has run" flag, and the in-flight drive task into one value so invalid
 /// combinations are unrepresentable; `reason` and `phase` are its public
-/// projections. A new drive (`run`/`retry`/`enterForeground`/`reset`) cancels
+/// projections. A new drive (`run`/`retry`/`enterForeground`/`teardown`) cancels
 /// the in-flight one and awaits it draining before starting — cooperative
 /// cancellation (a parked `waitForResolution()` throws `CancellationError`)
 /// keeps that drain from hanging behind an interactive step waiting on a tap
@@ -39,7 +39,7 @@ public final class LifecycleRunner {
         case notStarted(LifecycleReason)
         /// `run()` (or a re-drive) has started. Carries the current reason and
         /// the most recent drive task — which may already have completed, so
-        /// late `run()`/`reset()`/`enterForeground()` callers can await it.
+        /// late `run()`/`teardown()`/`enterForeground()` callers can await it.
         case running(reason: LifecycleReason, task: Task<Void, Never>)
 
         /// The launch reason, which every case carries. Lives on the state so
@@ -62,11 +62,11 @@ public final class LifecycleRunner {
     }
 
     @ObservationIgnored private let steps: [LifecycleStep]
-    /// The most recent teardown sequence handed to `reset(_:)`, retained so a
+    /// The most recent teardown sequence handed to `teardown(_:)`, retained so a
     /// `retry()` after a thrown teardown step resumes the teardown (and the
     /// relaunch that follows) rather than re-driving the launch sequence over
-    /// un-torn-down state. Empty until the first `reset(_:)`.
-    @ObservationIgnored private var teardown: [LifecycleStep] = []
+    /// un-torn-down state. Empty until the first `teardown(_:)`.
+    @ObservationIgnored private var teardownSteps: [LifecycleStep] = []
     @ObservationIgnored private var presentationTask: Task<Void, Never>?
     /// When a deferred (`presenting(after:)`) presentation actually appeared,
     /// and the minimum it must stay up, so a fast finish doesn't flash it away.
@@ -116,15 +116,15 @@ public final class LifecycleRunner {
     /// Resume from the step that failed. No-op unless the runner is currently in
     /// `.failed`.
     ///
-    /// If the failure was in a teardown step (from `reset(_:)`), the teardown is
-    /// resumed from that step and the relaunch still follows — so a failed erase
-    /// re-erases rather than dropping the user back into the app over
+    /// If the failure was in a teardown step (from `teardown(_:)`), the teardown
+    /// is resumed from that step and the relaunch still follows — so a failed
+    /// erase re-erases rather than dropping the user back into the app over
     /// un-torn-down state. Otherwise the launch sequence is resumed from the
     /// failed step.
     public func retry() {
         guard case let .failed(failure) = phase else { return }
-        if let teardownIndex = teardown.firstIndex(where: { $0.id == failure.stepID }) {
-            Task { await driveReset(fromTeardownIndex: teardownIndex) }
+        if let teardownIndex = teardownSteps.firstIndex(where: { $0.id == failure.stepID }) {
+            Task { await driveTeardown(fromTeardownIndex: teardownIndex) }
         } else {
             let startIndex = steps.firstIndex { $0.id == failure.stepID } ?? 0
             let reason = reason
@@ -139,16 +139,16 @@ public final class LifecycleRunner {
     /// The teardown steps are retained so a `retry()` after a thrown teardown
     /// step resumes the teardown (then the relaunch). If a teardown step throws,
     /// the runner parks in `.failed` and does not relaunch.
-    public func reset(_ sequence: LifecycleSteps) async {
-        teardown = sequence.steps
-        await driveReset(fromTeardownIndex: 0)
+    public func teardown(_ sequence: LifecycleSteps) async {
+        teardownSteps = sequence.steps
+        await driveTeardown(fromTeardownIndex: 0)
     }
 
     /// Cancel any in-flight drive, drain it, then run the retained `teardown`
     /// from `startIndex` followed by a fresh launch from the top — landing in
-    /// `.ready` only if both complete. Shared by `reset(_:)` and a `retry()`
+    /// `.ready` only if both complete. Shared by `teardown(_:)` and a `retry()`
     /// resuming a failed teardown step, so the two stay in lockstep.
-    private func driveReset(fromTeardownIndex startIndex: Int) async {
+    private func driveTeardown(fromTeardownIndex startIndex: Int) async {
         let previous = currentTask
         previous?.cancel()
         let reason = reason
@@ -156,7 +156,7 @@ public final class LifecycleRunner {
         let task = Task { [weak self] in
             guard let self else { return }
             await previous?.value
-            guard case .completed = await runSteps(teardown, from: startIndex) else { return }
+            guard case .completed = await runSteps(teardownSteps, from: startIndex) else { return }
             if case .completed = await runSteps(steps, from: 0) {
                 phase = .ready
             }

@@ -355,7 +355,7 @@ struct SettingsView: View {
 
     private func requestReset() {
         guard let runner else { return }
-        Task { await runner.reset(WhereLaunch.resetSequence(for: model)) }
+        Task { await runner.teardown(WhereLaunch.resetSequence(for: model)) }
     }
 
     private func openSystemSettings() {
