@@ -40,8 +40,23 @@ final class GraphViewModel {
         didSet { invalidate() }
     }
 
+    var includedNodeKinds: Set<NodeKind> = GraphViewModel.filterableKinds {
+        didSet { invalidate() }
+    }
+
+    var hiddenModules: Set<String> = [] {
+        didSet { invalidate() }
+    }
+
     var nameQuery = "" {
         didSet { invalidate() }
+    }
+
+    /// When set, only the focus root and nodes within `focusDepth` hops of it
+    /// (over the included edges) are shown.
+    private(set) var focusRoot: String?
+    var focusDepth = 1 {
+        didSet { if focusRoot != nil { invalidate() } }
     }
 
     /// A readable starting set: the classic "is-a"/ownership edges plus the two
@@ -53,6 +68,19 @@ final class GraphViewModel {
         .construction,
         .member,
         .override,
+    ]
+
+    /// Primary (non-member, non-module) node kinds the kind filter governs.
+    static let filterableKinds: Set<NodeKind> = [
+        .class,
+        .struct,
+        .enum,
+        .protocol,
+        .actor,
+        .extension,
+        .typeAlias,
+        .associatedType,
+        .function,
     ]
 
     private(set) var expanded: Set<String> = []
@@ -73,6 +101,7 @@ final class GraphViewModel {
     private(set) var visibleEdges: [GraphEdge] = []
     private var visibleIDs: Set<String> = []
 
+    let allModuleNames: [String]
     let canvasSize = CGSize(width: 2800, height: 2000)
     private let engine = LayoutEngine()
     private var layoutTask: Task<Void, Never>?
@@ -99,6 +128,7 @@ final class GraphViewModel {
         childrenByParent = children
         outgoingByID = outgoing
         incomingByID = incoming
+        allModuleNames = Set(graph.nodes.map(\.module)).sorted()
         rebuildVisible()
     }
 
@@ -170,17 +200,78 @@ final class GraphViewModel {
         relayout()
     }
 
+    // MARK: - Filtering
+
+    var isFocused: Bool {
+        focusRoot != nil
+    }
+
+    var focusName: String? {
+        focusRoot.flatMap { nodesByID[$0]?.name }
+    }
+
+    func focus(on id: String) {
+        focusRoot = id
+        invalidate()
+    }
+
+    func clearFocus() {
+        focusRoot = nil
+        invalidate()
+    }
+
+    func toggleEdgeKind(_ kind: EdgeKind) {
+        if includedEdgeKinds.contains(kind) {
+            includedEdgeKinds.remove(kind)
+        } else {
+            includedEdgeKinds.insert(kind)
+        }
+    }
+
+    func toggleNodeKind(_ kind: NodeKind) {
+        if includedNodeKinds.contains(kind) {
+            includedNodeKinds.remove(kind)
+        } else {
+            includedNodeKinds.insert(kind)
+        }
+    }
+
+    func toggleModuleHidden(_ module: String) {
+        if hiddenModules.contains(module) {
+            hiddenModules.remove(module)
+        } else {
+            hiddenModules.insert(module)
+        }
+    }
+
+    func resetFilters() {
+        showExternal = false
+        showTests = true
+        showModules = false
+        includedEdgeKinds = Self.defaultEdgeKinds
+        includedNodeKinds = Self.filterableKinds
+        hiddenModules = []
+        nameQuery = ""
+        focusRoot = nil
+        focusDepth = 1
+        invalidate()
+    }
+
     // MARK: - Visibility
 
-    func isVisible(_ node: Node) -> Bool {
+    private func passesFilters(_ node: Node) -> Bool {
+        guard !hiddenModules.contains(node.module), matchesOrigin(node) else { return false }
         if node.kind == .module {
-            return showModules && matchesQuery(node) && matchesOrigin(node)
+            return showModules && matchesQuery(node)
         }
         if node.kind.isMember {
             guard let parent = node.parentID, expanded.contains(parent) else { return false }
-            return matchesOrigin(node)
+            return true
         }
-        return matchesQuery(node) && matchesOrigin(node)
+        if Self.filterableKinds.contains(node.kind), !includedNodeKinds.contains(node.kind) {
+            return false
+        }
+        return matchesQuery(node)
     }
 
     private func matchesOrigin(_ node: Node) -> Bool {
@@ -197,8 +288,13 @@ final class GraphViewModel {
     }
 
     private func rebuildVisible() {
-        let nodes = graph.nodes.filter(isVisible)
-        let ids = Set(nodes.map(\.id))
+        let allowed = graph.nodes.filter(passesFilters)
+        var ids = Set(allowed.map(\.id))
+        var nodes = allowed
+        if let root = focusRoot {
+            ids = focusNeighborhood(root: root, depth: focusDepth, allowed: ids)
+            nodes = graph.nodes.filter { ids.contains($0.id) }
+        }
         let edges = graph.edges.filter {
             includedEdgeKinds.contains($0.kind) && ids.contains($0.source) && ids
                 .contains($0.target)
@@ -206,6 +302,33 @@ final class GraphViewModel {
         visibleNodes = nodes
         visibleIDs = ids
         visibleEdges = edges
+    }
+
+    /// Breadth-first set of node ids reachable from `root` within `depth` hops,
+    /// traversing only included edges into allowed nodes (root always included).
+    private func focusNeighborhood(root: String, depth: Int, allowed: Set<String>) -> Set<String> {
+        var visited: Set<String> = [root]
+        var frontier = [root]
+        for _ in 0 ..< max(depth, 0) {
+            var next = [String]()
+            for id in frontier {
+                for edge in outgoingByID[id] ?? [] where includedEdgeKinds.contains(edge.kind)
+                    && allowed.contains(edge.target) && !visited.contains(edge.target)
+                {
+                    visited.insert(edge.target)
+                    next.append(edge.target)
+                }
+                for edge in incomingByID[id] ?? [] where includedEdgeKinds.contains(edge.kind)
+                    && allowed.contains(edge.source) && !visited.contains(edge.source)
+                {
+                    visited.insert(edge.source)
+                    next.append(edge.source)
+                }
+            }
+            if next.isEmpty { break }
+            frontier = next
+        }
+        return visited
     }
 
     /// Recompute the visible set and re-run the layout.

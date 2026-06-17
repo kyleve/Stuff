@@ -173,13 +173,16 @@ struct GraphCanvasView: View {
 
     @ViewBuilder
     private func nodeMenu(_ node: Node) -> some View {
+        Button("Focus on \(node.name)", systemImage: "scope") {
+            model.focus(on: node.id)
+        }
         if node.kind.isType, model.memberCount(node.id) > 0 {
             Button(model.isExpanded(node.id) ? "Collapse members" : "Expand members") {
                 model.toggleExpanded(node.id)
             }
         }
         if model.isPinned(node.id) {
-            Button("Unpin") { model.unpin(node.id) }
+            Button("Unpin", systemImage: "pin.slash") { model.unpin(node.id) }
         }
     }
 

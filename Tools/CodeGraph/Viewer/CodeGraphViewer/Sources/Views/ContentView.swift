@@ -57,6 +57,7 @@ struct ContentView: View {
 /// graph's timestamp so a hot reload rebuilds it from the new snapshot.
 private struct GraphContainer: View {
     @State private var model: GraphViewModel
+    @State private var showingFilters = false
 
     init(graph: CodeGraph) {
         _model = State(initialValue: GraphViewModel(graph: graph))
@@ -69,6 +70,39 @@ private struct GraphContainer: View {
                 InspectorView(model: model, nodeID: model.selection ?? "")
                     .inspectorColumnWidth(min: 250, ideal: 310, max: 440)
             }
+            .toolbar { toolbar }
+            .popover(isPresented: $showingFilters) {
+                FilterPanel(model: model)
+            }
             .task { model.relayout() }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbar: some ToolbarContent {
+        if model.isFocused {
+            ToolbarItem(placement: .secondaryAction) {
+                Button {
+                    model.clearFocus()
+                } label: {
+                    Label("Clear focus", systemImage: "scope")
+                }
+            }
+        }
+        if !model.pinned.isEmpty {
+            ToolbarItem(placement: .secondaryAction) {
+                Button {
+                    model.unpinAll()
+                } label: {
+                    Label("Unpin all", systemImage: "pin.slash")
+                }
+            }
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                showingFilters = true
+            } label: {
+                Label("Filters", systemImage: "line.3.horizontal.decrease.circle")
+            }
+        }
     }
 }

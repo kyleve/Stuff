@@ -55,6 +55,9 @@ struct InspectorView: View {
                         .multilineTextAlignment(.trailing)
                 }
             }
+            Button("Focus neighborhood", systemImage: "scope") {
+                model.focus(on: node.id)
+            }
         }
     }
 
