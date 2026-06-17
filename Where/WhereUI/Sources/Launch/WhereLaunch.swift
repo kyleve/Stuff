@@ -1,5 +1,6 @@
 import LifecycleKit
 import SwiftUI
+import UserNotifications
 import WhereCore
 
 /// Stable identifiers for the steps in `WhereLaunch.sequence` and
@@ -47,16 +48,21 @@ public enum LaunchStepID: String {
 public enum WhereLaunch {
     /// Build the runner for `model`, launching for `reason`.
     ///
-    /// A `WhereBootstrap` owns the services' assembly: its
-    /// `prepareLocation()` runs as the runner's `initializePrerequisites`,
-    /// installing the `CLLocationManager` synchronously so a background
-    /// relaunch's queued event isn't lost while the async `open-store` step
-    /// opens the store and assembles the services.
+    /// `initializePrerequisites` runs the synchronous, must-exist-now launch
+    /// wiring before any async step: a `WhereBootstrap` installs the
+    /// `CLLocationManager` (`prepareLocation()`) so a background relaunch's
+    /// queued event isn't lost while the async `open-store` step assembles the
+    /// services, and the foreground-notification presenter is registered so a
+    /// reminder fired while Where is open still shows. Keeping both here (rather
+    /// than in the app delegate) puts app-lifecycle wiring in one place.
     public static func makeLauncher(model: WhereModel, reason: LifecycleReason) -> LifecycleRunner {
         let bootstrap = WhereBootstrap()
         return LifecycleRunner(
             reason: reason,
-            initializePrerequisites: { bootstrap.prepareLocation() },
+            initializePrerequisites: {
+                bootstrap.prepareLocation()
+                ForegroundNotificationPresenter.install()
+            },
             sequence: sequence(for: model, bootstrap: bootstrap),
         )
     }
@@ -180,5 +186,33 @@ public final class WhereBootstrap {
             try SwiftDataStore.make()
         }.value
         return WhereServices(store: store, locationSource: source)
+    }
+}
+
+/// Presents the app's local notifications (logging reminders, the daily summary)
+/// even while Where is foregrounded, so a nudge isn't silently swallowed when the
+/// user already has the app open.
+///
+/// Registered as the `UNUserNotificationCenter` delegate from `makeLauncher`'s
+/// `initializePrerequisites` rather than ad hoc in the app delegate, so launch
+/// wiring lives in one place. The single `shared` instance is retained for the
+/// process because the notification center's `delegate` is weak; the type is
+/// stateless, hence `@unchecked Sendable`.
+final class ForegroundNotificationPresenter:
+    NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable
+{
+    private static let shared = ForegroundNotificationPresenter()
+
+    /// Register the shared presenter as the notification center's delegate.
+    /// Idempotent: assigning the same delegate twice is a no-op.
+    static func install() {
+        UNUserNotificationCenter.current().delegate = shared
+    }
+
+    func userNotificationCenter(
+        _: UNUserNotificationCenter,
+        willPresent _: UNNotification,
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound, .badge]
     }
 }
