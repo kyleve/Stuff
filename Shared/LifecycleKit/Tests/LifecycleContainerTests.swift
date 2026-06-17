@@ -9,17 +9,9 @@ private struct ProbeError: LocalizedError {
     }
 }
 
-/// Records whether each branch of `LifecycleContainer` actually built its view,
-/// detected by a side effect in `ProbeView.body` (which only runs when the
-/// container chooses that branch and the host lays it out).
-@MainActor
-private final class RenderFlags {
-    var splash = false
-    var content = false
-    var presentation = false
-    var failure = false
-}
-
+/// A leaf view that runs `mark` when the host lays it out, so a test can detect
+/// whether the container actually chose (and rendered) the branch it sits in.
+/// Each test owns the `Bool`s `mark` flips, so there are no shared fixtures.
 private struct ProbeView: View {
     let mark: () -> Void
 
@@ -41,20 +33,6 @@ private struct EnvironmentRunnerProbe: View {
     }
 }
 
-@MainActor
-private func makeContainer(
-    _ runner: LifecycleRunner,
-    flags: RenderFlags,
-) -> some View {
-    LifecycleContainer(
-        runner,
-        splash: { ProbeView { flags.splash = true } },
-        failure: { _, _ in ProbeView { flags.failure = true } },
-    ) {
-        ProbeView { flags.content = true }
-    }
-}
-
 /// Drives the run loop up to `timeout` waiting for `condition`, returning
 /// whether it ever held. Unlike `waitFor`, a `false` result is a normal
 /// outcome — used to assert a branch *never* renders within the budget,
@@ -72,77 +50,100 @@ private func renders(within timeout: TimeInterval = 0.5, _ condition: () -> Bool
 @MainActor
 struct LifecycleContainerTests {
     @Test func readyShowsContent() async throws {
-        let flags = RenderFlags()
+        var content = false
+        var splash = false
         let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {})
         await runner.run()
         #expect(runner.phase.isReady)
 
-        try show(UIHostingController(rootView: makeContainer(runner, flags: flags))) { _ in
-            try waitFor { flags.content }
+        let container = LifecycleContainer(runner, splash: { ProbeView { splash = true } }) {
+            ProbeView { content = true }
         }
-        #expect(flags.content)
-        #expect(!flags.splash)
+        try show(UIHostingController(rootView: container)) { _ in
+            try waitFor { content }
+        }
+        #expect(content)
+        #expect(!splash)
     }
 
     @Test func launchingShowsSplash() throws {
-        let flags = RenderFlags()
+        var splash = false
+        var content = false
         let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
             LifecycleStep.work("a") { _ in }
         })
         // Not run yet, so the runner is still in .launching.
 
-        try show(UIHostingController(rootView: makeContainer(runner, flags: flags))) { _ in
-            try waitFor { flags.splash }
+        let container = LifecycleContainer(runner, splash: { ProbeView { splash = true } }) {
+            ProbeView { content = true }
         }
-        #expect(flags.splash)
-        #expect(!flags.content)
+        try show(UIHostingController(rootView: container)) { _ in
+            try waitFor { splash }
+        }
+        #expect(splash)
+        #expect(!content)
     }
 
     @Test func backgroundLaunchShowsNothing() async throws {
-        let flags = RenderFlags()
+        var content = false
+        var splash = false
         let runner = LifecycleRunner(reason: .background(.location), sequence: LifecycleSteps {})
         await runner.run()
         #expect(runner.phase.isReady)
 
-        try show(UIHostingController(rootView: makeContainer(runner, flags: flags))) { _ in
+        let container = LifecycleContainer(runner, splash: { ProbeView { splash = true } }) {
+            ProbeView { content = true }
+        }
+        try show(UIHostingController(rootView: container)) { _ in
             // Even at .ready, a background launch must not build the app UI:
             // give the host a render budget and confirm neither branch appears.
-            #expect(!renders { flags.content || flags.splash })
+            #expect(!renders { content || splash })
         }
     }
 
     @Test func runningShowsActivePresentation() async throws {
-        let flags = RenderFlags()
+        var presentation = false
+        var content = false
         let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
-            LifecycleStep.interactive("gate") { _ in ProbeView { flags.presentation = true } }
+            LifecycleStep.interactive("gate") { _ in ProbeView { presentation = true } }
         })
         let task = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.runningStepID == "gate" }
 
-        try show(UIHostingController(rootView: makeContainer(runner, flags: flags))) { _ in
-            try waitFor { flags.presentation }
+        let container = LifecycleContainer(runner) { ProbeView { content = true } }
+        try show(UIHostingController(rootView: container)) { _ in
+            try waitFor { presentation }
         }
-        #expect(flags.presentation)
-        #expect(!flags.content)
+        #expect(presentation)
+        #expect(!content)
 
         runner.phase.runningBridge?.complete()
         await task.value
     }
 
     @Test func failedShowsFailureView() async throws {
-        let flags = RenderFlags()
+        var failure = false
+        var content = false
+        var splash = false
         let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
             LifecycleStep.work("boom") { _ in throw ProbeError() }
         })
         await runner.run()
         #expect(runner.phase.failure?.stepID == "boom")
 
-        try show(UIHostingController(rootView: makeContainer(runner, flags: flags))) { _ in
-            try waitFor { flags.failure }
+        let container = LifecycleContainer(
+            runner,
+            splash: { ProbeView { splash = true } },
+            failure: { _, _ in ProbeView { failure = true } },
+        ) {
+            ProbeView { content = true }
         }
-        #expect(flags.failure)
-        #expect(!flags.content)
-        #expect(!flags.splash)
+        try show(UIHostingController(rootView: container)) { _ in
+            try waitFor { failure }
+        }
+        #expect(failure)
+        #expect(!content)
+        #expect(!splash)
     }
 
     @Test func publishesTheRunnerIntoTheEnvironment() async throws {
