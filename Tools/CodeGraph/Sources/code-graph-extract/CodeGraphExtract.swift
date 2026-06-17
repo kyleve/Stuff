@@ -3,7 +3,7 @@ import CodeGraphModel
 import Foundation
 
 @main
-struct CodeGraphExtract: AsyncParsableCommand {
+struct CodeGraphExtract: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "code-graph-extract",
         abstract: "Extract a type/relationship graph from a Swift repo's compiler index store.",
@@ -35,7 +35,13 @@ struct CodeGraphExtract: AsyncParsableCommand {
     @Flag(help: "Use an index store from a prior build; never invoke xcodebuild.")
     var skipBuild = false
 
-    func run() async throws {
+    @Flag(help: "Keep running and re-extract whenever the index store changes.")
+    var watch = false
+
+    @Option(help: "Debounce, in seconds, before re-extracting after a change in --watch mode.")
+    var watchDebounce: Double = 1.0
+
+    func run() throws {
         let repoPath = URL(fileURLWithPath: repo).standardizedFileURL.path
         let libPath = try Toolchain.libIndexStorePath(override: toolchainLib)
         let storePath = try resolveStorePath(repoPath: repoPath)
@@ -44,6 +50,43 @@ struct CodeGraphExtract: AsyncParsableCommand {
         log("opening index store at \(storePath)")
         let reader = try IndexStoreReader(storePath: storePath, libIndexStorePath: libPath)
         try extractAndWrite(reader: reader, repoPath: repoPath, outputPath: outputPath)
+
+        guard watch else { return }
+        try startWatching(
+            reader: reader,
+            storePath: storePath,
+            repoPath: repoPath,
+            outputPath: outputPath,
+        )
+    }
+
+    private func startWatching(
+        reader: IndexStoreReader,
+        storePath: String,
+        repoPath: String,
+        outputPath: String,
+    ) throws {
+        let unitsDirectory = unitsDirectory(storePath: storePath)
+        let watcher = DataStoreWatcher(directory: unitsDirectory, debounce: watchDebounce) {
+            do {
+                reader.refresh()
+                try extractAndWrite(reader: reader, repoPath: repoPath, outputPath: outputPath)
+            } catch {
+                FileHandle.standardError.write(Data("==> watch re-extract failed: \(error)\n".utf8))
+            }
+        }
+        try watcher.start()
+        log("watching \(unitsDirectory) for changes (ctrl-C to stop)")
+        watcher.wait()
+    }
+
+    private func unitsDirectory(storePath: String) -> String {
+        for candidate in ["\(storePath)/v5/units", "\(storePath)/units"]
+            where FileManager.default.fileExists(atPath: candidate)
+        {
+            return candidate
+        }
+        return storePath
     }
 
     /// Harvest the graph from the (already opened) store and write graph.json.
