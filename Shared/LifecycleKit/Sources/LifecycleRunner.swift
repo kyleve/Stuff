@@ -41,6 +41,15 @@ public final class LifecycleRunner {
         /// the most recent drive task — which may already have completed, so
         /// late `run()`/`reset()`/`enterForeground()` callers can await it.
         case running(reason: LifecycleReason, task: Task<Void, Never>)
+
+        /// The launch reason, which every case carries. Lives on the state so
+        /// callers read `state.reason` instead of re-switching at each use site.
+        var reason: LifecycleReason {
+            switch self {
+                case let .notStarted(reason): reason
+                case let .running(reason, _): reason
+            }
+        }
     }
 
     private var state: State
@@ -49,10 +58,7 @@ public final class LifecycleRunner {
     /// promoted to a foreground one via `enterForeground()`; the container
     /// observes this to stop rendering `EmptyView()` and start building real UI.
     public var reason: LifecycleReason {
-        switch state {
-            case let .notStarted(reason): reason
-            case let .running(reason, _): reason
-        }
+        state.reason
     }
 
     @ObservationIgnored private let steps: [LifecycleStep]
