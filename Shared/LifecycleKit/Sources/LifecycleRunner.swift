@@ -56,6 +56,11 @@ public final class LifecycleRunner {
     }
 
     @ObservationIgnored private let steps: [LifecycleStep]
+    /// The most recent teardown sequence handed to `reset(_:)`, retained so a
+    /// `retry()` after a thrown teardown step resumes the teardown (and the
+    /// relaunch that follows) rather than re-driving the launch sequence over
+    /// un-torn-down state. Empty until the first `reset(_:)`.
+    @ObservationIgnored private var teardown: [LifecycleStep] = []
     @ObservationIgnored private var presentationTask: Task<Void, Never>?
     /// When a deferred (`presenting(after:)`) presentation actually appeared,
     /// and the minimum it must stay up, so a fast finish doesn't flash it away.
@@ -102,22 +107,42 @@ public final class LifecycleRunner {
         await drive(reason: .userForeground, from: 0)
     }
 
-    /// Resume the launch from the step that failed. No-op unless the runner
-    /// is currently in `.failed`.
+    /// Resume from the step that failed. No-op unless the runner is currently in
+    /// `.failed`.
+    ///
+    /// If the failure was in a teardown step (from `reset(_:)`), the teardown is
+    /// resumed from that step and the relaunch still follows — so a failed erase
+    /// re-erases rather than dropping the user back into the app over
+    /// un-torn-down state. Otherwise the launch sequence is resumed from the
+    /// failed step.
     public func retry() {
         guard case let .failed(failure) = phase else { return }
-        let startIndex = steps.firstIndex { $0.id == failure.stepID } ?? 0
-        let reason = reason
-        Task { await drive(reason: reason, from: startIndex) }
+        if let teardownIndex = teardown.firstIndex(where: { $0.id == failure.stepID }) {
+            Task { await driveReset(fromTeardownIndex: teardownIndex) }
+        } else {
+            let startIndex = steps.firstIndex { $0.id == failure.stepID } ?? 0
+            let reason = reason
+            Task { await drive(reason: reason, from: startIndex) }
+        }
     }
 
     /// Run a teardown `sequence` (logout / erase), then relaunch from the top
     /// so the app returns to its initial state — e.g. first-run onboarding
     /// shows again once the teardown clears the "has onboarded" flag.
     ///
-    /// If a teardown step throws, the runner parks in `.failed` and does not
-    /// relaunch.
+    /// The teardown steps are retained so a `retry()` after a thrown teardown
+    /// step resumes the teardown (then the relaunch). If a teardown step throws,
+    /// the runner parks in `.failed` and does not relaunch.
     public func reset(_ sequence: LifecycleSteps) async {
+        teardown = sequence.steps
+        await driveReset(fromTeardownIndex: 0)
+    }
+
+    /// Cancel any in-flight drive, drain it, then run the retained `teardown`
+    /// from `startIndex` followed by a fresh launch from the top — landing in
+    /// `.ready` only if both complete. Shared by `reset(_:)` and a `retry()`
+    /// resuming a failed teardown step, so the two stay in lockstep.
+    private func driveReset(fromTeardownIndex startIndex: Int) async {
         let previous = currentTask
         previous?.cancel()
         let reason = reason
@@ -125,7 +150,7 @@ public final class LifecycleRunner {
         let task = Task { [weak self] in
             guard let self else { return }
             await previous?.value
-            guard case .completed = await runSteps(sequence.steps, from: 0) else { return }
+            guard case .completed = await runSteps(teardown, from: startIndex) else { return }
             if case .completed = await runSteps(steps, from: 0) {
                 phase = .ready
             }

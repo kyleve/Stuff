@@ -66,4 +66,60 @@ struct LifecycleRunnerResetTests {
         #expect(runner.phase.failure?.stepID == "teardown")
         #expect(!relaunched)
     }
+
+    @Test func retryAfterFailedTeardownReRunsTeardownThenRelaunches() async throws {
+        var events: [String] = []
+        var shouldFailErase = true
+        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
+            LifecycleStep.work("launch") { _ in events.append("launch") }
+        })
+        await runner.run()
+        events.removeAll()
+
+        await runner.reset(LifecycleSteps {
+            LifecycleStep.work("erase") { _ in
+                events.append("erase")
+                if shouldFailErase { throw ResetError() }
+            }
+            LifecycleStep.work("clear-prefs") { _ in events.append("clear-prefs") }
+        })
+        #expect(runner.phase.failure?.stepID == "erase")
+        #expect(events == ["erase"])
+
+        // Retry must resume the teardown (re-erasing) and only then relaunch —
+        // not silently re-drive the launch sequence over un-torn-down state.
+        shouldFailErase = false
+        events.removeAll()
+        runner.retry()
+        try await waitUntil { runner.phase.isReady }
+        #expect(events == ["erase", "clear-prefs", "launch"])
+    }
+
+    @Test func retryAfterFailedTeardownTailResumesWithoutReErasing() async throws {
+        var events: [String] = []
+        var shouldFailPrefs = true
+        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
+            LifecycleStep.work("launch") { _ in events.append("launch") }
+        })
+        await runner.run()
+        events.removeAll()
+
+        await runner.reset(LifecycleSteps {
+            LifecycleStep.work("erase") { _ in events.append("erase") }
+            LifecycleStep.work("clear-prefs") { _ in
+                events.append("clear-prefs")
+                if shouldFailPrefs { throw ResetError() }
+            }
+        })
+        #expect(runner.phase.failure?.stepID == "clear-prefs")
+        #expect(events == ["erase", "clear-prefs"])
+
+        // The earlier teardown step ("erase") already succeeded, so retry resumes
+        // from the failed step rather than re-running it, then relaunches.
+        shouldFailPrefs = false
+        events.removeAll()
+        runner.retry()
+        try await waitUntil { runner.phase.isReady }
+        #expect(events == ["clear-prefs", "launch"])
+    }
 }
