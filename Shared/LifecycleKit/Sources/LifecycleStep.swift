@@ -45,41 +45,38 @@ public struct LifecycleStep: Identifiable {
 
     /// Show `view` for the whole time this step runs (e.g. onboarding, whose
     /// entire purpose is the UI).
+    ///
+    /// `minVisible` keeps the view on screen for at least that long once it
+    /// appears, even if the step finishes first — so a fast step never flashes
+    /// its UI away instantly. It applies uniformly to every `presenting` trigger.
     public func presenting(
+        minVisible: Duration = .zero,
         @ViewBuilder _ view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,
     ) -> Self {
-        present(trigger: .always, view)
+        present(trigger: .always, minVisible: minVisible, view)
     }
 
     /// Show `view` only when `predicate` holds as the step starts (e.g. a
     /// migration UI shown only when a migration is predicted). Otherwise the
-    /// step runs silently behind the splash.
+    /// step runs silently behind the splash. See `presenting(minVisible:_:)` for
+    /// `minVisible`.
     public func presenting(
         when predicate: @escaping @MainActor () -> Bool,
+        minVisible: Duration = .zero,
         @ViewBuilder _ view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,
     ) -> Self {
-        present(trigger: .when(predicate), view)
+        present(trigger: .when(predicate), minVisible: minVisible, view)
     }
 
-    /// Show `view` only if the step is still running after `delay` — a
-    /// deferred "this is taking a while" UI that never flashes for fast steps.
+    /// Show `view` only if the step is still running after `delay` — a deferred
+    /// "this is taking a while" UI that never flashes for fast steps. See
+    /// `presenting(minVisible:_:)` for `minVisible`.
     public func presenting(
         after delay: Duration,
+        minVisible: Duration = .zero,
         @ViewBuilder _ view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,
     ) -> Self {
-        present(trigger: .after(delay: delay, minVisible: .zero), view)
-    }
-
-    /// Show `view` only if the step is still running after `delay`, and once it
-    /// appears keep it on screen for at least `minVisible` even if the step
-    /// finishes — so slow-open UI that *does* appear never flickers away
-    /// instantly.
-    public func presenting(
-        after delay: Duration,
-        minVisible: Duration,
-        @ViewBuilder _ view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,
-    ) -> Self {
-        present(trigger: .after(delay: delay, minVisible: minVisible), view)
+        present(trigger: .after(delay), minVisible: minVisible, view)
     }
 
     /// Whether this step is allowed to run under `reason` (mode filtering,
@@ -90,11 +87,12 @@ public struct LifecycleStep: Identifiable {
 
     private func present(
         trigger: LifecycleStepPresentation.Trigger,
+        minVisible: Duration,
         _ view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,
     ) -> Self {
         var copy = self
-        copy.presentation = LifecycleStepPresentation(trigger: trigger) { bridge in
-            AnyView(view(bridge))
+        copy.presentation = LifecycleStepPresentation(trigger: trigger, minVisible: minVisible) {
+            AnyView(view($0))
         }
         return copy
     }
@@ -136,18 +134,23 @@ extension LifecycleStep {
     }
 }
 
-/// A step's optional UI, plus the rule for when to show it while the step runs.
+/// A step's optional UI: when to show it (`trigger`), how long to keep it once
+/// shown (`minVisible`), and how to build it. `minVisible` is unified here
+/// rather than per-trigger so the "don't flash away" guarantee is identical
+/// whether the view shows immediately, conditionally, or after a delay.
 struct LifecycleStepPresentation {
     enum Trigger {
         /// Show as soon as the step starts.
         case always
         /// Show at step start only if the predicate holds.
         case when(@MainActor () -> Bool)
-        /// Show only if the step is still running after `delay`, then keep it up
-        /// for at least `minVisible` once shown.
-        case after(delay: Duration, minVisible: Duration)
+        /// Show only if the step is still running after `delay`.
+        case after(Duration)
     }
 
     var trigger: Trigger
+    /// Once shown, keep the view up for at least this long even if the step
+    /// finishes first (`.zero` = no hold).
+    var minVisible: Duration
     var build: @MainActor (LifecycleStepUIBridge) -> AnyView
 }

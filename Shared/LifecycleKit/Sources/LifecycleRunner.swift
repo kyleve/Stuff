@@ -68,10 +68,12 @@ public final class LifecycleRunner {
     /// un-torn-down state. Empty until the first `teardown(_:)`.
     @ObservationIgnored private var teardownSteps: [LifecycleStep] = []
     @ObservationIgnored private var presentationTask: Task<Void, Never>?
-    /// When a deferred (`presenting(after:)`) presentation actually appeared,
-    /// and the minimum it must stay up, so a fast finish doesn't flash it away.
-    @ObservationIgnored private var deferredShownAt: ContinuousClock.Instant?
-    @ObservationIgnored private var deferredMinVisible: Duration = .zero
+    /// When the current step's presentation actually appeared (any trigger), and
+    /// the minimum it must stay up, so a fast finish doesn't flash it away. Nil
+    /// `shownAt` means nothing is on screen yet (deferred and not yet fired, or a
+    /// `when:` predicate that was false), so there's nothing to hold.
+    @ObservationIgnored private var presentationShownAt: ContinuousClock.Instant?
+    @ObservationIgnored private var presentationMinVisible: Duration = .zero
 
     public init(
         reason: LifecycleReason,
@@ -230,7 +232,7 @@ public final class LifecycleRunner {
                 return .failed
             }
 
-            await holdDeferredPresentation()
+            await holdPresentation()
             cancelPresentation()
             index += 1
         }
@@ -238,32 +240,43 @@ public final class LifecycleRunner {
     }
 
     /// Decide whether/when to show the step's presentation, per its trigger.
+    /// `minVisible` is recorded for every trigger and enforced uniformly once
+    /// the view appears (see `showPresentation`/`holdPresentation`).
     private func activatePresentation(for step: LifecycleStep, bridge: LifecycleStepUIBridge) {
         guard let presentation = step.presentation else { return }
+        presentationMinVisible = presentation.minVisible
         switch presentation.trigger {
             case .always:
-                bridge.presentation = presentation.build(bridge)
+                showPresentation(presentation, on: bridge)
             case let .when(predicate):
                 if predicate() {
-                    bridge.presentation = presentation.build(bridge)
+                    showPresentation(presentation, on: bridge)
                 }
-            case let .after(delay, minVisible):
-                deferredMinVisible = minVisible
+            case let .after(delay):
                 presentationTask = Task { @MainActor [weak self, weak bridge] in
                     try? await Task.sleep(for: delay)
                     guard !Task.isCancelled, let self, let bridge else { return }
-                    bridge.presentation = presentation.build(bridge)
-                    deferredShownAt = .now
+                    showPresentation(presentation, on: bridge)
                 }
         }
     }
 
-    /// If a deferred presentation actually appeared, keep it up until its
-    /// `minVisible` window elapses, so a step that finishes right after the UI
-    /// appears doesn't flash it away.
-    private func holdDeferredPresentation() async {
-        guard let shownAt = deferredShownAt else { return }
-        let remaining = deferredMinVisible - shownAt.duration(to: .now)
+    /// Put the view on screen and stamp when, so `holdPresentation` can honor
+    /// `minVisible` regardless of which trigger fired.
+    private func showPresentation(
+        _ presentation: LifecycleStepPresentation,
+        on bridge: LifecycleStepUIBridge,
+    ) {
+        bridge.presentation = presentation.build(bridge)
+        presentationShownAt = .now
+    }
+
+    /// If the presentation actually appeared, keep it up until its `minVisible`
+    /// window elapses, so a step that finishes right after the UI appears
+    /// doesn't flash it away.
+    private func holdPresentation() async {
+        guard let shownAt = presentationShownAt else { return }
+        let remaining = presentationMinVisible - shownAt.duration(to: .now)
         if remaining > .zero {
             try? await Task.sleep(for: remaining)
         }
@@ -272,7 +285,7 @@ public final class LifecycleRunner {
     private func cancelPresentation() {
         presentationTask?.cancel()
         presentationTask = nil
-        deferredShownAt = nil
-        deferredMinVisible = .zero
+        presentationShownAt = nil
+        presentationMinVisible = .zero
     }
 }

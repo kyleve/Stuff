@@ -309,6 +309,20 @@ struct LifecycleRunnerInteractiveTests {
         await task.value
     }
 
+    @Test func minVisibleHoldsAnAlwaysPresentationAfterAFastStep() async {
+        // minVisible is unified across triggers: an `.always` presentation on a
+        // step that does no async work must still stay up for its hold window
+        // before the runner reaches .ready, just like the deferred path.
+        let startedAt = ContinuousClock.now
+        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
+            LifecycleStep.work("fast") { _ in }
+                .presenting(minVisible: .milliseconds(300)) { _ in Text("x") }
+        })
+        await runner.run()
+        #expect(runner.phase.isReady)
+        #expect(startedAt.duration(to: .now) >= .milliseconds(200))
+    }
+
     @Test func progressIsReadableWhileStepRuns() async throws {
         let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
             LifecycleStep.interactive("p", perform: { bridge in

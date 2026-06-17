@@ -46,9 +46,9 @@ itself.
   `allowedModes`, async `condition`, `perform`, optional `presentation`. Run
   gating (`modes` / `condition`) is set at construction — init or the
   `LifecycleStep.work` / `LifecycleStep.interactive` factory parameters — while
-  UI is attached with chained `.presenting{,(when:),(after:),(after:minVisible:)}`
-  modifiers that return copies. `LifecycleStep.interactive` defaults to
-  `modes: .foreground` so it can't deadlock a headless launch.
+  UI is attached with chained `.presenting{,(when:),(after:)}` modifiers (each
+  taking a `minVisible:` hold) that return copies. `LifecycleStep.interactive`
+  defaults to `modes: .foreground` so it can't deadlock a headless launch.
 - [`LifecycleSteps` / `LifecycleStepsBuilder`](Sources/LifecycleSteps.swift) – a
   result builder (`if`/`if-else`/`for`) collecting steps; declaration order is
   run order. `steps` is public so consumers can parity-test the order.

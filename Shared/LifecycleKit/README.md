@@ -53,10 +53,10 @@ public struct LifecycleStep: Identifiable {
     public init(id: AnyHashable, modes: LifecycleModeSet = .all,
                 condition: @escaping @MainActor () async -> Bool = { true },
                 perform: ...)
-    public func presenting(_ view: ...) -> Self                 // always while running
-    public func presenting(when: ..., _ view: ...) -> Self      // only if predicate holds at start
-    public func presenting(after: Duration, _ view: ...) -> Self // only if still running after delay
-    public func presenting(after: Duration, minVisible: Duration, _ view: ...) -> Self // …and hold once shown
+    public func presenting(minVisible: Duration = .zero, _ view: ...) -> Self            // always while running
+    public func presenting(when: ..., minVisible: Duration = .zero, _ view: ...) -> Self // only if predicate holds at start
+    public func presenting(after: Duration, minVisible: Duration = .zero, _ view: ...) -> Self // only if still running after delay
+    // minVisible (any trigger): once shown, keep the view up at least this long
 
     public static func work(_ id: AnyHashable, modes: ... = .all, condition: ... = …, _ perform: ...) -> LifecycleStep
     public static func interactive(_ id: AnyHashable, modes: ... = .foreground, condition: ... = …, perform: ... = …, presenting: ...) -> LifecycleStep
