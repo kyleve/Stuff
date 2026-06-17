@@ -1,0 +1,8 @@
+# code-graph-extract output: the dedicated build's DerivedData + graph.json.
+.codegraph/
+
+# SwiftPM / Tuist build products (the Xcode project/workspace are generated).
+.build/
+Derived/
+*.xcodeproj
+*.xcworkspace
