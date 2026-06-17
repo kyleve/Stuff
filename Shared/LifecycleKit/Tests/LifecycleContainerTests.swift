@@ -162,6 +162,31 @@ struct LifecycleContainerTests {
         #expect(sawRunner)
     }
 
+    @Test func customTransitionStillRendersContent() async throws {
+        // A caller-supplied transition/animation must not break which surface the
+        // container renders — at .ready it still builds `content`, not the splash.
+        var content = false
+        var splash = false
+        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {})
+        await runner.run()
+        #expect(runner.phase.isReady)
+
+        let container = LifecycleContainer(
+            runner,
+            transition: .scale.combined(with: .opacity),
+            animation: .easeInOut,
+            splash: { ProbeView { splash = true } },
+            failure: { _, _ in EmptyView() },
+        ) {
+            ProbeView { content = true }
+        }
+        try show(UIHostingController(rootView: container)) { _ in
+            try waitFor { content }
+        }
+        #expect(content)
+        #expect(!splash)
+    }
+
     @Test func defaultRunnerProxyIsDisconnected() {
         // The environment default: nothing to drive, so callers no-op (debug
         // asserts) rather than dereferencing a missing runner.

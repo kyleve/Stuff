@@ -60,3 +60,29 @@ extension LifecyclePhase {
         failure?.stepID == id
     }
 }
+
+extension LifecyclePhase {
+    /// A value identity for the *surface* `LifecycleContainer` renders, so it can
+    /// animate transitions between surfaces with `.animation(_:value:)` (the
+    /// phase itself isn't `Equatable`).
+    ///
+    /// `launching` and `running` collapse to `.splash`: a running step shows
+    /// either the splash or its own (possibly deferred) presentation, and that
+    /// swap is driven by `LifecycleStepUIBridge.presentation` within the running
+    /// surface — not a phase change — so steps advancing must not retrigger a
+    /// top-level transition and flash the splash. Reaching `.failed`/`.ready` is
+    /// a real surface change and animates.
+    enum SurfaceIdentity: Hashable {
+        case splash
+        case failed(AnyHashable)
+        case ready
+    }
+
+    var surfaceIdentity: SurfaceIdentity {
+        switch self {
+            case .launching, .running: .splash
+            case let .failed(failure): .failed(failure.stepID)
+            case .ready: .ready
+        }
+    }
+}

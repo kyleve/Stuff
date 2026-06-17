@@ -133,18 +133,38 @@ LifecycleContainer(runner) {      // `content` == the real app, the destination
 | `.failed` | `failure(_:retry:)` (defaults to `LifecycleFailureView`) |
 | `.ready` | `content()` — the destination UI |
 
+Surfaces crossfade by default (see `transition`/`animation` below).
+
 The `splash` and `failure` views are caller-injectable; the convenience
-initializers above default them to the built-ins. The container also publishes
-the runner into the environment as `\.lifecycleRunner` (optional, so reads stay
-safe with no container above), letting nested views reach `retry()`/`teardown()`
-without prop-drilling:
+initializers above default them to the built-ins.
+
+Surface changes (splash → failure → app `content`) are animated. The designated
+initializer takes `transition`/`animation` (a crossfade by default; pass
+`animation: nil` to swap instantly):
+
+```swift
+LifecycleContainer(runner, transition: .opacity, animation: .easeInOut) {
+    MainTabView()
+}
+```
+
+The transition is keyed on `LifecyclePhase.surfaceIdentity`, which collapses
+`.launching` and `.running` into one "splash" surface so a step *advancing* —
+still showing the splash — doesn't retrigger the transition and flash it; only
+reaching `.failed`/`.ready` animates.
+
+The container also publishes the runner into the environment as
+`\.lifecycleRunner`, a `LifecycleRunnerProxy` (not a bare optional), letting
+nested views reach `retry()`/`teardown()` without prop-drilling. When no
+container is above (previews, isolated tests) the proxy is *disconnected* and
+each call asserts in debug / no-ops in release, so call sites never `guard`:
 
 ```swift
 struct ResetButton: View {
     @Environment(\.lifecycleRunner) private var runner
     var body: some View {
         Button("Erase & reset", role: .destructive) {
-            Task { await runner?.teardown(teardownSteps) }
+            Task { await runner.teardown(teardownSteps) }
         }
     }
 }

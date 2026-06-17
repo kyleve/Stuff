@@ -73,10 +73,15 @@ itself.
   Renders `splash` / a step's presentation / `failure` / `content` from
   `phase`. The `splash` and `failure` views are caller-injectable (convenience
   inits default them to [`LifecycleSplash`](Sources/LifecycleSplash.swift) /
-  [`LifecycleFailureView`](Sources/LifecycleFailureView.swift)), and the runner
-  is published into the environment as `\.lifecycleRunner` (optional) so nested
-  views can reach `retry()`/`teardown()`. The destination (`content`, e.g. the
-  app's `TabView`) is **not** a step — it's terminal and shown only at `.ready`.
+  [`LifecycleFailureView`](Sources/LifecycleFailureView.swift)). Surfaces animate
+  via the designated init's `transition`/`animation` (crossfade by default),
+  keyed on `LifecyclePhase.surfaceIdentity` so an advancing step doesn't flash
+  the splash. The runner is published into the environment as `\.lifecycleRunner`
+  — a [`LifecycleRunnerProxy`](Sources/LifecycleContainer.swift) (not a bare
+  optional) that asserts-in-debug / no-ops-in-release when disconnected — so
+  nested views can reach `retry()`/`teardown()` without `guard`ing. The
+  destination (`content`, e.g. the app's `TabView`) is **not** a step — it's
+  terminal and shown only at `.ready`.
 - [`LifecycleSplash`](Sources/LifecycleSplash.swift) – the default placeholder.
 
 ## Two invariants to preserve
