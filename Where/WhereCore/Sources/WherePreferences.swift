@@ -18,60 +18,60 @@ public final class WherePreferences {
     /// Whether first-run onboarding has been completed. Defaults to `false` so
     /// onboarding shows on a fresh install.
     public var hasOnboarded: Bool {
-        get { store.bool(forKey: Keys.hasOnboarded) }
-        set { store.set(newValue, forKey: Keys.hasOnboarded) }
+        get { store.bool(forKey: Keys.hasOnboarded.rawValue) }
+        set { store.set(newValue, forKey: Keys.hasOnboarded.rawValue) }
     }
 
     /// Persisted intent to track in the background. Defaults to `true` so that,
     /// once the user grants Always, tracking resumes automatically every launch.
     public var wantsTracking: Bool {
-        get { store.object(forKey: Keys.wantsTracking) as? Bool ?? true }
-        set { store.set(newValue, forKey: Keys.wantsTracking) }
+        get { store.object(forKey: Keys.wantsTracking.rawValue) as? Bool ?? true }
+        set { store.set(newValue, forKey: Keys.wantsTracking.rawValue) }
     }
 
     /// Whether the daily "log before the day ends" reminder is enabled. Defaults
     /// to `true` so the safety net is active out of the box.
     public var remindersEnabled: Bool {
-        get { store.object(forKey: Keys.remindersEnabled) as? Bool ?? true }
-        set { store.set(newValue, forKey: Keys.remindersEnabled) }
+        get { store.object(forKey: Keys.remindersEnabled.rawValue) as? Bool ?? true }
+        set { store.set(newValue, forKey: Keys.remindersEnabled.rawValue) }
     }
 
     /// Time of day the daily reminder fires.
     public var reminderTime: ReminderTime {
         get {
             ReminderTime(
-                hour: store.object(forKey: Keys.reminderHour) as? Int
+                hour: store.object(forKey: Keys.reminderHour.rawValue) as? Int
                     ?? ReminderTime.defaultEvening.hour,
-                minute: store.object(forKey: Keys.reminderMinute) as? Int
+                minute: store.object(forKey: Keys.reminderMinute.rawValue) as? Int
                     ?? ReminderTime.defaultEvening.minute,
             )
         }
         set {
-            store.set(newValue.hour, forKey: Keys.reminderHour)
-            store.set(newValue.minute, forKey: Keys.reminderMinute)
+            store.set(newValue.hour, forKey: Keys.reminderHour.rawValue)
+            store.set(newValue.minute, forKey: Keys.reminderMinute.rawValue)
         }
     }
 
     /// Whether the daily summary recap notification is enabled. Defaults to
     /// `true` so the year-to-date recap arrives out of the box.
     public var summaryEnabled: Bool {
-        get { store.object(forKey: Keys.summaryEnabled) as? Bool ?? true }
-        set { store.set(newValue, forKey: Keys.summaryEnabled) }
+        get { store.object(forKey: Keys.summaryEnabled.rawValue) as? Bool ?? true }
+        set { store.set(newValue, forKey: Keys.summaryEnabled.rawValue) }
     }
 
     /// Time of day the daily summary fires.
     public var summaryTime: ReminderTime {
         get {
             ReminderTime(
-                hour: store.object(forKey: Keys.summaryHour) as? Int
+                hour: store.object(forKey: Keys.summaryHour.rawValue) as? Int
                     ?? ReminderTime.defaultMorning.hour,
-                minute: store.object(forKey: Keys.summaryMinute) as? Int
+                minute: store.object(forKey: Keys.summaryMinute.rawValue) as? Int
                     ?? ReminderTime.defaultMorning.minute,
             )
         }
         set {
-            store.set(newValue.hour, forKey: Keys.summaryHour)
-            store.set(newValue.minute, forKey: Keys.summaryMinute)
+            store.set(newValue.hour, forKey: Keys.summaryHour.rawValue)
+            store.set(newValue.minute, forKey: Keys.summaryMinute.rawValue)
         }
     }
 
@@ -81,30 +81,22 @@ public final class WherePreferences {
     /// Removing the keys (rather than writing `false`/`0`) lets the
     /// default-valued getters report first-install state again.
     public func reset() {
-        for key in Keys.all {
-            store.removeObject(forKey: key)
+        for key in Keys.allCases {
+            store.removeObject(forKey: key.rawValue)
         }
     }
 
-    private enum Keys {
-        static let hasOnboarded = "where.hasOnboarded"
-        static let wantsTracking = "where.wantsBackgroundTracking"
-        static let remindersEnabled = "where.remindersEnabled"
-        static let reminderHour = "where.reminderHour"
-        static let reminderMinute = "where.reminderMinute"
-        static let summaryEnabled = "where.summaryEnabled"
-        static let summaryHour = "where.summaryHour"
-        static let summaryMinute = "where.summaryMinute"
-
-        static let all = [
-            hasOnboarded,
-            wantsTracking,
-            remindersEnabled,
-            reminderHour,
-            reminderMinute,
-            summaryEnabled,
-            summaryHour,
-            summaryMinute,
-        ]
+    /// String-backed so each case *is* its defaults key, and `CaseIterable` so
+    /// `reset()` clears every key without a hand-maintained `all` list to keep in
+    /// sync — adding a case is all it takes to have it reset.
+    private enum Keys: String, CaseIterable {
+        case hasOnboarded = "where.hasOnboarded"
+        case wantsTracking = "where.wantsBackgroundTracking"
+        case remindersEnabled = "where.remindersEnabled"
+        case reminderHour = "where.reminderHour"
+        case reminderMinute = "where.reminderMinute"
+        case summaryEnabled = "where.summaryEnabled"
+        case summaryHour = "where.summaryHour"
+        case summaryMinute = "where.summaryMinute"
     }
 }
