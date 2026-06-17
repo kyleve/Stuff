@@ -34,8 +34,12 @@ itself.
   step; `enterForeground()` promotes a headless launch; `teardown(_:)` runs a
   teardown sequence then re-drives from the top — and a teardown step that throws
   parks in `.failed` like any other, so `retry()` resumes the *teardown* from
-  there (not the launch) before relaunching. Internal bookkeeping lives in one
-  `State` enum so invalid combinations are unrepresentable. **All drives funnel
+  there (not the launch) before relaunching. Drive bookkeeping lives in one
+  `State` enum so invalid combinations are unrepresentable; transient per-step
+  presentation state (deferred timer, `minVisible` clock) is a *local*
+  `ActivePresentation` owned by `runStep`, so it can't outlive the step. Keep new
+  transient state similarly scoped rather than adding stored properties. **All
+  drives funnel
   through a single in-flight task**: a new drive `cancel()`s the previous one
   and awaits it draining before starting (cancel-and-drain), so two never
   overlap *and* `teardown()`/`enterForeground()` can interrupt a launch parked on
