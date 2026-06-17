@@ -96,6 +96,47 @@ struct LocationIngestorTests {
         #expect(try await backing.allSamples().count == 2)
     }
 
+    @Test func quiesceClearsTheRetryQueue() async throws {
+        let backing = try SwiftDataStore.inMemory()
+        let store = ToggleFailingStore(backing: backing)
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let recorder = OutcomeRecorder()
+        let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
+        await ingestor.start()
+
+        await store.setShouldFail(true)
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        try await waitUntil { await ingestor.retryQueueDepth == 1 }
+
+        // Quiescing for a teardown drops the backlog so a later start() can't
+        // re-drain those samples into the freshly wiped store.
+        await ingestor.quiesce()
+        #expect(await ingestor.retryQueueDepth == 0)
+        #expect(await !(ingestor.isActive))
+    }
+
+    @Test func quiesceStopsPersistingFurtherSamples() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let recorder = OutcomeRecorder()
+        let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
+        await ingestor.start()
+
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+        // start() fires one drain-only outcome; the live sample fires a second.
+        try await waitUntil { await recorder.count >= 2 }
+        #expect(try await store.allSamples().count == 1)
+
+        await ingestor.quiesce()
+
+        // A sample delivered after quiesce (e.g. a buffered event arriving mid
+        // teardown) must not be persisted, so it can't clobber the wipe that
+        // follows.
+        source.emit(sample(at: "2026-03-15T13:00:00-07:00"))
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(try await store.allSamples().count == 1)
+    }
+
     @Test func authorizationReflectsTheSource() async throws {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource(authorizationStatus: .whenInUse)

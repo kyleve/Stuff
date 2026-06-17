@@ -33,10 +33,21 @@ public actor LocationIngestor {
 
     private var ingestTask: Task<Void, Never>?
 
+    /// The persist the stream loop is currently awaiting, if any. Tracked so
+    /// `quiesce()` can wait for an in-flight write to commit before a teardown
+    /// wipes the store — gating alone can't, since a persist that already
+    /// started has an actor hop across `store.perform`.
+    private var inFlightIngest: Task<Void, Never>?
+
     /// Whether the underlying location monitoring is currently active. Tracked
     /// separately from `ingestTask` because the ingestion task outlives a
     /// `stop()` pause (see `start()` for why).
     private var isMonitoring = false
+
+    /// Whether streamed samples are currently persisted. Shut by `quiesce()` so
+    /// a teardown can wipe the store without a late GPS event writing into it,
+    /// and re-opened by the next `start()`.
+    private var acceptsSamples = true
 
     /// Samples whose persist call failed (e.g. transient SwiftData / CloudKit
     /// error). Drained before each new GPS save and on the next `start()` so a
@@ -80,6 +91,9 @@ public actor LocationIngestor {
     /// single-consumer `AsyncStream`, so a later `start()` would iterate an
     /// already-finished stream and silently drop every subsequent sample.
     public func start() async {
+        // Re-open the sample gate a prior `quiesce()` may have shut (e.g. the
+        // relaunch after a reset resumes ingestion here).
+        acceptsSamples = true
         guard !isMonitoring else { return }
         isMonitoring = true
         await locationSource.start()
@@ -97,7 +111,7 @@ public actor LocationIngestor {
             for await sample in stream {
                 if Task.isCancelled { break }
                 guard let self else { break }
-                await processIngestedSample(sample)
+                await ingest(sample)
             }
         }
     }
@@ -111,6 +125,26 @@ public actor LocationIngestor {
         guard isMonitoring else { return }
         isMonitoring = false
         await locationSource.stop()
+    }
+
+    /// Stop ingestion and guarantee nothing else writes until the next
+    /// `start()`: stop monitoring, refuse further streamed samples, wait for any
+    /// persist already in flight to commit, then drop the retry backlog. The
+    /// app's reset/erase teardown awaits this before wiping the store (see
+    /// `WhereServices.reset`), so a late GPS event can't repopulate it and a
+    /// stale queue can't re-drain into it on the next `start()`.
+    ///
+    /// Unlike `stop()` (a normal pause that keeps the backlog for when
+    /// monitoring resumes), `quiesce()` clears it — the store is about to be
+    /// erased, so those samples must not come back.
+    public func quiesce() async {
+        acceptsSamples = false
+        isMonitoring = false
+        await locationSource.stop()
+        // Let an already-started persist (and any retry re-enqueue it performs)
+        // settle first, then clear the backlog — so nothing re-adds after.
+        await inFlightIngest?.value
+        retryQueue.removeAll()
     }
 
     /// Whether GPS monitoring is currently active. Exposed so the view-model can
@@ -138,6 +172,22 @@ public actor LocationIngestor {
     /// Settings-app changes). Subscribe once and iterate.
     public func authorizationUpdates() -> AsyncStream<LocationAuthorizationStatus> {
         locationSource.authorizationUpdates
+    }
+
+    /// Gate and track a single streamed sample. A sample that arrives after a
+    /// `quiesce()` (and before the next `start()`) is dropped rather than
+    /// persisted, so a teardown that wipes the store can't be clobbered by a
+    /// late GPS write. The persist is tracked in `inFlightIngest` so `quiesce()`
+    /// can await it.
+    private func ingest(_ sample: LocationSample) async {
+        guard acceptsSamples else { return }
+        let work = Task { [weak self] in
+            guard let self else { return }
+            await processIngestedSample(sample)
+        }
+        inFlightIngest = work
+        await work.value
+        inFlightIngest = nil
     }
 
     /// Persist one GPS-sourced sample, falling back to the retry queue on

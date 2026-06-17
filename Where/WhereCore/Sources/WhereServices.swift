@@ -107,15 +107,20 @@ public struct WhereServices: Sendable {
     }
 
     /// Return the services to a clean slate for the app's "erase all data &
-    /// reset" teardown: stop GPS so nothing writes into the wiped store, then
-    /// erase everything (which also reconciles the badge/reminders and
-    /// republishes an empty widget snapshot).
+    /// reset" teardown: quiesce GPS ingestion (stop monitoring, refuse further
+    /// samples, await any in-flight write, and drop the retry backlog) so
+    /// nothing can write into the store as it's wiped, then erase everything
+    /// (which also reconciles the badge/reminders and republishes an empty
+    /// widget snapshot).
     ///
     /// This is the one inherently cross-collaborator operation; keeping it here
-    /// keeps teardown ordering in Core rather than the UI. Throws on persistence
-    /// failure so the caller can surface it rather than silently half-erasing.
+    /// keeps teardown ordering in Core rather than the UI. Quiescing before the
+    /// wipe is what makes the erase stick: a plain `stop()` would leave the
+    /// ingestion loop and its retry queue able to repopulate the store. Throws
+    /// on persistence failure so the caller can surface it rather than silently
+    /// half-erasing.
     public func reset() async throws {
-        await ingestor.stop()
+        await ingestor.quiesce()
         try await journal.eraseAllData()
     }
 }
