@@ -64,10 +64,10 @@ TUIST_DEVELOPMENT_TEAM = "ABCDE12345"
 ## Project structure
 
 ```
-Package.swift       Local Swift package (StuffCore, WhereCore, WhereUI, WhereTesting)
+Package.swift       Local Swift package (StuffCore, LifecycleKit, WhereCore, WhereUI, WhereTesting)
 Project.swift       Tuist manifest (Where app, StuffTestHost, test bundles → SPM)
 Tuist.swift         Tuist configuration
-.mise.toml          Pins Tuist 4.40.0 and SwiftFormat 0.60.1
+.mise.toml          Pins Tuist 4.200.5 and SwiftFormat 0.60.1
 .mise.local.toml    Local mise overrides, gitignored (e.g. TUIST_DEVELOPMENT_TEAM)
 .swiftformat        SwiftFormat rules
 ide                 Dev script – hooks, sync-agents, tuist generate
@@ -78,6 +78,7 @@ profile             Report build/test hot spots (see `./profile --help`)
 .agents/            External skills manifest (`external-skills.json`)
 AGENTS.md           Repository shape for AI agents
 Shared/StuffCore/   Shared iOS framework (Sources/, Tests/)
+Shared/LifecycleKit/   App-agnostic launch/teardown lifecycle framework (Sources/, Tests/)
 Shared/StuffTestHost/  Shared iOS unit-test host app (Sources/)
 Where/              Where iOS app, modules, and tests
 ```

@@ -217,7 +217,7 @@ Button("Erase all data & reset", role: .destructive) {
 ```
 
 If a teardown step throws, the runner parks in `.failed` and does **not**
-relaunch.
+relaunch; `retry()` resumes the teardown from the failed step, then relaunches.
 
 ## Two correctness points designed in deliberately
 

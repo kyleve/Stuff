@@ -32,7 +32,9 @@ itself.
   filtering by `reason`/`modes` and the async `condition`, awaiting each body. A
   throw parks it in `.failed`; `retry()` resumes from the failed step;
   `enterForeground()` promotes a headless launch; `reset(_:)` runs a teardown
-  sequence then re-drives from the top. Internal bookkeeping lives in one
+  sequence then re-drives from the top — and a teardown step that throws parks
+  in `.failed` like any other, so `retry()` resumes the *teardown* from there
+  (not the launch) before relaunching. Internal bookkeeping lives in one
   `State` enum so invalid combinations are unrepresentable. **All drives funnel
   through a single in-flight task**: a new drive `cancel()`s the previous one
   and awaits it draining before starting (cancel-and-drain), so two never

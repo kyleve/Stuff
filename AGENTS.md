@@ -2,13 +2,13 @@
 
 ## Build system
 
-| Tool        | Version | Pinned via   |
-|-------------|---------|--------------|
-| Tuist       | 4.40.0  | `.mise.toml` |
-| SwiftFormat | 0.60.1  | `.mise.toml` |
-| Swift PM    | 6.2     | `Package.swift` (`swift-tools-version`) |
+| Tool        | Version  | Pinned via   |
+|-------------|----------|--------------|
+| Tuist       | 4.200.5  | `.mise.toml` |
+| SwiftFormat | 0.60.1   | `.mise.toml` |
+| Swift PM    | 6.2      | `Package.swift` (`swift-tools-version`) |
 
-**Libraries** (**StuffCore**, **WhereCore**, **WhereUI**, **WhereTesting**) are defined in the root [`Package.swift`](Package.swift) — local package for libraries, Tuist for apps and test bundles.
+**Libraries** (**StuffCore**, **LifecycleKit**, **WhereCore**, **WhereUI**, **WhereTesting**) are defined in the root [`Package.swift`](Package.swift) — local package for libraries, Tuist for apps and test bundles.
 
 Tuist manifests live at the repo root ([`Project.swift`](Project.swift), [`Tuist.swift`](Tuist.swift)). `Project.swift` references `Package.local(path: .relativeToRoot("."))` and declares the **Where** app, **StuffTestHost**, and unit-test targets that depend on package products.
 
@@ -45,8 +45,8 @@ by `./sync-agents`.
 
 ## Targets
 
-- **Package products** ([`Package.swift`](Package.swift)) — **StuffCore** ([`Shared/StuffCore/Sources/`](Shared/StuffCore/Sources/)), **WhereCore** / **WhereUI** / **WhereTesting** under [`Where/`](Where/).
-- **Tuist targets** ([`Project.swift`](Project.swift)) — **Where** app ([`Where/Where/`](Where/Where/)), **StuffTestHost** ([`Shared/StuffTestHost/`](Shared/StuffTestHost/)), **WhereTests** (app tests, no host), and hosted **\*Tests** bundles (**StuffCoreTests**, **WhereCoreTests**, **WhereUITests**) that depend on **StuffTestHost** + **WhereTesting** + the relevant package product.
+- **Package products** ([`Package.swift`](Package.swift)) — **StuffCore** ([`Shared/StuffCore/Sources/`](Shared/StuffCore/Sources/)) and **LifecycleKit** ([`Shared/LifecycleKit/Sources/`](Shared/LifecycleKit/Sources/)) under [`Shared/`](Shared/); **WhereCore** / **WhereUI** / **WhereTesting** under [`Where/`](Where/).
+- **Tuist targets** ([`Project.swift`](Project.swift)) — **Where** app ([`Where/Where/`](Where/Where/)), **StuffTestHost** ([`Shared/StuffTestHost/`](Shared/StuffTestHost/)), **WhereTests** (app tests, no host), and hosted **\*Tests** bundles (**StuffCoreTests**, **LifecycleKitTests**, **WhereCoreTests**, **WhereUITests**) that depend on **StuffTestHost** + **WhereTesting** + the relevant package product.
 - Add SPM library targets in `Package.swift` and wire apps/tests in `Project.swift` (see existing `unitTests` helper).
 
 ## Deployment
