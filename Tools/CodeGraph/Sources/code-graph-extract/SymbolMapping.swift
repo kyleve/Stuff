@@ -6,7 +6,8 @@ enum SymbolMapping {
     /// Maps an index symbol to a graph node kind, or `nil` for kinds we never
     /// surface as nodes (parameters, accessors, generic type params, etc.).
     static func nodeKind(for symbol: Symbol) -> NodeKind? {
-        switch symbol.kind {
+        guard !isSynthesizedName(symbol.name) else { return nil }
+        return switch symbol.kind {
             case .class:
                 // Swift actors are indexed as classes; the index can't tell them
                 // apart, so they surface as `.class` (a SwiftSyntax pass could
@@ -67,6 +68,15 @@ enum SymbolMapping {
             return .external
         }
         return path.contains("/Tests/") ? .test : .firstParty
+    }
+
+    /// Compiler-synthesized declarations we don't want in a hand-readable
+    /// graph: macro expansions and `$`-projected values (`$` can't begin a
+    /// user identifier in Swift), `@Observable`/property-wrapper backing
+    /// storage (`_foo`, `_$observationRegistrar`) whose user-facing `foo`
+    /// already appears, and anonymous decls.
+    private static func isSynthesizedName(_ name: String) -> Bool {
+        name.isEmpty || name.hasPrefix("$") || name.hasPrefix("_")
     }
 
     private static func isAccessor(_ subKind: IndexSymbolSubKind) -> Bool {
