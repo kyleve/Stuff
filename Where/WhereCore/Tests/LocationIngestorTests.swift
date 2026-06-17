@@ -90,10 +90,14 @@ struct LocationIngestorTests {
         try await waitUntil { await ingestor.retryQueueDepth == 1 }
 
         // A later successful ingest drains the backlog before persisting itself.
+        // Wait on the durable outcome (both samples committed) rather than
+        // `retryQueueDepth == 0`: the drain clears the queue *before* it commits
+        // the re-persists, so the depth hitting zero doesn't yet mean the data
+        // has landed.
         await store.setShouldFail(false)
         source.emit(sample(at: "2026-03-15T13:00:00-07:00"))
-        try await waitUntil { await ingestor.retryQueueDepth == 0 }
-        #expect(try await backing.allSamples().count == 2)
+        try await waitUntil { await (try? backing.allSamples().count) == 2 }
+        #expect(await ingestor.retryQueueDepth == 0)
     }
 
     @Test func quiesceClearsTheRetryQueue() async throws {
