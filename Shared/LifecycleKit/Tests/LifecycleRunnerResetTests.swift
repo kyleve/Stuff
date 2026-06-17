@@ -44,7 +44,7 @@ struct LifecycleRunnerResetTests {
                 LifecycleStep.interactive("signing-out") { _ in Text("Signing out") }
             })
         }
-        try await waitUntil { runner.phase.runningStepID == "signing-out" }
+        try await waitUntil { runner.phase.isRunning("signing-out") }
         #expect(runner.phase.runningBridge?.presentation != nil)
 
         runner.phase.runningBridge?.complete()
@@ -63,7 +63,7 @@ struct LifecycleRunnerResetTests {
         await runner.teardown(LifecycleSteps {
             LifecycleStep.work("teardown") { _ in throw ResetError() }
         })
-        #expect(runner.phase.failure?.stepID == "teardown")
+        #expect(runner.phase.failed(at: "teardown"))
         #expect(!relaunched)
     }
 
@@ -83,7 +83,7 @@ struct LifecycleRunnerResetTests {
             }
             LifecycleStep.work("clear-prefs") { _ in events.append("clear-prefs") }
         })
-        #expect(runner.phase.failure?.stepID == "erase")
+        #expect(runner.phase.failed(at: "erase"))
         #expect(events == ["erase"])
 
         // Retry must resume the teardown (re-erasing) and only then relaunch —
@@ -111,7 +111,7 @@ struct LifecycleRunnerResetTests {
                 if shouldFailPrefs { throw ResetError() }
             }
         })
-        #expect(runner.phase.failure?.stepID == "clear-prefs")
+        #expect(runner.phase.failed(at: "clear-prefs"))
         #expect(events == ["erase", "clear-prefs"])
 
         // The earlier teardown step ("erase") already succeeded, so retry resumes

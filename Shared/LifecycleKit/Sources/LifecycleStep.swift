@@ -12,7 +12,10 @@ import SwiftUI
 /// from inside `run`, keeping the step itself on the main actor so it can
 /// drive UI directly.
 public struct LifecycleStep: Identifiable {
-    public let id: String
+    /// Stable identity used for retry/teardown matching and parity tests. Typed
+    /// as `AnyHashable` so steps carry a real `Hashable` token (a typed enum
+    /// case is preferred over a raw string); any `Hashable` converts implicitly.
+    public let id: AnyHashable
 
     var allowedModes: LifecycleModeSet
     var condition: @MainActor () async -> Bool
@@ -20,7 +23,7 @@ public struct LifecycleStep: Identifiable {
     var presentation: LifecycleStepPresentation?
 
     public init(
-        id: String,
+        id: AnyHashable,
         condition: @escaping @MainActor () async -> Bool = { true },
         run: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void,
     ) {
@@ -110,7 +113,7 @@ extension LifecycleStep {
     /// A silent unit of launch work: runs `body`, shows nothing of its own (the
     /// host's splash stays up) unless you add a `.presenting(...)` modifier.
     public static func work(
-        _ id: String,
+        _ id: AnyHashable,
         _ body: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void,
     ) -> LifecycleStep {
         LifecycleStep(id: id, run: body)
@@ -127,7 +130,7 @@ extension LifecycleStep {
     /// with `.modes(.all)` only if `run` can also resolve itself without the
     /// UI.
     public static func interactive(
-        _ id: String,
+        _ id: AnyHashable,
         run: @escaping @MainActor (LifecycleStepUIBridge) async throws
             -> Void = { try await $0.waitForResolution() },
         @ViewBuilder presenting view: @escaping @MainActor (LifecycleStepUIBridge) -> some View,

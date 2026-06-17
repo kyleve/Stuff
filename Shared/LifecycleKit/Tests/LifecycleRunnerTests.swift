@@ -129,7 +129,7 @@ struct LifecycleRunnerForegroundPromotionTests {
             }
         })
         let runTask = Task { @MainActor in await runner.run() }
-        try await waitUntil { runner.phase.runningStepID == "slow" }
+        try await waitUntil { runner.phase.isRunning("slow") }
 
         // Promote while the background drive is parked in "slow". Promotion
         // cancels that drive (its `waitForResolution()` throws), drains it, and
@@ -162,7 +162,7 @@ struct LifecycleRunnerCancellationTests {
                 .when { !teardownRan }
         })
         let runTask = Task { @MainActor in await runner.run() }
-        try await waitUntil { runner.phase.runningStepID == "gate" }
+        try await waitUntil { runner.phase.isRunning("gate") }
 
         await runner.teardown(LifecycleSteps {
             LifecycleStep.work("teardown") { _ in teardownRan = true }
@@ -187,7 +187,7 @@ struct LifecycleRunnerFailureTests {
         })
         await runner.run()
         #expect(executed == ["a"])
-        #expect(runner.phase.failure?.stepID == "b")
+        #expect(runner.phase.failed(at: "b"))
         #expect(runner.phase.failure?.error is StepError)
     }
 
@@ -203,7 +203,7 @@ struct LifecycleRunnerFailureTests {
             LifecycleStep.work("c") { _ in executed.append("c") }
         })
         await runner.run()
-        #expect(runner.phase.failure?.stepID == "b")
+        #expect(runner.phase.failed(at: "b"))
         #expect(executed == ["a"])
 
         shouldFail = false
@@ -226,10 +226,10 @@ struct LifecycleRunnerFailureTests {
             LifecycleStep.interactive("gate") { _ in Text("x") }
         })
         let task = Task { @MainActor in await runner.run() }
-        try await waitUntil { runner.phase.runningStepID == "gate" }
+        try await waitUntil { runner.phase.isRunning("gate") }
         runner.phase.runningBridge?.fail(StepError())
         await task.value
-        #expect(runner.phase.failure?.stepID == "gate")
+        #expect(runner.phase.failed(at: "gate"))
     }
 }
 
@@ -243,7 +243,7 @@ struct LifecycleRunnerInteractiveTests {
             LifecycleStep.work("c") { _ in executed.append("c") }
         })
         let task = Task { @MainActor in await runner.run() }
-        try await waitUntil { runner.phase.runningStepID == "gate" }
+        try await waitUntil { runner.phase.isRunning("gate") }
         #expect(executed == ["a"])
         #expect(!runner.phase.isReady)
 
@@ -258,7 +258,7 @@ struct LifecycleRunnerInteractiveTests {
             LifecycleStep.interactive("ui") { _ in Text("ui") }
         })
         let task = Task { @MainActor in await runner.run() }
-        try await waitUntil { runner.phase.runningStepID == "ui" }
+        try await waitUntil { runner.phase.isRunning("ui") }
         #expect(runner.phase.runningBridge?.presentation != nil)
         runner.phase.runningBridge?.complete()
         await task.value
@@ -270,7 +270,7 @@ struct LifecycleRunnerInteractiveTests {
                 .presenting(when: { false }) { _ in Text("x") }
         })
         let task = Task { @MainActor in await runner.run() }
-        try await waitUntil { runner.phase.runningStepID == "s" }
+        try await waitUntil { runner.phase.isRunning("s") }
         #expect(runner.phase.runningBridge?.presentation == nil)
         runner.phase.runningBridge?.complete()
         await task.value
@@ -282,7 +282,7 @@ struct LifecycleRunnerInteractiveTests {
                 .presenting(after: .milliseconds(20)) { _ in Text("x") }
         })
         let task = Task { @MainActor in await runner.run() }
-        try await waitUntil { runner.phase.runningStepID == "slow" }
+        try await waitUntil { runner.phase.isRunning("slow") }
         try await waitUntil { runner.phase.runningBridge?.presentation != nil }
         runner.phase.runningBridge?.complete()
         await task.value
@@ -296,7 +296,7 @@ struct LifecycleRunnerInteractiveTests {
                 }
         })
         let task = Task { @MainActor in await runner.run() }
-        try await waitUntil { runner.phase.runningStepID == "slow" }
+        try await waitUntil { runner.phase.isRunning("slow") }
         try await waitUntil { runner.phase.runningBridge?.presentation != nil }
 
         // Finish the step right after the deferred UI appeared; minVisible must
@@ -316,7 +316,7 @@ struct LifecycleRunnerInteractiveTests {
             }) { _ in Text("p") }
         })
         let task = Task { @MainActor in await runner.run() }
-        try await waitUntil { runner.phase.runningStepID == "p" }
+        try await waitUntil { runner.phase.isRunning("p") }
         #expect(runner.phase.runningBridge?.progress == 0.5)
         runner.phase.runningBridge?.complete()
         await task.value

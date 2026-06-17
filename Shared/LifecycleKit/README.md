@@ -57,8 +57,8 @@ public struct LifecycleStep: Identifiable {
     public func presenting(after: Duration, _ view: ...) -> Self // only if still running after delay
     public func presenting(after: Duration, minVisible: Duration, _ view: ...) -> Self // …and hold once shown
 
-    public static func work(_ id: String, _ body: ...) -> LifecycleStep
-    public static func interactive(_ id: String, run: ... = …, presenting: ...) -> LifecycleStep
+    public static func work(_ id: AnyHashable, _ body: ...) -> LifecycleStep
+    public static func interactive(_ id: AnyHashable, run: ... = …, presenting: ...) -> LifecycleStep
 }
 
 @resultBuilder public enum LifecycleStepsBuilder {}              // if / if-else / for
@@ -94,8 +94,8 @@ Steps are built with the `LifecycleStep.work` / `LifecycleStep.interactive`
 factories so sequences read declaratively:
 
 ```swift
-LifecycleStep.work(_ id: String, _ body: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void)
-LifecycleStep.interactive(_ id: String,
+LifecycleStep.work(_ id: AnyHashable, _ body: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void)
+LifecycleStep.interactive(_ id: AnyHashable,
     run: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void = { try await $0.waitForResolution() },
     @ViewBuilder presenting: @escaping @MainActor (LifecycleStepUIBridge) -> some View)
 ```

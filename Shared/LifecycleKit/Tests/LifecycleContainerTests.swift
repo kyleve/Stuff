@@ -108,7 +108,7 @@ struct LifecycleContainerTests {
             LifecycleStep.interactive("gate") { _ in ProbeView { presentation = true } }
         })
         let task = Task { @MainActor in await runner.run() }
-        try await waitUntil { runner.phase.runningStepID == "gate" }
+        try await waitUntil { runner.phase.isRunning("gate") }
 
         let container = LifecycleContainer(runner) { ProbeView { content = true } }
         try show(UIHostingController(rootView: container)) { _ in
@@ -129,7 +129,7 @@ struct LifecycleContainerTests {
             LifecycleStep.work("boom") { _ in throw ProbeError() }
         })
         await runner.run()
-        #expect(runner.phase.failure?.stepID == "boom")
+        #expect(runner.phase.failed(at: "boom"))
 
         let container = LifecycleContainer(
             runner,

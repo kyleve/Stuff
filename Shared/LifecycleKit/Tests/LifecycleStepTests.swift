@@ -10,11 +10,11 @@ struct LifecycleStepsBuilderTests {
             LifecycleStep.work("b") { _ in }
             LifecycleStep.work("c") { _ in }
         }
-        #expect(sequence.steps.map(\.id) == ["a", "b", "c"])
+        #expect(sequence.steps.map(\.id) == ["a", "b", "c"] as [AnyHashable])
     }
 
     @Test func builderSupportsConditionalInclusion() {
-        func ids(includeMiddle: Bool) -> [String] {
+        func ids(includeMiddle: Bool) -> [AnyHashable] {
             LifecycleSteps {
                 LifecycleStep.work("a") { _ in }
                 if includeMiddle {
@@ -23,8 +23,8 @@ struct LifecycleStepsBuilderTests {
                 LifecycleStep.work("c") { _ in }
             }.steps.map(\.id)
         }
-        #expect(ids(includeMiddle: true) == ["a", "b", "c"])
-        #expect(ids(includeMiddle: false) == ["a", "c"])
+        #expect(ids(includeMiddle: true) == ["a", "b", "c"] as [AnyHashable])
+        #expect(ids(includeMiddle: false) == ["a", "c"] as [AnyHashable])
     }
 
     @Test func builderSupportsLoops() {
@@ -33,7 +33,7 @@ struct LifecycleStepsBuilderTests {
                 LifecycleStep.work(name) { _ in }
             }
         }
-        #expect(sequence.steps.map(\.id) == ["x", "y", "z"])
+        #expect(sequence.steps.map(\.id) == ["x", "y", "z"] as [AnyHashable])
     }
 }
 
