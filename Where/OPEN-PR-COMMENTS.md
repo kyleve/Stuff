@@ -8,6 +8,12 @@ captured so they can be addressed in a follow-up PR (or split across a few).
 comments and no review-summary bodies — everything below is an inline thread.
 All comments are from @kyleve.
 
+**Status (follow-up branch `pr25-lifecyclekit-followups`):** all actionable
+threads are addressed across the commits below. The two non-code items are a
+re-review progress marker (A, no action) and a SwiftFormat limitation (H, no
+0.60.1 rule exists); localization (F) landed the requested `TODO`s with full
+localization tracked as a larger follow-up. See the resolution map next.
+
 **How to read this**
 
 - **[new]** — raised during the latest re-review and *not yet replied to*. These
@@ -20,6 +26,57 @@ All comments are from @kyleve.
   `Where/WhereCore/Sources/BackupCoordinator.swift:9`
   ("Got to here on re-review"). Files/areas below that point in the diff have not
   been re-reviewed yet, so expect more comments on a future pass.
+
+---
+
+## Resolution map
+
+Each thread below, with how it was addressed and the commit that did it
+(`git log main..pr25-lifecyclekit-followups`). ✅ = done, ℹ️ = no action needed,
+⚠️ = blocked by tooling.
+
+**A. WhereCore**
+- ✅ LocationIngestor data loss on restart — durable `LocationOutbox`
+  (`FileLocationOutbox`) mirrors the retry queue, drains it on `start()`, and is
+  cleared by `quiesce()`. *(WhereCore: persist the location retry backlog across launches)*
+- ✅ `WherePreferences.Keys` → `String, CaseIterable`. *(WhereCore: make WherePreferences.Keys a CaseIterable String enum)*
+- ✅ Backup autoreleasepools around the export/import asset loops. *(WhereCore: autoreleasepool around backup asset I/O loops)*
+- ℹ️ `BackupCoordinator.swift:9` — re-review bookmark, not an action item.
+
+**B. WhereUI**
+- ✅ `WhereSession` retain cycle — confirmed none; added a deinit regression test. *(WhereUI: test WhereSession deinits while observing authorization)*
+- ✅ AppDelegate notification wiring moved into the launcher. *(Where: move foreground-notification wiring into the launcher)*
+
+**C. Runner & phase**
+- ✅ IDs → `AnyHashable` (+ AGENTS note). *(LifecycleKit: type step IDs as AnyHashable + validate uniqueness)*
+- ✅ `reason` moved onto the `State` enum. *(LifecycleKit: move reason onto the runner's State enum)*
+- ✅ `reset(_:)` → `teardown(_:)`. *(LifecycleKit: rename LifecycleRunner.reset(_:) to teardown(_:))*
+- ✅ Fold remaining stored props into local state — per-step presentation
+  bookkeeping is now a `runStep`-local `ActivePresentation` (can't outlive the
+  step); `phase`/`teardownSteps` stay as documented top-level state. *(LifecycleKit: scope per-step presentation state to the running step)*
+
+**D. `LifecycleStep` API**
+- ✅ Validate step-ID uniqueness (debug assert in the builder). *(same commit as AnyHashable IDs)*
+- ✅ `modes` + `condition` ("replacing"/gating) moved into the initializer; `run` → `perform`. *(LifecycleKit: fold step modes/condition into init, rename run -> perform)*
+- ✅ `minVisible` on every `presenting` overload, unified into one presentation value. *(LifecycleKit: unify presentation minVisible across all triggers)*
+- ✅ `AnyView` vs `some/any View` — kept `AnyView` deliberately, documented why. *(LifecycleKit: document why presentation UI is type-erased to AnyView)*
+
+**E. Presentation, container & transitions**
+- ✅ Splash/failure surface transitions — first-class `transition`/`animation`
+  on the container, keyed on `LifecyclePhase.surfaceIdentity`. *(LifecycleKit: animate container surface transitions)*
+- ✅ Assert-in-debug / no-op-in-prod wrapper for the env runner — `LifecycleRunnerProxy`. *(LifecycleKit: publish runner via assert-in-debug LifecycleRunnerProxy)*
+
+**F. Localization**
+- ✅ `TODO`s left at the user-facing string sites; full localization is the larger follow-up. *(LifecycleKit: TODO to localize the failure view's strings)*
+
+**G. Tests & docs**
+- ✅ `LifecycleContainerTests` fixtures inlined per test. *(LifecycleKit: make container tests self-contained, drop RenderFlags)*
+- ✅ Fuzz / adversarial step-sequence tests (`LifecycleRunnerFuzzTests`). *(LifecycleKit: add seeded fuzz tests for runner step sequences)*
+- ✅ AGENTS.md + README re-reviewed against the final API. *(LifecycleKit: re-review README + AGENTS for the final API)*
+
+**H. Tooling**
+- ⚠️ Force a trailing closure's body onto its own line — no SwiftFormat 0.60.1
+  rule does this; `.swiftformat` unchanged. Revisit when a newer rule lands.
 
 ---
 
