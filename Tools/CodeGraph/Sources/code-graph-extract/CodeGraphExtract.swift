@@ -38,12 +38,38 @@ struct CodeGraphExtract: AsyncParsableCommand {
     func run() async throws {
         let repoPath = URL(fileURLWithPath: repo).standardizedFileURL.path
         let libPath = try Toolchain.libIndexStorePath(override: toolchainLib)
-
         let storePath = try resolveStorePath(repoPath: repoPath)
+        let outputPath = output ?? (repoPath + "/Tools/CodeGraph/.codegraph/graph.json")
+
         log("opening index store at \(storePath)")
         let reader = try IndexStoreReader(storePath: storePath, libIndexStorePath: libPath)
-        log("index opened: \(reader.symbolNameCount()) symbol names")
-        // Harvesting the graph and writing graph.json lands in the next step.
+        try extractAndWrite(reader: reader, repoPath: repoPath, outputPath: outputPath)
+    }
+
+    /// Harvest the graph from the (already opened) store and write graph.json.
+    func extractAndWrite(reader: IndexStoreReader, repoPath: String, outputPath: String) throws {
+        log("harvesting graph")
+        let content = GraphBuilder(db: reader.db, repoPath: repoPath).build()
+        let graph = CodeGraph(
+            generatedAt: Date(),
+            repoPath: repoPath,
+            commit: Toolchain.gitCommit(repoPath: repoPath),
+            modules: content.modules,
+            nodes: content.nodes,
+            edges: content.edges,
+        )
+        try write(graph, to: outputPath)
+        log("wrote \(content.nodes.count) nodes, \(content.edges.count) edges, "
+            + "\(content.modules.count) modules -> \(outputPath)")
+    }
+
+    private func write(_ graph: CodeGraph, to path: String) throws {
+        let url = URL(fileURLWithPath: path)
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true,
+        )
+        try graph.encoded().write(to: url, options: .atomic)
     }
 
     private func resolveStorePath(repoPath: String) throws -> String {
