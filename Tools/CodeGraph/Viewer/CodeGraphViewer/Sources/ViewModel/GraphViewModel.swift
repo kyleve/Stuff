@@ -123,6 +123,10 @@ final class GraphViewModel {
     /// Coalesces the bursty relayouts that filter/search changes would otherwise
     /// fire on every keystroke or toggle.
     private var relayoutDebounce: Task<Void, Never>?
+    /// Bumped per scheduled layout so only the newest task applies its result
+    /// and owns `isLayingOut` — a superseded (cancelled) task bows out without
+    /// leaving the settling indicator stuck on.
+    private var layoutGeneration = 0
 
     init(graph: CodeGraph, persistence: ViewerPersistence = ViewerPersistence()) {
         self.graph = graph
@@ -414,6 +418,67 @@ final class GraphViewModel {
         visibleNodes = nodes
         visibleIDs = ids
         visibleEdges = edges
+        seedMissingPositions()
+    }
+
+    /// Give nodes that just became visible a provisional position so they paint
+    /// immediately instead of vanishing until the debounced relayout finishes
+    /// (the canvas only draws nodes present in `positions`). Skipped on the cold
+    /// first layout — there the settling pass places the whole graph at once.
+    private func seedMissingPositions() {
+        guard !positions.isEmpty else { return }
+        let missing = visibleNodes.filter { positions[$0.id] == nil }
+        guard !missing.isEmpty else { return }
+        let centroids = moduleCentroids()
+        let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
+        for node in missing {
+            positions[node.id] = neighborCentroid(for: node)
+                ?? centroids[node.module]
+                ?? center
+        }
+    }
+
+    /// Average position of a node's already-placed neighbors, so an expanded
+    /// type's members land on top of it and fan out from there.
+    private func neighborCentroid(for node: Node) -> CGPoint? {
+        var sum = CGPoint.zero
+        var count = 0
+        for edge in outgoingByID[node.id] ?? [] {
+            if let point = positions[edge.target] {
+                sum.x += point.x
+                sum.y += point.y
+                count += 1
+            }
+        }
+        for edge in incomingByID[node.id] ?? [] {
+            if let point = positions[edge.source] {
+                sum.x += point.x
+                sum.y += point.y
+                count += 1
+            }
+        }
+        guard count > 0 else { return nil }
+        return CGPoint(x: sum.x / Double(count), y: sum.y / Double(count))
+    }
+
+    /// Centroid of each module's already-placed visible nodes, for seeding a new
+    /// node that has no placed neighbor to anchor against.
+    private func moduleCentroids() -> [String: CGPoint] {
+        var sums = [String: CGPoint]()
+        var counts = [String: Int]()
+        for node in visibleNodes {
+            guard let point = positions[node.id] else { continue }
+            sums[node.module, default: .zero].x += point.x
+            sums[node.module, default: .zero].y += point.y
+            counts[node.module, default: 0] += 1
+        }
+        return sums.reduce(into: [:]) { result, entry in
+            let count = counts[entry.key] ?? 1
+            result[entry.key] = CGPoint(
+                x: entry.value.x / Double(count),
+                y: entry.value.y / Double(count),
+            )
+        }
     }
 
     /// Breadth-first set of node ids reachable from `root` within `depth` hops,
@@ -481,12 +546,19 @@ final class GraphViewModel {
             size: canvasSize,
         )
         isLayingOut = true
-        layoutTask = Task { [engine] in
+        layoutGeneration &+= 1
+        let generation = layoutGeneration
+        layoutTask = Task { [engine, weak self] in
             let result = await engine.layout(input)
-            guard !Task.isCancelled else { return }
-            withAnimation(.easeInOut(duration: 0.35)) {
-                positions = result
+            guard let self, generation == layoutGeneration else { return }
+            if !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 0.35)) {
+                    positions = result
+                }
             }
+            // Only the newest layout reaches here; clear the flag whether it
+            // finished or was cancelled so a cancelled final task can't leave
+            // the settling indicator stuck on.
             isLayingOut = false
         }
     }

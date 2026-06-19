@@ -200,6 +200,53 @@ struct GraphViewModelTests {
         #expect(visibleIDs(model) == ["Alpha", "Beta", "Gamma", "Proto", "Tester"])
     }
 
+    // MARK: - Layout + seeding
+
+    /// Run a layout and wait for the async settle. The engine runs off the main
+    /// actor, so the sleeps yield to let it finish (and bound the wait).
+    private func settle(_ model: GraphViewModel) async throws {
+        model.relayout()
+        for _ in 0 ..< 400 {
+            if !model.isLayingOut, !model.positions.isEmpty { return }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        Issue.record("layout never settled")
+    }
+
+    @Test func settlingFlagClearsAfterLayout() async throws {
+        let model = try makeModel()
+        try await settle(model)
+        #expect(!model.isLayingOut)
+        #expect(model.positions.count == visibleIDs(model).count)
+    }
+
+    @Test func rapidRelayoutsStillClearSettlingFlag() async throws {
+        let model = try makeModel()
+        // Two back-to-back relayouts: the first task is superseded and must bow
+        // out without clearing the flag, leaving the newest task to finish.
+        model.relayout()
+        model.relayout()
+        for _ in 0 ..< 400 {
+            if !model.isLayingOut, !model.positions.isEmpty { break }
+            try await Task.sleep(for: .milliseconds(5))
+        }
+        #expect(!model.isLayingOut)
+    }
+
+    @Test func newlyVisibleNodesAreSeededOntoTheirNeighbor() async throws {
+        let model = try makeModel()
+        try await settle(model)
+        // `field` is a hidden member, so the first layout never placed it.
+        #expect(model.position("field") == nil)
+        model.toggleExpanded("Alpha")
+        // Revealing it seeds a provisional position immediately (before the
+        // debounced relayout), right on its only placed neighbor, Alpha — so it
+        // paints at once instead of vanishing.
+        let alpha = try #require(model.position("Alpha"))
+        let field = try #require(model.position("field"))
+        #expect(hypot(field.x - alpha.x, field.y - alpha.y) < 0.5)
+    }
+
     // MARK: - Persistence reconciliation
 
     @Test func reconcileDropsReferencesToVanishedSymbols() throws {
