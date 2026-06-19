@@ -3,7 +3,10 @@ import SwiftUI
 
 /// A single node rendered as a rounded "chip": glyph + name, with affordances
 /// for expanding members, and selection / pin emphasis.
-struct NodeChipView: View {
+///
+/// `Equatable` (closure excluded — it only ever captures the stable node id) so
+/// `.equatable()` can skip re-rendering unchanged chips during drags/animations.
+struct NodeChipView: View, Equatable {
     let node: Node
     let isSelected: Bool
     let isPinned: Bool
@@ -11,6 +14,15 @@ struct NodeChipView: View {
     let isExpanded: Bool
     let isDimmed: Bool
     let onToggleExpand: () -> Void
+
+    static func == (lhs: NodeChipView, rhs: NodeChipView) -> Bool {
+        lhs.node == rhs.node
+            && lhs.isSelected == rhs.isSelected
+            && lhs.isPinned == rhs.isPinned
+            && lhs.memberCount == rhs.memberCount
+            && lhs.isExpanded == rhs.isExpanded
+            && lhs.isDimmed == rhs.isDimmed
+    }
 
     private var accent: Color {
         GraphStyle.color(for: node.kind)

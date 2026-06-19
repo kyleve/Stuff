@@ -19,6 +19,10 @@ struct LayoutInput {
     var edges: [Edge]
     /// Nodes the user dragged: held fixed but still repel/attract others.
     var pinned: [String: CGPoint]
+    /// Current positions to warm-start from. Nodes present here keep their spot
+    /// (so a filter tweak doesn't reshuffle the whole graph); nodes absent are
+    /// freshly seeded near their neighbors. Empty for a cold first layout.
+    var initial: [String: CGPoint]
     var size: CGSize
 }
 
@@ -39,7 +43,10 @@ actor LayoutEngine {
         let centerY = height / 2
         // Ideal edge length; floored so dense clusters stay legible.
         let k = max(36.0, (width * height / Double(count)).squareRoot())
-        let steps = iterations ?? adaptiveIterations(for: count)
+        // A warm start (most nodes already placed) only needs a gentle relax, so
+        // it runs fewer, cooler iterations and barely disturbs the prior layout.
+        let warm = !input.initial.isEmpty
+        let steps = iterations ?? adaptiveIterations(for: count, warm: warm)
 
         var index = [String: Int](minimumCapacity: count)
         for (i, node) in nodes.enumerated() {
@@ -48,6 +55,7 @@ actor LayoutEngine {
 
         var posX = [Double](repeating: 0, count: count)
         var posY = [Double](repeating: 0, count: count)
+        var rng = SplitMix64(seed: 0xD1B5_4A32_D192_ED03)
         seedPositions(
             into: &posX,
             &posY,
@@ -55,14 +63,6 @@ actor LayoutEngine {
             centerY: centerY,
             radius: min(centerX, centerY),
         )
-
-        var pinnedIndices = Set<Int>()
-        for (id, point) in input.pinned {
-            guard let i = index[id] else { continue }
-            posX[i] = Double(point.x)
-            posY[i] = Double(point.y)
-            pinnedIndices.insert(i)
-        }
 
         let edges: [(Int, Int, Double)] = input.edges.compactMap { edge in
             guard let source = index[edge.source], let target = index[edge.target],
@@ -73,13 +73,43 @@ actor LayoutEngine {
             return (source, target, edge.weight)
         }
 
+        // Warm start: keep already-placed nodes where they are, and drop brand-new
+        // ones in next to their settled neighbors instead of out on the spiral.
+        var seeded = Set<Int>()
+        for (id, point) in input.initial {
+            guard let i = index[id] else { continue }
+            posX[i] = Double(point.x)
+            posY[i] = Double(point.y)
+            seeded.insert(i)
+        }
+        if warm {
+            warmSeedNewNodes(
+                nodes: nodes,
+                edges: edges,
+                posX: &posX,
+                posY: &posY,
+                seeded: seeded,
+                rng: &rng,
+            )
+        }
+
+        var pinnedIndices = Set<Int>()
+        for (id, point) in input.pinned {
+            guard let i = index[id] else { continue }
+            posX[i] = Double(point.x)
+            posY[i] = Double(point.y)
+            pinnedIndices.insert(i)
+        }
+
         var dispX = [Double](repeating: 0, count: count)
         var dispY = [Double](repeating: 0, count: count)
-        var temperature = min(width, height) / 6
+        var temperature = min(width, height) / (warm ? 16 : 6)
         let cooling = pow(2.0 / max(temperature, 2), 1.0 / Double(max(steps, 1)))
-        var rng = SplitMix64(seed: 0xD1B5_4A32_D192_ED03)
 
         for _ in 0 ..< steps {
+            // The result is discarded if the task was superseded (e.g. another
+            // filter change); bail early instead of burning the full simulation.
+            if Task.isCancelled { return [:] }
             for i in 0 ..< count {
                 dispX[i] = 0
                 dispY[i] = 0
@@ -221,6 +251,60 @@ actor LayoutEngine {
         }
     }
 
+    /// Place nodes that have no prior position near their already-placed
+    /// neighbors (or, failing that, their module's centroid), so newly revealed
+    /// nodes — e.g. a type's members on expand — appear next to where they
+    /// belong rather than scattered across the canvas seed spiral.
+    private func warmSeedNewNodes(
+        nodes: [LayoutInput.Node],
+        edges: [(Int, Int, Double)],
+        posX: inout [Double],
+        posY: inout [Double],
+        seeded: Set<Int>,
+        rng: inout SplitMix64,
+    ) {
+        let count = nodes.count
+        guard !seeded.isEmpty, seeded.count < count else { return }
+
+        var sumX = [Double](repeating: 0, count: count)
+        var sumY = [Double](repeating: 0, count: count)
+        var degree = [Int](repeating: 0, count: count)
+        for (source, target, _) in edges {
+            if !seeded.contains(source), seeded.contains(target) {
+                sumX[source] += posX[target]
+                sumY[source] += posY[target]
+                degree[source] += 1
+            }
+            if !seeded.contains(target), seeded.contains(source) {
+                sumX[target] += posX[source]
+                sumY[target] += posY[source]
+                degree[target] += 1
+            }
+        }
+
+        var moduleSumX = [String: Double]()
+        var moduleSumY = [String: Double]()
+        var moduleCount = [String: Int]()
+        for i in seeded {
+            let module = nodes[i].module
+            moduleSumX[module, default: 0] += posX[i]
+            moduleSumY[module, default: 0] += posY[i]
+            moduleCount[module, default: 0] += 1
+        }
+
+        for i in 0 ..< count where !seeded.contains(i) {
+            let jitterX = (rng.nextUnit() - 0.5) * 24
+            let jitterY = (rng.nextUnit() - 0.5) * 24
+            if degree[i] > 0 {
+                posX[i] = sumX[i] / Double(degree[i]) + jitterX
+                posY[i] = sumY[i] / Double(degree[i]) + jitterY
+            } else if let n = moduleCount[nodes[i].module], n > 0 {
+                posX[i] = moduleSumX[nodes[i].module]! / Double(n) + jitterX
+                posY[i] = moduleSumY[nodes[i].module]! / Double(n) + jitterY
+            }
+        }
+    }
+
     // MARK: - Seeding & tuning
 
     private func seedPositions(
@@ -243,8 +327,9 @@ actor LayoutEngine {
         }
     }
 
-    private func adaptiveIterations(for count: Int) -> Int {
-        switch count {
+    private func adaptiveIterations(for count: Int, warm: Bool) -> Int {
+        if warm { return 140 }
+        return switch count {
             case ..<200: 500
             case ..<600: 360
             case ..<1500: 240

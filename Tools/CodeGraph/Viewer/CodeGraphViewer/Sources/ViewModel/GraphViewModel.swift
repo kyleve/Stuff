@@ -84,7 +84,14 @@ final class GraphViewModel {
     ]
 
     private(set) var expanded: Set<String> = []
-    var selection: String?
+    var selection: String? {
+        didSet { recomputeSelectionNeighbors() }
+    }
+
+    /// Ids one edge away from the current selection, precomputed on selection
+    /// change so the canvas can dim non-neighbors in O(1) per node instead of
+    /// rescanning the selection's incident edges for every chip each render.
+    private(set) var selectionNeighbors: Set<String> = []
 
     /// Drives the inspector presentation off the selection so the selection
     /// stays the single source of truth (no closure-based bindings in views).
@@ -113,6 +120,9 @@ final class GraphViewModel {
     /// applied (restore / apply saved view).
     private var isBatching = false
     private var saveTask: Task<Void, Never>?
+    /// Coalesces the bursty relayouts that filter/search changes would otherwise
+    /// fire on every keystroke or toggle.
+    private var relayoutDebounce: Task<Void, Never>?
 
     init(graph: CodeGraph) {
         self.graph = graph
@@ -177,6 +187,21 @@ final class GraphViewModel {
 
     func select(_ id: String?) {
         selection = id
+    }
+
+    private func recomputeSelectionNeighbors() {
+        guard let id = selection else {
+            selectionNeighbors = []
+            return
+        }
+        var neighbors = Set<String>()
+        for edge in outgoingByID[id] ?? [] {
+            neighbors.insert(edge.target)
+        }
+        for edge in incomingByID[id] ?? [] {
+            neighbors.insert(edge.source)
+        }
+        selectionNeighbors = neighbors
     }
 
     func toggleExpanded(_ id: String) {
@@ -417,17 +442,29 @@ final class GraphViewModel {
         return visited
     }
 
-    /// Recompute the visible set and re-run the layout.
+    /// Recompute the visible set immediately (so nodes appear/disappear without
+    /// lag) but coalesce the expensive relayout so a burst of filter/search
+    /// changes settles once, not once per keystroke.
     func invalidate() {
         guard !isBatching else { return }
         rebuildVisible()
-        relayout()
+        scheduleRelayout()
         scheduleSave()
     }
 
     // MARK: - Layout
 
+    private func scheduleRelayout() {
+        relayoutDebounce?.cancel()
+        relayoutDebounce = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(180))
+            guard !Task.isCancelled else { return }
+            self?.relayout()
+        }
+    }
+
     func relayout() {
+        relayoutDebounce?.cancel()
         layoutTask?.cancel()
         let input = LayoutInput(
             nodes: visibleNodes.map { .init(id: $0.id, module: $0.module) },
@@ -439,6 +476,7 @@ final class GraphViewModel {
                 )
             },
             pinned: pinned.filter { visibleIDs.contains($0.key) },
+            initial: positions.filter { visibleIDs.contains($0.key) },
             size: canvasSize,
         )
         isLayingOut = true

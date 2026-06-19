@@ -43,7 +43,7 @@ struct GraphCanvasView: View {
                     didFit = true
                 }
             }
-            .onChange(of: model.graph) { _, _ in didFit = false }
+            .onChange(of: model.graph.generatedAt) { _, _ in didFit = false }
         }
     }
 
@@ -153,10 +153,8 @@ struct GraphCanvasView: View {
 
     private func chip(for node: Node) -> some View {
         let selected = model.selection == node.id
-        let dimmed = model.selection != nil && !selected && !isNeighbor(
-            node.id,
-            of: model.selection!,
-        )
+        let dimmed = model.selection != nil && !selected && !model.selectionNeighbors
+            .contains(node.id)
         return NodeChipView(
             node: node,
             isSelected: selected,
@@ -166,6 +164,10 @@ struct GraphCanvasView: View {
             isDimmed: dimmed,
             onToggleExpand: { model.toggleExpanded(node.id) },
         )
+        // Skip rebuilding a chip's body (capsule, shadow, labels) when none of
+        // its inputs changed — so a drag or settle animation only re-renders the
+        // handful of chips that actually moved, not every visible node.
+        .equatable()
         .onTapGesture { model.select(node.id) }
         .gesture(nodeDrag(node))
         .contextMenu { nodeMenu(node) }
@@ -226,17 +228,6 @@ struct GraphCanvasView: View {
     }
 
     // MARK: - Helpers
-
-    private func isNeighbor(_ id: String, of selected: String) -> Bool {
-        if id == selected { return true }
-        for edge in model.outgoing(selected) where edge.target == id {
-            return true
-        }
-        for edge in model.incoming(selected) where edge.source == id {
-            return true
-        }
-        return false
-    }
 
     private func clamp(_ value: CGFloat) -> CGFloat {
         min(max(value, 0.15), 3.0)
