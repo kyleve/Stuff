@@ -1,8 +1,20 @@
 import CodeGraphModel
 import SwiftUI
 
-/// The interactive graph: a Canvas draws the edges, positioned chips draw the
-/// nodes, and gestures pan / zoom / select / drag-to-pin on top.
+/// Transient, view-local drag state shared by the node layer (which moves the
+/// dragged chip) and the edge overlay (which redraws its incident edges live).
+/// Kept off the model so a drag never rewrites `positions` per tick — only the
+/// dragged chip and its handful of incident edges re-render, not the whole graph.
+@Observable
+final class CanvasDragState {
+    var nodeID: String?
+    var point: CGPoint = .zero
+}
+
+/// The interactive graph: a static edge `Canvas`, a live overlay for the dragged
+/// node's edges, and positioned chips on top, with gestures to pan / zoom /
+/// select / drag-to-pin. The layers are split so an in-flight node drag only
+/// re-renders the dragged chip and its incident edges — everything else stays put.
 struct GraphCanvasView: View {
     @Bindable var model: GraphViewModel
 
@@ -10,8 +22,8 @@ struct GraphCanvasView: View {
     @State private var offset: CGSize = .zero
     @GestureState private var gestureZoom: CGFloat = 1
     @GestureState private var gesturePan: CGSize = .zero
-    @State private var dragStart: (id: String, point: CGPoint)?
     @State private var didFit = false
+    @State private var drag = CanvasDragState()
 
     private var liveScale: CGFloat {
         scale * gestureZoom
@@ -58,177 +70,16 @@ struct GraphCanvasView: View {
 
     private func content(viewport: CGSize) -> some View {
         ZStack(alignment: .topLeading) {
-            edgeCanvas
+            StaticEdgeLayer(model: model, drag: drag)
                 .allowsHitTesting(false)
-            nodeLayer(viewport: viewport)
+            DraggedEdgeLayer(model: model, drag: drag)
+                .allowsHitTesting(false)
+            NodeLayer(model: model, drag: drag, viewport: viewport, scale: scale, offset: offset)
         }
         .frame(
             width: model.canvasSize.width,
             height: model.canvasSize.height,
             alignment: .topLeading,
-        )
-    }
-
-    private var edgeCanvas: some View {
-        Canvas { context, _ in
-            let selection = model.selection
-            for edge in model.visibleEdges {
-                guard
-                    let from = model.positions[edge.source],
-                    let to = model.positions[edge.target]
-                else { continue }
-                let incident = selection == nil || edge.source == selection || edge
-                    .target == selection
-                draw(edge: edge, from: from, to: to, emphasized: incident, in: context)
-            }
-        }
-        .frame(width: model.canvasSize.width, height: model.canvasSize.height)
-    }
-
-    private func draw(
-        edge: GraphEdge,
-        from: CGPoint,
-        to: CGPoint,
-        emphasized: Bool,
-        in context: GraphicsContext,
-    ) {
-        let base = GraphStyle.color(for: edge.kind)
-        let color = base.opacity(emphasized ? 0.7 : 0.08)
-        var path = Path()
-        path.move(to: from)
-        path.addLine(to: to)
-        context.stroke(
-            path,
-            with: .color(color),
-            style: StrokeStyle(
-                lineWidth: GraphStyle.lineWidth(for: edge.kind),
-                lineCap: .round,
-                dash: GraphStyle.dash(for: edge.kind),
-            ),
-        )
-        if emphasized {
-            drawArrowhead(from: from, to: to, color: base.opacity(0.7), in: context)
-        }
-    }
-
-    private func drawArrowhead(
-        from: CGPoint,
-        to: CGPoint,
-        color: Color,
-        in context: GraphicsContext,
-    ) {
-        let dx = to.x - from.x
-        let dy = to.y - from.y
-        let length = (dx * dx + dy * dy).squareRoot()
-        guard length > 28 else { return }
-        let ux = dx / length
-        let uy = dy / length
-        // Back off the arrow so it sits at the target chip's edge, not under it.
-        let tip = CGPoint(x: to.x - ux * 16, y: to.y - uy * 16)
-        let size: CGFloat = 7
-        let left = CGPoint(
-            x: tip.x - ux * size - uy * size * 0.6,
-            y: tip.y - uy * size + ux * size * 0.6,
-        )
-        let right = CGPoint(
-            x: tip.x - ux * size + uy * size * 0.6,
-            y: tip.y - uy * size - ux * size * 0.6,
-        )
-        var head = Path()
-        head.move(to: tip)
-        head.addLine(to: left)
-        head.addLine(to: right)
-        head.closeSubpath()
-        context.fill(head, with: .color(color))
-    }
-
-    private func nodeLayer(viewport: CGSize) -> some View {
-        ForEach(culledNodes(viewport: viewport)) { node in
-            if let point = model.positions[node.id] {
-                chip(for: node)
-                    .position(point)
-            }
-        }
-    }
-
-    /// Only the nodes whose positions fall inside the visible canvas rect (grown
-    /// by a one-viewport margin) get instantiated as chips — so zooming in
-    /// doesn't keep thousands of off-screen interactive views alive. Keyed to the
-    /// committed `scale`/`offset` (not the live gesture values), so an in-flight
-    /// pan/zoom just transforms the existing layer instead of re-culling.
-    private func culledNodes(viewport: CGSize) -> [Node] {
-        guard viewport.width > 0, viewport.height > 0, scale > 0 else {
-            return model.visibleNodes
-        }
-        let halfW = model.canvasSize.width / 2
-        let halfH = model.canvasSize.height / 2
-        let minX = halfW + (-offset.width - halfW) / scale - viewport.width / scale
-        let maxX = halfW + (viewport.width - offset.width - halfW) / scale + viewport.width / scale
-        let minY = halfH + (-offset.height - halfH) / scale - viewport.height / scale
-        let maxY = halfH + (viewport.height - offset.height - halfH) / scale + viewport
-            .height / scale
-        return model.visibleNodes.filter { node in
-            guard let point = model.positions[node.id] else { return false }
-            return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY
-        }
-    }
-
-    private func chip(for node: Node) -> some View {
-        let selected = model.selection == node.id
-        let dimmed = model.selection != nil && !selected && !model.selectionNeighbors
-            .contains(node.id)
-        return NodeChipView(
-            node: node,
-            isSelected: selected,
-            isPinned: model.isPinned(node.id),
-            memberCount: node.kind.isType ? model.memberCount(node.id) : 0,
-            isExpanded: model.isExpanded(node.id),
-            isDimmed: dimmed,
-            onToggleExpand: { model.toggleExpanded(node.id) },
-        )
-        // Skip rebuilding a chip's body (capsule, shadow, labels) when none of
-        // its inputs changed — so a drag or settle animation only re-renders the
-        // handful of chips that actually moved, not every visible node.
-        .equatable()
-        .onTapGesture { model.select(node.id) }
-        .gesture(nodeDrag(node))
-        .contextMenu { nodeMenu(node) }
-    }
-
-    @ViewBuilder
-    private func nodeMenu(_ node: Node) -> some View {
-        Button("Focus on \(node.name)", systemImage: "scope") {
-            model.focus(on: node.id)
-        }
-        if node.kind.isType, model.memberCount(node.id) > 0 {
-            Button(model.isExpanded(node.id) ? "Collapse members" : "Expand members") {
-                model.toggleExpanded(node.id)
-            }
-        }
-        if model.isPinned(node.id) {
-            Button("Unpin", systemImage: "pin.slash") { model.unpin(node.id) }
-        }
-    }
-
-    private func nodeDrag(_ node: Node) -> some Gesture {
-        DragGesture(minimumDistance: 3)
-            .onChanged { value in
-                if dragStart?.id != node.id {
-                    dragStart = (node.id, model.positions[node.id] ?? .zero)
-                }
-                model.drag(node.id, to: dragged(value))
-            }
-            .onEnded { value in
-                model.endDrag(node.id, at: dragged(value))
-                dragStart = nil
-            }
-    }
-
-    private func dragged(_ value: DragGesture.Value) -> CGPoint {
-        let start = dragStart?.point ?? .zero
-        return CGPoint(
-            x: start.x + value.translation.width / scale,
-            y: start.y + value.translation.height / scale,
         )
     }
 
@@ -301,6 +152,283 @@ struct GraphCanvasView: View {
             .padding(.vertical, 6)
             .background(.thinMaterial, in: Capsule())
             .padding(12)
+    }
+}
+
+// MARK: - Edge layers
+
+/// Every visible edge except those touching the node being dragged (drawn live
+/// by `DraggedEdgeLayer`). Reads `drag.nodeID` but never `drag.point`, so it
+/// stays frozen for the whole drag and only redraws at its start and end.
+private struct StaticEdgeLayer: View {
+    let model: GraphViewModel
+    let drag: CanvasDragState
+
+    var body: some View {
+        let draggingID = drag.nodeID
+        let selection = model.selection
+        let edges = model.visibleEdges
+        let positions = model.positions
+        Canvas { context, _ in
+            for edge in edges where edge.source != draggingID && edge.target != draggingID {
+                guard let from = positions[edge.source], let to = positions[edge.target] else {
+                    continue
+                }
+                let emphasized = selection == nil || edge.source == selection || edge
+                    .target == selection
+                EdgeRenderer.draw(
+                    edge: edge,
+                    from: from,
+                    to: to,
+                    emphasized: emphasized,
+                    in: context,
+                )
+            }
+        }
+        .frame(width: model.canvasSize.width, height: model.canvasSize.height)
+    }
+}
+
+/// The dragged node's incident edges, redrawn each tick from the live drag
+/// point. Neighbor endpoints are captured when the drag starts (they don't
+/// move), so per-tick cost is O(incident edges), not O(all edges).
+private struct DraggedEdgeLayer: View {
+    let model: GraphViewModel
+    let drag: CanvasDragState
+    @State private var incident: [IncidentEdge] = []
+
+    var body: some View {
+        let point = drag.point
+        let active = drag.nodeID != nil
+        let selection = model.selection
+        Canvas { context, _ in
+            guard active else { return }
+            for item in incident {
+                let from = item.draggedIsSource ? point : item.neighbor
+                let to = item.draggedIsSource ? item.neighbor : point
+                let emphasized = selection == nil || item.edge.source == selection || item.edge
+                    .target == selection
+                EdgeRenderer.draw(
+                    edge: item.edge,
+                    from: from,
+                    to: to,
+                    emphasized: emphasized,
+                    in: context,
+                )
+            }
+        }
+        .frame(width: model.canvasSize.width, height: model.canvasSize.height)
+        .onChange(of: drag.nodeID) { _, id in
+            incident = id.map(incidentEdges) ?? []
+        }
+    }
+
+    private func incidentEdges(of id: String) -> [IncidentEdge] {
+        model.visibleEdges.compactMap { edge in
+            let draggedIsSource: Bool
+            let neighborID: String
+            if edge.source == id {
+                draggedIsSource = true
+                neighborID = edge.target
+            } else if edge.target == id {
+                draggedIsSource = false
+                neighborID = edge.source
+            } else {
+                return nil
+            }
+            guard let neighbor = model.positions[neighborID] else { return nil }
+            return IncidentEdge(edge: edge, neighbor: neighbor, draggedIsSource: draggedIsSource)
+        }
+    }
+}
+
+/// A visible edge touching the dragged node, with its (fixed) neighbor endpoint
+/// captured at drag start so the overlay needn't touch `positions` per tick.
+private struct IncidentEdge {
+    let edge: GraphEdge
+    let neighbor: CGPoint
+    let draggedIsSource: Bool
+}
+
+private enum EdgeRenderer {
+    static func draw(
+        edge: GraphEdge,
+        from: CGPoint,
+        to: CGPoint,
+        emphasized: Bool,
+        in context: GraphicsContext,
+    ) {
+        let base = GraphStyle.color(for: edge.kind)
+        let color = base.opacity(emphasized ? 0.7 : 0.08)
+        var path = Path()
+        path.move(to: from)
+        path.addLine(to: to)
+        context.stroke(
+            path,
+            with: .color(color),
+            style: StrokeStyle(
+                lineWidth: GraphStyle.lineWidth(for: edge.kind),
+                lineCap: .round,
+                dash: GraphStyle.dash(for: edge.kind),
+            ),
+        )
+        if emphasized {
+            arrowhead(from: from, to: to, color: base.opacity(0.7), in: context)
+        }
+    }
+
+    private static func arrowhead(
+        from: CGPoint,
+        to: CGPoint,
+        color: Color,
+        in context: GraphicsContext,
+    ) {
+        let dx = to.x - from.x
+        let dy = to.y - from.y
+        let length = (dx * dx + dy * dy).squareRoot()
+        guard length > 28 else { return }
+        let ux = dx / length
+        let uy = dy / length
+        // Back off the arrow so it sits at the target chip's edge, not under it.
+        let tip = CGPoint(x: to.x - ux * 16, y: to.y - uy * 16)
+        let size: CGFloat = 7
+        let left = CGPoint(
+            x: tip.x - ux * size - uy * size * 0.6,
+            y: tip.y - uy * size + ux * size * 0.6,
+        )
+        let right = CGPoint(
+            x: tip.x - ux * size + uy * size * 0.6,
+            y: tip.y - uy * size - ux * size * 0.6,
+        )
+        var head = Path()
+        head.move(to: tip)
+        head.addLine(to: left)
+        head.addLine(to: right)
+        head.closeSubpath()
+        context.fill(head, with: .color(color))
+    }
+}
+
+// MARK: - Node layer
+
+/// The interactive chips. Reads `model` (positions, visible set, selection) but
+/// never `drag`, so an in-flight drag — which only mutates `drag` — leaves this
+/// layer and its O(N) culling untouched; just the dragged chip re-renders.
+private struct NodeLayer: View {
+    let model: GraphViewModel
+    let drag: CanvasDragState
+    let viewport: CGSize
+    let scale: CGFloat
+    let offset: CGSize
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            ForEach(culledNodes) { node in
+                DraggableChip(node: node, model: model, drag: drag, scale: scale)
+            }
+        }
+        .frame(
+            width: model.canvasSize.width,
+            height: model.canvasSize.height,
+            alignment: .topLeading,
+        )
+    }
+
+    /// Only the nodes whose positions fall inside the visible canvas rect (grown
+    /// by a one-viewport margin) get instantiated as chips — so zooming in
+    /// doesn't keep thousands of off-screen interactive views alive. Keyed to the
+    /// committed `scale`/`offset` (not the live gesture values), so an in-flight
+    /// pan/zoom just transforms the existing layer instead of re-culling.
+    private var culledNodes: [Node] {
+        guard viewport.width > 0, viewport.height > 0, scale > 0 else {
+            return model.visibleNodes.filter { model.positions[$0.id] != nil }
+        }
+        let halfW = model.canvasSize.width / 2
+        let halfH = model.canvasSize.height / 2
+        let minX = halfW + (-offset.width - halfW) / scale - viewport.width / scale
+        let maxX = halfW + (viewport.width - offset.width - halfW) / scale + viewport.width / scale
+        let minY = halfH + (-offset.height - halfH) / scale - viewport.height / scale
+        let maxY = halfH + (viewport.height - offset.height - halfH) / scale + viewport
+            .height / scale
+        return model.visibleNodes.filter { node in
+            guard let point = model.positions[node.id] else { return false }
+            return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY
+        }
+    }
+}
+
+/// One node chip. The live drag offset lives in this view's `@GestureState`, so
+/// dragging moves only this chip — the parent node layer never re-evaluates.
+/// The committed position lands on the model on drag end.
+private struct DraggableChip: View {
+    let node: Node
+    let model: GraphViewModel
+    let drag: CanvasDragState
+    let scale: CGFloat
+    @GestureState private var translation: CGSize = .zero
+
+    var body: some View {
+        let selected = model.selection == node.id
+        let dimmed = model.selection != nil && !selected && !model.selectionNeighbors
+            .contains(node.id)
+        let base = model.positions[node.id] ?? .zero
+        return NodeChipView(
+            node: node,
+            isSelected: selected,
+            isPinned: model.isPinned(node.id),
+            memberCount: node.kind.isType ? model.memberCount(node.id) : 0,
+            isExpanded: model.isExpanded(node.id),
+            isDimmed: dimmed,
+            onToggleExpand: { model.toggleExpanded(node.id) },
+        )
+        // Skip rebuilding a chip's body (capsule, shadow, labels) when none of
+        // its inputs changed — so a drag or settle animation only re-renders the
+        // handful of chips that actually moved, not every visible node.
+        .equatable()
+        .position(base)
+        .offset(x: translation.width / scale, y: translation.height / scale)
+        .onTapGesture { model.select(node.id) }
+        .gesture(dragGesture(base: base))
+        .contextMenu { menu }
+    }
+
+    private func dragGesture(base: CGPoint) -> some Gesture {
+        DragGesture(minimumDistance: 3)
+            .updating($translation) { value, state, _ in state = value.translation }
+            .onChanged { value in
+                // Set the id once (it drives the static/overlay split); push the
+                // live point every tick for the incident-edge overlay.
+                if drag.nodeID != node.id { drag.nodeID = node.id }
+                drag.point = location(of: value, base: base)
+            }
+            .onEnded { value in
+                model.endDrag(node.id, at: location(of: value, base: base))
+                drag.nodeID = nil
+            }
+    }
+
+    /// Screen translation is in points; divide by the committed scale to convert
+    /// to the content space `positions` lives in (no pinch happens mid-drag).
+    private func location(of value: DragGesture.Value, base: CGPoint) -> CGPoint {
+        CGPoint(
+            x: base.x + value.translation.width / scale,
+            y: base.y + value.translation.height / scale,
+        )
+    }
+
+    @ViewBuilder
+    private var menu: some View {
+        Button("Focus on \(node.name)", systemImage: "scope") {
+            model.focus(on: node.id)
+        }
+        if node.kind.isType, model.memberCount(node.id) > 0 {
+            Button(model.isExpanded(node.id) ? "Collapse members" : "Expand members") {
+                model.toggleExpanded(node.id)
+            }
+        }
+        if model.isPinned(node.id) {
+            Button("Unpin", systemImage: "pin.slash") { model.unpin(node.id) }
+        }
     }
 }
 

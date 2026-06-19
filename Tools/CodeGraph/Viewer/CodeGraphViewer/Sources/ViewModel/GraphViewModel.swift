@@ -219,11 +219,6 @@ final class GraphViewModel {
         invalidate()
     }
 
-    /// Live position update while dragging (no relayout).
-    func drag(_ id: String, to point: CGPoint) {
-        positions[id] = point
-    }
-
     /// Finish a drag: pin the node where it landed and re-settle the rest.
     func endDrag(_ id: String, at point: CGPoint) {
         positions[id] = point
