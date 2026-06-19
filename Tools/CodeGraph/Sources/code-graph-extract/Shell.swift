@@ -1,3 +1,4 @@
+import Dispatch
 import Foundation
 
 /// Thin wrappers over `Process` for the few external commands the extractor
@@ -22,8 +23,17 @@ enum Shell {
         process.standardOutput = stdout
         process.standardError = stderr
         try process.run()
+        // Drain stdout and stderr concurrently: reading one pipe to EOF before
+        // touching the other deadlocks if the child fills the second pipe's
+        // ~64KB buffer while we're still blocked on the first. (A
+        // DispatchWorkItem block isn't `@Sendable`, so it can hold the file
+        // handle / accumulator without tripping strict-concurrency checks.)
+        let errHandle = stderr.fileHandleForReading
+        var errData = Data()
+        let drainStderr = DispatchWorkItem { errData = errHandle.readDataToEndOfFile() }
+        DispatchQueue.global(qos: .userInitiated).async(execute: drainStderr)
         let outData = stdout.fileHandleForReading.readDataToEndOfFile()
-        let errData = stderr.fileHandleForReading.readDataToEndOfFile()
+        drainStderr.wait()
         process.waitUntilExit()
         let output = String(decoding: outData, as: UTF8.self)
         guard process.terminationStatus == 0 else {
