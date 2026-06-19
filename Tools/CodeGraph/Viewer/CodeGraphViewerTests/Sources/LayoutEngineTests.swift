@@ -50,6 +50,36 @@ struct LayoutEngineTests {
         #expect(first.count == 6)
     }
 
+    @Test func largeBoxesDoNotOverlap() async throws {
+        let engine = LayoutEngine()
+        // Tall member-row chips must not sit on top of each other: repulsion
+        // measures the gap between box borders, not just center distance.
+        let box = CGSize(width: 240, height: 160)
+        let input = LayoutInput(
+            nodes: [
+                .init(id: "a", module: "M", size: box),
+                .init(id: "b", module: "M", size: box),
+                .init(id: "c", module: "M", size: box),
+            ],
+            edges: [],
+            pinned: [:],
+            initial: [:],
+            size: CGSize(width: 1200, height: 1000),
+        )
+        let result = await engine.layout(input)
+        let ids = ["a", "b", "c"]
+        for i in 0 ..< ids.count {
+            for j in (i + 1) ..< ids.count {
+                let p = try #require(result[ids[i]])
+                let q = try #require(result[ids[j]])
+                // Rectangles overlap only if they penetrate on *both* axes.
+                let penetrateX = box.width - abs(p.x - q.x)
+                let penetrateY = box.height - abs(p.y - q.y)
+                #expect(penetrateX <= 0 || penetrateY <= 0, "boxes \(ids[i]) and \(ids[j]) overlap")
+            }
+        }
+    }
+
     @Test func emptyInputProducesEmptyLayout() async {
         let engine = LayoutEngine()
         let input = LayoutInput(

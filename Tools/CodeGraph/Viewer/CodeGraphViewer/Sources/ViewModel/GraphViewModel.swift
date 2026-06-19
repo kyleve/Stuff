@@ -203,6 +203,15 @@ final class GraphViewModel {
         memberRowsByType[id] ?? []
     }
 
+    /// The chip's drawn footprint, so the layout reserves the right space and
+    /// keeps whole boxes — not just their centers — from overlapping.
+    func chipSize(_ id: String) -> CGSize {
+        guard let node = nodesByID[id] else {
+            return CGSize(width: ChipMetrics.minWidth, height: ChipMetrics.headerHeight)
+        }
+        return ChipMetrics.size(name: node.name, rows: memberRows(id), expanded: isExpanded(id))
+    }
+
     /// Flatten each type's members into display rows, ordered data-first
     /// (cases/properties before initializers/methods) and annotated with the
     /// property type recovered from the owner's `propertyType` edges.
@@ -636,7 +645,7 @@ final class GraphViewModel {
         relayoutDebounce?.cancel()
         layoutTask?.cancel()
         let input = LayoutInput(
-            nodes: visibleNodes.map { .init(id: $0.id, module: $0.module) },
+            nodes: visibleNodes.map { .init(id: $0.id, module: $0.module, size: chipSize($0.id)) },
             edges: visibleEdges.map {
                 .init(
                     source: $0.source,

@@ -7,6 +7,9 @@ struct LayoutInput {
     struct Node {
         var id: String
         var module: String
+        /// The chip's drawn footprint, so repulsion can keep whole boxes — not
+        /// just their centers — from overlapping. Defaults to a compact pill.
+        var size: CGSize = .init(width: 120, height: 30)
     }
 
     struct Edge {
@@ -52,6 +55,19 @@ actor LayoutEngine {
         for (i, node) in nodes.enumerated() {
             index[node.id] = i
         }
+
+        // Half-extents per node so repulsion keeps whole boxes apart (the support
+        // function below turns these into a border-to-border gap), and a cell
+        // size large enough that any overlapping pair lands in adjacent buckets.
+        var halfW = [Double](repeating: 0, count: count)
+        var halfH = [Double](repeating: 0, count: count)
+        var maxBoxDimension = 0.0
+        for (i, node) in nodes.enumerated() {
+            halfW[i] = Double(node.size.width) / 2
+            halfH[i] = Double(node.size.height) / 2
+            maxBoxDimension = max(maxBoxDimension, Double(max(node.size.width, node.size.height)))
+        }
+        let cellSize = max(k, maxBoxDimension)
 
         var posX = [Double](repeating: 0, count: count)
         var posY = [Double](repeating: 0, count: count)
@@ -114,7 +130,17 @@ actor LayoutEngine {
                 dispX[i] = 0
                 dispY[i] = 0
             }
-            applyRepulsion(posX: posX, posY: posY, dispX: &dispX, dispY: &dispY, k: k, rng: &rng)
+            applyRepulsion(
+                posX: posX,
+                posY: posY,
+                halfW: halfW,
+                halfH: halfH,
+                cellSize: cellSize,
+                dispX: &dispX,
+                dispY: &dispY,
+                k: k,
+                rng: &rng,
+            )
             applyAttraction(
                 edges: edges,
                 posX: posX,
@@ -147,16 +173,24 @@ actor LayoutEngine {
     /// Grid-bucketed repulsion: each node is pushed only by others in its own
     /// and adjacent cells, which keeps the cost ~O(n) for spread-out graphs
     /// while distant pairs contribute negligibly anyway.
+    ///
+    /// The force is computed over the gap between the two chips' *borders*, not
+    /// their centers: the box support function (`halfW·|ux| + halfH·|uy|`) gives
+    /// the distance from a center to its border along the connecting direction,
+    /// so subtracting both leaves the border-to-border gap. Big UML boxes then
+    /// keep their distance instead of overlapping the way equal-radius points do.
     private func applyRepulsion(
         posX: [Double],
         posY: [Double],
+        halfW: [Double],
+        halfH: [Double],
+        cellSize: Double,
         dispX: inout [Double],
         dispY: inout [Double],
         k: Double,
         rng: inout SplitMix64,
     ) {
         let count = posX.count
-        let cellSize = k
         var grid = [Cell: [Int]]()
         for i in 0 ..< count {
             grid[Cell(posX[i], posY[i], cellSize), default: []].append(i)
@@ -177,9 +211,14 @@ actor LayoutEngine {
                         dist2 = dx * dx + dy * dy + 0.01
                     }
                     let dist = dist2.squareRoot()
-                    let force = k2 / dist
-                    dispX[i] += dx / dist * force
-                    dispY[i] += dy / dist * force
+                    let ux = dx / dist
+                    let uy = dy / dist
+                    let border = halfW[i] * abs(ux) + halfH[i] * abs(uy)
+                        + halfW[j] * abs(ux) + halfH[j] * abs(uy)
+                    let gap = max(dist - border, 1)
+                    let force = k2 / gap
+                    dispX[i] += ux * force
+                    dispY[i] += uy * force
                 }
             }
         }
