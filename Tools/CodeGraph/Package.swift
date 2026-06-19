@@ -26,5 +26,13 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
         ),
+        .testTarget(
+            name: "CodeGraphExtractTests",
+            dependencies: [
+                "code-graph-extract",
+                .product(name: "CodeGraphModel", package: "CodeGraphModel"),
+                .product(name: "IndexStoreDB", package: "indexstore-db"),
+            ],
+        ),
     ],
 )

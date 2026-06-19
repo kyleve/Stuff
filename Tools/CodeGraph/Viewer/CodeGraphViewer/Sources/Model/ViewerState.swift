@@ -36,7 +36,12 @@ struct ViewerRecord: Codable {
 /// Keyed by repo path so pointing the viewer at different repos keeps their
 /// arrangements separate.
 struct ViewerPersistence {
-    private let defaults = UserDefaults.standard
+    private let defaults: UserDefaults
+
+    /// Defaults to the app container; tests inject an isolated suite.
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
 
     func load(repoPath: String) -> ViewerRecord {
         guard

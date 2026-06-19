@@ -113,7 +113,7 @@ final class GraphViewModel {
     private let engine = LayoutEngine()
     private var layoutTask: Task<Void, Never>?
 
-    private let persistence = ViewerPersistence()
+    private let persistence: ViewerPersistence
     private var record = ViewerRecord()
     private(set) var savedViews: [SavedView] = []
     /// Suppresses relayout/persist side effects while a batch of state is being
@@ -124,8 +124,9 @@ final class GraphViewModel {
     /// fire on every keystroke or toggle.
     private var relayoutDebounce: Task<Void, Never>?
 
-    init(graph: CodeGraph) {
+    init(graph: CodeGraph, persistence: ViewerPersistence = ViewerPersistence()) {
         self.graph = graph
+        self.persistence = persistence
         var byID = [String: Node](minimumCapacity: graph.nodes.count)
         var children = [String: [Node]]()
         for node in graph.nodes {

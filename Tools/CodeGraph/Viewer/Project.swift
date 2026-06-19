@@ -19,6 +19,11 @@ let project = Project(
         "TARGETED_DEVICE_FAMILY": "2",
         "MARKETING_VERSION": "1.0",
         "CURRENT_PROJECT_VERSION": "1",
+        // The iOS 26 deployment target otherwise derives a Mac Catalyst macOS
+        // deployment of 27.0, which won't launch (or run unit tests) on a
+        // macOS 26 host. Pin it down to the matching macOS so the Catalyst app
+        // and its test bundle run locally.
+        "MACOSX_DEPLOYMENT_TARGET": "26.0",
     ]),
     targets: [
         .target(
@@ -53,6 +58,27 @@ let project = Project(
             dependencies: [
                 .package(product: "CodeGraphModel"),
             ],
+        ),
+        .target(
+            name: "CodeGraphViewerTests",
+            destinations: [.macCatalyst],
+            product: .unitTests,
+            bundleId: "com.stuff.codegraph.viewer.tests",
+            deploymentTargets: .iOS("26.0"),
+            sources: ["CodeGraphViewerTests/Sources/**"],
+            dependencies: [
+                .target(name: "CodeGraphViewer"),
+                .package(product: "CodeGraphModel"),
+            ],
+        ),
+    ],
+    schemes: [
+        .scheme(
+            name: "CodeGraphViewer",
+            shared: true,
+            buildAction: .buildAction(targets: ["CodeGraphViewer", "CodeGraphViewerTests"]),
+            testAction: .targets(["CodeGraphViewerTests"]),
+            runAction: .runAction(executable: "CodeGraphViewer"),
         ),
     ],
 )
