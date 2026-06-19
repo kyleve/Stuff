@@ -106,8 +106,9 @@ struct GraphViewModelTests {
 
     @Test func defaultsShowFirstPartyAndTestTypesOnly() throws {
         let model = try makeModel()
-        // Members (collapsed), external nodes, and module groupings are hidden by
-        // default; the structural + propertyType edges among visible types show.
+        // Members (now rows inside chips), external nodes, and module groupings
+        // are hidden by default; the structural + propertyType edges among
+        // visible types show, and the membership edge never reaches the canvas.
         #expect(visibleIDs(model) == ["Alpha", "Beta", "Gamma", "Proto", "Tester"])
         #expect(model.visibleEdges.count == 4)
         #expect(hasEdge(model, from: "Alpha", to: "Proto", kind: .conformance))
@@ -173,17 +174,70 @@ struct GraphViewModelTests {
         #expect(visibleIDs(model).contains("Beta"))
     }
 
-    // MARK: - Expansion
+    // MARK: - Members
 
-    @Test func expandingATypeRevealsItsMembers() throws {
+    @Test func membersRenderAsRowsNotNodes() throws {
         let model = try makeModel()
+        // The member never becomes its own node, and its membership edge never
+        // reaches the canvas — it shows as a row inside Alpha's chip instead.
         #expect(!visibleIDs(model).contains("field"))
-        #expect(model.memberCount("Alpha") == 1)
-        model.toggleExpanded("Alpha")
-        #expect(visibleIDs(model).contains("field"))
-        #expect(hasEdge(model, from: "Alpha", to: "field", kind: .member))
-        model.toggleExpanded("Alpha")
-        #expect(!visibleIDs(model).contains("field"))
+        #expect(!hasEdge(model, from: "Alpha", to: "field", kind: .member))
+        let rows = model.memberRows("Alpha")
+        #expect(rows.map(\.id) == ["field"])
+        // The property's declared type is recovered from Alpha's propertyType edge.
+        #expect(rows.first?.typeName == "Beta")
+        #expect(model.memberRows("Beta").isEmpty)
+    }
+
+    @Test func memberRowsAreOrderedDataBeforeBehavior() throws {
+        func member(_ id: String, _ kind: NodeKind, parent: String, line: Int) -> Node {
+            Node(
+                id: id,
+                name: id,
+                kind: kind,
+                module: "App",
+                origin: .firstParty,
+                parentID: parent,
+                line: line,
+            )
+        }
+        let graph = CodeGraph(
+            generatedAt: Date(timeIntervalSince1970: 0),
+            repoPath: "/test/repo-members",
+            modules: [],
+            nodes: [
+                Node(
+                    id: "module:App",
+                    name: "App",
+                    kind: .module,
+                    module: "App",
+                    origin: .firstParty,
+                ),
+                Node(
+                    id: "Box",
+                    name: "Box",
+                    kind: .class,
+                    module: "App",
+                    origin: .firstParty,
+                    parentID: "module:App",
+                    line: 1,
+                ),
+                member("run", .method, parent: "Box", line: 3),
+                member("count", .property, parent: "Box", line: 1),
+                member("name", .property, parent: "Box", line: 2),
+            ],
+            edges: [],
+        )
+        let persistence = try ViewerPersistence(defaults: isolatedDefaults())
+        let model = GraphViewModel(graph: graph, persistence: persistence)
+        // Stored data (properties, by declaration line) precede behavior (methods).
+        #expect(model.memberRows("Box").map(\.id) == ["count", "name", "run"])
+    }
+
+    @Test func chipCapsRowsUntilExpanded() {
+        #expect(ChipMetrics.shownRowCount(total: 10, expanded: false) == ChipMetrics.rowCap)
+        #expect(ChipMetrics.shownRowCount(total: 10, expanded: true) == 10)
+        #expect(ChipMetrics.shownRowCount(total: 3, expanded: false) == 3)
     }
 
     // MARK: - Focus
@@ -236,15 +290,15 @@ struct GraphViewModelTests {
     @Test func newlyVisibleNodesAreSeededOntoTheirNeighbor() async throws {
         let model = try makeModel()
         try await settle(model)
-        // `field` is a hidden member, so the first layout never placed it.
-        #expect(model.position("field") == nil)
-        model.toggleExpanded("Alpha")
+        // ExtType is hidden by default, so the first layout never placed it.
+        #expect(model.position("ExtType") == nil)
+        model.showExternal = true
         // Revealing it seeds a provisional position immediately (before the
         // debounced relayout), right on its only placed neighbor, Alpha — so it
         // paints at once instead of vanishing.
         let alpha = try #require(model.position("Alpha"))
-        let field = try #require(model.position("field"))
-        #expect(hypot(field.x - alpha.x, field.y - alpha.y) < 0.5)
+        let ext = try #require(model.position("ExtType"))
+        #expect(hypot(ext.x - alpha.x, ext.y - alpha.y) < 0.5)
     }
 
     // MARK: - Persistence reconciliation

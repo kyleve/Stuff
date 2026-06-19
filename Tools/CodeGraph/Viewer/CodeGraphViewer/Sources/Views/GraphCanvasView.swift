@@ -376,7 +376,7 @@ private struct DraggableChip: View {
             node: node,
             isSelected: selected,
             isPinned: model.isPinned(node.id),
-            memberCount: node.kind.isType ? model.memberCount(node.id) : 0,
+            rows: model.memberRows(node.id),
             isExpanded: model.isExpanded(node.id),
             isDimmed: dimmed,
             onToggleExpand: { model.toggleExpanded(node.id) },
@@ -421,8 +421,8 @@ private struct DraggableChip: View {
         Button("Focus on \(node.name)", systemImage: "scope") {
             model.focus(on: node.id)
         }
-        if node.kind.isType, model.memberCount(node.id) > 0 {
-            Button(model.isExpanded(node.id) ? "Collapse members" : "Expand members") {
+        if node.kind.isType, model.memberCount(node.id) > ChipMetrics.rowCap {
+            Button(model.isExpanded(node.id) ? "Collapse members" : "Show all members") {
                 model.toggleExpanded(node.id)
             }
         }

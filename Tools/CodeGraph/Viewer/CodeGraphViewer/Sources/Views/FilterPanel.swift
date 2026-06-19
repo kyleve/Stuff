@@ -37,7 +37,7 @@ struct FilterPanel: View {
                     }
                 }
                 Section("Edge kinds") {
-                    ForEach(EdgeKind.allCases, id: \.self) { kind in
+                    ForEach(GraphViewModel.filterableEdgeKinds, id: \.self) { kind in
                         toggleRow(
                             kind.rawValue,
                             color: GraphStyle.color(for: kind),

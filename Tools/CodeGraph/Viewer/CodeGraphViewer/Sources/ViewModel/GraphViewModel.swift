@@ -8,6 +8,16 @@ import SwiftUI
 /// in the view layer (which imports SwiftUI) to avoid the ambiguity.
 typealias GraphEdge = CodeGraphModel.Edge
 
+/// A member of a type, flattened for display as a row inside the owner's chip
+/// (so members no longer float as their own nodes). `typeName` is the member's
+/// declared type when we can recover it (stored properties, via `propertyType`).
+struct MemberRow: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let kind: NodeKind
+    let typeName: String?
+}
+
 /// Drives the canvas: which nodes/edges are visible, where they sit, what's
 /// selected/expanded, and re-running the layout when any of that changes.
 @MainActor
@@ -19,6 +29,9 @@ final class GraphViewModel {
     private let childrenByParent: [String: [Node]]
     private let outgoingByID: [String: [GraphEdge]]
     private let incomingByID: [String: [GraphEdge]]
+    /// Members flattened per owning type, precomputed once (the graph is fixed),
+    /// ordered for display and annotated with the property's type where known.
+    private let memberRowsByType: [String: [MemberRow]]
 
     /// Filters (a fuller filter UI lands in the next step; these defaults give a
     /// readable first view: first-party types, members collapsed).
@@ -59,16 +72,20 @@ final class GraphViewModel {
         didSet { if focusRoot != nil { invalidate() } }
     }
 
-    /// A readable starting set: the classic "is-a"/ownership edges plus the two
-    /// most informative data-flow kinds. The rest are opt-in via filters.
+    /// A readable starting set: the classic "is-a" edges plus the two most
+    /// informative data-flow kinds. Membership/override are now shown *inside*
+    /// the chip (so `.member` never reaches the canvas); the rest are opt-in.
     nonisolated static let defaultEdgeKinds: Set<EdgeKind> = [
         .inheritance,
         .conformance,
         .propertyType,
         .construction,
-        .member,
-        .override,
     ]
+
+    /// Edge kinds the filter UI can toggle. `.member` is excluded — containment
+    /// is drawn as rows in the type's chip, never as an edge on the canvas.
+    nonisolated static let filterableEdgeKinds: [EdgeKind] = EdgeKind.allCases
+        .filter { $0 != .member }
 
     /// Primary (non-member, non-module) node kinds the kind filter governs.
     nonisolated static let filterableKinds: Set<NodeKind> = [
@@ -147,6 +164,7 @@ final class GraphViewModel {
             outgoing[edge.source, default: []].append(edge)
             incoming[edge.target, default: []].append(edge)
         }
+        memberRowsByType = Self.flattenMembers(children: children, outgoing: outgoing, byID: byID)
         nodesByID = byID
         childrenByParent = children
         outgoingByID = outgoing
@@ -178,6 +196,62 @@ final class GraphViewModel {
 
     func memberCount(_ id: String) -> Int {
         childrenByParent[id]?.count ?? 0
+    }
+
+    /// The member rows rendered inside a type's chip (empty for non-types).
+    func memberRows(_ id: String) -> [MemberRow] {
+        memberRowsByType[id] ?? []
+    }
+
+    /// Flatten each type's members into display rows, ordered data-first
+    /// (cases/properties before initializers/methods) and annotated with the
+    /// property type recovered from the owner's `propertyType` edges.
+    private static func flattenMembers(
+        children: [String: [Node]],
+        outgoing: [String: [GraphEdge]],
+        byID: [String: Node],
+    ) -> [String: [MemberRow]] {
+        var result = [String: [MemberRow]](minimumCapacity: children.count)
+        for (parent, members) in children {
+            var typeByMember = [String: String]()
+            for edge in outgoing[parent] ?? [] where edge.kind == .propertyType {
+                guard let via = edge.viaMemberID,
+                      let name = byID[edge.target]?.name else { continue }
+                typeByMember[via] = name
+            }
+            result[parent] = members
+                .sorted(by: memberOrder)
+                .map { MemberRow(
+                    id: $0.id,
+                    name: $0.name,
+                    kind: $0.kind,
+                    typeName: typeByMember[$0.id],
+                ) }
+        }
+        return result
+    }
+
+    /// Group rank then declaration line then name, so members read like a UML
+    /// box: stored data up top, behavior below, stable within each group.
+    private static func memberOrder(_ a: Node, _ b: Node) -> Bool {
+        let groupA = memberGroupRank(a.kind)
+        let groupB = memberGroupRank(b.kind)
+        if groupA != groupB { return groupA < groupB }
+        let lineA = a.line ?? .max
+        let lineB = b.line ?? .max
+        if lineA != lineB { return lineA < lineB }
+        return a.name < b.name
+    }
+
+    private static func memberGroupRank(_ kind: NodeKind) -> Int {
+        switch kind {
+            case .enumCase: 0
+            case .property: 1
+            case .initializer: 2
+            case .method, .subscript: 3
+            case .class, .struct, .enum, .protocol, .actor, .extension, .typeAlias,
+                 .associatedType, .function, .module, .other: 4
+        }
     }
 
     func isExpanded(_ id: String) -> Bool {
@@ -376,8 +450,8 @@ final class GraphViewModel {
             return showModules && matchesQuery(node)
         }
         if node.kind.isMember {
-            guard let parent = node.parentID, expanded.contains(parent) else { return false }
-            return true
+            // Members render as rows inside their owner's chip, never as nodes.
+            return false
         }
         if Self.filterableKinds.contains(node.kind), !includedNodeKinds.contains(node.kind) {
             return false
@@ -406,14 +480,48 @@ final class GraphViewModel {
             ids = focusNeighborhood(root: root, depth: focusDepth, allowed: ids)
             nodes = graph.nodes.filter { ids.contains($0.id) }
         }
-        let edges = graph.edges.filter {
-            includedEdgeKinds.contains($0.kind) && ids.contains($0.source) && ids
-                .contains($0.target)
-        }
         visibleNodes = nodes
         visibleIDs = ids
-        visibleEdges = edges
+        visibleEdges = canvasEdges(visible: ids)
         seedMissingPositions()
+    }
+
+    /// The edges the canvas draws: every edge endpoint projected to its owning
+    /// type (members live inside chips now), dropping membership edges and any
+    /// edge that collapses onto a single type, then de-duplicated so a type pair
+    /// shows one line per kind regardless of how many members route through it.
+    private func canvasEdges(visible ids: Set<String>) -> [GraphEdge] {
+        var seen = Set<String>()
+        var result = [GraphEdge]()
+        for edge in graph.edges {
+            guard edge.kind != .member, includedEdgeKinds.contains(edge.kind) else { continue }
+            let source = owningType(edge.source)
+            let target = owningType(edge.target)
+            guard source != target, ids.contains(source), ids.contains(target) else { continue }
+            guard seen.insert("\(source)|\(target)|\(edge.kind.rawValue)").inserted
+            else { continue }
+            if source == edge.source, target == edge.target {
+                result.append(edge)
+            } else {
+                result.append(GraphEdge(
+                    id: "\(source)|\(target)|\(edge.kind.rawValue)",
+                    source: source,
+                    target: target,
+                    kind: edge.kind,
+                    viaMemberID: edge.viaMemberID,
+                    count: edge.count,
+                ))
+            }
+        }
+        return result
+    }
+
+    /// The type a node belongs on the canvas as: a member resolves to its
+    /// enclosing type; everything else is itself.
+    private func owningType(_ id: String) -> String {
+        guard let node = nodesByID[id], node.kind.isMember, let parent = node.parentID
+        else { return id }
+        return parent
     }
 
     /// Give nodes that just became visible a provisional position so they paint
