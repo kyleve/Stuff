@@ -70,10 +70,13 @@ struct NodeChipView: View, Equatable {
                 }
         }
         .opacity(isDimmed ? 0.28 : (node.origin == .external ? 0.85 : 1))
+        // Only the selected chip casts a shadow. A per-chip ambient shadow is a
+        // blur/compositing pass each, which adds up across many visible nodes;
+        // the border already separates chips from edges and the background.
         .shadow(
-            color: isSelected ? accent.opacity(0.55) : .black.opacity(0.12),
-            radius: isSelected ? 7 : 2,
-            y: 1,
+            color: isSelected ? accent.opacity(0.55) : .clear,
+            radius: isSelected ? 7 : 0,
+            y: isSelected ? 1 : 0,
         )
         .fixedSize()
     }

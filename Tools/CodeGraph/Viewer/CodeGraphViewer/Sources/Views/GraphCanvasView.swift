@@ -25,7 +25,7 @@ struct GraphCanvasView: View {
         GeometryReader { geo in
             ZStack(alignment: .topLeading) {
                 background
-                content
+                content(viewport: geo.size)
                     .scaleEffect(liveScale)
                     .offset(liveOffset)
             }
@@ -56,11 +56,11 @@ struct GraphCanvasView: View {
             .gesture(panGesture)
     }
 
-    private var content: some View {
+    private func content(viewport: CGSize) -> some View {
         ZStack(alignment: .topLeading) {
             edgeCanvas
                 .allowsHitTesting(false)
-            nodeLayer
+            nodeLayer(viewport: viewport)
         }
         .frame(
             width: model.canvasSize.width,
@@ -142,12 +142,34 @@ struct GraphCanvasView: View {
         context.fill(head, with: .color(color))
     }
 
-    private var nodeLayer: some View {
-        ForEach(model.visibleNodes) { node in
+    private func nodeLayer(viewport: CGSize) -> some View {
+        ForEach(culledNodes(viewport: viewport)) { node in
             if let point = model.positions[node.id] {
                 chip(for: node)
                     .position(point)
             }
+        }
+    }
+
+    /// Only the nodes whose positions fall inside the visible canvas rect (grown
+    /// by a one-viewport margin) get instantiated as chips — so zooming in
+    /// doesn't keep thousands of off-screen interactive views alive. Keyed to the
+    /// committed `scale`/`offset` (not the live gesture values), so an in-flight
+    /// pan/zoom just transforms the existing layer instead of re-culling.
+    private func culledNodes(viewport: CGSize) -> [Node] {
+        guard viewport.width > 0, viewport.height > 0, scale > 0 else {
+            return model.visibleNodes
+        }
+        let halfW = model.canvasSize.width / 2
+        let halfH = model.canvasSize.height / 2
+        let minX = halfW + (-offset.width - halfW) / scale - viewport.width / scale
+        let maxX = halfW + (viewport.width - offset.width - halfW) / scale + viewport.width / scale
+        let minY = halfH + (-offset.height - halfH) / scale - viewport.height / scale
+        let maxY = halfH + (viewport.height - offset.height - halfH) / scale + viewport
+            .height / scale
+        return model.visibleNodes.filter { node in
+            guard let point = model.positions[node.id] else { return false }
+            return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY
         }
     }
 
