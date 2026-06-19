@@ -85,6 +85,24 @@ struct WhereSessionTrackingTests {
         #expect(session.isTracking)
     }
 
+    /// Guards against a retain cycle through the long-lived authorization
+    /// observer: it captures `[weak self]` and `deinit` cancels it, so dropping
+    /// the last strong reference must deallocate the session even while the
+    /// observer task is parked awaiting updates.
+    @Test func deinitsWhileObservingAuthorization() async throws {
+        weak var weakSession: WhereSession?
+        do {
+            let (session, _) = try makeSession(status: .always, preferences: makePreferences())
+            weakSession = session
+            // start() spins up the long-lived authorization observer; once it
+            // returns the task is parked in `for await` (ScriptedLocationSource
+            // emits nothing on its own) holding only a weak self.
+            await session.start()
+            #expect(weakSession != nil)
+        }
+        #expect(weakSession == nil)
+    }
+
     private func waitUntil(
         timeout: Duration = .seconds(2),
         _ predicate: () -> Bool,

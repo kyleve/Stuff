@@ -1,7 +1,7 @@
 # LifecycleKit – Module Shape
 
 LifecycleKit is an app-agnostic SwiftUI microframework that models app startup
-(and its reverse, reset/teardown) as an ordered, conditional,
+(and its reverse, teardown) as an ordered, conditional,
 launch-reason-aware sequence of async steps. A `@MainActor @Observable`
 `LifecycleRunner` walks the sequence and publishes one `phase`;
 `LifecycleContainer` renders it. See [`README.md`](README.md) for the full
@@ -24,31 +24,34 @@ system, formatting, and global conventions. Read that first.
 ## Key types
 
 Everything user-facing is `@MainActor`; heavy work is delegated to actors from
-*inside* a step's `run`, so there are no `Sendable` gymnastics on the step
+*inside* a step's `perform`, so there are no `Sendable` gymnastics on the step
 itself.
 
 - [`LifecycleRunner`](Sources/LifecycleRunner.swift) – the engine. Runs the
   synchronous `initializePrerequisites` at `init`, then `run()` walks the steps,
-  filtering by `reason`/`modes` and the async `condition`, awaiting each body. A
-  throw parks it in `.failed`; `retry()` resumes from the failed step;
-  `enterForeground()` promotes a headless launch; `reset(_:)` runs a teardown
-  sequence then re-drives from the top — and a teardown step that throws parks
-  in `.failed` like any other, so `retry()` resumes the *teardown* from there
-  (not the launch) before relaunching. Internal bookkeeping lives in one
-  `State` enum so invalid combinations are unrepresentable. **All drives funnel
-  through a single in-flight task**: a new drive `cancel()`s the previous one
-  and awaits it draining before starting (cancel-and-drain), so two never
-  overlap *and* `reset()`/`enterForeground()` can interrupt a launch parked on
-  an interactive step rather than hanging behind it. A cancelled drive ends as
-  `DriveOutcome.cancelled` (stop quietly), distinct from a thrown step
+  filtering by `reason`/`modes` and the async `condition`, awaiting each step's
+  `perform`. A throw parks it in `.failed`; `retry()` resumes from the failed
+  step; `enterForeground()` promotes a headless launch; `teardown(_:)` runs a
+  teardown sequence then re-drives from the top — and a teardown step that throws
+  parks in `.failed` like any other, so `retry()` resumes the *teardown* from
+  there (not the launch) before relaunching. Drive bookkeeping lives in one
+  `State` enum so invalid combinations are unrepresentable; transient per-step
+  presentation state (deferred timer, `minVisible` clock) is a *local*
+  `ActivePresentation` owned by `runStep`, so it can't outlive the step. Keep
+  new transient state similarly scoped rather than adding stored properties.
+  **All drives funnel through a single in-flight task**: a new drive `cancel()`s
+  the previous one and awaits it draining before starting (cancel-and-drain), so
+  two never overlap *and* `teardown()`/`enterForeground()` can interrupt a launch
+  parked on an interactive step rather than hanging behind it. A cancelled drive
+  ends as `DriveOutcome.cancelled` (stop quietly), distinct from a thrown step
   (`.failed`). Don't add a drive path that bypasses that serialization.
 - [`LifecycleStep`](Sources/LifecycleStep.swift) – one unit of work: `id`,
-  `allowedModes`, async `condition`, `run`, optional `presentation`. Chained
-  modifiers (`.when` / `.modes` /
-  `.presenting{,(when:),(after:),(after:minVisible:)}`) return copies. Built via
-  the `LifecycleStep.work` / `LifecycleStep.interactive`
-  factories. `LifecycleStep.interactive` defaults to `.modes(.foreground)` so it
-  can't deadlock a headless launch.
+  `allowedModes`, async `condition`, `perform`, optional `presentation`. Run
+  gating (`modes` / `condition`) is set at construction — init or the
+  `LifecycleStep.work` / `LifecycleStep.interactive` factory parameters — while
+  UI is attached with chained `.presenting{,(when:),(after:)}` modifiers (each
+  taking a `minVisible:` hold) that return copies. `LifecycleStep.interactive`
+  defaults to `modes: .foreground` so it can't deadlock a headless launch.
 - [`LifecycleSteps` / `LifecycleStepsBuilder`](Sources/LifecycleSteps.swift) – a
   result builder (`if`/`if-else`/`for`) collecting steps; declaration order is
   run order. `steps` is public so consumers can parity-test the order.
@@ -73,10 +76,15 @@ itself.
   Renders `splash` / a step's presentation / `failure` / `content` from
   `phase`. The `splash` and `failure` views are caller-injectable (convenience
   inits default them to [`LifecycleSplash`](Sources/LifecycleSplash.swift) /
-  [`LifecycleFailureView`](Sources/LifecycleFailureView.swift)), and the runner
-  is published into the environment as `\.lifecycleRunner` (optional) so nested
-  views can reach `retry()`/`reset()`. The destination (`content`, e.g. the
-  app's `TabView`) is **not** a step — it's terminal and shown only at `.ready`.
+  [`LifecycleFailureView`](Sources/LifecycleFailureView.swift)). Surfaces animate
+  via the designated init's `transition`/`animation` (crossfade by default),
+  keyed on `LifecyclePhase.surfaceIdentity` so an advancing step doesn't flash
+  the splash. The runner is published into the environment as `\.lifecycleRunner`
+  — a [`LifecycleRunnerProxy`](Sources/LifecycleContainer.swift) (not a bare
+  optional) that asserts-in-debug / no-ops-in-release when disconnected — so
+  nested views can reach `retry()`/`teardown()` without `guard`ing. The
+  destination (`content`, e.g. the app's `TabView`) is **not** a step — it's
+  terminal and shown only at `.ready`.
 - [`LifecycleSplash`](Sources/LifecycleSplash.swift) – the default placeholder.
 
 ## Two invariants to preserve
@@ -98,7 +106,7 @@ itself.
   small named structs over tuples, bind SwiftUI state directly (no closure
   `Binding(get:set:)`).
 - Steps and the engine are `@MainActor`; if a step needs heavy/off-main work,
-  hop to an actor or a detached task inside `run`, not by loosening isolation
+  hop to an actor or a detached task inside `perform`, not by loosening isolation
   on the step.
 - Every previewable view here ships a `#Preview` (see `LifecycleSplash`,
   `LifecycleFailureView`, `LifecycleContainer`).
@@ -116,5 +124,9 @@ runs in `StuffTestHost`. Patterns:
 - View behavior ([`LifecycleContainerTests`](Tests/LifecycleContainerTests.swift)):
   host through `StuffTestHost` and assert which branch renders per phase /
   reason (splash, presentation, failure, content, `EmptyView`).
+- Property/adversarial coverage ([`LifecycleRunnerFuzzTests`](Tests/LifecycleRunnerFuzzTests.swift)):
+  a seeded `SplitMix64` generates random step sequences (modes / conditions /
+  throws / flaky-then-succeed) and checks the runner against an independent
+  model. Keep cases seed-reproducible so a failure replays exactly.
 - Keep tests deterministic: gate async steps behind a test-controlled
   continuation rather than racing real timing.

@@ -21,7 +21,7 @@ import SwiftUI
 /// Drives never overlap. The internal `State` folds the launch reason, the
 /// "has run" flag, and the in-flight drive task into one value so invalid
 /// combinations are unrepresentable; `reason` and `phase` are its public
-/// projections. A new drive (`run`/`retry`/`enterForeground`/`reset`) cancels
+/// projections. A new drive (`run`/`retry`/`enterForeground`/`teardown`) cancels
 /// the in-flight one and awaits it draining before starting — cooperative
 /// cancellation (a parked `waitForResolution()` throws `CancellationError`)
 /// keeps that drain from hanging behind an interactive step waiting on a tap
@@ -39,8 +39,17 @@ public final class LifecycleRunner {
         case notStarted(LifecycleReason)
         /// `run()` (or a re-drive) has started. Carries the current reason and
         /// the most recent drive task — which may already have completed, so
-        /// late `run()`/`reset()`/`enterForeground()` callers can await it.
+        /// late `run()`/`teardown()`/`enterForeground()` callers can await it.
         case running(reason: LifecycleReason, task: Task<Void, Never>)
+
+        /// The launch reason, which every case carries. Lives on the state so
+        /// callers read `state.reason` instead of re-switching at each use site.
+        var reason: LifecycleReason {
+            switch self {
+                case let .notStarted(reason): reason
+                case let .running(reason, _): reason
+            }
+        }
     }
 
     private var state: State
@@ -49,23 +58,15 @@ public final class LifecycleRunner {
     /// promoted to a foreground one via `enterForeground()`; the container
     /// observes this to stop rendering `EmptyView()` and start building real UI.
     public var reason: LifecycleReason {
-        switch state {
-            case let .notStarted(reason): reason
-            case let .running(reason, _): reason
-        }
+        state.reason
     }
 
     @ObservationIgnored private let steps: [LifecycleStep]
-    /// The most recent teardown sequence handed to `reset(_:)`, retained so a
+    /// The most recent teardown sequence handed to `teardown(_:)`, retained so a
     /// `retry()` after a thrown teardown step resumes the teardown (and the
     /// relaunch that follows) rather than re-driving the launch sequence over
-    /// un-torn-down state. Empty until the first `reset(_:)`.
-    @ObservationIgnored private var teardown: [LifecycleStep] = []
-    @ObservationIgnored private var presentationTask: Task<Void, Never>?
-    /// When a deferred (`presenting(after:)`) presentation actually appeared,
-    /// and the minimum it must stay up, so a fast finish doesn't flash it away.
-    @ObservationIgnored private var deferredShownAt: ContinuousClock.Instant?
-    @ObservationIgnored private var deferredMinVisible: Duration = .zero
+    /// un-torn-down state. Empty until the first `teardown(_:)`.
+    @ObservationIgnored private var teardownSteps: [LifecycleStep] = []
 
     public init(
         reason: LifecycleReason,
@@ -110,15 +111,15 @@ public final class LifecycleRunner {
     /// Resume from the step that failed. No-op unless the runner is currently in
     /// `.failed`.
     ///
-    /// If the failure was in a teardown step (from `reset(_:)`), the teardown is
-    /// resumed from that step and the relaunch still follows — so a failed erase
-    /// re-erases rather than dropping the user back into the app over
+    /// If the failure was in a teardown step (from `teardown(_:)`), the teardown
+    /// is resumed from that step and the relaunch still follows — so a failed
+    /// erase re-erases rather than dropping the user back into the app over
     /// un-torn-down state. Otherwise the launch sequence is resumed from the
     /// failed step.
     public func retry() {
         guard case let .failed(failure) = phase else { return }
-        if let teardownIndex = teardown.firstIndex(where: { $0.id == failure.stepID }) {
-            Task { await driveReset(fromTeardownIndex: teardownIndex) }
+        if let teardownIndex = teardownSteps.firstIndex(where: { $0.id == failure.stepID }) {
+            Task { await driveTeardown(fromTeardownIndex: teardownIndex) }
         } else {
             let startIndex = steps.firstIndex { $0.id == failure.stepID } ?? 0
             let reason = reason
@@ -133,16 +134,16 @@ public final class LifecycleRunner {
     /// The teardown steps are retained so a `retry()` after a thrown teardown
     /// step resumes the teardown (then the relaunch). If a teardown step throws,
     /// the runner parks in `.failed` and does not relaunch.
-    public func reset(_ sequence: LifecycleSteps) async {
-        teardown = sequence.steps
-        await driveReset(fromTeardownIndex: 0)
+    public func teardown(_ sequence: LifecycleSteps) async {
+        teardownSteps = sequence.steps
+        await driveTeardown(fromTeardownIndex: 0)
     }
 
     /// Cancel any in-flight drive, drain it, then run the retained `teardown`
     /// from `startIndex` followed by a fresh launch from the top — landing in
-    /// `.ready` only if both complete. Shared by `reset(_:)` and a `retry()`
+    /// `.ready` only if both complete. Shared by `teardown(_:)` and a `retry()`
     /// resuming a failed teardown step, so the two stay in lockstep.
-    private func driveReset(fromTeardownIndex startIndex: Int) async {
+    private func driveTeardown(fromTeardownIndex startIndex: Int) async {
         let previous = currentTask
         previous?.cancel()
         let reason = reason
@@ -150,7 +151,7 @@ public final class LifecycleRunner {
         let task = Task { [weak self] in
             guard let self else { return }
             await previous?.value
-            guard case .completed = await runSteps(teardown, from: startIndex) else { return }
+            guard case .completed = await runSteps(teardownSteps, from: startIndex) else { return }
             if case .completed = await runSteps(steps, from: 0) {
                 phase = .ready
             }
@@ -178,8 +179,10 @@ public final class LifecycleRunner {
         await task.value
     }
 
+    /// The outcome of running a single step or a whole sequence — the cases line
+    /// up, so `runStep`/`runSteps` share it.
     private enum DriveOutcome {
-        /// Every applicable step finished.
+        /// The step (or every applicable step) finished.
         case completed
         /// A step threw a non-cancellation error; `phase` is now `.failed`.
         case failed
@@ -189,14 +192,11 @@ public final class LifecycleRunner {
     }
 
     /// Walk `steps` from `startIndex`, honoring mode/condition gating and
-    /// presentation triggers.
+    /// delegating each applicable step to `runStep`.
     private func runSteps(_ steps: [LifecycleStep], from startIndex: Int) async -> DriveOutcome {
         var index = startIndex
         while index < steps.count {
-            if Task.isCancelled {
-                cancelPresentation()
-                return .cancelled
-            }
+            if Task.isCancelled { return .cancelled }
 
             let step = steps[index]
 
@@ -209,64 +209,104 @@ public final class LifecycleRunner {
                 continue
             }
 
-            let bridge = LifecycleStepUIBridge(reason: reason)
-            phase = .running(step, bridge)
-            activatePresentation(for: step, bridge: bridge)
-
-            do {
-                try await step.run(bridge)
-            } catch is CancellationError {
-                cancelPresentation()
-                return .cancelled
-            } catch {
-                cancelPresentation()
-                phase = .failed(LifecycleFailure(stepID: step.id, error: error))
-                return .failed
+            switch await runStep(step) {
+                case .completed: index += 1
+                case .failed: return .failed
+                case .cancelled: return .cancelled
             }
-
-            await holdDeferredPresentation()
-            cancelPresentation()
-            index += 1
         }
         return .completed
     }
 
-    /// Decide whether/when to show the step's presentation, per its trigger.
-    private func activatePresentation(for step: LifecycleStep, bridge: LifecycleStepUIBridge) {
-        guard let presentation = step.presentation else { return }
+    /// Publish a single applicable step, manage its presentation, await its
+    /// body, then hold the presentation for `minVisible`.
+    ///
+    /// The presentation bookkeeping is a *local* `ActivePresentation`, created
+    /// here and torn down on every exit path via `defer` — so a step's
+    /// deferred-timer/`minVisible` state can't outlive the step that owns it
+    /// (the invariant that previously lived in scattered stored properties).
+    private func runStep(_ step: LifecycleStep) async -> DriveOutcome {
+        let bridge = LifecycleStepUIBridge(reason: reason)
+        phase = .running(step, bridge)
+
+        let presentation = ActivePresentation(for: step, bridge: bridge)
+        defer { presentation.cancel() }
+
+        do {
+            try await step.perform(bridge)
+        } catch is CancellationError {
+            return .cancelled
+        } catch {
+            phase = .failed(LifecycleFailure(stepID: step.id, error: error))
+            return .failed
+        }
+
+        await presentation.hold()
+        return .completed
+    }
+}
+
+/// Per-step presentation bookkeeping, owned for the lifetime of one running
+/// step. Activating the step's presentation (immediately, on a `when:`
+/// predicate, or after a delay), stamping when it appeared, and enforcing
+/// `minVisible` all live here so the runner doesn't carry transient
+/// presentation state between steps — it can only exist while a step runs.
+@MainActor
+private final class ActivePresentation {
+    private let minVisible: Duration
+    /// The deferred-trigger timer, if the step uses `presenting(after:)`. Nil for
+    /// immediate/`when:`/no-presentation steps and once cancelled.
+    private var pendingTimer: Task<Void, Never>?
+    /// When the view actually appeared (any trigger); nil while nothing is on
+    /// screen (deferred-and-not-yet-fired, or a `when:` predicate that was
+    /// false), so there's nothing to hold.
+    private var shownAt: ContinuousClock.Instant?
+
+    /// Activate `step`'s presentation per its trigger. With no presentation this
+    /// is inert: `hold()`/`cancel()` then do nothing.
+    init(for step: LifecycleStep, bridge: LifecycleStepUIBridge) {
+        guard let presentation = step.presentation else {
+            minVisible = .zero
+            return
+        }
+        minVisible = presentation.minVisible
         switch presentation.trigger {
             case .always:
-                bridge.presentation = presentation.build(bridge)
+                show(presentation, on: bridge)
             case let .when(predicate):
                 if predicate() {
-                    bridge.presentation = presentation.build(bridge)
+                    show(presentation, on: bridge)
                 }
-            case let .after(delay, minVisible):
-                deferredMinVisible = minVisible
-                presentationTask = Task { @MainActor [weak self, weak bridge] in
+            case let .after(delay):
+                pendingTimer = Task { [weak self, weak bridge] in
                     try? await Task.sleep(for: delay)
                     guard !Task.isCancelled, let self, let bridge else { return }
-                    bridge.presentation = presentation.build(bridge)
-                    deferredShownAt = .now
+                    show(presentation, on: bridge)
                 }
         }
     }
 
-    /// If a deferred presentation actually appeared, keep it up until its
-    /// `minVisible` window elapses, so a step that finishes right after the UI
-    /// appears doesn't flash it away.
-    private func holdDeferredPresentation() async {
-        guard let shownAt = deferredShownAt else { return }
-        let remaining = deferredMinVisible - shownAt.duration(to: .now)
+    /// Put the view on screen and stamp when, so `hold()` can honor `minVisible`
+    /// regardless of which trigger fired.
+    private func show(_ presentation: LifecycleStepPresentation, on bridge: LifecycleStepUIBridge) {
+        bridge.presentation = presentation.build(bridge)
+        shownAt = .now
+    }
+
+    /// If the presentation actually appeared, keep it up until its `minVisible`
+    /// window elapses, so a step that finishes right after the UI appears
+    /// doesn't flash it away.
+    func hold() async {
+        guard let shownAt else { return }
+        let remaining = minVisible - shownAt.duration(to: .now)
         if remaining > .zero {
             try? await Task.sleep(for: remaining)
         }
     }
 
-    private func cancelPresentation() {
-        presentationTask?.cancel()
-        presentationTask = nil
-        deferredShownAt = nil
-        deferredMinVisible = .zero
+    /// Cancel the deferred timer (if any). Called on every step exit path.
+    func cancel() {
+        pendingTimer?.cancel()
+        pendingTimer = nil
     }
 }

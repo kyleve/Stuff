@@ -14,22 +14,22 @@ LifecycleKit depends only on SwiftUI + Foundation + Observation — no app code.
 
 ## Mental model
 
-Launch is a pipeline. The engine awaits each step in order; a "transition" is
-just advancing the cursor, and a thrown error short-circuits to `.failed`.
+Launch is a pipeline. The engine awaits each step in order; advancing to the
+next step just moves the cursor, and a thrown error short-circuits to `.failed`.
 
 ```
 launching ──▶ running ──▶ running ──▶ … ──▶ ready
                  │                            ▲
                  └──▶ failed ──(retry)────────┘
 
-ready ──(reset)──▶ launching ──▶ … ──▶ ready
+ready ──(teardown)──▶ launching ──▶ … ──▶ ready
 ```
 
 The key insight that unifies silent and interactive steps: **an interactive
 step is just an async step that awaits a continuation the presented UI
 resumes.** Onboarding and migration aren't special engine cases — they're steps
-whose `run` suspends on `bridge.waitForResolution()` while their `presentation`
-view is shown, and the view calls `bridge.complete()`.
+whose `perform` suspends on `bridge.waitForResolution()` while their
+`presentation` view is shown, and the view calls `bridge.complete()`.
 
 ## Installation
 
@@ -47,18 +47,19 @@ it to a target's dependencies in [`Package.swift`](../../Package.swift):
 public enum LifecycleReason { case userForeground, background(LifecycleBackgroundCause) }
 public struct LifecycleModeSet: OptionSet { /* .foreground, .background, .all */ }
 
-// One unit of launch work. Build with the .work/.interactive factories and
-// refine with chained modifiers.
+// One unit of launch work. `condition`/`modes` are set at construction (init /
+// .work / .interactive parameters); attach UI with the .presenting modifiers.
 public struct LifecycleStep: Identifiable {
-    public func when(_ predicate: @escaping @MainActor () async -> Bool) -> Self
-    public func modes(_ modes: LifecycleModeSet) -> Self
-    public func presenting(_ view: ...) -> Self                 // always while running
-    public func presenting(when: ..., _ view: ...) -> Self      // only if predicate holds at start
-    public func presenting(after: Duration, _ view: ...) -> Self // only if still running after delay
-    public func presenting(after: Duration, minVisible: Duration, _ view: ...) -> Self // …and hold once shown
+    public init(id: AnyHashable, modes: LifecycleModeSet = .all,
+                condition: @escaping @MainActor () async -> Bool = { true },
+                perform: ...)
+    public func presenting(minVisible: Duration = .zero, _ view: ...) -> Self            // always while running
+    public func presenting(when: ..., minVisible: Duration = .zero, _ view: ...) -> Self // only if predicate holds at start
+    public func presenting(after: Duration, minVisible: Duration = .zero, _ view: ...) -> Self // only if still running after delay
+    // minVisible (any trigger): once shown, keep the view up at least this long
 
-    public static func work(_ id: String, _ body: ...) -> LifecycleStep
-    public static func interactive(_ id: String, run: ... = …, presenting: ...) -> LifecycleStep
+    public static func work(_ id: AnyHashable, modes: ... = .all, condition: ... = …, _ perform: ...) -> LifecycleStep
+    public static func interactive(_ id: AnyHashable, modes: ... = .foreground, condition: ... = …, perform: ... = …, presenting: ...) -> LifecycleStep
 }
 
 @resultBuilder public enum LifecycleStepsBuilder {}              // if / if-else / for
@@ -86,7 +87,7 @@ public enum LifecyclePhase {
     public func run() async             // walk the steps; idempotent
     public func retry()                 // re-run from the failed step
     public func enterForeground() async // promote a background launch
-    public func reset(_ sequence: LifecycleSteps) async // reverse flow → relaunch
+    public func teardown(_ sequence: LifecycleSteps) async // reverse flow → relaunch
 }
 ```
 
@@ -94,13 +95,18 @@ Steps are built with the `LifecycleStep.work` / `LifecycleStep.interactive`
 factories so sequences read declaratively:
 
 ```swift
-LifecycleStep.work(_ id: String, _ body: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void)
-LifecycleStep.interactive(_ id: String,
-    run: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void = { try await $0.waitForResolution() },
+LifecycleStep.work(_ id: AnyHashable,
+    modes: LifecycleModeSet = .all,
+    condition: @escaping @MainActor () async -> Bool = { true },
+    _ perform: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void)
+LifecycleStep.interactive(_ id: AnyHashable,
+    modes: LifecycleModeSet = .foreground,
+    condition: @escaping @MainActor () async -> Bool = { true },
+    perform: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void = { try await $0.waitForResolution() },
     @ViewBuilder presenting: @escaping @MainActor (LifecycleStepUIBridge) -> some View)
 ```
 
-`LifecycleStep.interactive` defaults to `.modes(.foreground)`: a step whose
+`LifecycleStep.interactive` defaults to `modes: .foreground`: a step whose
 whole job is to wait for the user would deadlock during a headless background
 launch (there's no UI to resolve it), so it's skipped there.
 
@@ -127,18 +133,38 @@ LifecycleContainer(runner) {      // `content` == the real app, the destination
 | `.failed` | `failure(_:retry:)` (defaults to `LifecycleFailureView`) |
 | `.ready` | `content()` — the destination UI |
 
+Surfaces crossfade by default (see `transition`/`animation` below).
+
 The `splash` and `failure` views are caller-injectable; the convenience
-initializers above default them to the built-ins. The container also publishes
-the runner into the environment as `\.lifecycleRunner` (optional, so reads stay
-safe with no container above), letting nested views reach `retry()`/`reset()`
-without prop-drilling:
+initializers above default them to the built-ins.
+
+Surface changes (splash → failure → app `content`) are animated. The designated
+initializer takes `transition`/`animation` (a crossfade by default; pass
+`animation: nil` to swap instantly):
+
+```swift
+LifecycleContainer(runner, transition: .opacity, animation: .easeInOut) {
+    MainTabView()
+}
+```
+
+The transition is keyed on `LifecyclePhase.surfaceIdentity`, which collapses
+`.launching` and `.running` into one "splash" surface so a step *advancing* —
+still showing the splash — doesn't retrigger the transition and flash it; only
+reaching `.failed`/`.ready` animates.
+
+The container also publishes the runner into the environment as
+`\.lifecycleRunner`, a `LifecycleRunnerProxy` (not a bare optional), letting
+nested views reach `retry()`/`teardown()` without prop-drilling. When no
+container is above (previews, isolated tests) the proxy is *disconnected* and
+each call asserts in debug / no-ops in release, so call sites never `guard`:
 
 ```swift
 struct ResetButton: View {
     @Environment(\.lifecycleRunner) private var runner
     var body: some View {
         Button("Erase & reset", role: .destructive) {
-            Task { await runner?.reset(teardownSteps) }
+            Task { await runner.teardown(teardownSteps) }
         }
     }
 }
@@ -165,8 +191,9 @@ let runner = LifecycleRunner(
                 MigrationProgressView(bridge: $0)
             }
 
-        LifecycleStep.interactive("onboarding") { OnboardingView(bridge: $0) }
-            .when { !deps.hasOnboarded }
+        LifecycleStep.interactive("onboarding", condition: { !deps.hasOnboarded }) {
+            OnboardingView(bridge: $0)
+        }
 
         LifecycleStep.work("sync-auth")          { _ in await deps.syncAuthorization() }
         LifecycleStep.work("reconcile-tracking") { _ in await deps.reconcileTracking() }
@@ -208,7 +235,7 @@ flag:
 ```swift
 Button("Erase all data & reset", role: .destructive) {
     Task {
-        await runner.reset(LifecycleSteps {
+        await runner.teardown(LifecycleSteps {
             LifecycleStep.work("erase")  { _ in try await deps.eraseAll() }
             LifecycleStep.work("forget") { _ in deps.resetPreferences() }
         })
@@ -237,21 +264,21 @@ relaunch; `retry()` resumes the teardown from the failed step, then relaunches.
   `enterForeground()` promotes the runner and re-drives so foreground-only
   steps (onboarding) now run.
 
-All drives (`run` / `enterForeground` / `retry` / `reset`) are serialized
+All drives (`run` / `enterForeground` / `retry` / `teardown`) are serialized
 through a single internal task, so two never overlap (which would let, e.g., a
 store-open step run twice concurrently). A new drive **cancels** the in-flight
 one and awaits it draining before starting: a parked interactive step's
 `waitForResolution()` throws `CancellationError`, which the engine treats as
 "drive cancelled" (stop quietly), distinct from a step throwing (→ `.failed`).
-That's what lets `reset()` / `enterForeground()` interrupt a launch parked on
+That's what lets `teardown()` / `enterForeground()` interrupt a launch parked on
 onboarding instead of hanging forever behind it.
 
 ## Testing
 
 The engine and views are exercised with Swift Testing + a hosted UI test host.
-What's worth covering when adopting it: step ordering, `.when` gating, mode
+What's worth covering when adopting it: step ordering, `condition` gating, mode
 filtering (background skips foreground-only), thrown error → `.failed` +
 `retry()` resuming from the failed step, interactive suspension until
-`bridge.complete()`, progress propagation, and `reset()` returning to
+`bridge.complete()`, progress propagation, and `teardown()` returning to
 `.launching`. Because a real interactive step suspends, drive it from a `Task`
 and poll `runner.phase` until it parks, then resolve the bridge.

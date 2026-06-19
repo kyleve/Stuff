@@ -42,10 +42,26 @@ public struct LifecycleSteps {
     public let steps: [LifecycleStep]
 
     public init(@LifecycleStepsBuilder _ steps: () -> [LifecycleStep]) {
-        self.steps = steps()
+        let steps = steps()
+        Self.assertUniqueIDs(steps)
+        self.steps = steps
     }
 
     public init(steps: [LifecycleStep]) {
+        Self.assertUniqueIDs(steps)
         self.steps = steps
+    }
+
+    /// Step IDs must be unique within a sequence: retry/teardown resume by
+    /// matching `LifecycleFailure.stepID` against `step.id`, so a duplicate would
+    /// make resumption ambiguous. Debug-only — a release build trusts the caller
+    /// rather than paying the check on every launch.
+    private static func assertUniqueIDs(_ steps: [LifecycleStep]) {
+        var seen = Set<AnyHashable>()
+        let duplicates = steps.map(\.id).filter { !seen.insert($0).inserted }
+        assert(
+            duplicates.isEmpty,
+            "LifecycleSteps contains duplicate step IDs: \(duplicates)",
+        )
     }
 }

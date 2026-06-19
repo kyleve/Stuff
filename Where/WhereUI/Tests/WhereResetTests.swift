@@ -73,7 +73,7 @@ struct WhereResetTests {
     @Test func resetSequenceErasesThenClearsPreferences() throws {
         let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.resetSequence(for: model).steps.map(\.id)
-        #expect(ids == [LaunchStepID.eraseData, .resetPreferences].map(\.rawValue))
+        #expect(ids == [LaunchStepID.eraseData, .resetPreferences].map { AnyHashable($0) })
     }
 
     @Test func resetPreferencesRestoresFirstInstallDefaults() throws {
@@ -153,9 +153,9 @@ struct WhereResetTests {
         // Reset re-drives into onboarding (hasOnboarded cleared); complete it so
         // the relaunch rebuilds a fresh session and reaches .ready.
         let task = Task { @MainActor in
-            await launcher.reset(WhereLaunch.resetSequence(for: model))
+            await launcher.teardown(WhereLaunch.resetSequence(for: model))
         }
-        try await waitUntil { launcher.phase.runningStepID == LaunchStepID.onboarding.rawValue }
+        try await waitUntil { launcher.phase.isRunning(LaunchStepID.onboarding) }
         launcher.phase.runningBridge?.complete()
         await task.value
         #expect(launcher.phase.isReady)
@@ -188,9 +188,9 @@ struct WhereResetTests {
         // hasOnboarded is cleared), so reset() doesn't return until onboarding
         // is resolved — drive it from a task and wait for the parked step.
         let task = Task { @MainActor in
-            await launcher.reset(WhereLaunch.resetSequence(for: model))
+            await launcher.teardown(WhereLaunch.resetSequence(for: model))
         }
-        try await waitUntil { launcher.phase.runningStepID == LaunchStepID.onboarding.rawValue }
+        try await waitUntil { launcher.phase.isRunning(LaunchStepID.onboarding) }
 
         // Teardown ran before the relaunch reached onboarding: data erased, the
         // session dropped + rebuilt, and the onboarding gate reopened.
@@ -225,9 +225,9 @@ struct WhereResetTests {
 
         // Drive the reset and finish the onboarding it re-drives into.
         let task = Task { @MainActor in
-            await launcher.reset(WhereLaunch.resetSequence(for: model))
+            await launcher.teardown(WhereLaunch.resetSequence(for: model))
         }
-        try await waitUntil { launcher.phase.runningStepID == LaunchStepID.onboarding.rawValue }
+        try await waitUntil { launcher.phase.isRunning(LaunchStepID.onboarding) }
 
         // Mid-relaunch: the session was dropped and rebuilt fresh, preferences
         // were cleared (onboarding gate reopened), and the rebuilt session reads
@@ -254,10 +254,10 @@ struct WhereResetTests {
         model.completeOnboarding()
 
         let failing = LifecycleSteps {
-            LifecycleStep.work(LaunchStepID.eraseData.rawValue) { _ in
+            LifecycleStep.work(LaunchStepID.eraseData) { _ in
                 throw CocoaError(.fileWriteUnknown)
             }
-            LifecycleStep.work(LaunchStepID.resetPreferences.rawValue) { _ in
+            LifecycleStep.work(LaunchStepID.resetPreferences) { _ in
                 model.resetPreferences()
             }
         }
@@ -265,8 +265,8 @@ struct WhereResetTests {
         await launcher.run()
         #expect(launcher.phase.isReady)
 
-        await launcher.reset(failing)
-        #expect(launcher.phase.failure?.stepID == LaunchStepID.eraseData.rawValue)
+        await launcher.teardown(failing)
+        #expect(launcher.phase.failed(at: LaunchStepID.eraseData))
         #expect(model.hasOnboarded) // reset-preferences never ran
     }
 }

@@ -1,5 +1,6 @@
 import LifecycleKit
 import SwiftUI
+import UserNotifications
 import WhereCore
 
 /// Stable identifiers for the steps in `WhereLaunch.sequence` and
@@ -47,16 +48,21 @@ public enum LaunchStepID: String {
 public enum WhereLaunch {
     /// Build the runner for `model`, launching for `reason`.
     ///
-    /// A `WhereBootstrap` owns the services' assembly: its
-    /// `prepareLocation()` runs as the runner's `initializePrerequisites`,
-    /// installing the `CLLocationManager` synchronously so a background
-    /// relaunch's queued event isn't lost while the async `open-store` step
-    /// opens the store and assembles the services.
+    /// `initializePrerequisites` runs the synchronous, must-exist-now launch
+    /// wiring before any async step: a `WhereBootstrap` installs the
+    /// `CLLocationManager` (`prepareLocation()`) so a background relaunch's
+    /// queued event isn't lost while the async `open-store` step assembles the
+    /// services, and the foreground-notification presenter is registered so a
+    /// reminder fired while Where is open still shows. Keeping both here (rather
+    /// than in the app delegate) puts app-lifecycle wiring in one place.
     public static func makeLauncher(model: WhereModel, reason: LifecycleReason) -> LifecycleRunner {
         let bootstrap = WhereBootstrap()
         return LifecycleRunner(
             reason: reason,
-            initializePrerequisites: { bootstrap.prepareLocation() },
+            initializePrerequisites: {
+                bootstrap.prepareLocation()
+                ForegroundNotificationPresenter.install()
+            },
             sequence: sequence(for: model, bootstrap: bootstrap),
         )
     }
@@ -83,7 +89,7 @@ public enum WhereLaunch {
             // migration UI off slowness: if the open is still running after a
             // beat, show MigrationProgressView and hold it for a readable
             // minimum so a fast open never flashes it.
-            LifecycleStep.work(LaunchStepID.openStore.rawValue) { _ in
+            LifecycleStep.work(LaunchStepID.openStore) { _ in
                 guard model.session == nil else { return }
                 if !model.hasServices {
                     try await model.attach(services: bootstrap.makeServices())
@@ -94,36 +100,37 @@ public enum WhereLaunch {
                 MigrationProgressView(bridge: $0)
             }
 
-            // First run only. `LifecycleStep.interactive` is `.modes(.foreground)`,
-            // so a headless background launch skips it (and never deadlocks
-            // waiting for a tap that can't come).
-            LifecycleStep
-                .interactive(LaunchStepID.onboarding.rawValue) { OnboardingView(bridge: $0) }
-                .when { !model.hasOnboarded }
+            // First run only. `LifecycleStep.interactive` defaults to
+            // `modes: .foreground`, so a headless background launch skips it (and
+            // never deadlocks waiting for a tap that can't come).
+            LifecycleStep.interactive(
+                LaunchStepID.onboarding,
+                condition: { !model.hasOnboarded },
+            ) { OnboardingView(bridge: $0) }
 
-            LifecycleStep.work(LaunchStepID.syncAuth.rawValue) { _ in
+            LifecycleStep.work(LaunchStepID.syncAuth) { _ in
                 await model.session?.syncAuthorization()
                 model.session?.observeAuthorizationChanges()
             }
-            LifecycleStep.work(LaunchStepID.reconcileTracking.rawValue) { _ in
+            LifecycleStep.work(LaunchStepID.reconcileTracking) { _ in
                 await model.session?.reconcileTracking()
             }
             LifecycleStep
-                .work(LaunchStepID.loadYear.rawValue) { _ in await model.session?.refresh() }
-            LifecycleStep.work(LaunchStepID.reminders.rawValue) { _ in
+                .work(LaunchStepID.loadYear) { _ in await model.session?.refresh() }
+            LifecycleStep.work(LaunchStepID.reminders) { _ in
                 await model.session?.applyReminderConfiguration()
             }
-            LifecycleStep.work(LaunchStepID.summary.rawValue) { _ in
+            LifecycleStep.work(LaunchStepID.summary) { _ in
                 await model.session?.applySummaryConfiguration()
             }
-            LifecycleStep.work(LaunchStepID.widgetSnapshot.rawValue) { _ in
+            LifecycleStep.work(LaunchStepID.widgetSnapshot) { _ in
                 await model.session?.refreshWidgetSnapshot()
             }
         }
     }
 
     /// The reverse of `sequence`: the teardown run by Settings' "Erase all data
-    /// & reset". `LifecycleRunner.reset` runs these steps, then re-drives
+    /// & reset". `LifecycleRunner.teardown` runs these steps, then re-drives
     /// `sequence` from the top — which, with `hasOnboarded` now cleared, lands
     /// back on the onboarding step, returning the app to its first-run state.
     public static func resetSequence(for model: WhereModel) -> LifecycleSteps {
@@ -135,12 +142,12 @@ public enum WhereLaunch {
             // re-erases rather than stranding the user in onboarding atop
             // un-erased data. Dropping the session here makes the re-driven
             // `sequence` rebuild a fresh one over the erased store.
-            LifecycleStep.work(LaunchStepID.eraseData.rawValue) { _ in
+            LifecycleStep.work(LaunchStepID.eraseData) { _ in
                 try await model.eraseAllData()
                 model.endSession()
             }
             LifecycleStep
-                .work(LaunchStepID.resetPreferences.rawValue) { _ in model.resetPreferences() }
+                .work(LaunchStepID.resetPreferences) { _ in model.resetPreferences() }
         }
     }
 }
@@ -178,6 +185,38 @@ public final class WhereBootstrap {
         let store = try await Task.detached(priority: .userInitiated) {
             try SwiftDataStore.make()
         }.value
-        return WhereServices(store: store, locationSource: source)
+        return WhereServices(
+            store: store,
+            locationSource: source,
+            locationOutbox: FileLocationOutbox.applicationSupport(),
+        )
+    }
+}
+
+/// Presents the app's local notifications (logging reminders, the daily summary)
+/// even while Where is foregrounded, so a nudge isn't silently swallowed when the
+/// user already has the app open.
+///
+/// Registered as the `UNUserNotificationCenter` delegate from `makeLauncher`'s
+/// `initializePrerequisites` rather than ad hoc in the app delegate, so launch
+/// wiring lives in one place. The single `shared` instance is retained for the
+/// process because the notification center's `delegate` is weak; the type is
+/// stateless, hence `@unchecked Sendable`.
+final class ForegroundNotificationPresenter:
+    NSObject, UNUserNotificationCenterDelegate, @unchecked Sendable
+{
+    private static let shared = ForegroundNotificationPresenter()
+
+    /// Register the shared presenter as the notification center's delegate.
+    /// Idempotent: assigning the same delegate twice is a no-op.
+    static func install() {
+        UNUserNotificationCenter.current().delegate = shared
+    }
+
+    func userNotificationCenter(
+        _: UNUserNotificationCenter,
+        willPresent _: UNNotification,
+    ) async -> UNNotificationPresentationOptions {
+        [.banner, .sound, .badge]
     }
 }

@@ -327,8 +327,8 @@ struct SettingsView: View {
 
     /// Whole-app teardown: wipes every year's data and returns to first-run
     /// onboarding, run through the `LifecycleRunner` published into the
-    /// environment by `LifecycleContainer`. A no-op when no runner is above
-    /// (e.g. previews), since the optional environment value is then nil.
+    /// environment by `LifecycleContainer`. The runner proxy asserts in debug /
+    /// no-ops in release when no container is above (e.g. previews).
     private var resetSection: some View {
         Section {
             Button(role: .destructive) {
@@ -354,8 +354,7 @@ struct SettingsView: View {
     }
 
     private func requestReset() {
-        guard let runner else { return }
-        Task { await runner.reset(WhereLaunch.resetSequence(for: model)) }
+        Task { await runner.teardown(WhereLaunch.resetSequence(for: model)) }
     }
 
     private func openSystemSettings() {

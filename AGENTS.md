@@ -80,6 +80,11 @@ Shared/<TargetName>/
   one field or that escapes a single function — tuples are fine as
   ad-hoc inline returns but should not appear in property types,
   collection element types, or public API.
+- Identifiers/keys are `Hashable` (ideally a typed enum) or `AnyHashable`, not
+  raw `String`s — a typed token can't silently typo into a new, untracked id,
+  and any `Hashable` converts to `AnyHashable` implicitly at the call site.
+  (e.g. `LifecycleStep.id` is `AnyHashable`; the Where app keys its launch steps
+  with the `LaunchStepID` enum, and `WherePreferences` keys with a `Keys` enum.)
 - Don't build closure-based `Binding(get:set:)` values in SwiftUI views; bind
   directly to observable state (`$model.foo`). For a derived binding (e.g.
   mapping an optional error to the `Bool` an `.alert` wants), expose a computed

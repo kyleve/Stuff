@@ -61,7 +61,7 @@ struct WhereLaunchTests {
             .reminders,
             .summary,
             .widgetSnapshot,
-        ].map(\.rawValue))
+        ].map { AnyHashable($0) })
     }
 
     @Test func coldForegroundLaunchReachesReadyAndReconcilesTracking() async throws {
@@ -81,7 +81,7 @@ struct WhereLaunchTests {
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         let task = Task { @MainActor in await launcher.run() }
 
-        try await waitUntil { launcher.phase.runningStepID == LaunchStepID.onboarding.rawValue }
+        try await waitUntil { launcher.phase.isRunning(LaunchStepID.onboarding) }
         #expect(launcher.phase.runningBridge?.presentation != nil)
 
         // Resolve the gate as OnboardingView would, letting the launch finish.
