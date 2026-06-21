@@ -59,5 +59,11 @@ enum UIConstants {
         static let mastheadFontSize: CGFloat = 52
         /// Height of the map header on the Elsewhere region drill-in.
         static let regionMapHeight: CGFloat = 220
+        /// App-icon thumbnail edge in the picker grid.
+        static let appIconGrid: CGFloat = 104
+        /// Large app-icon preview edge on the full-screen preview.
+        static let appIconPreviewLarge: CGFloat = 180
+        /// Small app-icon preview edge on the full-screen preview.
+        static let appIconPreviewSmall: CGFloat = 60
     }
 }

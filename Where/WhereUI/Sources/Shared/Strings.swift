@@ -371,6 +371,70 @@ enum Strings {
         localized("settings.manual.footer")
     }
 
+    // MARK: Settings app icon
+
+    static var settingsAppIconHeader: String {
+        String(localized: "settings.appIcon.header", defaultValue: "Appearance", bundle: .module)
+    }
+
+    static var settingsAppIconLink: String {
+        String(localized: "settings.appIcon.link", defaultValue: "App icon", bundle: .module)
+    }
+
+    static var settingsAppIconFooter: String {
+        String(
+            localized: "settings.appIcon.footer",
+            defaultValue: "Pick the icon Where shows on your Home Screen.",
+            bundle: .module,
+        )
+    }
+
+    // MARK: App icon picker
+
+    static var appIconTitle: String {
+        String(localized: "appIcon.title", defaultValue: "App Icon", bundle: .module)
+    }
+
+    static var appIconClose: String {
+        String(localized: "appIcon.close", defaultValue: "Close", bundle: .module)
+    }
+
+    static var appIconChange: String {
+        String(localized: "appIcon.change", defaultValue: "Change", bundle: .module)
+    }
+
+    static var appIconCurrent: String {
+        String(localized: "appIcon.current", defaultValue: "Current", bundle: .module)
+    }
+
+    static var appIconAppearanceLabel: String {
+        String(localized: "appIcon.appearance.label", defaultValue: "Appearance", bundle: .module)
+    }
+
+    static var appIconAppearanceLight: String {
+        String(localized: "appIcon.appearance.light", defaultValue: "Light", bundle: .module)
+    }
+
+    static var appIconAppearanceDark: String {
+        String(localized: "appIcon.appearance.dark", defaultValue: "Dark", bundle: .module)
+    }
+
+    static var appIconSizeLarge: String {
+        String(localized: "appIcon.size.large", defaultValue: "Large", bundle: .module)
+    }
+
+    static var appIconSizeSmall: String {
+        String(localized: "appIcon.size.small", defaultValue: "Small", bundle: .module)
+    }
+
+    static var appIconErrorTitle: String {
+        String(
+            localized: "appIcon.error.title",
+            defaultValue: "Couldn't Change Icon",
+            bundle: .module,
+        )
+    }
+
     static var settingsRemindersHeader: String {
         String(localized: "settings.reminders.header", defaultValue: "Reminders", bundle: .module)
     }
