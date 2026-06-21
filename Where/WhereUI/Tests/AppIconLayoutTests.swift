@@ -35,30 +35,28 @@ struct AppIconLayoutTests {
         #expect(metrics.iconSize == 0)
     }
 
-    @Test func previewLargeClampsToTheMaximumOnHugeContainers() {
-        let metrics = AppIconLayout.previewMetrics(containerSize: CGSize(width: 4000, height: 4000))
-        #expect(metrics.large == UIConstants.Size.appIconPreviewLargeMax)
-        #expect(metrics.small < metrics.large)
-        #expect(metrics.small > 0)
+    @Test func previewIconClampsToTheMaximumOnHugeContainers() {
+        let size = AppIconLayout.previewIconSize(containerSize: CGSize(width: 4000, height: 4000))
+        #expect(size == UIConstants.Size.appIconPreviewLargeMax)
     }
 
-    @Test func previewScalesDownForSmallContainers() {
-        let big = AppIconLayout.previewMetrics(containerSize: CGSize(width: 4000, height: 4000))
-        let small = AppIconLayout.previewMetrics(containerSize: CGSize(width: 320, height: 480))
-        #expect(small.large < big.large)
-        #expect(small.large > 0)
+    @Test func previewIconScalesDownForSmallContainers() {
+        let big = AppIconLayout.previewIconSize(containerSize: CGSize(width: 4000, height: 4000))
+        let small = AppIconLayout.previewIconSize(containerSize: CGSize(width: 320, height: 480))
+        #expect(small < big)
+        #expect(small > 0)
     }
 
-    @Test func previewIsBoundedByTheShorterDimension() {
-        // A short, wide container should size the large preview off the height.
-        let metrics = AppIconLayout.previewMetrics(containerSize: CGSize(width: 4000, height: 400))
-        #expect(metrics.large <= 400 * 0.4 + 0.001)
+    @Test func previewIconIsBoundedByTheShorterDimension() {
+        // A short, wide container should size the preview icon off the height.
+        let size = AppIconLayout.previewIconSize(containerSize: CGSize(width: 4000, height: 400))
+        #expect(size <= 400 * 0.3 + 0.001)
     }
 
     @Test(arguments: stride(from: 200.0, through: 1400.0, by: 100.0).map { CGFloat($0) })
-    func previewLargeAlwaysExceedsSmallAndStaysCapped(side: CGFloat) {
-        let metrics = AppIconLayout.previewMetrics(containerSize: CGSize(width: side, height: side))
-        #expect(metrics.large > metrics.small)
-        #expect(metrics.large <= UIConstants.Size.appIconPreviewLargeMax)
+    func previewIconStaysCappedAndPositive(side: CGFloat) {
+        let size = AppIconLayout.previewIconSize(containerSize: CGSize(width: side, height: side))
+        #expect(size > 0)
+        #expect(size <= UIConstants.Size.appIconPreviewLargeMax)
     }
 }

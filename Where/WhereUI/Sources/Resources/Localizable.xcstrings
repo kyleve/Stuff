@@ -15,13 +15,13 @@
         }
       }
     },
-    "appIcon.appearance.label" : {
+    "appIcon.appearance.hint" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Appearance"
+            "value" : "Tap the icon to preview light and dark."
           }
         }
       }
@@ -33,28 +33,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Light"
-          }
-        }
-      }
-    },
-    "appIcon.change" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Change"
-          }
-        }
-      }
-    },
-    "appIcon.close" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Close"
           }
         }
       }
@@ -81,24 +59,13 @@
         }
       }
     },
-    "appIcon.size.large" : {
+    "appIcon.set" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Large"
-          }
-        }
-      }
-    },
-    "appIcon.size.small" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Small"
+            "value" : "Set as App Icon"
           }
         }
       }

@@ -12,14 +12,11 @@ enum AppIconLayout {
     /// realized size flexes around this and is capped at `appIconGridMax`.
     private static let idealGridIcon: CGFloat = 150
 
-    /// Fractions of the container the large preview may occupy before the cap
-    /// applies. Width leaves side margins; height leaves room for the small
-    /// preview, the captions, and the appearance picker below.
-    private static let previewLargeWidthFraction: CGFloat = 0.62
-    private static let previewLargeHeightFraction: CGFloat = 0.4
-    /// The small preview is a fraction of the large one so the size contrast
-    /// reads clearly. Because the large size is already capped, this is too.
-    private static let previewSmallRatio: CGFloat = 0.36
+    /// Fractions of the page the slide-up preview icon may occupy before the
+    /// cap applies. Width leaves side margins; height keeps the panel (icon plus
+    /// its name, hint, and the Set button) to a reasonable share of the screen.
+    private static let previewIconWidthFraction: CGFloat = 0.5
+    private static let previewIconHeightFraction: CGFloat = 0.3
 
     /// Column count and per-thumbnail edge for the picker grid at `width`.
     static func gridMetrics(containerWidth width: CGFloat) -> AppIconGridMetrics {
@@ -32,15 +29,14 @@ enum AppIconLayout {
         return AppIconGridMetrics(columnCount: columnCount, iconSize: iconSize)
     }
 
-    /// Large and small preview edges for the full-screen preview at `size`.
-    static func previewMetrics(containerSize size: CGSize) -> AppIconPreviewMetrics {
-        let large = min(
-            size.width * previewLargeWidthFraction,
-            size.height * previewLargeHeightFraction,
+    /// Edge for the slide-up preview icon given the page `size` it appears over.
+    static func previewIconSize(containerSize size: CGSize) -> CGFloat {
+        let bounded = min(
+            size.width * previewIconWidthFraction,
+            size.height * previewIconHeightFraction,
             UIConstants.Size.appIconPreviewLargeMax,
         )
-        let clampedLarge = max(large, 0)
-        return AppIconPreviewMetrics(large: clampedLarge, small: clampedLarge * previewSmallRatio)
+        return max(bounded, 0)
     }
 }
 
@@ -48,10 +44,4 @@ enum AppIconLayout {
 struct AppIconGridMetrics: Equatable {
     let columnCount: Int
     let iconSize: CGFloat
-}
-
-/// Large and small icon edges for the full-screen preview at a given size.
-struct AppIconPreviewMetrics: Equatable {
-    let large: CGFloat
-    let small: CGFloat
 }

@@ -399,20 +399,12 @@ enum Strings {
         String(localized: "appIcon.title", defaultValue: "App Icon", bundle: .module)
     }
 
-    static var appIconClose: String {
-        String(localized: "appIcon.close", defaultValue: "Close", bundle: .module)
-    }
-
-    static var appIconChange: String {
-        String(localized: "appIcon.change", defaultValue: "Change", bundle: .module)
-    }
-
     static var appIconCurrent: String {
         String(localized: "appIcon.current", defaultValue: "Current", bundle: .module)
     }
 
-    static var appIconAppearanceLabel: String {
-        String(localized: "appIcon.appearance.label", defaultValue: "Appearance", bundle: .module)
+    static var appIconSet: String {
+        String(localized: "appIcon.set", defaultValue: "Set as App Icon", bundle: .module)
     }
 
     static var appIconAppearanceLight: String {
@@ -423,12 +415,12 @@ enum Strings {
         String(localized: "appIcon.appearance.dark", defaultValue: "Dark", bundle: .module)
     }
 
-    static var appIconSizeLarge: String {
-        String(localized: "appIcon.size.large", defaultValue: "Large", bundle: .module)
-    }
-
-    static var appIconSizeSmall: String {
-        String(localized: "appIcon.size.small", defaultValue: "Small", bundle: .module)
+    static var appIconAppearanceHint: String {
+        String(
+            localized: "appIcon.appearance.hint",
+            defaultValue: "Tap the icon to preview light and dark.",
+            bundle: .module,
+        )
     }
 
     static var appIconErrorTitle: String {
