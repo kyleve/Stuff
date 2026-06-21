@@ -27,18 +27,44 @@ struct AppIconPreviewView: View {
     }
 
     var body: some View {
-        ZStack {
-            Color(.systemBackground)
-                .ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                Color(.systemBackground)
+                    .ignoresSafeArea()
 
-            VStack(spacing: UIConstants.Spacings.xxxLarge) {
-                topBar
-                Spacer(minLength: 0)
-                previewStack
-                Spacer(minLength: 0)
-                appearancePicker
+                VStack(spacing: UIConstants.Spacings.xxxLarge) {
+                    Spacer(minLength: 0)
+                    previewStack
+                    Spacer(minLength: 0)
+                    appearancePicker
+                }
+                .padding(UIConstants.Spacings.xxxLarge)
             }
-            .padding(UIConstants.Spacings.xxxLarge)
+            .navigationTitle(option.displayName)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .accessibilityLabel(Strings.appIconClose)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(Strings.appIconChange) {
+                        Task {
+                            // Stay open on failure so the alert is visible; the
+                            // picker beneath would race the cover's dismissal.
+                            if await model.apply(option) {
+                                dismiss()
+                            }
+                        }
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(model.isSelected(option) || !model.supportsAlternateIcons)
+                }
+            }
         }
         .environment(\.colorScheme, previewMode)
         .navigationTransition(.zoom(sourceID: option.id, in: namespace))
@@ -46,38 +72,6 @@ struct AppIconPreviewView: View {
             Button(Strings.commonOK, role: .cancel) {}
         } message: {
             Text(model.applyError ?? "")
-        }
-    }
-
-    private var topBar: some View {
-        HStack {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.headline)
-                    .frame(
-                        width: UIConstants.Size.statusIconWidth,
-                        height: UIConstants.Size.statusIconWidth,
-                    )
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Strings.appIconClose)
-
-            Spacer()
-
-            Button(Strings.appIconChange) {
-                Task {
-                    // Stay open on failure so the alert is visible; the picker
-                    // beneath would race the cover's dismissal otherwise.
-                    if await model.apply(option) {
-                        dismiss()
-                    }
-                }
-            }
-            .font(.headline)
-            .fontWeight(.semibold)
-            .disabled(model.isSelected(option) || !model.supportsAlternateIcons)
         }
     }
 
