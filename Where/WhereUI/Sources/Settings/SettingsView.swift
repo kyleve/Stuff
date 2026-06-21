@@ -17,6 +17,7 @@ struct SettingsView: View {
 
     @State private var showClearConfirmation = false
     @State private var showResetConfirmation = false
+    @State private var showAppIcon = false
 
     // Backup import: the picked file, the merge/replace choice, and the
     // success confirmation.
@@ -41,6 +42,9 @@ struct SettingsView: View {
                 resetSection
             }
             .navigationTitle(Strings.settingsTitle)
+            .sheet(isPresented: $showAppIcon) {
+                AppIconView()
+            }
             .alert(Strings.settingsPermissionAlertTitle, isPresented: $session.permissionDenied) {
                 Button(Strings.settingsPermissionAlertOpenSettings) { openSystemSettings() }
                 Button(Strings.settingsPermissionAlertNotNow, role: .cancel) {}
@@ -213,8 +217,8 @@ struct SettingsView: View {
 
     private var appIconSection: some View {
         Section {
-            NavigationLink {
-                AppIconView()
+            Button {
+                showAppIcon = true
             } label: {
                 Label(Strings.settingsAppIconLink, systemImage: "app.badge")
             }

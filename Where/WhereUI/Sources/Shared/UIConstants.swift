@@ -59,11 +59,13 @@ enum UIConstants {
         static let mastheadFontSize: CGFloat = 52
         /// Height of the map header on the Elsewhere region drill-in.
         static let regionMapHeight: CGFloat = 220
-        /// App-icon thumbnail edge in the picker grid.
-        static let appIconGrid: CGFloat = 104
-        /// Large app-icon preview edge on the full-screen preview.
-        static let appIconPreviewLarge: CGFloat = 180
-        /// Small app-icon preview edge on the full-screen preview.
-        static let appIconPreviewSmall: CGFloat = 60
+        /// Upper bound for a picker-grid thumbnail edge; the actual size flexes
+        /// with the container width (see `AppIconLayout`) so icons grow to fill
+        /// the space but never exceed this on large displays like iPad.
+        static let appIconGridMax: CGFloat = 180
+        /// Upper bound for the large app-icon preview edge; the actual size
+        /// flexes with the container (see `AppIconLayout`). The small preview is
+        /// derived from the large one, so it needs no separate cap.
+        static let appIconPreviewLargeMax: CGFloat = 280
     }
 }
