@@ -87,4 +87,36 @@ struct ScreenHostingTests {
             #expect(hosted.view != nil)
         }
     }
+
+    @Test func appIconViewHosts() throws {
+        let rootView = NavigationStack { AppIconView(model: .preview()) }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func appIconPreviewViewHosts() throws {
+        try show(UIHostingController(rootView: AppIconPreviewProbe())) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+}
+
+/// Hosts `AppIconPreviewView`, which needs a `Namespace` from an enclosing view
+/// to drive its zoom transition.
+private struct AppIconPreviewProbe: View {
+    @Namespace private var namespace
+
+    var body: some View {
+        AppIconPreviewView(
+            option: AppIconOption(
+                id: AppIconID("classic"),
+                displayName: "Classic",
+                alternateIconName: nil,
+                previewImageName: "AppIconClassic",
+            ),
+            model: .preview(),
+            namespace: namespace,
+        )
+    }
 }
