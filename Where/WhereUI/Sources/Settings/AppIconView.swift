@@ -82,9 +82,9 @@ struct AppIconView: View {
 
     private func cell(for option: AppIconOption, iconSize: CGFloat) -> some View {
         let isSelected = model.isSelected(option)
-        // Hide this cell's icon while its own panel is up so the dimmed grid
-        // doesn't show a duplicate of the icon already enlarged in the panel.
-        // It crossfades back as the panel slides away (both flips ride the same
+        // Dim this cell's icon while its own panel is up so the grid reads as
+        // backgrounded without fully hiding the icon already enlarged in the
+        // panel. It fades back as the panel slides away (the flip rides the same
         // `.snappy` animation that drives `preview`).
         let isPreviewing = preview?.id == option.id
         return Button {
@@ -92,7 +92,7 @@ struct AppIconView: View {
         } label: {
             VStack(spacing: UIConstants.Spacings.large) {
                 AppIconImage(name: option.previewImageName, size: iconSize)
-                    .opacity(isPreviewing ? 0 : 1)
+                    .opacity(isPreviewing ? 0.5 : 1)
 
                 HStack(spacing: UIConstants.Spacings.small) {
                     if isSelected {
