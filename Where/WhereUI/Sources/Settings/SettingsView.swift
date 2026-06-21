@@ -34,6 +34,7 @@ struct SettingsView: View {
                 trackingSection
                 remindersSection
                 summarySection
+                appIconSection
                 manualEntrySection
                 backupSection
                 dataSection
@@ -208,6 +209,20 @@ struct SettingsView: View {
             return Strings.settingsSummaryDeniedFooter
         }
         return Strings.settingsSummaryFooter
+    }
+
+    private var appIconSection: some View {
+        Section {
+            NavigationLink {
+                AppIconView()
+            } label: {
+                Label(Strings.settingsAppIconLink, systemImage: "app.badge")
+            }
+        } header: {
+            Text(Strings.settingsAppIconHeader)
+        } footer: {
+            Text(Strings.settingsAppIconFooter)
+        }
     }
 
     private var manualEntrySection: some View {
