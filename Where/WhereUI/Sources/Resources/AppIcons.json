@@ -1,0 +1,10 @@
+{
+  "icons" : [
+    {
+      "id" : "classic",
+      "displayName" : "Classic",
+      "alternateIconName" : null,
+      "previewImageName" : "AppIconClassic"
+    }
+  ]
+}
