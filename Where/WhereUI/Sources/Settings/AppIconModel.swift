@@ -45,14 +45,19 @@ final class AppIconModel {
     }
 
     /// Apply `option` as the app's icon. A no-op when it's already selected;
-    /// failures land in `applyError` rather than throwing to the view.
-    func apply(_ option: AppIconOption) async {
-        guard option.id != selectedID, supportsAlternateIcons else { return }
+    /// failures land in `applyError` rather than throwing to the view. Returns
+    /// `true` when the icon actually changed, so the caller can decide whether
+    /// to dismiss (and leave the picker up to show the error otherwise).
+    @discardableResult
+    func apply(_ option: AppIconOption) async -> Bool {
+        guard option.id != selectedID, supportsAlternateIcons else { return false }
         do {
             try await setter.setAlternateIconName(option.alternateIconName)
             selectedID = option.id
+            return true
         } catch {
             applyError = error.localizedDescription
+            return false
         }
     }
 
@@ -90,6 +95,15 @@ final class AppIconModel {
             AppIconModel(
                 setter: InMemoryAlternateIconSetting(alternateIconName: activeAlternateIconName),
             )
+        }
+    }
+
+    extension AppIconCatalog {
+        /// Test/preview helper: whether `name` resolves to a real imageset in
+        /// WhereUI's resource bundle (`.module` here is WhereUI's, which is the
+        /// bundle the picker renders previews from).
+        static func previewImageExists(named name: String) -> Bool {
+            UIImage(named: name, in: .module, compatibleWith: nil) != nil
         }
     }
 

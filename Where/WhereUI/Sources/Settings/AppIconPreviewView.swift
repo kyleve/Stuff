@@ -6,11 +6,25 @@ import SwiftUI
 /// background and icon art — so the user sees both appearance variants.
 struct AppIconPreviewView: View {
     let option: AppIconOption
-    let model: AppIconModel
+    @Bindable var model: AppIconModel
     let namespace: Namespace.ID
 
     @Environment(\.dismiss) private var dismiss
-    @State private var previewMode: ColorScheme = .light
+    @State private var previewMode: ColorScheme
+
+    /// `initialMode` seeds the light/dark selector from the system appearance so
+    /// a dark-mode user opens straight into the dark preview (no light flash).
+    init(
+        option: AppIconOption,
+        model: AppIconModel,
+        namespace: Namespace.ID,
+        initialMode: ColorScheme = .light,
+    ) {
+        self.option = option
+        _model = Bindable(wrappedValue: model)
+        self.namespace = namespace
+        _previewMode = State(initialValue: initialMode)
+    }
 
     var body: some View {
         ZStack {
@@ -28,6 +42,11 @@ struct AppIconPreviewView: View {
         }
         .environment(\.colorScheme, previewMode)
         .navigationTransition(.zoom(sourceID: option.id, in: namespace))
+        .alert(Strings.appIconErrorTitle, isPresented: $model.isShowingError) {
+            Button(Strings.commonOK, role: .cancel) {}
+        } message: {
+            Text(model.applyError ?? "")
+        }
     }
 
     private var topBar: some View {
@@ -49,8 +68,11 @@ struct AppIconPreviewView: View {
 
             Button(Strings.appIconChange) {
                 Task {
-                    await model.apply(option)
-                    dismiss()
+                    // Stay open on failure so the alert is visible; the picker
+                    // beneath would race the cover's dismissal otherwise.
+                    if await model.apply(option) {
+                        dismiss()
+                    }
                 }
             }
             .font(.headline)

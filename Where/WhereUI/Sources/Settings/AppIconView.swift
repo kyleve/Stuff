@@ -7,6 +7,7 @@ struct AppIconView: View {
     @State private var model: AppIconModel
     @State private var previewedOption: AppIconOption?
     @Namespace private var iconNamespace
+    @Environment(\.colorScheme) private var colorScheme
 
     @MainActor
     init(model: AppIconModel = AppIconModel()) {
@@ -19,8 +20,6 @@ struct AppIconView: View {
     ]
 
     var body: some View {
-        @Bindable var model = model
-
         ScrollView {
             LazyVGrid(columns: columns, spacing: UIConstants.Spacings.xxxLarge) {
                 ForEach(model.options) { option in
@@ -32,12 +31,12 @@ struct AppIconView: View {
         .navigationTitle(Strings.appIconTitle)
         .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(item: $previewedOption) { option in
-            AppIconPreviewView(option: option, model: model, namespace: iconNamespace)
-        }
-        .alert(Strings.appIconErrorTitle, isPresented: $model.isShowingError) {
-            Button(Strings.commonOK, role: .cancel) {}
-        } message: {
-            Text(model.applyError ?? "")
+            AppIconPreviewView(
+                option: option,
+                model: model,
+                namespace: iconNamespace,
+                initialMode: colorScheme,
+            )
         }
     }
 
