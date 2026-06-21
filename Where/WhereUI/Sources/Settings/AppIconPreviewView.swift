@@ -28,17 +28,21 @@ struct AppIconPreviewView: View {
 
     var body: some View {
         NavigationStack {
-            ZStack {
-                Color(.systemBackground)
-                    .ignoresSafeArea()
+            GeometryReader { proxy in
+                let metrics = AppIconLayout.previewMetrics(containerSize: proxy.size)
+                ZStack {
+                    Color(.systemBackground)
+                        .ignoresSafeArea()
 
-                VStack(spacing: UIConstants.Spacings.xxxLarge) {
-                    Spacer(minLength: 0)
-                    previewStack
-                    Spacer(minLength: 0)
-                    appearancePicker
+                    VStack(spacing: UIConstants.Spacings.xxxLarge) {
+                        Spacer(minLength: 0)
+                        previewStack(metrics: metrics)
+                        Spacer(minLength: 0)
+                        appearancePicker
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(UIConstants.Spacings.xxxLarge)
                 }
-                .padding(UIConstants.Spacings.xxxLarge)
             }
             .navigationTitle(option.displayName)
             .navigationBarTitleDisplayMode(.inline)
@@ -75,10 +79,10 @@ struct AppIconPreviewView: View {
         }
     }
 
-    private var previewStack: some View {
+    private func previewStack(metrics: AppIconPreviewMetrics) -> some View {
         VStack(spacing: UIConstants.Spacings.xxxLarge) {
-            iconBlock(size: UIConstants.Size.appIconPreviewLarge, caption: Strings.appIconSizeLarge)
-            iconBlock(size: UIConstants.Size.appIconPreviewSmall, caption: Strings.appIconSizeSmall)
+            iconBlock(size: metrics.large, caption: Strings.appIconSizeLarge)
+            iconBlock(size: metrics.small, caption: Strings.appIconSizeSmall)
         }
     }
 

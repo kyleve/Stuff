@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// The app-icon picker: a two-column grid of options. Tapping a cell opens a
-/// full-screen preview (matched zoom transition) where the user confirms the
-/// change. Pushed from `SettingsView`.
+/// The app-icon picker: a grid of options that flexes with the container width
+/// (two columns on phones, more on wider displays — see `AppIconLayout`).
+/// Tapping a cell opens a full-screen preview (matched zoom transition) where
+/// the user confirms the change. Pushed from `SettingsView`.
 struct AppIconView: View {
     @State private var model: AppIconModel
     @State private var previewedOption: AppIconOption?
@@ -14,19 +15,20 @@ struct AppIconView: View {
         _model = State(initialValue: model)
     }
 
-    private let columns = [
-        GridItem(.flexible(), spacing: UIConstants.Spacings.xxLarge),
-        GridItem(.flexible(), spacing: UIConstants.Spacings.xxLarge),
-    ]
-
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: UIConstants.Spacings.xxxLarge) {
-                ForEach(model.options) { option in
-                    cell(for: option)
+        GeometryReader { proxy in
+            let metrics = AppIconLayout.gridMetrics(containerWidth: proxy.size.width)
+            ScrollView {
+                LazyVGrid(
+                    columns: gridColumns(count: metrics.columnCount),
+                    spacing: UIConstants.Spacings.xxxLarge,
+                ) {
+                    ForEach(model.options) { option in
+                        cell(for: option, iconSize: metrics.iconSize)
+                    }
                 }
+                .padding(UIConstants.Spacings.xxLarge)
             }
-            .padding(UIConstants.Spacings.xxLarge)
         }
         .navigationTitle(Strings.appIconTitle)
         .navigationBarTitleDisplayMode(.inline)
@@ -40,13 +42,20 @@ struct AppIconView: View {
         }
     }
 
-    private func cell(for option: AppIconOption) -> some View {
+    private func gridColumns(count: Int) -> [GridItem] {
+        Array(
+            repeating: GridItem(.flexible(), spacing: UIConstants.Spacings.xxLarge),
+            count: count,
+        )
+    }
+
+    private func cell(for option: AppIconOption, iconSize: CGFloat) -> some View {
         let isSelected = model.isSelected(option)
         return Button {
             previewedOption = option
         } label: {
             VStack(spacing: UIConstants.Spacings.large) {
-                AppIconImage(name: option.previewImageName, size: UIConstants.Size.appIconGrid)
+                AppIconImage(name: option.previewImageName, size: iconSize)
                     .matchedTransitionSource(id: option.id, in: iconNamespace)
 
                 HStack(spacing: UIConstants.Spacings.small) {
