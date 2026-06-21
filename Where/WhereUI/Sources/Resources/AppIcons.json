@@ -5,30 +5,6 @@
       "displayName" : "Classic",
       "alternateIconName" : null,
       "previewImageName" : "AppIconClassic"
-    },
-    {
-      "id" : "ocean",
-      "displayName" : "Ocean",
-      "alternateIconName" : "AppIconOcean",
-      "previewImageName" : "AppIconOcean"
-    },
-    {
-      "id" : "sunset",
-      "displayName" : "Sunset",
-      "alternateIconName" : "AppIconSunset",
-      "previewImageName" : "AppIconSunset"
-    },
-    {
-      "id" : "mono",
-      "displayName" : "Mono",
-      "alternateIconName" : "AppIconMono",
-      "previewImageName" : "AppIconMono"
-    },
-    {
-      "id" : "forest",
-      "displayName" : "Forest",
-      "alternateIconName" : "AppIconForest",
-      "previewImageName" : "AppIconForest"
     }
   ]
 }
