@@ -136,9 +136,23 @@ def die(msg):
     sys.exit(1)
 
 
+def require_repo_layout():
+    missing = [
+        path
+        for path in (MANIFEST, APP_CATALOG, PREVIEW_CATALOG)
+        if not os.path.exists(path)
+    ]
+    if missing:
+        die("couldn't find " + ", ".join(missing) + " — run ./icons from the repo root")
+
+
 def load_manifest():
-    with open(MANIFEST) as f:
-        return json.load(f)
+    require_repo_layout()
+    try:
+        with open(MANIFEST) as f:
+            return json.load(f)
+    except json.JSONDecodeError as error:
+        die(f"{MANIFEST} is not valid JSON: {error}")
 
 
 def save_manifest(data):
@@ -197,7 +211,8 @@ def do_add():
     icon_id = os.environ.get("ID") or slug(name)
     if not icon_id:
         die("couldn't derive an id; pass --id")
-    set_name = PRIMARY_SET + re.sub(r"[^A-Za-z0-9]+", "", name)
+    # PascalCase so a lowercase --name still yields "AppIcon<Name>".
+    set_name = PRIMARY_SET + pascal_case(name)
 
     if set_name == PRIMARY_SET or icon_id == PRIMARY_ID:
         die(f'"{PRIMARY_ID}" / "{PRIMARY_SET}" is the reserved primary icon')
