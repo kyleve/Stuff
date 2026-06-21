@@ -206,6 +206,10 @@ states.
   needs updating.
 - **New SwiftUI view / widget:** add a `#Preview` in the same file (see
   [SwiftUI views & previews](#swiftui-views--previews)).
+- **New app icon:** run `./icons --add <1024.png> --name <Name>` (see the
+  root [`AGENTS.md`](../AGENTS.md#managing-app-icons)) — it updates both asset
+  catalogs and `AppIcons.json`. Don't hand-edit those; the picker is
+  manifest-driven.
 
 ## Testing
 
