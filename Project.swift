@@ -95,6 +95,14 @@ let project = Project(
                 .package(product: "WhereUI"),
                 .target(name: "WhereWidgets"),
             ],
+            // Compile every `*.appiconset` in `AppIcon.xcassets` into the build and
+            // auto-write the `CFBundleAlternateIcons` plist entries, so the asset
+            // catalog itself is the source of truth for which alternate icons exist
+            // (the `./icons` script just adds/removes sets — no names list to keep
+            // in sync here). The primary stays `AppIcon`.
+            settings: .settings(base: [
+                "ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS": "YES",
+            ]),
         ),
         .target(
             name: "WhereWidgets",

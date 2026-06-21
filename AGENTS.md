@@ -19,8 +19,31 @@ project](#generating-the-xcode-project)).
 
 Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise),
 `sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`),
-and `profile` (prints build/test hot spots — slowest build phases, slowest
-tests, and slow type-check sites; see `./profile --help`).
+`profile` (prints build/test hot spots — slowest build phases, slowest
+tests, and slow type-check sites; see `./profile --help`), and `icons`
+(adds/removes selectable app icons; see `./icons --help`).
+
+### Managing app icons
+
+`./icons` is the single command for the Where app's alternate icons. It keeps
+three things in sync and never edits Swift:
+
+- `Where/Where/Resources/AppIcon.xcassets` — the appiconset iOS swaps to.
+- `Where/WhereUI/Sources/Resources/AppIconPreviews.xcassets` — the imageset the
+  in-app picker renders (SwiftUI `Image` can't load appiconsets).
+- `Where/WhereUI/Sources/Resources/AppIcons.json` — the manifest the picker reads.
+
+```bash
+./icons --add art/ocean.png --name Ocean --dark art/ocean-dark.png
+./icons --remove ocean
+./icons --list
+```
+
+Inputs are 1024×1024 PNGs (light required; `--dark` / `--tinted` optional). The
+Where target sets `ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS`, so a new
+appiconset is registered automatically — run `./ide --no-open` afterward to
+regenerate. The script's file edits work on Linux; compiling the catalogs is
+macOS-only. The primary "Classic" icon is reserved.
 
 ## Formatting
 
