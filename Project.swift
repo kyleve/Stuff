@@ -87,6 +87,14 @@ let project = Project(
                     "Where checks your location in the background so it can log which region you're in each day.",
                 ),
             ]),
+            // Compile every `*.appiconset` in `AppIcon.xcassets` into the build and
+            // auto-write the `CFBundleAlternateIcons` plist entries, so the asset
+            // catalog itself is the source of truth for which alternate icons exist
+            // (the `./icons` script just adds/removes sets — no names list to keep
+            // in sync here). The primary stays `AppIcon`.
+            settings: .settings(base: [
+                "ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS": "YES",
+            ]),
             sources: ["Where/Where/Sources/**"],
             resources: ["Where/Where/Resources/**"],
             entitlements: whereAppGroupEntitlements,
