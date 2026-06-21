@@ -3,12 +3,14 @@ import SwiftUI
 /// The app-icon picker: a grid of options that flexes with the container width
 /// (two columns on phones, more on wider displays — see `AppIconLayout`).
 /// Tapping a cell opens a full-screen preview (matched zoom transition) where
-/// the user confirms the change. Pushed from `SettingsView`.
+/// the user confirms the change. Presented as a sheet from `SettingsView`, so
+/// it owns its navigation bar and a Done button to dismiss.
 struct AppIconView: View {
     @State private var model: AppIconModel
     @State private var previewedOption: AppIconOption?
     @Namespace private var iconNamespace
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.dismiss) private var dismiss
 
     @MainActor
     init(model: AppIconModel = AppIconModel()) {
@@ -16,22 +18,29 @@ struct AppIconView: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            let metrics = AppIconLayout.gridMetrics(containerWidth: proxy.size.width)
-            ScrollView {
-                LazyVGrid(
-                    columns: gridColumns(count: metrics.columnCount),
-                    spacing: UIConstants.Spacings.xxxLarge,
-                ) {
-                    ForEach(model.options) { option in
-                        cell(for: option, iconSize: metrics.iconSize)
+        NavigationStack {
+            GeometryReader { proxy in
+                let metrics = AppIconLayout.gridMetrics(containerWidth: proxy.size.width)
+                ScrollView {
+                    LazyVGrid(
+                        columns: gridColumns(count: metrics.columnCount),
+                        spacing: UIConstants.Spacings.xxxLarge,
+                    ) {
+                        ForEach(model.options) { option in
+                            cell(for: option, iconSize: metrics.iconSize)
+                        }
                     }
+                    .padding(UIConstants.Spacings.xxLarge)
                 }
-                .padding(UIConstants.Spacings.xxLarge)
+            }
+            .navigationTitle(Strings.appIconTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(Strings.commonDone) { dismiss() }
+                }
             }
         }
-        .navigationTitle(Strings.appIconTitle)
-        .navigationBarTitleDisplayMode(.inline)
         .fullScreenCover(item: $previewedOption) { option in
             AppIconPreviewView(
                 option: option,
@@ -107,8 +116,6 @@ struct AppIconImage: View {
 
 #if DEBUG
     #Preview {
-        NavigationStack {
-            AppIconView(model: .preview())
-        }
+        AppIconView(model: .preview())
     }
 #endif

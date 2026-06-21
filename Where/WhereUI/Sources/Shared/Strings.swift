@@ -32,6 +32,10 @@ enum Strings {
         localized("common.ok")
     }
 
+    static var commonDone: String {
+        localized("common.done")
+    }
+
     /// "1 day" / "5 days" — with the count rendered.
     static func dayCount(_ count: Int) -> String {
         String(localized: "common.dayCount", defaultValue: "\(count) days", bundle: .module)
