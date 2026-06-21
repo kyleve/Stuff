@@ -12,7 +12,6 @@ struct AppIconView: View {
     @State private var previewMode: ColorScheme = .light
     @State private var appearanceToggles = 0
     @State private var dragOffset: CGFloat = 0
-    @Namespace private var iconNamespace
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
 
@@ -83,17 +82,16 @@ struct AppIconView: View {
 
     private func cell(for option: AppIconOption, iconSize: CGFloat) -> some View {
         let isSelected = model.isSelected(option)
+        // Hide this cell's icon while its own panel is up so the dimmed grid
+        // doesn't show a duplicate of the icon already enlarged in the panel.
+        // It crossfades back as the panel slides away (both flips ride the same
+        // `.snappy` animation that drives `preview`).
         let isPreviewing = preview?.id == option.id
         return Button {
             select(option)
         } label: {
             VStack(spacing: UIConstants.Spacings.large) {
                 AppIconImage(name: option.previewImageName, size: iconSize)
-                    .matchedGeometryEffect(
-                        id: option.id,
-                        in: iconNamespace,
-                        isSource: !isPreviewing,
-                    )
                     .opacity(isPreviewing ? 0 : 1)
 
                 HStack(spacing: UIConstants.Spacings.small) {
@@ -182,14 +180,12 @@ struct AppIconView: View {
         .gesture(dragToDismiss)
     }
 
-    /// The tappable preview icon. The cell→panel hero rides the
-    /// `matchedGeometryEffect`; tapping toggles light/dark, which crossfades the
-    /// art and background while this plays a quick scale-down-then-bounce.
+    /// The tappable preview icon. Tapping toggles light/dark, which crossfades
+    /// the art and background while this plays a quick scale-down-then-bounce.
     /// Keyed off `appearanceToggles` so the bounce only fires on a real tap, not
     /// when the panel first opens.
     private func previewIcon(for option: AppIconOption, size: CGFloat) -> some View {
         AppIconImage(name: option.previewImageName, size: size)
-            .matchedGeometryEffect(id: option.id, in: iconNamespace)
             .keyframeAnimator(initialValue: 1.0, trigger: appearanceToggles) { content, scale in
                 content.scaleEffect(scale)
             } keyframes: { _ in
