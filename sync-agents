@@ -81,14 +81,14 @@ class SyncAgents
 
     find_files("AGENTS.md", exclude: EXCLUDED_DIRS).each do |agents_file|
       claude_path = File.join(File.dirname(agents_file), "CLAUDE.md")
-      content = "#{MARKER}\n\n#{File.read(agents_file)}"
+      content = "#{MARKER}\n\n#{File.read(agents_file, encoding: "UTF-8")}"
       write_if_changed(claude_path, content)
       expected << claude_path
     end
 
     find_files("CLAUDE.md", exclude: %w[Derived .build .git]).each do |claude_file|
       next if expected.include?(claude_file)
-      first_line = File.open(claude_file, &:readline).chomp rescue next
+      first_line = File.open(claude_file, encoding: "UTF-8", &:readline).chomp rescue next
       remove_if_exists(claude_file) if first_line == MARKER
     end
   end
@@ -245,7 +245,7 @@ class SyncAgents
   # --- Helpers ---
 
   def write_if_changed(path, content)
-    return if File.exist?(path) && File.read(path) == content
+    return if File.exist?(path) && File.read(path, encoding: "UTF-8") == content
     FileUtils.mkdir_p(File.dirname(path))
     File.write(path, content)
     puts "Updated #{path}"
@@ -274,7 +274,7 @@ class SyncAgents
       af = File.join(a, rel)
       bf = File.join(b, rel)
       next if File.directory?(af)
-      return false unless File.read(af) == File.read(bf)
+      return false unless File.read(af, encoding: "UTF-8") == File.read(bf, encoding: "UTF-8")
     end
     true
   end
