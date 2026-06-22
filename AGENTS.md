@@ -129,6 +129,16 @@ disrupts the user's session. Always pass `--no-open` when regenerating:
 `tuist test` / `tuist build` are CLI-only and do not open Xcode, so no
 flag is needed there.
 
+## Acting on requests
+
+The "don't be proactive" rules below scope to *unprompted* actions. A direct
+request is itself the go-ahead — carry it to a sensible stopping point rather
+than pausing to re-confirm what you were just asked to do.
+
+For non-plan work, leave the tree formatted and the change complete. Commit
+when asked or when working a plan; if it's unclear whether you want a commit,
+make the change and ask rather than committing silently.
+
 ## Working on plans
 
 Multi-step plans (e.g. a `/plan` to-do list) land one commit per to-do so
@@ -143,15 +153,17 @@ mark `in_progress`, implement, run local checks, commit, mark `completed`.
 - Pure-groundwork steps (no behavior change) still get their own commit; say so
   in the body.
 - Name the plan step each commit closes (the to-do title is fine).
-- Don't push until the user asks, unless the plan says otherwise.
+- Don't push until the user asks — unless the plan says otherwise, or the
+  request clearly implies it (e.g. "open a PR", "ship it").
 
 ## Working on PR feedback
 
-Do **not** proactively act on PR review comments (bot or human). When new
-comments appear, summarize what's there and ask which ones to address
-before reading more context, editing files, or pushing commits. Wait for
-explicit go-ahead — either the user asking you to handle the feedback,
-or you asking and getting permission first.
+Don't act on PR review comments (bot or human) that the user hasn't asked you
+to address — summarize what's there and ask which to take on. Reading the
+comments and surrounding code to write that summary is expected; the gate is on
+editing and pushing, not on understanding. Once the user points you at feedback
+(names comments, says "address these", etc.), that's your go-ahead — do the
+work end to end without re-asking per comment.
 
 ## Waiting on CI
 
