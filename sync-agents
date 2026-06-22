@@ -267,8 +267,8 @@ class SyncAgents
 
   def dirs_equal?(a, b)
     return false unless Dir.exist?(a) && Dir.exist?(b)
-    a_files = Dir.glob(File.join(a, "**", "*"), File::FNM_DOTMATCH).map { |f| f.sub(a, "") }.sort
-    b_files = Dir.glob(File.join(b, "**", "*"), File::FNM_DOTMATCH).map { |f| f.sub(b, "") }.sort
+    a_files = relative_entries(a)
+    b_files = relative_entries(b)
     return false unless a_files == b_files
     a_files.each do |rel|
       af = File.join(a, rel)
@@ -285,6 +285,12 @@ class SyncAgents
     end
   end
 
+  def relative_entries(dir)
+    Dir.glob(File.join(dir, "**", "*"), File::FNM_DOTMATCH)
+      .map { |f| f.delete_prefix("#{dir}/") }
+      .sort
+  end
+
   def parse_github_repo(url)
     match = url.match(%r{github\.com[/:]([^/]+/[^/]+?)(?:\.git)?/?$})
     match && match[1]
@@ -296,7 +302,8 @@ class SyncAgents
     system("git", "-C", dest, "remote", "add", "origin", url, out: File::NULL, err: File::NULL)
     _, stderr, status = Open3.capture3("git", "-C", dest, "fetch", "--depth", "1", "origin", "HEAD")
     abort "Failed to clone #{repo}: #{stderr}" unless status.success?
-    system("git", "-C", dest, "checkout", "-q", "FETCH_HEAD", out: File::NULL, err: File::NULL)
+    checkout_ok = system("git", "-C", dest, "checkout", "-q", "FETCH_HEAD", out: File::NULL, err: File::NULL)
+    abort "Failed to check out #{repo}@FETCH_HEAD" unless checkout_ok
   end
 
   def clone_repo(repo, ref, dest)
@@ -305,7 +312,8 @@ class SyncAgents
     system("git", "-C", dest, "remote", "add", "origin", url, out: File::NULL, err: File::NULL)
     _, stderr, status = Open3.capture3("git", "-C", dest, "fetch", "--depth", "1", "origin", ref)
     abort "Failed to fetch #{repo}@#{ref}: #{stderr}" unless status.success?
-    system("git", "-C", dest, "checkout", "-q", "FETCH_HEAD", out: File::NULL, err: File::NULL)
+    checkout_ok = system("git", "-C", dest, "checkout", "-q", "FETCH_HEAD", out: File::NULL, err: File::NULL)
+    abort "Failed to check out #{repo}@#{ref}" unless checkout_ok
   end
 
   def head_sha(repo_dir)
