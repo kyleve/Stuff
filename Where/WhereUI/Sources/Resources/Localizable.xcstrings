@@ -567,28 +567,6 @@
         }
       }
     },
-    "primary.caption.homeBase" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Home base"
-          }
-        }
-      }
-    },
-    "primary.caption.secondHome" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Second home"
-          }
-        }
-      }
-    },
     "primary.elsewhereOnly.description" : {
       "extractionState" : "manual",
       "localizations" : {

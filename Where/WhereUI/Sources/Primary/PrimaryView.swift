@@ -110,13 +110,9 @@ struct PrimaryView: View {
         ScrollView {
             GlassEffectContainer(spacing: UIConstants.Spacings.xxLarge) {
                 VStack(spacing: UIConstants.Spacings.xxLarge) {
-                    ForEach(
-                        Array(session.ranking.primary.enumerated()),
-                        id: \.element.id,
-                    ) { index, item in
+                    ForEach(session.ranking.primary) { item in
                         RegionSummaryCard(
                             regionDays: item,
-                            caption: caption(forRank: index),
                             yearLength: session.daysInSelectedYear,
                             year: session.selectedYear,
                             tilt: tilt,
@@ -142,15 +138,6 @@ struct PrimaryView: View {
             Label(Strings.primaryElsewhereOnlyTitle, systemImage: "globe.americas")
         } description: {
             Text(Strings.primaryElsewhereOnlyDescription(count: session.trackedDayCount))
-        }
-    }
-
-    /// Playful rank labels for the top regions.
-    private func caption(forRank rank: Int) -> String? {
-        switch rank {
-            case 0: Strings.primaryCaptionHomeBase
-            case 1: Strings.primaryCaptionSecondHome
-            default: nil
         }
     }
 }

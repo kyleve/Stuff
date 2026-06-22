@@ -94,12 +94,12 @@ struct RegionSummaryCard: View {
                 rosette(
                     center: CGPoint(x: size.width * 0.8, y: size.height * 0.5),
                     spacing: compact ? 13 : 18,
-                    opacity: 0.08,
+                    opacity: 0.12,
                 )
                 rosette(
                     center: CGPoint(x: size.width * 0.12, y: size.height * 0.22),
                     spacing: compact ? 11 : 15,
-                    opacity: 0.05,
+                    opacity: 0.08,
                 )
             }
 
@@ -148,40 +148,6 @@ struct RegionSummaryCard: View {
                 )
         }
         .allowsHitTesting(false)
-    }
-
-    /// A faux passport machine-readable zone (MRZ): two lines of `<`-filled
-    /// monospaced code derived from the region, year, and day count. Purely
-    /// decorative — hidden from assistive tech.
-    private var machineReadableZone: some View {
-        VStack(alignment: .leading, spacing: UIConstants.Spacings.xSmall) {
-            Rectangle()
-                .fill(style.tint.opacity(0.25))
-                .frame(height: 1)
-            ForEach(Array(mrzLines.enumerated()), id: \.offset) { _, line in
-                Text(verbatim: line)
-                    .font(.system(
-                        size: UIConstants.Size.mrzFontSize,
-                        weight: .medium,
-                        design: .monospaced,
-                    ))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.5)
-            }
-        }
-        .foregroundStyle(style.tint.opacity(0.5))
-        .accessibilityHidden(true)
-    }
-
-    private var mrzLines: [String] {
-        let name = regionDays.region.localizedName.uppercased()
-            .replacingOccurrences(of: " ", with: "<")
-        let code = String(name.prefix(3))
-        let serial = String(format: "%03d", regionDays.days)
-        let line1 = "P<WHR<\(name)".padding(toLength: 34, withPad: "<", startingAt: 0)
-        let line2 = "\(code)<\(year)<<\(serial)DAYS"
-            .padding(toLength: 34, withPad: "<", startingAt: 0)
-        return [line1, line2]
     }
 
     var body: some View {
@@ -250,10 +216,6 @@ struct RegionSummaryCard: View {
                 }
                 .frame(height: UIConstants.Size.progressBarHeight)
                 .accessibilityHidden(true)
-
-            if !compact {
-                machineReadableZone
-            }
         }
         .padding(compact ? UIConstants.Padding.compactCard : UIConstants.Padding.card)
         .frame(maxWidth: .infinity, alignment: .leading)

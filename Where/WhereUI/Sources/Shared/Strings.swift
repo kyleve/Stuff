@@ -87,14 +87,6 @@ enum Strings {
         )
     }
 
-    static var primaryCaptionHomeBase: String {
-        localized("primary.caption.homeBase")
-    }
-
-    static var primaryCaptionSecondHome: String {
-        localized("primary.caption.secondHome")
-    }
-
     static func primaryEmptyTitle(year: Int) -> String {
         String(
             localized: "primary.empty.title",

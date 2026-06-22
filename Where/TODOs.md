@@ -31,7 +31,6 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - SwiftData browser
 - Do we live refresh the Primary UI / Elsewhere UI? Or regularly?
 - What’s with all the `.accessibilityIdentifier(…)` modifiers, do we need them?
-- Remove `caption(forRank rank: Int) -> String?`, I don’t want the caption
 - Remove get/set closure-based bindings
 - Add a UI that represents where you currently are? Maybe a border on the current location card?
 
@@ -54,5 +53,6 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - Export / import system (JSON? Zip?)
 - Schedule local push notifications if we haven’t recorded for the day yet
 - refactor: `WhereController` is getting quite big. Break it up into one parent controller with children. (dissolved into `WhereServices` + focused collaborators)
+- Remove `caption(forRank rank: Int) -> String?`, I don’t want the caption
 
 ## P2s (Nice to have)
