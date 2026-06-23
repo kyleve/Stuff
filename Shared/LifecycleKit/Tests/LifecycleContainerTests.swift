@@ -34,20 +34,6 @@ private struct EnvironmentRunnerProbe: View {
     }
 }
 
-/// Drives the run loop up to `timeout` waiting for `condition`, returning
-/// whether it ever held. Unlike `waitFor`, a `false` result is a normal
-/// outcome — used to assert a branch *never* renders within the budget,
-/// without a fixed sleep or hand-rolled run-loop pumping.
-@MainActor
-private func renders(within timeout: TimeInterval = 0.5, _ condition: () -> Bool) -> Bool {
-    let deadline = Date(timeIntervalSinceNow: timeout)
-    while Date() < deadline {
-        if condition() { return true }
-        RunLoop.main.run(mode: .default, before: Date(timeIntervalSinceNow: 0.001))
-    }
-    return condition()
-}
-
 @MainActor
 struct LifecycleContainerTests {
     @Test func readyShowsContent() async throws {
