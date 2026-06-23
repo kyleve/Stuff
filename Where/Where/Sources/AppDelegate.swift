@@ -1,6 +1,7 @@
 import LifecycleKit
-import os
+import LogKit
 import UIKit
+import WhereCore
 import WhereUI
 
 /// Owns the app's single `WhereModel` and the `LifecycleRunner` that drives
@@ -22,7 +23,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// reason is known) and handed to `RootView` via `WhereApp`.
     private(set) var launcher: LifecycleRunner!
 
-    private let logger = Logger(subsystem: "com.stuff.where", category: "AppDelegate")
+    private let logger = WhereLog.channel(.appDelegate)
 
     func application(
         _: UIApplication,

@@ -1,5 +1,5 @@
 import Foundation
-import os
+import LogKit
 
 /// Maps coordinates to the tracked `Region` they fall inside. Backed by a
 /// list of polygons per region; checked in declaration order so the first
@@ -46,7 +46,7 @@ public struct RegionAttributor: Sendable {
     /// `Logger` from `os` — used in `loadFromBundle` to surface
     /// missing/unparseable bundled resources as Console.app faults
     /// alongside the debug-build `assertionFailure`.
-    private static let logger = Logger(subsystem: "com.stuff.where", category: "RegionAttributor")
+    private static let logger = WhereLog.channel(.regionAttributor)
 
     /// `Region` cases that resolve to a US state in `us-states.geojson`.
     /// The value is the GeoJSON feature's `properties.NAME` — **a data
@@ -74,7 +74,7 @@ public struct RegionAttributor: Sendable {
                     // to `.other`; surface it via fault + assertionFailure.
                     logger
                         .fault(
-                            "Missing feature \(stateName, privacy: .public) in bundled us-states.geojson for region \(region.rawValue, privacy: .public)",
+                            "Missing feature \(stateName) in bundled us-states.geojson for region \(region.rawValue)",
                         )
                     assertionFailure(
                         "Missing feature \(stateName) in us-states.geojson for region \(region.rawValue)",
@@ -88,7 +88,7 @@ public struct RegionAttributor: Sendable {
             else {
                 logger
                     .fault(
-                        "Missing required bundled GeoJSON for region \(region.rawValue, privacy: .public)",
+                        "Missing required bundled GeoJSON for region \(region.rawValue)",
                     )
                 assertionFailure("Missing bundled GeoJSON for region \(region.rawValue)")
                 continue
@@ -99,7 +99,7 @@ public struct RegionAttributor: Sendable {
             } catch {
                 logger
                     .fault(
-                        "Failed to decode bundled GeoJSON \(region.rawValue, privacy: .public): \(error.localizedDescription, privacy: .public)",
+                        "Failed to decode bundled GeoJSON \(region.rawValue): \(error.localizedDescription)",
                     )
                 assertionFailure("Failed to decode bundled GeoJSON \(region.rawValue): \(error)")
             }
@@ -132,7 +132,7 @@ public struct RegionAttributor: Sendable {
         } catch {
             logger
                 .fault(
-                    "Failed to decode bundled us-states.geojson: \(error.localizedDescription, privacy: .public)",
+                    "Failed to decode bundled us-states.geojson: \(error.localizedDescription)",
                 )
             assertionFailure("Failed to decode bundled us-states.geojson: \(error)")
             return [:]

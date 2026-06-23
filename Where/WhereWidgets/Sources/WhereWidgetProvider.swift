@@ -1,4 +1,4 @@
-import os
+import LogKit
 import WhereCore
 import WidgetKit
 
@@ -14,7 +14,7 @@ struct WhereWidgetEntry: TimelineEntry {
 /// even if the app never wakes; the snapshot's data is refreshed by the app
 /// process after each committed write (see `WidgetTimelineRefreshing`).
 struct WhereWidgetProvider: TimelineProvider {
-    private static let logger = Logger(subsystem: "com.stuff.where", category: "WhereWidgets")
+    private static let logger = WhereLog.channel(.whereWidgets)
 
     func placeholder(in _: Context) -> WhereWidgetEntry {
         .sample

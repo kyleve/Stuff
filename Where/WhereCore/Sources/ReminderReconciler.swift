@@ -1,5 +1,5 @@
 import Foundation
-import os
+import LogKit
 
 /// Owns the daily "log before the day ends" reminder intent and the
 /// reconciliation that keeps the scheduled reminders + badge in sync with the
@@ -33,10 +33,7 @@ public actor ReminderReconciler {
     /// this many days.
     static let defaultWindowDays = 6
 
-    private static let logger = Logger(
-        subsystem: "com.stuff.where",
-        category: "ReminderReconciler",
-    )
+    private static let logger = WhereLog.channel(.reminderReconciler)
 
     init(
         scheduler: any LoggingReminderScheduling,
@@ -134,7 +131,7 @@ public actor ReminderReconciler {
             todayCoveredByReconcile = present.contains(today) ? today : nil
         } catch {
             Self.logger.error(
-                "Failed to reconcile logging reminders: \(error.localizedDescription, privacy: .public)",
+                "Failed to reconcile logging reminders: \(error.localizedDescription)",
             )
         }
     }

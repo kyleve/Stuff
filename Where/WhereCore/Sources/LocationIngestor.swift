@@ -1,5 +1,5 @@
 import Foundation
-import os
+import LogKit
 
 /// Owns live GPS ingestion: the location-monitoring lifecycle, the
 /// single-consumer sample stream, the retry queue (mirrored to a durable
@@ -71,10 +71,7 @@ public actor LocationIngestor {
     /// is very wrong with persistence and we'd rather keep recent than ancient.
     private static let retryQueueCapacity = 1000
 
-    private static let logger = Logger(
-        subsystem: "com.stuff.where",
-        category: "LocationIngestor",
-    )
+    private static let logger = WhereLog.channel(.locationIngestor)
 
     init(
         store: any WhereStore,
@@ -233,7 +230,7 @@ public actor LocationIngestor {
             // running so a transient error doesn't stop tracking, and the sample
             // is queued for retry on the next save attempt.
             Self.logger.error(
-                "Failed to persist GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
+                "Failed to persist GPS sample \(sample.id): \(error.localizedDescription)",
             )
             enqueueForRetry(sample)
             await outbox.save(retryQueue)
@@ -261,7 +258,7 @@ public actor LocationIngestor {
                 persistedDays.insert(calendar.startOfDay(for: sample.timestamp))
             } catch {
                 Self.logger.error(
-                    "Retry still failing for GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
+                    "Retry still failing for GPS sample \(sample.id): \(error.localizedDescription)",
                 )
                 enqueueForRetry(sample)
             }

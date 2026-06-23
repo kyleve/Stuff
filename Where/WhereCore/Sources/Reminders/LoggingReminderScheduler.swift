@@ -1,5 +1,5 @@
 import Foundation
-import os
+import LogKit
 import UserNotifications
 
 /// Time of day (in the user's calendar) at which the daily "log before the day
@@ -90,10 +90,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
     private let calendar: Calendar
 
     private static let identifierPrefix = "com.stuff.where.logging-reminder"
-    private static let logger = Logger(
-        subsystem: "com.stuff.where",
-        category: "LoggingReminderScheduler",
-    )
+    private static let logger = WhereLog.channel(.loggingReminderScheduler)
 
     public init(
         center: UNUserNotificationCenter = .current(),
@@ -120,7 +117,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
             return try await center.requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
             Self.logger.error(
-                "Notification authorization request failed: \(error.localizedDescription, privacy: .public)",
+                "Notification authorization request failed: \(error.localizedDescription)",
             )
             return false
         }
@@ -220,7 +217,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
             try await center.add(request)
         } catch {
             Self.logger.error(
-                "Failed to schedule reminder \(identifier, privacy: .public): \(error.localizedDescription, privacy: .public)",
+                "Failed to schedule reminder \(identifier): \(error.localizedDescription)",
             )
         }
     }
@@ -254,7 +251,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
             try await center.setBadgeCount(max(0, count))
         } catch {
             Self.logger.error(
-                "Failed to set badge count: \(error.localizedDescription, privacy: .public)",
+                "Failed to set badge count: \(error.localizedDescription)",
             )
         }
     }
