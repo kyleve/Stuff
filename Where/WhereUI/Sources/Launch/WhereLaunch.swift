@@ -1,4 +1,5 @@
 import LifecycleKit
+import LogKit
 import SwiftUI
 import UserNotifications
 import WhereCore
@@ -46,6 +47,8 @@ public enum LaunchStepID: String {
 /// async steps.
 @MainActor
 public enum WhereLaunch {
+    private static let logger = WhereLog.channel(.launch)
+
     /// Build the runner for `model`, launching for `reason`.
     ///
     /// `initializePrerequisites` runs the synchronous, must-exist-now launch
@@ -57,6 +60,7 @@ public enum WhereLaunch {
     /// than in the app delegate) puts app-lifecycle wiring in one place.
     public static func makeLauncher(model: WhereModel, reason: LifecycleReason) -> LifecycleRunner {
         let bootstrap = WhereBootstrap()
+        logger.info("Lifecycle runner created (reason: \(reason))")
         return LifecycleRunner(
             reason: reason,
             initializePrerequisites: {
@@ -164,6 +168,8 @@ public enum WhereLaunch {
 /// off the main actor and assembles the services from the two.
 @MainActor
 public final class WhereBootstrap {
+    private static let logger = WhereLog.channel(.launch)
+
     private var locationSource: CoreLocationSource?
 
     public init() {}
@@ -185,6 +191,7 @@ public final class WhereBootstrap {
         let store = try await Task.detached(priority: .userInitiated) {
             try SwiftDataStore.make()
         }.value
+        Self.logger.info("WhereServices assembled")
         return WhereServices(
             store: store,
             locationSource: source,

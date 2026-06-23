@@ -55,6 +55,7 @@ let package = Package(
             dependencies: [
                 .target(name: "WhereCore"),
                 .target(name: "LifecycleKit"),
+                .target(name: "LogKit"),
                 .target(name: "LogViewerUI"),
             ],
             path: "Where/WhereUI/Sources",

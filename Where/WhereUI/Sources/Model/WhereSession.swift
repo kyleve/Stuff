@@ -1,4 +1,5 @@
 import Foundation
+import LogKit
 import Observation
 import WhereCore
 
@@ -168,6 +169,8 @@ public final class WhereSession {
     let preferences: WherePreferences
     private let now: @Sendable () -> Date
 
+    private static let logger = WhereLog.channel(.session)
+
     /// Persisted user intent to track in the background. Effective tracking is
     /// this AND `.always` authorization; we default to `true` so that, once the
     /// user grants Always, tracking resumes automatically on every launch.
@@ -316,6 +319,25 @@ public final class WhereSession {
     /// `WhereLaunch.sequence`).
     func syncAuthorization() async {
         authorizationStatus = await services.ingestor.authorizationStatus()
+        warnIfAuthorizationDegraded()
+    }
+
+    /// Emit a warning when the live authorization can't support background
+    /// tracking, so the in-app log explains why GPS isn't running. `always` and
+    /// the transient `notDetermined` are expected states and stay quiet.
+    private func warnIfAuthorizationDegraded() {
+        switch authorizationStatus {
+            case .always, .notDetermined:
+                break
+            case .whenInUse:
+                Self.logger.warning(
+                    "Location authorized for When-In-Use only; background tracking unavailable",
+                )
+            case .denied, .restricted:
+                Self.logger.warning(
+                    "Location access \(authorizationStatus); background tracking unavailable",
+                )
+        }
     }
 
     /// Subscribe to live authorization changes (prompt results, Settings-app
@@ -330,6 +352,7 @@ public final class WhereSession {
             for await status in updates {
                 guard let self else { break }
                 authorizationStatus = status
+                warnIfAuthorizationDegraded()
                 await reconcileTracking()
             }
         }
@@ -339,17 +362,26 @@ public final class WhereSession {
     /// current authorization. Tracking only runs with Always authorization. A
     /// launch step (see `WhereLaunch.sequence`).
     func reconcileTracking() async {
+        let wasTracking = isTracking
         if wantsTracking, authorizationStatus.allowsBackgroundTracking {
             await services.ingestor.start()
             isTracking = true
+            if !wasTracking { Self.logger.info("Background tracking started") }
         } else {
             await services.ingestor.stop()
             isTracking = false
+            if wasTracking { Self.logger.info("Background tracking stopped") }
+            if wantsTracking {
+                Self.logger.warning(
+                    "Background tracking wanted but unavailable (authorization: \(authorizationStatus))",
+                )
+            }
         }
     }
 
     public func select(year: Int) async {
         guard year != selectedYear else { return }
+        Self.logger.info("Selected year \(year)")
         selectedYear = year
         // Drop the previous year's report so views fall back to their loading
         // state instead of rendering stale data under the new year's label.
@@ -369,9 +401,14 @@ public final class WhereSession {
             guard requestedYear == selectedYear else { return }
             self.report = report
             loadState = .loaded
+            Self.logger
+                .info("Year report loaded for \(requestedYear) (\(report.days.count) day(s))")
         } catch {
             guard requestedYear == selectedYear else { return }
             loadState = .failed(error.localizedDescription)
+            Self.logger.warning(
+                "Failed to load year report for \(requestedYear): \(error.localizedDescription)",
+            )
         }
     }
 
@@ -448,6 +485,9 @@ public final class WhereSession {
         }
         await syncAuthorization()
         await reconcileTracking()
+        if authorizationStatus.allowsBackgroundTracking {
+            Self.logger.info("Location permission granted (\(authorizationStatus))")
+        }
     }
 
     /// Turn on background tracking. Records the intent, requests permission if
@@ -465,12 +505,16 @@ public final class WhereSession {
         }
         await syncAuthorization()
         await reconcileTracking()
+        if authorizationStatus.allowsBackgroundTracking {
+            Self.logger.info("Tracking enabled with background authorization")
+        }
     }
 
     public func stopTracking() async {
         wantsTracking = false
         await services.ingestor.stop()
         isTracking = false
+        Self.logger.info("Stopped background tracking")
     }
 
     /// Push the current reminder intent to the reminder reconciler and refresh
@@ -479,6 +523,9 @@ public final class WhereSession {
     func applyReminderConfiguration() async {
         await services.reminders.configure(enabled: remindersEnabled, time: reminderTime)
         notificationsAuthorized = await services.reminders.isAuthorized()
+        if remindersEnabled, !notificationsAuthorized {
+            Self.logger.warning("Logging reminders enabled but notifications not authorized")
+        }
     }
 
     /// Push the current daily-summary intent to the summary reconciler and
@@ -488,6 +535,9 @@ public final class WhereSession {
     func applySummaryConfiguration() async {
         await services.summary.configure(enabled: summaryEnabled, time: summaryTime)
         notificationsAuthorized = await services.reminders.isAuthorized()
+        if summaryEnabled, !notificationsAuthorized {
+            Self.logger.warning("Daily summary enabled but notifications not authorized")
+        }
     }
 
     public func clearSelectedYear() async {
@@ -496,6 +546,9 @@ public final class WhereSession {
             await refresh()
         } catch {
             loadState = .failed(error.localizedDescription)
+            Self.logger.warning(
+                "Failed to clear year \(selectedYear): \(error.localizedDescription)",
+            )
         }
     }
 
@@ -511,6 +564,7 @@ public final class WhereSession {
         isTracking = false
         report = nil
         loadState = .idle
+        Self.logger.info("Erased session and reset state")
     }
 
     // MARK: - Backup
@@ -561,9 +615,11 @@ public final class WhereSession {
         do {
             let url = try await services.backup.exportBackup()
             previousExportDirectory = url.deletingLastPathComponent()
+            Self.logger.info("Exported backup archive")
             return url
         } catch {
             backupError = error.localizedDescription
+            Self.logger.warning("Backup export failed: \(error.localizedDescription)")
             return nil
         }
     }
@@ -600,10 +656,14 @@ public final class WhereSession {
             continuation.finish()
             await observer.value
             await refresh()
+            Self.logger.info(
+                "Imported backup (\(summary.sampleCount) samples, \(summary.evidenceCount) evidence, \(summary.manualDayCount) manual days)",
+            )
             return summary
         } catch {
             continuation.finish()
             backupError = error.localizedDescription
+            Self.logger.warning("Backup import failed: \(error.localizedDescription)")
             return nil
         }
     }

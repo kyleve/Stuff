@@ -37,6 +37,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             : .userForeground
         if reason.isBackground {
             logger.info("Relaunched by CoreLocation for a background location event")
+        } else {
+            logger.info("Launched in foreground by the user")
         }
 
         // `initializePrerequisites` installs the CLLocationManager synchronously
@@ -44,6 +46,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // foreground-notification presenter; the rest (store open, etc.) runs as
         // async steps off this synchronous launch path.
         launcher = WhereLaunch.makeLauncher(model: model, reason: reason)
+        logger.info("Lifecycle runner started")
         Task { await launcher.run() }
         return true
     }
