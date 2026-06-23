@@ -1,5 +1,8 @@
 import LifecycleKit
 import LogViewerUI
+#if DEBUG
+    import SwiftDataInspector
+#endif
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -39,11 +42,11 @@ struct SettingsView: View {
                 appIconSection
                 manualEntrySection
                 backupSection
-                #if DEBUG
-                    debugSection
-                #endif
                 dataSection
                 resetSection
+                #if DEBUG
+                    developerSection
+                #endif
             }
             .navigationTitle(Strings.settingsTitle)
             .sheet(isPresented: $showAppIcon) {
@@ -380,15 +383,12 @@ struct SettingsView: View {
         Task { await runner.teardown(WhereLaunch.resetSequence(for: model)) }
     }
 
-    private func openSystemSettings() {
-        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-        openURL(url)
-    }
-
     #if DEBUG
-        /// Debug-only entry into the in-app log viewer, reading the shared
-        /// `WhereLog` buffer every logger writes to. Compiled out of release.
-        private var debugSection: some View {
+        /// Developer-only tools, compiled out of release: the in-app log viewer
+        /// over the shared `WhereLog` buffer every logger writes to, plus — when
+        /// the live session can vend a SwiftData container — the generic
+        /// SwiftData inspector (previews and non-SwiftData fakes don't show it).
+        private var developerSection: some View {
             Section {
                 NavigationLink {
                     LogViewer(configuration: LogViewerConfiguration(
@@ -398,6 +398,14 @@ struct SettingsView: View {
                 } label: {
                     Label(Strings.settingsDebugLogsLink, systemImage: "ladybug")
                 }
+
+                if let configuration = session.swiftDataInspectorConfiguration {
+                    NavigationLink {
+                        SwiftDataInspectorView(configuration: configuration)
+                    } label: {
+                        Label("SwiftData Inspector", systemImage: "cylinder.split.1x2")
+                    }
+                }
             } header: {
                 Text(Strings.settingsDebugHeader)
             } footer: {
@@ -405,6 +413,11 @@ struct SettingsView: View {
             }
         }
     #endif
+
+    private func openSystemSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        openURL(url)
+    }
 }
 
 #if DEBUG

@@ -196,6 +196,12 @@ let project = Project(
             sources: ["Shared/LogViewerUI/Tests/**"],
         ),
         unitTests(
+            name: "SwiftDataInspectorTests",
+            bundleIdSuffix: "swiftdatainspector",
+            productDependency: "SwiftDataInspector",
+            sources: ["Shared/SwiftDataInspector/Tests/**"],
+        ),
+        unitTests(
             name: "WhereCoreTests",
             bundleIdSuffix: "wherecore",
             productDependency: "WhereCore",
@@ -206,7 +212,7 @@ let project = Project(
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
-            extraPackageProducts: ["LifecycleKit", "LogViewerUI"],
+            extraPackageProducts: ["LifecycleKit", "LogViewerUI", "SwiftDataInspector"],
         ),
     ],
     // Tuist's autogeneration doesn't emit working standalone test actions for
@@ -218,6 +224,7 @@ let project = Project(
         testScheme(name: "LifecycleKitTests"),
         testScheme(name: "LogKitTests"),
         testScheme(name: "LogViewerUITests"),
+        testScheme(name: "SwiftDataInspectorTests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),

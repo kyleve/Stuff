@@ -1071,7 +1071,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "Logs captured during this session. Debug builds only."
+            "value" : "On-device logs and data tools. Debug builds only."
           }
         }
       }

@@ -398,7 +398,7 @@ enum Strings {
     static var settingsDebugFooter: String {
         String(
             localized: "settings.debug.footer",
-            defaultValue: "Logs captured during this session. Debug builds only.",
+            defaultValue: "On-device logs and data tools. Debug builds only.",
             bundle: .module,
         )
     }

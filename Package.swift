@@ -12,6 +12,7 @@ let package = Package(
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LogKit", targets: ["LogKit"]),
         .library(name: "LogViewerUI", targets: ["LogViewerUI"]),
+        .library(name: "SwiftDataInspector", targets: ["SwiftDataInspector"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereTesting", targets: ["WhereTesting"]),
@@ -40,6 +41,10 @@ let package = Package(
             path: "Shared/LogViewerUI/Sources",
         ),
         .target(
+            name: "SwiftDataInspector",
+            path: "Shared/SwiftDataInspector/Sources",
+        ),
+        .target(
             name: "WhereCore",
             dependencies: [
                 .target(name: "LogKit"),
@@ -57,6 +62,7 @@ let package = Package(
                 .target(name: "LifecycleKit"),
                 .target(name: "LogKit"),
                 .target(name: "LogViewerUI"),
+                .target(name: "SwiftDataInspector"),
             ],
             path: "Where/WhereUI/Sources",
             resources: [
