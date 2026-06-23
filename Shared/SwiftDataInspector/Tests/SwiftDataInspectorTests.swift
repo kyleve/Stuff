@@ -193,6 +193,29 @@ struct SwiftDataInspectorTests {
         #expect(SwiftDataInspectorModel.defaultFormat(absent as Any) == "nil")
     }
 
+    @Test func missingColumnsDegradeToAbsentCells() throws {
+        let container = try makeContainer()
+        seed(container, widgets: 1, gadgets: 0)
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        // An entity asking for a column the model has no stored value for: the
+        // row simply omits it (the table renders a placeholder) rather than
+        // trapping.
+        let entity = InspectorEntity(
+            name: "TestWidget",
+            type: TestWidget.self,
+            count: 1,
+            columns: ["name", "doesNotExist"],
+        )
+        let rowSet = model.rows(for: entity)
+        let row = try #require(rowSet.rows.first)
+
+        #expect(row.cells["name"] == "Widget 0")
+        #expect(row.cells["doesNotExist"] == nil)
+    }
+
     @Test func customValueFormatterOverridesBuiltIn() throws {
         let container = try makeContainer()
         seed(container, widgets: 1, gadgets: 0)
