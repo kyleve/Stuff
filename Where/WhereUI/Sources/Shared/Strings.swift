@@ -388,23 +388,27 @@ enum Strings {
     // MARK: Settings debug
 
     static var settingsDebugHeader: String {
-        String(localized: "settings.debug.header", defaultValue: "Developer", bundle: .module)
+        localized("settings.debug.header")
     }
 
     static var settingsDebugLogsLink: String {
-        String(localized: "settings.debug.logsLink", defaultValue: "Logs", bundle: .module)
+        localized("settings.debug.logsLink")
     }
 
     static var settingsDebugFooter: String {
-        String(
-            localized: "settings.debug.footer",
-            defaultValue: "On-device logs and data tools. Debug builds only.",
-            bundle: .module,
-        )
+        localized("settings.debug.footer")
     }
 
     static var settingsDebugLogsTitle: String {
-        String(localized: "settings.debug.logsTitle", defaultValue: "Logs", bundle: .module)
+        localized("settings.debug.logsTitle")
+    }
+
+    static var settingsDebugInspectorLink: String {
+        localized("settings.debug.inspectorLink")
+    }
+
+    static var settingsDebugInspectorTitle: String {
+        localized("settings.debug.inspectorTitle")
     }
 
     // MARK: App icon picker

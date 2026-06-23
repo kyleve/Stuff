@@ -54,18 +54,11 @@ public struct YearTotalsRectangularAccessoryView: View {
 
 #if DEBUG
     #Preview("Ranked", traits: .fixedLayout(width: 170, height: 80)) {
-        YearTotalsRectangularAccessoryView(snapshot: WidgetSnapshot(
-            day: .now,
-            year: 2026,
-            dayRegions: [.california],
-            totals: [.california: 132, .newYork: 41, .canada: 9, .other: 2],
-        ))
+        YearTotalsRectangularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot())
     }
 
     #Preview("Empty", traits: .fixedLayout(width: 170, height: 80)) {
-        YearTotalsRectangularAccessoryView(snapshot: WidgetSnapshot(
-            day: .now,
-            year: 2026,
+        YearTotalsRectangularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
             dayRegions: [],
             totals: [:],
         ))

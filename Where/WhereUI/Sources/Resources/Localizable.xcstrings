@@ -1115,6 +1115,28 @@
         }
       }
     },
+    "settings.debug.inspectorLink" : {
+      "comment" : "Label for the navigation link that opens the SwiftData inspector.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "SwiftData Inspector"
+          }
+        }
+      }
+    },
+    "settings.debug.inspectorTitle" : {
+      "comment" : "Navigation title for the SwiftData inspector screen.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "SwiftData"
+          }
+        }
+      }
+    },
     "settings.location.footer" : {
       "extractionState" : "manual",
       "localizations" : {

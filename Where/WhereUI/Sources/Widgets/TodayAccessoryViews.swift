@@ -66,18 +66,14 @@ public struct TodayCircularAccessoryView: View {
 
 #if DEBUG
     #Preview("Inline", traits: .fixedLayout(width: 200, height: 30)) {
-        TodayInlineAccessoryView(snapshot: WidgetSnapshot(
-            day: .now,
-            year: 2026,
+        TodayInlineAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
             dayRegions: [.california, .newYork],
             totals: [.california: 132, .newYork: 41],
         ))
     }
 
     #Preview("Circular", traits: .fixedLayout(width: 80, height: 80)) {
-        TodayCircularAccessoryView(snapshot: WidgetSnapshot(
-            day: .now,
-            year: 2026,
+        TodayCircularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
             dayRegions: [.california, .newYork],
             totals: [.california: 132, .newYork: 41],
         ))

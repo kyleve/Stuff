@@ -34,15 +34,7 @@ struct OnboardingViewTests {
     @Test func onboardingViewRenders() throws {
         // Onboarding reads both the app model and the logged-in session; the
         // injected services build the session up front, so inject both.
-        let model = try WhereModel(
-            services: WhereServices(
-                store: SwiftDataStore.inMemory(),
-                locationSource: ScriptedLocationSource(),
-                reminderScheduler: NoopLoggingReminderScheduler(),
-                summaryScheduler: NoopDailySummaryScheduler(),
-                widgetRefresher: NoopWidgetTimelineRefresher(),
-            ),
-        )
+        let model = WhereModel(services: PreviewSupport.previewServices())
         let view = OnboardingView(bridge: LifecycleStepUIBridge(reason: .userForeground))
             .environment(model)
             .environment(model.session)

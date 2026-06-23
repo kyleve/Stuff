@@ -28,9 +28,9 @@ struct ManualDayEntryView: View {
     @State private var mode: EntryMode = .singleDay
     @State private var startDate = Date()
     @State private var endDate = Date()
-    @State private var selectedRegions: Set<Region> = []
+    @State private var regionSelection = RegionSelectionState()
+    @State private var saveError = SaveErrorAlertState()
     @State private var isSaving = false
-    @State private var saveError: String?
 
     /// Open with the dates (and single-day vs range mode) preselected — used by
     /// the backfill flow so tapping a missing range lands on a populated form.
@@ -50,7 +50,7 @@ struct ManualDayEntryView: View {
     }
 
     private var canSave: Bool {
-        guard !selectedRegions.isEmpty, !isSaving else { return false }
+        guard !regionSelection.selectedRegions.isEmpty, !isSaving else { return false }
         if mode == .range {
             return endDate >= startDate
         }
@@ -58,6 +58,8 @@ struct ManualDayEntryView: View {
     }
 
     var body: some View {
+        @Bindable var saveError = saveError
+
         Form {
             Section {
                 Picker(Strings.manualEntryPickerLabel, selection: $mode) {
@@ -74,14 +76,8 @@ struct ManualDayEntryView: View {
             }
 
             Section {
-                ForEach(Region.allCases, id: \.self) { region in
-                    Toggle(isOn: binding(for: region)) {
-                        Label {
-                            Text(region.localizedName)
-                        } icon: {
-                            Text(region.style.emoji)
-                        }
-                    }
+                ForEach(regionSelection.items) { item in
+                    RegionToggleRow(item: item)
                 }
             } header: {
                 Text(Strings.manualRegionsHeader)
@@ -102,14 +98,11 @@ struct ManualDayEntryView: View {
         }
         .alert(
             Strings.manualSaveErrorTitle,
-            isPresented: Binding(
-                get: { saveError != nil },
-                set: { if !$0 { saveError = nil } },
-            ),
+            isPresented: $saveError.isPresented,
         ) {
             Button(Strings.commonOK, role: .cancel) {}
         } message: {
-            if let saveError {
+            if let saveError = saveError.message {
                 Text(saveError)
             }
         }
@@ -150,38 +143,28 @@ struct ManualDayEntryView: View {
         }
     }
 
-    private func binding(for region: Region) -> Binding<Bool> {
-        Binding(
-            get: { selectedRegions.contains(region) },
-            set: { isOn in
-                if isOn {
-                    selectedRegions.insert(region)
-                } else {
-                    selectedRegions.remove(region)
-                }
-            },
-        )
-    }
-
     private func save() {
         isSaving = true
-        saveError = nil
+        saveError.message = nil
         Task {
             do {
                 switch mode {
                     case .singleDay:
-                        try await session.setManualDay(date: startDate, regions: selectedRegions)
+                        try await session.setManualDay(
+                            date: startDate,
+                            regions: regionSelection.selectedRegions,
+                        )
                     case .range:
                         try await session.setManualDays(
                             from: startDate,
                             through: endDate,
-                            regions: selectedRegions,
+                            regions: regionSelection.selectedRegions,
                         )
                 }
                 dismiss()
             } catch {
                 // Keep the form up so the user can retry; the save didn't land.
-                saveError = error.localizedDescription
+                saveError.message = error.localizedDescription
                 isSaving = false
             }
         }
@@ -189,10 +172,21 @@ struct ManualDayEntryView: View {
 }
 
 #if DEBUG
-    #Preview {
+    #Preview("Default") {
         NavigationStack {
             ManualDayEntryView()
         }
         .environment(PreviewSupport.loadedSession())
+    }
+
+    #Preview("Prefill range") {
+        NavigationStack {
+            ManualDayEntryView(prefill: MissingDayRange(
+                start: Date(timeIntervalSince1970: 0),
+                end: Date(timeIntervalSince1970: 86400 * 4),
+                dayCount: 5,
+            ))
+        }
+        .environment(PreviewSupport.missingDaysSession())
     }
 #endif

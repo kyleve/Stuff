@@ -84,19 +84,12 @@ public struct YearTotalsWidgetView: View {
 
 #if DEBUG
     #Preview("Ranked totals") {
-        YearTotalsWidgetView(snapshot: WidgetSnapshot(
-            day: .now,
-            year: 2026,
-            dayRegions: [.california],
-            totals: [.california: 132, .newYork: 41, .canada: 9, .europeanUnion: 4, .other: 2],
-        ))
-        .padding()
+        YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot())
+            .padding()
     }
 
     #Preview("Empty") {
-        YearTotalsWidgetView(snapshot: WidgetSnapshot(
-            day: .now,
-            year: 2026,
+        YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
             dayRegions: [],
             totals: [:],
         ))

@@ -75,11 +75,7 @@ private struct MissingDayRow: View {
     }
 
     private var dateRange: String {
-        let format = Date.FormatStyle.dateTime.month(.abbreviated).day()
-        if Calendar.current.isDate(range.start, inSameDayAs: range.end) {
-            return range.start.formatted(format)
-        }
-        return "\(range.start.formatted(format)) – \(range.end.formatted(format))"
+        DateRangeFormatting.abbreviated(start: range.start, end: range.end)
     }
 }
 

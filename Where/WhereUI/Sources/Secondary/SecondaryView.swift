@@ -53,7 +53,7 @@ struct SecondaryView: View {
                 } description: {
                     Text(message)
                 }
-            default:
+            case .idle, .loaded, .loading:
                 if session.ranking.secondary.isEmpty {
                     emptyState
                 } else {

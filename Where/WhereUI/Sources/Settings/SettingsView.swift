@@ -403,7 +403,7 @@ struct SettingsView: View {
                     NavigationLink {
                         SwiftDataInspectorView(configuration: configuration)
                     } label: {
-                        Label("SwiftData Inspector", systemImage: "cylinder.split.1x2")
+                        Label(Strings.settingsDebugInspectorLink, systemImage: "cylinder.split.1x2")
                     }
                 }
             } header: {
