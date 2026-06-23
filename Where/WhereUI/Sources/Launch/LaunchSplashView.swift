@@ -55,18 +55,18 @@ struct LaunchSplashView: View {
     private func icon(named name: String) -> some View {
         let cornerRadius = UIConstants.Size.launchIcon * 0.2237
         return AppIconImage(name: name, size: UIConstants.Size.launchIcon, bordered: false)
-            .scaleEffect(pulsing ? 1.04 : 1)
+            .scaleEffect(pulsing ? 1.1 : 1)
             .background {
                 // A soft brand-tinted glow that breathes with the pulse.
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
                     .fill(Color.accentColor)
                     .blur(radius: 44)
-                    .opacity(0.4)
-                    .scaleEffect(pulsing ? 1.2 : 0.9)
+                    .opacity(pulsing ? 0.55 : 0.3)
+                    .scaleEffect(pulsing ? 1.3 : 0.85)
             }
             .onAppear {
                 guard !reduceMotion else { return }
-                withAnimation(.easeInOut(duration: 1.7).repeatForever(autoreverses: true)) {
+                withAnimation(.easeInOut(duration: 1.3).repeatForever(autoreverses: true)) {
                     pulsing = true
                 }
             }
