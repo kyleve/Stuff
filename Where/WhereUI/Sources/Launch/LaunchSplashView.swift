@@ -24,7 +24,6 @@ import UIKit
 /// static frame so the screen is calm for motion-sensitive users.
 struct LaunchSplashView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var pulsing = false
     @State private var captionVisible = false
 
     /// Preview/test seam: when `nil`, the live selected icon is resolved from
@@ -112,24 +111,35 @@ struct LaunchSplashView: View {
         .ignoresSafeArea()
     }
 
+    /// The pulsing icon. The breath is derived from wall-clock time via a
+    /// `TimelineView` (like the radar) rather than a `@State` toggle, so it stays
+    /// continuous if the view is re-created — which it is when the container
+    /// swaps the bridge-less splash for this same view standing in as the
+    /// migration step's (type-erased, separate-slot) presentation.
     private func icon(named name: String) -> some View {
         let cornerRadius = UIConstants.Size.launchIcon * 0.2237
-        return AppIconImage(name: name, size: UIConstants.Size.launchIcon, bordered: false)
-            .scaleEffect(pulsing ? 1.1 : 1)
-            .background {
-                // A soft brand-tinted glow that breathes with the pulse.
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.accentColor)
-                    .blur(radius: 44)
-                    .opacity(pulsing ? 0.55 : 0.3)
-                    .scaleEffect(pulsing ? 1.3 : 0.85)
-            }
-            .onAppear {
-                guard !reduceMotion else { return }
-                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                    pulsing = true
+        return TimelineView(.animation(paused: reduceMotion)) { timeline in
+            let pulse = reduceMotion ? 0 : Self.pulsePhase(at: timeline.date)
+            AppIconImage(name: name, size: UIConstants.Size.launchIcon, bordered: false)
+                .scaleEffect(1 + 0.1 * pulse)
+                .background {
+                    // A soft brand-tinted glow that breathes with the pulse.
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .fill(Color.accentColor)
+                        .blur(radius: 44)
+                        .opacity(0.3 + 0.25 * pulse)
+                        .scaleEffect(0.85 + 0.45 * pulse)
                 }
-            }
+        }
+    }
+
+    /// The icon's breathing phase in `0...1`: a smooth sine of wall-clock time
+    /// with a 1.6s cycle. Because it's a pure function of the clock, a re-created
+    /// view picks up exactly where the old one was instead of snapping to rest.
+    private static func pulsePhase(at date: Date) -> Double {
+        let period = 1.6
+        let t = date.timeIntervalSinceReferenceDate
+        return (sin(t / period * 2 * .pi) + 1) / 2
     }
 
     /// Resolve the preview-catalog image name of the currently selected icon,
