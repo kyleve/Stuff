@@ -293,6 +293,18 @@ enum Strings {
         )
     }
 
+    // MARK: Launch
+
+    /// Spoken by VoiceOver while the launch splash is on screen (the icon and
+    /// radar animation are decorative and hidden from accessibility).
+    static var launchAccessibilityLabel: String {
+        String(
+            localized: "launch.accessibilityLabel",
+            defaultValue: "Loading",
+            bundle: .module,
+        )
+    }
+
     // MARK: Settings
 
     static var settingsTitle: String {

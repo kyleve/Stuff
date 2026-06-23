@@ -65,5 +65,7 @@ enum UIConstants {
         /// flexes with the container (see `AppIconLayout`). The small preview is
         /// derived from the large one, so it needs no separate cap.
         static let appIconPreviewLargeMax: CGFloat = 280
+        /// Edge of the selected app icon shown as the hero on the launch splash.
+        static let launchIcon: CGFloat = 120
     }
 }
