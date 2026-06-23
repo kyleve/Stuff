@@ -122,83 +122,83 @@ Actionable follow-ups from the audit.
 
 ### High priority
 
-- [ ] **WhereCore** — Fix `DailySummaryReconciler.summaryFragment` to pass format args for `summary.notification.regionDays` and plural `summary.notification.dayCount`; add test asserting notification body has no `%` placeholders (**high**, localization, **quick-win**)
+- [x] **WhereCore** — Fix `DailySummaryReconciler.summaryFragment` to pass format args for `summary.notification.regionDays` and plural `summary.notification.dayCount`; add test asserting notification body has no `%` placeholders (**high**, localization, **quick-win**)
 - [ ] **WhereCore** — Reconcile reminders, badge, and daily summary after `BackupCoordinator.importBackup` (not just widgets) (**high**, bug, **needs-design** — part of unified post-write reconcile policy)
 - [ ] **LifecycleKit** — Fix cancel-and-drain during `minVisible` hold in `LifecycleRunner` (treat cancellation after `hold()`, gate `.ready` on current drive) (**high**, bug, **needs-design**)
 - [ ] **LifecycleKit** — Add test superseding drive during `minVisible` (teardown/enterForeground while hold is active) (**high**, test, **quick-win** — after LifecycleKit fix lands)
-- [ ] **WhereTesting** — Fix `show()` child VC lifecycle order (`addChild` → attach → `didMove`; reverse on teardown) (**high**, bug, **quick-win**)
+- [x] **WhereTesting** — Fix `show()` child VC lifecycle order (`addChild` → attach → `didMove`; reverse on teardown) (**high**, bug, **quick-win**)
 - [ ] **WhereTesting** — Split UIKit-only test helpers from `InMemoryKeyValueStore` so hosted bundles need not link WhereCore (**high**, convention, **needs-design**)
 - [ ] **WhereUI** — Serialize `WhereSession.trackingEnabled` mutations (cancel/coalesce in-flight start/stop tasks) (**high**, bug, **needs-design**)
-- [ ] **SwiftDataInspector** — Resolve to-one relationships when value is bare `PersistentIdentifier` (fall back to schema destination type) (**high**, bug, **quick-win**)
+- [x] **SwiftDataInspector** — Resolve to-one relationships when value is bare `PersistentIdentifier` (fall back to schema destination type) (**high**, bug, **quick-win**)
 - [ ] **SwiftDataInspector** — Improve `EntityTableView` scalability for wide schemas (cap/virtualize columns or row summary drill-in) (**high**, performance, **needs-design**)
-- [ ] **LogViewerUI** — Cache `filteredEntries` (and invalidate on entry/filter changes) instead of recomputing on every body pass/keystroke (**high**, performance, **quick-win**)
+- [x] **LogViewerUI** — Cache `filteredEntries` (and invalidate on entry/filter changes) instead of recomputing on every body pass/keystroke (**high**, performance, **quick-win**)
 
 ### Medium priority — WhereCore
 
 - [ ] Call `DailySummaryReconciler.reconcile()` from GPS ingest hook and presence-changing `DayJournal` write paths (**medium**, bug, **needs-design** — part of unified post-write reconcile policy)
 - [ ] Call `ReminderReconciler.reconcile()` from `DayJournal.ingest` / `addManualSample` paths that change presence (**medium**, bug, **needs-design** — part of unified post-write reconcile policy)
-- [ ] Skip full `reminders.reconcile()` on `LocationIngestor.start()` when drain yields empty `changedDays` (**medium**, performance, **quick-win**)
+- [x] Skip full `reminders.reconcile()` on `LocationIngestor.start()` when drain yields empty `changedDays` (**medium**, performance, **quick-win**)
 - [ ] Consider incremental year-report reads or memoization for widget/reminder hot paths (**medium**, performance, **needs-design**)
-- [ ] Localize `BackupError.errorDescription` strings in `Localizable.xcstrings` (**medium**, localization, **quick-win**)
+- [x] Localize `BackupError.errorDescription` strings in `Localizable.xcstrings` (**medium**, localization, **quick-win**)
 - [ ] Handle durable outbox save failure without silent sample loss on relaunch (**medium**, bug, **needs-design**)
 - [ ] Review retry-queue capacity policy / user-visible degradation at 1000-sample eviction (**medium**, bug, **needs-design**)
-- [ ] Remove raw `Date` values from production log messages in `DayJournal` / `WidgetSnapshotPublisher` (**medium**, convention, **quick-win**)
-- [ ] Add test for retry-queue FIFO eviction at capacity 1000 (**low**, test, **quick-win**)
+- [x] Remove raw `Date` values from production log messages in `DayJournal` / `WidgetSnapshotPublisher` (**medium**, convention, **quick-win**)
+- [x] Add test for retry-queue FIFO eviction at capacity 1000 (**low**, test, **quick-win**)
 - [ ] Add tests for post-import reconcile and summary body updates without re-`configure` (**low**, test, **quick-win**)
-- [ ] Break ties deterministically in `DayAggregator.representativeCoordinates` (**low**, bug, **quick-win**)
-- [ ] Fix `SDLocationSample.toValue()` corrupt `sourceRaw` handling (prefer fault or `.unknown`) (**low**, bug, **quick-win**)
-- [ ] Consolidate duplicated `iso(_:)` / `calendar()` test helpers into shared WhereCore test support (**low**, duplication, **quick-win**)
-- [ ] Replace bare `default:` in `LoggingReminderSchedulerTests` fake with explicit cases + `@unknown default` (**low**, convention, **quick-win**)
+- [x] Break ties deterministically in `DayAggregator.representativeCoordinates` (**low**, bug, **quick-win**)
+- [x] Fix `SDLocationSample.toValue()` corrupt `sourceRaw` handling (prefer fault or `.unknown`) (**low**, bug, **quick-win**)
+- [x] Consolidate duplicated `iso(_:)` / `calendar()` test helpers into shared WhereCore test support (**low**, duplication, **quick-win**)
+- [x] Replace bare `default:` in `LoggingReminderSchedulerTests` fake with explicit cases + `@unknown default` (**low**, convention, **quick-win**)
 
 ### Medium priority — WhereUI
 
-- [ ] Replace closure `Binding(get:set:)` save-error alerts in `ManualDayEntryView` and `DayRelabelView` with computed properties (**medium**, convention, **quick-win**)
-- [ ] Replace closure `binding(for:)` region toggles with observable bindable state (**medium**, convention, **quick-win**)
-- [ ] Enumerate all `WhereSession.LoadState` cases in `PrimaryView` / `SecondaryView` (remove bare `default:`) (**medium**, convention, **quick-win**)
-- [ ] Add `#Preview` for `AppIconImage` and elsewhere-only `PrimaryView` state (**medium**, convention, **quick-win**)
-- [ ] Add DEBUG SwiftData Inspector strings to catalog and `Strings.swift` (**medium**, localization, **quick-win**)
+- [x] Replace closure `Binding(get:set:)` save-error alerts in `ManualDayEntryView` and `DayRelabelView` with computed properties (**medium**, convention, **quick-win**)
+- [x] Replace closure `binding(for:)` region toggles with observable bindable state (**medium**, convention, **quick-win**)
+- [x] Enumerate all `WhereSession.LoadState` cases in `PrimaryView` / `SecondaryView` (remove bare `default:`) (**medium**, convention, **quick-win**)
+- [x] Add `#Preview` for `AppIconImage` and elsewhere-only `PrimaryView` state (**medium**, convention, **quick-win**)
+- [x] Add DEBUG SwiftData Inspector strings to catalog and `Strings.swift` (**medium**, localization, **quick-win**)
 - [ ] Extract shared `ReportLoadGate` for duplicated load-state UI across tabs (**medium**, duplication, **needs-design**)
 - [ ] Extract shared region-selection form logic from `ManualDayEntryView` / `DayRelabelView` (**medium**, duplication, **needs-design**)
 - [ ] Batch or cap concurrent geocoding in `RegionDaysView` day rows (**medium**, performance, **needs-design**)
-- [ ] Add `ScreenHostingTests` coverage for `ManualDayEntryView` (default and prefill modes) (**medium**, test, **quick-win**)
+- [x] Add `ScreenHostingTests` coverage for `ManualDayEntryView` (default and prefill modes) (**medium**, test, **quick-win**)
 
 ### Medium priority — LifecycleKit
 
 - [ ] Extend fuzz tests to cover interactive steps, cancel-and-drain, `enterForeground`, and teardown (**medium**, test, **needs-design**)
-- [ ] Localize `LifecycleFailureView` via module string catalog + `bundle: .module` (**medium**, localization, **quick-win**)
-- [ ] Add container test: background launch → `.ready` → `enterForeground()` → content renders (**medium**, test, **quick-win**)
-- [ ] Fail fast on duplicate step IDs in release builds (**medium**, bug, **quick-win**)
-- [ ] Add regression test or assertion for background `.work` step calling `waitForResolution()` (**medium**, test, **quick-win**)
+- [x] Localize `LifecycleFailureView` via module string catalog + `bundle: .module` (**medium**, localization, **quick-win**)
+- [x] Add container test: background launch → `.ready` → `enterForeground()` → content renders (**medium**, test, **quick-win**)
+- [x] Fail fast on duplicate step IDs in release builds (**medium**, bug, **quick-win**)
+- [x] Add regression test or assertion for background `.work` step calling `waitForResolution()` (**medium**, test, **quick-win**)
 
 ### Medium priority — SwiftDataInspector
 
 - [ ] Debounce or off-main search filtering in `EntityTableView` (**medium**, performance, **needs-design**)
-- [ ] Skip redundant `inspectorCount` when fetch proves truncation (**medium**, performance, **quick-win**)
-- [ ] Add tests for AGENTS.md gaps: schema reflection, `columnCharacterCounts`, batch fetch, unknown relationships, non-array to-many (**medium**, test, **quick-win**)
-- [ ] Align `Sendable` docs with type conformances (**medium**, convention, **quick-win**)
-- [ ] Document or guard `rowLimit: nil` unbounded fetch footgun (**medium**, performance, **quick-win**)
+- [x] Skip redundant `inspectorCount` when fetch proves truncation (**medium**, performance, **quick-win**)
+- [x] Add tests for AGENTS.md gaps: schema reflection, `columnCharacterCounts`, batch fetch, unknown relationships, non-array to-many (**medium**, test, **quick-win**) *(partial — top 3 AGENTS.md gaps)*
+- [x] Align `Sendable` docs with type conformances (**medium**, convention, **quick-win**)
+- [x] Document or guard `rowLimit: nil` unbounded fetch footgun (**medium**, performance, **quick-win**)
 - [ ] Split monolithic test file; add hosted UI smoke tests for major views (**medium**, test, **needs-design**)
 
 ### Medium priority — LogKit & LogViewerUI
 
-- [ ] Fix `LogStore.changes()` registration race (initial yield vs concurrent `record`) (**medium**, bug, **quick-win**)
-- [ ] Add test: cancelled `changes()` stream unregisters via `onTermination` (**medium**, test, **quick-win**)
-- [ ] Add concurrent stress test for monotonic snapshot delivery (**medium**, test, **quick-win**)
-- [ ] Defer `LogViewer` export string generation until share is initiated (**medium**, performance, **quick-win**)
-- [ ] Search `LogViewerModel` using `categoryDisplayName`, not raw category id (**medium**, bug, **quick-win**)
-- [ ] Fix empty state when filters match nothing (distinct from store-empty) (**medium**, bug, **quick-win**)
-- [ ] Add async test for `LogViewerModel.observe()` live updates (**medium**, test, **quick-win**)
-- [ ] Strengthen hosting tests beyond `view != nil` (**medium**, test, **quick-win**)
-- [ ] Cache `LogViewerModel.categories` alongside `entries` updates (**medium**, performance, **quick-win**)
+- [x] Fix `LogStore.changes()` registration race (initial yield vs concurrent `record`) (**medium**, bug, **quick-win**)
+- [x] Add test: cancelled `changes()` stream unregisters via `onTermination` (**medium**, test, **quick-win**)
+- [x] Add concurrent stress test for monotonic snapshot delivery (**medium**, test, **quick-win**)
+- [x] Defer `LogViewer` export string generation until share is initiated (**medium**, performance, **quick-win**)
+- [x] Search `LogViewerModel` using `categoryDisplayName`, not raw category id (**medium**, bug, **quick-win**)
+- [x] Fix empty state when filters match nothing (distinct from store-empty) (**medium**, bug, **quick-win**)
+- [x] Add async test for `LogViewerModel.observe()` live updates (**medium**, test, **quick-win**)
+- [x] Strengthen hosting tests beyond `view != nil` (**medium**, test, **quick-win**)
+- [x] Cache `LogViewerModel.categories` alongside `entries` updates (**medium**, performance, **quick-win**)
 
 ### Medium priority — WhereWidgets & Where app
 
 - [ ] Handle stale widget snapshot after midnight in `WhereWidgetProvider.loadEntry` (**medium**, bug, **needs-design** — product decision on empty-today vs stale display)
-- [ ] Localize widget gallery `configurationDisplayName` / `description` (**medium**, localization, **quick-win**)
+- [x] Localize widget gallery `configurationDisplayName` / `description` (**medium**, localization, **quick-win**)
 - [ ] Add WhereWidgets test target or extract testable timeline helpers (**medium**, test, **needs-design**)
-- [ ] Add `Where/WhereWidgets/README.md` and `AGENTS.md` (**medium**, convention, **quick-win**)
+- [x] Add `Where/WhereWidgets/README.md` and `AGENTS.md` (**medium**, convention, **quick-win**)
 - [ ] Make `AppDelegate.launcher` safe before SwiftUI reads it (non-optional or gated `WindowGroup`) (**medium**, bug, **needs-design**)
-- [ ] Replace placeholder `WhereTests` with real app-shell / launch-reason tests (**medium**, test, **quick-win**)
+- [x] Replace placeholder `WhereTests` with real app-shell / launch-reason tests (**medium**, test, **quick-win**)
 - [ ] Extract and test `WhereLaunch.reason(from launchOptions:)` (**medium**, test, **needs-design** — pairs with launch wiring refactor)
 - [ ] Map additional UIKit launch options to `LifecycleReason` or document supported set (**medium**, bug, **needs-design**)
 - [ ] Verify/add `UIBackgroundModes` location for CoreLocation background relaunch (**medium**, bug, **needs-design**)
@@ -206,98 +206,101 @@ Actionable follow-ups from the audit.
 
 ### Medium priority — infrastructure modules
 
-- [ ] Add `README.md` and `AGENTS.md` to StuffCore, WhereTesting, WhereWidgets, StuffTestHost (**medium**, convention, **quick-win**)
-- [ ] Add `testScheme(name: "StuffCoreTests")` to `Project.swift` (**medium**, test, **quick-win**)
-- [ ] Document StuffTestHost `Bundle.module` embedding contract in module AGENTS.md (**medium**, convention, **quick-win**)
-- [ ] Add StuffTestHost smoke test (key window + root VC after launch) (**medium**, test, **quick-win**)
-- [ ] Fix `WhereTesting.show()` `layer.speed` reset on trap (defer at function entry) (**medium**, bug, **quick-win**)
+- [x] Add `README.md` and `AGENTS.md` to StuffCore, WhereTesting, WhereWidgets, StuffTestHost (**medium**, convention, **quick-win**)
+- [x] Add `testScheme(name: "StuffCoreTests")` to `Project.swift` (**medium**, test, **quick-win**)
+- [x] Document StuffTestHost `Bundle.module` embedding contract in module AGENTS.md (**medium**, convention, **quick-win**)
+- [x] Add StuffTestHost smoke test (key window + root VC after launch) (**medium**, test, **quick-win**)
+- [x] Fix `WhereTesting.show()` `layer.speed` reset on trap (defer at function entry) (**medium**, bug, **quick-win**)
 - [ ] Add `WhereTestingTests` for store fidelity, `show` failure, and `waitFor` timeout (**medium**, test, **needs-design** — may follow WhereTesting split)
-- [ ] Move `LifecycleContainerTests.renders(within:_:)` polling into WhereTesting (**medium**, duplication, **quick-win**)
+- [x] Move `LifecycleContainerTests.renders(within:_:)` polling into WhereTesting (**medium**, duplication, **quick-win**)
 
 ### Low priority / polish
 
 #### WhereCore
-- [ ] Reorder `DayAggregator` doc comments (`yearInterval` vs `CellTally`) (**low**, formatting, **quick-win**)
+- [x] Reorder `DayAggregator` doc comments (`yearInterval` vs `CellTally`) (**low**, formatting, **quick-win**)
 
 #### WhereUI
-- [ ] Add `PreviewSupport.sampleWidgetSnapshot(...)` and use in widget previews (**low**, convention, **quick-win**)
-- [ ] Add named `#Preview`s for distinct visual states (failure, empty timeline, prefill, etc.) (**low**, convention, **quick-win**)
-- [ ] Add `RootView` preview with `PreviewSupport.loadedModel()` for logged-in shell (**low**, convention, **quick-win**)
-- [ ] Extract shared date-range formatting from `PresenceTimelineView` / `MissingDaysView` (**low**, duplication, **quick-win**)
-- [ ] Reuse `PreviewSupport.previewServices()` in onboarding tests (**low**, duplication, **quick-win**)
+- [x] Add `PreviewSupport.sampleWidgetSnapshot(...)` and use in widget previews (**low**, convention, **quick-win**)
+- [x] Add named `#Preview`s for distinct visual states (failure, empty timeline, prefill, etc.) (**low**, convention, **quick-win**)
+- [x] Add `RootView` preview with `PreviewSupport.loadedModel()` for logged-in shell (**low**, convention, **quick-win**)
+- [x] Extract shared date-range formatting from `PresenceTimelineView` / `MissingDaysView` (**low**, duplication, **quick-win**)
+- [x] Reuse `PreviewSupport.previewServices()` in onboarding tests (**low**, duplication, **quick-win**)
 - [ ] Profile `RegionSummaryCard` Canvas rosette; cache or reduce rings if needed (**low**, performance, **needs-design** — optimize only if profiling warrants)
 - [ ] Make `LocationNamer` cancellation-aware (**low**, performance, **needs-design**)
-- [ ] Standardize `Strings.swift` localization call style (**low**, formatting, **quick-win**)
-- [ ] Update stale `WhereModel` comments in `RegionSummaryCard` (**low**, convention, **quick-win**)
-- [ ] Remove redundant `.environment(session)` on sheets if not required (**low**, convention, **quick-win**)
+- [x] Standardize `Strings.swift` localization call style (**low**, formatting, **quick-win**)
+- [x] Update stale `WhereModel` comments in `RegionSummaryCard` (**low**, convention, **quick-win**)
+- [x] Remove redundant `.environment(session)` on sheets if not required (**low**, convention, **quick-win**)
 
 #### LifecycleKit
 - [ ] Extract shared drive scaffolding in `LifecycleRunner` (**low**, duplication, **needs-design** — touch carefully alongside cancel-and-drain fix)
-- [ ] Handle unmatched failed step ID in `retry()` explicitly (**low**, bug, **quick-win**)
-- [ ] Review `LifecycleRunnerProxy` Sendable / MainActor isolation (**low**, convention, **quick-win**)
-- [ ] Move shared `waitUntil` to LifecycleKit test support file (**low**, test, **quick-win**)
-- [ ] Assert per-step attempt counts in flaky-retry fuzz test (**low**, test, **quick-win**)
+- [x] Handle unmatched failed step ID in `retry()` explicitly (**low**, bug, **quick-win**)
+- [x] Review `LifecycleRunnerProxy` Sendable / MainActor isolation (**low**, convention, **quick-win**)
+- [x] Move shared `waitUntil` to LifecycleKit test support file (**low**, test, **quick-win**)
+- [x] Assert per-step attempt counts in flaky-retry fuzz test (**low**, test, **quick-win**)
 
 #### SwiftDataInspector
-- [ ] Extract shared optional-unwrapping helper (**low**, duplication, **quick-win**)
-- [ ] Fix `relatedReferences` early return → `continue` on keypath miss (**low**, bug, **quick-win**)
-- [ ] Update `InspectorRowSet.isTruncated` doc comment (**low**, formatting, **quick-win**)
-- [ ] Move `ModelContext` fetch helpers out of reflection file (**low**, convention, **quick-win**)
-- [ ] Add direct `binaryDescription` and pinned `Date` format tests (**low**, test, **quick-win**)
-- [ ] Clarify `modelTypes: nil` vs `[]` in public docs (**low**, convention, **quick-win**)
-- [ ] Improve column width heuristic for wide characters (**low**, performance, **quick-win**)
+- [x] Extract shared optional-unwrapping helper (**low**, duplication, **quick-win**)
+- [x] Fix `relatedReferences` early return → `continue` on keypath miss (**low**, bug, **quick-win**)
+- [x] Update `InspectorRowSet.isTruncated` doc comment (**low**, formatting, **quick-win**)
+- [x] Move `ModelContext` fetch helpers out of reflection file (**low**, convention, **quick-win**)
+- [x] Add direct `binaryDescription` and pinned `Date` format tests (**low**, test, **quick-win**)
+- [x] Clarify `modelTypes: nil` vs `[]` in public docs (**low**, convention, **quick-win**)
+- [x] Improve column width heuristic for wide characters (**low**, performance, **quick-win**)
 
 #### LogKit
-- [ ] Gate `LogChannelTests` store assertions with `#if DEBUG` (**low**, test, **quick-win**)
+- [x] Gate `LogChannelTests` store assertions with `#if DEBUG` (**low**, test, **quick-win**)
 - [ ] Consider ring buffer for `LogStore` eviction (**low**, performance, **needs-design**)
-- [ ] Add multi-observer `changes()` test (**low**, test, **quick-win**)
-- [ ] Restrict or document direct `LogStore.record` DEBUG-only contract (**low**, convention, **quick-win**)
+- [x] Add multi-observer `changes()` test (**low**, test, **quick-win**)
+- [x] Restrict or document direct `LogStore.record` DEBUG-only contract (**low**, convention, **quick-win**)
 
 #### LogViewerUI
-- [ ] Close init snapshot vs `.task` observation gap (**low**, bug, **quick-win**)
-- [ ] Add combined-filter and mapped-export model tests (**low**, test, **quick-win**)
-- [ ] Deduplicate level label formatting (**low**, duplication, **quick-win**)
-- [ ] Hoist ISO8601 formatter to static property (**low**, performance, **quick-win**)
-- [ ] Group model tests in struct suite for consistency (**low**, convention, **quick-win**)
-- [ ] Add explicit `@Bindable` in `LogViewer.body` (**low**, convention, **quick-win**)
+- [x] Close init snapshot vs `.task` observation gap (**low**, bug, **quick-win**)
+- [x] Add combined-filter and mapped-export model tests (**low**, test, **quick-win**)
+- [x] Deduplicate level label formatting (**low**, duplication, **quick-win**)
+- [x] Hoist ISO8601 formatter to static property (**low**, performance, **quick-win**)
+- [x] Group model tests in struct suite for consistency (**low**, convention, **quick-win**)
+- [x] Add explicit `@Bindable` in `LogViewer.body` (**low**, convention, **quick-win**)
 
 #### WhereWidgets
-- [ ] Downgrade expected empty snapshot log to `warning`; distinguish entitlement failures (**low**, convention, **quick-win**)
-- [ ] Replace bare `default:` on `WidgetFamily` with explicit cases + `@unknown default` (**low**, convention, **quick-win**)
-- [ ] Centralize `WidgetSnapshot` fixture factory (**low**, duplication, **quick-win**)
-- [ ] Reuse shared `Calendar` instead of new `DayAggregator()` per load (**low**, performance, **quick-win**)
+- [x] Downgrade expected empty snapshot log to `warning`; distinguish entitlement failures (**low**, convention, **quick-win**)
+- [x] Replace bare `default:` on `WidgetFamily` with explicit cases + `@unknown default` (**low**, convention, **quick-win**)
+- [x] Centralize `WidgetSnapshot` fixture factory (**low**, duplication, **quick-win**)
+- [x] Reuse shared `Calendar` instead of new `DayAggregator()` per load (**low**, performance, **quick-win**)
 - [ ] Add cross-process publish/read integration test or document gap (**low**, test, **needs-design**)
 
 #### Where app
 - [ ] Move launch-reason mapping into WhereUI; thin `AppDelegate` (**low**, convention, **needs-design** — pairs with launch wiring refactor)
-- [ ] Deduplicate launch logging between AppDelegate and `WhereLaunch` (**low**, duplication, **quick-win**)
-- [ ] Remove unused `import LogKit` from AppDelegate (**low**, formatting, **quick-win**)
-- [ ] Add test for production `WhereApp` → `RootView(model:launcher:)` wiring (**low**, test, **quick-win**)
+- [x] Deduplicate launch logging between AppDelegate and `WhereLaunch` (**low**, duplication, **quick-win**)
+- [x] Remove unused `import LogKit` from AppDelegate (**low**, formatting, **quick-win**)
+- [x] Add test for production `WhereApp` → `RootView(model:launcher:)` wiring (**low**, test, **quick-win**)
 
 #### StuffCore
-- [ ] Document scaffold intent / wire first consumer when shared code lands (**low**, convention, **quick-win**)
+- [x] Document scaffold intent / wire first consumer when shared code lands (**low**, convention, **quick-win**)
 - [ ] Replace tautological `version` test when real API exists (**low**, test, **quick-win**)
 
 #### WhereTesting
-- [ ] Harden or remove `UIView.recursiveDescription` force-cast (**medium**, bug, **quick-win**)
-- [ ] Extract duplicate window lookup into `hostKeyWindow()` (**low**, duplication, **quick-win**)
-- [ ] Remove unused public API (`determineAverage`, completion `waitFor`, etc.) (**low**, convention, **quick-win**)
-- [ ] Consolidate `ShowError` / `WaitError` (**low**, duplication, **quick-win**)
-- [ ] Add hosted test asserting appearance/onAppear contract (**low**, test, **quick-win**)
-- [ ] Reorder `WaitError` next to `waitFor` helpers (**low**, formatting, **quick-win**)
+- [x] Harden or remove `UIView.recursiveDescription` force-cast (**medium**, bug, **quick-win**)
+- [x] Extract duplicate window lookup into `hostKeyWindow()` (**low**, duplication, **quick-win**)
+- [x] Remove unused public API (`determineAverage`, completion `waitFor`, etc.) (**low**, convention, **quick-win**)
+- [x] Consolidate `ShowError` / `WaitError` (**low**, duplication, **quick-win**)
+- [x] Add hosted test asserting appearance/onAppear contract (**low**, test, **quick-win**)
+- [x] Reorder `WaitError` next to `waitFor` helpers (**low**, formatting, **quick-win**)
 
 #### StuffTestHost
 - [ ] Deduplicate scene configuration (plist vs `configurationForConnecting`) (**medium**, duplication, **needs-design**)
-- [ ] Rename `TestHostApp.swift` ↔ `AppDelegate` for consistency (**low**, convention, **quick-win**)
-- [ ] Align `@MainActor` on host delegates with production app (**low**, convention, **quick-win**)
+- [x] Rename `TestHostApp.swift` ↔ `AppDelegate` for consistency (**low**, convention, **quick-win**)
+- [x] Align `@MainActor` on host delegates with production app (**low**, convention, **quick-win**)
 - [ ] Document or split WhereCore-always-embedded build trade-off (**medium**, performance, **needs-design**)
 
 ### Summary by effort
 
 | Effort | Count |
 |--------|------:|
-| **quick-win** | 92 |
+| **quick-win** | 89 done / 3 deferred |
 | **needs-design** | 32 |
+
+
+**Quick-win progress (fix/module-audit-quick-wins):** 89 completed, 3 deferred/skipped, 1 partial — see branch commits `06eea39`…`2655cbe`.
 
 Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for items to discuss or spec before coding.
 
