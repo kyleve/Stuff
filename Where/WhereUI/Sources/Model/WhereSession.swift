@@ -1,5 +1,8 @@
 import Foundation
 import Observation
+#if DEBUG
+    import SwiftDataInspector
+#endif
 import WhereCore
 
 /// The logged-in, services-backed state of the Where app: the selected year,
@@ -619,3 +622,19 @@ public final class WhereSession {
         }
     }
 }
+
+#if DEBUG
+    extension WhereSession {
+        /// A read-only SwiftData inspector over the live store, for the DEBUG-only
+        /// developer entry point in Settings. `nil` when the backing store isn't
+        /// SwiftData (e.g. a preview/test fake), so the entry point hides itself.
+        var swiftDataInspectorConfiguration: SwiftDataInspectorConfiguration? {
+            guard let container = services.modelContainer else { return nil }
+            return SwiftDataInspectorConfiguration(
+                container: container,
+                modelTypes: SwiftDataStore.inspectorModelTypes,
+                title: "SwiftData",
+            )
+        }
+    }
+#endif
