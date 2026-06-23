@@ -187,6 +187,12 @@ let project = Project(
             sources: ["Shared/LogKit/Tests/**"],
         ),
         unitTests(
+            name: "LogViewerUITests",
+            bundleIdSuffix: "logviewerui",
+            productDependency: "LogViewerUI",
+            sources: ["Shared/LogViewerUI/Tests/**"],
+        ),
+        unitTests(
             name: "WhereCoreTests",
             bundleIdSuffix: "wherecore",
             productDependency: "WhereCore",
@@ -208,6 +214,7 @@ let project = Project(
     schemes: [
         testScheme(name: "LifecycleKitTests"),
         testScheme(name: "LogKitTests"),
+        testScheme(name: "LogViewerUITests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),

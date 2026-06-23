@@ -11,6 +11,7 @@ let package = Package(
         .library(name: "StuffCore", targets: ["StuffCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LogKit", targets: ["LogKit"]),
+        .library(name: "LogViewerUI", targets: ["LogViewerUI"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereTesting", targets: ["WhereTesting"]),
@@ -30,6 +31,13 @@ let package = Package(
         .target(
             name: "LogKit",
             path: "Shared/LogKit/Sources",
+        ),
+        .target(
+            name: "LogViewerUI",
+            dependencies: [
+                .target(name: "LogKit"),
+            ],
+            path: "Shared/LogViewerUI/Sources",
         ),
         .target(
             name: "WhereCore",
