@@ -66,7 +66,7 @@ struct LaunchSplashView: View {
             }
             .onAppear {
                 guard !reduceMotion else { return }
-                withAnimation(.easeInOut(duration: 1.3).repeatForever(autoreverses: true)) {
+                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
                     pulsing = true
                 }
             }

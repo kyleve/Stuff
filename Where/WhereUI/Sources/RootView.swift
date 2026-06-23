@@ -106,7 +106,7 @@ public struct RootView: View {
     }
 
     private var revealAnimation: Animation {
-        reduceMotion ? .easeInOut(duration: 0.25) : .easeIn(duration: 0.3)
+        reduceMotion ? .easeInOut(duration: 0.2) : .easeIn(duration: 0.18)
     }
 }
 
