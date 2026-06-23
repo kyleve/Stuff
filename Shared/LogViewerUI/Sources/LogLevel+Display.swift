@@ -14,6 +14,11 @@ extension LogLevel {
         }
     }
 
+    /// Uppercased label used in badges and export text.
+    var badgeLabel: String {
+        displayName.uppercased()
+    }
+
     /// Tint used for the level badge, escalating with severity.
     var tint: Color {
         switch self {

@@ -48,9 +48,14 @@ build system, formatting, and global conventions. Read that first.
   lock-scoped (collect continuations under the lock, yield outside it).
 - **`changes()` self-unregisters.** Each stream registers a continuation keyed by
   a `UUID` and clears it in `onTermination`. Preserve that so a cancelled
-  consumer doesn't leak a continuation.
+  consumer doesn't leak a continuation. The initial snapshot is yielded *before*
+  registering the observer so concurrent `record` calls cannot deliver an update
+  ahead of the initial yield.
 - **Capacity eviction is oldest-first** and `capacity` must stay `> 0`
   (precondition in `init`).
+- **Direct `record` is for tests and `LogChannel`.** App call sites should log
+  through `LogChannel`, which only writes to the store in DEBUG builds. Direct
+  `LogStore.record` always retains text regardless of build configuration.
 - **`warning` maps to `OSLogType.default`**, not `.error` — intentional, so
   warnings don't inflate Console error-level queries while still reading as a
   distinct level in the viewer. Keep `LogLevel`'s case order intact:

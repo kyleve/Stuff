@@ -27,6 +27,11 @@ public final class LogStore: Sendable {
     }
 
     /// Append an entry, evicting the oldest if at capacity, and notify observers.
+    ///
+    /// Intended for tests, previews, and the ``LogChannel`` facade — not for
+    /// app call sites. Production logging should go through ``LogChannel``, which
+    /// only writes to the store in DEBUG builds. Direct `record` calls always
+    /// retain text in memory regardless of build configuration.
     public func record(_ entry: LogEntry) {
         let (snapshot, observers) = state.withLock { state -> (
             [LogEntry],
@@ -66,11 +71,11 @@ public final class LogStore: Sendable {
     public func changes() -> AsyncStream<[LogEntry]> {
         let id = UUID()
         return AsyncStream<[LogEntry]> { continuation in
-            let initial = state.withLock { state -> [LogEntry] in
-                state.observers[id] = continuation
-                return state.entries
-            }
+            let initial = state.withLock(\.entries)
             continuation.yield(initial)
+            state.withLock { state in
+                state.observers[id] = continuation
+            }
             continuation.onTermination = { [weak self] _ in
                 self?.state.withLock { state in
                     state.observers[id] = nil

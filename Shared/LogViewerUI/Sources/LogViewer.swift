@@ -15,15 +15,67 @@ public struct LogViewer: View {
 
     public init(configuration: LogViewerConfiguration) {
         self.configuration = configuration
-        _model = State(initialValue: LogViewerModel(store: configuration.store))
+        _model = State(initialValue: LogViewerModel(
+            store: configuration.store,
+            categoryDisplayName: configuration.categoryDisplayName,
+        ))
     }
 
     public var body: some View {
+        @Bindable var model = model
         content
             .navigationTitle(configuration.title)
-            .toolbar { toolbarContent }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Menu {
+                        Picker("Level", selection: $model.minimumLevel) {
+                            ForEach(LogLevel.allCases, id: \.self) { level in
+                                Text(level.displayName).tag(level)
+                            }
+                        }
+
+                        Picker("Category", selection: $model.selectedCategory) {
+                            Text("All Categories").tag(String?.none)
+                            ForEach(model.categories, id: \.self) { category in
+                                Text(configuration.categoryDisplayName(category))
+                                    .tag(String?.some(category))
+                            }
+                        }
+                    } label: {
+                        Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        ShareLink(
+                            item: LogExportItem(
+                                entries: model.filteredEntries.reversed(),
+                                categoryDisplayName: configuration.categoryDisplayName,
+                            ),
+                            preview: SharePreview("Logs"),
+                        ) {
+                            Label("Share Logs", systemImage: "square.and.arrow.up")
+                        }
+                        Button(role: .destructive) {
+                            showClearConfirmation = true
+                        } label: {
+                            Label("Clear Logs", systemImage: "trash")
+                        }
+                    } label: {
+                        Label("More", systemImage: "ellipsis.circle")
+                    }
+                    .confirmationDialog(
+                        "Clear all captured logs?",
+                        isPresented: $showClearConfirmation,
+                        titleVisibility: .visible,
+                    ) {
+                        Button("Clear Logs", role: .destructive) { model.clear() }
+                        Button("Cancel", role: .cancel) {}
+                    }
+                }
+            }
             .searchable(text: $model.searchText)
-            .task { await model.observe() }
     }
 
     @ViewBuilder
@@ -33,6 +85,12 @@ public struct LogViewer: View {
                 "No Logs",
                 systemImage: "doc.text.magnifyingglass",
                 description: Text("Logs captured this session will appear here."),
+            )
+        } else if model.hasNoFilterMatches {
+            ContentUnavailableView(
+                "No Matching Logs",
+                systemImage: "line.3.horizontal.decrease.circle",
+                description: Text("Try adjusting your filters or search."),
             )
         } else {
             List(model.filteredEntries) { entry in
@@ -51,52 +109,19 @@ public struct LogViewer: View {
             .listStyle(.plain)
         }
     }
+}
 
-    @ToolbarContentBuilder
-    private var toolbarContent: some ToolbarContent {
-        ToolbarItem(placement: .primaryAction) {
-            Menu {
-                Picker("Level", selection: $model.minimumLevel) {
-                    ForEach(LogLevel.allCases, id: \.self) { level in
-                        Text(level.displayName).tag(level)
-                    }
-                }
+/// Defers plain-text export until the share sheet requests the payload.
+private struct LogExportItem: Transferable {
+    let entries: [LogEntry]
+    let categoryDisplayName: @Sendable (String) -> String
 
-                Picker("Category", selection: $model.selectedCategory) {
-                    Text("All Categories").tag(String?.none)
-                    ForEach(model.categories, id: \.self) { category in
-                        Text(configuration.categoryDisplayName(category))
-                            .tag(String?.some(category))
-                    }
-                }
-            } label: {
-                Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
-            }
-        }
-
-        ToolbarItem(placement: .topBarTrailing) {
-            Menu {
-                ShareLink(item: model
-                    .exportText(categoryDisplayName: configuration.categoryDisplayName))
-                {
-                    Label("Share Logs", systemImage: "square.and.arrow.up")
-                }
-                Button(role: .destructive) {
-                    showClearConfirmation = true
-                } label: {
-                    Label("Clear Logs", systemImage: "trash")
-                }
-            } label: {
-                Label("More", systemImage: "ellipsis.circle")
-            }
-            .confirmationDialog(
-                "Clear all captured logs?",
-                isPresented: $showClearConfirmation,
-                titleVisibility: .visible,
-            ) {
-                Button("Clear Logs", role: .destructive) { model.clear() }
-                Button("Cancel", role: .cancel) {}
-            }
+    static var transferRepresentation: some TransferRepresentation {
+        ProxyRepresentation { item in
+            LogViewerModel.formatExportText(
+                entries: item.entries,
+                categoryDisplayName: item.categoryDisplayName,
+            )
         }
     }
 }
@@ -130,7 +155,7 @@ private struct LevelBadge: View {
     let level: LogLevel
 
     var body: some View {
-        Text(level.displayName.uppercased())
+        Text(level.badgeLabel)
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)

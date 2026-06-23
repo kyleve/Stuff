@@ -66,6 +66,8 @@ public struct LogEntry: Sendable, Identifiable, Hashable {
 
 public final class LogStore: Sendable {
     public init(capacity: Int = 1000)
+    /// Append an entry. Prefer ``LogChannel`` in app code — it only writes to
+    /// the store in DEBUG builds; direct `record` always retains text.
     public func record(_ entry: LogEntry)
     public func snapshot() -> [LogEntry]            // oldest first
     public func clear()
@@ -84,8 +86,13 @@ public struct LogChannel: Sendable {
 then — `#if DEBUG` only — appends a `LogEntry` to its `LogStore`. The store
 guards its state with an `OSAllocatedUnfairLock` (so `record` never hops to the
 main actor) and notifies observers by yielding a fresh snapshot into each
-registered `AsyncStream`; observers are unregistered automatically when their
-stream's consumer cancels. Past `capacity`, the oldest entries are evicted.
+registered `AsyncStream`; the initial snapshot is yielded before registering the
+observer. Observers are unregistered automatically when their stream's consumer
+cancels. Past `capacity`, the oldest entries are evicted.
+
+Direct `LogStore.record` is intended for tests, previews, and the
+`LogChannel` facade — app call sites should log through `LogChannel`, which only
+writes to the buffer in DEBUG builds.
 
 ## The privacy trade-off
 
