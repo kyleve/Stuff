@@ -12,6 +12,7 @@ import WhereCore
 /// down through the environment.
 public struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model: WhereModel
     private let launcher: LifecycleRunner
 
@@ -31,7 +32,13 @@ public struct RootView: View {
     }
 
     public var body: some View {
-        LifecycleContainer(launcher) {
+        LifecycleContainer(
+            launcher,
+            transition: revealTransition,
+            animation: revealAnimation,
+            splash: { LaunchSplashView() },
+            failure: { LifecycleFailureView(failure: $0, retry: $1) },
+        ) {
             TabView {
                 Tab(Strings.tabPrimary, systemImage: "star.fill") {
                     PrimaryView()
@@ -82,6 +89,24 @@ public struct RootView: View {
                 await model.session?.appBecameActive()
             }
         }
+    }
+
+    /// How the launch splash gives way to the app once the runner is `.ready`:
+    /// the splash scales up and fades while the `TabView` stays put beneath it
+    /// (`insertion: .identity`), reading as the icon zooming toward the viewer to
+    /// uncover the UI. Reduce Motion swaps this for a plain crossfade.
+    private var revealTransition: AnyTransition {
+        if reduceMotion {
+            return .opacity
+        }
+        return .asymmetric(
+            insertion: .identity,
+            removal: .scale(scale: 16).combined(with: .opacity),
+        )
+    }
+
+    private var revealAnimation: Animation {
+        reduceMotion ? .easeInOut(duration: 0.35) : .easeIn(duration: 0.55)
     }
 }
 
