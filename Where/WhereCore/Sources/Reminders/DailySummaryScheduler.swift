@@ -104,6 +104,9 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
                 await removeAllOwned()
                 return
             @unknown default:
+                Self.logger.warning(
+                    "Daily summary enabled but notification authorization status is unknown; summary disabled",
+                )
                 await removeAllOwned()
                 return
         }
@@ -145,7 +148,9 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
         )
         do {
             try await center.add(request)
-            Self.logger.info("Scheduled daily summary at \(time.hour):\(time.minute)")
+            Self.logger.info(
+                "Scheduled daily summary at \(String(format: "%02d:%02d", time.hour, time.minute))",
+            )
         } catch {
             Self.logger.error(
                 "Failed to schedule daily summary: \(error.localizedDescription)",

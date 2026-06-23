@@ -171,6 +171,18 @@ public final class WhereSession {
 
     private static let logger = WhereLog.channel(.session)
 
+    /// The authorization the degradation warning was last evaluated against.
+    /// `syncAuthorization()` runs on every foreground, so warning only on a
+    /// *change* keeps a steady degraded state (e.g. When-In-Use) from repeating
+    /// the same line on each one.
+    private var lastWarnedAuthorization: LocationAuthorizationStatus?
+
+    /// Whether the "enabled but notifications not authorized" warning has been
+    /// emitted for the current state, so it fires on entry into that state
+    /// rather than on every configuration apply (which also runs per foreground).
+    private var warnedRemindersUnauthorized = false
+    private var warnedSummaryUnauthorized = false
+
     /// Persisted user intent to track in the background. Effective tracking is
     /// this AND `.always` authorization; we default to `true` so that, once the
     /// user grants Always, tracking resumes automatically on every launch.
@@ -323,9 +335,14 @@ public final class WhereSession {
     }
 
     /// Emit a warning when the live authorization can't support background
-    /// tracking, so the in-app log explains why GPS isn't running. `always` and
-    /// the transient `notDetermined` are expected states and stay quiet.
+    /// tracking, so the in-app log explains why GPS isn't running. Only fires on
+    /// an actual status change — `syncAuthorization()` polls on every foreground,
+    /// so an unconditional warn would repeat the same line each time. `always`
+    /// and the transient `notDetermined` are expected states and stay quiet (but
+    /// still update the dedup marker, so re-entering a degraded state warns).
     private func warnIfAuthorizationDegraded() {
+        guard authorizationStatus != lastWarnedAuthorization else { return }
+        lastWarnedAuthorization = authorizationStatus
         switch authorizationStatus {
             case .always, .notDetermined:
                 break
@@ -371,11 +388,6 @@ public final class WhereSession {
             await services.ingestor.stop()
             isTracking = false
             if wasTracking { Self.logger.info("Background tracking stopped") }
-            if wantsTracking {
-                Self.logger.warning(
-                    "Background tracking wanted but unavailable (authorization: \(authorizationStatus))",
-                )
-            }
         }
     }
 
@@ -524,7 +536,12 @@ public final class WhereSession {
         await services.reminders.configure(enabled: remindersEnabled, time: reminderTime)
         notificationsAuthorized = await services.reminders.isAuthorized()
         if remindersEnabled, !notificationsAuthorized {
-            Self.logger.warning("Logging reminders enabled but notifications not authorized")
+            if !warnedRemindersUnauthorized {
+                Self.logger.warning("Logging reminders enabled but notifications not authorized")
+                warnedRemindersUnauthorized = true
+            }
+        } else {
+            warnedRemindersUnauthorized = false
         }
     }
 
@@ -536,7 +553,12 @@ public final class WhereSession {
         await services.summary.configure(enabled: summaryEnabled, time: summaryTime)
         notificationsAuthorized = await services.reminders.isAuthorized()
         if summaryEnabled, !notificationsAuthorized {
-            Self.logger.warning("Daily summary enabled but notifications not authorized")
+            if !warnedSummaryUnauthorized {
+                Self.logger.warning("Daily summary enabled but notifications not authorized")
+                warnedSummaryUnauthorized = true
+            }
+        } else {
+            warnedSummaryUnauthorized = false
         }
     }
 

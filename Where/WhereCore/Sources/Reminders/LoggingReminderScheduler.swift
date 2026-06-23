@@ -157,6 +157,9 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
                 await setBadge(0)
                 return
             @unknown default:
+                Self.logger.warning(
+                    "Logging reminders enabled but notification authorization status is unknown; reminders disabled",
+                )
                 await removeAllOwnedReminders()
                 await setBadge(0)
                 return
@@ -193,14 +196,22 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
 
         // Schedule new reminders, and replace existing requests whose trigger
         // time no longer matches the user's setting.
-        for (id, day) in desiredIDs where !pendingIDs.contains(id) || pendingToRemove.contains(id) {
+        let toSchedule = desiredIDs.filter { id, _ in
+            !pendingIDs.contains(id) || pendingToRemove.contains(id)
+        }
+        for (id, day) in toSchedule {
             await scheduleReminder(identifier: id, day: day, time: reminderTime)
         }
 
         await setBadge(badgeCount)
-        Self.logger.info(
-            "Reconciled logging reminders (badge: \(badgeCount), scheduled \(desiredIDs.count) day(s))",
-        )
+        // Only log when the reconcile actually changed the schedule — it runs on
+        // every launch/foreground and after every user write, so a no-op
+        // reconcile (the common case) stays quiet.
+        if !pendingToRemove.isEmpty || !staleDelivered.isEmpty || !toSchedule.isEmpty {
+            Self.logger.info(
+                "Reconciled logging reminders (scheduled \(toSchedule.count), removed \(pendingToRemove.count); badge: \(badgeCount))",
+            )
+        }
     }
 
     private func scheduleReminder(identifier: String, day: Date, time: ReminderTime) async {
