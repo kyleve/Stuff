@@ -1,4 +1,7 @@
 import LifecycleKit
+#if DEBUG
+    import SwiftDataInspector
+#endif
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -40,6 +43,9 @@ struct SettingsView: View {
                 backupSection
                 dataSection
                 resetSection
+                #if DEBUG
+                    developerSection
+                #endif
             }
             .navigationTitle(Strings.settingsTitle)
             .sheet(isPresented: $showAppIcon) {
@@ -375,6 +381,28 @@ struct SettingsView: View {
     private func requestReset() {
         Task { await runner.teardown(WhereLaunch.resetSequence(for: model)) }
     }
+
+    #if DEBUG
+        /// Developer-only entry to the generic SwiftData inspector over the live
+        /// store. Hidden unless the session can hand over a SwiftData container, so
+        /// previews and non-SwiftData fakes simply don't show it.
+        @ViewBuilder
+        private var developerSection: some View {
+            if let configuration = session.swiftDataInspectorConfiguration {
+                Section {
+                    NavigationLink {
+                        SwiftDataInspectorView(configuration: configuration)
+                    } label: {
+                        Label("SwiftData Inspector", systemImage: "cylinder.split.1x2")
+                    }
+                } header: {
+                    Text("Developer")
+                } footer: {
+                    Text("Browse the on-device SwiftData store. Debug builds only.")
+                }
+            }
+        }
+    #endif
 
     private func openSystemSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
