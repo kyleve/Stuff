@@ -67,5 +67,9 @@ enum UIConstants {
         static let appIconPreviewLargeMax: CGFloat = 280
         /// Edge of the selected app icon shown as the hero on the launch splash.
         static let launchIcon: CGFloat = 120
+        /// Inset from the bottom edge for the launch splash's status caption
+        /// (the "updating your data" line shown during a slow store open), kept
+        /// clear of the home indicator.
+        static let launchCaptionBottomInset: CGFloat = 72
     }
 }

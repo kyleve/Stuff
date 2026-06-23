@@ -1,3 +1,4 @@
+import LifecycleKit
 import SwiftUI
 import UIKit
 
@@ -12,18 +13,31 @@ import UIKit
 /// with a scale-up-and-fade transition that reveals the main UI — that motion
 /// lives at the container seam, not here.
 ///
+/// When a launch step is slow enough to present (e.g. `open-store` running a
+/// SwiftData migration), the same view doubles as that step's UI: passed the
+/// step's `bridge`, it fades a status caption — title, message, and a
+/// determinate bar if the step reports `progress` — in beneath the icon, so a
+/// slow open stays on this one dark canvas instead of flipping to a separate
+/// screen.
+///
 /// Honors Reduce Motion: the pulse and the sweeping rings are pinned to a
 /// static frame so the screen is calm for motion-sensitive users.
 struct LaunchSplashView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var pulsing = false
+    @State private var captionVisible = false
 
     /// Preview/test seam: when `nil`, the live selected icon is resolved from
     /// `UIApplication.shared.alternateIconName` in `body` (on the main actor).
     private let injectedPreviewImageName: String?
 
-    init(previewImageName: String? = nil) {
+    /// The presenting launch step's bridge when this view is standing in for a
+    /// slow step's UI; `nil` for the plain idle splash.
+    private let bridge: LifecycleStepUIBridge?
+
+    init(previewImageName: String? = nil, bridge: LifecycleStepUIBridge? = nil) {
         injectedPreviewImageName = previewImageName
+        self.bridge = bridge
     }
 
     var body: some View {
@@ -32,12 +46,58 @@ struct LaunchSplashView: View {
             background
             RadarPingBackground(animated: !reduceMotion, tint: .accentColor)
             icon(named: imageName)
+
+            if let bridge {
+                VStack {
+                    Spacer()
+                    caption(bridge)
+                        .opacity(captionVisible ? 1 : 0)
+                        .padding(.bottom, UIConstants.Size.launchCaptionBottomInset)
+                }
+                .onAppear {
+                    withAnimation(.easeOut(duration: 0.3)) { captionVisible = true }
+                }
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Strings.launchAccessibilityLabel)
+        .accessibilityLabel(accessibilityLabel)
+    }
+
+    /// VoiceOver reads the migration message (or its title) when a step is
+    /// presenting, otherwise the generic loading label.
+    private var accessibilityLabel: String {
+        guard let bridge else { return Strings.launchAccessibilityLabel }
+        return bridge.message ?? Strings.migrationTitle
+    }
+
+    /// The status block shown below the icon while a step presents: a
+    /// determinate bar when the step reports `progress`, otherwise just the
+    /// title, plus the step's `message` (or a default reassurance). Text is
+    /// pinned light since the backdrop is always dark.
+    private func caption(_ bridge: LifecycleStepUIBridge) -> some View {
+        VStack(spacing: UIConstants.Spacings.large) {
+            if let progress = bridge.progress {
+                ProgressView(value: progress) {
+                    Text(Strings.migrationTitle)
+                }
+                .progressViewStyle(.linear)
+                .tint(.white)
+                .frame(maxWidth: 280)
+            } else {
+                Text(Strings.migrationTitle)
+                    .font(.headline)
+            }
+
+            Text(bridge.message ?? Strings.migrationSubtitle)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.7))
+                .multilineTextAlignment(.center)
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, UIConstants.Spacings.xxxLarge)
     }
 
     /// A subtle vignette — a touch lighter at the center, falling to black — so
@@ -136,7 +196,7 @@ private struct RadarPingBackground: View {
     // `accessibilityReduceMotion` is a read-only environment value, so the
     // motion-pinned variant can't be previewed via `.environment`; at rest the
     // animated splash looks identical to it anyway. These cover the color-mode
-    // variation, which is what changes the rendered icon art.
+    // variation (which changes the rendered icon art) and the migration caption.
     #Preview("Light") {
         LaunchSplashView(previewImageName: "AppIconClassic")
             .environment(\.colorScheme, .light)
@@ -145,5 +205,19 @@ private struct RadarPingBackground: View {
     #Preview("Dark") {
         LaunchSplashView(previewImageName: "AppIconClassic")
             .environment(\.colorScheme, .dark)
+    }
+
+    #Preview("Migration (indeterminate)") {
+        LaunchSplashView(
+            previewImageName: "AppIconClassic",
+            bridge: LifecycleStepUIBridge(reason: .userForeground),
+        )
+    }
+
+    #Preview("Migration (determinate)") {
+        let bridge = LifecycleStepUIBridge(reason: .userForeground)
+        bridge.progress = 0.4
+        bridge.message = "Migrating manual days…"
+        return LaunchSplashView(previewImageName: "AppIconClassic", bridge: bridge)
     }
 #endif

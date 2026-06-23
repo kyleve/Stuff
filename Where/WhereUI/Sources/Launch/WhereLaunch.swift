@@ -91,8 +91,8 @@ public enum WhereLaunch {
             // session is then (re)created from the retained layer. Opening may
             // run a lightweight migration; rather than predict it, key the
             // migration UI off slowness: if the open is still running after a
-            // beat, show MigrationProgressView and hold it for a readable
-            // minimum so a fast open never flashes it.
+            // beat, fade a status caption into the launch splash and hold it for
+            // a readable minimum so a fast open never flashes it.
             LifecycleStep.work(LaunchStepID.openStore) { _ in
                 guard model.session == nil else { return }
                 if !model.hasServices {
@@ -101,7 +101,7 @@ public enum WhereLaunch {
                 model.startSession()
             }
             .presenting(after: .milliseconds(500), minVisible: .seconds(1)) {
-                MigrationProgressView(bridge: $0)
+                LaunchSplashView(bridge: $0)
             }
 
             // First run only. `LifecycleStep.interactive` defaults to
