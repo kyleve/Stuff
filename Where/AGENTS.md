@@ -124,9 +124,18 @@ boundary, never SwiftData records.
 
 ### Logging
 
-All `WhereCore` `os.Logger` instances use subsystem
-`"com.stuff.where"` with a per-type category. Match that when
-adding new loggers so Console.app filtering stays consistent.
+All logging goes through
+[`WhereLog`](WhereCore/Sources/WhereLog.swift), the central facade over
+[`LogKit`](../Shared/LogKit). Get a logger with
+`WhereLog.channel(_:)`, passing a typed `WhereLog.Category` rather than a
+raw string — add a case there to introduce a new category (its raw value
+is the Console.app category, all under subsystem `"com.stuff.where"`).
+Each `LogChannel` fans out to `os.Logger` (Console.app) and, in DEBUG
+builds, into the process-wide `WhereLog.store` buffer the in-app log
+viewer reads (Settings → Developer → Logs, DEBUG only — see
+[`LogViewerUI`](../Shared/LogViewerUI)). Messages are plain `String`s, so
+per-argument `os` privacy annotations are not available; the facade logs
+as `.public`, so keep PII out of log messages.
 
 ## App model & launch (`WhereUI`)
 

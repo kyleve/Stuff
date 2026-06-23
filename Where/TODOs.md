@@ -37,7 +37,6 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 ## P2s (Nice to have)
 - The `guard let controller else { return }` in the WhereModel in WhereUI is weird
 - Raw data browser (similar to SD browser)
-- Clean up and centralize loggers into a logging module? We have several separate loggers
 - Move `let calendar = Calendar.current` into a var on the controller? There’s a few of these
 - Move test only code behind @_spi
 - Add comments to strings in xcstrings files
@@ -56,3 +55,4 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - Remove `caption(forRank rank: Int) -> String?`, I don’t want the caption
 
 ## P2s (Nice to have)
+- refactor: Clean up and centralize loggers into a logging module — added the `LogKit` facade (`WhereLog.channel`) and a DEBUG-only in-app log viewer (`LogViewerUI`, Settings → Developer → Logs)
