@@ -35,6 +35,10 @@ public struct LogChannel: Sendable {
         emit(.notice, message())
     }
 
+    public func warning(_ message: @autoclosure () -> String) {
+        emit(.warning, message())
+    }
+
     public func error(_ message: @autoclosure () -> String) {
         emit(.error, message())
     }

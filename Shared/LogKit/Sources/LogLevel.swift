@@ -8,6 +8,7 @@ public enum LogLevel: Int, Sendable, Comparable, CaseIterable, Codable {
     case debug
     case info
     case notice
+    case warning
     case error
     case fault
 
@@ -16,12 +17,16 @@ public enum LogLevel: Int, Sendable, Comparable, CaseIterable, Codable {
     }
 
     /// The `OSLogType` the facade logs this level as. `notice` is unified
-    /// logging's default level, so it maps to `.default`.
+    /// logging's default level, so it maps to `.default`. Apple's unified
+    /// logging has no dedicated warning level, so `warning` also maps to
+    /// `.default` (the in-app viewer still shows it as a distinct level);
+    /// keeping it off `.error` avoids inflating Console error-level queries.
     public var osLogType: OSLogType {
         switch self {
             case .debug: .debug
             case .info: .info
             case .notice: .default
+            case .warning: .default
             case .error: .error
             case .fault: .fault
         }

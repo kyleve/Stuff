@@ -54,6 +54,18 @@ func searchMatchesMessageAndCategory() {
 
 @MainActor
 @Test
+func warningFiltersBetweenNoticeAndError() {
+    let store = LogStore()
+    store.record(LogEntry(level: .notice, subsystem: "s", category: "C", message: "n"))
+    store.record(LogEntry(level: .warning, subsystem: "s", category: "C", message: "w"))
+    store.record(LogEntry(level: .error, subsystem: "s", category: "C", message: "e"))
+    let model = LogViewerModel(store: store)
+    model.minimumLevel = .warning
+    #expect(model.filteredEntries.map(\.message) == ["e", "w"])
+}
+
+@MainActor
+@Test
 func clearEmptiesModelEntries() {
     let model = LogViewerModel(store: seededStore())
     model.clear()

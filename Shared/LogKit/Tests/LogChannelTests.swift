@@ -9,12 +9,13 @@ func channelRecordsEachLevelIntoStore() {
     channel.debug("d")
     channel.info("i")
     channel.notice("n")
+    channel.warning("w")
     channel.error("e")
     channel.fault("f")
 
     let entries = store.snapshot()
-    #expect(entries.map(\.level) == [.debug, .info, .notice, .error, .fault])
-    #expect(entries.map(\.message) == ["d", "i", "n", "e", "f"])
+    #expect(entries.map(\.level) == [.debug, .info, .notice, .warning, .error, .fault])
+    #expect(entries.map(\.message) == ["d", "i", "n", "w", "e", "f"])
     #expect(entries.allSatisfy { $0.subsystem == "com.test" && $0.category == "Sample" })
 }
 

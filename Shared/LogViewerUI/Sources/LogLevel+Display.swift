@@ -8,6 +8,7 @@ extension LogLevel {
             case .debug: "Debug"
             case .info: "Info"
             case .notice: "Notice"
+            case .warning: "Warning"
             case .error: "Error"
             case .fault: "Fault"
         }
@@ -19,6 +20,7 @@ extension LogLevel {
             case .debug: .gray
             case .info: .blue
             case .notice: .teal
+            case .warning: .yellow
             case .error: .orange
             case .fault: .red
         }
