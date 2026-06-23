@@ -1,4 +1,5 @@
 import LifecycleKit
+import LogViewerUI
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -38,6 +39,9 @@ struct SettingsView: View {
                 appIconSection
                 manualEntrySection
                 backupSection
+                #if DEBUG
+                    debugSection
+                #endif
                 dataSection
                 resetSection
             }
@@ -380,6 +384,27 @@ struct SettingsView: View {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
         openURL(url)
     }
+
+    #if DEBUG
+        /// Debug-only entry into the in-app log viewer, reading the shared
+        /// `WhereLog` buffer every logger writes to. Compiled out of release.
+        private var debugSection: some View {
+            Section {
+                NavigationLink {
+                    LogViewer(configuration: LogViewerConfiguration(
+                        store: WhereLog.store,
+                        title: Strings.settingsDebugLogsTitle,
+                    ))
+                } label: {
+                    Label(Strings.settingsDebugLogsLink, systemImage: "ladybug")
+                }
+            } header: {
+                Text(Strings.settingsDebugHeader)
+            } footer: {
+                Text(Strings.settingsDebugFooter)
+            }
+        }
+    #endif
 }
 
 #if DEBUG

@@ -385,6 +385,28 @@ enum Strings {
         )
     }
 
+    // MARK: Settings debug
+
+    static var settingsDebugHeader: String {
+        String(localized: "settings.debug.header", defaultValue: "Developer", bundle: .module)
+    }
+
+    static var settingsDebugLogsLink: String {
+        String(localized: "settings.debug.logsLink", defaultValue: "Logs", bundle: .module)
+    }
+
+    static var settingsDebugFooter: String {
+        String(
+            localized: "settings.debug.footer",
+            defaultValue: "Logs captured during this session. Debug builds only.",
+            bundle: .module,
+        )
+    }
+
+    static var settingsDebugLogsTitle: String {
+        String(localized: "settings.debug.logsTitle", defaultValue: "Logs", bundle: .module)
+    }
+
     // MARK: App icon picker
 
     static var appIconTitle: String {

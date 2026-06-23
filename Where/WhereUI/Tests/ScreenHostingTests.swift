@@ -1,3 +1,4 @@
+import LogViewerUI
 import SwiftUI
 import Testing
 import WhereCore
@@ -90,6 +91,16 @@ struct ScreenHostingTests {
 
     @Test func appIconViewHosts() throws {
         let rootView = NavigationStack { AppIconView(model: .preview()) }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func debugLogViewerHostsWithSharedStore() throws {
+        // The Settings debug entry pushes this viewer over WhereLog's buffer.
+        let rootView = NavigationStack {
+            LogViewer(configuration: LogViewerConfiguration(store: WhereLog.store, title: "Logs"))
+        }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
