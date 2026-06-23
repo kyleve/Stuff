@@ -15,6 +15,7 @@ struct WhereWidgetEntry: TimelineEntry {
 /// process after each committed write (see `WidgetTimelineRefreshing`).
 struct WhereWidgetProvider: TimelineProvider {
     private static let logger = WhereLog.channel(.whereWidgets)
+    private static let calendar = WidgetSnapshotFixtures.calendar
 
     func placeholder(in _: Context) -> WhereWidgetEntry {
         .sample
@@ -32,36 +33,32 @@ struct WhereWidgetProvider: TimelineProvider {
 
     func getTimeline(in _: Context, completion: @escaping (Timeline<WhereWidgetEntry>) -> Void) {
         let entry = loadEntry()
-        let calendar = DayAggregator().calendar
-        let nextMidnight = calendar.date(
+        let nextMidnight = Self.calendar.date(
             byAdding: .day,
             value: 1,
-            to: calendar.startOfDay(for: entry.date),
+            to: Self.calendar.startOfDay(for: entry.date),
         ) ?? entry.date.addingTimeInterval(24 * 60 * 60)
         completion(Timeline(entries: [entry], policy: .after(nextMidnight)))
     }
 
     /// Read the latest published snapshot. When none exists yet (fresh
-    /// install, App Group misconfigured, unreadable file) we render an empty
-    /// snapshot rather than failing. We deliberately do *not* invalidate a
-    /// snapshot whose `day` has rolled past today — slightly stale data beats
-    /// showing nothing.
+    /// install, unreadable file) we render an empty snapshot rather than
+    /// failing. We deliberately do *not* invalidate a snapshot whose `day`
+    /// has rolled past today — slightly stale data beats showing nothing.
     private func loadEntry() -> WhereWidgetEntry {
         let now = Date()
-        if let snapshot = (try? WidgetSnapshotStore.shared())?.read() {
-            return WhereWidgetEntry(date: now, snapshot: snapshot)
+        do {
+            let store = try WidgetSnapshotStore.shared()
+            if let snapshot = store.read() {
+                return WhereWidgetEntry(date: now, snapshot: snapshot)
+            }
+            Self.logger.warning("No published widget snapshot; rendering empty state")
+        } catch {
+            Self.logger.error("Widget App Group unavailable: \(error)")
         }
-        Self.logger.error("No published widget snapshot; rendering empty state")
-        let calendar = DayAggregator().calendar
-        let day = calendar.startOfDay(for: now)
         return WhereWidgetEntry(
             date: now,
-            snapshot: WidgetSnapshot(
-                day: day,
-                year: calendar.component(.year, from: day),
-                dayRegions: [],
-                totals: [:],
-            ),
+            snapshot: WidgetSnapshotFixtures.emptySnapshot(referenceDate: now),
         )
     }
 }
@@ -70,14 +67,12 @@ extension WhereWidgetEntry {
     /// Believable fixture for placeholders and the widget gallery.
     static var sample: WhereWidgetEntry {
         let now = Date()
-        let calendar = DayAggregator().calendar
         return WhereWidgetEntry(
             date: now,
-            snapshot: WidgetSnapshot(
-                day: calendar.startOfDay(for: now),
-                year: calendar.component(.year, from: now),
+            snapshot: WidgetSnapshotFixtures.snapshot(
                 dayRegions: [.california],
                 totals: [.california: 132, .newYork: 41, .canada: 9],
+                referenceDate: now,
             ),
         )
     }

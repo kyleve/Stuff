@@ -1,6 +1,7 @@
 import LifecycleKit
 import LogKit
 import SwiftUI
+import UIKit
 import UserNotifications
 import WhereCore
 
@@ -48,6 +49,15 @@ public enum LaunchStepID: String {
 @MainActor
 public enum WhereLaunch {
     private static let logger = WhereLog.channel(.launch)
+
+    /// Maps UIKit launch options to the lifecycle reason the runner consumes.
+    /// A CoreLocation key means iOS relaunched the process headless to service
+    /// a location event; everything else is treated as a user foreground launch.
+    public static func lifecycleReason(
+        from launchOptions: [UIApplication.LaunchOptionsKey: Any]?,
+    ) -> LifecycleReason {
+        launchOptions?[.location] != nil ? .background(.location) : .userForeground
+    }
 
     /// Build the runner for `model`, launching for `reason`.
     ///

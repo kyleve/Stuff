@@ -22,15 +22,13 @@
             dayRegions: Set<Region>,
             totals: [Region: Int],
         ) -> WhereWidgetEntry {
-            let calendar = DayAggregator().calendar
-            let day = calendar.startOfDay(for: .now)
+            let now = Date()
             return WhereWidgetEntry(
-                date: .now,
-                snapshot: WidgetSnapshot(
-                    day: day,
-                    year: calendar.component(.year, from: day),
+                date: now,
+                snapshot: WidgetSnapshotFixtures.snapshot(
                     dayRegions: dayRegions,
                     totals: totals,
+                    referenceDate: now,
                 ),
             )
         }

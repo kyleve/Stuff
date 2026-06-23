@@ -119,6 +119,7 @@ let project = Project(
                 ]),
             ]),
             sources: ["Where/WhereWidgets/Sources/**"],
+            resources: ["Where/WhereWidgets/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
                 .package(product: "LogKit"),
@@ -135,7 +136,9 @@ let project = Project(
             sources: ["Where/Where/Tests/**"],
             dependencies: [
                 .target(name: "Where"),
+                .package(product: "LifecycleKit"),
                 .package(product: "WhereTesting"),
+                .package(product: "WhereUI"),
             ],
         ),
         .target(
