@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 /// The Where feature's service layer: a small `Sendable` container of the
 /// focused collaborators that, together, do everything the old `WhereController`
@@ -25,6 +26,11 @@ public struct WhereServices: Sendable {
     public let journal: DayJournal
     /// Backup export / import.
     public let backup: BackupCoordinator
+    /// The live SwiftData container when the backing store is the production
+    /// `SwiftDataStore`; `nil` for non-SwiftData stores (e.g. test fakes).
+    /// Surfaced only for read-only debug tooling (the SwiftData inspector) so
+    /// SwiftData never has to route through the value-type `WhereStore` boundary.
+    public let modelContainer: ModelContainer?
 
     public init(
         store: any WhereStore,
@@ -106,6 +112,7 @@ public struct WhereServices: Sendable {
         self.ingestor = ingestor
         self.journal = journal
         self.backup = backup
+        modelContainer = (store as? SwiftDataStore)?.inspectorContainer
     }
 
     /// Return the services to a clean slate for the app's "erase all data &
