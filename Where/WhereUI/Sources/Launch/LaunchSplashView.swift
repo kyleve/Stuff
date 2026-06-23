@@ -48,11 +48,13 @@ struct LaunchSplashView: View {
             RadarPingBackground(animated: !reduceMotion, tint: .accentColor)
             icon(named: imageName)
 
-            VStack {
-                Spacer()
-                caption
-                    .opacity(showCaption ? 1 : 0)
-                    .padding(.bottom, UIConstants.Size.launchCaptionBottomInset)
+            if showCaption {
+                VStack {
+                    Spacer()
+                    caption
+                        .padding(.bottom, UIConstants.Size.launchCaptionBottomInset)
+                }
+                .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -100,7 +102,7 @@ struct LaunchSplashView: View {
     }
 
     private func icon(named name: String) -> some View {
-        let cornerRadius = UIConstants.Size.launchIcon * 0.2237
+        let cornerRadius = UIConstants.Size.launchIcon * AppIconImage.cornerRadiusRatio
         return AppIconImage(name: name, size: UIConstants.Size.launchIcon, bordered: false)
             .scaleEffect(pulsing ? 1.1 : 1)
             .background {

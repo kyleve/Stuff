@@ -253,13 +253,18 @@ struct AppIconView: View {
 /// hero on its own backdrop (e.g. the launch splash) and the border would read
 /// as a stray outline.
 struct AppIconImage: View {
+    /// Fraction of an icon's side length used for its rounded corners — Apple's
+    /// continuous-corner superellipse proportion (~22.37%). Shared so every
+    /// icon rendering (the picker thumbnail here, the launch splash hero) reads
+    /// as the same squircle.
+    static let cornerRadiusRatio: CGFloat = 0.2237
+
     let name: String
     let size: CGFloat
     var bordered = true
 
     private var cornerRadius: CGFloat {
-        // ~22.37% of the side length is Apple's icon superellipse proportion.
-        size * 0.2237
+        size * Self.cornerRadiusRatio
     }
 
     var body: some View {
