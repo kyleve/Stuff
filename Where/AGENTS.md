@@ -137,6 +137,18 @@ viewer reads (Settings → Developer → Logs, DEBUG only — see
 per-argument `os` privacy annotations are not available; the facade logs
 as `.public`, so keep PII out of log messages.
 
+Level semantics: `info` marks the **success of an important operation**
+(session lifecycle, year loaded, tracking started/stopped, store opened,
+backup export/import, widget published); `warning` marks a
+**degraded-but-handled** state the app recovered from (When-In-Use/denied
+location, retry-queue saturation, missing Application Support or backup
+asset, reminders/summary enabled without notification authorization);
+`error`/`fault` stay reserved for outright failures. `warning` maps to
+`OSLogType.default`, so it shows as a distinct level in the in-app viewer
+without inflating Console's error-level queries. There is no fine-grained
+`.debug` tracing on the hot paths (per-GPS-sample persist, per-day reminder
+scheduling, widget throttle/skip) — those stay quiet by design.
+
 ## App model & launch (`WhereUI`)
 
 The app target is tiny; `WhereUI` owns the model layer and the launch flow,
