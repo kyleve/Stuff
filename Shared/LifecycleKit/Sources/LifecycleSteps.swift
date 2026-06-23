@@ -54,12 +54,11 @@ public struct LifecycleSteps {
 
     /// Step IDs must be unique within a sequence: retry/teardown resume by
     /// matching `LifecycleFailure.stepID` against `step.id`, so a duplicate would
-    /// make resumption ambiguous. Debug-only — a release build trusts the caller
-    /// rather than paying the check on every launch.
+    /// make resumption ambiguous.
     private static func assertUniqueIDs(_ steps: [LifecycleStep]) {
         var seen = Set<AnyHashable>()
         let duplicates = steps.map(\.id).filter { !seen.insert($0).inserted }
-        assert(
+        precondition(
             duplicates.isEmpty,
             "LifecycleSteps contains duplicate step IDs: \(duplicates)",
         )

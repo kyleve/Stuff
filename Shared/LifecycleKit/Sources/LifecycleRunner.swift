@@ -120,8 +120,7 @@ public final class LifecycleRunner {
         guard case let .failed(failure) = phase else { return }
         if let teardownIndex = teardownSteps.firstIndex(where: { $0.id == failure.stepID }) {
             Task { await driveTeardown(fromTeardownIndex: teardownIndex) }
-        } else {
-            let startIndex = steps.firstIndex { $0.id == failure.stepID } ?? 0
+        } else if let startIndex = steps.firstIndex(where: { $0.id == failure.stepID }) {
             let reason = reason
             Task { await drive(reason: reason, from: startIndex) }
         }
@@ -243,6 +242,11 @@ public final class LifecycleRunner {
 
         await presentation.hold()
         return .completed
+    }
+
+    /// Injects a failure for `@testable` tests (e.g. stale step IDs in `retry()`).
+    func injectFailureForTesting(_ failure: LifecycleFailure) {
+        phase = .failed(failure)
     }
 }
 

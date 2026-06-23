@@ -102,6 +102,26 @@ struct LifecycleContainerTests {
         }
     }
 
+    @Test func backgroundReadyThenEnterForegroundShowsContent() async throws {
+        var content = false
+        let runner = LifecycleRunner(reason: .background(.location), sequence: LifecycleSteps {})
+        await runner.run()
+        #expect(runner.phase.isReady)
+        #expect(runner.reason.isBackground)
+
+        await runner.enterForeground()
+        #expect(!runner.reason.isBackground)
+        #expect(runner.phase.isReady)
+
+        let container = LifecycleContainer(runner) {
+            ProbeView { content = true }
+        }
+        try show(UIHostingController(rootView: container)) { _ in
+            try waitFor { content }
+        }
+        #expect(content)
+    }
+
     @Test func runningShowsActivePresentation() async throws {
         var presentation = false
         var content = false

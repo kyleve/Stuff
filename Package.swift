@@ -28,6 +28,9 @@ let package = Package(
         .target(
             name: "LifecycleKit",
             path: "Shared/LifecycleKit/Sources",
+            resources: [
+                .process("Resources"),
+            ],
         ),
         .target(
             name: "LogKit",

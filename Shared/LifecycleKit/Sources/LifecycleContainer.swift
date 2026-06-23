@@ -21,6 +21,11 @@ extension EnvironmentValues {
 /// development) and no-ops in release (so a stray reset/retry tap can't crash a
 /// shipping build). Views therefore drive the runner without `guard`ing — the
 /// "is there a runner?" decision lives here, once.
+///
+/// The wrapped `LifecycleRunner` is `@MainActor`; every forwarding entry point
+/// is annotated `@MainActor` accordingly. The struct itself stays `Sendable` so
+/// it can be the `@Entry` default — callers must invoke it from the main actor
+/// (SwiftUI views already do).
 public struct LifecycleRunnerProxy: Sendable {
     let base: LifecycleRunner?
 

@@ -135,5 +135,8 @@ struct LifecycleRunnerFuzzTests {
         #expect(runner.phase.isReady)
         #expect(retries == expectedRetries)
         #expect(succeeded == ids)
+        for index in 0 ..< count {
+            #expect(attempts[index] == failuresBeforeSuccess[index] + 1)
+        }
     }
 }
