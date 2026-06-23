@@ -78,13 +78,9 @@
 
         @MainActor
         static func tablePreview() -> some View {
-            let model = SwiftDataInspectorModel(configuration: populatedConfiguration())
-            model.loadEntities()
-            let entity = model.entities.first { $0.name == "InspectorPreviewBook" }
-                ?? model.entities[0]
-            return NavigationStack {
-                EntityTableView(model: model, entity: entity)
-            }
+            TablePreviewHost(
+                model: SwiftDataInspectorModel(configuration: populatedConfiguration()),
+            )
         }
 
         @MainActor
@@ -93,6 +89,25 @@
             let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
             // Previews can't recover from a broken in-memory store, so trap loudly.
             return try! ModelContainer(for: schema, configurations: [configuration])
+        }
+    }
+
+    /// Loads the model's entities in a `.task` (now async) and then drills into
+    /// the book table, so the table preview renders against real fixtures.
+    private struct TablePreviewHost: View {
+        let model: SwiftDataInspectorModel
+
+        var body: some View {
+            NavigationStack {
+                if let entity = model.entities.first(where: { $0.name == "InspectorPreviewBook" })
+                    ?? model.entities.first
+                {
+                    EntityTableView(model: model, entity: entity)
+                } else {
+                    ProgressView()
+                }
+            }
+            .task { await model.loadEntities() }
         }
     }
 #endif

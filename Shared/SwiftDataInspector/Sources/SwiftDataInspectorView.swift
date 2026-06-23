@@ -31,8 +31,8 @@ public struct SwiftDataInspectorView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search entities")
         .overlay { emptyState }
-        .task { model.loadEntities() }
-        .refreshable { model.loadEntities() }
+        .task { await model.loadEntities() }
+        .refreshable { await model.loadEntities() }
     }
 
     private var filteredEntities: [InspectorEntity] {

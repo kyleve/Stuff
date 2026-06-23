@@ -2,6 +2,10 @@ import Foundation
 import SwiftData
 
 /// A single SwiftData entity (one `@Model` type) as the inspector lists it.
+///
+/// `Sendable` so it can be produced on the background reader actor and handed
+/// back to it when loading rows. The only non-value field is `type`, a metatype,
+/// which is safe to share across actors.
 struct InspectorEntity: Identifiable {
     /// The entity / model name (e.g. "SDEvidence"). Drives the row title and the
     /// list's stable identity.

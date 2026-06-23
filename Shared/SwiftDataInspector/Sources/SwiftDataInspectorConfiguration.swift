@@ -23,14 +23,17 @@ public struct SwiftDataInspectorConfiguration {
 
     /// Optional override for turning a raw stored value into display text. Return
     /// `nil` to fall back to the inspector's built-in formatting.
-    public let valueFormatter: ((Any) -> String?)?
+    ///
+    /// `@Sendable` because formatting runs on the background reader actor; keep
+    /// it pure (don't capture main-actor state).
+    public let valueFormatter: (@Sendable (Any) -> String?)?
 
     public init(
         container: ModelContainer,
         modelTypes: [any PersistentModel.Type]? = nil,
         title: String = "SwiftData",
         rowLimit: Int? = 500,
-        valueFormatter: ((Any) -> String?)? = nil,
+        valueFormatter: (@Sendable (Any) -> String?)? = nil,
     ) {
         self.container = container
         self.modelTypes = modelTypes

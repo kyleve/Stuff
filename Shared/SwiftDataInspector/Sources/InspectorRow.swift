@@ -2,6 +2,9 @@ import Foundation
 
 /// One persisted row, reduced to display strings keyed by column name. A column
 /// missing from `cells` had no stored value for this row.
+///
+/// `Sendable` so a page assembled on the background reader actor can cross back
+/// to the main actor.
 struct InspectorRow: Identifiable {
     /// Position within the fetched page; stable for the lifetime of a `rows(for:)`
     /// result, which is all the list diffing needs.
@@ -17,4 +20,8 @@ struct InspectorRowSet {
     let totalCount: Int
     /// `true` when `rowLimit` capped the page below `totalCount`.
     let isTruncated: Bool
+    /// Longest cell string (in characters) seen per column across this page,
+    /// computed on the reader so the view can size monospaced columns without
+    /// re-scanning every cell on the main thread.
+    let columnCharacterCounts: [String: Int]
 }

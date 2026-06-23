@@ -9,7 +9,7 @@ struct EntityTableView: View {
     let entity: InspectorEntity
 
     @State private var rowSet: InspectorRowSet?
-    @State private var widths: [String: CGFloat] = [:]
+    @State private var characterCounts: [String: Int] = [:]
     @State private var searchText = ""
 
     private let columnSpacing: CGFloat = 20
@@ -29,14 +29,14 @@ struct EntityTableView: View {
         .navigationTitle(entity.name)
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search rows")
-        .task { load() }
-        .refreshable { load() }
+        .task { await load() }
+        .refreshable { await load() }
     }
 
-    private func load() {
-        let set = model.rows(for: entity)
+    private func load() async {
+        let set = await model.rows(for: entity)
         rowSet = set
-        widths = computeWidths(for: set.rows)
+        characterCounts = set.columnCharacterCounts
     }
 
     @ViewBuilder
@@ -122,8 +122,15 @@ struct EntityTableView: View {
             .background(.bar)
     }
 
+    /// Cells are monospaced, so a column's width is the longest string in it
+    /// (header or any cell) times the fixed character advance, clamped to a
+    /// sensible range. The per-cell character counting is done off-main by the
+    /// reader (`columnCharacterCounts`); here it's an O(1) lookup, and it's
+    /// derived from the full page so columns don't reflow while searching.
     private func width(of column: String) -> CGFloat {
-        widths[column] ?? maxColumnWidth
+        let characters = max(column.count, characterCounts[column] ?? 0)
+        let raw = CGFloat(characters) * Self.characterWidth + 12
+        return min(max(raw, minColumnWidth), maxColumnWidth)
     }
 
     private func filtered(_ rows: [InspectorRow]) -> [InspectorRow] {
@@ -137,23 +144,6 @@ struct EntityTableView: View {
     private func footer(for rowSet: InspectorRowSet) -> String? {
         guard rowSet.isTruncated else { return nil }
         return "Showing first \(rowSet.rows.count) of \(rowSet.totalCount) rows"
-    }
-
-    /// Cells are monospaced, so a column's width is derived from the longest
-    /// string in it (header or any cell) times the fixed character advance,
-    /// clamped to a sensible range. Computed once per load from the full page so
-    /// columns don't reflow while searching.
-    private func computeWidths(for rows: [InspectorRow]) -> [String: CGFloat] {
-        var result: [String: CGFloat] = [:]
-        for column in entity.columns {
-            var maxCharacters = column.count
-            for row in rows {
-                maxCharacters = max(maxCharacters, (row.cells[column] ?? "—").count)
-            }
-            let raw = CGFloat(maxCharacters) * Self.characterWidth + 12
-            result[column] = min(max(raw, minColumnWidth), maxColumnWidth)
-        }
-        return result
     }
 
     private static let characterWidth: CGFloat = {
