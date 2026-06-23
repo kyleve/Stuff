@@ -197,7 +197,7 @@ let project = Project(
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
-            extraPackageProducts: ["LifecycleKit"],
+            extraPackageProducts: ["LifecycleKit", "SwiftDataInspector"],
         ),
     ],
     // Tuist's autogeneration doesn't emit working standalone test actions for

@@ -35,6 +35,37 @@ final class TestGadget {
     }
 }
 
+@Model
+final class TestParent {
+    var label: String?
+    @Relationship(deleteRule: .nullify) var children: [TestChild]?
+
+    init(label: String?) {
+        self.label = label
+        children = []
+    }
+}
+
+@Model
+final class TestChild {
+    var name: String?
+
+    init(name: String?) {
+        self.name = name
+    }
+}
+
+@Model
+final class TestBlobHolder {
+    var label: String?
+    @Attribute(.externalStorage) var blob: Data?
+
+    init(label: String?, blob: Data?) {
+        self.label = label
+        self.blob = blob
+    }
+}
+
 @MainActor
 struct SwiftDataInspectorTests {
     private func makeContainer() throws -> ModelContainer {
@@ -208,12 +239,136 @@ struct SwiftDataInspectorTests {
             type: TestWidget.self,
             count: 1,
             columns: ["name", "doesNotExist"],
+            binaryColumns: [],
+            relationshipColumns: [],
         )
         let rowSet = model.rows(for: entity)
         let row = try #require(rowSet.rows.first)
 
         #expect(row.cells["name"] == "Widget 0")
         #expect(row.cells["doesNotExist"] == nil)
+    }
+
+    @Test func externalStorageColumnRendersAsPlaceholderWithoutLoading() throws {
+        let schema = Schema([TestBlobHolder.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let context = container.mainContext
+        context.insert(TestBlobHolder(label: "x", blob: Data(count: 5000)))
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        model.loadEntities()
+        let holder = try #require(model.entities.first { $0.name == "TestBlobHolder" })
+        #expect(holder.binaryColumns.contains("blob"))
+
+        let row = try #require(model.rows(for: holder).rows.first)
+        // External-storage blobs are never faulted in: the cell is a bare
+        // placeholder, not the byte count and not SwiftData's internal future.
+        #expect(row.cells["blob"] == "Data")
+        #expect(row.cells["blob"]?.contains("Future") == false)
+    }
+
+    @Test func inlineDataColumnRendersAsByteCount() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        context.insert(TestWidget(
+            name: "W",
+            quantity: 0,
+            createdAt: Date(timeIntervalSince1970: 0),
+            isEnabled: false,
+            payload: Data(count: 8),
+        ))
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        model.loadEntities()
+        let widget = try #require(model.entities.first { $0.name == "TestWidget" })
+        #expect(widget.binaryColumns.contains("payload"))
+        let row = try #require(model.rows(for: widget).rows.first)
+        #expect(row.cells["payload"] == "8 bytes")
+    }
+
+    @Test func relationshipColumnRendersAsPlaceholder() throws {
+        let schema = Schema([TestParent.self, TestChild.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let context = container.mainContext
+        context.insert(TestParent(label: "P"))
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        model.loadEntities()
+        let parent = try #require(model.entities.first { $0.name == "TestParent" })
+        #expect(parent.relationshipColumns.contains("children"))
+
+        let row = try #require(model.rows(for: parent).rows.first)
+        #expect(row.cells["children"] == "(relationship)")
+        #expect(row.cells["label"] == "P")
+    }
+
+    @Test func refreshPicksUpRowsAddedAfterLoad() throws {
+        let container = try makeContainer()
+        seed(container, widgets: 1, gadgets: 0)
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        model.loadEntities()
+        var widget = try #require(model.entities.first { $0.name == "TestWidget" })
+        #expect(widget.count == 1)
+        #expect(model.rows(for: widget).rows.count == 1)
+
+        // New rows written after the first load must show up on refresh, proving
+        // each read goes through a fresh context rather than a cached snapshot.
+        seed(container, widgets: 2, gadgets: 0)
+        model.loadEntities()
+        widget = try #require(model.entities.first { $0.name == "TestWidget" })
+        #expect(widget.count == 3)
+        #expect(model.rows(for: widget).rows.count == 3)
+    }
+
+    @Test func columnsIncludeRelationshipNames() throws {
+        let schema = Schema([TestParent.self, TestChild.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        model.loadEntities()
+        let parent = try #require(model.entities.first { $0.name == "TestParent" })
+        #expect(parent.columns.contains("label"))
+        #expect(parent.columns.contains("children"))
+    }
+
+    @Test func extractsDateAndBoolThroughBackingData() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        context.insert(TestWidget(
+            name: "W",
+            quantity: 1,
+            createdAt: Date(timeIntervalSince1970: 1000),
+            isEnabled: true,
+            payload: nil,
+        ))
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        model.loadEntities()
+        let widget = try #require(model.entities.first { $0.name == "TestWidget" })
+        let row = try #require(model.rows(for: widget).rows.first)
+
+        #expect(row.cells["isEnabled"] == "true")
+        #expect(row.cells["createdAt"]?.isEmpty == false)
     }
 
     @Test func customValueFormatterOverridesBuiltIn() throws {

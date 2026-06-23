@@ -64,9 +64,16 @@
             return SwiftDataInspectorConfiguration(container: container, title: "Library")
         }
 
+        /// A store the inspector sees as having no model types, so the preview
+        /// exercises the genuine "No Entities" empty state (rather than a schema
+        /// whose tables merely happen to be empty).
         @MainActor
         static func emptyConfiguration() -> SwiftDataInspectorConfiguration {
-            SwiftDataInspectorConfiguration(container: makeContainer(), title: "Library")
+            SwiftDataInspectorConfiguration(
+                container: makeContainer(),
+                modelTypes: [],
+                title: "Library",
+            )
         }
 
         @MainActor
