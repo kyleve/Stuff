@@ -124,9 +124,30 @@ boundary, never SwiftData records.
 
 ### Logging
 
-All `WhereCore` `os.Logger` instances use subsystem
-`"com.stuff.where"` with a per-type category. Match that when
-adding new loggers so Console.app filtering stays consistent.
+All logging goes through
+[`WhereLog`](WhereCore/Sources/WhereLog.swift), the central facade over
+[`LogKit`](../Shared/LogKit). Get a logger with
+`WhereLog.channel(_:)`, passing a typed `WhereLog.Category` rather than a
+raw string — add a case there to introduce a new category (its raw value
+is the Console.app category, all under subsystem `"com.stuff.where"`).
+Each `LogChannel` fans out to `os.Logger` (Console.app) and, in DEBUG
+builds, into the process-wide `WhereLog.store` buffer the in-app log
+viewer reads (Settings → Developer → Logs, DEBUG only — see
+[`LogViewerUI`](../Shared/LogViewerUI)). Messages are plain `String`s, so
+per-argument `os` privacy annotations are not available; the facade logs
+as `.public`, so keep PII out of log messages.
+
+Level semantics: `info` marks the **success of an important operation**
+(session lifecycle, year loaded, tracking started/stopped, store opened,
+backup export/import, widget published); `warning` marks a
+**degraded-but-handled** state the app recovered from (When-In-Use/denied
+location, retry-queue saturation, missing Application Support or backup
+asset, reminders/summary enabled without notification authorization);
+`error`/`fault` stay reserved for outright failures. `warning` maps to
+`OSLogType.default`, so it shows as a distinct level in the in-app viewer
+without inflating Console's error-level queries. There is no fine-grained
+`.debug` tracing on the hot paths (per-GPS-sample persist, per-day reminder
+scheduling, widget throttle/skip) — those stay quiet by design.
 
 ## App model & launch (`WhereUI`)
 

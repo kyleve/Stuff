@@ -1,5 +1,5 @@
 import Foundation
-import os
+import LogKit
 
 /// Owns live GPS ingestion: the location-monitoring lifecycle, the
 /// single-consumer sample stream, the retry queue (mirrored to a durable
@@ -71,10 +71,7 @@ public actor LocationIngestor {
     /// is very wrong with persistence and we'd rather keep recent than ancient.
     private static let retryQueueCapacity = 1000
 
-    private static let logger = Logger(
-        subsystem: "com.stuff.where",
-        category: "LocationIngestor",
-    )
+    private static let logger = WhereLog.channel(.locationIngestor)
 
     init(
         store: any WhereStore,
@@ -110,11 +107,16 @@ public actor LocationIngestor {
         guard !isMonitoring else { return }
         isMonitoring = true
         await locationSource.start()
+        Self.logger.info("GPS monitoring started")
         // Seed the in-memory queue from the durable backlog once, so samples that
         // failed to persist in a prior launch get retried now.
         if !didLoadDurableBacklog {
             didLoadDurableBacklog = true
-            retryQueue = await outbox.load() + retryQueue
+            let restored = await outbox.load()
+            if !restored.isEmpty {
+                Self.logger.info("Restored \(restored.count) sample(s) from durable retry backlog")
+            }
+            retryQueue = restored + retryQueue
         }
         // Flush anything that failed to persist before this session started,
         // before we (re)attach the stream consumer.
@@ -144,6 +146,7 @@ public actor LocationIngestor {
         guard isMonitoring else { return }
         isMonitoring = false
         await locationSource.stop()
+        Self.logger.info("GPS monitoring stopped")
     }
 
     /// Stop ingestion and guarantee nothing else writes until the next
@@ -168,6 +171,7 @@ public actor LocationIngestor {
         // Clear the durable mirror too; the store is about to be erased, so the
         // backlog must not re-drain into it on the next launch.
         await outbox.save([])
+        Self.logger.info("GPS ingestion quiesced; retry backlog cleared")
     }
 
     /// Whether GPS monitoring is currently active. Exposed so the view-model can
@@ -233,7 +237,7 @@ public actor LocationIngestor {
             // running so a transient error doesn't stop tracking, and the sample
             // is queued for retry on the next save attempt.
             Self.logger.error(
-                "Failed to persist GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
+                "Failed to persist GPS sample \(sample.id): \(error.localizedDescription)",
             )
             enqueueForRetry(sample)
             await outbox.save(retryQueue)
@@ -242,6 +246,9 @@ public actor LocationIngestor {
 
     private func enqueueForRetry(_ sample: LocationSample) {
         if retryQueue.count >= Self.retryQueueCapacity {
+            Self.logger.warning(
+                "Retry queue at capacity (\(Self.retryQueueCapacity)); dropping oldest queued GPS sample",
+            )
             retryQueue.removeFirst()
         }
         retryQueue.append(sample)
@@ -261,10 +268,15 @@ public actor LocationIngestor {
                 persistedDays.insert(calendar.startOfDay(for: sample.timestamp))
             } catch {
                 Self.logger.error(
-                    "Retry still failing for GPS sample \(sample.id, privacy: .public): \(error.localizedDescription, privacy: .public)",
+                    "Retry still failing for GPS sample \(sample.id): \(error.localizedDescription)",
                 )
                 enqueueForRetry(sample)
             }
+        }
+        if !persistedDays.isEmpty {
+            Self.logger.info(
+                "Drained retry backlog: persisted \(pending.count - retryQueue.count) sample(s) across \(persistedDays.count) day(s)",
+            )
         }
         await outbox.save(retryQueue)
         return persistedDays

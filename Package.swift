@@ -10,6 +10,8 @@ let package = Package(
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
+        .library(name: "LogKit", targets: ["LogKit"]),
+        .library(name: "LogViewerUI", targets: ["LogViewerUI"]),
         .library(name: "SwiftDataInspector", targets: ["SwiftDataInspector"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
@@ -28,12 +30,24 @@ let package = Package(
             path: "Shared/LifecycleKit/Sources",
         ),
         .target(
+            name: "LogKit",
+            path: "Shared/LogKit/Sources",
+        ),
+        .target(
+            name: "LogViewerUI",
+            dependencies: [
+                .target(name: "LogKit"),
+            ],
+            path: "Shared/LogViewerUI/Sources",
+        ),
+        .target(
             name: "SwiftDataInspector",
             path: "Shared/SwiftDataInspector/Sources",
         ),
         .target(
             name: "WhereCore",
             dependencies: [
+                .target(name: "LogKit"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],
             path: "Where/WhereCore/Sources",
@@ -46,6 +60,8 @@ let package = Package(
             dependencies: [
                 .target(name: "WhereCore"),
                 .target(name: "LifecycleKit"),
+                .target(name: "LogKit"),
+                .target(name: "LogViewerUI"),
                 .target(name: "SwiftDataInspector"),
             ],
             path: "Where/WhereUI/Sources",

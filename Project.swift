@@ -92,6 +92,8 @@ let project = Project(
             entitlements: whereAppGroupEntitlements,
             dependencies: [
                 .package(product: "LifecycleKit"),
+                .package(product: "LogKit"),
+                .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
                 .target(name: "WhereWidgets"),
             ],
@@ -119,6 +121,7 @@ let project = Project(
             sources: ["Where/WhereWidgets/Sources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
+                .package(product: "LogKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
@@ -181,6 +184,18 @@ let project = Project(
             sources: ["Shared/LifecycleKit/Tests/**"],
         ),
         unitTests(
+            name: "LogKitTests",
+            bundleIdSuffix: "logkit",
+            productDependency: "LogKit",
+            sources: ["Shared/LogKit/Tests/**"],
+        ),
+        unitTests(
+            name: "LogViewerUITests",
+            bundleIdSuffix: "logviewerui",
+            productDependency: "LogViewerUI",
+            sources: ["Shared/LogViewerUI/Tests/**"],
+        ),
+        unitTests(
             name: "SwiftDataInspectorTests",
             bundleIdSuffix: "swiftdatainspector",
             productDependency: "SwiftDataInspector",
@@ -197,7 +212,7 @@ let project = Project(
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
-            extraPackageProducts: ["LifecycleKit", "SwiftDataInspector"],
+            extraPackageProducts: ["LifecycleKit", "LogViewerUI", "SwiftDataInspector"],
         ),
     ],
     // Tuist's autogeneration doesn't emit working standalone test actions for
@@ -207,6 +222,8 @@ let project = Project(
     // target a single bundle without building the whole workspace.
     schemes: [
         testScheme(name: "LifecycleKitTests"),
+        testScheme(name: "LogKitTests"),
+        testScheme(name: "LogViewerUITests"),
         testScheme(name: "SwiftDataInspectorTests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),

@@ -1,4 +1,5 @@
 import Foundation
+import LogKit
 import Observation
 import WhereCore
 
@@ -35,6 +36,8 @@ public final class WhereModel {
     private let now: @Sendable () -> Date
     private let initialSelectedYear: Int
 
+    private static let logger = WhereLog.channel(.model)
+
     /// Whether first-run onboarding has been completed. Persisted so onboarding
     /// shows exactly once; the launch flow gates its onboarding step on this,
     /// and the reset/erase flow clears it so onboarding returns.
@@ -47,6 +50,7 @@ public final class WhereModel {
     /// user finishes the intro (after the permission prompt resolves).
     public func completeOnboarding() {
         hasOnboarded = true
+        Self.logger.info("Onboarding completed")
     }
 
     public static var currentYear: Int {
@@ -118,6 +122,7 @@ public final class WhereModel {
             preferences: preferences,
             now: now,
         )
+        Self.logger.info("Started session (year: \(initialSelectedYear))")
     }
 
     /// Drop the logged-in session (the services stay retained). Run by the
@@ -125,6 +130,7 @@ public final class WhereModel {
     /// fresh session over the erased store.
     public func endSession() {
         session = nil
+        Self.logger.info("Ended session")
     }
 
     // MARK: - Reset / erase all
@@ -149,5 +155,6 @@ public final class WhereModel {
     /// again; the re-driven launch's fresh session reads those defaults back.
     public func resetPreferences() {
         preferences.reset()
+        Self.logger.info("Reset preferences to first-install defaults")
     }
 }

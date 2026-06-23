@@ -1,5 +1,5 @@
 import Foundation
-import os
+import LogKit
 
 /// Owns the daily summary recap intent and the reconciliation that recomputes
 /// the year-to-date recap text and pushes it to the summary scheduler.
@@ -21,10 +21,7 @@ public actor DailySummaryReconciler {
     /// body stays short.
     static let defaultRegionLimit = 3
 
-    private static let logger = Logger(
-        subsystem: "com.stuff.where",
-        category: "DailySummaryReconciler",
-    )
+    private static let logger = WhereLog.channel(.dailySummaryReconciler)
 
     init(
         scheduler: any DailySummaryScheduling,
@@ -71,7 +68,7 @@ public actor DailySummaryReconciler {
             )
         } catch {
             Self.logger.error(
-                "Failed to reconcile daily summary: \(error.localizedDescription, privacy: .public)",
+                "Failed to reconcile daily summary: \(error.localizedDescription)",
             )
         }
     }

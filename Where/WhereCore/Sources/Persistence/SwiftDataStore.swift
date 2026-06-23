@@ -1,5 +1,5 @@
 import Foundation
-import os
+import LogKit
 import SwiftData
 
 /// CloudKit-synced `WhereStore` backed by SwiftData. The `@Model` types are
@@ -114,6 +114,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// app/UI layer.
     public static func make(storage: Storage = .default) throws -> SwiftDataStore {
         let container = try makeContainer(storage: storage)
+        logger.info("Opened SwiftData store (mode: \(storage))")
         return SwiftDataStore(modelContainer: container)
     }
 
@@ -133,7 +134,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         [SDLocationSample.self, SDEvidence.self, SDManualDay.self]
     }
 
-    private static let logger = Logger(subsystem: "com.stuff.where", category: "SwiftDataStore")
+    private static let logger = WhereLog.channel(.swiftDataStore)
 
     /// Peer `ModelContext` active for the duration of an outermost
     /// `perform { ... }` block. `nil` outside `perform`. See the
@@ -436,7 +437,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
     private static func logFault<Record>(forCorrupt _: Record) {
         logger.fault(
-            "Dropped corrupt SwiftData record of type \(String(describing: Record.self), privacy: .public)",
+            "Dropped corrupt SwiftData record of type \(String(describing: Record.self))",
         )
     }
 }

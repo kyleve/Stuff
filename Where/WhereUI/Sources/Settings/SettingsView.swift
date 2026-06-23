@@ -1,4 +1,5 @@
 import LifecycleKit
+import LogViewerUI
 #if DEBUG
     import SwiftDataInspector
 #endif
@@ -383,23 +384,32 @@ struct SettingsView: View {
     }
 
     #if DEBUG
-        /// Developer-only entry to the generic SwiftData inspector over the live
-        /// store. Hidden unless the session can hand over a SwiftData container, so
-        /// previews and non-SwiftData fakes simply don't show it.
-        @ViewBuilder
+        /// Developer-only tools, compiled out of release: the in-app log viewer
+        /// over the shared `WhereLog` buffer every logger writes to, plus — when
+        /// the live session can vend a SwiftData container — the generic
+        /// SwiftData inspector (previews and non-SwiftData fakes don't show it).
         private var developerSection: some View {
-            if let configuration = session.swiftDataInspectorConfiguration {
-                Section {
+            Section {
+                NavigationLink {
+                    LogViewer(configuration: LogViewerConfiguration(
+                        store: WhereLog.store,
+                        title: Strings.settingsDebugLogsTitle,
+                    ))
+                } label: {
+                    Label(Strings.settingsDebugLogsLink, systemImage: "ladybug")
+                }
+
+                if let configuration = session.swiftDataInspectorConfiguration {
                     NavigationLink {
                         SwiftDataInspectorView(configuration: configuration)
                     } label: {
                         Label("SwiftData Inspector", systemImage: "cylinder.split.1x2")
                     }
-                } header: {
-                    Text("Developer")
-                } footer: {
-                    Text("Browse the on-device SwiftData store. Debug builds only.")
                 }
+            } header: {
+                Text(Strings.settingsDebugHeader)
+            } footer: {
+                Text(Strings.settingsDebugFooter)
             }
         }
     #endif

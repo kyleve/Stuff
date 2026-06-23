@@ -1,5 +1,5 @@
 import Foundation
-import os
+import LogKit
 import UserNotifications
 
 /// Schedules the single repeating local notification that gives the user a
@@ -56,10 +56,7 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
 
     /// One repeating notification, so a single stable identifier is enough.
     private static let identifier = "com.stuff.where.daily-summary"
-    private static let logger = Logger(
-        subsystem: "com.stuff.where",
-        category: "DailySummaryScheduler",
-    )
+    private static let logger = WhereLog.channel(.dailySummaryScheduler)
 
     public init(center: UNUserNotificationCenter = .current()) {
         self.center = UNUserNotificationCenterAdapter(center: center)
@@ -74,7 +71,7 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
             return try await center.requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
             Self.logger.error(
-                "Notification authorization request failed: \(error.localizedDescription, privacy: .public)",
+                "Notification authorization request failed: \(error.localizedDescription)",
             )
             return false
         }
@@ -101,9 +98,15 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
             case .authorized, .provisional, .ephemeral:
                 break
             case .notDetermined, .denied:
+                Self.logger.warning(
+                    "Daily summary enabled but notification authorization not granted; summary disabled",
+                )
                 await removeAllOwned()
                 return
             @unknown default:
+                Self.logger.warning(
+                    "Daily summary enabled but notification authorization status is unknown; summary disabled",
+                )
                 await removeAllOwned()
                 return
         }
@@ -145,9 +148,12 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
         )
         do {
             try await center.add(request)
+            Self.logger.info(
+                "Scheduled daily summary at \(String(format: "%02d:%02d", time.hour, time.minute))",
+            )
         } catch {
             Self.logger.error(
-                "Failed to schedule daily summary: \(error.localizedDescription, privacy: .public)",
+                "Failed to schedule daily summary: \(error.localizedDescription)",
             )
         }
     }

@@ -1,5 +1,5 @@
 import Foundation
-import os
+import LogKit
 
 /// A durable backlog of GPS samples that failed to persist, so a transient
 /// store outage (SwiftData/CloudKit) that *outlives the process* doesn't
@@ -37,10 +37,7 @@ public struct NoOpLocationOutbox: LocationOutbox {
 public actor FileLocationOutbox: LocationOutbox {
     private let fileURL: URL
 
-    private static let logger = Logger(
-        subsystem: "com.stuff.where",
-        category: "LocationOutbox",
-    )
+    private static let logger = WhereLog.channel(.locationOutbox)
 
     public init(fileURL: URL) {
         self.fileURL = fileURL
@@ -58,8 +55,8 @@ public actor FileLocationOutbox: LocationOutbox {
             appropriateFor: nil,
             create: true,
         ) else {
-            logger.error(
-                "No Application Support directory; location retry backlog won't survive relaunches",
+            logger.warning(
+                "No Application Support directory; using in-memory retry queue (backlog won't survive relaunch)",
             )
             return NoOpLocationOutbox()
         }
@@ -74,7 +71,7 @@ public actor FileLocationOutbox: LocationOutbox {
             // A decode failure means a corrupt or stale-format file; drop it
             // rather than crash-looping on every launch.
             Self.logger.error(
-                "Dropping unreadable location retry backlog: \(error.localizedDescription, privacy: .public)",
+                "Dropping unreadable location retry backlog: \(error.localizedDescription)",
             )
             return []
         }
@@ -90,7 +87,7 @@ public actor FileLocationOutbox: LocationOutbox {
             try data.write(to: fileURL, options: .atomic)
         } catch {
             Self.logger.error(
-                "Failed to persist location retry backlog: \(error.localizedDescription, privacy: .public)",
+                "Failed to persist location retry backlog: \(error.localizedDescription)",
             )
         }
     }

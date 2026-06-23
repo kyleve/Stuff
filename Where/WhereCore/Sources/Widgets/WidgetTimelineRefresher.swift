@@ -1,4 +1,4 @@
-import os
+import LogKit
 import WidgetKit
 
 /// Publishes a freshly-computed `WidgetSnapshot` for the widget extension
@@ -26,16 +26,17 @@ public struct NoopWidgetTimelineRefresher: WidgetTimelineRefreshing {
 /// every kind rather than per-kind because all Where widgets render from the
 /// same snapshot, so any committed change can affect all of them.
 public struct WidgetCenterTimelineRefresher: WidgetTimelineRefreshing {
-    private static let logger = Logger(subsystem: "com.stuff.where", category: "WidgetRefresher")
+    private static let logger = WhereLog.channel(.widgetRefresher)
 
     public init() {}
 
     public func publish(_ snapshot: WidgetSnapshot) async {
         do {
             try WidgetSnapshotStore.shared().write(snapshot)
+            Self.logger.info("Wrote widget snapshot to App Group; reloading timelines")
         } catch {
             Self.logger.error(
-                "Failed to publish widget snapshot: \(error.localizedDescription, privacy: .public)",
+                "Failed to publish widget snapshot: \(error.localizedDescription)",
             )
         }
         WidgetCenter.shared.reloadAllTimelines()

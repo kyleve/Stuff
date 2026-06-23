@@ -1,5 +1,5 @@
 import Foundation
-import os
+import LogKit
 import ZIPFoundation
 
 /// Serializes a whole-database backup to a `.zip` and reads one back.
@@ -49,7 +49,7 @@ public struct BackupService: Sendable {
 
     private static let manifestFilename = "manifest.json"
     private static let assetsDirectory = "assets"
-    private static let logger = Logger(subsystem: "com.stuff.where", category: "BackupService")
+    private static let logger = WhereLog.channel(.backupService)
 
     public init() {}
 
@@ -166,8 +166,8 @@ public struct BackupService: Sendable {
             autoreleasepool {
                 let assetURL = extractDir.appendingPathComponent(entry.filename)
                 guard let data = try? Data(contentsOf: assetURL) else {
-                    Self.logger.fault(
-                        "Backup asset missing for evidence \(entry.evidenceId, privacy: .public); skipping blob",
+                    Self.logger.warning(
+                        "Backup asset missing for evidence \(entry.evidenceId); skipping blob",
                     )
                     return
                 }
