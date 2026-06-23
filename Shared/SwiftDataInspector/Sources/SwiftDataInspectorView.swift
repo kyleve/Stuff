@@ -8,6 +8,13 @@ import SwiftUI
 /// The view expects an ambient `NavigationStack` (it pushes the per-entity table
 /// with a `NavigationLink`), so drop it into a navigation context — a settings
 /// screen, a tab, or a sheet that provides its own stack.
+///
+/// Navigation is deliberately *not* value-based (`NavigationLink(value:)` +
+/// `navigationDestination(for:)`). Consumers push this view into their own stack
+/// with a closure `NavigationLink { SwiftDataInspectorView(...) }`, and mixing a
+/// value-based link into that same stack makes SwiftUI double-push (a tap also
+/// re-fires the consumer's link). So every push here uses a closure
+/// `NavigationLink`/`navigationDestination(item:)`, which composes with any host.
 public struct SwiftDataInspectorView: View {
     @State private var model: SwiftDataInspectorModel
     @State private var searchText = ""

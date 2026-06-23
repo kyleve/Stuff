@@ -38,7 +38,7 @@ final class TestGadget {
 @Model
 final class TestParent {
     var label: String?
-    @Relationship(deleteRule: .nullify) var children: [TestChild]?
+    @Relationship(deleteRule: .nullify, inverse: \TestChild.parent) var children: [TestChild]?
 
     init(label: String?) {
         self.label = label
@@ -49,6 +49,7 @@ final class TestParent {
 @Model
 final class TestChild {
     var name: String?
+    var parent: TestParent?
 
     init(name: String?) {
         self.name = name
@@ -388,5 +389,237 @@ struct SwiftDataInspectorTests {
         #expect(row.cells["payload"] == "<blob>")
         // Non-Data values still use the built-in formatting.
         #expect(row.cells["name"] == "Widget 0")
+    }
+
+    // MARK: Pagination
+
+    @Test func growingThePrefixCoversEveryRowInOneConsistentFetch() async throws {
+        let container = try makeContainer()
+        seed(container, widgets: 5, gadgets: 0)
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container, rowLimit: 2),
+        )
+        await model.loadEntities()
+        let widget = try #require(model.entities.first { $0.name == "TestWidget" })
+
+        // Each page count fetches that many rowLimit-sized pages as one prefix.
+        let page1 = await model.rows(for: widget, pageCount: 1)
+        #expect(page1.rows.count == 2)
+        #expect(page1.totalCount == 5)
+        #expect(page1.isTruncated)
+        #expect(Set(page1.rows.map(\.persistentID)).count == 2)
+
+        let page2 = await model.rows(for: widget, pageCount: 2)
+        #expect(page2.rows.count == 4)
+        #expect(page2.isTruncated)
+        #expect(Set(page2.rows.map(\.persistentID)).count == 4)
+
+        // A big enough prefix returns every row, with no duplicates, and reports
+        // that nothing remains — the whole set comes from a single fetch.
+        let page3 = await model.rows(for: widget, pageCount: 3)
+        #expect(page3.rows.count == 5)
+        #expect(!page3.isTruncated)
+        #expect(Set(page3.rows.map(\.persistentID)).count == 5)
+    }
+
+    @Test func rowsCarryDistinctPersistentIDs() async throws {
+        let container = try makeContainer()
+        seed(container, widgets: 3, gadgets: 0)
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let widget = try #require(model.entities.first { $0.name == "TestWidget" })
+        let rows = await model.rows(for: widget).rows
+
+        #expect(rows.count == 3)
+        #expect(Set(rows.map(\.persistentID)).count == 3)
+    }
+
+    // MARK: Relationship resolution
+
+    private func makeFamilyContainer() throws -> ModelContainer {
+        let schema = Schema([TestParent.self, TestChild.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    @Test func resolvesToManyRelationshipIntoRelatedRows() async throws {
+        let container = try makeFamilyContainer()
+        let context = container.mainContext
+        let parent = TestParent(label: "P")
+        let children = [TestChild(name: "A"), TestChild(name: "B"), TestChild(name: "C")]
+        context.insert(parent)
+        for child in children {
+            context.insert(child)
+        }
+        parent.children = children
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let parentEntity = try #require(model.entities.first { $0.name == "TestParent" })
+        let parentRow = try #require(await model.rows(for: parentEntity).rows.first)
+
+        let related = await model.relatedRows(
+            of: parentRow.persistentID,
+            relationship: "children",
+            sourceType: parentEntity.type,
+        )
+
+        #expect(related.isToMany)
+        #expect(related.entity?.name == "TestChild")
+        #expect(related.rows.count == 3)
+        #expect(Set(related.rows.compactMap { $0.cells["name"] }) == ["A", "B", "C"])
+        // The drilled-in rows still placeholder their own relationships rather
+        // than faulting the graph further.
+        #expect(related.entity?.relationshipColumns.contains("parent") == true)
+        #expect(related.rows.allSatisfy { $0.cells["parent"] == "(relationship)" })
+    }
+
+    @Test func relatedRowsAreCappedToRowLimitButReportTheTrueTotal() async throws {
+        let container = try makeFamilyContainer()
+        let context = container.mainContext
+        let parent = TestParent(label: "P")
+        context.insert(parent)
+        let children = (0 ..< 5).map { TestChild(name: "C\($0)") }
+        for child in children {
+            context.insert(child)
+        }
+        parent.children = children
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container, rowLimit: 2),
+        )
+        await model.loadEntities()
+        let parentEntity = try #require(model.entities.first { $0.name == "TestParent" })
+        let parentRow = try #require(await model.rows(for: parentEntity).rows.first)
+
+        let related = await model.relatedRows(
+            of: parentRow.persistentID,
+            relationship: "children",
+            sourceType: parentEntity.type,
+        )
+
+        #expect(related.isToMany)
+        // Capped to rowLimit so a huge to-many can't fault unbounded rows in, but
+        // the true count is preserved so the UI can say "showing 2 of 5".
+        #expect(related.rows.count == 2)
+        #expect(related.totalCount == 5)
+        // The batch fetch still materializes the kept rows' attributes.
+        #expect(related.rows.allSatisfy { ($0.cells["name"]?.hasPrefix("C")) == true })
+    }
+
+    @Test func resolvesToOneRelationshipIntoSingleRow() async throws {
+        let container = try makeFamilyContainer()
+        let context = container.mainContext
+        let parent = TestParent(label: "Root")
+        let child = TestChild(name: "Solo")
+        context.insert(parent)
+        context.insert(child)
+        child.parent = parent
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let childEntity = try #require(model.entities.first { $0.name == "TestChild" })
+        let childRow = try #require(await model.rows(for: childEntity).rows.first)
+
+        let related = await model.relatedRows(
+            of: childRow.persistentID,
+            relationship: "parent",
+            sourceType: childEntity.type,
+        )
+
+        #expect(!related.isToMany)
+        #expect(related.entity?.name == "TestParent")
+        #expect(related.rows.count == 1)
+        #expect(related.rows.first?.cells["label"] == "Root")
+    }
+
+    @Test func nilToOneRelationshipResolvesToNoRows() async throws {
+        let container = try makeFamilyContainer()
+        let context = container.mainContext
+        // A child with no parent: the to-one faults to nil, which must degrade to
+        // an empty result rather than trapping or inventing a row.
+        context.insert(TestChild(name: "Orphan"))
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let childEntity = try #require(model.entities.first { $0.name == "TestChild" })
+        let childRow = try #require(await model.rows(for: childEntity).rows.first)
+
+        let related = await model.relatedRows(
+            of: childRow.persistentID,
+            relationship: "parent",
+            sourceType: childEntity.type,
+        )
+
+        #expect(related.rows.isEmpty)
+        #expect(related.entity == nil)
+        #expect(related.totalCount == 0)
+    }
+
+    @Test func emptyRelationshipResolvesToNoRows() async throws {
+        let container = try makeFamilyContainer()
+        let context = container.mainContext
+        context.insert(TestParent(label: "Lonely"))
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let parentEntity = try #require(model.entities.first { $0.name == "TestParent" })
+        let parentRow = try #require(await model.rows(for: parentEntity).rows.first)
+
+        let related = await model.relatedRows(
+            of: parentRow.persistentID,
+            relationship: "children",
+            sourceType: parentEntity.type,
+        )
+
+        #expect(related.rows.isEmpty)
+        #expect(related.entity == nil)
+    }
+
+    @Test func relationshipResolutionDegradesWhenSourceRowMissing() async throws {
+        let container = try makeFamilyContainer()
+        let context = container.mainContext
+        let parent = TestParent(label: "P")
+        context.insert(parent)
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let parentEntity = try #require(model.entities.first { $0.name == "TestParent" })
+        let parentRow = try #require(await model.rows(for: parentEntity).rows.first)
+        let staleID = parentRow.persistentID
+
+        // Delete the row, then resolve against its now-stale id: the predicate
+        // fetch finds nothing and the result degrades instead of trapping.
+        context.delete(parent)
+        try context.save()
+
+        let related = await model.relatedRows(
+            of: staleID,
+            relationship: "children",
+            sourceType: parentEntity.type,
+        )
+
+        #expect(related.rows.isEmpty)
+        #expect(related.entity == nil)
     }
 }

@@ -17,8 +17,10 @@ public struct SwiftDataInspectorConfiguration {
     /// Navigation title for the root entity list.
     public let title: String
 
-    /// The most rows fetched per entity, so a huge table can't stall the UI; the
-    /// detail screen notes when results are truncated. `nil` fetches every row.
+    /// The page size for fetching rows, so a huge table can't stall the UI: the
+    /// table loads one page at a time ("load more" grows the window) and drilling
+    /// into a relationship materializes at most this many related rows. The detail
+    /// screens note when results are truncated. `nil` fetches every row at once.
     public let rowLimit: Int?
 
     /// Optional override for turning a raw stored value into display text. Return

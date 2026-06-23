@@ -37,9 +37,23 @@ final class SwiftDataInspectorModel {
         entities = await reader.loadEntities()
     }
 
-    /// Load up to `rowLimit` rows for `entity`, formatted for display, off the
-    /// main thread.
-    func rows(for entity: InspectorEntity) async -> InspectorRowSet {
-        await reader.rows(for: entity)
+    /// Load the first `pageCount` pages (each up to `rowLimit` rows) for `entity`,
+    /// formatted for display, off the main thread. The detail table requests
+    /// `pageCount: 1` first, then a higher count when the user taps "load more" —
+    /// each call returns the whole prefix so the table can replace its rows with
+    /// a single consistent fetch.
+    func rows(for entity: InspectorEntity, pageCount: Int = 1) async -> InspectorRowSet {
+        await reader.rows(for: entity, pageCount: pageCount)
+    }
+
+    /// Resolve a row's relationship into its related rows off the main thread,
+    /// for the detail drill-in. This is the only call that faults a relationship,
+    /// and only because the user tapped into it.
+    func relatedRows(
+        of rowID: PersistentIdentifier,
+        relationship name: String,
+        sourceType: any PersistentModel.Type,
+    ) async -> InspectorRelatedRows {
+        await reader.relatedRows(of: rowID, relationship: name, sourceType: sourceType)
     }
 }
