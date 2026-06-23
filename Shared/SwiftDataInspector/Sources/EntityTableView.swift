@@ -16,7 +16,6 @@ struct EntityTableView: View {
     /// replace.
     @State private var rows: [InspectorRow] = []
     @State private var totalCount = 0
-    @State private var characterCounts: [String: Int] = [:]
     @State private var hasLoaded = false
     @State private var isLoadingMore = false
     @State private var searchText = ""
@@ -60,7 +59,6 @@ struct EntityTableView: View {
         let set = await model.rows(for: entity, pageCount: pageCount)
         rows = set.rows
         totalCount = set.totalCount
-        characterCounts = set.columnCharacterCounts
         hasLoaded = true
     }
 
@@ -76,7 +74,6 @@ struct EntityTableView: View {
         pageCount += 1
         rows = set.rows
         totalCount = set.totalCount
-        characterCounts = set.columnCharacterCounts
     }
 
     private var canLoadMore: Bool {
@@ -197,15 +194,21 @@ struct EntityTableView: View {
         }
     }
 
-    /// Cells are monospaced, so a column's width is the longest string in it
-    /// (header or any cell) times the fixed character advance, clamped to a
-    /// sensible range. The per-cell character counting is done off-main by the
-    /// reader (`columnCharacterCounts`); here it's an O(1) lookup, and it's
-    /// derived from the full page so columns don't reflow while searching.
+    /// Cells are monospaced. Width is measured from the header and every loaded
+    /// cell string in the column (not a character-count × glyph-width heuristic),
+    /// then clamped to a sensible range.
     private func width(of column: String) -> CGFloat {
-        let characters = max(column.count, characterCounts[column] ?? 0)
-        let raw = CGFloat(characters) * Self.characterWidth + 12
-        return min(max(raw, minColumnWidth), maxColumnWidth)
+        var maxWidth = measure(column)
+        for row in rows {
+            if let cell = row.cells[column] {
+                maxWidth = max(maxWidth, measure(cell))
+            }
+        }
+        return min(max(maxWidth + 12, minColumnWidth), maxColumnWidth)
+    }
+
+    private func measure(_ string: String) -> CGFloat {
+        (string as NSString).size(withAttributes: [.font: Self.monospacedFont]).width
     }
 
     private func filtered(_ rows: [InspectorRow]) -> [InspectorRow] {
@@ -216,13 +219,10 @@ struct EntityTableView: View {
         }
     }
 
-    private static let characterWidth: CGFloat = {
-        let font = UIFont.monospacedSystemFont(
-            ofSize: UIFont.preferredFont(forTextStyle: .callout).pointSize,
-            weight: .regular,
-        )
-        return ("0" as NSString).size(withAttributes: [.font: font]).width
-    }()
+    private static let monospacedFont: UIFont = .monospacedSystemFont(
+        ofSize: UIFont.preferredFont(forTextStyle: .callout).pointSize,
+        weight: .regular,
+    )
 }
 
 #if DEBUG
