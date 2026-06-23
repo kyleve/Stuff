@@ -64,7 +64,9 @@ public actor DayJournal {
         try await store.perform { try await store.setManualDay(presence) }
         await reminders.reconcile()
         await widgets.publish()
-        Self.logger.info("Added manual day \(key) with \(regions.count) region(s)")
+        Self.logger.info(
+            "Added manual day \(Self.dayLogLabel(key, calendar: aggregator.calendar)) with \(regions.count) region(s)",
+        )
     }
 
     /// Authoritatively set the regions for a single calendar day, *replacing*
@@ -78,7 +80,9 @@ public actor DayJournal {
         try await store.perform { try await store.setManualDay(presence) }
         await reminders.reconcile()
         await widgets.publish()
-        Self.logger.info("Overrode day \(key) with \(regions.count) region(s)")
+        Self.logger.info(
+            "Overrode day \(Self.dayLogLabel(key, calendar: aggregator.calendar)) with \(regions.count) region(s)",
+        )
     }
 
     /// Drop the manual overlay for a single calendar day, restoring the
@@ -90,7 +94,9 @@ public actor DayJournal {
         try await store.perform { try await store.clearManualDay(key) }
         await reminders.reconcile()
         await widgets.publish()
-        Self.logger.info("Cleared manual overlay for day \(key)")
+        Self.logger.info(
+            "Cleared manual overlay for day \(Self.dayLogLabel(key, calendar: aggregator.calendar))",
+        )
     }
 
     /// Assert `regions` for every calendar day in the inclusive range
@@ -156,5 +162,15 @@ public actor DayJournal {
 
     public func evidenceBlob(for id: UUID) async throws -> Data? {
         try await store.evidenceBlob(for: id)
+    }
+
+    private static func dayLogLabel(_ day: Date, calendar: Calendar) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: day)
+        return String(
+            format: "%04d-%02d-%02d",
+            parts.year ?? 0,
+            parts.month ?? 0,
+            parts.day ?? 0,
+        )
     }
 }

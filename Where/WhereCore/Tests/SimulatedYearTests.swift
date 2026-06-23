@@ -3,7 +3,7 @@ import Testing
 import WhereCore
 
 struct SimulatedYearTests {
-    private static let pacific = TimeZone(identifier: "America/Los_Angeles")!
+    private static let pacific = WhereCoreTestSupport.pacific
 
     private static let calendar: Calendar = {
         var cal = Calendar(identifier: .gregorian)

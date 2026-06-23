@@ -6,8 +6,6 @@ import Testing
 /// backfills, clears, evidence) and the reminder reconcile + widget publish
 /// each one fans out to — the work the controller delegates to `DayJournal`.
 struct DayJournalTests {
-    private static let pacific = TimeZone(identifier: "America/Los_Angeles")!
-
     private struct Harness {
         let journal: DayJournal
         let store: SwiftDataStore
@@ -48,23 +46,20 @@ struct DayJournalTests {
         }
     }
 
-    private static func calendar() -> Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = pacific
-        return calendar
-    }
-
     private static func makeHarness(now: @escaping @Sendable () -> Date = { Date() }) throws
         -> Harness
     {
         let store = try SwiftDataStore.inMemory()
-        let aggregator = DayAggregator(calendar: calendar(), timeZone: pacific)
+        let aggregator = DayAggregator(
+            calendar: WhereCoreTestSupport.calendar(),
+            timeZone: WhereCoreTestSupport.pacific,
+        )
         let reader = ReportReader(store: store, aggregator: aggregator, attributor: .shared)
         let reminderSpy = SpyReminderScheduler()
         let reminders = ReminderReconciler(
             scheduler: reminderSpy,
             reportReader: reader,
-            calendar: calendar(),
+            calendar: WhereCoreTestSupport.calendar(),
             now: now,
         )
         let refresher = SpyRefresher()
@@ -76,7 +71,7 @@ struct DayJournalTests {
             ),
             widgetRefresher: refresher,
             attributor: .shared,
-            calendar: calendar(),
+            calendar: WhereCoreTestSupport.calendar(),
             now: now,
         )
         let journal = DayJournal(
@@ -95,7 +90,7 @@ struct DayJournalTests {
     }
 
     @Test func ingestPersistsAndPublishesOnce() async throws {
-        let h = try Self.makeHarness(now: { iso("2026-03-15T20:00:00-07:00") })
+        let h = try Self.makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00") })
         try await h.journal.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
 
         let report = try await h.reader.yearReport(for: 2026)
@@ -109,7 +104,7 @@ struct DayJournalTests {
             sample(at: "2026-01-10T12:00:00-08:00"),
             sample(at: "2026-01-11T12:00:00-08:00"),
             LocationSample(
-                timestamp: iso("2026-02-01T12:00:00-08:00"),
+                timestamp: WhereCoreTestSupport.iso("2026-02-01T12:00:00-08:00"),
                 coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
@@ -130,9 +125,9 @@ struct DayJournalTests {
     }
 
     @Test func addManualDayReconcilesAndPublishes() async throws {
-        let h = try Self.makeHarness(now: { iso("2026-03-15T09:00:00-07:00") })
+        let h = try Self.makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T09:00:00-07:00") })
         try await h.journal.addManualDay(
-            date: iso("2026-03-03T12:00:00-08:00"),
+            date: WhereCoreTestSupport.iso("2026-03-03T12:00:00-08:00"),
             regions: [.newYork],
         )
 
@@ -147,7 +142,7 @@ struct DayJournalTests {
         let stray = sample(at: "2026-07-04T10:00:00-07:00")
         try await h.journal.ingest(stray)
         try await h.journal.overrideDay(
-            date: iso("2026-07-04T15:00:00-07:00"),
+            date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
         )
 
@@ -161,10 +156,11 @@ struct DayJournalTests {
         let h = try Self.makeHarness()
         try await h.journal.ingest(sample(at: "2026-07-04T10:00:00-07:00"))
         try await h.journal.overrideDay(
-            date: iso("2026-07-04T15:00:00-07:00"),
+            date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
         )
-        try await h.journal.clearManualDay(date: iso("2026-07-04T15:00:00-07:00"))
+        try await h.journal
+            .clearManualDay(date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"))
 
         let report = try await h.reader.yearReport(for: 2026)
         #expect(report.days.first?.regions == [.california])
@@ -173,8 +169,8 @@ struct DayJournalTests {
     @Test func addManualDaysBackfillsEveryDayInRange() async throws {
         let h = try Self.makeHarness()
         try await h.journal.addManualDays(
-            from: iso("2026-02-10T09:00:00-08:00"),
-            through: iso("2026-02-14T20:00:00-08:00"),
+            from: WhereCoreTestSupport.iso("2026-02-10T09:00:00-08:00"),
+            through: WhereCoreTestSupport.iso("2026-02-14T20:00:00-08:00"),
             regions: [.newYork],
         )
 
@@ -186,8 +182,8 @@ struct DayJournalTests {
     @Test func addManualDaysWithStartAfterEndWritesNothing() async throws {
         let h = try Self.makeHarness()
         try await h.journal.addManualDays(
-            from: iso("2026-02-14T00:00:00-08:00"),
-            through: iso("2026-02-10T00:00:00-08:00"),
+            from: WhereCoreTestSupport.iso("2026-02-14T00:00:00-08:00"),
+            through: WhereCoreTestSupport.iso("2026-02-10T00:00:00-08:00"),
             regions: [.california],
         )
 
@@ -196,7 +192,7 @@ struct DayJournalTests {
     }
 
     @Test func clearYearWipesAndReconciles() async throws {
-        let h = try Self.makeHarness(now: { iso("2026-03-15T09:00:00-07:00") })
+        let h = try Self.makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T09:00:00-07:00") })
         try await h.journal.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
         try await h.journal.clearYear(2026)
 
@@ -205,7 +201,7 @@ struct DayJournalTests {
     }
 
     @Test func eraseAllDataWipesEveryYearAndReconciles() async throws {
-        let h = try Self.makeHarness(now: { iso("2026-03-15T09:00:00-07:00") })
+        let h = try Self.makeHarness(now: { WhereCoreTestSupport.iso("2026-03-15T09:00:00-07:00") })
         for year in [2024, 2025, 2026] {
             try await h.journal.ingest(sample(at: "\(year)-03-15T12:00:00-07:00"))
         }
@@ -221,7 +217,7 @@ struct DayJournalTests {
         let h = try Self.makeHarness()
         let evidence = Evidence(
             kind: .planeTicket,
-            capturedAt: iso("2026-04-10T08:00:00-07:00"),
+            capturedAt: WhereCoreTestSupport.iso("2026-04-10T08:00:00-07:00"),
             region: .california,
             note: "SFO → JFK",
             contentType: .plainText,
@@ -236,14 +232,10 @@ struct DayJournalTests {
     private func sample(at isoString: String) -> LocationSample {
         LocationSample(
             id: UUID(),
-            timestamp: iso(isoString),
+            timestamp: WhereCoreTestSupport.iso(isoString),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
         )
     }
-}
-
-private func iso(_ string: String) -> Date {
-    ISO8601DateFormatter().date(from: string) ?? Date(timeIntervalSince1970: 0)
 }

@@ -5,36 +5,52 @@ import Testing
 /// Covers the daily-summary intent + recap reconciliation the controller
 /// delegates `configureDailySummary` to.
 struct DailySummaryReconcilerTests {
-    private static let pacific = TimeZone(identifier: "America/Los_Angeles")!
-
-    private static func calendar() -> Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = pacific
-        return calendar
-    }
-
     private static func makeReconciler(
         now: @escaping @Sendable () -> Date,
     ) throws -> (DailySummaryReconciler, SwiftDataStore, SpyDailySummaryScheduler) {
         let store = try SwiftDataStore.inMemory()
-        let aggregator = DayAggregator(calendar: calendar(), timeZone: pacific)
+        let aggregator = DayAggregator(
+            calendar: WhereCoreTestSupport.calendar(),
+            timeZone: WhereCoreTestSupport.pacific,
+        )
         let reader = ReportReader(store: store, aggregator: aggregator, attributor: .shared)
         let spy = SpyDailySummaryScheduler()
         let reconciler = DailySummaryReconciler(
             scheduler: spy,
             reportReader: reader,
-            calendar: calendar(),
+            calendar: WhereCoreTestSupport.calendar(),
             now: now,
         )
         return (reconciler, store, spy)
     }
 
-    @Test func configureEnabledRequestsAuthorizationAndBuildsABody() async throws {
-        let now = iso("2026-03-15T12:00:00-07:00")
+    @Test func summaryBodyContainsNoFormatPlaceholders() async throws {
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
         let (reconciler, store, spy) = try Self.makeReconciler(now: { now })
         try await store.perform {
             try await store.setManualDay(DayPresence(
-                date: iso("2026-02-01T00:00:00-08:00"),
+                date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
+                regions: [.california],
+            ))
+            try await store.setManualDay(DayPresence(
+                date: WhereCoreTestSupport.iso("2026-02-02T00:00:00-08:00"),
+                regions: [.newYork],
+            ))
+        }
+        await reconciler.configure(enabled: true, time: .defaultMorning)
+
+        let body = try #require(await spy.lastBody)
+        #expect(!body.contains("%"))
+        #expect(body.contains("California"))
+        #expect(body.contains("New York"))
+    }
+
+    @Test func configureEnabledRequestsAuthorizationAndBuildsABody() async throws {
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
+        let (reconciler, store, spy) = try Self.makeReconciler(now: { now })
+        try await store.perform {
+            try await store.setManualDay(DayPresence(
+                date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
                 regions: [.california],
             ))
         }
@@ -47,7 +63,7 @@ struct DailySummaryReconcilerTests {
     }
 
     @Test func configureDisabledClearsTheSummary() async throws {
-        let now = iso("2026-03-15T12:00:00-07:00")
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
         let (reconciler, _, spy) = try Self.makeReconciler(now: { now })
         await reconciler.configure(enabled: false, time: .defaultMorning)
 
@@ -79,8 +95,4 @@ private actor SpyDailySummaryScheduler: DailySummaryScheduling {
         lastTime = time
         lastBody = body
     }
-}
-
-private func iso(_ string: String) -> Date {
-    ISO8601DateFormatter().date(from: string) ?? Date(timeIntervalSince1970: 0)
 }

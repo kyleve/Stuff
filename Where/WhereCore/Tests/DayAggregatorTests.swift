@@ -205,6 +205,21 @@ struct DayAggregatorTests {
         #expect(representatives[.canada] == nil)
     }
 
+    @Test func representativeCoordinateBreaksTiesDeterministically() {
+        // Two California cells with equal sample counts; repeated runs must
+        // pick the same coordinate (lower grid cell index wins on ties).
+        let samples = [
+            makeSample(at: "2026-07-01T12:00:00-07:00", lat: 37.7749, lng: -122.4194),
+            makeSample(at: "2026-07-02T12:00:00-07:00", lat: 37.7750, lng: -122.4195),
+            makeSample(at: "2026-07-03T12:00:00-07:00", lat: 34.0522, lng: -118.2437),
+            makeSample(at: "2026-07-04T12:00:00-07:00", lat: 34.0523, lng: -118.2438),
+        ]
+        let first = aggregator.representativeCoordinates(samples: samples, attributor: attributor)
+        let second = aggregator.representativeCoordinates(samples: samples, attributor: attributor)
+        #expect(first[.california] == second[.california])
+        #expect(first[.california] != nil)
+    }
+
     @Test func reportFiltersOtherYears() {
         let samples = [
             makeSample(at: "2025-12-31T12:00:00-08:00", lat: 37.7749, lng: -122.4194),

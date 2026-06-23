@@ -103,9 +103,11 @@ private final class FakeNotificationReminderCenter: NotificationReminderCenter,
 
     func requestAuthorization(options _: UNAuthorizationOptions) async throws -> Bool {
         switch status {
+            case .notDetermined, .denied:
+                false
             case .authorized, .provisional, .ephemeral:
                 true
-            default:
+            @unknown default:
                 false
         }
     }

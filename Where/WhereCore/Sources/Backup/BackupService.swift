@@ -40,9 +40,21 @@ public struct BackupService: Sendable {
         public var errorDescription: String? {
             switch self {
                 case .manifestMissing:
-                    "This file isn't a Where backup (no manifest was found)."
+                    String(
+                        localized: "backup.error.manifestMissing",
+                        defaultValue: "This file isn't a Where backup (no manifest was found).",
+                        bundle: .module,
+                    )
                 case let .unsupportedFormatVersion(version):
-                    "This backup was created by a newer version of Where (format \(version)) and can't be imported."
+                    String(
+                        format: String(
+                            localized: "backup.error.unsupportedFormatVersion",
+                            defaultValue:
+                            "This backup was created by a newer version of Where (format %lld) and can't be imported.",
+                            bundle: .module,
+                        ),
+                        version,
+                    )
             }
         }
     }

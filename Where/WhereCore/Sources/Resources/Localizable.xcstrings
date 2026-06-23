@@ -1,6 +1,28 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "backup.error.manifestMissing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This file isn't a Where backup (no manifest was found)."
+          }
+        }
+      }
+    },
+    "backup.error.unsupportedFormatVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This backup was created by a newer version of Where (format %lld) and can't be imported."
+          }
+        }
+      }
+    },
     "region.california" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -3,15 +3,13 @@ import Testing
 import WhereCore
 
 struct WidgetDataReaderTests {
-    private static let pacific = TimeZone(identifier: "America/Los_Angeles")!
-
     private static func makeReader() throws -> (WidgetDataReader, SwiftDataStore) {
         let store = try SwiftDataStore.inMemory()
         let reader = WidgetDataReader(
             store: store,
             aggregator: DayAggregator(
-                calendar: Calendar(identifier: .gregorian),
-                timeZone: pacific,
+                calendar: WhereCoreTestSupport.calendar(),
+                timeZone: WhereCoreTestSupport.pacific,
             ),
         )
         return (reader, store)
@@ -21,7 +19,7 @@ struct WidgetDataReaderTests {
         -> LocationSample
     {
         LocationSample(
-            timestamp: iso(isoString),
+            timestamp: WhereCoreTestSupport.iso(isoString),
             coordinate: Coordinate(latitude: latitude, longitude: longitude),
             horizontalAccuracy: 5,
             source: .manual,
@@ -31,7 +29,8 @@ struct WidgetDataReaderTests {
     @Test func emptyStoreYieldsEmptySnapshot() async throws {
         let (reader, _) = try Self.makeReader()
 
-        let snapshot = try await reader.snapshot(asOf: iso("2026-03-15T12:00:00-07:00"))
+        let snapshot = try await reader
+            .snapshot(asOf: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"))
 
         #expect(snapshot.year == 2026)
         #expect(snapshot.dayRegions.isEmpty)
@@ -59,12 +58,13 @@ struct WidgetDataReaderTests {
             ))
             // A manual backfill for a third day.
             try await store.setManualDay(DayPresence(
-                date: iso("2026-05-01T00:00:00-07:00"),
+                date: WhereCoreTestSupport.iso("2026-05-01T00:00:00-07:00"),
                 regions: [.canada],
             ))
         }
 
-        let snapshot = try await reader.snapshot(asOf: iso("2026-03-15T20:00:00-07:00"))
+        let snapshot = try await reader
+            .snapshot(asOf: WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00"))
 
         #expect(snapshot.year == 2026)
         #expect(snapshot.dayRegions == [.california])
@@ -81,7 +81,8 @@ struct WidgetDataReaderTests {
             ))
         }
 
-        let snapshot = try await reader.snapshot(asOf: iso("2026-03-20T08:00:00-07:00"))
+        let snapshot = try await reader
+            .snapshot(asOf: WhereCoreTestSupport.iso("2026-03-20T08:00:00-07:00"))
 
         #expect(snapshot.dayRegions.isEmpty)
         #expect(snapshot.totals == [.california: 1])
@@ -102,11 +103,13 @@ struct WidgetDataReaderTests {
             ))
         }
 
-        let in2026 = try await reader.snapshot(asOf: iso("2026-01-01T20:00:00-08:00"))
+        let in2026 = try await reader
+            .snapshot(asOf: WhereCoreTestSupport.iso("2026-01-01T20:00:00-08:00"))
         #expect(in2026.totals == [.newYork: 1])
         #expect(in2026.dayRegions == [.newYork])
 
-        let in2025 = try await reader.snapshot(asOf: iso("2025-12-31T20:00:00-08:00"))
+        let in2025 = try await reader
+            .snapshot(asOf: WhereCoreTestSupport.iso("2025-12-31T20:00:00-08:00"))
         #expect(in2025.totals == [.california: 1])
         #expect(in2025.dayRegions == [.california])
     }
@@ -120,20 +123,16 @@ struct WidgetDataReaderTests {
                 longitude: -122.4194,
             ))
             try await store.setManualDay(DayPresence(
-                date: iso("2026-03-15T07:00:00-07:00"),
+                date: WhereCoreTestSupport.iso("2026-03-15T07:00:00-07:00"),
                 regions: [.newYork],
                 isAuthoritative: true,
             ))
         }
 
-        let snapshot = try await reader.snapshot(asOf: iso("2026-03-15T20:00:00-07:00"))
+        let snapshot = try await reader
+            .snapshot(asOf: WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00"))
 
         #expect(snapshot.dayRegions == [.newYork])
         #expect(snapshot.totals == [.newYork: 1])
     }
-}
-
-private func iso(_ string: String) -> Date {
-    let formatter = ISO8601DateFormatter()
-    return formatter.date(from: string) ?? Date(timeIntervalSince1970: 0)
 }

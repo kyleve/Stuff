@@ -186,6 +186,18 @@ public actor LocationIngestor {
         retryQueue.count
     }
 
+    /// Enqueue a sample for retry without persisting. Tests use this to assert
+    /// FIFO eviction at `retryQueueCapacity` without simulating hundreds of
+    /// persistence failures.
+    func testingEnqueueForRetry(_ sample: LocationSample) {
+        enqueueForRetry(sample)
+    }
+
+    /// Sample IDs currently in the retry queue, in FIFO order.
+    func testingRetryQueueSampleIDs() -> [UUID] {
+        retryQueue.map(\.id)
+    }
+
     public func requestPermission() async throws {
         try await locationSource.requestPermission()
     }

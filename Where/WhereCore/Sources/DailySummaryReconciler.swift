@@ -104,9 +104,13 @@ public actor DailySummaryReconciler {
             bundle: .module,
         )
         return String(
-            localized: "summary.notification.regionDays",
-            defaultValue: "\(count) in \(region.localizedName)",
-            bundle: .module,
+            format: String(
+                localized: "summary.notification.regionDays",
+                defaultValue: "%1$@ in %2$@",
+                bundle: .module,
+            ),
+            count,
+            region.localizedName,
         )
     }
 }

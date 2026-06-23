@@ -90,11 +90,24 @@ public struct DayAggregator: Sendable {
         }
         var representatives: [Region: Coordinate] = [:]
         for (region, cells) in tallies {
-            if let dominant = cells.values.max(by: { $0.count < $1.count }) {
-                representatives[region] = dominant.coordinate
+            if let dominant = cells.max(by: { lhs, rhs in
+                if lhs.value.count != rhs.value.count {
+                    return lhs.value.count < rhs.value.count
+                }
+                return lhs.key > rhs.key
+            }) {
+                representatives[region] = dominant.value.coordinate
             }
         }
         return representatives
+    }
+
+    /// Running tally of one grid cell while picking a region's representative
+    /// coordinate: how many samples landed in the cell, and the first
+    /// coordinate seen there (used verbatim so the pin sits on real data).
+    private struct CellTally {
+        let count: Int
+        let coordinate: Coordinate
     }
 
     public func report(
@@ -141,14 +154,6 @@ public struct DayAggregator: Sendable {
     /// implementations must therefore filter as `timestamp >= start &&
     /// timestamp < end` so the first instant of the next year is excluded
     /// (and not double-counted by the next year's report).
-    /// Running tally of one grid cell while picking a region's representative
-    /// coordinate: how many samples landed in the cell, and the first
-    /// coordinate seen there (used verbatim so the pin sits on real data).
-    private struct CellTally {
-        let count: Int
-        let coordinate: Coordinate
-    }
-
     public func yearInterval(year: Int) -> DateInterval {
         var startComponents = DateComponents()
         startComponents.year = year
