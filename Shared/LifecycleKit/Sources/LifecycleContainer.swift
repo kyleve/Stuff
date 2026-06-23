@@ -87,7 +87,10 @@ public struct LifecycleRunnerProxy: Sendable {
 /// Surface changes (splash → failure → app `content`) are animated with the
 /// caller-supplied `transition`/`animation` (a crossfade by default), keyed on
 /// `LifecyclePhase.surfaceIdentity` so a step *advancing* — which keeps showing
-/// the splash — doesn't retrigger the transition and flash it.
+/// the splash — doesn't retrigger the transition and flash it. The launch
+/// surfaces are layered above `content`, so a *leaving* splash plays its
+/// removal transition over the *entering* destination (a scale-up-and-fade
+/// reveal, say) instead of being clipped to a pop behind it.
 ///
 /// For a background launch, the container renders nothing at all (iOS never
 /// shows UI for a headless relaunch and reclaims memory aggressively), so
@@ -132,24 +135,41 @@ public struct LifecycleContainer<Content: View, Splash: View, Failure: View>: Vi
         .animation(animation, value: runner.phase.surfaceIdentity)
     }
 
+    /// Launch surfaces (splash / step presentation / failure) sit above the
+    /// app `content` so that when the runner reaches `.ready`, a *leaving* splash
+    /// animates on top of the *entering* content — letting a removal transition
+    /// (e.g. the Where launch splash scaling up and fading to reveal the UI) play
+    /// over the destination instead of being hidden behind freshly-inserted
+    /// content. With equal z-indices SwiftUI draws the inserted view last, which
+    /// would clip the reveal to a plain pop.
+    private static var launchSurfaceZIndex: Double {
+        1
+    }
+
+    private static var contentZIndex: Double {
+        0
+    }
+
     @ViewBuilder private var phaseContent: some View {
         switch runner.phase {
             case .launching:
-                splash().transition(transition)
+                splash().transition(transition).zIndex(Self.launchSurfaceZIndex)
             case let .running(_, bridge):
                 // Show the step's active presentation if it has one, otherwise
                 // fall back to the splash. Reading `bridge.presentation` makes
                 // a deferred (`presenting(after:)`) presentation appear without
                 // a phase change.
                 if let presentation = bridge.presentation {
-                    presentation.transition(transition)
+                    presentation.transition(transition).zIndex(Self.launchSurfaceZIndex)
                 } else {
-                    splash().transition(transition)
+                    splash().transition(transition).zIndex(Self.launchSurfaceZIndex)
                 }
             case let .failed(failure):
-                failureView(failure) { runner.retry() }.transition(transition)
+                failureView(failure) { runner.retry() }
+                    .transition(transition)
+                    .zIndex(Self.launchSurfaceZIndex)
             case .ready:
-                content().transition(transition)
+                content().transition(transition).zIndex(Self.contentZIndex)
         }
     }
 }

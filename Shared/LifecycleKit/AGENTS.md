@@ -79,7 +79,11 @@ itself.
   [`LifecycleFailureView`](Sources/LifecycleFailureView.swift)). Surfaces animate
   via the designated init's `transition`/`animation` (crossfade by default),
   keyed on `LifecyclePhase.surfaceIdentity` so an advancing step doesn't flash
-  the splash. The runner is published into the environment as `\.lifecycleRunner`
+  the splash. The launch surfaces carry a higher `.zIndex` than `content`, so a
+  *leaving* splash plays its removal transition *over* the entering destination
+  (a scale-up-and-fade reveal, say) instead of being clipped to a pop behind
+  freshly-inserted content — preserve that ordering if you touch `phaseContent`.
+  The runner is published into the environment as `\.lifecycleRunner`
   — a [`LifecycleRunnerProxy`](Sources/LifecycleContainer.swift) (not a bare
   optional) that asserts-in-debug / no-ops-in-release when disconnected — so
   nested views can reach `retry()`/`teardown()` without `guard`ing. The
