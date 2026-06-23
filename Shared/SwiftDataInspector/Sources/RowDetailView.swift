@@ -14,8 +14,6 @@ struct RowDetailView: View {
     let entity: InspectorEntity
     let row: InspectorRow
 
-    @State private var selectedRelationship: String?
-
     var body: some View {
         List {
             if !attributeColumns.isEmpty {
@@ -28,33 +26,23 @@ struct RowDetailView: View {
             if !relationshipColumns.isEmpty {
                 Section("Relationships") {
                     ForEach(relationshipColumns, id: \.self) { column in
-                        Button {
-                            selectedRelationship = column
-                        } label: {
-                            HStack {
-                                Text(column)
-                                Spacer()
-                                Image(systemName: "chevron.right")
-                                    .font(.caption.bold())
-                                    .foregroundStyle(.tertiary)
-                            }
-                            .contentShape(.rect)
+                        NavigationLink(value: relationshipRoute(for: column)) {
+                            Text(column)
                         }
-                        .foregroundStyle(.primary)
                     }
                 }
             }
         }
         .navigationTitle(entity.name)
         .navigationBarTitleDisplayMode(.inline)
-        .navigationDestination(item: $selectedRelationship) { name in
-            RelationshipView(
-                model: model,
-                sourceEntity: entity,
-                sourceRowID: row.persistentID,
-                relationshipName: name,
-            )
-        }
+    }
+
+    private func relationshipRoute(for column: String) -> InspectorRelationshipRoute {
+        InspectorRelationshipRoute(
+            sourceEntity: entity,
+            sourceRowID: row.persistentID,
+            relationshipName: column,
+        )
     }
 
     private var attributeColumns: [String] {

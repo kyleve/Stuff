@@ -393,7 +393,7 @@ struct SwiftDataInspectorTests {
 
     // MARK: Pagination
 
-    @Test func pagesAreDisjointAndCoverEveryRow() async throws {
+    @Test func growingThePrefixCoversEveryRowInOneConsistentFetch() async throws {
         let container = try makeContainer()
         seed(container, widgets: 5, gadgets: 0)
 
@@ -403,23 +403,24 @@ struct SwiftDataInspectorTests {
         await model.loadEntities()
         let widget = try #require(model.entities.first { $0.name == "TestWidget" })
 
-        let page0 = await model.rows(for: widget, offset: 0)
-        #expect(page0.rows.count == 2)
-        #expect(page0.totalCount == 5)
-        #expect(page0.isTruncated)
-
-        let page1 = await model.rows(for: widget, offset: 2)
+        // Each page count fetches that many rowLimit-sized pages as one prefix.
+        let page1 = await model.rows(for: widget, pageCount: 1)
         #expect(page1.rows.count == 2)
+        #expect(page1.totalCount == 5)
         #expect(page1.isTruncated)
+        #expect(Set(page1.rows.map(\.persistentID)).count == 2)
 
-        // The final page returns the remainder and reports no more rows.
-        let page2 = await model.rows(for: widget, offset: 4)
-        #expect(page2.rows.count == 1)
-        #expect(!page2.isTruncated)
+        let page2 = await model.rows(for: widget, pageCount: 2)
+        #expect(page2.rows.count == 4)
+        #expect(page2.isTruncated)
+        #expect(Set(page2.rows.map(\.persistentID)).count == 4)
 
-        // Concatenated, the three pages cover all five rows with no overlap.
-        let ids = (page0.rows + page1.rows + page2.rows).map(\.persistentID)
-        #expect(Set(ids).count == 5)
+        // A big enough prefix returns every row, with no duplicates, and reports
+        // that nothing remains — the whole set comes from a single fetch.
+        let page3 = await model.rows(for: widget, pageCount: 3)
+        #expect(page3.rows.count == 5)
+        #expect(!page3.isTruncated)
+        #expect(Set(page3.rows.map(\.persistentID)).count == 5)
     }
 
     @Test func rowsCarryDistinctPersistentIDs() async throws {
@@ -480,6 +481,40 @@ struct SwiftDataInspectorTests {
         #expect(related.rows.allSatisfy { $0.cells["parent"] == "(relationship)" })
     }
 
+    @Test func relatedRowsAreCappedToRowLimitButReportTheTrueTotal() async throws {
+        let container = try makeFamilyContainer()
+        let context = container.mainContext
+        let parent = TestParent(label: "P")
+        context.insert(parent)
+        let children = (0 ..< 5).map { TestChild(name: "C\($0)") }
+        for child in children {
+            context.insert(child)
+        }
+        parent.children = children
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container, rowLimit: 2),
+        )
+        await model.loadEntities()
+        let parentEntity = try #require(model.entities.first { $0.name == "TestParent" })
+        let parentRow = try #require(await model.rows(for: parentEntity).rows.first)
+
+        let related = await model.relatedRows(
+            of: parentRow.persistentID,
+            relationship: "children",
+            sourceType: parentEntity.type,
+        )
+
+        #expect(related.isToMany)
+        // Capped to rowLimit so a huge to-many can't fault unbounded rows in, but
+        // the true count is preserved so the UI can say "showing 2 of 5".
+        #expect(related.rows.count == 2)
+        #expect(related.totalCount == 5)
+        // The batch fetch still materializes the kept rows' attributes.
+        #expect(related.rows.allSatisfy { ($0.cells["name"]?.hasPrefix("C")) == true })
+    }
+
     @Test func resolvesToOneRelationshipIntoSingleRow() async throws {
         let container = try makeFamilyContainer()
         let context = container.mainContext
@@ -507,6 +542,32 @@ struct SwiftDataInspectorTests {
         #expect(related.entity?.name == "TestParent")
         #expect(related.rows.count == 1)
         #expect(related.rows.first?.cells["label"] == "Root")
+    }
+
+    @Test func nilToOneRelationshipResolvesToNoRows() async throws {
+        let container = try makeFamilyContainer()
+        let context = container.mainContext
+        // A child with no parent: the to-one faults to nil, which must degrade to
+        // an empty result rather than trapping or inventing a row.
+        context.insert(TestChild(name: "Orphan"))
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let childEntity = try #require(model.entities.first { $0.name == "TestChild" })
+        let childRow = try #require(await model.rows(for: childEntity).rows.first)
+
+        let related = await model.relatedRows(
+            of: childRow.persistentID,
+            relationship: "parent",
+            sourceType: childEntity.type,
+        )
+
+        #expect(related.rows.isEmpty)
+        #expect(related.entity == nil)
+        #expect(related.totalCount == 0)
     }
 
     @Test func emptyRelationshipResolvesToNoRows() async throws {

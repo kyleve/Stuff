@@ -6,7 +6,12 @@ import SwiftData
 /// `Sendable` so it can be produced on the background reader actor and handed
 /// back to it when loading rows. The only non-value field is `type`, a metatype,
 /// which is safe to share across actors.
-struct InspectorEntity: Identifiable {
+///
+/// `Hashable` so it (and the routes that wrap it) can drive value-based
+/// navigation. Identity is the schema-level shape — name, concrete type, and
+/// column structure — deliberately excluding the live `count`, so a row-count
+/// change doesn't make an already-pushed route look like a different entity.
+struct InspectorEntity: Identifiable, Hashable {
     /// The entity / model name (e.g. "SDEvidence"). Drives the row title and the
     /// list's stable identity.
     let name: String
@@ -27,5 +32,21 @@ struct InspectorEntity: Identifiable {
 
     var id: String {
         name
+    }
+
+    static func == (lhs: InspectorEntity, rhs: InspectorEntity) -> Bool {
+        lhs.name == rhs.name
+            && ObjectIdentifier(lhs.type) == ObjectIdentifier(rhs.type)
+            && lhs.columns == rhs.columns
+            && lhs.binaryColumns == rhs.binaryColumns
+            && lhs.relationshipColumns == rhs.relationshipColumns
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(name)
+        hasher.combine(ObjectIdentifier(type))
+        hasher.combine(columns)
+        hasher.combine(binaryColumns)
+        hasher.combine(relationshipColumns)
     }
 }

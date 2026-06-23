@@ -8,15 +8,22 @@ struct EntityTableView: View {
     let model: SwiftDataInspectorModel
     let entity: InspectorEntity
 
-    /// The rows loaded so far. Starts with the first page and grows as the user
-    /// taps "load more"; `persistentID` keeps identities stable across appends.
+    /// The rows currently shown: the store's first `pageCount` pages. "Load more"
+    /// bumps `pageCount` and re-fetches the whole prefix in one query, then
+    /// replaces this wholesale — so the visible rows always come from a single
+    /// consistent fetch and can never overlap or skip, even without a sort.
+    /// `persistentID` keeps identities (and scroll position) stable across the
+    /// replace.
     @State private var rows: [InspectorRow] = []
     @State private var totalCount = 0
     @State private var characterCounts: [String: Int] = [:]
     @State private var hasLoaded = false
     @State private var isLoadingMore = false
     @State private var searchText = ""
-    @State private var selectedRow: InspectorRow?
+    /// How many `rowLimit`-sized pages to fetch. Starts at one; "load more"
+    /// increments it. With no `rowLimit` every row loads at once and this is
+    /// irrelevant.
+    @State private var pageCount = 1
 
     private let columnSpacing: CGFloat = 20
     private let minColumnWidth: CGFloat = 48
@@ -35,35 +42,37 @@ struct EntityTableView: View {
         .navigationTitle(entity.name)
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search rows")
-        // Load the first page once; drilling into a row and back keeps the rows
-        // (and any "load more" pages) already on screen. Pull-to-refresh resets.
+        // Load once; drilling into a row and back keeps the rows (and any
+        // "load more" pages) already on screen. Pull-to-refresh re-reads the
+        // same number of pages from a fresh context.
         .task { if !hasLoaded { await load() } }
         .refreshable { await load() }
-        .navigationDestination(item: $selectedRow) { row in
-            RowDetailView(model: model, entity: entity, row: row)
-        }
     }
 
-    /// Fetch the first page, replacing whatever is loaded (initial load and
-    /// pull-to-refresh).
+    /// Fetch the first `pageCount` pages in one query and show them. Used for the
+    /// initial load and pull-to-refresh, so refresh keeps whatever the user had
+    /// expanded to.
     private func load() async {
-        let set = await model.rows(for: entity, offset: 0)
+        let set = await model.rows(for: entity, pageCount: pageCount)
         rows = set.rows
         totalCount = set.totalCount
         characterCounts = set.columnCharacterCounts
         hasLoaded = true
     }
 
-    /// Fetch the next page and append it, merging the new page's per-column
-    /// character counts so columns don't shrink as more rows arrive.
+    /// Grow the visible window by one page and re-fetch the whole prefix in a
+    /// single query, replacing the current rows. The existing rows stay on screen
+    /// while the larger fetch is in flight, and their stable ids keep the scroll
+    /// position when the new, longer page arrives.
     private func loadMore() async {
         guard !isLoadingMore else { return }
         isLoadingMore = true
-        let set = await model.rows(for: entity, offset: rows.count)
-        rows.append(contentsOf: set.rows)
+        defer { isLoadingMore = false }
+        let set = await model.rows(for: entity, pageCount: pageCount + 1)
+        pageCount += 1
+        rows = set.rows
         totalCount = set.totalCount
-        characterCounts = Self.mergedCounts(characterCounts, adding: set.columnCharacterCounts)
-        isLoadingMore = false
+        characterCounts = set.columnCharacterCounts
     }
 
     private var canLoadMore: Bool {
@@ -128,13 +137,11 @@ struct EntityTableView: View {
         .background(.bar)
     }
 
-    /// The whole row is a button into the per-row detail. Cell text selection
-    /// moves to the detail view, where values are shown in full; here a tap drills
-    /// in (selection would otherwise swallow the tap).
+    /// The whole row is a link into the per-row detail. Cell text selection moves
+    /// to the detail view, where values are shown in full; here a tap drills in
+    /// (selection would otherwise swallow the tap).
     private func cellRow(_ row: InspectorRow) -> some View {
-        Button {
-            selectedRow = row
-        } label: {
+        NavigationLink(value: InspectorRowRoute(entity: entity, row: row)) {
             HStack(spacing: columnSpacing) {
                 ForEach(entity.columns, id: \.self) { column in
                     Text(row.cells[column] ?? "—")
@@ -201,15 +208,6 @@ struct EntityTableView: View {
         return rows.filter { row in
             row.cells.values.contains { $0.localizedCaseInsensitiveContains(query) }
         }
-    }
-
-    /// Combine two pages' per-column character counts, keeping the larger so a
-    /// column already sized for an earlier page never shrinks when more arrive.
-    private static func mergedCounts(
-        _ base: [String: Int],
-        adding addition: [String: Int],
-    ) -> [String: Int] {
-        base.merging(addition) { max($0, $1) }
     }
 
     private static let characterWidth: CGFloat = {

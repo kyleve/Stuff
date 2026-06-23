@@ -52,14 +52,15 @@ actor SwiftDataInspectorReader {
         return summaries.sorted { $0.name < $1.name }
     }
 
-    /// Fetch one page of up to `rowLimit` rows for `entity` starting at `offset`,
-    /// formatted for display, plus the per-column character counts the view needs
-    /// to size columns. `offset` powers "load more": the table requests the next
-    /// page and appends it. `isTruncated` reports whether rows remain beyond this
-    /// page (`offset + page < total`).
-    func rows(for entity: InspectorEntity, offset: Int = 0) -> InspectorRowSet {
+    /// Fetch the first `pageCount` pages (each up to `rowLimit` rows) for
+    /// `entity`, formatted for display, plus the per-column character counts the
+    /// view needs to size columns. `pageCount` powers "load more": the table
+    /// re-requests with a higher count and replaces its rows with this longer,
+    /// single-fetch prefix. `isTruncated` reports whether rows remain beyond it.
+    func rows(for entity: InspectorEntity, pageCount: Int = 1) -> InspectorRowSet {
         let context = ModelContext(container)
-        let models = context.inspectorFetch(entity.type, limit: rowLimit, offset: offset)
+        let limit = rowLimit.map { $0 * max(pageCount, 1) }
+        let models = context.inspectorFetch(entity.type, limit: limit)
         let total = context.inspectorCount(of: entity.type)
         let rows = models.map { model in
             InspectorRow(
@@ -70,7 +71,7 @@ actor SwiftDataInspectorReader {
         return InspectorRowSet(
             rows: rows,
             totalCount: total,
-            isTruncated: offset + rows.count < total,
+            isTruncated: rows.count < total,
             columnCharacterCounts: Self.columnCharacterCounts(for: rows, columns: entity.columns),
         )
     }
@@ -91,13 +92,24 @@ actor SwiftDataInspectorReader {
     ) -> InspectorRelatedRows {
         let context = ModelContext(container)
         guard let source = context.inspectorModel(sourceType, id: rowID) else {
-            return InspectorRelatedRows(entity: nil, rows: [], isToMany: false)
+            return InspectorRelatedRows(entity: nil, rows: [], isToMany: false, totalCount: 0)
         }
 
         let references = SwiftDataReflection.relatedReferences(of: source, named: name)
         guard let destinationType = references.destinationType else {
-            return InspectorRelatedRows(entity: nil, rows: [], isToMany: references.isToMany)
+            return InspectorRelatedRows(
+                entity: nil,
+                rows: [],
+                isToMany: references.isToMany,
+                totalCount: 0,
+            )
         }
+
+        // Cap how many related rows we materialize to the same page size as a
+        // table, so drilling into a huge to-many can't fault an unbounded number
+        // of rows into memory. The UI surfaces the shortfall via `totalCount`.
+        let totalCount = references.ids.count
+        let wantedIDs = rowLimit.map { Array(references.ids.prefix($0)) } ?? references.ids
 
         let entitiesByName = Self.entitiesByName(in: container.schema)
         let entity = Self.makeEntity(
@@ -106,11 +118,12 @@ actor SwiftDataInspectorReader {
             count: context.inspectorCount(of: destinationType),
         )
 
-        // Re-fetch each related row by id so its attributes are materialized
-        // (the relationship fault yields rows whose attribute slots are still
-        // unresolved), then render cells with the same placeholder rules.
-        let rows = references.ids.compactMap { id -> InspectorRow? in
-            guard let related = context.inspectorModel(destinationType, id: id) else { return nil }
+        // Materialize the wanted rows in a single fetch (the relationship fault
+        // yields rows whose attribute slots are still unresolved), then render
+        // them in the relationship's own order with the same placeholder rules.
+        let modelsByID = context.inspectorModels(destinationType, ids: wantedIDs)
+        let rows = wantedIDs.compactMap { id -> InspectorRow? in
+            guard let related = modelsByID[id] else { return nil }
             return InspectorRow(
                 persistentID: related.persistentModelID,
                 cells: cells(for: related, entity: entity),
@@ -121,6 +134,7 @@ actor SwiftDataInspectorReader {
             entity: rows.isEmpty ? nil : entity,
             rows: rows,
             isToMany: references.isToMany,
+            totalCount: totalCount,
         )
     }
 

@@ -15,7 +15,6 @@ struct RelationshipView: View {
     let relationshipName: String
 
     @State private var related: InspectorRelatedRows?
-    @State private var selectedRow: InspectorRow?
 
     var body: some View {
         Group {
@@ -43,19 +42,14 @@ struct RelationshipView: View {
         if let entity = related.entity, let first = related.rows.first {
             if related.isToMany {
                 List {
-                    Section("\(related.rows.count) related") {
+                    Section(sectionTitle(for: related)) {
                         ForEach(related.rows) { row in
-                            Button {
-                                selectedRow = row
-                            } label: {
+                            NavigationLink(value: InspectorRowRoute(entity: entity, row: row)) {
                                 RelatedRowLabel(entity: entity, row: row)
                             }
-                            .foregroundStyle(.primary)
+                            .buttonStyle(.plain)
                         }
                     }
-                }
-                .navigationDestination(item: $selectedRow) { row in
-                    RowDetailView(model: model, entity: entity, row: row)
                 }
             } else {
                 // To-one: skip the intermediate list and show the related row.
@@ -67,6 +61,16 @@ struct RelationshipView: View {
                 systemImage: "tray",
                 description: Text("This relationship is empty."),
             )
+        }
+    }
+
+    /// The to-many section header: the related count, noting when only the first
+    /// `rowLimit` of a larger relationship were materialized.
+    private func sectionTitle(for related: InspectorRelatedRows) -> String {
+        if related.rows.count < related.totalCount {
+            "Showing \(related.rows.count) of \(related.totalCount) related"
+        } else {
+            "\(related.rows.count) related"
         }
     }
 }

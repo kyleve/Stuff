@@ -49,4 +49,8 @@ struct InspectorRelatedRows {
     /// `true` for a to-many relationship (the UI lists the rows); `false` for a
     /// to-one (the UI drills straight into the single related row).
     let isToMany: Bool
+    /// How many rows the relationship references in total. `rows` is capped to the
+    /// reader's `rowLimit`, so this may exceed `rows.count`; the UI notes the
+    /// shortfall rather than silently showing a partial set.
+    let totalCount: Int
 }

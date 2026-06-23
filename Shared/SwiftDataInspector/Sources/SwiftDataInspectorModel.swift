@@ -37,12 +37,13 @@ final class SwiftDataInspectorModel {
         entities = await reader.loadEntities()
     }
 
-    /// Load one page of up to `rowLimit` rows for `entity` starting at `offset`,
+    /// Load the first `pageCount` pages (each up to `rowLimit` rows) for `entity`,
     /// formatted for display, off the main thread. The detail table requests
-    /// `offset: 0` first, then later pages (`offset` = rows already shown) when
-    /// the user taps "load more".
-    func rows(for entity: InspectorEntity, offset: Int = 0) async -> InspectorRowSet {
-        await reader.rows(for: entity, offset: offset)
+    /// `pageCount: 1` first, then a higher count when the user taps "load more" —
+    /// each call returns the whole prefix so the table can replace its rows with
+    /// a single consistent fetch.
+    func rows(for entity: InspectorEntity, pageCount: Int = 1) async -> InspectorRowSet {
+        await reader.rows(for: entity, pageCount: pageCount)
     }
 
     /// Resolve a row's relationship into its related rows off the main thread,

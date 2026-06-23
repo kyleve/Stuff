@@ -188,22 +188,53 @@ extension ModelContext {
         return open(type)
     }
 
-    /// Up to `limit` persisted rows of `type` starting at `offset`, as type-erased
-    /// models, opening the existential metatype so the generic `fetch` can infer
-    /// its `PersistentModel`. A `nil` limit fetches every row from `offset` on;
-    /// `offset` drives the inspector's "load more" pagination via `fetchOffset`.
+    /// The first `limit` persisted rows of `type` (a `nil` limit fetches every
+    /// row), as type-erased models, opening the existential metatype so the
+    /// generic `fetch` can infer its `PersistentModel`.
+    ///
+    /// The inspector pages by *growing this prefix* rather than by `fetchOffset`:
+    /// "load more" re-fetches a longer prefix in one query and replaces the
+    /// view's rows. A single fetch is internally consistent, so pages can't
+    /// overlap or skip even though `FetchDescriptor` has no sort to make an
+    /// offset's boundary stable.
     func inspectorFetch(
         _ type: any PersistentModel.Type,
         limit: Int?,
-        offset: Int = 0,
     ) -> [any PersistentModel] {
         func open<T: PersistentModel>(_: T.Type) -> [any PersistentModel] {
             var descriptor = FetchDescriptor<T>()
             if let limit {
                 descriptor.fetchLimit = limit
             }
-            descriptor.fetchOffset = offset
             return (try? fetch(descriptor)) ?? []
+        }
+        return open(type)
+    }
+
+    /// The persisted rows of `type` whose ids are in `ids`, fetched in a single
+    /// query and returned keyed by id, opening the existential so the generic
+    /// `fetch` can infer its `PersistentModel`.
+    ///
+    /// Used to materialize a relationship's related rows in one round-trip rather
+    /// than one `inspectorModel(_:id:)` per id. The fetch returns the rows fully
+    /// realized (attributes loaded), unlike `model(for:)`, which yields a fault.
+    /// Returns only the ids that still resolve, so a related row deleted out from
+    /// under the relationship is simply dropped.
+    func inspectorModels(
+        _ type: any PersistentModel.Type,
+        ids: [PersistentIdentifier],
+    ) -> [PersistentIdentifier: any PersistentModel] {
+        guard !ids.isEmpty else { return [:] }
+        func open<T: PersistentModel>(_: T.Type) -> [PersistentIdentifier: any PersistentModel] {
+            let wanted = Set(ids)
+            var descriptor =
+                FetchDescriptor<T>(predicate: #Predicate { wanted.contains($0.persistentModelID) })
+            descriptor.fetchLimit = wanted.count
+            let fetched = (try? fetch(descriptor)) ?? []
+            return Dictionary(
+                fetched.map { ($0.persistentModelID, $0 as any PersistentModel) },
+                uniquingKeysWith: { first, _ in first },
+            )
         }
         return open(type)
     }
