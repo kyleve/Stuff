@@ -1,10 +1,9 @@
-import LifecycleKit
 import SwiftUI
 import UIKit
 
-/// The Where launch screen shown while the `LifecycleRunner` walks its steps:
-/// the user's selected app icon, gently pulsing on a dark backdrop with a
-/// "radar ping" sonar sweep behind it.
+/// The Where launch screen shown for the whole launch: the user's selected app
+/// icon, gently pulsing on a dark backdrop with a "radar ping" sonar sweep
+/// behind it.
 ///
 /// The icon respects the system color mode (the asset catalog resolves the
 /// light/dark preview art from `@Environment(\.colorScheme)`) while always
@@ -13,30 +12,33 @@ import UIKit
 /// with a scale-up-and-fade transition that reveals the main UI — that motion
 /// lives at the container seam, not here.
 ///
-/// When a launch step is slow enough to present (e.g. `open-store` running a
-/// SwiftData migration), the same view doubles as that step's UI: passed the
-/// step's `bridge`, it fades a status caption — title, message, and a
-/// determinate bar if the step reports `progress` — in beneath the icon, so a
-/// slow open stays on this one dark canvas instead of flipping to a separate
-/// screen.
+/// This one view spans every launch phase. The container keeps it on screen
+/// from `.launching` through all the silent steps (it's only displaced by a
+/// genuinely different surface — onboarding — or the final reveal), so rather
+/// than swapping in a separate "migrating" screen, the splash simply fades a
+/// reassurance caption in after it's lingered a beat. There's no second view to
+/// reconcile and no remount, so the pulse and radar run uninterrupted.
 ///
 /// Honors Reduce Motion: the pulse and the sweeping rings are pinned to a
-/// static frame so the screen is calm for motion-sensitive users.
+/// static frame, and the caption appears without a fade.
 struct LaunchSplashView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var captionVisible = false
+    @State private var pulsing = false
+    @State private var showCaption: Bool
+
+    /// How long the splash must linger before the "taking a moment" caption
+    /// fades in, so a fast launch never flashes it.
+    private static let captionDelay = Duration.milliseconds(500)
 
     /// Preview/test seam: when `nil`, the live selected icon is resolved from
     /// `UIApplication.shared.alternateIconName` in `body` (on the main actor).
     private let injectedPreviewImageName: String?
 
-    /// The presenting launch step's bridge when this view is standing in for a
-    /// slow step's UI; `nil` for the plain idle splash.
-    private let bridge: LifecycleStepUIBridge?
-
-    init(previewImageName: String? = nil, bridge: LifecycleStepUIBridge? = nil) {
+    /// - Parameter previewShowsCaption: preview/test seam to render the slow-
+    ///   launch caption immediately instead of waiting out `captionDelay`.
+    init(previewImageName: String? = nil, previewShowsCaption: Bool = false) {
         injectedPreviewImageName = previewImageName
-        self.bridge = bridge
+        _showCaption = State(initialValue: previewShowsCaption)
     }
 
     var body: some View {
@@ -46,56 +48,42 @@ struct LaunchSplashView: View {
             RadarPingBackground(animated: !reduceMotion, tint: .accentColor)
             icon(named: imageName)
 
-            if let bridge {
-                VStack {
-                    Spacer()
-                    caption(bridge)
-                        .opacity(captionVisible ? 1 : 0)
-                        .padding(.bottom, UIConstants.Size.launchCaptionBottomInset)
-                }
-                .onAppear {
-                    withAnimation(.easeOut(duration: 0.3)) { captionVisible = true }
-                }
+            VStack {
+                Spacer()
+                caption
+                    .opacity(showCaption ? 1 : 0)
+                    .padding(.bottom, UIConstants.Size.launchCaptionBottomInset)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black)
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(accessibilityLabel)
-    }
-
-    /// VoiceOver reads the migration message (or its title) when a step is
-    /// presenting, otherwise the generic loading label.
-    private var accessibilityLabel: String {
-        guard let bridge else { return Strings.launchAccessibilityLabel }
-        return bridge.message ?? Strings.migrationTitle
-    }
-
-    /// The status block shown below the icon while a step presents: a
-    /// determinate bar when the step reports `progress`, otherwise just the
-    /// title, plus the step's `message` (or a default reassurance). Text is
-    /// pinned light since the backdrop is always dark.
-    private func caption(_ bridge: LifecycleStepUIBridge) -> some View {
-        VStack(spacing: UIConstants.Spacings.large) {
-            if let progress = bridge.progress {
-                ProgressView(value: progress) {
-                    Text(Strings.migrationTitle)
-                }
-                .progressViewStyle(.linear)
-                .tint(.white)
-                .frame(maxWidth: 280)
+        .accessibilityLabel(showCaption ? Strings.migrationTitle : Strings.launchAccessibilityLabel)
+        .task {
+            try? await Task.sleep(for: Self.captionDelay)
+            guard !Task.isCancelled else { return }
+            if reduceMotion {
+                showCaption = true
             } else {
-                Text(Strings.migrationTitle)
-                    .font(.headline)
+                withAnimation(.easeOut(duration: 0.3)) { showCaption = true }
             }
+        }
+    }
 
-            Text(bridge.message ?? Strings.migrationSubtitle)
+    /// The reassurance shown below the icon once a launch runs long: the radar
+    /// and pulsing icon already say "working", so this is just text, pinned
+    /// light since the backdrop is always dark.
+    private var caption: some View {
+        VStack(spacing: UIConstants.Spacings.small) {
+            Text(Strings.migrationTitle)
+                .font(.headline)
+            Text(Strings.migrationSubtitle)
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.7))
-                .multilineTextAlignment(.center)
         }
         .foregroundStyle(.white)
+        .multilineTextAlignment(.center)
         .padding(.horizontal, UIConstants.Spacings.xxxLarge)
     }
 
@@ -111,35 +99,24 @@ struct LaunchSplashView: View {
         .ignoresSafeArea()
     }
 
-    /// The pulsing icon. The breath is derived from wall-clock time via a
-    /// `TimelineView` (like the radar) rather than a `@State` toggle, so it stays
-    /// continuous if the view is re-created — which it is when the container
-    /// swaps the bridge-less splash for this same view standing in as the
-    /// migration step's (type-erased, separate-slot) presentation.
     private func icon(named name: String) -> some View {
         let cornerRadius = UIConstants.Size.launchIcon * 0.2237
-        return TimelineView(.animation(paused: reduceMotion)) { timeline in
-            let pulse = reduceMotion ? 0 : Self.pulsePhase(at: timeline.date)
-            AppIconImage(name: name, size: UIConstants.Size.launchIcon, bordered: false)
-                .scaleEffect(1 + 0.1 * pulse)
-                .background {
-                    // A soft brand-tinted glow that breathes with the pulse.
-                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .fill(Color.accentColor)
-                        .blur(radius: 44)
-                        .opacity(0.3 + 0.25 * pulse)
-                        .scaleEffect(0.85 + 0.45 * pulse)
+        return AppIconImage(name: name, size: UIConstants.Size.launchIcon, bordered: false)
+            .scaleEffect(pulsing ? 1.1 : 1)
+            .background {
+                // A soft brand-tinted glow that breathes with the pulse.
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(Color.accentColor)
+                    .blur(radius: 44)
+                    .opacity(pulsing ? 0.55 : 0.3)
+                    .scaleEffect(pulsing ? 1.3 : 0.85)
+            }
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                    pulsing = true
                 }
-        }
-    }
-
-    /// The icon's breathing phase in `0...1`: a smooth sine of wall-clock time
-    /// with a 1.6s cycle. Because it's a pure function of the clock, a re-created
-    /// view picks up exactly where the old one was instead of snapping to rest.
-    private static func pulsePhase(at date: Date) -> Double {
-        let period = 1.6
-        let t = date.timeIntervalSinceReferenceDate
-        return (sin(t / period * 2 * .pi) + 1) / 2
+            }
     }
 
     /// Resolve the preview-catalog image name of the currently selected icon,
@@ -206,7 +183,7 @@ private struct RadarPingBackground: View {
     // `accessibilityReduceMotion` is a read-only environment value, so the
     // motion-pinned variant can't be previewed via `.environment`; at rest the
     // animated splash looks identical to it anyway. These cover the color-mode
-    // variation (which changes the rendered icon art) and the migration caption.
+    // variation (which changes the rendered icon art) and the slow-launch caption.
     #Preview("Light") {
         LaunchSplashView(previewImageName: "AppIconClassic")
             .environment(\.colorScheme, .light)
@@ -217,17 +194,7 @@ private struct RadarPingBackground: View {
             .environment(\.colorScheme, .dark)
     }
 
-    #Preview("Migration (indeterminate)") {
-        LaunchSplashView(
-            previewImageName: "AppIconClassic",
-            bridge: LifecycleStepUIBridge(reason: .userForeground),
-        )
-    }
-
-    #Preview("Migration (determinate)") {
-        let bridge = LifecycleStepUIBridge(reason: .userForeground)
-        bridge.progress = 0.4
-        bridge.message = "Migrating manual days…"
-        return LaunchSplashView(previewImageName: "AppIconClassic", bridge: bridge)
+    #Preview("Slow launch") {
+        LaunchSplashView(previewImageName: "AppIconClassic", previewShowsCaption: true)
     }
 #endif
