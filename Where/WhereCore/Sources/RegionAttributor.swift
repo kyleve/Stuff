@@ -104,6 +104,7 @@ public struct RegionAttributor: Sendable {
                 assertionFailure("Failed to decode bundled GeoJSON \(region.rawValue): \(error)")
             }
         }
+        logger.info("Loaded region polygons for \(entries.count) region(s)")
         return RegionAttributor(regionPolygons: entries)
     }
 
@@ -128,6 +129,7 @@ public struct RegionAttributor: Sendable {
                 index[name, default: []]
                     .append(contentsOf: GeoJSON.polygons(from: feature.geometry))
             }
+            logger.info("Indexed \(index.count) US state(s) from us-states.geojson")
             return index
         } catch {
             logger

@@ -166,7 +166,7 @@ public struct BackupService: Sendable {
             autoreleasepool {
                 let assetURL = extractDir.appendingPathComponent(entry.filename)
                 guard let data = try? Data(contentsOf: assetURL) else {
-                    Self.logger.fault(
+                    Self.logger.warning(
                         "Backup asset missing for evidence \(entry.evidenceId); skipping blob",
                     )
                     return

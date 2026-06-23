@@ -79,6 +79,9 @@ public actor WidgetSnapshotPublisher {
             let snapshot = try await widgetReader.snapshot(asOf: now())
             await widgetRefresher.publish(snapshot)
             lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
+            Self.logger.info(
+                "Published widget snapshot for \(snapshot.day) (\(snapshot.dayRegions.count) region(s))",
+            )
         } catch {
             Self.logger.error(
                 "Failed to build widget snapshot: \(error.localizedDescription)",

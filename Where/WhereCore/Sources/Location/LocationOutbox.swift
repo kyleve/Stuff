@@ -55,8 +55,8 @@ public actor FileLocationOutbox: LocationOutbox {
             appropriateFor: nil,
             create: true,
         ) else {
-            logger.error(
-                "No Application Support directory; location retry backlog won't survive relaunches",
+            logger.warning(
+                "No Application Support directory; using in-memory retry queue (backlog won't survive relaunch)",
             )
             return NoOpLocationOutbox()
         }

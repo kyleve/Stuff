@@ -98,6 +98,9 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
             case .authorized, .provisional, .ephemeral:
                 break
             case .notDetermined, .denied:
+                Self.logger.warning(
+                    "Daily summary enabled but notification authorization not granted; summary disabled",
+                )
                 await removeAllOwned()
                 return
             @unknown default:
@@ -142,6 +145,7 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
         )
         do {
             try await center.add(request)
+            Self.logger.info("Scheduled daily summary at \(time.hour):\(time.minute)")
         } catch {
             Self.logger.error(
                 "Failed to schedule daily summary: \(error.localizedDescription)",

@@ -33,6 +33,7 @@ public struct WidgetCenterTimelineRefresher: WidgetTimelineRefreshing {
     public func publish(_ snapshot: WidgetSnapshot) async {
         do {
             try WidgetSnapshotStore.shared().write(snapshot)
+            Self.logger.info("Wrote widget snapshot to App Group; reloading timelines")
         } catch {
             Self.logger.error(
                 "Failed to publish widget snapshot: \(error.localizedDescription)",

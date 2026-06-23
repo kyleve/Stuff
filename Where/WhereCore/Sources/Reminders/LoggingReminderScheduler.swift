@@ -150,6 +150,9 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
             case .authorized, .provisional, .ephemeral:
                 break
             case .notDetermined, .denied:
+                Self.logger.warning(
+                    "Logging reminders enabled but notification authorization not granted; reminders disabled",
+                )
                 await removeAllOwnedReminders()
                 await setBadge(0)
                 return
@@ -195,6 +198,9 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         }
 
         await setBadge(badgeCount)
+        Self.logger.info(
+            "Reconciled logging reminders (badge: \(badgeCount), scheduled \(desiredIDs.count) day(s))",
+        )
     }
 
     private func scheduleReminder(identifier: String, day: Date, time: ReminderTime) async {

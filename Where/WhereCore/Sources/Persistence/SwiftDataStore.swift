@@ -114,6 +114,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// app/UI layer.
     public static func make(storage: Storage = .default) throws -> SwiftDataStore {
         let container = try makeContainer(storage: storage)
+        logger.info("Opened SwiftData store (mode: \(storage))")
         return SwiftDataStore(modelContainer: container)
     }
 

@@ -1,4 +1,5 @@
 import Foundation
+import LogKit
 
 /// Owns the user-sourced writes into the store — sample ingestion, manual-day
 /// overlays, range backfills, year/all clears, and evidence — together with the
@@ -12,6 +13,8 @@ public actor DayJournal {
     private let aggregator: DayAggregator
     private let reminders: ReminderReconciler
     private let widgets: WidgetSnapshotPublisher
+
+    private static let logger = WhereLog.channel(.dayJournal)
 
     init(
         store: any WhereStore,
@@ -61,6 +64,7 @@ public actor DayJournal {
         try await store.perform { try await store.setManualDay(presence) }
         await reminders.reconcile()
         await widgets.publish()
+        Self.logger.info("Added manual day \(key) with \(regions.count) region(s)")
     }
 
     /// Authoritatively set the regions for a single calendar day, *replacing*
@@ -74,6 +78,7 @@ public actor DayJournal {
         try await store.perform { try await store.setManualDay(presence) }
         await reminders.reconcile()
         await widgets.publish()
+        Self.logger.info("Overrode day \(key) with \(regions.count) region(s)")
     }
 
     /// Drop the manual overlay for a single calendar day, restoring the
@@ -85,6 +90,7 @@ public actor DayJournal {
         try await store.perform { try await store.clearManualDay(key) }
         await reminders.reconcile()
         await widgets.publish()
+        Self.logger.info("Cleared manual overlay for day \(key)")
     }
 
     /// Assert `regions` for every calendar day in the inclusive range
@@ -110,6 +116,9 @@ public actor DayJournal {
         }
         await reminders.reconcile()
         await widgets.publish()
+        Self.logger.info(
+            "Backfilled \(dayKeys.count) manual day(s) with \(regions.count) region(s)",
+        )
     }
 
     // MARK: - Clearing
@@ -119,6 +128,7 @@ public actor DayJournal {
         try await store.perform { try await store.clear(in: interval) }
         await reminders.reconcile()
         await widgets.publish()
+        Self.logger.info("Cleared year \(year)")
     }
 
     /// Erase every sample, manual day, and piece of evidence in the store, then
@@ -130,12 +140,14 @@ public actor DayJournal {
         try await store.perform { try await store.clearAll() }
         await reminders.reconcile()
         await widgets.publish()
+        Self.logger.info("Erased all store data")
     }
 
     // MARK: - Evidence
 
     public func addEvidence(_ evidence: Evidence, blob: Data? = nil) async throws {
         try await store.perform { try await store.write(evidence: evidence, blob: blob) }
+        Self.logger.info("Wrote evidence \(evidence.id) (blob: \(blob != nil))")
     }
 
     public func evidence(for year: Int) async throws -> [Evidence] {
