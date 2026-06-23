@@ -65,6 +65,20 @@ enum AppIconCatalog {
         return try JSONDecoder().decode(Manifest.self, from: data).icons
     }
 
+    /// Resolve which option matches the live `alternateIconName`, falling back to
+    /// the primary (or first) option when the active icon isn't listed — e.g. it
+    /// was removed from the manifest since it was last set, or `nil` (the primary
+    /// icon, which carries no alternate name). The single source of truth for
+    /// "which icon is selected", shared by the picker model and the launch splash.
+    static func selectedOption(
+        in options: [AppIconOption],
+        current alternateIconName: String?,
+    ) -> AppIconOption? {
+        options.first { $0.alternateIconName == alternateIconName }
+            ?? options.first { $0.isPrimary }
+            ?? options.first
+    }
+
     private struct Manifest: Codable {
         let icons: [AppIconOption]
     }

@@ -33,6 +33,23 @@ struct AppIconModelTests {
         #expect(model.selectedID == AppIconID("classic"))
     }
 
+    @Test func selectedOptionMatchesTheLiveAlternateName() {
+        let selected = AppIconCatalog.selectedOption(in: options(), current: "AppIconOcean")
+        #expect(selected?.id == AppIconID("ocean"))
+    }
+
+    @Test func selectedOptionFallsBackToThePrimaryWhenNil() {
+        let selected = AppIconCatalog.selectedOption(in: options(), current: nil)
+        #expect(selected?.id == AppIconID("classic"))
+    }
+
+    @Test func selectedOptionFallsBackToThePrimaryForAnUnknownName() {
+        // An alternate icon set by an older build but since dropped from the
+        // manifest resolves to the primary rather than nothing.
+        let selected = AppIconCatalog.selectedOption(in: options(), current: "AppIconGone")
+        #expect(selected?.id == AppIconID("classic"))
+    }
+
     @Test func applySetsTheIconAndUpdatesSelection() async {
         let setter = FakeIconSetter(alternateIconName: nil)
         let model = AppIconModel(options: options(), setter: setter)

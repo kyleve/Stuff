@@ -80,10 +80,7 @@ final class AppIconModel {
         in options: [AppIconOption],
         current alternateIconName: String?,
     ) -> AppIconID {
-        if let match = options.first(where: { $0.alternateIconName == alternateIconName }) {
-            return match.id
-        }
-        return (options.first { $0.isPrimary } ?? options.first)?.id ?? AppIconID("")
+        AppIconCatalog.selectedOption(in: options, current: alternateIconName)?.id ?? AppIconID("")
     }
 }
 

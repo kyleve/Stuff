@@ -89,19 +89,15 @@ public enum WhereLaunch {
             // preview/test injected them, or a prior session before a reset) so
             // we never spin up a real store + CoreLocation behind it; the
             // session is then (re)created from the retained layer. Opening may
-            // run a lightweight migration; rather than predict it, key the
-            // migration UI off slowness: if the open is still running after a
-            // beat, show MigrationProgressView and hold it for a readable
-            // minimum so a fast open never flashes it.
+            // run a lightweight migration; there's no separate UI for it — the
+            // launch splash (shown throughout) fades in its own "taking a
+            // moment" caption when any launch phase runs long.
             LifecycleStep.work(LaunchStepID.openStore) { _ in
                 guard model.session == nil else { return }
                 if !model.hasServices {
                     try await model.attach(services: bootstrap.makeServices())
                 }
                 model.startSession()
-            }
-            .presenting(after: .milliseconds(500), minVisible: .seconds(1)) {
-                MigrationProgressView(bridge: $0)
             }
 
             // First run only. `LifecycleStep.interactive` defaults to
