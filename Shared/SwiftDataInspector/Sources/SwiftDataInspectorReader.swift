@@ -32,10 +32,7 @@ actor SwiftDataInspectorReader {
     /// by name.
     func loadEntities() -> [InspectorEntity] {
         let context = ModelContext(container)
-        let entitiesByName = Dictionary(
-            container.schema.entities.map { ($0.name, $0) },
-            uniquingKeysWith: { first, _ in first },
-        )
+        let entitiesByName = Self.entitiesByName(in: container.schema)
 
         let summaries: [InspectorEntity] = if let modelTypes {
             modelTypes.map { type in
@@ -55,21 +52,81 @@ actor SwiftDataInspectorReader {
         return summaries.sorted { $0.name < $1.name }
     }
 
-    /// Fetch up to `rowLimit` rows for `entity`, formatted for display, plus the
-    /// per-column character counts the view needs to size columns.
-    func rows(for entity: InspectorEntity) -> InspectorRowSet {
+    /// Fetch one page of up to `rowLimit` rows for `entity` starting at `offset`,
+    /// formatted for display, plus the per-column character counts the view needs
+    /// to size columns. `offset` powers "load more": the table requests the next
+    /// page and appends it. `isTruncated` reports whether rows remain beyond this
+    /// page (`offset + page < total`).
+    func rows(for entity: InspectorEntity, offset: Int = 0) -> InspectorRowSet {
         let context = ModelContext(container)
-        let models = context.inspectorFetch(entity.type, limit: rowLimit)
+        let models = context.inspectorFetch(entity.type, limit: rowLimit, offset: offset)
         let total = context.inspectorCount(of: entity.type)
-        let rows = models.enumerated().map { index, model in
-            InspectorRow(id: index, cells: cells(for: model, entity: entity))
+        let rows = models.map { model in
+            InspectorRow(
+                persistentID: model.persistentModelID,
+                cells: cells(for: model, entity: entity),
+            )
         }
         return InspectorRowSet(
             rows: rows,
             totalCount: total,
-            isTruncated: rows.count < total,
+            isTruncated: offset + rows.count < total,
             columnCharacterCounts: Self.columnCharacterCounts(for: rows, columns: entity.columns),
         )
+    }
+
+    /// Resolve the `relationship` of the row identified by `rowID` (a model of
+    /// `sourceType`) into its related rows, off the main thread. Unlike the table
+    /// — which never faults a relationship just to draw a row — this is the one
+    /// place the inspector reads a relationship, and only because the user
+    /// explicitly drilled into it.
+    ///
+    /// Returns an empty result (no entity, no rows) if the source row is gone or
+    /// the relationship is empty/unreadable, so the detail view degrades to an
+    /// empty state rather than trapping.
+    func relatedRows(
+        of rowID: PersistentIdentifier,
+        relationship name: String,
+        sourceType: any PersistentModel.Type,
+    ) -> InspectorRelatedRows {
+        let context = ModelContext(container)
+        guard let source = context.inspectorModel(sourceType, id: rowID) else {
+            return InspectorRelatedRows(entity: nil, rows: [], isToMany: false)
+        }
+
+        let references = SwiftDataReflection.relatedReferences(of: source, named: name)
+        guard let destinationType = references.destinationType else {
+            return InspectorRelatedRows(entity: nil, rows: [], isToMany: references.isToMany)
+        }
+
+        let entitiesByName = Self.entitiesByName(in: container.schema)
+        let entity = Self.makeEntity(
+            type: destinationType,
+            schemaEntity: entitiesByName[String(describing: destinationType)],
+            count: context.inspectorCount(of: destinationType),
+        )
+
+        // Re-fetch each related row by id so its attributes are materialized
+        // (the relationship fault yields rows whose attribute slots are still
+        // unresolved), then render cells with the same placeholder rules.
+        let rows = references.ids.compactMap { id -> InspectorRow? in
+            guard let related = context.inspectorModel(destinationType, id: id) else { return nil }
+            return InspectorRow(
+                persistentID: related.persistentModelID,
+                cells: cells(for: related, entity: entity),
+            )
+        }
+
+        return InspectorRelatedRows(
+            entity: rows.isEmpty ? nil : entity,
+            rows: rows,
+            isToMany: references.isToMany,
+        )
+    }
+
+    /// The schema's entities keyed by name, keeping the first on a duplicate.
+    private nonisolated static func entitiesByName(in schema: Schema) -> [String: Schema.Entity] {
+        Dictionary(schema.entities.map { ($0.name, $0) }, uniquingKeysWith: { first, _ in first })
     }
 
     private func makeEntity(
@@ -77,13 +134,30 @@ actor SwiftDataInspectorReader {
         schemaEntity: Schema.Entity?,
         context: ModelContext,
     ) -> InspectorEntity {
+        Self.makeEntity(
+            type: type,
+            schemaEntity: schemaEntity,
+            count: context.inspectorCount(of: type),
+        )
+    }
+
+    /// Build an entity summary from already-resolved, `Sendable` inputs (the
+    /// concrete type, its schema entity, and a precomputed row count). Pure, so
+    /// the relationship resolver can call it without threading the non-`Sendable`
+    /// `ModelContext` through — keeping the model and the context in separate
+    /// isolation regions.
+    private nonisolated static func makeEntity(
+        type: any PersistentModel.Type,
+        schemaEntity: Schema.Entity?,
+        count: Int,
+    ) -> InspectorEntity {
         InspectorEntity(
             name: schemaEntity?.name ?? String(describing: type),
             type: type,
-            count: context.inspectorCount(of: type),
-            columns: schemaEntity.map(Self.columns(of:)) ?? [],
-            binaryColumns: schemaEntity.map(Self.binaryColumns(of:)) ?? [],
-            relationshipColumns: schemaEntity.map(Self.relationshipColumns(of:)) ?? [],
+            count: count,
+            columns: schemaEntity.map(columns(of:)) ?? [],
+            binaryColumns: schemaEntity.map(binaryColumns(of:)) ?? [],
+            relationshipColumns: schemaEntity.map(relationshipColumns(of:)) ?? [],
         )
     }
 
