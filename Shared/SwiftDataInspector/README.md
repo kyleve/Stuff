@@ -19,14 +19,23 @@ Observation (plus UIKit for font metrics) — no app code.
   searchable by name.
 - **Per-entity table** — a lazily-rendered grid of every row's columns. The
   header pins while rows scroll vertically; the grid scrolls horizontally for
-  wide schemas; rows are searchable across all cell values; selectable cells.
+  wide schemas; rows are searchable across all cell values.
+- **Load more** — the table fetches a capped page (default 500) and shows a
+  footer with a **Load more** button when more rows remain, so even a huge table
+  opens instantly and grows on demand.
+- **Row detail** — tap a row to see every attribute in full (selectable), and
+  tap a relationship there to drill into the related rows. To-one relationships
+  open the related row directly; to-many list the rows, each of which drills in
+  recursively — so you can walk the object graph to any depth.
 - **Generic value rendering** — strings, numbers, dates, UUIDs, and bools are
   formatted out of the box. `Data` columns show a byte count (inline) or a
   `"Data"` placeholder (external storage), and relationships show
-  `"(relationship)"` — **blobs and related object graphs are never faulted in**
-  just to draw a row.
-- **Off the main thread** — all fetching, reflection, and formatting happen on a
-  background actor; the UI only renders `Sendable` snapshots.
+  `"(relationship)"` in the table — **blobs and related object graphs are never
+  faulted in just to draw a table row**; a relationship is resolved only when you
+  explicitly drill into it from the detail.
+- **Off the main thread** — all fetching, reflection, relationship resolution,
+  and formatting happen on a background actor; the UI only renders `Sendable`
+  snapshots.
 
 ## Installation
 
@@ -78,8 +87,10 @@ public struct SwiftDataInspectorConfiguration {
 - **`modelTypes`** — pass your types explicitly to skip the schema reflection
   fallback (and to control ordering/inclusion). When `nil`, the inspector derives
   the entity list from `container.schema`.
-- **`rowLimit`** — caps the page per entity so a huge table can't stall the UI;
-  the detail screen notes when results are truncated. `nil` fetches everything.
+- **`rowLimit`** — the page size per entity, so a huge table can't stall the UI.
+  The table loads the first page, shows how many of the total are loaded, and
+  offers a **Load more** button to fetch the next page. `nil` fetches everything
+  at once (no button).
 - **`valueFormatter`** — override how a raw stored value becomes display text;
   return `nil` to fall back to the built-in formatting. It runs on a background
   actor, so it's `@Sendable` — keep it pure:
@@ -97,17 +108,24 @@ The inspector is generic because it discovers everything at runtime:
 1. **Entities** come from `container.schema.entities` (or the explicit
    `modelTypes`). Each entity's columns are its attributes followed by its
    relationships.
-2. **Rows** are fetched per entity with a type-erased `FetchDescriptor`, and each
-   model's stored values are read by name via a small, well-contained reflection
-   over SwiftData's backing data.
+2. **Rows** are fetched a page at a time with a type-erased `FetchDescriptor`
+   (`fetchOffset`/`fetchLimit`), and each model's stored values are read by name
+   via a small, well-contained reflection over SwiftData's backing data. Each row
+   keeps its `PersistentIdentifier` as a stable identity.
 3. **Values** are formatted to display strings. Binary and relationship columns
    are rendered as lightweight placeholders so external-storage blobs and related
-   graphs are never materialized.
+   graphs are never materialized to draw the table.
+4. **Drill-in** resolves a relationship only when you tap it: the source row is
+   re-fetched by id, the relationship's property getter is run (via its
+   `schemaMetadata` key path) to fault the related objects, and each related row
+   is fetched fully materialized — then rendered with the same placeholder rules,
+   so you can keep drilling.
 
-SwiftData has no public API to read an attribute by name off a `PersistentModel`,
-so that one step uses private-internal reflection — isolated to a single file and
-written to **degrade gracefully** (blank cells, never a crash) if a future
-SwiftData release changes the internal shape.
+SwiftData has no public API to read an attribute (or a relationship) by name off
+a `PersistentModel`, so those steps use private-internal reflection — isolated to
+a single file and written to **degrade gracefully** (blank cells / an empty
+relationship, never a crash) if a future SwiftData release changes the internal
+shape.
 
 ### Threading
 
@@ -115,9 +133,10 @@ SwiftData release changes the internal shape.
 work lives on a background `SwiftDataInspectorReader` actor that owns a fresh,
 read-only `ModelContext` per call. Because `ModelContext`/`PersistentModel`
 aren't `Sendable`, the context never leaves the actor — only `Sendable` snapshots
-(`InspectorEntity`, `InspectorRowSet`) come back to the UI. The result: opening
-even a 500-row entity does its DB fetch and reflection off main, and the main
-thread only renders (showing a `ProgressView` while loading).
+(`InspectorEntity`, `InspectorRowSet`, `InspectorRelatedRows`) come back to the
+UI. The result: opening even a 500-row entity (or resolving a relationship) does
+its DB fetch and reflection off main, and the main thread only renders (showing a
+`ProgressView` while loading).
 
 ### Freshness
 
@@ -164,7 +183,10 @@ if let configuration = session.swiftDataInspectorConfiguration {
 
 The module is exercised with Swift Testing in a hosted test bundle. Build an
 in-memory `ModelContainer` with local `@Model` fixtures, seed it, drive
-`SwiftDataInspectorModel` (`await loadEntities()` / `await rows(for:)`), and
-assert on the snapshots — covering the generic edge cases the reflection must
-survive (missing columns, inline vs. external `Data`, relationships, Date/Bool
-extraction, and refresh picking up newly written rows).
+`SwiftDataInspectorModel` (`await loadEntities()` / `await rows(for:offset:)` /
+`await relatedRows(...)`), and assert on the snapshots — covering the generic edge
+cases the reflection must survive (missing columns, inline vs. external `Data`,
+relationship columns, Date/Bool extraction, refresh picking up newly written
+rows), pagination (disjoint pages, `isTruncated`, stable `persistentID`s), and
+relationship resolution (to-many, to-one, empty, and a stale source id that
+degrades instead of trapping).
