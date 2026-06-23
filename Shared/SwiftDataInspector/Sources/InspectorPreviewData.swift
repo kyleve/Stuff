@@ -128,16 +128,13 @@
 
         var body: some View {
             NavigationStack {
-                Group {
-                    if let entity = model.entities
-                        .first(where: { $0.name == "InspectorPreviewBook" }) ?? model.entities.first
-                    {
-                        EntityTableView(model: model, entity: entity)
-                    } else {
-                        ProgressView()
-                    }
+                if let entity = model.entities.first(where: { $0.name == "InspectorPreviewBook" })
+                    ?? model.entities.first
+                {
+                    EntityTableView(model: model, entity: entity)
+                } else {
+                    ProgressView()
                 }
-                .inspectorNavigationDestinations(model: model)
             }
             .task { await model.loadEntities() }
         }
@@ -152,14 +149,11 @@
 
         var body: some View {
             NavigationStack {
-                Group {
-                    if let entity, let row {
-                        RowDetailView(model: model, entity: entity, row: row)
-                    } else {
-                        ProgressView()
-                    }
+                if let entity, let row {
+                    RowDetailView(model: model, entity: entity, row: row)
+                } else {
+                    ProgressView()
                 }
-                .inspectorNavigationDestinations(model: model)
             }
             .task {
                 await model.loadEntities()
@@ -182,19 +176,16 @@
 
         var body: some View {
             NavigationStack {
-                Group {
-                    if let entity, let rowID {
-                        RelationshipView(
-                            model: model,
-                            sourceEntity: entity,
-                            sourceRowID: rowID,
-                            relationshipName: "books",
-                        )
-                    } else {
-                        ProgressView()
-                    }
+                if let entity, let rowID {
+                    RelationshipView(
+                        model: model,
+                        sourceEntity: entity,
+                        sourceRowID: rowID,
+                        relationshipName: "books",
+                    )
+                } else {
+                    ProgressView()
                 }
-                .inspectorNavigationDestinations(model: model)
             }
             .task {
                 await model.loadEntities()

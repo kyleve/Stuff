@@ -15,6 +15,7 @@ struct RelationshipView: View {
     let relationshipName: String
 
     @State private var related: InspectorRelatedRows?
+    @State private var selectedRow: InspectorRow?
 
     var body: some View {
         Group {
@@ -44,12 +45,17 @@ struct RelationshipView: View {
                 List {
                     Section(sectionTitle(for: related)) {
                         ForEach(related.rows) { row in
-                            NavigationLink(value: InspectorRowRoute(entity: entity, row: row)) {
+                            Button {
+                                selectedRow = row
+                            } label: {
                                 RelatedRowLabel(entity: entity, row: row)
                             }
-                            .buttonStyle(.plain)
+                            .foregroundStyle(.primary)
                         }
                     }
+                }
+                .navigationDestination(item: $selectedRow) { row in
+                    RowDetailView(model: model, entity: entity, row: row)
                 }
             } else {
                 // To-one: skip the intermediate list and show the related row.

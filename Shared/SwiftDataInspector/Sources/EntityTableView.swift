@@ -20,6 +20,7 @@ struct EntityTableView: View {
     @State private var hasLoaded = false
     @State private var isLoadingMore = false
     @State private var searchText = ""
+    @State private var selectedRow: InspectorRow?
     /// How many `rowLimit`-sized pages to fetch. Starts at one; "load more"
     /// increments it. With no `rowLimit` every row loads at once and this is
     /// irrelevant.
@@ -47,6 +48,9 @@ struct EntityTableView: View {
         // same number of pages from a fresh context.
         .task { if !hasLoaded { await load() } }
         .refreshable { await load() }
+        .navigationDestination(item: $selectedRow) { row in
+            RowDetailView(model: model, entity: entity, row: row)
+        }
     }
 
     /// Fetch the first `pageCount` pages in one query and show them. Used for the
@@ -137,11 +141,13 @@ struct EntityTableView: View {
         .background(.bar)
     }
 
-    /// The whole row is a link into the per-row detail. Cell text selection moves
-    /// to the detail view, where values are shown in full; here a tap drills in
-    /// (selection would otherwise swallow the tap).
+    /// The whole row is a button into the per-row detail. Cell text selection
+    /// moves to the detail view, where values are shown in full; here a tap drills
+    /// in (selection would otherwise swallow the tap).
     private func cellRow(_ row: InspectorRow) -> some View {
-        NavigationLink(value: InspectorRowRoute(entity: entity, row: row)) {
+        Button {
+            selectedRow = row
+        } label: {
             HStack(spacing: columnSpacing) {
                 ForEach(entity.columns, id: \.self) { column in
                     Text(row.cells[column] ?? "—")

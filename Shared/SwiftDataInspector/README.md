@@ -68,10 +68,12 @@ NavigationStack {                       // the inspector expects an ambient stac
 That's it — the view loads entities on appear, pull-to-refresh re-reads, and
 tapping an entity pushes its table.
 
-> The view pushes with value-based `NavigationLink`s, so it **must** have a
-> `NavigationStack` (or other navigation destination context) above it. It
-> deliberately doesn't wrap itself in one, so it composes inside a settings
-> screen, a tab, or a sheet.
+> The view pushes the per-entity table with a `NavigationLink`, so it **must**
+> have a `NavigationStack` (or other navigation destination context) above it.
+> It deliberately doesn't wrap itself in one, so it composes inside a settings
+> screen, a tab, or a sheet. (It uses closure `NavigationLink`s and
+> `navigationDestination(item:)` rather than value-based routing, so it pushes
+> correctly no matter how the host presents it.)
 
 ## Configuration
 

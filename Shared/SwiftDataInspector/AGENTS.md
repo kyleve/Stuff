@@ -40,10 +40,10 @@ detail.
   `@Sendable valueFormatter` override. The formatter runs on the background
   reader, so keep it pure (don't capture main-actor state).
 - [`SwiftDataInspectorView`](Sources/SwiftDataInspectorView.swift) – the root
-  list view. **Expects an ambient `NavigationStack`** (it pushes with value-based
-  `NavigationLink`s); drop it into a navigation context the consumer owns (a
-  settings screen, a tab, a sheet). It also registers all three drill-in
-  destinations once, at the root, via `.inspectorNavigationDestinations(model:)`.
+  list view. **Expects an ambient `NavigationStack`** (it pushes the per-entity
+  table with a closure `NavigationLink`); drop it into a navigation context the
+  consumer owns (a settings screen, a tab, a sheet). Navigation is **not**
+  value-based — see the navigation behavior below for why.
 
 ## Internal types
 
@@ -65,31 +65,23 @@ detail.
 - [`InspectorEntity`](Sources/InspectorEntity.swift) /
   [`InspectorRow` / `InspectorRowSet` / `InspectorRelatedRows`](Sources/InspectorRow.swift)
   – the `Sendable` snapshots returned by the reader. `InspectorEntity` carries the
-  concrete metatype, the column list, and the sets of binary/relationship columns;
-  it's `Hashable` (identity is name + type + columns, *not* the live count) so it
-  and the routes that wrap it can drive value-based navigation. `InspectorRow`
-  carries the row's `PersistentIdentifier` (its identity, stable across the
-  "load more" replace and the key the detail uses to resolve relationships).
+  concrete metatype, the column list, and the sets of binary/relationship columns.
+  `InspectorRow` carries the row's `PersistentIdentifier` (its identity, stable
+  across the "load more" replace, the key `navigationDestination(item:)` pushes a
+  detail with, and the key the detail uses to resolve relationships).
   `InspectorRowSet` also carries `columnCharacterCounts` so the view sizes columns
   without re-scanning cells on main, and reports `isTruncated` (more rows remain).
   `InspectorRelatedRows` is the resolved contents of one relationship (destination
   entity + related rows + to-many flag + `totalCount`, the true reference count so
   the UI can note when related rows were capped to `rowLimit`).
-- [`InspectorRoute`](Sources/InspectorRoute.swift) – the `Hashable` drill-in
-  routes (`InspectorRowRoute`, `InspectorRelationshipRoute`; the entity table
-  routes on `InspectorEntity` itself) plus the
-  `inspectorNavigationDestinations(model:)` modifier that registers all three in
-  one place. Drilling in is recursive, so every push is a `NavigationLink(value:)`
-  and the destinations are declared once (not a `navigationDestination(item:)` per
-  level, which re-registers the same type down a stack and resolves ambiguously).
 - [`EntityTableView`](Sources/EntityTableView.swift) – the per-entity detail
   table. Shows a growing prefix window (a "Load more" footer button) and pushes a
-  row's detail via an `InspectorRowRoute`.
+  row's detail (`navigationDestination(item:)` keyed on the tapped `InspectorRow`).
 - [`RowDetailView`](Sources/RowDetailView.swift) – the per-row detail: full
-  attribute values plus relationship rows that push an `InspectorRelationshipRoute`.
+  attribute values plus relationship rows that push a `RelationshipView`.
 - [`RelationshipView`](Sources/RelationshipView.swift) – the resolved related
   rows for one relationship (to-one drills straight in; to-many lists rows that
-  push an `InspectorRowRoute` to drill in recursively).
+  drill into their own detail, recursively).
 - [`InspectorPreviewData`](Sources/InspectorPreviewData.swift) – `#if DEBUG`
   in-memory fixtures (Author/Book with a relationship) and the `#Preview` hosts
   for the table, the row detail, and a relationship.
@@ -145,11 +137,16 @@ is opened so generic `fetch`/`fetchCount`/`schemaMetadata` infer their concrete
   `fetchOffset` boundary stable, and this sidesteps that entirely. Stable
   `persistentID`s keep scroll position across the replace; the heavy per-cell
   character-count scan stays in the reader.
-- **Drill-in navigation is route-based and declared once.** Recursion (row →
-  relationship → related row → …) reuses the same destination types at every
-  depth, so the destinations are registered a single time at the root
-  (`inspectorNavigationDestinations(model:)`) and every push is a
-  `NavigationLink(value:)`. Don't reintroduce per-level `navigationDestination(item:)`.
+- **Navigation composes with the host stack — no value-based links.** The
+  inspector is dropped into a stack the *consumer* owns, and consumers push it
+  with a closure `NavigationLink { SwiftDataInspectorView(...) }`. Mixing a
+  `NavigationLink(value:)` / `navigationDestination(for:)` into that same stack
+  makes SwiftUI double-push (a tap also re-fires the consumer's closure link,
+  re-pushing the inspector). So every drill-in here is a closure `NavigationLink`
+  (entity → table) or `navigationDestination(item:)` (row → detail → relationship
+  → related row, recursively). `item:` keys each push to a single screen's state
+  at its own depth, so the recursion needs no shared path and no type registry.
+  Don't switch to value-based routing.
 - **All store work stays off the main thread.** Fetch, count, `Mirror`
   reflection, relationship resolution, formatting, and column character-counting
   happen on the `SwiftDataInspectorReader` actor; the main actor only renders

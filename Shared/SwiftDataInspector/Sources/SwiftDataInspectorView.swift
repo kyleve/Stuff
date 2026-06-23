@@ -5,15 +5,16 @@ import SwiftUI
 /// its row count; tap one to drill into a scrollable table of its rows and
 /// columns. Searchable by entity name.
 ///
-/// The view expects an ambient `NavigationStack` (it pushes with value-based
-/// `NavigationLink`s), so drop it into a navigation context — a settings screen,
-/// a tab, or a sheet that provides its own stack.
+/// The view expects an ambient `NavigationStack` (it pushes the per-entity table
+/// with a `NavigationLink`), so drop it into a navigation context — a settings
+/// screen, a tab, or a sheet that provides its own stack.
 ///
-/// Drilling in is recursive, so all three destinations — the entity table, a
-/// row's detail, and a relationship's related rows — are registered here, once,
-/// at the root of the stack. Every deeper view just appends a route value; see
-/// `InspectorRoute.swift` for why a single declaration replaces per-level
-/// `navigationDestination(item:)`s.
+/// Navigation is deliberately *not* value-based (`NavigationLink(value:)` +
+/// `navigationDestination(for:)`). Consumers push this view into their own stack
+/// with a closure `NavigationLink { SwiftDataInspectorView(...) }`, and mixing a
+/// value-based link into that same stack makes SwiftUI double-push (a tap also
+/// re-fires the consumer's link). So every push here uses a closure
+/// `NavigationLink`/`navigationDestination(item:)`, which composes with any host.
 public struct SwiftDataInspectorView: View {
     @State private var model: SwiftDataInspectorModel
     @State private var searchText = ""
@@ -26,7 +27,9 @@ public struct SwiftDataInspectorView: View {
     public var body: some View {
         List {
             ForEach(filteredEntities) { entity in
-                NavigationLink(value: entity) {
+                NavigationLink {
+                    EntityTableView(model: model, entity: entity)
+                } label: {
                     EntityRow(entity: entity)
                 }
             }
@@ -35,7 +38,6 @@ public struct SwiftDataInspectorView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search entities")
         .overlay { emptyState }
-        .inspectorNavigationDestinations(model: model)
         .task { await model.loadEntities() }
         .refreshable { await model.loadEntities() }
     }
