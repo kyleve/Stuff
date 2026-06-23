@@ -224,6 +224,7 @@ let project = Project(
     // WhereCoreTests` / `tuist test WhereTests` / `tuist test WhereUITests`
     // target a single bundle without building the whole workspace.
     schemes: [
+        testScheme(name: "StuffCoreTests"),
         testScheme(name: "LifecycleKitTests"),
         testScheme(name: "LogKitTests"),
         testScheme(name: "LogViewerUITests"),

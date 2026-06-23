@@ -1,5 +1,6 @@
 import UIKit
 
+@MainActor
 @main
 final class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(
