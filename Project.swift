@@ -181,6 +181,12 @@ let project = Project(
             sources: ["Shared/LifecycleKit/Tests/**"],
         ),
         unitTests(
+            name: "LogKitTests",
+            bundleIdSuffix: "logkit",
+            productDependency: "LogKit",
+            sources: ["Shared/LogKit/Tests/**"],
+        ),
+        unitTests(
             name: "WhereCoreTests",
             bundleIdSuffix: "wherecore",
             productDependency: "WhereCore",
@@ -201,6 +207,7 @@ let project = Project(
     // target a single bundle without building the whole workspace.
     schemes: [
         testScheme(name: "LifecycleKitTests"),
+        testScheme(name: "LogKitTests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
