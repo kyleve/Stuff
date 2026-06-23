@@ -38,7 +38,7 @@ final class TestGadget {
 @Model
 final class TestParent {
     var label: String?
-    @Relationship(deleteRule: .nullify) var children: [TestChild]?
+    @Relationship(deleteRule: .nullify, inverse: \TestChild.parent) var children: [TestChild]?
 
     init(label: String?) {
         self.label = label
@@ -49,6 +49,7 @@ final class TestParent {
 @Model
 final class TestChild {
     var name: String?
+    var parent: TestParent?
 
     init(name: String?) {
         self.name = name
@@ -388,5 +389,176 @@ struct SwiftDataInspectorTests {
         #expect(row.cells["payload"] == "<blob>")
         // Non-Data values still use the built-in formatting.
         #expect(row.cells["name"] == "Widget 0")
+    }
+
+    // MARK: Pagination
+
+    @Test func pagesAreDisjointAndCoverEveryRow() async throws {
+        let container = try makeContainer()
+        seed(container, widgets: 5, gadgets: 0)
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container, rowLimit: 2),
+        )
+        await model.loadEntities()
+        let widget = try #require(model.entities.first { $0.name == "TestWidget" })
+
+        let page0 = await model.rows(for: widget, offset: 0)
+        #expect(page0.rows.count == 2)
+        #expect(page0.totalCount == 5)
+        #expect(page0.isTruncated)
+
+        let page1 = await model.rows(for: widget, offset: 2)
+        #expect(page1.rows.count == 2)
+        #expect(page1.isTruncated)
+
+        // The final page returns the remainder and reports no more rows.
+        let page2 = await model.rows(for: widget, offset: 4)
+        #expect(page2.rows.count == 1)
+        #expect(!page2.isTruncated)
+
+        // Concatenated, the three pages cover all five rows with no overlap.
+        let ids = (page0.rows + page1.rows + page2.rows).map(\.persistentID)
+        #expect(Set(ids).count == 5)
+    }
+
+    @Test func rowsCarryDistinctPersistentIDs() async throws {
+        let container = try makeContainer()
+        seed(container, widgets: 3, gadgets: 0)
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let widget = try #require(model.entities.first { $0.name == "TestWidget" })
+        let rows = await model.rows(for: widget).rows
+
+        #expect(rows.count == 3)
+        #expect(Set(rows.map(\.persistentID)).count == 3)
+    }
+
+    // MARK: Relationship resolution
+
+    private func makeFamilyContainer() throws -> ModelContainer {
+        let schema = Schema([TestParent.self, TestChild.self])
+        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        return try ModelContainer(for: schema, configurations: [configuration])
+    }
+
+    @Test func resolvesToManyRelationshipIntoRelatedRows() async throws {
+        let container = try makeFamilyContainer()
+        let context = container.mainContext
+        let parent = TestParent(label: "P")
+        let children = [TestChild(name: "A"), TestChild(name: "B"), TestChild(name: "C")]
+        context.insert(parent)
+        for child in children {
+            context.insert(child)
+        }
+        parent.children = children
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let parentEntity = try #require(model.entities.first { $0.name == "TestParent" })
+        let parentRow = try #require(await model.rows(for: parentEntity).rows.first)
+
+        let related = await model.relatedRows(
+            of: parentRow.persistentID,
+            relationship: "children",
+            sourceType: parentEntity.type,
+        )
+
+        #expect(related.isToMany)
+        #expect(related.entity?.name == "TestChild")
+        #expect(related.rows.count == 3)
+        #expect(Set(related.rows.compactMap { $0.cells["name"] }) == ["A", "B", "C"])
+        // The drilled-in rows still placeholder their own relationships rather
+        // than faulting the graph further.
+        #expect(related.entity?.relationshipColumns.contains("parent") == true)
+        #expect(related.rows.allSatisfy { $0.cells["parent"] == "(relationship)" })
+    }
+
+    @Test func resolvesToOneRelationshipIntoSingleRow() async throws {
+        let container = try makeFamilyContainer()
+        let context = container.mainContext
+        let parent = TestParent(label: "Root")
+        let child = TestChild(name: "Solo")
+        context.insert(parent)
+        context.insert(child)
+        child.parent = parent
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let childEntity = try #require(model.entities.first { $0.name == "TestChild" })
+        let childRow = try #require(await model.rows(for: childEntity).rows.first)
+
+        let related = await model.relatedRows(
+            of: childRow.persistentID,
+            relationship: "parent",
+            sourceType: childEntity.type,
+        )
+
+        #expect(!related.isToMany)
+        #expect(related.entity?.name == "TestParent")
+        #expect(related.rows.count == 1)
+        #expect(related.rows.first?.cells["label"] == "Root")
+    }
+
+    @Test func emptyRelationshipResolvesToNoRows() async throws {
+        let container = try makeFamilyContainer()
+        let context = container.mainContext
+        context.insert(TestParent(label: "Lonely"))
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let parentEntity = try #require(model.entities.first { $0.name == "TestParent" })
+        let parentRow = try #require(await model.rows(for: parentEntity).rows.first)
+
+        let related = await model.relatedRows(
+            of: parentRow.persistentID,
+            relationship: "children",
+            sourceType: parentEntity.type,
+        )
+
+        #expect(related.rows.isEmpty)
+        #expect(related.entity == nil)
+    }
+
+    @Test func relationshipResolutionDegradesWhenSourceRowMissing() async throws {
+        let container = try makeFamilyContainer()
+        let context = container.mainContext
+        let parent = TestParent(label: "P")
+        context.insert(parent)
+        try context.save()
+
+        let model = SwiftDataInspectorModel(
+            configuration: SwiftDataInspectorConfiguration(container: container),
+        )
+        await model.loadEntities()
+        let parentEntity = try #require(model.entities.first { $0.name == "TestParent" })
+        let parentRow = try #require(await model.rows(for: parentEntity).rows.first)
+        let staleID = parentRow.persistentID
+
+        // Delete the row, then resolve against its now-stale id: the predicate
+        // fetch finds nothing and the result degrades instead of trapping.
+        context.delete(parent)
+        try context.save()
+
+        let related = await model.relatedRows(
+            of: staleID,
+            relationship: "children",
+            sourceType: parentEntity.type,
+        )
+
+        #expect(related.rows.isEmpty)
+        #expect(related.entity == nil)
     }
 }
