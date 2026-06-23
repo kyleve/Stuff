@@ -70,7 +70,7 @@ by `./sync-agents`.
 
 - **Package products** ([`Package.swift`](Package.swift)) — **StuffCore** ([`Shared/StuffCore/Sources/`](Shared/StuffCore/Sources/)) and **LifecycleKit** ([`Shared/LifecycleKit/Sources/`](Shared/LifecycleKit/Sources/)) under [`Shared/`](Shared/); **WhereCore** / **WhereUI** / **WhereTesting** under [`Where/`](Where/).
 - **Tuist targets** ([`Project.swift`](Project.swift)) — **Where** app ([`Where/Where/`](Where/Where/)), **StuffTestHost** ([`Shared/StuffTestHost/`](Shared/StuffTestHost/)), **WhereTests** (app tests, no host), and hosted **\*Tests** bundles (**StuffCoreTests**, **LifecycleKitTests**, **WhereCoreTests**, **WhereUITests**) that depend on **StuffTestHost** + **WhereTesting** + the relevant package product.
-- Add SPM library targets in `Package.swift` and wire apps/tests in `Project.swift` (see existing `unitTests` helper).
+- Add SPM library targets in `Package.swift` and wire apps/tests in `Project.swift` (see existing `unitTests` helper). A new module also ships a root `README.md` and `AGENTS.md` — see [Per-module docs](#per-module-docs).
 
 ## Deployment
 
@@ -85,14 +85,38 @@ Shared code and the shared iOS test host live under **`Shared/`**. Feature apps 
 
 ```
 Shared/<TargetName>/
+  README.md   – human-facing overview & usage (see Per-module docs)
+  AGENTS.md   – agent-facing module shape (see Per-module docs)
   Sources/    – production code
   Tests/      – unit tests (Swift Testing, not XCTest)
 
 <Feature>/<TargetName>/
+  README.md
+  AGENTS.md
   Sources/
   Tests/
   Resources/  – asset catalogs, etc. (apps only)
 ```
+
+## Per-module docs
+
+Every module carries two docs at its root, and **a new module must add both**
+(use [`Shared/LifecycleKit`](Shared/LifecycleKit/) and
+[`Shared/SwiftDataInspector`](Shared/SwiftDataInspector/) as templates):
+
+- `README.md` — the human-facing overview: what the module is, install, a quick
+  start, the public API, how it works, and any contracts/limitations.
+- `AGENTS.md` — the agent-facing module shape: scope & dependencies, the key
+  types, invariants/behaviors to preserve, conventions, and testing patterns. It
+  complements this root file (which owns build/format/global rules) and should
+  link back to it; it does **not** repeat global rules.
+
+Keep both **current as the code changes** — treat stale docs as a bug. When you
+change a module's architecture, public API, conventions, or a documented
+behavior, update that module's `README.md` and `AGENTS.md` in the *same* change;
+if you change a global rule, a target, or the build/test flow, update this root
+`AGENTS.md` too. After adding or renaming an `AGENTS.md`, run `./sync-agents` so
+the generated (gitignored) `CLAUDE.md` is produced next to it.
 
 ## Conventions
 
