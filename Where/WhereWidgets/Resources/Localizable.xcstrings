@@ -3,6 +3,7 @@
   "strings" : {
     "widget.gallery.today.description" : {
       "comment" : "Widget gallery description for the Today widget.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -14,6 +15,7 @@
     },
     "widget.gallery.today.name" : {
       "comment" : "Widget gallery name for the Today widget.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -25,6 +27,7 @@
     },
     "widget.gallery.yearTotals.description" : {
       "comment" : "Widget gallery description for the year totals widget.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -36,6 +39,7 @@
     },
     "widget.gallery.yearTotals.name" : {
       "comment" : "Widget gallery name for the year totals widget.",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
