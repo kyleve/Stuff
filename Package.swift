@@ -61,6 +61,7 @@ let package = Package(
         .target(
             name: "WhereUI",
             dependencies: [
+                .target(name: "StuffCore"),
                 .target(name: "WhereCore"),
                 .target(name: "LifecycleKit"),
                 .target(name: "LogKit"),
