@@ -51,10 +51,10 @@ macOS-only. The primary "Classic" icon is reserved.
 
 Swift is the single source of truth for user-facing strings. Each UI module
 declares every key and its English default in a `LocalizedStrings.swift` (each
-member wraps a literal `String(localized:defaultValue:bundle:.module,locale:)`
-call), and `./localize` (a build-free Ruby script, like `sync-agents`)
-reconciles the sibling `Resources/Localizable.xcstrings` so the two can't
-drift:
+member is a literal `.module("<key>", "<value>")` factory call — the key a
+`StaticString` — that bakes in `bundle: .module` and the locale), and
+`./localize` (a build-free Ruby script, like `sync-agents`) reconciles the
+sibling `Resources/Localizable.xcstrings` so the two can't drift:
 
 - **add** keys present in Swift but missing from the catalog,
 - **prune** catalog keys no longer referenced in Swift,

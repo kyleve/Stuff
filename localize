@@ -5,8 +5,9 @@
 #
 # Swift is the single source of truth for user-facing strings: each module's
 # `LocalizedStrings.swift` declares every key and its English default via a
-# literal `String(localized: "<key>", defaultValue: "<value>", bundle: .module,
-# ...)` call. This script extracts those calls and reconciles the sibling
+# literal `.module("<key>", "<value>")` factory call (or, for composed members,
+# a raw `String(localized: "<key>", defaultValue: "<value>", …)`). This script
+# extracts those calls and reconciles the sibling
 # `Resources/Localizable.xcstrings` catalog so the two can't drift:
 #
 #   • ADD     keys present in Swift but missing from the catalog.
@@ -47,7 +48,7 @@ TYPE_SPECIFIERS = {
 
 # --- Swift extraction -------------------------------------------------------
 
-# One `String(localized:defaultValue:)` call discovered in Swift.
+# One key-defining call discovered in Swift (`.module(…)` or `String(localized:)`).
 ExtractedKey = Struct.new(:key, :simple_value, :interpolated, keyword_init: true)
 
 class SwiftParser
@@ -76,25 +77,46 @@ class SwiftParser
 
   private
 
-  # Yields [call_start_index, key, value_segments] for every String(localized:)
-  # call. value_segments is an array of [:text, "..."] / [:interp, "expr"].
+  # Yields [call_start_index, key, value_segments] for every key-defining call.
+  # Two forms are recognized, both with a literal key then a literal default:
+  #   • `.module("<key>", "<value>")`        — the LocalizedStrings factory.
+  #   • `String(localized: "<key>", defaultValue: "<value>", …)` — composed
+  #     members that drop to the raw initializer.
+  # value_segments is an array of [:text, "..."] / [:interp, "expr"].
   def scan_calls
     index = 0
-    while (match = @source.match(/String\(\s*localized:\s*/, index))
+    while (match = @source.match(/\.module\(\s*|String\(\s*localized:\s*/, index))
       call_start = match.begin(0)
       cursor = match.end(0)
+      module_form = match[0].start_with?(".module")
       unless @source[cursor] == '"'
-        raise "localize: non-literal key in String(localized:) near:\n#{context(call_start)}"
+        raise "localize: non-literal key in #{module_form ? '.module(…)' : 'String(localized:)'} near:\n#{context(call_start)}"
       end
       key, cursor = read_string_literal(cursor)
-      cursor = expect_label(cursor, "defaultValue:", call_start)
+      cursor = if module_form
+        expect_comma(cursor, call_start)
+      else
+        expect_label(cursor, "defaultValue:", call_start)
+      end
       unless @source[cursor] == '"'
-        raise "localize: non-literal defaultValue in String(localized: #{key.first[1].inspect}) near:\n#{context(call_start)}"
+        raise "localize: non-literal default value for key #{key.first[1].inspect} near:\n#{context(call_start)}"
       end
       value_segments, cursor = read_string_segments(cursor)
       yield call_start, key.first[1], value_segments
       index = cursor
     end
+  end
+
+  # Advance past whitespace to a `,` (the separator between a `.module` key and
+  # its default value), returning the index just after it.
+  def expect_comma(cursor, call_start)
+    cursor += 1 while @source[cursor] =~ /\s/
+    unless @source[cursor] == ","
+      raise "localize: expected ',' after .module key near:\n#{context(call_start)}"
+    end
+    cursor += 1
+    cursor += 1 while @source[cursor] =~ /\s/
+    cursor
   end
 
   # Advance past whitespace + a comma to the given label, returning the index

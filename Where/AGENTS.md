@@ -220,10 +220,19 @@ stay rigid — see root
   (`LocalizedStrings.Tabs.primary`, `LocalizedStrings.Settings.title`, …).
 - Each member is a `static var` (parameter-less) or `static func` (parameterized)
   returning a [`LocalizedString`](../Shared/StuffCore/Sources/LocalizedString.swift)
-  whose builder is a **literal** `String(localized: "<key>", defaultValue:
-  "<en value>", bundle: .module, locale: $0?.locale ?? .current)`. Keep the key
-  and `defaultValue` as string literals — the script (and Xcode extraction) read
-  them statically and fail loudly on anything dynamic.
+  built with the
+  [`.module(_:_:)`](WhereUI/Sources/Shared/LocalizedString+Module.swift) factory
+  — `.module("<key>", "<en value>")` — which bakes in `bundle: .module` and the
+  locale plumbing. Both arguments must be **literals**: the key is a
+  `StaticString` (also what lets `String(localized:)` resolve plurals), and the
+  script (and Xcode extraction) read both statically, failing loudly on anything
+  dynamic.
+- Members that **compose** another string (interpolating a nested
+  `.localized(config)`, e.g. `Common.regionDaysAccessibility`,
+  `Timeline.rowAccessibility`) or **branch on a count** (`Common.dayUnit`,
+  `MissingBanner.compact`) drop to the raw `LocalizedString { … }` closure with a
+  literal `String(localized: "<key>", defaultValue: …)`. The script parses that
+  form too.
 - Swift is the source of truth for keys + English defaults; the sibling
   [`Resources/Localizable.xcstrings`](WhereUI/Sources/Resources/Localizable.xcstrings)
   owns plural `variations` and translations. The pre-commit hook runs
