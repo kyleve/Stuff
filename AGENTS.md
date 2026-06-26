@@ -20,8 +20,10 @@ project](#generating-the-xcode-project)).
 Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise),
 `sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`),
 `profile` (prints build/test hot spots — slowest build phases, slowest
-tests, and slow type-check sites; see `./profile --help`), and `icons`
-(adds/removes selectable app icons; see `./icons --help`).
+tests, and slow type-check sites; see `./profile --help`), `icons`
+(adds/removes selectable app icons; see `./icons --help`), and `localize`
+(reconciles `.xcstrings` catalogs from Swift source; see [Keeping
+localization in sync](#keeping-localization-in-sync)).
 
 ### Managing app icons
 
@@ -45,12 +47,40 @@ appiconset is registered automatically — run `./ide --no-open` afterward to
 regenerate. The script's file edits work on Linux; compiling the catalogs is
 macOS-only. The primary "Classic" icon is reserved.
 
+### Keeping localization in sync
+
+Swift is the single source of truth for user-facing strings. Each UI module
+declares every key and its English default in a `LocalizedStrings.swift` (each
+member wraps a literal `String(localized:defaultValue:bundle:.module,locale:)`
+call), and `./localize` (a build-free Ruby script, like `sync-agents`)
+reconciles the sibling `Resources/Localizable.xcstrings` so the two can't
+drift:
+
+- **add** keys present in Swift but missing from the catalog,
+- **prune** catalog keys no longer referenced in Swift,
+- **update** the English value of a simple key when its Swift default changed,
+- **preserve** plural `variations`, parameterized keys, and every non-English
+  translation untouched (those stay hand-authored in the catalog / Xcode).
+
+```bash
+./localize            # reconcile + write all catalogs
+./localize --lint     # check only; non-zero exit on drift (CI)
+./localize --git-add  # reconcile, write, then re-stage (pre-commit hook)
+```
+
+The pre-commit hook runs `./localize --git-add` and the CI `format` job runs
+`./localize --lint`. Currently piloted in **WhereUI**; other modules adopt the
+`LocalizedStrings` convention to opt in. No Tuist/Xcode build is involved, so
+it runs in the hook and on Linux CI.
+
 ## Formatting
 
 - **SwiftFormat** uses [`.swiftformat`](.swiftformat). Run `./swiftformat` to
   format the tree, or `./swiftformat --lint` to check only (as in CI).
 - The pre-commit hook (enabled by `./ide` via `core.hooksPath`) formats staged
-  `*.swift` files in place and re-stages them.
+  `*.swift` files in place and re-stages them, then runs `./localize --git-add`
+  (see [Keeping localization in sync](#keeping-localization-in-sync)) and
+  `./sync-agents --git-add`.
 
 ## Agent instructions sync
 

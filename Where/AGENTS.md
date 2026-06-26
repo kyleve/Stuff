@@ -208,6 +208,33 @@ states.
   any distinct edge state (e.g. missing-days, elsewhere-only) each deserve a
   preview when the view renders them differently.
 
+## Localized strings (`WhereUI`)
+
+Every user-facing string in `WhereUI` is funneled through
+[`LocalizedStrings`](WhereUI/Sources/Shared/LocalizedStrings.swift) — views hold
+no literals. The convention (which the root `localize` script parses, so it must
+stay rigid — see root
+[`AGENTS.md`](../AGENTS.md#keeping-localization-in-sync)):
+
+- A single `enum LocalizedStrings` with **nested enums** per MARK section
+  (`LocalizedStrings.Tabs.primary`, `LocalizedStrings.Settings.title`, …).
+- Each member is a `static var` (parameter-less) or `static func` (parameterized)
+  returning a [`LocalizedString`](../Shared/StuffCore/Sources/LocalizedString.swift)
+  whose builder is a **literal** `String(localized: "<key>", defaultValue:
+  "<en value>", bundle: .module, locale: $0?.locale ?? .current)`. Keep the key
+  and `defaultValue` as string literals — the script (and Xcode extraction) read
+  them statically and fail loudly on anything dynamic.
+- Swift is the source of truth for keys + English defaults; the sibling
+  [`Resources/Localizable.xcstrings`](WhereUI/Sources/Resources/Localizable.xcstrings)
+  owns plural `variations` and translations. The pre-commit hook runs
+  `./localize --git-add` to reconcile the catalog from this file.
+
+At call sites, prefer [`Text.localized(_:)`](WhereUI/Sources/Shared/Text+Localized.swift)
+for SwiftUI `Text`, and `.localized()` everywhere a plain `String` is needed
+(`Button`, `Label`, `.navigationTitle`, accessibility, etc.). Both run through
+`LocalizedString.localized(_:)`, the single seam a future Environment-driven
+locale override will hook into.
+
 ## Adding things
 
 - **New library target:** add to root
@@ -227,6 +254,10 @@ states.
   needs updating.
 - **New SwiftUI view / widget:** add a `#Preview` in the same file (see
   [SwiftUI views & previews](#swiftui-views--previews)).
+- **New user-facing string:** add a member to
+  [`LocalizedStrings`](WhereUI/Sources/Shared/LocalizedStrings.swift) (don't
+  inline literals in views), then let `./localize` reconcile the catalog (see
+  [Localized strings](#localized-strings-whereui)).
 - **New app icon:** run `./icons --add <1024.png> --name <Name>` (see the
   root [`AGENTS.md`](../AGENTS.md#managing-app-icons)) — it updates both asset
   catalogs and `AppIcons.json`. Don't hand-edit those; the picker is
