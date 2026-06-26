@@ -1,0 +1,457 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+#
+# localize — keep .xcstrings catalogs in sync with Swift source.
+#
+# Swift is the single source of truth for user-facing strings: each module's
+# `LocalizedStrings.swift` declares every key and its English default via a
+# literal `String(localized: "<key>", defaultValue: "<value>", bundle: .module,
+# ...)` call. This script extracts those calls and reconciles the sibling
+# `Resources/Localizable.xcstrings` catalog so the two can't drift:
+#
+#   • ADD     keys present in Swift but missing from the catalog.
+#   • PRUNE   catalog keys no longer referenced in Swift (orphans).
+#   • UPDATE  the English value of a *simple* key when the Swift default changed.
+#   • PRESERVE any key that carries plural `variations` or is parameterized
+#             (interpolated) — those stay hand-authored in the catalog — plus
+#             every non-English translation, untouched.
+#
+# It writes the catalog byte-for-byte in Xcode's own format (pretty-printed
+# JSON: 2-space indent, "key" : value, case-insensitively sorted keys, no
+# trailing newline), so a reconciled, already-in-sync catalog produces no diff.
+#
+# Commands:
+#   ./localize             Reconcile and write all catalogs.
+#   ./localize --lint      Check only; exit non-zero (listing drift) if any
+#                          catalog would change. Used by CI.
+#   ./localize --git-add   Reconcile, write, then `git add` changed catalogs.
+#                          Used by the pre-commit hook.
+#   ./localize --help      Show this help.
+#
+# No Tuist/Xcode/build is needed, so it runs in the pre-commit hook and on
+# Linux CI.
+
+require "json"
+
+REPO_ROOT = File.expand_path("..", __FILE__)
+EXCLUDED_DIRS = %w[Derived .build .git .cursor .claude].freeze
+
+# Swift type -> printf-style specifier used when *adding* a new parameterized
+# key. Existing keys are preserved, so this only seeds best-effort defaults that
+# a human refines in Xcode.
+TYPE_SPECIFIERS = {
+  "Int" => "%lld", "Int64" => "%lld", "Int32" => "%d", "UInt" => "%llu",
+  "Double" => "%f", "Float" => "%f", "CGFloat" => "%f",
+  "String" => "%@", "Substring" => "%@",
+}.freeze
+
+# --- Swift extraction -------------------------------------------------------
+
+# One `String(localized:defaultValue:)` call discovered in Swift.
+ExtractedKey = Struct.new(:key, :simple_value, :interpolated, keyword_init: true)
+
+class SwiftParser
+  def initialize(source)
+    # Strip whole-line comments so doc comments that *mention* the API (or
+    # `// MARK:` markers) can't be mistaken for real calls.
+    @source = source.each_line.reject { |line| line =~ %r{^\s*//} }.join
+  end
+
+  # Returns { key => ExtractedKey }, raising on any call we can't statically
+  # read (a dynamic key or default value) so drift can't slip through.
+  def extract
+    params = parameter_types_by_position
+    keys = {}
+    scan_calls do |call_start, key, value_segments|
+      simple = value_segments.all? { |seg| seg[0] == :text }
+      key_struct = ExtractedKey.new(
+        key: key,
+        simple_value: value_segments.map { |seg| seg[1] }.join,
+        interpolated: !simple,
+      )
+      keys[key] = simple ? key_struct : key_struct.tap { |k| k.simple_value = format_value(value_segments, params, call_start) }
+    end
+    keys
+  end
+
+  private
+
+  # Yields [call_start_index, key, value_segments] for every String(localized:)
+  # call. value_segments is an array of [:text, "..."] / [:interp, "expr"].
+  def scan_calls
+    index = 0
+    while (match = @source.match(/String\(\s*localized:\s*/, index))
+      call_start = match.begin(0)
+      cursor = match.end(0)
+      unless @source[cursor] == '"'
+        raise "localize: non-literal key in String(localized:) near:\n#{context(call_start)}"
+      end
+      key, cursor = read_string_literal(cursor)
+      cursor = expect_label(cursor, "defaultValue:", call_start)
+      unless @source[cursor] == '"'
+        raise "localize: non-literal defaultValue in String(localized: #{key.first[1].inspect}) near:\n#{context(call_start)}"
+      end
+      value_segments, cursor = read_string_segments(cursor)
+      yield call_start, key.first[1], value_segments
+      index = cursor
+    end
+  end
+
+  # Advance past whitespace + a comma to the given label, returning the index
+  # just after it.
+  def expect_label(cursor, label, call_start)
+    cursor += 1 while @source[cursor] =~ /\s/ || @source[cursor] == ","
+    unless @source[cursor, label.length] == label
+      raise "localize: expected #{label} in String(localized:) near:\n#{context(call_start)}"
+    end
+    cursor += label.length
+    cursor += 1 while @source[cursor] =~ /\s/
+    cursor
+  end
+
+  # Parse a string literal whose value has no interpolation, returning
+  # [[[:text, value]], next_index]. Used for the key.
+  def read_string_literal(start)
+    segments, nxt = read_string_segments(start)
+    if segments.any? { |seg| seg[0] == :interp }
+      raise "localize: interpolated key is not allowed near:\n#{context(start)}"
+    end
+    [[[:text, segments.map { |s| s[1] }.join]], nxt]
+  end
+
+  # Parse a Swift string literal starting at the opening quote (index `start`),
+  # returning [segments, index_after_closing_quote]. Handles \(interpolation)
+  # and backslash escapes.
+  def read_string_segments(start)
+    i = start + 1
+    segments = []
+    buffer = +""
+    flush = -> { segments << [:text, buffer.dup] unless buffer.empty?; buffer.clear }
+    while i < @source.length
+      ch = @source[i]
+      if ch == "\\" && @source[i + 1] == "("
+        flush.call
+        expr, i = read_interpolation(i + 2)
+        segments << [:interp, expr]
+      elsif ch == "\\"
+        buffer << unescape(@source[i + 1])
+        i += 2
+      elsif ch == '"'
+        i += 1
+        break
+      else
+        buffer << ch
+        i += 1
+      end
+    end
+    flush.call
+    [segments, i]
+  end
+
+  # Read a \( ... ) interpolation body starting just after the "(", returning
+  # [expr_string, index_after_closing_paren]. Tracks nested parens.
+  def read_interpolation(start)
+    depth = 1
+    i = start
+    expr = +""
+    while i < @source.length && depth.positive?
+      ch = @source[i]
+      depth += 1 if ch == "("
+      depth -= 1 if ch == ")"
+      break if depth.zero?
+
+      expr << ch
+      i += 1
+    end
+    [expr.strip, i + 1]
+  end
+
+  def unescape(char)
+    { "n" => "\n", "t" => "\t", "r" => "\r", "\"" => "\"", "\\" => "\\", "0" => "\0" }.fetch(char, char)
+  end
+
+  # Map each `func name(label: Type, ...)` to its position and a label->Type
+  # map, so a call's interpolations can pick a specifier.
+  def parameter_types_by_position
+    decls = []
+    index = 0
+    while (match = @source.match(/\bfunc\s+\w+\(([^)]*)\)/, index))
+      types = {}
+      match[1].split(",").each do |param|
+        next unless (m = param.strip.match(/(?:\w+\s+)?(\w+)\s*:\s*([\w.<>?]+)/))
+
+        types[m[1]] = m[2]
+      end
+      decls << [match.begin(0), types]
+      index = match.end(0)
+    end
+    decls
+  end
+
+  # Build the catalog source value for an interpolated default, substituting a
+  # printf specifier per \(expr). Best-effort; only used for *new* keys.
+  def format_value(segments, decls, call_start)
+    enclosing = decls.select { |start, _| start < call_start }.max_by(&:first)
+    types = enclosing ? enclosing[1] : {}
+    interps = segments.count { |seg| seg[0] == :interp }
+    position = 0
+    segments.map do |kind, payload|
+      next payload if kind == :text
+
+      position += 1
+      specifier = specifier_for(payload, types)
+      interps > 1 ? positional(specifier, position) : specifier
+    end.join
+  end
+
+  def specifier_for(expr, types)
+    return TYPE_SPECIFIERS.fetch(types[expr], "%@") if expr =~ /\A\w+\z/
+
+    "%@" # complex expression (e.g. a helper call) — assume String.
+  end
+
+  def positional(specifier, position)
+    specifier.sub(/\A%/, "%#{position}$")
+  end
+
+  def context(index)
+    @source[[index - 40, 0].max, 120]
+  end
+end
+
+# --- Catalog reconciliation -------------------------------------------------
+
+class Catalog
+  attr_reader :added, :pruned, :updated
+
+  def initialize(path)
+    @path = path
+    @original = File.read(path, encoding: "UTF-8")
+    @data = JSON.parse(@original)
+    @added = []
+    @pruned = []
+    @updated = []
+  end
+
+  def reconcile(extracted)
+    strings = @data["strings"] ||= {}
+
+    extracted.each do |key, info|
+      if strings.key?(key)
+        update_existing(strings[key], key, info)
+      else
+        strings[key] = new_entry(info.simple_value)
+        @added << key
+      end
+    end
+
+    (strings.keys - extracted.keys).each do |key|
+      next if key.empty? # Xcode keeps the "" placeholder entry.
+
+      strings.delete(key)
+      @pruned << key
+    end
+  end
+
+  def changed?
+    serialize != @original
+  end
+
+  def changes?
+    !(@added.empty? && @pruned.empty? && @updated.empty?)
+  end
+
+  def write
+    File.write(@path, serialize)
+  end
+
+  def relative_path
+    @path.delete_prefix("#{REPO_ROOT}/")
+  end
+
+  private
+
+  # Only ever rewrite the English value of a *simple* (non-plural,
+  # non-interpolated) entry. Plurals, parameterized keys, and every non-English
+  # localization are left exactly as authored.
+  def update_existing(entry, key, info)
+    return if info.interpolated
+
+    unit = entry.dig("localizations", "en", "stringUnit")
+    return if unit.nil? # variations / no en unit -> preserve.
+    return if unit["value"] == info.simple_value
+
+    unit["value"] = info.simple_value
+    @updated << key
+  end
+
+  def new_entry(value)
+    {
+      "extractionState" => "manual",
+      "localizations" => {
+        "en" => { "stringUnit" => { "state" => "translated", "value" => value } },
+      },
+    }
+  end
+
+  # Serialize matching Xcode's pretty-printed JSON output, so an in-sync
+  # catalog round-trips with no diff.
+  def serialize
+    FoundationJSON.generate(@data)
+  end
+end
+
+# Reproduces Xcode's .xcstrings formatting: pretty-printed JSON with a 2-space
+# indent, `"key" : value` spacing, case-insensitively sorted keys, and no
+# trailing newline.
+module FoundationJSON
+  module_function
+
+  def generate(object)
+    render(object, 0)
+  end
+
+  def render(object, level)
+    case object
+    when Hash then render_hash(object, level)
+    when Array then render_array(object, level)
+    when String then string(object)
+    when Integer then object.to_s
+    when Float then object.to_s
+    when true then "true"
+    when false then "false"
+    when nil then "null"
+    else raise "localize: cannot serialize #{object.class}"
+    end
+  end
+
+  def render_hash(hash, level)
+    indent = "  " * level
+    return "{\n\n#{indent}}" if hash.empty?
+
+    child = "  " * (level + 1)
+    # Xcode orders keys case-insensitively (so "imported" precedes
+    # "importStrategy"), with the raw key as a stable tiebreaker.
+    body = hash.keys.sort_by { |key| [key.downcase, key] }.map do |key|
+      "#{child}#{string(key)} : #{render(hash[key], level + 1)}"
+    end.join(",\n")
+    "{\n#{body}\n#{indent}}"
+  end
+
+  def render_array(array, level)
+    indent = "  " * level
+    return "[\n\n#{indent}]" if array.empty?
+
+    child = "  " * (level + 1)
+    body = array.map { |value| "#{child}#{render(value, level + 1)}" }.join(",\n")
+    "[\n#{body}\n#{indent}]"
+  end
+
+  def string(value)
+    out = +'"'
+    value.each_char do |ch|
+      case ch
+      when '"' then out << '\\"'
+      when "\\" then out << "\\\\"
+      when "\n" then out << '\\n'
+      when "\t" then out << '\\t'
+      when "\r" then out << '\\r'
+      when "\b" then out << '\\b'
+      when "\f" then out << '\\f'
+      else
+        code = ch.ord
+        out << (code < 0x20 ? format('\\u%04x', code) : ch)
+      end
+    end
+    out << '"'
+    out
+  end
+end
+
+# --- Driver -----------------------------------------------------------------
+
+class Localize
+  def run(args)
+    if args.include?("--help") || args.include?("-h")
+      header = File.read(__FILE__, encoding: "UTF-8")[/\A.*?(?=\nrequire )/m]
+      puts header.lines
+        .drop_while { |line| !line.start_with?("# localize") }
+        .map { |line| line.sub(/^# ?/, "") }
+        .join
+      return 0
+    end
+
+    lint = args.include?("--lint")
+    git_add = args.include?("--git-add")
+
+    catalogs = discover_catalogs
+    if catalogs.empty?
+      warn "localize: no LocalizedStrings.swift found."
+      return 0
+    end
+
+    drifted = []
+    catalogs.each do |swift_path, catalog_path|
+      extracted = SwiftParser.new(File.read(swift_path, encoding: "UTF-8")).extract
+      catalog = Catalog.new(catalog_path)
+      catalog.reconcile(extracted)
+      next unless catalog.changed?
+
+      drifted << catalog
+      report(catalog)
+    end
+
+    return 0 if drifted.empty?
+
+    if lint
+      warn "\nlocalize: catalog drift detected. Run ./localize to reconcile."
+      return 1
+    end
+
+    drifted.each(&:write)
+    stage(drifted) if git_add
+    0
+  end
+
+  private
+
+  # Map each LocalizedStrings.swift to its module's
+  # <Sources>/Resources/Localizable.xcstrings.
+  def discover_catalogs
+    Dir.glob(File.join(REPO_ROOT, "**", "LocalizedStrings.swift"))
+      .reject { |path| EXCLUDED_DIRS.any? { |dir| path.include?("/#{dir}/") } }
+      .sort
+      .map do |swift_path|
+        sources = swift_path[%r{\A(.*/Sources)/}, 1]
+        unless sources
+          abort "localize: #{rel(swift_path)} is not under a Sources/ directory."
+        end
+        catalog = File.join(sources, "Resources", "Localizable.xcstrings")
+        unless File.exist?(catalog)
+          abort "localize: no catalog at #{rel(catalog)} for #{rel(swift_path)}."
+        end
+        [swift_path, catalog]
+      end
+  end
+
+  def report(catalog)
+    catalog.added.sort.each { |key| puts "  + #{catalog.relative_path}: #{key}" }
+    catalog.pruned.sort.each { |key| puts "  - #{catalog.relative_path}: #{key}" }
+    catalog.updated.sort.each { |key| puts "  ~ #{catalog.relative_path}: #{key}" }
+    # A formatting-only change (no key add/prune/update) still means the file
+    # wasn't written by this tool; rewrite it to normalize.
+    puts "  * #{catalog.relative_path}: reformatted" unless catalog.changes?
+  end
+
+  def stage(catalogs)
+    catalogs.each do |catalog|
+      system("git", "add", "--", catalog.relative_path, err: File::NULL)
+    end
+  end
+
+  def rel(path)
+    path.delete_prefix("#{REPO_ROOT}/")
+  end
+end
+
+exit(Localize.new.run(ARGV))
