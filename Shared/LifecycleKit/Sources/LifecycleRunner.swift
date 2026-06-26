@@ -243,12 +243,16 @@ public final class LifecycleRunner {
         await presentation.hold()
         return .completed
     }
-
-    /// Injects a failure for `@testable` tests (e.g. stale step IDs in `retry()`).
-    func injectFailureForTesting(_ failure: LifecycleFailure) {
-        phase = .failed(failure)
-    }
 }
+
+#if DEBUG
+    extension LifecycleRunner {
+        /// Injects a failure for SPI-enabled tests (e.g. stale step IDs in `retry()`).
+        @_spi(Testing) public func injectFailureForTesting(_ failure: LifecycleFailure) {
+            phase = .failed(failure)
+        }
+    }
+#endif
 
 /// Per-step presentation bookkeeping, owned for the lifetime of one running
 /// step. Activating the step's presentation (immediately, on a `when:`

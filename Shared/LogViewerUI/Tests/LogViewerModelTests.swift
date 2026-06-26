@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+@_spi(Testing) import LogKit
 @testable import LogViewerUI
 import Testing
 

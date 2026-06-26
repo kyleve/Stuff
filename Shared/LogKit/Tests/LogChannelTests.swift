@@ -1,4 +1,4 @@
-import LogKit
+@_spi(Testing) import LogKit
 import Testing
 
 #if DEBUG

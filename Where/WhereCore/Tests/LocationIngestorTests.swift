@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers the GPS ingestion lifecycle, the post-persist hook, and the retry
 /// queue the controller delegates all of `startGPS`/`stopGPS`/auth to.
@@ -45,12 +45,14 @@ struct LocationIngestorTests {
         source: ScriptedLocationSource,
         recorder: OutcomeRecorder,
         outbox: any LocationOutbox = NoOpLocationOutbox(),
+        retryQueueCapacity: Int = 1000,
     ) -> LocationIngestor {
         LocationIngestor(
             store: store,
             locationSource: source,
             calendar: WhereCoreTestSupport.calendar(),
             outbox: outbox,
+            retryQueueCapacity: retryQueueCapacity,
             onPersisted: { outcome in await recorder.record(outcome) },
         )
     }
@@ -244,11 +246,12 @@ struct LocationIngestorTests {
             store: store,
             source: source,
             recorder: OutcomeRecorder(),
+            retryQueueCapacity: 20,
         )
         let firstID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
-        let lastID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000001001"))
+        let lastID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000001021"))
 
-        for index in 1 ... 1000 {
+        for index in 1 ... 20 {
             let id = try #require(UUID(uuidString: String(
                 format: "00000000-0000-0000-0000-%012d",
                 index,
@@ -261,7 +264,7 @@ struct LocationIngestorTests {
                 source: .gpsSignificantChange,
             ))
         }
-        #expect(await ingestor.retryQueueDepth == 1000)
+        #expect(await ingestor.retryQueueDepth == 20)
 
         await ingestor.testingEnqueueForRetry(LocationSample(
             id: lastID,
@@ -272,7 +275,7 @@ struct LocationIngestorTests {
         ))
 
         let queuedIDs = await ingestor.testingRetryQueueSampleIDs()
-        #expect(queuedIDs.count == 1000)
+        #expect(queuedIDs.count == 20)
         #expect(!queuedIDs.contains(firstID))
         #expect(queuedIDs.contains(lastID))
     }

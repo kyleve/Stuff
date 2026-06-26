@@ -1,4 +1,4 @@
-@testable import LifecycleKit
+@_spi(Testing) @testable import LifecycleKit
 import SwiftUI
 import Testing
 

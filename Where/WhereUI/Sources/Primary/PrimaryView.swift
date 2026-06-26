@@ -55,9 +55,11 @@ struct PrimaryView: View {
         .onDisappear { tilt.stop() }
         .sheet(isPresented: $showingTimeline) {
             PresenceTimelineView()
+                .environment(session)
         }
         .sheet(isPresented: $showingMissingDays) {
             MissingDaysView()
+                .environment(session)
         }
     }
 

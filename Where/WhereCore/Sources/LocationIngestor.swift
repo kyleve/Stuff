@@ -66,10 +66,9 @@ public actor LocationIngestor {
     private var didLoadDurableBacklog = false
 
     /// Hard cap on the retry queue. Once reached, the oldest pending sample is
-    /// dropped to make room for the newest. Sized to ~12 hours of
-    /// significant-change/Visits ingestion, so reaching the cap means something
-    /// is very wrong with persistence and we'd rather keep recent than ancient.
-    private static let retryQueueCapacity = 1000
+    /// dropped to make room for the newest. Production uses ~12 hours of
+    /// significant-change/Visits ingestion; tests inject a smaller cap.
+    private let retryQueueCapacity: Int
 
     private static let logger = WhereLog.channel(.locationIngestor)
 
@@ -78,12 +77,15 @@ public actor LocationIngestor {
         locationSource: any LocationSource,
         calendar: Calendar,
         outbox: any LocationOutbox = NoOpLocationOutbox(),
+        retryQueueCapacity: Int = 1000,
         onPersisted: @escaping PostPersistHook,
     ) {
+        precondition(retryQueueCapacity > 0, "retryQueueCapacity must be positive")
         self.store = store
         self.locationSource = locationSource
         self.calendar = calendar
         self.outbox = outbox
+        self.retryQueueCapacity = retryQueueCapacity
         self.onPersisted = onPersisted
     }
 
@@ -186,18 +188,6 @@ public actor LocationIngestor {
         retryQueue.count
     }
 
-    /// Enqueue a sample for retry without persisting. Tests use this to assert
-    /// FIFO eviction at `retryQueueCapacity` without simulating hundreds of
-    /// persistence failures.
-    func testingEnqueueForRetry(_ sample: LocationSample) {
-        enqueueForRetry(sample)
-    }
-
-    /// Sample IDs currently in the retry queue, in FIFO order.
-    func testingRetryQueueSampleIDs() -> [UUID] {
-        retryQueue.map(\.id)
-    }
-
     public func requestPermission() async throws {
         try await locationSource.requestPermission()
     }
@@ -257,9 +247,9 @@ public actor LocationIngestor {
     }
 
     private func enqueueForRetry(_ sample: LocationSample) {
-        if retryQueue.count >= Self.retryQueueCapacity {
+        if retryQueue.count >= retryQueueCapacity {
             Self.logger.warning(
-                "Retry queue at capacity (\(Self.retryQueueCapacity)); dropping oldest queued GPS sample",
+                "Retry queue at capacity (\(retryQueueCapacity)); dropping oldest queued GPS sample",
             )
             retryQueue.removeFirst()
         }
@@ -294,3 +284,19 @@ public actor LocationIngestor {
         return persistedDays
     }
 }
+
+#if DEBUG
+    extension LocationIngestor {
+        /// Enqueue a sample for retry without persisting. Tests use this to assert
+        /// FIFO eviction at `retryQueueCapacity` without simulating hundreds of
+        /// persistence failures.
+        @_spi(Testing) public func testingEnqueueForRetry(_ sample: LocationSample) {
+            enqueueForRetry(sample)
+        }
+
+        /// Sample IDs currently in the retry queue, in FIFO order.
+        @_spi(Testing) public func testingRetryQueueSampleIDs() -> [UUID] {
+            retryQueue.map(\.id)
+        }
+    }
+#endif

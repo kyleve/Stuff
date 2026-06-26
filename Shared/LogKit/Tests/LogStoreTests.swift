@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+@_spi(Testing) import LogKit
 import Testing
 
 private func entry(_ message: String, level: LogLevel = .info) -> LogEntry {

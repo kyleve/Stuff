@@ -34,16 +34,16 @@ final class LogViewerModel {
     private var cachedFilteredEntries: [LogEntry]?
 
     var searchText = "" {
-        didSet { invalidateFilterCache() }
+        didSet { if searchText != oldValue { invalidateFilterCache() } }
     }
 
     var minimumLevel: LogLevel = .debug {
-        didSet { invalidateFilterCache() }
+        didSet { if minimumLevel != oldValue { invalidateFilterCache() } }
     }
 
     /// `nil` means "all categories".
     var selectedCategory: String? {
-        didSet { invalidateFilterCache() }
+        didSet { if selectedCategory != oldValue { invalidateFilterCache() } }
     }
 
     init(

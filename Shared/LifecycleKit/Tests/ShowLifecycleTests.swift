@@ -3,27 +3,34 @@ import Testing
 import UIKit
 import WhereTesting
 
+private enum LifecycleEvent {
+    case viewWillAppear
+    case viewDidAppear
+    case viewWillDisappear
+    case viewDidDisappear
+}
+
 private final class LifecycleTrackingViewController: UIViewController {
-    private(set) var events: [String] = []
+    private(set) var events: [LifecycleEvent] = []
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        events.append("viewWillAppear")
+        events.append(.viewWillAppear)
     }
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        events.append("viewDidAppear")
+        events.append(.viewDidAppear)
     }
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        events.append("viewWillDisappear")
+        events.append(.viewWillDisappear)
     }
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        events.append("viewDidDisappear")
+        events.append(.viewDidDisappear)
     }
 }
 
@@ -43,16 +50,15 @@ struct ShowLifecycleTests {
         let tracked = LifecycleTrackingViewController()
 
         try show(tracked) { hosted in
-            try waitFor { hosted.events.contains("viewDidAppear") }
-            #expect(hosted.events.contains("viewWillAppear"))
+            try waitFor { hosted.events.contains(.viewDidAppear) }
+            #expect(hosted.events.contains(.viewWillAppear))
             #expect(hosted.parent != nil)
             #expect(hosted.view.window != nil)
         }
 
-        waitForOneRunloop()
+        try waitFor { tracked.events.contains(.viewWillDisappear) }
         tracked.view.layoutIfNeeded()
 
-        #expect(tracked.events.contains("viewWillDisappear"))
         #expect(tracked.parent == nil)
     }
 
