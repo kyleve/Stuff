@@ -98,19 +98,12 @@ public struct TodayWidgetView: View {
 
 #if DEBUG
     #Preview("Single region") {
-        TodayWidgetView(snapshot: WidgetSnapshot(
-            day: .now,
-            year: 2026,
-            dayRegions: [.california],
-            totals: [.california: 132],
-        ))
-        .padding()
+        TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot())
+            .padding()
     }
 
     #Preview("Multi region") {
-        TodayWidgetView(snapshot: WidgetSnapshot(
-            day: .now,
-            year: 2026,
+        TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
             dayRegions: [.california, .newYork],
             totals: [.california: 132, .newYork: 41],
         ))
@@ -118,9 +111,7 @@ public struct TodayWidgetView: View {
     }
 
     #Preview("Empty") {
-        TodayWidgetView(snapshot: WidgetSnapshot(
-            day: .now,
-            year: 2026,
+        TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
             dayRegions: [],
             totals: [:],
         ))

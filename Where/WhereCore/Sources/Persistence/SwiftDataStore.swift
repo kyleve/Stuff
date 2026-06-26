@@ -480,12 +480,12 @@ final class SDLocationSample {
     }
 
     func toValue() -> LocationSample? {
-        guard let id, let timestamp, let latitude, let longitude else { return nil }
-        let source = SampleSource.fromDiscriminator(
-            sourceRaw ?? SampleSource.manual.discriminator,
+        guard let id, let timestamp, let latitude, let longitude, let sourceRaw else { return nil }
+        guard let source = SampleSource.fromDiscriminator(
+            sourceRaw,
             evidenceId: evidenceId,
             evidenceKindRaw: evidenceKindRaw,
-        ) ?? .manual
+        ) else { return nil }
         return LocationSample(
             id: id,
             timestamp: timestamp,

@@ -88,11 +88,7 @@ private struct StintRow: View {
     }
 
     private var dateRange: String {
-        let format = Date.FormatStyle.dateTime.month(.abbreviated).day()
-        if Calendar.current.isDate(stint.start, inSameDayAs: stint.end) {
-            return stint.start.formatted(format)
-        }
-        return "\(stint.start.formatted(format)) – \(stint.end.formatted(format))"
+        DateRangeFormatting.abbreviated(start: stint.start, end: stint.end)
     }
 }
 

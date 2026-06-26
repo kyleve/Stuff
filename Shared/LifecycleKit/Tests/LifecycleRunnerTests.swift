@@ -1,24 +1,8 @@
-@testable import LifecycleKit
+@_spi(Testing) @testable import LifecycleKit
 import SwiftUI
 import Testing
 
 private struct StepError: Error {}
-
-/// Polls `condition` on the main actor until it holds or the timeout elapses.
-/// Sleeping yields to the runner's drive task between checks.
-@MainActor
-func waitUntil(
-    timeout: Duration = .seconds(2),
-    _ condition: () -> Bool,
-) async throws {
-    let deadline = ContinuousClock.now.advanced(by: timeout)
-    while !condition() {
-        if ContinuousClock.now >= deadline {
-            throw StepError()
-        }
-        try await Task.sleep(for: .milliseconds(1))
-    }
-}
 
 @MainActor
 struct LifecycleRunnerDriveTests {
@@ -112,6 +96,29 @@ struct LifecycleRunnerForegroundPromotionTests {
         await runner.run()
         await runner.enterForeground()
         #expect(count == 1)
+        #expect(runner.phase.isReady)
+    }
+
+    @Test func backgroundWorkStepCallingWaitForResolutionDoesNotReachReadyUntilPromoted(
+    ) async throws {
+        let runner = LifecycleRunner(reason: .background(.location), sequence: LifecycleSteps {
+            LifecycleStep.work("wait") { bridge in try await bridge.waitForResolution() }
+        })
+        let runTask = Task { @MainActor in await runner.run() }
+        try await waitUntil { runner.phase.isRunning("wait") }
+
+        // Regression: a background `.work` step parked on `waitForResolution()`
+        // must not drain to `.ready` while still headless — there is no UI to
+        // resolve it.
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(runner.reason.isBackground)
+        #expect(runner.phase.isRunning("wait"))
+
+        let promote = Task { @MainActor in await runner.enterForeground() }
+        try await waitUntil { !runner.reason.isBackground }
+        runner.phase.runningBridge?.complete()
+        await runTask.value
+        await promote.value
         #expect(runner.phase.isReady)
     }
 
@@ -220,6 +227,21 @@ struct LifecycleRunnerFailureTests {
         await runner.run()
         runner.retry()
         #expect(runner.phase.isReady)
+    }
+
+    @Test func retryIsNoOpWhenFailedStepIDDoesNotMatchAnyStep() async {
+        var executed = 0
+        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
+            LifecycleStep.work("a") { _ in executed += 1 }
+        })
+        await runner.run()
+        #expect(runner.phase.isReady)
+
+        runner.injectFailureForTesting(LifecycleFailure(stepID: "missing", error: StepError()))
+        runner.retry()
+        try? await Task.sleep(for: .milliseconds(50))
+        #expect(runner.phase.failed(at: "missing"))
+        #expect(executed == 1)
     }
 
     @Test func bridgeFailurePropagatesToFailedPhase() async throws {

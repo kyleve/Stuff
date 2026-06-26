@@ -90,7 +90,7 @@ struct PrimaryView: View {
                 } description: {
                     Text(message)
                 }
-            default:
+            case .idle, .loaded, .loading:
                 if session.ranking.primary.isEmpty {
                     // Distinguish "nothing tracked at all" from "tracked days
                     // exist, but only in non-headline regions" (e.g. all in
@@ -268,5 +268,10 @@ private struct MissingDaysBanner: View {
     #Preview("Missing days") {
         PrimaryView()
             .environment(PreviewSupport.missingDaysSession())
+    }
+
+    #Preview("Elsewhere only") {
+        PrimaryView()
+            .environment(PreviewSupport.elsewhereOnlySession())
     }
 #endif

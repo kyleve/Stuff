@@ -285,6 +285,11 @@ struct AppIconImage: View {
 }
 
 #if DEBUG
+    #Preview("Classic") {
+        AppIconImage(name: "AppIconClassic", size: 60)
+            .padding()
+    }
+
     #Preview {
         AppIconView(model: .preview())
     }

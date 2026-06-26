@@ -1,18 +1,10 @@
 import Foundation
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers the GPS ingestion lifecycle, the post-persist hook, and the retry
 /// queue the controller delegates all of `startGPS`/`stopGPS`/auth to.
 struct LocationIngestorTests {
-    private static let pacific = TimeZone(identifier: "America/Los_Angeles")!
-
-    private static func calendar() -> Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = pacific
-        return calendar
-    }
-
     private actor OutcomeRecorder {
         private(set) var outcomes: [LocationIngestor.IngestOutcome] = []
 
@@ -53,12 +45,14 @@ struct LocationIngestorTests {
         source: ScriptedLocationSource,
         recorder: OutcomeRecorder,
         outbox: any LocationOutbox = NoOpLocationOutbox(),
+        retryQueueCapacity: Int = 1000,
     ) -> LocationIngestor {
         LocationIngestor(
             store: store,
             locationSource: source,
-            calendar: calendar(),
+            calendar: WhereCoreTestSupport.calendar(),
             outbox: outbox,
+            retryQueueCapacity: retryQueueCapacity,
             onPersisted: { outcome in await recorder.record(outcome) },
         )
     }
@@ -87,7 +81,7 @@ struct LocationIngestorTests {
         await ingestor.start()
 
         source.emit(LocationSample(
-            timestamp: iso("2026-03-15T12:00:00-07:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
@@ -245,6 +239,47 @@ struct LocationIngestorTests {
         #expect(await outbox.contents.isEmpty)
     }
 
+    @Test func retryQueueEvictsOldestSampleAtCapacity() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .always)
+        let ingestor = Self.makeIngestor(
+            store: store,
+            source: source,
+            recorder: OutcomeRecorder(),
+            retryQueueCapacity: 20,
+        )
+        let firstID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000000001"))
+        let lastID = try #require(UUID(uuidString: "00000000-0000-0000-0000-000000001021"))
+
+        for index in 1 ... 20 {
+            let id = try #require(UUID(uuidString: String(
+                format: "00000000-0000-0000-0000-%012d",
+                index,
+            )))
+            await ingestor.testingEnqueueForRetry(LocationSample(
+                id: id,
+                timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 0,
+                source: .gpsSignificantChange,
+            ))
+        }
+        #expect(await ingestor.retryQueueDepth == 20)
+
+        await ingestor.testingEnqueueForRetry(LocationSample(
+            id: lastID,
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
+            source: .gpsSignificantChange,
+        ))
+
+        let queuedIDs = await ingestor.testingRetryQueueSampleIDs()
+        #expect(queuedIDs.count == 20)
+        #expect(!queuedIDs.contains(firstID))
+        #expect(queuedIDs.contains(lastID))
+    }
+
     @Test func authorizationReflectsTheSource() async throws {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource(authorizationStatus: .whenInUse)
@@ -255,7 +290,7 @@ struct LocationIngestorTests {
 
     private func sample(at isoString: String) -> LocationSample {
         LocationSample(
-            timestamp: iso(isoString),
+            timestamp: WhereCoreTestSupport.iso(isoString),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
@@ -348,8 +383,4 @@ private actor ToggleFailingStore: WhereStore {
     func clearAll() async throws {
         try await backing.clearAll()
     }
-}
-
-private func iso(_ string: String) -> Date {
-    ISO8601DateFormatter().date(from: string) ?? Date(timeIntervalSince1970: 0)
 }

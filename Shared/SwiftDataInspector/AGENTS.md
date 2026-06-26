@@ -62,6 +62,9 @@ detail.
   `relationshipColumns(of:)`, `columnCharacterCounts(...)`, `makeEntity(...)`).
 - [`SwiftDataReflection`](Sources/SwiftDataReflection.swift) – the only file that
   touches SwiftData internals (see the caveat below).
+- [`ModelContext+InspectorFetch.swift`](Sources/ModelContext+InspectorFetch.swift) –
+  existential-opening fetch/count helpers used by the reader (kept out of the
+  reflection file).
 - [`InspectorEntity`](Sources/InspectorEntity.swift) /
   [`InspectorRow` / `InspectorRowSet` / `InspectorRelatedRows`](Sources/InspectorRow.swift)
   – the `Sendable` snapshots returned by the reader. `InspectorEntity` carries the

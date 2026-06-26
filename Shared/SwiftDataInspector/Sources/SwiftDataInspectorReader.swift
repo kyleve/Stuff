@@ -61,7 +61,19 @@ actor SwiftDataInspectorReader {
         let context = ModelContext(container)
         let limit = rowLimit.map { $0 * max(pageCount, 1) }
         let models = context.inspectorFetch(entity.type, limit: limit)
-        let total = context.inspectorCount(of: entity.type)
+        let total: Int
+        let isTruncated: Bool
+        if let limit, models.count < limit {
+            // The fetch returned fewer rows than requested — everything is loaded.
+            total = models.count
+            isTruncated = false
+        } else if limit == nil {
+            total = models.count
+            isTruncated = false
+        } else {
+            total = context.inspectorCount(of: entity.type)
+            isTruncated = models.count < total
+        }
         let rows = models.map { model in
             InspectorRow(
                 persistentID: model.persistentModelID,
@@ -71,7 +83,7 @@ actor SwiftDataInspectorReader {
         return InspectorRowSet(
             rows: rows,
             totalCount: total,
-            isTruncated: rows.count < total,
+            isTruncated: isTruncated,
             columnCharacterCounts: Self.columnCharacterCounts(for: rows, columns: entity.columns),
         )
     }
@@ -95,7 +107,11 @@ actor SwiftDataInspectorReader {
             return InspectorRelatedRows(entity: nil, rows: [], isToMany: false, totalCount: 0)
         }
 
-        let references = SwiftDataReflection.relatedReferences(of: source, named: name)
+        let references = SwiftDataReflection.relatedReferences(
+            of: source,
+            named: name,
+            schema: container.schema,
+        )
         guard let destinationType = references.destinationType else {
             return InspectorRelatedRows(
                 entity: nil,
@@ -232,7 +248,7 @@ actor SwiftDataInspectorReader {
     /// an in-memory `Data` (inline storage), otherwise a bare "Data" so an
     /// external-storage future is never resolved just to render the table.
     nonisolated static func binaryDescription(_ value: Any) -> String {
-        if let data = unwrap(value) as? Data {
+        if let data = InspectorOptionalUnwrapping.unwrap(value) as? Data {
             return "\(data.count) bytes"
         }
         return "Data"
@@ -241,7 +257,7 @@ actor SwiftDataInspectorReader {
     /// Built-in display formatting for a stored value, unwrapping optionals so an
     /// `Optional(UUID)` reads as the UUID rather than "Optional(...)".
     nonisolated static func defaultFormat(_ value: Any) -> String {
-        guard let unwrapped = unwrap(value) else { return "nil" }
+        guard let unwrapped = InspectorOptionalUnwrapping.unwrap(value) else { return "nil" }
         switch unwrapped {
             case let string as String: return string
             case let date as Date: return date.formatted(date: .numeric, time: .standard)
@@ -269,14 +285,5 @@ actor SwiftDataInspectorReader {
             counts[column] = maxCharacters
         }
         return counts
-    }
-
-    /// Strip any nesting of `Optional` from a reflected value, yielding the inner
-    /// value or `nil` when it bottoms out at `.none`.
-    private nonisolated static func unwrap(_ value: Any) -> Any? {
-        let mirror = Mirror(reflecting: value)
-        guard mirror.displayStyle == .optional else { return value }
-        guard let child = mirror.children.first else { return nil }
-        return unwrap(child.value)
     }
 }

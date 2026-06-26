@@ -47,7 +47,7 @@
 
         /// In-memory, no-op-backed services shared by every preview fixture.
         @MainActor
-        static func previewServices() -> WhereServices {
+        public static func previewServices() -> WhereServices {
             WhereServices(
                 store: try! SwiftDataStore.inMemory(),
                 locationSource: ScriptedLocationSource(),
@@ -133,6 +133,28 @@
         @MainActor
         public static func loadedModel() -> WhereModel {
             WhereModel(services: previewServices(), report: sampleReport(), selectedYear: year)
+        }
+
+        /// A widget snapshot built from the sample year totals, for widget
+        /// previews and tests.
+        public static func sampleWidgetSnapshot(
+            dayRegions: Set<Region> = [.california],
+            totals: [Region: Int]? = nil,
+            day: Date = .now,
+            year: Int = PreviewSupport.year,
+        ) -> WidgetSnapshot {
+            WidgetSnapshot(
+                day: day,
+                year: year,
+                dayRegions: dayRegions,
+                totals: totals ?? [
+                    .california: 132,
+                    .newYork: 41,
+                    .canada: 9,
+                    .europeanUnion: 4,
+                    .other: 2,
+                ],
+            )
         }
     }
 #endif

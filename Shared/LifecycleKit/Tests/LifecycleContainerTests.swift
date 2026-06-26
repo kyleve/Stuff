@@ -34,20 +34,6 @@ private struct EnvironmentRunnerProbe: View {
     }
 }
 
-/// Drives the run loop up to `timeout` waiting for `condition`, returning
-/// whether it ever held. Unlike `waitFor`, a `false` result is a normal
-/// outcome — used to assert a branch *never* renders within the budget,
-/// without a fixed sleep or hand-rolled run-loop pumping.
-@MainActor
-private func renders(within timeout: TimeInterval = 0.5, _ condition: () -> Bool) -> Bool {
-    let deadline = Date(timeIntervalSinceNow: timeout)
-    while Date() < deadline {
-        if condition() { return true }
-        RunLoop.main.run(mode: .default, before: Date(timeIntervalSinceNow: 0.001))
-    }
-    return condition()
-}
-
 @MainActor
 struct LifecycleContainerTests {
     @Test func readyShowsContent() async throws {
@@ -100,6 +86,26 @@ struct LifecycleContainerTests {
             // give the host a render budget and confirm neither branch appears.
             #expect(!renders { content || splash })
         }
+    }
+
+    @Test func backgroundReadyThenEnterForegroundShowsContent() async throws {
+        var content = false
+        let runner = LifecycleRunner(reason: .background(.location), sequence: LifecycleSteps {})
+        await runner.run()
+        #expect(runner.phase.isReady)
+        #expect(runner.reason.isBackground)
+
+        await runner.enterForeground()
+        #expect(!runner.reason.isBackground)
+        #expect(runner.phase.isReady)
+
+        let container = LifecycleContainer(runner) {
+            ProbeView { content = true }
+        }
+        try show(UIHostingController(rootView: container)) { _ in
+            try waitFor { content }
+        }
+        #expect(content)
     }
 
     @Test func runningShowsActivePresentation() async throws {

@@ -10,10 +10,11 @@ import WhereCore
 /// BackupCoordinatorTests, ReminderReconcilerTests, …) cover each piece in
 /// isolation; these prove they work together once `WhereServices` glues them up.
 struct WhereServicesTests {
-    private static let pacific = TimeZone(identifier: "America/Los_Angeles")!
-
     private static func makeAggregator() -> DayAggregator {
-        DayAggregator(calendar: Calendar(identifier: .gregorian), timeZone: pacific)
+        DayAggregator(
+            calendar: WhereCoreTestSupport.calendar(),
+            timeZone: WhereCoreTestSupport.pacific,
+        )
     }
 
     private static func makeServices() throws
@@ -30,9 +31,7 @@ struct WhereServicesTests {
     }
 
     private static var pacificCalendar: Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = pacific
-        return calendar
+        WhereCoreTestSupport.calendar()
     }
 
     /// Build services with a spy scheduler and a frozen `now` so the
@@ -75,7 +74,7 @@ struct WhereServicesTests {
     @Test func ingestStoresSamplesAndReportsThem() async throws {
         let (services, _, _) = try Self.makeServices()
         let sf = LocationSample(
-            timestamp: iso("2026-03-15T12:00:00-07:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .manual,
@@ -94,19 +93,19 @@ struct WhereServicesTests {
         let nyc = Coordinate(latitude: 40.7128, longitude: -74.0060)
         let samples = [
             LocationSample(
-                timestamp: iso("2026-01-10T12:00:00-08:00"),
+                timestamp: WhereCoreTestSupport.iso("2026-01-10T12:00:00-08:00"),
                 coordinate: sf,
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
             ),
             LocationSample(
-                timestamp: iso("2026-01-11T12:00:00-08:00"),
+                timestamp: WhereCoreTestSupport.iso("2026-01-11T12:00:00-08:00"),
                 coordinate: sf,
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
             ),
             LocationSample(
-                timestamp: iso("2026-02-01T12:00:00-08:00"),
+                timestamp: WhereCoreTestSupport.iso("2026-02-01T12:00:00-08:00"),
                 coordinate: nyc,
                 horizontalAccuracy: 0,
                 source: .gpsSignificantChange,
@@ -131,13 +130,13 @@ struct WhereServicesTests {
     @Test func manualDayUnionsWithSamples() async throws {
         let (services, _, _) = try Self.makeServices()
         try await services.journal.ingest(LocationSample(
-            timestamp: iso("2026-07-04T10:00:00-07:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-07-04T10:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .manual,
         ))
         try await services.journal.addManualDay(
-            date: iso("2026-07-04T15:00:00-07:00"),
+            date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
         )
 
@@ -153,7 +152,7 @@ struct WhereServicesTests {
 
     @Test func manualDayReplacesOnSecondCall() async throws {
         let (services, _, _) = try Self.makeServices()
-        let date = iso("2026-07-04T15:00:00-07:00")
+        let date = WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00")
         try await services.journal.addManualDay(date: date, regions: [.california])
         try await services.journal.addManualDay(date: date, regions: [.newYork])
 
@@ -170,14 +169,14 @@ struct WhereServicesTests {
         let (services, _, _) = try Self.makeServices()
         // A stray GPS sample lands the day in California.
         try await services.journal.ingest(LocationSample(
-            timestamp: iso("2026-07-04T10:00:00-07:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-07-04T10:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsVisit,
         ))
         // The user corrects it to New York.
         try await services.journal.overrideDay(
-            date: iso("2026-07-04T15:00:00-07:00"),
+            date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
         )
 
@@ -192,7 +191,7 @@ struct WhereServicesTests {
         let stray = sample(at: "2026-07-04T10:00:00-07:00")
         try await services.journal.ingest(stray)
         try await services.journal.overrideDay(
-            date: iso("2026-07-04T15:00:00-07:00"),
+            date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
         )
 
@@ -205,17 +204,18 @@ struct WhereServicesTests {
         let (services, _, _) = try Self.makeServices()
         // GPS puts the day in California.
         try await services.journal.ingest(LocationSample(
-            timestamp: iso("2026-07-04T10:00:00-07:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-07-04T10:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsVisit,
         ))
         // The user wrongly relabels it to New York, then resets to GPS.
         try await services.journal.overrideDay(
-            date: iso("2026-07-04T15:00:00-07:00"),
+            date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
         )
-        try await services.journal.clearManualDay(date: iso("2026-07-04T15:00:00-07:00"))
+        try await services.journal
+            .clearManualDay(date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"))
 
         let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.first?.regions == [.california])
@@ -224,7 +224,8 @@ struct WhereServicesTests {
 
     @Test func clearManualDayIsANoOpWithoutAManualRecord() async throws {
         let (services, _, _) = try Self.makeServices()
-        try await services.journal.clearManualDay(date: iso("2026-07-04T15:00:00-07:00"))
+        try await services.journal
+            .clearManualDay(date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"))
 
         let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.isEmpty)
@@ -235,26 +236,29 @@ struct WhereServicesTests {
         // GPS lands July 4 in California *and* New York (a stray cross-country hit).
         try await services.journal.ingest(sample(at: "2026-07-04T10:00:00-07:00"))
         try await services.journal.ingest(LocationSample(
-            timestamp: iso("2026-07-04T20:00:00-04:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-07-04T20:00:00-04:00"),
             coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
             horizontalAccuracy: 5,
             source: .gpsVisit,
         ))
         // The user corrects the day to California only, removing the wrong NY hit.
         try await services.journal.overrideDay(
-            date: iso("2026-07-04T15:00:00-07:00"),
+            date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.california],
         )
         // A later range backfill (Canada) sweeps over the same corrected day.
         try await services.journal.addManualDays(
-            from: iso("2026-07-01T00:00:00-07:00"),
-            through: iso("2026-07-07T00:00:00-07:00"),
+            from: WhereCoreTestSupport.iso("2026-07-01T00:00:00-07:00"),
+            through: WhereCoreTestSupport.iso("2026-07-07T00:00:00-07:00"),
             regions: [.canada],
         )
 
         let report = try await services.reports.yearReport(for: 2026)
         let july4 = report.days.first {
-            Self.pacificCalendar.isDate($0.date, inSameDayAs: iso("2026-07-04T12:00:00-07:00"))
+            Self.pacificCalendar.isDate(
+                $0.date,
+                inSameDayAs: WhereCoreTestSupport.iso("2026-07-04T12:00:00-07:00"),
+            )
         }
         // The relabel survives: New York stays removed (GPS is not resurrected)
         // and the backfilled Canada unions onto the corrected California.
@@ -264,8 +268,8 @@ struct WhereServicesTests {
     @Test func addManualDaysBackfillsEveryDayInRange() async throws {
         let (services, _, _) = try Self.makeServices()
         try await services.journal.addManualDays(
-            from: iso("2026-02-10T09:00:00-08:00"),
-            through: iso("2026-02-14T20:00:00-08:00"),
+            from: WhereCoreTestSupport.iso("2026-02-10T09:00:00-08:00"),
+            through: WhereCoreTestSupport.iso("2026-02-14T20:00:00-08:00"),
             regions: [.newYork],
         )
 
@@ -279,8 +283,8 @@ struct WhereServicesTests {
     @Test func addManualDaysWithStartAfterEndWritesNothing() async throws {
         let (services, _, _) = try Self.makeServices()
         try await services.journal.addManualDays(
-            from: iso("2026-02-14T00:00:00-08:00"),
-            through: iso("2026-02-10T00:00:00-08:00"),
+            from: WhereCoreTestSupport.iso("2026-02-14T00:00:00-08:00"),
+            through: WhereCoreTestSupport.iso("2026-02-10T00:00:00-08:00"),
             regions: [.california],
         )
 
@@ -292,8 +296,8 @@ struct WhereServicesTests {
     @Test func addManualDaysSameStartAndEndWritesOneDay() async throws {
         let (services, _, _) = try Self.makeServices()
         try await services.journal.addManualDays(
-            from: iso("2026-02-10T06:00:00-08:00"),
-            through: iso("2026-02-10T23:00:00-08:00"),
+            from: WhereCoreTestSupport.iso("2026-02-10T06:00:00-08:00"),
+            through: WhereCoreTestSupport.iso("2026-02-10T23:00:00-08:00"),
             regions: [.california],
         )
 
@@ -305,7 +309,7 @@ struct WhereServicesTests {
     @Test func clearYearWipesAndReportsEmpty() async throws {
         let (services, _, _) = try Self.makeServices()
         try await services.journal.ingest(LocationSample(
-            timestamp: iso("2026-03-15T12:00:00-07:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .manual,
@@ -320,7 +324,7 @@ struct WhereServicesTests {
         let (services, _, _) = try Self.makeServices()
         for year in [2024, 2025, 2026] {
             try await services.journal.ingest(LocationSample(
-                timestamp: iso("\(year)-03-15T12:00:00-07:00"),
+                timestamp: WhereCoreTestSupport.iso("\(year)-03-15T12:00:00-07:00"),
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 0,
                 source: .manual,
@@ -365,13 +369,13 @@ struct WhereServicesTests {
         await services.ingestor.start()
 
         let sampleA = LocationSample(
-            timestamp: iso("2026-03-15T12:00:00-07:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
         )
         let sampleB = LocationSample(
-            timestamp: iso("2026-03-15T12:05:00-07:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T12:05:00-07:00"),
             coordinate: Coordinate(latitude: 37.7750, longitude: -122.4195),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
@@ -384,7 +388,7 @@ struct WhereServicesTests {
 
         await store.setShouldFail(false)
         let sampleC = LocationSample(
-            timestamp: iso("2026-03-15T12:10:00-07:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T12:10:00-07:00"),
             coordinate: Coordinate(latitude: 37.7751, longitude: -122.4196),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
@@ -467,7 +471,7 @@ struct WhereServicesTests {
     private func sample(at isoString: String) -> LocationSample {
         LocationSample(
             id: UUID(),
-            timestamp: iso(isoString),
+            timestamp: WhereCoreTestSupport.iso(isoString),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
@@ -478,7 +482,7 @@ struct WhereServicesTests {
         let (services, _, _) = try Self.makeServices()
         let evidence = Evidence(
             kind: .planeTicket,
-            capturedAt: iso("2026-04-10T08:00:00-07:00"),
+            capturedAt: WhereCoreTestSupport.iso("2026-04-10T08:00:00-07:00"),
             region: .california,
             note: "SFO → JFK",
             contentType: .plainText,
@@ -511,7 +515,7 @@ struct WhereServicesTests {
         try await services.journal.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
         try await services.journal.addEvidence(Self.backupEvidence, blob: Self.backupBlob)
         try await services.journal.addManualDay(
-            date: iso("2026-07-04T15:00:00-07:00"),
+            date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
         )
     }
@@ -567,7 +571,7 @@ struct WhereServicesTests {
         // Pre-existing destination data that the backup does not contain.
         try await destination.journal.addManualSample(sample(at: "2026-01-01T09:00:00-08:00"))
         try await destination.journal.addManualDay(
-            date: iso("2026-02-02T10:00:00-08:00"),
+            date: WhereCoreTestSupport.iso("2026-02-02T10:00:00-08:00"),
             regions: [.canada],
         )
 
@@ -602,7 +606,7 @@ struct WhereServicesTests {
     // MARK: - Logging reminders
 
     @Test func configureRemindersEnabledRequestsAuthAndBadgesTheBacklog() async throws {
-        let now = iso("2026-01-05T09:00:00-08:00")
+        let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
 
@@ -621,7 +625,7 @@ struct WhereServicesTests {
     @Test func configureRemindersDisabledClearsBadgeAndSchedulesNothing() async throws {
         let spy = SpyReminderScheduler()
         let (services, _, _) = try Self.makeReminderServices(
-            now: iso("2026-01-05T09:00:00-08:00"),
+            now: WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00"),
             scheduler: spy,
         )
 
@@ -634,7 +638,7 @@ struct WhereServicesTests {
     }
 
     @Test func loggingTodayViaGPSCancelsItsScheduledReminder() async throws {
-        let now = iso("2026-01-05T09:00:00-08:00")
+        let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, source) = try Self.makeReminderServices(now: now, scheduler: spy)
         await services.reminders.configure(enabled: true, time: .defaultEvening)
@@ -646,7 +650,7 @@ struct WhereServicesTests {
 
         await services.ingestor.start()
         source.emit(LocationSample(
-            timestamp: iso("2026-01-05T12:00:00-08:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-01-05T12:00:00-08:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
@@ -660,14 +664,14 @@ struct WhereServicesTests {
     }
 
     @Test func loggingPastDayViaGPSAfterTodayIsCoveredStillReconciles() async throws {
-        let now = iso("2026-01-05T09:00:00-08:00")
+        let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, source) = try Self.makeReminderServices(now: now, scheduler: spy)
         await services.reminders.configure(enabled: true, time: .defaultEvening)
 
         await services.ingestor.start()
         source.emit(LocationSample(
-            timestamp: iso("2026-01-05T12:00:00-08:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-01-05T12:00:00-08:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
@@ -678,7 +682,7 @@ struct WhereServicesTests {
         // reconciler knows today is covered, filling a past gap must lower the
         // backlog badge.
         source.emit(LocationSample(
-            timestamp: iso("2026-01-03T12:00:00-08:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-01-03T12:00:00-08:00"),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 0,
             source: .gpsVisit,
@@ -690,7 +694,7 @@ struct WhereServicesTests {
     }
 
     @Test func manualDayLoggingAPastDayLowersTheBadge() async throws {
-        let now = iso("2026-03-10T09:00:00-08:00")
+        let now = WhereCoreTestSupport.iso("2026-03-10T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
         await services.reminders.configure(enabled: true, time: .defaultEvening)
@@ -699,7 +703,7 @@ struct WhereServicesTests {
         #expect(await spy.lastBadgeCount == 68)
 
         try await services.journal.addManualDay(
-            date: iso("2026-03-03T12:00:00-08:00"),
+            date: WhereCoreTestSupport.iso("2026-03-03T12:00:00-08:00"),
             regions: [.california],
         )
 
@@ -707,13 +711,13 @@ struct WhereServicesTests {
     }
 
     @Test func clearCurrentYearReconcilesTheBadge() async throws {
-        let now = iso("2026-01-05T09:00:00-08:00")
+        let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
         await services.reminders.configure(enabled: true, time: .defaultEvening)
 
         try await services.journal.addManualDay(
-            date: iso("2026-01-01T12:00:00-08:00"),
+            date: WhereCoreTestSupport.iso("2026-01-01T12:00:00-08:00"),
             regions: [.california],
         )
         // Backlog (Jan 1–4) minus the logged Jan 1 leaves 3.
@@ -726,13 +730,13 @@ struct WhereServicesTests {
     }
 
     @Test func eraseAllDataReconcilesTheBadge() async throws {
-        let now = iso("2026-01-05T09:00:00-08:00")
+        let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
         await services.reminders.configure(enabled: true, time: .defaultEvening)
 
         try await services.journal.addManualDay(
-            date: iso("2026-01-01T12:00:00-08:00"),
+            date: WhereCoreTestSupport.iso("2026-01-01T12:00:00-08:00"),
             regions: [.california],
         )
         // Backlog (Jan 1–4) minus the logged Jan 1 leaves 3.
@@ -746,7 +750,7 @@ struct WhereServicesTests {
     }
 
     @Test func changingReminderTimeReconcilesWithTheNewTime() async throws {
-        let now = iso("2026-01-05T09:00:00-08:00")
+        let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
 
@@ -760,7 +764,7 @@ struct WhereServicesTests {
     }
 
     @Test func disablingRemindersAfterEnablingClearsEverything() async throws {
-        let now = iso("2026-01-05T09:00:00-08:00")
+        let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
 
@@ -778,23 +782,23 @@ struct WhereServicesTests {
     @Test func configureDailySummaryEnabledBuildsRankedBody() async throws {
         let spy = SpyDailySummaryScheduler()
         let (services, _, _) = try Self.makeSummaryServices(
-            now: iso("2026-01-10T09:00:00-08:00"),
+            now: WhereCoreTestSupport.iso("2026-01-10T09:00:00-08:00"),
             scheduler: spy,
         )
         try await services.journal.addManualDay(
-            date: iso("2026-01-01T12:00:00-08:00"),
+            date: WhereCoreTestSupport.iso("2026-01-01T12:00:00-08:00"),
             regions: [.california],
         )
         try await services.journal.addManualDay(
-            date: iso("2026-01-02T12:00:00-08:00"),
+            date: WhereCoreTestSupport.iso("2026-01-02T12:00:00-08:00"),
             regions: [.california],
         )
         try await services.journal.addManualDay(
-            date: iso("2026-01-03T12:00:00-08:00"),
+            date: WhereCoreTestSupport.iso("2026-01-03T12:00:00-08:00"),
             regions: [.california],
         )
         try await services.journal.addManualDay(
-            date: iso("2026-01-04T12:00:00-08:00"),
+            date: WhereCoreTestSupport.iso("2026-01-04T12:00:00-08:00"),
             regions: [.newYork],
         )
 
@@ -810,7 +814,7 @@ struct WhereServicesTests {
     @Test func configureDailySummaryWithNoDataUsesEmptyBody() async throws {
         let spy = SpyDailySummaryScheduler()
         let (services, _, _) = try Self.makeSummaryServices(
-            now: iso("2026-01-10T09:00:00-08:00"),
+            now: WhereCoreTestSupport.iso("2026-01-10T09:00:00-08:00"),
             scheduler: spy,
         )
 
@@ -823,7 +827,7 @@ struct WhereServicesTests {
     @Test func configureDailySummaryDisabledSkipsAuthAndSendsDisabled() async throws {
         let spy = SpyDailySummaryScheduler()
         let (services, _, _) = try Self.makeSummaryServices(
-            now: iso("2026-01-10T09:00:00-08:00"),
+            now: WhereCoreTestSupport.iso("2026-01-10T09:00:00-08:00"),
             scheduler: spy,
         )
 
@@ -857,7 +861,7 @@ struct WhereServicesTests {
         // Pin "now" to the day we log so the snapshot's `dayRegions` reflects it.
         let (services, _) = try Self.makeWidgetServices(
             refresher: refresher,
-            now: iso("2026-03-15T20:00:00-07:00"),
+            now: WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00"),
         )
 
         try await services.journal.ingest(sample(at: "2026-03-15T12:00:00-07:00"))
@@ -868,7 +872,7 @@ struct WhereServicesTests {
         #expect(first?.dayRegions == [.california])
         #expect(first?.totals == [.california: 1])
 
-        let day = iso("2026-07-04T15:00:00-07:00")
+        let day = WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00")
         try await services.journal.addManualDay(date: day, regions: [.newYork])
         try await services.journal.overrideDay(date: day, regions: [.california])
         try await services.journal.clearManualDay(date: day)
@@ -890,7 +894,7 @@ struct WhereServicesTests {
         let (services, _) = try Self.makeWidgetServices(
             refresher: refresher,
             store: store,
-            now: iso("2026-03-15T20:00:00-07:00"),
+            now: WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00"),
         )
 
         // Freshly constructed services haven't published anything yet, so
@@ -943,7 +947,7 @@ struct WhereServicesTests {
         let refresher = SpyWidgetRefresher()
         let (services, _) = try Self.makeWidgetServices(
             refresher: refresher,
-            now: iso("2026-03-15T20:00:00-07:00"),
+            now: WhereCoreTestSupport.iso("2026-03-15T20:00:00-07:00"),
         )
 
         // First CA sample today publishes.
@@ -957,7 +961,7 @@ struct WhereServicesTests {
 
         // A NY sample adds a region to today, which must reach the widget.
         try await services.journal.ingest(LocationSample(
-            timestamp: iso("2026-03-15T15:00:00-07:00"),
+            timestamp: WhereCoreTestSupport.iso("2026-03-15T15:00:00-07:00"),
             coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
             horizontalAccuracy: 0,
             source: .gpsSignificantChange,
@@ -968,7 +972,7 @@ struct WhereServicesTests {
 
     @Test func refreshWidgetSnapshotThrottlesUntilStaleOrNewDay() async throws {
         let refresher = SpyWidgetRefresher()
-        let clock = MutableClock(iso("2026-03-15T08:00:00-07:00"))
+        let clock = MutableClock(WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
         let store = try SwiftDataStore.inMemory()
         let seed = sample(at: "2026-03-15T07:00:00-07:00")
         try await store.perform { try await store.add(sample: seed) }
@@ -1001,11 +1005,6 @@ struct WhereServicesTests {
         await services.widgets.refreshIfStale()
         #expect(await refresher.publishCount == 3)
     }
-}
-
-private func iso(_ string: String) -> Date {
-    let formatter = ISO8601DateFormatter()
-    return formatter.date(from: string) ?? Date(timeIntervalSince1970: 0)
 }
 
 /// A hand-advanced clock so tests can drive `WhereServices`' `now` past the

@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import WhereCore
+@testable import WhereCore
 
 struct YearReportTests {
     @Test func yearReport_sortsDaysAscending() {
@@ -40,6 +40,30 @@ struct StorageDefaultTests {
 
         let stored = try await store.allSamples()
         #expect(stored.map(\.id) == [sample.id])
+    }
+}
+
+struct SDLocationSampleTests {
+    @Test func missingSourceRawReturnsNil() {
+        let record = SDLocationSample(value: LocationSample(
+            timestamp: Date(timeIntervalSince1970: 1_700_000_000),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
+            source: .manual,
+        ))
+        record.sourceRaw = nil
+        #expect(record.toValue() == nil)
+    }
+
+    @Test func corruptSourceRawReturnsNil() {
+        let record = SDLocationSample(value: LocationSample(
+            timestamp: Date(timeIntervalSince1970: 1_700_000_000),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
+            source: .manual,
+        ))
+        record.sourceRaw = "not-a-real-source"
+        #expect(record.toValue() == nil)
     }
 }
 

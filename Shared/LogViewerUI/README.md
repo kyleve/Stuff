@@ -20,11 +20,13 @@ LogKit** — no app code.
   The list updates as new lines are logged (it observes `LogStore.changes()`).
 - **Filtering & search** — a minimum-level picker, a category picker (built from
   the categories actually present), and a `.searchable` field matching message
-  *or* category.
+  *or* the mapped category display name.
 - **Share / copy / clear** — share or copy the currently-filtered entries as
-  plain text (ISO-8601 timestamps), copy a single message from its context menu,
-  or clear the buffer (with confirmation).
-- **Empty state** — a `ContentUnavailableView` when nothing has been captured.
+  plain text (ISO-8601 timestamps; formatting deferred until share is initiated),
+  copy a single message from its context menu, or clear the buffer (with
+  confirmation).
+- **Empty states** — a `ContentUnavailableView` when nothing has been captured,
+  and a separate one when filters match nothing.
 
 ## Installation
 
@@ -74,12 +76,12 @@ public struct LogViewerConfiguration: Sendable {
 ## How it works
 
 `LogViewer` owns a `@MainActor @Observable LogViewerModel` that mirrors the store
-into `entries` and derives `filteredEntries` (newest-first, after
-level/category/search). On appear, the view's `.task` runs `model.observe()`,
-which iterates `LogStore.changes()` and assigns each fresh snapshot — so the list
-stays live without the view touching the lock-guarded store directly. Recording
-stays off the main actor in `LogKit`; this module only consumes snapshots on the
-main actor for display.
+into `entries` and derives cached `filteredEntries` (newest-first, after
+level/category/search). Observation starts in the model's `init` and iterates
+`LogStore.changes()` until the model is deallocated — so the list stays live
+without the view touching the lock-guarded store directly. Recording stays off
+the main actor in `LogKit`; this module only consumes snapshots on the main
+actor for display.
 
 ## Example: adopting it in an app (Where)
 

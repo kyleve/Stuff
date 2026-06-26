@@ -13,8 +13,8 @@ struct TodayWidget: Widget {
         StaticConfiguration(kind: Self.kind, provider: WhereWidgetProvider()) { entry in
             TodayWidgetContent(entry: entry)
         }
-        .configurationDisplayName("Today")
-        .description("Which region today counts for.")
+        .configurationDisplayName(WidgetStrings.todayGalleryName)
+        .description(WidgetStrings.todayGalleryDescription)
         .supportedFamilies([.systemSmall, .accessoryInline, .accessoryCircular])
     }
 }
@@ -36,7 +36,14 @@ private struct TodayWidgetContent: View {
                 // `AccessoryWidgetBackground`.
                 TodayCircularAccessoryView(snapshot: entry.snapshot)
                     .containerBackground(.clear, for: .widget)
-            default:
+            case .systemSmall:
+                TodayWidgetView(snapshot: entry.snapshot)
+                    .containerBackground(.background, for: .widget)
+            case .systemMedium, .systemLarge, .systemExtraLarge, .systemExtraLargePortrait,
+                 .accessoryRectangular, .accessoryCorner:
+                TodayWidgetView(snapshot: entry.snapshot)
+                    .containerBackground(.background, for: .widget)
+            @unknown default:
                 TodayWidgetView(snapshot: entry.snapshot)
                     .containerBackground(.background, for: .widget)
         }

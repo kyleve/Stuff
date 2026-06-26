@@ -96,6 +96,25 @@ struct ScreenHostingTests {
         }
     }
 
+    @Test func manualDayEntryViewHostsDefault() throws {
+        let session = PreviewSupport.loadedSession()
+        let rootView = NavigationStack { ManualDayEntryView() }
+            .environment(session)
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func manualDayEntryViewHostsPrefill() throws {
+        let session = PreviewSupport.missingDaysSession()
+        let range = try #require(session.missingDays.first)
+        let rootView = NavigationStack { ManualDayEntryView(prefill: range) }
+            .environment(session)
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
     @Test func debugLogViewerHostsWithSharedStore() throws {
         // The Settings debug entry pushes this viewer over WhereLog's buffer.
         let rootView = NavigationStack {

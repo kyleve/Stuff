@@ -120,8 +120,7 @@ public final class LifecycleRunner {
         guard case let .failed(failure) = phase else { return }
         if let teardownIndex = teardownSteps.firstIndex(where: { $0.id == failure.stepID }) {
             Task { await driveTeardown(fromTeardownIndex: teardownIndex) }
-        } else {
-            let startIndex = steps.firstIndex { $0.id == failure.stepID } ?? 0
+        } else if let startIndex = steps.firstIndex(where: { $0.id == failure.stepID }) {
             let reason = reason
             Task { await drive(reason: reason, from: startIndex) }
         }
@@ -245,6 +244,15 @@ public final class LifecycleRunner {
         return .completed
     }
 }
+
+#if DEBUG
+    extension LifecycleRunner {
+        /// Injects a failure for SPI-enabled tests (e.g. stale step IDs in `retry()`).
+        @_spi(Testing) public func injectFailureForTesting(_ failure: LifecycleFailure) {
+            phase = .failed(failure)
+        }
+    }
+#endif
 
 /// Per-step presentation bookkeeping, owned for the lifetime of one running
 /// step. Activating the step's presentation (immediately, on a `when:`

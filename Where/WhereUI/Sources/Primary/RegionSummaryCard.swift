@@ -15,11 +15,11 @@ struct RegionSummaryCard: View {
 
     /// Calendar days in the year being summarized; the ambient bar is drawn as
     /// a fraction of this. Callers pass the selected year's real length
-    /// (`WhereModel.daysInSelectedYear`); the default is only for previews.
+    /// (`WhereSession.daysInSelectedYear`); the default is only for previews.
     var yearLength = 365
 
     /// The calendar year being summarized, inked onto the entry stamp. Callers
-    /// pass `WhereModel.selectedYear`; the default is only for previews.
+    /// pass `WhereSession.selectedYear`; the default is only for previews.
     var year = Calendar.current.component(.year, from: Date())
 
     /// Drives the holographic stamp sheen. The Primary tab passes its live

@@ -5,8 +5,6 @@ import Testing
 /// Covers export/import round-trips and the post-import widget publish the
 /// controller delegates to `BackupCoordinator`.
 struct BackupCoordinatorTests {
-    private static let pacific = TimeZone(identifier: "America/Los_Angeles")!
-
     private struct Harness {
         let coordinator: BackupCoordinator
         let store: SwiftDataStore
@@ -20,15 +18,12 @@ struct BackupCoordinatorTests {
         }
     }
 
-    private static func calendar() -> Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = pacific
-        return calendar
-    }
-
     private static func makeHarness() throws -> Harness {
         let store = try SwiftDataStore.inMemory()
-        let aggregator = DayAggregator(calendar: calendar(), timeZone: pacific)
+        let aggregator = DayAggregator(
+            calendar: WhereCoreTestSupport.calendar(),
+            timeZone: WhereCoreTestSupport.pacific,
+        )
         let refresher = SpyRefresher()
         let widgets = WidgetSnapshotPublisher(
             widgetReader: WidgetDataReader(
@@ -38,7 +33,7 @@ struct BackupCoordinatorTests {
             ),
             widgetRefresher: refresher,
             attributor: .shared,
-            calendar: calendar(),
+            calendar: WhereCoreTestSupport.calendar(),
             now: { Date() },
         )
         let coordinator = BackupCoordinator(store: store, widgets: widgets)
@@ -62,7 +57,7 @@ struct BackupCoordinatorTests {
             try await store.add(sample: sample(at: "2026-03-15T12:00:00-07:00"))
             try await store.write(evidence: evidence, blob: blob)
             try await store.setManualDay(DayPresence(
-                date: iso("2026-07-04T00:00:00-07:00"),
+                date: WhereCoreTestSupport.iso("2026-07-04T00:00:00-07:00"),
                 regions: [.newYork],
             ))
         }
@@ -117,7 +112,7 @@ struct BackupCoordinatorTests {
         try await destination.store.perform {
             try await destination.store.add(sample: Self.sample(at: "2026-01-01T09:00:00-08:00"))
             try await destination.store.setManualDay(DayPresence(
-                date: iso("2026-02-02T00:00:00-08:00"),
+                date: WhereCoreTestSupport.iso("2026-02-02T00:00:00-08:00"),
                 regions: [.canada],
             ))
         }
@@ -162,14 +157,10 @@ struct BackupCoordinatorTests {
     private static func sample(at isoString: String) -> LocationSample {
         LocationSample(
             id: UUID(),
-            timestamp: iso(isoString),
+            timestamp: WhereCoreTestSupport.iso(isoString),
             coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
             horizontalAccuracy: 5,
             source: .manual,
         )
     }
-}
-
-private func iso(_ string: String) -> Date {
-    ISO8601DateFormatter().date(from: string) ?? Date(timeIntervalSince1970: 0)
 }

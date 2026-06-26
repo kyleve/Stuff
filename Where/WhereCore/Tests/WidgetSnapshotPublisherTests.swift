@@ -6,8 +6,6 @@ import Testing
 /// detection (`publishAfterIngest`) the controller delegates every widget
 /// publish to.
 struct WidgetSnapshotPublisherTests {
-    private static let pacific = TimeZone(identifier: "America/Los_Angeles")!
-
     private actor SpyRefresher: WidgetTimelineRefreshing {
         private(set) var publishCount = 0
         private(set) var lastSnapshot: WidgetSnapshot?
@@ -18,25 +16,22 @@ struct WidgetSnapshotPublisherTests {
         }
     }
 
-    private static func calendar() -> Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = pacific
-        return calendar
-    }
-
     private static func makePublisher(
         now: @escaping @Sendable () -> Date,
         maxAge: TimeInterval = WidgetSnapshotPublisher.defaultMaxAge,
     ) throws -> (WidgetSnapshotPublisher, SwiftDataStore, SpyRefresher) {
         let store = try SwiftDataStore.inMemory()
-        let aggregator = DayAggregator(calendar: calendar(), timeZone: pacific)
+        let aggregator = DayAggregator(
+            calendar: WhereCoreTestSupport.calendar(),
+            timeZone: WhereCoreTestSupport.pacific,
+        )
         let reader = WidgetDataReader(store: store, aggregator: aggregator, attributor: .shared)
         let refresher = SpyRefresher()
         let publisher = WidgetSnapshotPublisher(
             widgetReader: reader,
             widgetRefresher: refresher,
             attributor: .shared,
-            calendar: calendar(),
+            calendar: WhereCoreTestSupport.calendar(),
             now: now,
             maxAge: maxAge,
         )
@@ -44,14 +39,14 @@ struct WidgetSnapshotPublisherTests {
     }
 
     @Test func publishBuildsAndPublishesASnapshot() async throws {
-        let now = iso("2026-03-15T12:00:00-07:00")
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
         let (publisher, _, refresher) = try Self.makePublisher(now: { now })
         await publisher.publish()
         #expect(await refresher.publishCount == 1)
     }
 
     @Test func refreshIfStaleSkipsWhenFresh() async throws {
-        let now = iso("2026-03-15T12:00:00-07:00")
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
         let (publisher, _, refresher) = try Self.makePublisher(now: { now })
         await publisher.publish()
         // Same day, within maxAge → no second publish.
@@ -60,7 +55,7 @@ struct WidgetSnapshotPublisherTests {
     }
 
     @Test func refreshIfStaleRepublishesOncePastTheFreshnessWindow() async throws {
-        let clock = TestClock(iso("2026-03-15T08:00:00-07:00"))
+        let clock = TestClock(WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
         let (publisher, _, refresher) = try Self.makePublisher(now: { clock.now }, maxAge: 60)
         await publisher.publish()
         #expect(await refresher.publishCount == 1)
@@ -71,7 +66,7 @@ struct WidgetSnapshotPublisherTests {
     }
 
     @Test func publishAfterIngestSkipsWhenDayAndRegionUnchanged() async throws {
-        let now = iso("2026-03-15T12:00:00-07:00")
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
         let (publisher, store, refresher) = try Self.makePublisher(now: { now })
         let sf = LocationSample(
             timestamp: now,
@@ -95,7 +90,7 @@ struct WidgetSnapshotPublisherTests {
     }
 
     @Test func publishAfterIngestRebuildsForANewRegion() async throws {
-        let now = iso("2026-03-15T12:00:00-07:00")
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
         let (publisher, store, refresher) = try Self.makePublisher(now: { now })
         let sf = LocationSample(
             timestamp: now,
@@ -134,8 +129,4 @@ private final class TestClock: @unchecked Sendable {
     func advance(by seconds: TimeInterval) {
         lock.withLock { current = current.addingTimeInterval(seconds) }
     }
-}
-
-private func iso(_ string: String) -> Date {
-    ISO8601DateFormatter().date(from: string) ?? Date(timeIntervalSince1970: 0)
 }

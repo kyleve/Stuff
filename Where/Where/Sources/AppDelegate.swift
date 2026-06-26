@@ -1,5 +1,4 @@
 import LifecycleKit
-import LogKit
 import UIKit
 import WhereCore
 import WhereUI
@@ -23,30 +22,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// reason is known) and handed to `RootView` via `WhereApp`.
     private(set) var launcher: LifecycleRunner!
 
-    private let logger = WhereLog.channel(.appDelegate)
-
     func application(
         _: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil,
     ) -> Bool {
-        // A CoreLocation key means iOS woke us headless to service a location
-        // event; the runner then skips foreground-only steps (onboarding) and
-        // the UI builds no view tree.
-        let reason: LifecycleReason = launchOptions?[.location] != nil
-            ? .background(.location)
-            : .userForeground
-        if reason.isBackground {
-            logger.info("Relaunched by CoreLocation for a background location event")
-        } else {
-            logger.info("Launched in foreground by the user")
-        }
-
+        let reason = WhereLaunch.lifecycleReason(from: launchOptions)
         // `initializePrerequisites` installs the CLLocationManager synchronously
         // (so a queued location event isn't lost) and registers the
         // foreground-notification presenter; the rest (store open, etc.) runs as
         // async steps off this synchronous launch path.
         launcher = WhereLaunch.makeLauncher(model: model, reason: reason)
-        logger.info("Lifecycle runner started")
         Task { await launcher.run() }
         return true
     }

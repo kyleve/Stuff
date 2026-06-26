@@ -111,7 +111,22 @@ public struct RootView: View {
 }
 
 #if DEBUG
+    private struct LoggedInRootPreview: View {
+        private let model = PreviewSupport.loadedModel()
+
+        var body: some View {
+            RootView(
+                model: model,
+                launcher: WhereLaunch.makeLauncher(model: model, reason: .userForeground),
+            )
+        }
+    }
+
     #Preview {
         RootView()
+    }
+
+    #Preview("Logged in") {
+        LoggedInRootPreview()
     }
 #endif

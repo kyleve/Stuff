@@ -15,8 +15,9 @@ struct EntityTableView: View {
     /// `persistentID` keeps identities (and scroll position) stable across the
     /// replace.
     @State private var rows: [InspectorRow] = []
-    @State private var totalCount = 0
+    /// Longest cell string length per column, computed off-main by the reader.
     @State private var characterCounts: [String: Int] = [:]
+    @State private var totalCount = 0
     @State private var hasLoaded = false
     @State private var isLoadingMore = false
     @State private var searchText = ""
@@ -59,8 +60,8 @@ struct EntityTableView: View {
     private func load() async {
         let set = await model.rows(for: entity, pageCount: pageCount)
         rows = set.rows
-        totalCount = set.totalCount
         characterCounts = set.columnCharacterCounts
+        totalCount = set.totalCount
         hasLoaded = true
     }
 
@@ -75,8 +76,8 @@ struct EntityTableView: View {
         let set = await model.rows(for: entity, pageCount: pageCount + 1)
         pageCount += 1
         rows = set.rows
-        totalCount = set.totalCount
         characterCounts = set.columnCharacterCounts
+        totalCount = set.totalCount
     }
 
     private var canLoadMore: Bool {
@@ -200,8 +201,7 @@ struct EntityTableView: View {
     /// Cells are monospaced, so a column's width is the longest string in it
     /// (header or any cell) times the fixed character advance, clamped to a
     /// sensible range. The per-cell character counting is done off-main by the
-    /// reader (`columnCharacterCounts`); here it's an O(1) lookup, and it's
-    /// derived from the full page so columns don't reflow while searching.
+    /// reader (`columnCharacterCounts`); here it's an O(1) lookup.
     private func width(of column: String) -> CGFloat {
         let characters = max(column.count, characterCounts[column] ?? 0)
         let raw = CGFloat(characters) * Self.characterWidth + 12

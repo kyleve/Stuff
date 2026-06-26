@@ -119,6 +119,7 @@ let project = Project(
                 ]),
             ]),
             sources: ["Where/WhereWidgets/Sources/**"],
+            resources: ["Where/WhereWidgets/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
                 .package(product: "LogKit"),
@@ -135,7 +136,9 @@ let project = Project(
             sources: ["Where/Where/Tests/**"],
             dependencies: [
                 .target(name: "Where"),
+                .package(product: "LifecycleKit"),
                 .package(product: "WhereTesting"),
+                .package(product: "WhereUI"),
             ],
         ),
         .target(
@@ -221,6 +224,7 @@ let project = Project(
     // WhereCoreTests` / `tuist test WhereTests` / `tuist test WhereUITests`
     // target a single bundle without building the whole workspace.
     schemes: [
+        testScheme(name: "StuffCoreTests"),
         testScheme(name: "LifecycleKitTests"),
         testScheme(name: "LogKitTests"),
         testScheme(name: "LogViewerUITests"),

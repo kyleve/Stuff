@@ -137,6 +137,14 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   mapping an optional error to the `Bool` an `.alert` wants), expose a computed
   `get`/`set` on the `@Observable` model and bind to that, keeping the
   underlying value the single source of truth.
+- **`didSet` must skip work when the value is unchanged.** When the stored
+  type is `Equatable`, guard `oldValue != newValue` before invalidation,
+  logging, or other side effects — reassigning the same value should be a no-op.
+- **Testing-only APIs use `@_spi(Testing)`.** Hooks meant exclusively for unit
+  tests or previews (direct store mutation, failure injection, queue
+  introspection, etc.) are marked `@_spi(Testing)`; wrap in `#if DEBUG` when
+  they must not ship in release. Callers outside the defining module import
+  with `@_spi(Testing) import <Module>`.
 - Don't use a bare `default:` in a `switch` over an enum — enumerate every case
   so adding one is a compile error, not a silent fall-through. For non-frozen
   enums from other modules (e.g. `UNAuthorizationStatus`), handle known cases

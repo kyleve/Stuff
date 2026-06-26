@@ -13,8 +13,8 @@ struct YearTotalsWidget: Widget {
         StaticConfiguration(kind: Self.kind, provider: WhereWidgetProvider()) { entry in
             YearTotalsWidgetContent(entry: entry)
         }
-        .configurationDisplayName("Day Counts")
-        .description("Days spent in each region this year.")
+        .configurationDisplayName(WidgetStrings.yearTotalsGalleryName)
+        .description(WidgetStrings.yearTotalsGalleryDescription)
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
     }
 }
@@ -29,10 +29,29 @@ private struct YearTotalsWidgetContent: View {
             case .accessoryRectangular:
                 YearTotalsRectangularAccessoryView(snapshot: entry.snapshot)
                     .containerBackground(.clear, for: .widget)
-            default:
+            case .systemSmall:
                 YearTotalsWidgetView(
                     snapshot: entry.snapshot,
-                    maxRows: family == .systemMedium ? 5 : 4,
+                    maxRows: 4,
+                )
+                .containerBackground(.background, for: .widget)
+            case .systemMedium:
+                YearTotalsWidgetView(
+                    snapshot: entry.snapshot,
+                    maxRows: 5,
+                )
+                .containerBackground(.background, for: .widget)
+            case .systemLarge, .systemExtraLarge, .systemExtraLargePortrait,
+                 .accessoryCircular, .accessoryInline, .accessoryCorner:
+                YearTotalsWidgetView(
+                    snapshot: entry.snapshot,
+                    maxRows: 4,
+                )
+                .containerBackground(.background, for: .widget)
+            @unknown default:
+                YearTotalsWidgetView(
+                    snapshot: entry.snapshot,
+                    maxRows: 4,
                 )
                 .containerBackground(.background, for: .widget)
         }

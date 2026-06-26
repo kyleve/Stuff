@@ -12,34 +12,31 @@ struct DayRelabelView: View {
 
     let day: DayPresence
 
-    @State private var selectedRegions: Set<Region>
+    @State private var regionSelection: RegionSelectionState
+    @State private var saveError = SaveErrorAlertState()
     @State private var isSaving = false
-    @State private var saveError: String?
 
     init(day: DayPresence) {
         self.day = day
-        _selectedRegions = State(initialValue: day.regions)
+        _regionSelection = State(initialValue: RegionSelectionState(selectedRegions: day.regions))
     }
 
     private var canSave: Bool {
-        !selectedRegions.isEmpty && !isSaving && selectedRegions != day.regions
+        !regionSelection.selectedRegions.isEmpty && !isSaving
+            && regionSelection.selectedRegions != day.regions
     }
 
     var body: some View {
+        @Bindable var saveError = saveError
+
         Form {
             Section {
                 LabeledContent(Strings.relabelTitle, value: dateText)
             }
 
             Section {
-                ForEach(Region.allCases, id: \.self) { region in
-                    Toggle(isOn: binding(for: region)) {
-                        Label {
-                            Text(region.localizedName)
-                        } icon: {
-                            Text(region.style.emoji)
-                        }
-                    }
+                ForEach(regionSelection.items) { item in
+                    RegionToggleRow(item: item)
                 }
             } header: {
                 Text(Strings.relabelRegionsHeader)
@@ -64,14 +61,11 @@ struct DayRelabelView: View {
         }
         .alert(
             Strings.manualSaveErrorTitle,
-            isPresented: Binding(
-                get: { saveError != nil },
-                set: { if !$0 { saveError = nil } },
-            ),
+            isPresented: $saveError.isPresented,
         ) {
             Button(Strings.commonOK, role: .cancel) {}
         } message: {
-            if let saveError {
+            if let saveError = saveError.message {
                 Text(saveError)
             }
         }
@@ -81,29 +75,19 @@ struct DayRelabelView: View {
         day.date.formatted(.dateTime.month(.abbreviated).day().year())
     }
 
-    private func binding(for region: Region) -> Binding<Bool> {
-        Binding(
-            get: { selectedRegions.contains(region) },
-            set: { isOn in
-                if isOn {
-                    selectedRegions.insert(region)
-                } else {
-                    selectedRegions.remove(region)
-                }
-            },
-        )
-    }
-
     private func save() {
         isSaving = true
-        saveError = nil
+        saveError.message = nil
         Task {
             do {
-                try await session.overrideDay(date: day.date, regions: selectedRegions)
+                try await session.overrideDay(
+                    date: day.date,
+                    regions: regionSelection.selectedRegions,
+                )
                 dismiss()
             } catch {
                 // Keep the form up so the user can retry; the save didn't land.
-                saveError = error.localizedDescription
+                saveError.message = error.localizedDescription
                 isSaving = false
             }
         }
@@ -111,14 +95,14 @@ struct DayRelabelView: View {
 
     private func reset() {
         isSaving = true
-        saveError = nil
+        saveError.message = nil
         Task {
             do {
                 try await session.clearManualDay(date: day.date)
                 dismiss()
             } catch {
                 // Keep the form up so the user can retry; nothing was cleared.
-                saveError = error.localizedDescription
+                saveError.message = error.localizedDescription
                 isSaving = false
             }
         }
@@ -126,7 +110,7 @@ struct DayRelabelView: View {
 }
 
 #if DEBUG
-    #Preview {
+    #Preview("Other region") {
         NavigationStack {
             DayRelabelView(day: DayPresence(date: .now, regions: [.other]))
                 .environment(PreviewSupport.loadedSession())

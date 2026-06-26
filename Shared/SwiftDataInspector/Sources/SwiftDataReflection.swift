@@ -49,6 +49,27 @@ enum SwiftDataReflection {
         return result
     }
 
+    /// The destination model type named by a relationship on `sourceType`, read
+    /// from the public schema. Used when a resolved relationship value is a bare
+    /// `PersistentIdentifier` (to-one) or a collection of identifiers (to-many)
+    /// so the reader can still batch-fetch the related rows.
+    static func destinationType(
+        of sourceType: any PersistentModel.Type,
+        relationshipNamed name: String,
+        in schema: Schema,
+    ) -> (any PersistentModel.Type)? {
+        let sourceName = String(describing: sourceType)
+        guard
+            let sourceEntity = schema.entities.first(where: { $0.name == sourceName }),
+            let relationship = sourceEntity.relationshipsByName[name],
+            let destinationEntity = schema.entities
+            .first(where: { $0.name == relationship.destination })
+        else {
+            return nil
+        }
+        return metatype(of: destinationEntity)
+    }
+
     /// The related rows referenced by a model's relationship `name`, as
     /// `PersistentIdentifier`s plus whether the relationship is to-many.
     ///
@@ -63,17 +84,26 @@ enum SwiftDataReflection {
     static func relatedReferences(
         of model: any PersistentModel,
         named name: String,
+        schema: Schema,
     ) -> RelatedReferences {
         /// The generic parameter implicitly opens the `any PersistentModel`
         /// existential, so `schemaMetadata` and `[keyPath:]` resolve concretely.
         func open<T: PersistentModel>(_ model: T) -> RelatedReferences {
+            let fallbackDestination = destinationType(
+                of: T.self,
+                relationshipNamed: name,
+                in: schema,
+            )
             for property in T.schemaMetadata {
                 let mirror = Mirror(reflecting: property)
                 guard mirror.descendant("name") as? String == name else { continue }
                 guard let keyPath = mirror.descendant("keypath") as? PartialKeyPath<T> else {
-                    return .none
+                    continue
                 }
-                return classify(model[keyPath: keyPath])
+                return classify(
+                    model[keyPath: keyPath],
+                    fallbackDestinationType: fallbackDestination,
+                )
             }
             return .none
         }
@@ -83,10 +113,13 @@ enum SwiftDataReflection {
     /// Classify a resolved relationship value into identifiers, arity, and the
     /// destination model type. Handles a lone reference (to-one), a Swift
     /// `Array`, and any other collection/set (via `Mirror`), unwrapping optionals
-    /// along the way. The destination type comes from a resolved related model so
-    /// the reader can re-fetch each row fully materialized.
-    private static func classify(_ value: Any) -> RelatedReferences {
-        guard let unwrapped = unwrapOptional(value) else {
+    /// along the way. When the value is a bare `PersistentIdentifier`, falls
+    /// back to `fallbackDestinationType` from schema metadata.
+    private static func classify(
+        _ value: Any,
+        fallbackDestinationType: (any PersistentModel.Type)?,
+    ) -> RelatedReferences {
+        guard let unwrapped = InspectorOptionalUnwrapping.unwrap(value) else {
             return .none
         }
         if let model = unwrapped as? any PersistentModel {
@@ -97,7 +130,11 @@ enum SwiftDataReflection {
             )
         }
         if let id = unwrapped as? PersistentIdentifier {
-            return RelatedReferences(ids: [id], isToMany: false, destinationType: nil)
+            return RelatedReferences(
+                ids: [id],
+                isToMany: false,
+                destinationType: fallbackDestinationType,
+            )
         }
 
         let elements: [Any]
@@ -112,9 +149,10 @@ enum SwiftDataReflection {
         }
         let destinationType = elements
             .lazy
-            .compactMap { unwrapOptional($0) as? any PersistentModel }
+            .compactMap { InspectorOptionalUnwrapping.unwrap($0) as? any PersistentModel }
             .first
             .map { type(of: $0) }
+            ?? fallbackDestinationType
         return RelatedReferences(
             ids: elements.compactMap(identifier(from:)),
             isToMany: true,
@@ -126,7 +164,7 @@ enum SwiftDataReflection {
     /// stored the related model itself or just its identifier. Unwraps optionals
     /// so an `Optional(model)` element still resolves.
     private static func identifier(from value: Any) -> PersistentIdentifier? {
-        guard let unwrapped = unwrapOptional(value) else { return nil }
+        guard let unwrapped = InspectorOptionalUnwrapping.unwrap(value) else { return nil }
         if let model = unwrapped as? any PersistentModel {
             return model.persistentModelID
         }
@@ -134,15 +172,6 @@ enum SwiftDataReflection {
             return id
         }
         return nil
-    }
-
-    /// Strip any nesting of `Optional`, yielding the inner value or `nil` at
-    /// `.none`.
-    private static func unwrapOptional(_ value: Any) -> Any? {
-        let mirror = Mirror(reflecting: value)
-        guard mirror.displayStyle == .optional else { return value }
-        guard let child = mirror.children.first else { return nil }
-        return unwrapOptional(child.value)
     }
 }
 
@@ -158,84 +187,4 @@ struct RelatedReferences {
 
     /// Nothing resolved — an empty, missing, or unreadable relationship.
     static let none = RelatedReferences(ids: [], isToMany: false, destinationType: nil)
-}
-
-extension ModelContext {
-    /// The number of persisted rows of `type`, opening the existential metatype
-    /// so the generic `fetchCount` can infer its `PersistentModel`.
-    func inspectorCount(of type: any PersistentModel.Type) -> Int {
-        func open<T: PersistentModel>(_: T.Type) -> Int {
-            (try? fetchCount(FetchDescriptor<T>())) ?? 0
-        }
-        return open(type)
-    }
-
-    /// The persisted row of `type` with `id`, or `nil` if it is no longer in the
-    /// store. Uses a `persistentModelID` predicate (not `model(for:)`, which
-    /// traps on a missing id) so a row deleted between loading the table and
-    /// drilling into it degrades gracefully. Opens the existential so the generic
-    /// `fetch` can infer its `PersistentModel`.
-    func inspectorModel(
-        _ type: any PersistentModel.Type,
-        id: PersistentIdentifier,
-    ) -> (any PersistentModel)? {
-        func open<T: PersistentModel>(_: T.Type) -> (any PersistentModel)? {
-            var descriptor =
-                FetchDescriptor<T>(predicate: #Predicate { $0.persistentModelID == id })
-            descriptor.fetchLimit = 1
-            return (try? fetch(descriptor))?.first
-        }
-        return open(type)
-    }
-
-    /// The first `limit` persisted rows of `type` (a `nil` limit fetches every
-    /// row), as type-erased models, opening the existential metatype so the
-    /// generic `fetch` can infer its `PersistentModel`.
-    ///
-    /// The inspector pages by *growing this prefix* rather than by `fetchOffset`:
-    /// "load more" re-fetches a longer prefix in one query and replaces the
-    /// view's rows. A single fetch is internally consistent, so pages can't
-    /// overlap or skip even though `FetchDescriptor` has no sort to make an
-    /// offset's boundary stable.
-    func inspectorFetch(
-        _ type: any PersistentModel.Type,
-        limit: Int?,
-    ) -> [any PersistentModel] {
-        func open<T: PersistentModel>(_: T.Type) -> [any PersistentModel] {
-            var descriptor = FetchDescriptor<T>()
-            if let limit {
-                descriptor.fetchLimit = limit
-            }
-            return (try? fetch(descriptor)) ?? []
-        }
-        return open(type)
-    }
-
-    /// The persisted rows of `type` whose ids are in `ids`, fetched in a single
-    /// query and returned keyed by id, opening the existential so the generic
-    /// `fetch` can infer its `PersistentModel`.
-    ///
-    /// Used to materialize a relationship's related rows in one round-trip rather
-    /// than one `inspectorModel(_:id:)` per id. The fetch returns the rows fully
-    /// realized (attributes loaded), unlike `model(for:)`, which yields a fault.
-    /// Returns only the ids that still resolve, so a related row deleted out from
-    /// under the relationship is simply dropped.
-    func inspectorModels(
-        _ type: any PersistentModel.Type,
-        ids: [PersistentIdentifier],
-    ) -> [PersistentIdentifier: any PersistentModel] {
-        guard !ids.isEmpty else { return [:] }
-        func open<T: PersistentModel>(_: T.Type) -> [PersistentIdentifier: any PersistentModel] {
-            let wanted = Set(ids)
-            var descriptor =
-                FetchDescriptor<T>(predicate: #Predicate { wanted.contains($0.persistentModelID) })
-            descriptor.fetchLimit = wanted.count
-            let fetched = (try? fetch(descriptor)) ?? []
-            return Dictionary(
-                fetched.map { ($0.persistentModelID, $0 as any PersistentModel) },
-                uniquingKeysWith: { first, _ in first },
-            )
-        }
-        return open(type)
-    }
 }

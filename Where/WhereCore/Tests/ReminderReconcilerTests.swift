@@ -5,32 +5,27 @@ import Testing
 /// Covers the reminder intent + badge/schedule reconciliation the controller
 /// delegates every reminder call to.
 struct ReminderReconcilerTests {
-    private static let pacific = TimeZone(identifier: "America/Los_Angeles")!
-
-    private static func calendar() -> Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = pacific
-        return calendar
-    }
-
     private static func makeReconciler(
         now: @escaping @Sendable () -> Date,
     ) throws -> (ReminderReconciler, SwiftDataStore, SpyReminderScheduler) {
         let store = try SwiftDataStore.inMemory()
-        let aggregator = DayAggregator(calendar: calendar(), timeZone: pacific)
+        let aggregator = DayAggregator(
+            calendar: WhereCoreTestSupport.calendar(),
+            timeZone: WhereCoreTestSupport.pacific,
+        )
         let reader = ReportReader(store: store, aggregator: aggregator, attributor: .shared)
         let spy = SpyReminderScheduler()
         let reconciler = ReminderReconciler(
             scheduler: spy,
             reportReader: reader,
-            calendar: calendar(),
+            calendar: WhereCoreTestSupport.calendar(),
             now: now,
         )
         return (reconciler, store, spy)
     }
 
     @Test func configureEnabledRequestsAuthorizationAndReconciles() async throws {
-        let now = iso("2026-03-15T12:00:00-07:00")
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
         let (reconciler, _, spy) = try Self.makeReconciler(now: { now })
         await reconciler.configure(enabled: true, time: .defaultEvening)
 
@@ -42,7 +37,7 @@ struct ReminderReconcilerTests {
     }
 
     @Test func configureDisabledClearsScheduleAndBadge() async throws {
-        let now = iso("2026-03-15T12:00:00-07:00")
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
         let (reconciler, _, spy) = try Self.makeReconciler(now: { now })
         await reconciler.configure(enabled: false, time: .defaultEvening)
 
@@ -52,7 +47,7 @@ struct ReminderReconcilerTests {
     }
 
     @Test func reconcileAfterIngestSkipsWhenTodayCoveredButForcesOnPastChange() async throws {
-        let now = iso("2026-03-15T12:00:00-07:00")
+        let now = WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00")
         let (reconciler, store, spy) = try Self.makeReconciler(now: { now })
         try await store.perform {
             try await store.add(sample: LocationSample(
@@ -65,13 +60,17 @@ struct ReminderReconcilerTests {
         await reconciler.configure(enabled: true, time: .defaultEvening)
         #expect(await spy.reconcileCount == 1)
 
-        let today = Self.calendar().startOfDay(for: now)
+        let today = WhereCoreTestSupport.calendar().startOfDay(for: now)
         // Today already covered + only today changed → no extra reconcile.
         await reconciler.reconcileAfterIngest(changedDays: [today])
         #expect(await spy.reconcileCount == 1)
 
         // A change on a different day forces a reconcile.
-        let earlier = try #require(Self.calendar().date(byAdding: .day, value: -3, to: today))
+        let earlier = try #require(WhereCoreTestSupport.calendar().date(
+            byAdding: .day,
+            value: -3,
+            to: today,
+        ))
         await reconciler.reconcileAfterIngest(changedDays: [earlier])
         #expect(await spy.reconcileCount == 2)
     }
@@ -102,8 +101,4 @@ private actor SpyReminderScheduler: LoggingReminderScheduling {
         lastBadgeCount = badgeCount
         lastEnabled = enabled
     }
-}
-
-private func iso(_ string: String) -> Date {
-    ISO8601DateFormatter().date(from: string) ?? Date(timeIntervalSince1970: 0)
 }

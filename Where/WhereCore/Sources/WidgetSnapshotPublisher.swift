@@ -80,7 +80,7 @@ public actor WidgetSnapshotPublisher {
             await widgetRefresher.publish(snapshot)
             lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
             Self.logger.info(
-                "Published widget snapshot for \(snapshot.day) (\(snapshot.dayRegions.count) region(s))",
+                "Published widget snapshot for \(dayLogLabel(snapshot.day)) (\(snapshot.dayRegions.count) region(s))",
             )
         } catch {
             Self.logger.error(
@@ -106,5 +106,15 @@ public actor WidgetSnapshotPublisher {
             }
         }
         await publish()
+    }
+
+    private func dayLogLabel(_ day: Date) -> String {
+        let parts = calendar.dateComponents([.year, .month, .day], from: day)
+        return String(
+            format: "%04d-%02d-%02d",
+            parts.year ?? 0,
+            parts.month ?? 0,
+            parts.day ?? 0,
+        )
     }
 }

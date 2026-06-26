@@ -9,9 +9,14 @@ public struct SwiftDataInspectorConfiguration {
     /// throwaway `ModelContext`) — it never writes or deletes.
     public let container: ModelContainer
 
-    /// The model types to list. When `nil` (the default) the inspector derives
-    /// them from `container.schema` via reflection. Supply them explicitly when
-    /// you already hold the types and want to skip the reflection fallback.
+    /// Which model types appear in the root entity list.
+    ///
+    /// - `nil` (the default): derive every type from `container.schema` via
+    ///   reflection — use this for a generic inspector over the whole store.
+    /// - `[]`: list nothing (the root shows the empty state even when the store
+    ///   has data). This is rarely what you want; prefer `nil` unless you are
+    ///   deliberately hiding entities.
+    /// - a non-empty array: list only those types, in the order given.
     public let modelTypes: [any PersistentModel.Type]?
 
     /// Navigation title for the root entity list.
@@ -20,7 +25,11 @@ public struct SwiftDataInspectorConfiguration {
     /// The page size for fetching rows, so a huge table can't stall the UI: the
     /// table loads one page at a time ("load more" grows the window) and drilling
     /// into a relationship materializes at most this many related rows. The detail
-    /// screens note when results are truncated. `nil` fetches every row at once.
+    /// screens note when results are truncated.
+    ///
+    /// Defaults to `500`. Pass `nil` only when you know the table is small —
+    /// `nil` disables pagination and fetches **every** row in one query, which can
+    /// stall the UI on large stores.
     public let rowLimit: Int?
 
     /// Optional override for turning a raw stored value into display text. Return

@@ -89,7 +89,7 @@ public struct WhereServices: Sendable {
                     } else {
                         await widgets.publishAfterIngest(of: sample)
                     }
-                } else {
+                } else if !outcome.changedDays.isEmpty {
                     await reminders.reconcile()
                     if outcome.needsFullWidgetRebuild {
                         await widgets.publish()

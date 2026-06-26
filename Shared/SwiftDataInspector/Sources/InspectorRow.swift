@@ -27,8 +27,8 @@ struct InspectorRowSet {
     let rows: [InspectorRow]
     /// Total persisted rows for the entity (may exceed the rows loaded so far).
     let totalCount: Int
-    /// `true` when rows remain beyond this page (`offset + rows.count < totalCount`),
-    /// i.e. the table should offer "load more".
+    /// `true` when the loaded prefix is shorter than `totalCount`, i.e. the table
+    /// should offer "load more".
     let isTruncated: Bool
     /// Longest cell string (in characters) seen per column across this page,
     /// computed on the reader so the view can size monospaced columns without
