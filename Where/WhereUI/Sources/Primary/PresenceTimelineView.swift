@@ -1,3 +1,4 @@
+import StuffCore
 import SwiftUI
 import WhereCore
 
@@ -18,9 +19,12 @@ struct PresenceTimelineView: View {
             Group {
                 if stints.isEmpty {
                     ContentUnavailableView {
-                        Label(Strings.timelineEmptyTitle, systemImage: "calendar.day.timeline.left")
+                        Label(
+                            LocalizedStrings.Timeline.emptyTitle.localized(),
+                            systemImage: "calendar.day.timeline.left",
+                        )
                     } description: {
-                        Text(Strings.timelineEmptyDescription)
+                        Text.localized(LocalizedStrings.Timeline.emptyDescription)
                     }
                 } else {
                     List(stints) { stint in
@@ -28,11 +32,12 @@ struct PresenceTimelineView: View {
                     }
                 }
             }
-            .navigationTitle(Strings.timelineTitle(year: session.selectedYear))
+            .navigationTitle(LocalizedStrings.Timeline.title(year: session.selectedYear)
+                .localized())
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(Strings.timelineDone) { dismiss() }
+                    Button(LocalizedStrings.Timeline.done.localized()) { dismiss() }
                 }
             }
         }
@@ -71,7 +76,7 @@ private struct StintRow: View {
 
             Spacer(minLength: UIConstants.Spacings.medium)
 
-            Text(Strings.dayCount(stint.dayCount))
+            Text.localized(LocalizedStrings.Common.dayCount(stint.dayCount))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -79,11 +84,11 @@ private struct StintRow: View {
         .padding(.vertical, UIConstants.Spacings.xSmall)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            Strings.timelineRowAccessibility(
+            LocalizedStrings.Timeline.rowAccessibility(
                 region: stint.region.localizedName,
                 range: dateRange,
                 days: stint.dayCount,
-            ),
+            ).localized(),
         )
     }
 

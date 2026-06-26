@@ -1,3 +1,4 @@
+import StuffCore
 import SwiftUI
 import UIKit
 
@@ -61,7 +62,8 @@ struct LaunchSplashView: View {
         .background(Color.black)
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(showCaption ? Strings.migrationTitle : Strings.launchAccessibilityLabel)
+        .accessibilityLabel(showCaption ? LocalizedStrings.Migration.title
+            .localized() : LocalizedStrings.Launch.accessibilityLabel.localized())
         .task {
             try? await Task.sleep(for: Self.captionDelay)
             guard !Task.isCancelled else { return }
@@ -78,9 +80,9 @@ struct LaunchSplashView: View {
     /// light since the backdrop is always dark.
     private var caption: some View {
         VStack(spacing: UIConstants.Spacings.small) {
-            Text(Strings.migrationTitle)
+            Text.localized(LocalizedStrings.Migration.title)
                 .font(.headline)
-            Text(Strings.migrationSubtitle)
+            Text.localized(LocalizedStrings.Migration.subtitle)
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.7))
         }

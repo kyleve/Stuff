@@ -1,5 +1,6 @@
 import LifecycleKit
 import LogViewerUI
+import StuffCore
 #if DEBUG
     import SwiftDataInspector
 #endif
@@ -48,15 +49,23 @@ struct SettingsView: View {
                     developerSection
                 #endif
             }
-            .navigationTitle(Strings.settingsTitle)
+            .navigationTitle(LocalizedStrings.Settings.title.localized())
             .sheet(isPresented: $showAppIcon) {
                 AppIconView()
             }
-            .alert(Strings.settingsPermissionAlertTitle, isPresented: $session.permissionDenied) {
-                Button(Strings.settingsPermissionAlertOpenSettings) { openSystemSettings() }
-                Button(Strings.settingsPermissionAlertNotNow, role: .cancel) {}
+            .alert(
+                LocalizedStrings.Settings.PermissionAlert.title.localized(),
+                isPresented: $session.permissionDenied,
+            ) {
+                Button(LocalizedStrings.Settings.PermissionAlert.openSettings.localized()) {
+                    openSystemSettings()
+                }
+                Button(
+                    LocalizedStrings.Settings.PermissionAlert.notNow.localized(),
+                    role: .cancel,
+                ) {}
             } message: {
-                Text(Strings.settingsPermissionAlertMessage)
+                Text.localized(LocalizedStrings.Settings.PermissionAlert.message)
             }
             .fileImporter(
                 isPresented: $showImporter,
@@ -64,38 +73,43 @@ struct SettingsView: View {
                 onCompletion: handleImportSelection,
             )
             .confirmationDialog(
-                Strings.settingsBackupImportStrategyTitle,
+                LocalizedStrings.Settings.Backup.importStrategyTitle.localized(),
                 isPresented: $showStrategyDialog,
                 titleVisibility: .visible,
                 presenting: pendingImportURL,
             ) { url in
-                Button(Strings.settingsBackupMerge) { runImport(url: url, strategy: .merge) }
-                Button(Strings.settingsBackupReplace, role: .destructive) {
+                Button(LocalizedStrings.Settings.Backup.merge.localized()) { runImport(
+                    url: url,
+                    strategy: .merge,
+                ) }
+                Button(LocalizedStrings.Settings.Backup.replace.localized(), role: .destructive) {
                     runImport(url: url, strategy: .replace)
                 }
-                Button(Strings.settingsDataCancel, role: .cancel) { pendingImportURL = nil }
+                Button(LocalizedStrings.Settings.Data.cancel.localized(), role: .cancel) {
+                    pendingImportURL = nil
+                }
             } message: { _ in
-                Text(Strings.settingsBackupImportStrategyMessage)
+                Text.localized(LocalizedStrings.Settings.Backup.importStrategyMessage)
             }
             .alert(
-                Strings.settingsBackupImportedTitle,
+                LocalizedStrings.Settings.Backup.importedTitle.localized(),
                 isPresented: $showImportSuccess,
                 presenting: lastImportSummary,
             ) { _ in
-                Button(Strings.commonOK, role: .cancel) {}
+                Button(LocalizedStrings.Common.ok.localized(), role: .cancel) {}
             } message: { summary in
-                Text(Strings.settingsBackupImportedMessage(
+                Text.localized(LocalizedStrings.Settings.Backup.importedMessage(
                     samples: summary.sampleCount,
                     evidence: summary.evidenceCount,
                     manualDays: summary.manualDayCount,
                 ))
             }
             .alert(
-                Strings.settingsBackupErrorTitle,
+                LocalizedStrings.Settings.Backup.errorTitle.localized(),
                 isPresented: $session.isShowingBackupError,
                 presenting: session.backupError,
             ) { _ in
-                Button(Strings.commonOK, role: .cancel) {}
+                Button(LocalizedStrings.Common.ok.localized(), role: .cancel) {}
             } message: { message in
                 Text(message)
             }
@@ -108,14 +122,20 @@ struct SettingsView: View {
             LocationStatusRow(status: session.authorizationStatus, isTracking: session.isTracking)
 
             Toggle(isOn: $session.trackingEnabled) {
-                Label(Strings.settingsLocationToggle, systemImage: "location.fill")
+                Label(
+                    LocalizedStrings.Settings.Location.toggle.localized(),
+                    systemImage: "location.fill",
+                )
             }
 
             if showGrantButton {
                 Button {
                     Task { await session.requestPermission() }
                 } label: {
-                    Label(Strings.settingsLocationGrant, systemImage: "location.magnifyingglass")
+                    Label(
+                        LocalizedStrings.Settings.Location.grant.localized(),
+                        systemImage: "location.magnifyingglass",
+                    )
                 }
             }
 
@@ -123,13 +143,16 @@ struct SettingsView: View {
                 Button {
                     openSystemSettings()
                 } label: {
-                    Label(Strings.settingsPermissionAlertOpenSettings, systemImage: "gear")
+                    Label(
+                        LocalizedStrings.Settings.PermissionAlert.openSettings.localized(),
+                        systemImage: "gear",
+                    )
                 }
             }
         } header: {
-            Text(Strings.settingsLocationHeader)
+            Text.localized(LocalizedStrings.Settings.Location.header)
         } footer: {
-            Text(Strings.settingsLocationFooter)
+            Text.localized(LocalizedStrings.Settings.Location.footer)
         }
     }
 
@@ -154,12 +177,15 @@ struct SettingsView: View {
         @Bindable var session = session
         return Section {
             Toggle(isOn: $session.remindersEnabled) {
-                Label(Strings.settingsRemindersToggle, systemImage: "bell.badge")
+                Label(
+                    LocalizedStrings.Settings.Reminders.toggle.localized(),
+                    systemImage: "bell.badge",
+                )
             }
 
             if session.remindersEnabled {
                 DatePicker(
-                    Strings.settingsReminderTime,
+                    LocalizedStrings.Settings.Reminders.time.localized(),
                     selection: $session.reminderTimeOfDay,
                     displayedComponents: .hourAndMinute,
                 )
@@ -168,12 +194,15 @@ struct SettingsView: View {
                     Button {
                         openSystemSettings()
                     } label: {
-                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                        Label(
+                            LocalizedStrings.Settings.Reminders.openSettings.localized(),
+                            systemImage: "bell.slash",
+                        )
                     }
                 }
             }
         } header: {
-            Text(Strings.settingsRemindersHeader)
+            Text.localized(LocalizedStrings.Settings.Reminders.header)
         } footer: {
             Text(remindersFooter)
         }
@@ -181,21 +210,24 @@ struct SettingsView: View {
 
     private var remindersFooter: String {
         if session.remindersEnabled, !session.notificationsAuthorized {
-            return Strings.settingsRemindersDeniedFooter
+            return LocalizedStrings.Settings.Reminders.deniedFooter.localized()
         }
-        return Strings.settingsRemindersFooter
+        return LocalizedStrings.Settings.Reminders.footer.localized()
     }
 
     private var summarySection: some View {
         @Bindable var session = session
         return Section {
             Toggle(isOn: $session.summaryEnabled) {
-                Label(Strings.settingsSummaryToggle, systemImage: "chart.bar.doc.horizontal")
+                Label(
+                    LocalizedStrings.Settings.Summary.toggle.localized(),
+                    systemImage: "chart.bar.doc.horizontal",
+                )
             }
 
             if session.summaryEnabled {
                 DatePicker(
-                    Strings.settingsSummaryTime,
+                    LocalizedStrings.Settings.Summary.time.localized(),
                     selection: $session.summaryTimeOfDay,
                     displayedComponents: .hourAndMinute,
                 )
@@ -204,12 +236,15 @@ struct SettingsView: View {
                     Button {
                         openSystemSettings()
                     } label: {
-                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                        Label(
+                            LocalizedStrings.Settings.Reminders.openSettings.localized(),
+                            systemImage: "bell.slash",
+                        )
                     }
                 }
             }
         } header: {
-            Text(Strings.settingsSummaryHeader)
+            Text.localized(LocalizedStrings.Settings.Summary.header)
         } footer: {
             Text(summaryFooter)
         }
@@ -217,9 +252,9 @@ struct SettingsView: View {
 
     private var summaryFooter: String {
         if session.summaryEnabled, !session.notificationsAuthorized {
-            return Strings.settingsSummaryDeniedFooter
+            return LocalizedStrings.Settings.Summary.deniedFooter.localized()
         }
-        return Strings.settingsSummaryFooter
+        return LocalizedStrings.Settings.Summary.footer.localized()
     }
 
     private var appIconSection: some View {
@@ -227,12 +262,12 @@ struct SettingsView: View {
             Button {
                 showAppIcon = true
             } label: {
-                Label(Strings.settingsAppIconLink, systemImage: "app.badge")
+                Label(LocalizedStrings.Settings.AppIcon.link.localized(), systemImage: "app.badge")
             }
         } header: {
-            Text(Strings.settingsAppIconHeader)
+            Text.localized(LocalizedStrings.Settings.AppIcon.header)
         } footer: {
-            Text(Strings.settingsAppIconFooter)
+            Text.localized(LocalizedStrings.Settings.AppIcon.footer)
         }
     }
 
@@ -241,12 +276,15 @@ struct SettingsView: View {
             NavigationLink {
                 ManualDayEntryView()
             } label: {
-                Label(Strings.settingsManualLink, systemImage: "calendar.badge.plus")
+                Label(
+                    LocalizedStrings.Settings.Manual.link.localized(),
+                    systemImage: "calendar.badge.plus",
+                )
             }
         } header: {
-            Text(Strings.settingsManualHeader)
+            Text.localized(LocalizedStrings.Settings.Manual.header)
         } footer: {
-            Text(Strings.settingsManualFooter)
+            Text.localized(LocalizedStrings.Settings.Manual.footer)
         }
     }
 
@@ -257,9 +295,12 @@ struct SettingsView: View {
             // progress), so no custom `UIActivityViewController` is needed.
             ShareLink(
                 item: backupArchiveFile,
-                preview: SharePreview(Strings.settingsBackupShareTitle),
+                preview: SharePreview(LocalizedStrings.Settings.Backup.shareTitle.localized()),
             ) {
-                Label(Strings.settingsBackupExport, systemImage: "square.and.arrow.up")
+                Label(
+                    LocalizedStrings.Settings.Backup.export.localized(),
+                    systemImage: "square.and.arrow.up",
+                )
             }
             .disabled(session.backupState != .idle)
 
@@ -269,14 +310,17 @@ struct SettingsView: View {
                 if session.backupState == .importing {
                     importProgressLabel
                 } else {
-                    Label(Strings.settingsBackupImport, systemImage: "square.and.arrow.down")
+                    Label(
+                        LocalizedStrings.Settings.Backup.importData.localized(),
+                        systemImage: "square.and.arrow.down",
+                    )
                 }
             }
             .disabled(session.backupState != .idle)
         } header: {
-            Text(Strings.settingsBackupHeader)
+            Text.localized(LocalizedStrings.Settings.Backup.header)
         } footer: {
-            Text(Strings.settingsBackupFooter)
+            Text.localized(LocalizedStrings.Settings.Backup.footer)
         }
     }
 
@@ -284,7 +328,10 @@ struct SettingsView: View {
     /// `session.backupProgress` as the backup coordinator writes each row.
     private var importProgressLabel: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label(Strings.settingsBackupImporting, systemImage: "square.and.arrow.down")
+            Label(
+                LocalizedStrings.Settings.Backup.importing.localized(),
+                systemImage: "square.and.arrow.down",
+            )
             ProgressView(value: session.backupProgress)
         }
     }
@@ -336,19 +383,21 @@ struct SettingsView: View {
                 Button(eraseTitle, role: .destructive) {
                     Task { await session.clearSelectedYear() }
                 }
-                Button(Strings.settingsDataCancel, role: .cancel) {}
+                Button(LocalizedStrings.Settings.Data.cancel.localized(), role: .cancel) {}
             } message: {
-                Text(Strings.settingsDataConfirmMessage(year: session.selectedYear))
+                Text
+                    .localized(LocalizedStrings.Settings.Data
+                        .confirmMessage(year: session.selectedYear))
             }
         } header: {
-            Text(Strings.settingsDataHeader)
+            Text.localized(LocalizedStrings.Settings.Data.header)
         } footer: {
-            Text(Strings.settingsDataFooter(year: session.selectedYear))
+            Text.localized(LocalizedStrings.Settings.Data.footer(year: session.selectedYear))
         }
     }
 
     private var eraseTitle: String {
-        Strings.settingsDataErase(year: session.selectedYear)
+        LocalizedStrings.Settings.Data.erase(year: session.selectedYear).localized()
     }
 
     /// Whole-app teardown: wipes every year's data and returns to first-run
@@ -360,22 +409,25 @@ struct SettingsView: View {
             Button(role: .destructive) {
                 showResetConfirmation = true
             } label: {
-                Label(Strings.settingsResetErase, systemImage: "arrow.counterclockwise")
+                Label(
+                    LocalizedStrings.Settings.Reset.erase.localized(),
+                    systemImage: "arrow.counterclockwise",
+                )
             }
             .confirmationDialog(
-                Strings.settingsResetErase,
+                LocalizedStrings.Settings.Reset.erase.localized(),
                 isPresented: $showResetConfirmation,
                 titleVisibility: .visible,
             ) {
-                Button(Strings.settingsResetConfirm, role: .destructive) {
+                Button(LocalizedStrings.Settings.Reset.confirm.localized(), role: .destructive) {
                     requestReset()
                 }
-                Button(Strings.settingsDataCancel, role: .cancel) {}
+                Button(LocalizedStrings.Settings.Data.cancel.localized(), role: .cancel) {}
             } message: {
-                Text(Strings.settingsResetMessage)
+                Text.localized(LocalizedStrings.Settings.Reset.message)
             }
         } footer: {
-            Text(Strings.settingsResetFooter)
+            Text.localized(LocalizedStrings.Settings.Reset.footer)
         }
     }
 
@@ -393,23 +445,29 @@ struct SettingsView: View {
                 NavigationLink {
                     LogViewer(configuration: LogViewerConfiguration(
                         store: WhereLog.store,
-                        title: Strings.settingsDebugLogsTitle,
+                        title: LocalizedStrings.Settings.Debug.logsTitle.localized(),
                     ))
                 } label: {
-                    Label(Strings.settingsDebugLogsLink, systemImage: "ladybug")
+                    Label(
+                        LocalizedStrings.Settings.Debug.logsLink.localized(),
+                        systemImage: "ladybug",
+                    )
                 }
 
                 if let configuration = session.swiftDataInspectorConfiguration {
                     NavigationLink {
                         SwiftDataInspectorView(configuration: configuration)
                     } label: {
-                        Label(Strings.settingsDebugInspectorLink, systemImage: "cylinder.split.1x2")
+                        Label(
+                            LocalizedStrings.Settings.Debug.inspectorLink.localized(),
+                            systemImage: "cylinder.split.1x2",
+                        )
                     }
                 }
             } header: {
-                Text(Strings.settingsDebugHeader)
+                Text.localized(LocalizedStrings.Settings.Debug.header)
             } footer: {
-                Text(Strings.settingsDebugFooter)
+                Text.localized(LocalizedStrings.Settings.Debug.footer)
             }
         }
     #endif

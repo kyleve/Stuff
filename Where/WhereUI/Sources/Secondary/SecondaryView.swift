@@ -1,3 +1,4 @@
+import StuffCore
 import SwiftUI
 import WhereCore
 
@@ -14,7 +15,7 @@ struct SecondaryView: View {
     var body: some View {
         NavigationStack {
             screen
-                .navigationTitle(Strings.secondaryTitle)
+                .navigationTitle(LocalizedStrings.Secondary.title.localized())
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         YearSelector()
@@ -45,11 +46,14 @@ struct SecondaryView: View {
     private var screen: some View {
         switch session.loadState {
             case .loading where session.report == nil:
-                ProgressView(Strings.secondaryLoading)
+                ProgressView(LocalizedStrings.Secondary.loading.localized())
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .failed(message):
                 ContentUnavailableView {
-                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                    Label(
+                        LocalizedStrings.Common.loadErrorTitle.localized(),
+                        systemImage: "exclamationmark.icloud",
+                    )
                 } description: {
                     Text(message)
                 }
@@ -65,7 +69,7 @@ struct SecondaryView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: UIConstants.Spacings.xLarge) {
-                Text(Strings.secondaryHeader(year: session.selectedYear))
+                Text.localized(LocalizedStrings.Secondary.header(year: session.selectedYear))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -96,15 +100,15 @@ struct SecondaryView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(Strings.secondaryEmptyTitle, systemImage: "globe.americas")
+            Label(LocalizedStrings.Secondary.emptyTitle.localized(), systemImage: "globe.americas")
         } description: {
-            Text(Strings.secondaryEmptyDescription)
+            Text.localized(LocalizedStrings.Secondary.emptyDescription)
         }
     }
 
     /// Light whimsy for the briefest stays.
     private func caption(for item: RegionDays) -> String? {
-        item.days <= 3 ? Strings.secondaryCaptionPassingThrough : nil
+        item.days <= 3 ? LocalizedStrings.Secondary.captionPassingThrough.localized() : nil
     }
 }
 

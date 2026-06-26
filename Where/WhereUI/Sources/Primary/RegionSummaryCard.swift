@@ -1,4 +1,5 @@
 import Foundation
+import StuffCore
 import SwiftUI
 import WhereCore
 
@@ -199,7 +200,7 @@ struct RegionSummaryCard: View {
                     )
                     .contentTransition(.numericText())
                     .foregroundStyle(style.tint)
-                Text(Strings.dayUnit(regionDays.days))
+                Text.localized(LocalizedStrings.Common.dayUnit(regionDays.days))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
             }
@@ -243,10 +244,10 @@ struct RegionSummaryCard: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            Strings.regionDaysAccessibility(
+            LocalizedStrings.Common.regionDaysAccessibility(
                 region: regionDays.region.localizedName,
                 days: regionDays.days,
-            ),
+            ).localized(),
         )
     }
 }

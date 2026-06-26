@@ -1,6 +1,7 @@
 import Foundation
 import LogKit
 import Observation
+import StuffCore
 #if DEBUG
     import SwiftDataInspector
 #endif
@@ -715,7 +716,7 @@ public final class WhereSession {
             return SwiftDataInspectorConfiguration(
                 container: container,
                 modelTypes: SwiftDataStore.inspectorModelTypes,
-                title: Strings.settingsDebugInspectorTitle,
+                title: LocalizedStrings.Settings.Debug.inspectorTitle.localized(),
             )
         }
     }

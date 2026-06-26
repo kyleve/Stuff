@@ -1,3 +1,4 @@
+import StuffCore
 import SwiftUI
 import WhereCore
 
@@ -22,7 +23,7 @@ public struct YearTotalsWidgetView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: UIConstants.Spacings.small) {
-            Text(Strings.widgetYearTitle(year: snapshot.year))
+            Text.localized(LocalizedStrings.Widget.yearTitle(year: snapshot.year))
                 .font(.caption2.weight(.semibold))
                 .textCase(.uppercase)
                 .tracking(1)
@@ -60,10 +61,10 @@ public struct YearTotalsWidgetView: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(
-                    Strings.regionDaysAccessibility(
+                    LocalizedStrings.Common.regionDaysAccessibility(
                         region: entry.region.localizedName,
                         days: entry.days,
-                    ),
+                    ).localized(),
                 )
             }
         }
@@ -75,7 +76,7 @@ public struct YearTotalsWidgetView: View {
                 .font(.title3)
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
-            Text(Strings.widgetYearEmpty)
+            Text.localized(LocalizedStrings.Widget.yearEmpty)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
         }

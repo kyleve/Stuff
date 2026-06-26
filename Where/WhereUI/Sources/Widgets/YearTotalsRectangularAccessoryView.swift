@@ -1,3 +1,4 @@
+import StuffCore
 import SwiftUI
 import WhereCore
 
@@ -20,8 +21,11 @@ public struct YearTotalsRectangularAccessoryView: View {
 
     public var body: some View {
         if ranked.isEmpty {
-            Label(Strings.widgetYearEmpty, systemImage: "calendar.badge.exclamationmark")
-                .font(.caption)
+            Label(
+                LocalizedStrings.Widget.yearEmpty.localized(),
+                systemImage: "calendar.badge.exclamationmark",
+            )
+            .font(.caption)
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(ranked) { entry in
@@ -40,10 +44,10 @@ public struct YearTotalsRectangularAccessoryView: View {
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel(
-                        Strings.regionDaysAccessibility(
+                        LocalizedStrings.Common.regionDaysAccessibility(
                             region: entry.region.localizedName,
                             days: entry.days,
-                        ),
+                        ).localized(),
                     )
                 }
             }

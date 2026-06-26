@@ -1,3 +1,4 @@
+import StuffCore
 import SwiftUI
 import WhereCore
 
@@ -21,7 +22,7 @@ public struct TodayWidgetView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: UIConstants.Spacings.small) {
             HStack(alignment: .firstTextBaseline) {
-                Text(Strings.widgetTodayTitle)
+                Text.localized(LocalizedStrings.Widget.todayTitle)
                     .font(.caption2.weight(.semibold))
                     .textCase(.uppercase)
                     .tracking(1)
@@ -89,7 +90,7 @@ public struct TodayWidgetView: View {
                 .font(.title3)
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
-            Text(Strings.widgetTodayEmpty)
+            Text.localized(LocalizedStrings.Widget.todayEmpty)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
         }

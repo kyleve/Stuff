@@ -1,3 +1,4 @@
+import StuffCore
 import SwiftUI
 
 /// The app-icon picker. A grid of options that flexes with the container width
@@ -37,11 +38,11 @@ struct AppIconView: View {
                             .transition(.move(edge: .bottom))
                     }
                 }
-                .navigationTitle(Strings.appIconTitle)
+                .navigationTitle(LocalizedStrings.AppIcon.title.localized())
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.commonDone) { dismiss() }
+                        Button(LocalizedStrings.Common.done.localized()) { dismiss() }
                     }
                 }
             }
@@ -51,8 +52,11 @@ struct AppIconView: View {
         }
         .sensoryFeedback(.selection, trigger: appearanceToggles)
         .sensoryFeedback(.success, trigger: model.selectedID)
-        .alert(Strings.appIconErrorTitle, isPresented: $model.isShowingError) {
-            Button(Strings.commonOK, role: .cancel) {}
+        .alert(
+            LocalizedStrings.AppIcon.errorTitle.localized(),
+            isPresented: $model.isShowingError,
+        ) {
+            Button(LocalizedStrings.Common.ok.localized(), role: .cancel) {}
         } message: {
             Text(model.applyError ?? "")
         }
@@ -110,7 +114,7 @@ struct AppIconView: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(option.displayName)
-        .accessibilityValue(isSelected ? Strings.appIconCurrent : "")
+        .accessibilityValue(isSelected ? LocalizedStrings.AppIcon.current.localized() : "")
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
@@ -121,7 +125,7 @@ struct AppIconView: View {
             .transition(.opacity)
             .onTapGesture { dismissPreview() }
             .accessibilityAddTraits(.isButton)
-            .accessibilityLabel(Strings.commonDone)
+            .accessibilityLabel(LocalizedStrings.Common.done.localized())
             .accessibilityAction { dismissPreview() }
     }
 
@@ -139,14 +143,15 @@ struct AppIconView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(option.displayName)
-            .accessibilityValue(previewMode == .dark ? Strings.appIconAppearanceDark : Strings
-                .appIconAppearanceLight)
-            .accessibilityHint(Strings.appIconAppearanceHint)
+            .accessibilityValue(previewMode == .dark
+                ? LocalizedStrings.AppIcon.appearanceDark.localized()
+                : LocalizedStrings.AppIcon.appearanceLight.localized())
+            .accessibilityHint(LocalizedStrings.AppIcon.appearanceHint.localized())
 
             VStack(spacing: UIConstants.Spacings.xSmall) {
                 Text(option.displayName)
                     .font(.title3.weight(.semibold))
-                Text(Strings.appIconAppearanceHint)
+                Text.localized(LocalizedStrings.AppIcon.appearanceHint)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -155,7 +160,7 @@ struct AppIconView: View {
             Button {
                 apply(option)
             } label: {
-                Text(Strings.appIconSet)
+                Text.localized(LocalizedStrings.AppIcon.set)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)

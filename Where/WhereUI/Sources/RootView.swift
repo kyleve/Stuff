@@ -1,4 +1,5 @@
 import LifecycleKit
+import StuffCore
 import SwiftUI
 import WhereCore
 
@@ -40,15 +41,18 @@ public struct RootView: View {
             failure: { LifecycleFailureView(failure: $0, retry: $1) },
         ) {
             TabView {
-                Tab(Strings.tabPrimary, systemImage: "star.fill") {
+                Tab(LocalizedStrings.Tabs.primary.localized(), systemImage: "star.fill") {
                     PrimaryView()
                 }
 
-                Tab(Strings.tabElsewhere, systemImage: "globe.americas.fill") {
+                Tab(
+                    LocalizedStrings.Tabs.elsewhere.localized(),
+                    systemImage: "globe.americas.fill",
+                ) {
                     SecondaryView()
                 }
 
-                Tab(Strings.tabSettings, systemImage: "gearshape.fill") {
+                Tab(LocalizedStrings.Tabs.settings.localized(), systemImage: "gearshape.fill") {
                     SettingsView()
                 }
             }

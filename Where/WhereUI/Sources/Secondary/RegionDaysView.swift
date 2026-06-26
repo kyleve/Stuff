@@ -1,4 +1,5 @@
 import MapKit
+import StuffCore
 import SwiftUI
 import WhereCore
 
@@ -50,9 +51,12 @@ struct RegionDaysView: View {
     private var content: some View {
         if days.isEmpty {
             ContentUnavailableView {
-                Label(Strings.secondaryRegionEmptyTitle, systemImage: "checkmark.circle")
+                Label(
+                    LocalizedStrings.Secondary.Region.emptyTitle.localized(),
+                    systemImage: "checkmark.circle",
+                )
             } description: {
-                Text(Strings.secondaryRegionEmptyDescription)
+                Text.localized(LocalizedStrings.Secondary.Region.emptyDescription)
             }
         } else {
             VStack(spacing: 0) {
@@ -73,7 +77,7 @@ struct RegionDaysView: View {
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
         .frame(height: UIConstants.Size.regionMapHeight)
-        .accessibilityLabel(Strings.secondaryRegionMapAccessibility)
+        .accessibilityLabel(LocalizedStrings.Secondary.Region.mapAccessibility.localized())
     }
 
     private var dayList: some View {
@@ -87,7 +91,7 @@ struct RegionDaysView: View {
                     }
                 }
             } footer: {
-                Text(Strings.secondaryRegionFooter)
+                Text.localized(LocalizedStrings.Secondary.Region.footer)
             }
         }
         .accessibilityIdentifier("where_region_days_list")
@@ -145,7 +149,7 @@ private struct DayRow: View {
                         .font(.subheadline)
                         .foregroundStyle(.primary)
                 }
-                Text(Strings.secondaryRegionCurrent(regions: regionsText))
+                Text.localized(LocalizedStrings.Secondary.Region.current(regions: regionsText))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

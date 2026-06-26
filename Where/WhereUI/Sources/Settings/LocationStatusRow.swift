@@ -1,3 +1,4 @@
+import StuffCore
 import SwiftUI
 import WhereCore
 
@@ -37,7 +38,7 @@ struct LocationStatusRow: View {
             return Presentation(
                 symbol: "location.fill",
                 tint: .green,
-                title: Strings.settingsStatusTracking,
+                title: LocalizedStrings.Settings.Status.tracking.localized(),
             )
         }
         switch status {
@@ -45,31 +46,31 @@ struct LocationStatusRow: View {
                 return Presentation(
                     symbol: "location.fill",
                     tint: .green,
-                    title: Strings.settingsStatusAlwaysPaused,
+                    title: LocalizedStrings.Settings.Status.alwaysPaused.localized(),
                 )
             case .whenInUse:
                 return Presentation(
                     symbol: "location",
                     tint: .orange,
-                    title: Strings.settingsStatusWhenInUse,
+                    title: LocalizedStrings.Settings.Status.whenInUse.localized(),
                 )
             case .notDetermined:
                 return Presentation(
                     symbol: "location.slash",
                     tint: .secondary,
-                    title: Strings.settingsStatusNotDetermined,
+                    title: LocalizedStrings.Settings.Status.notDetermined.localized(),
                 )
             case .denied:
                 return Presentation(
                     symbol: "location.slash.fill",
                     tint: .red,
-                    title: Strings.settingsStatusDenied,
+                    title: LocalizedStrings.Settings.Status.denied.localized(),
                 )
             case .restricted:
                 return Presentation(
                     symbol: "lock.fill",
                     tint: .red,
-                    title: Strings.settingsStatusRestricted,
+                    title: LocalizedStrings.Settings.Status.restricted.localized(),
                 )
         }
     }

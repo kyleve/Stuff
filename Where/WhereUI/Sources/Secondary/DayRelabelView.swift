@@ -1,3 +1,4 @@
+import StuffCore
 import SwiftUI
 import WhereCore
 
@@ -31,7 +32,7 @@ struct DayRelabelView: View {
 
         Form {
             Section {
-                LabeledContent(Strings.relabelTitle, value: dateText)
+                LabeledContent(LocalizedStrings.Relabel.title.localized(), value: dateText)
             }
 
             Section {
@@ -39,31 +40,31 @@ struct DayRelabelView: View {
                     RegionToggleRow(item: item)
                 }
             } header: {
-                Text(Strings.relabelRegionsHeader)
+                Text.localized(LocalizedStrings.Relabel.regionsHeader)
             } footer: {
-                Text(Strings.relabelRegionsFooter)
+                Text.localized(LocalizedStrings.Relabel.regionsFooter)
             }
 
             Section {
-                Button(Strings.relabelReset, role: .destructive) { reset() }
+                Button(LocalizedStrings.Relabel.reset.localized(), role: .destructive) { reset() }
                     .disabled(isSaving)
             } footer: {
-                Text(Strings.relabelResetFooter)
+                Text.localized(LocalizedStrings.Relabel.resetFooter)
             }
         }
-        .navigationTitle(Strings.relabelTitle)
+        .navigationTitle(LocalizedStrings.Relabel.title.localized())
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button(Strings.manualSave) { save() }
+                Button(LocalizedStrings.ManualEntry.save.localized()) { save() }
                     .disabled(!canSave)
             }
         }
         .alert(
-            Strings.manualSaveErrorTitle,
+            LocalizedStrings.ManualEntry.saveErrorTitle.localized(),
             isPresented: $saveError.isPresented,
         ) {
-            Button(Strings.commonOK, role: .cancel) {}
+            Button(LocalizedStrings.Common.ok.localized(), role: .cancel) {}
         } message: {
             if let saveError = saveError.message {
                 Text(saveError)

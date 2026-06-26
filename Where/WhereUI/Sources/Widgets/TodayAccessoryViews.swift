@@ -1,3 +1,4 @@
+import StuffCore
 import SwiftUI
 import WhereCore
 import WidgetKit
@@ -23,7 +24,7 @@ public struct TodayInlineAccessoryView: View {
                 systemImage: first.style.symbolName,
             )
         } else {
-            Label(Strings.widgetTodayEmpty, systemImage: "location.slash")
+            Label(LocalizedStrings.Widget.todayEmpty.localized(), systemImage: "location.slash")
         }
     }
 }
@@ -59,7 +60,7 @@ public struct TodayCircularAccessoryView: View {
     }
 
     private var accessibilityText: String {
-        guard !regions.isEmpty else { return Strings.widgetTodayEmpty }
+        guard !regions.isEmpty else { return LocalizedStrings.Widget.todayEmpty.localized() }
         return regions.map(\.localizedName).joined(separator: ", ")
     }
 }

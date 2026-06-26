@@ -1,4 +1,5 @@
 import LifecycleKit
+import StuffCore
 import SwiftUI
 import WhereCore
 
@@ -79,7 +80,7 @@ public struct OnboardingView: View {
             Button {
                 withAnimation { page += 1 }
             } label: {
-                Text(Strings.onboardingContinue)
+                Text.localized(LocalizedStrings.Onboarding.continueButton)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -97,13 +98,13 @@ public struct OnboardingView: View {
                         completeAndContinue()
                     }
                 } label: {
-                    Text(Strings.onboardingEnableLocation)
+                    Text.localized(LocalizedStrings.Onboarding.enableLocation)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
-                Button(Strings.onboardingNotNow) {
+                Button(LocalizedStrings.Onboarding.notNow.localized()) {
                     guard !isFinishing else { return }
                     isFinishing = true
                     completeAndContinue()
@@ -135,20 +136,20 @@ struct OnboardingPage: Identifiable {
         OnboardingPage(
             id: "welcome",
             symbol: "globe.americas.fill",
-            title: Strings.onboardingWelcomeTitle,
-            description: Strings.onboardingWelcomeDescription,
+            title: LocalizedStrings.Onboarding.welcomeTitle.localized(),
+            description: LocalizedStrings.Onboarding.welcomeDescription.localized(),
         ),
         OnboardingPage(
             id: "automatic",
             symbol: "location.fill.viewfinder",
-            title: Strings.onboardingAutomaticTitle,
-            description: Strings.onboardingAutomaticDescription,
+            title: LocalizedStrings.Onboarding.automaticTitle.localized(),
+            description: LocalizedStrings.Onboarding.automaticDescription.localized(),
         ),
         OnboardingPage(
             id: "privacy",
             symbol: "lock.shield.fill",
-            title: Strings.onboardingPrivacyTitle,
-            description: Strings.onboardingPrivacyDescription,
+            title: LocalizedStrings.Onboarding.privacyTitle.localized(),
+            description: LocalizedStrings.Onboarding.privacyDescription.localized(),
         ),
     ]
 }

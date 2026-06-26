@@ -1,3 +1,4 @@
+import StuffCore
 import SwiftUI
 import WhereCore
 
@@ -12,11 +13,11 @@ struct MissingDaysView: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle(Strings.missingDaysTitle)
+                .navigationTitle(LocalizedStrings.MissingDays.title.localized())
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.missingDaysDone) { dismiss() }
+                        Button(LocalizedStrings.MissingDays.done.localized()) { dismiss() }
                     }
                 }
         }
@@ -26,9 +27,12 @@ struct MissingDaysView: View {
     private var content: some View {
         if session.missingDays.isEmpty {
             ContentUnavailableView {
-                Label(Strings.missingDaysEmptyTitle, systemImage: "checkmark.circle")
+                Label(
+                    LocalizedStrings.MissingDays.emptyTitle.localized(),
+                    systemImage: "checkmark.circle",
+                )
             } description: {
-                Text(Strings.missingDaysEmptyDescription)
+                Text.localized(LocalizedStrings.MissingDays.emptyDescription)
             }
         } else {
             List {
@@ -41,9 +45,9 @@ struct MissingDaysView: View {
                         }
                     }
                 } header: {
-                    Text(Strings.missingDaysHeader)
+                    Text.localized(LocalizedStrings.MissingDays.header)
                 } footer: {
-                    Text(Strings.missingDaysFooter)
+                    Text.localized(LocalizedStrings.MissingDays.footer)
                 }
             }
             .accessibilityIdentifier("where_missing_days_list")
@@ -64,7 +68,7 @@ private struct MissingDayRow: View {
             VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
                 Text(dateRange)
                     .font(.headline)
-                Text(Strings.dayCount(range.dayCount))
+                Text.localized(LocalizedStrings.Common.dayCount(range.dayCount))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()

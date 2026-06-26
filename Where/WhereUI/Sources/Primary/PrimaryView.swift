@@ -1,3 +1,4 @@
+import StuffCore
 import SwiftUI
 import WhereCore
 
@@ -16,7 +17,7 @@ struct PrimaryView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                PassportMasthead(title: Strings.primaryTitle, tilt: tilt)
+                PassportMasthead(title: LocalizedStrings.Primary.title.localized(), tilt: tilt)
                     .padding(.horizontal)
                     .padding(.top, UIConstants.Spacings.small)
                     .padding(.bottom, UIConstants.Spacings.medium)
@@ -40,7 +41,7 @@ struct PrimaryView: View {
                         showingTimeline = true
                     } label: {
                         Label(
-                            Strings.primaryTimeline,
+                            LocalizedStrings.Primary.timeline.localized(),
                             systemImage: "calendar.day.timeline.left",
                         )
                     }
@@ -82,11 +83,14 @@ struct PrimaryView: View {
     private var screen: some View {
         switch session.loadState {
             case .loading where session.report == nil:
-                ProgressView(Strings.primaryLoading)
+                ProgressView(LocalizedStrings.Primary.loading.localized())
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .failed(message):
                 ContentUnavailableView {
-                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                    Label(
+                        LocalizedStrings.Common.loadErrorTitle.localized(),
+                        systemImage: "exclamationmark.icloud",
+                    )
                 } description: {
                     Text(message)
                 }
@@ -127,17 +131,25 @@ struct PrimaryView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(Strings.primaryEmptyTitle(year: session.selectedYear), systemImage: "map")
+            Label(
+                LocalizedStrings.Primary.emptyTitle(year: session.selectedYear).localized(),
+                systemImage: "map",
+            )
         } description: {
-            Text(Strings.primaryEmptyDescription)
+            Text.localized(LocalizedStrings.Primary.emptyDescription)
         }
     }
 
     private var elsewhereOnlyState: some View {
         ContentUnavailableView {
-            Label(Strings.primaryElsewhereOnlyTitle, systemImage: "globe.americas")
+            Label(
+                LocalizedStrings.Primary.elsewhereOnlyTitle.localized(),
+                systemImage: "globe.americas",
+            )
         } description: {
-            Text(Strings.primaryElsewhereOnlyDescription(count: session.trackedDayCount))
+            Text
+                .localized(LocalizedStrings.Primary
+                    .elsewhereOnlyDescription(count: session.trackedDayCount))
         }
     }
 }
@@ -224,7 +236,7 @@ private struct MissingDaysBanner: View {
                     .symbolEffect(.variableColor.iterative, isActive: !reduceMotion)
                     .accessibilityHidden(true)
 
-                Text(Strings.missingBannerCompact(count: count))
+                Text.localized(LocalizedStrings.MissingBanner.compact(count: count))
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.primary)
 
@@ -249,8 +261,8 @@ private struct MissingDaysBanner: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("where_missing_days_banner")
-        .accessibilityLabel(Strings.missingBannerCompact(count: count))
-        .accessibilityHint(Strings.missingBannerAccessibilityHint)
+        .accessibilityLabel(LocalizedStrings.MissingBanner.compact(count: count).localized())
+        .accessibilityHint(LocalizedStrings.MissingBanner.accessibilityHint.localized())
     }
 }
 
