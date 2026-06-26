@@ -75,4 +75,16 @@ struct StringsTests {
                 "Imported 3 location samples, 2 pieces of evidence, and 5 manual days.",
         )
     }
+
+    @Test func debugSettingsStringsResolveToCatalogValues() {
+        #expect(Strings.settingsDebugHeader == "Developer")
+        #expect(Strings.settingsDebugLogsLink == "Logs")
+        #expect(Strings.settingsDebugLogsTitle == "Logs")
+        #expect(Strings.settingsDebugInspectorLink == "SwiftData Inspector")
+        #expect(Strings.settingsDebugInspectorTitle == "SwiftData")
+        #expect(
+            Strings.settingsDebugFooter
+                == "On-device logs and data tools. Debug builds only.",
+        )
+    }
 }
