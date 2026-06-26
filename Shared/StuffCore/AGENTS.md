@@ -29,5 +29,5 @@ Complements root [`AGENTS.md`](../../AGENTS.md). Tests: `StuffCoreTests` in
   so keep the key and `defaultValue` as **string literals** — a dynamic key or
   default makes the script fail loudly rather than drift silently.
 - Resolution is lazy: referencing a `LocalizedString` does no work; only
-  `.localized()` reads the catalog. Don't cache resolved `String`s where a
+  `.localized` reads the catalog. Don't cache resolved `String`s where a
   locale override might later apply.

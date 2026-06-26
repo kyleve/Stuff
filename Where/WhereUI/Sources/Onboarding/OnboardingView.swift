@@ -104,7 +104,7 @@ public struct OnboardingView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
-                Button(LocalizedStrings.Onboarding.notNow.localized()) {
+                Button(LocalizedStrings.Onboarding.notNow.localized) {
                     guard !isFinishing else { return }
                     isFinishing = true
                     completeAndContinue()
@@ -136,20 +136,20 @@ struct OnboardingPage: Identifiable {
         OnboardingPage(
             id: "welcome",
             symbol: "globe.americas.fill",
-            title: LocalizedStrings.Onboarding.welcomeTitle.localized(),
-            description: LocalizedStrings.Onboarding.welcomeDescription.localized(),
+            title: LocalizedStrings.Onboarding.welcomeTitle.localized,
+            description: LocalizedStrings.Onboarding.welcomeDescription.localized,
         ),
         OnboardingPage(
             id: "automatic",
             symbol: "location.fill.viewfinder",
-            title: LocalizedStrings.Onboarding.automaticTitle.localized(),
-            description: LocalizedStrings.Onboarding.automaticDescription.localized(),
+            title: LocalizedStrings.Onboarding.automaticTitle.localized,
+            description: LocalizedStrings.Onboarding.automaticDescription.localized,
         ),
         OnboardingPage(
             id: "privacy",
             symbol: "lock.shield.fill",
-            title: LocalizedStrings.Onboarding.privacyTitle.localized(),
-            description: LocalizedStrings.Onboarding.privacyDescription.localized(),
+            title: LocalizedStrings.Onboarding.privacyTitle.localized,
+            description: LocalizedStrings.Onboarding.privacyDescription.localized,
         ),
     ]
 }

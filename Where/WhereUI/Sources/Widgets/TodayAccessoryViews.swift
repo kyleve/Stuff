@@ -24,7 +24,7 @@ public struct TodayInlineAccessoryView: View {
                 systemImage: first.style.symbolName,
             )
         } else {
-            Label(LocalizedStrings.Widget.todayEmpty.localized(), systemImage: "location.slash")
+            Label(LocalizedStrings.Widget.todayEmpty.localized, systemImage: "location.slash")
         }
     }
 }
@@ -60,7 +60,7 @@ public struct TodayCircularAccessoryView: View {
     }
 
     private var accessibilityText: String {
-        guard !regions.isEmpty else { return LocalizedStrings.Widget.todayEmpty.localized() }
+        guard !regions.isEmpty else { return LocalizedStrings.Widget.todayEmpty.localized }
         return regions.map(\.localizedName).joined(separator: ", ")
     }
 }

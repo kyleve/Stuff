@@ -230,7 +230,7 @@ stay rigid — see root
   `./localize --git-add` to reconcile the catalog from this file.
 
 At call sites, prefer [`Text.localized(_:)`](WhereUI/Sources/Shared/Text+Localized.swift)
-for SwiftUI `Text`, and `.localized()` everywhere a plain `String` is needed
+for SwiftUI `Text`, and `.localized` everywhere a plain `String` is needed
 (`Button`, `Label`, `.navigationTitle`, accessibility, etc.). Both run through
 `LocalizedString.localized(_:)`, the single seam a future Environment-driven
 locale override will hook into.

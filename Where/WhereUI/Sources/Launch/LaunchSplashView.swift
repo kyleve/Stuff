@@ -63,7 +63,7 @@ struct LaunchSplashView: View {
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(showCaption ? LocalizedStrings.Migration.title
-            .localized() : LocalizedStrings.Launch.accessibilityLabel.localized())
+            .localized : LocalizedStrings.Launch.accessibilityLabel.localized)
         .task {
             try? await Task.sleep(for: Self.captionDelay)
             guard !Task.isCancelled else { return }

@@ -52,7 +52,7 @@ struct RegionDaysView: View {
         if days.isEmpty {
             ContentUnavailableView {
                 Label(
-                    LocalizedStrings.Secondary.Region.emptyTitle.localized(),
+                    LocalizedStrings.Secondary.Region.emptyTitle.localized,
                     systemImage: "checkmark.circle",
                 )
             } description: {
@@ -77,7 +77,7 @@ struct RegionDaysView: View {
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
         .frame(height: UIConstants.Size.regionMapHeight)
-        .accessibilityLabel(LocalizedStrings.Secondary.Region.mapAccessibility.localized())
+        .accessibilityLabel(LocalizedStrings.Secondary.Region.mapAccessibility.localized)
     }
 
     private var dayList: some View {

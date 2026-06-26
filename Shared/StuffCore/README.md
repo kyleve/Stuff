@@ -27,7 +27,7 @@ let greeting = LocalizedString { config in
     )
 }
 
-greeting.localized()                                          // "Hello"
+greeting.localized                                          // "Hello"
 greeting.localized(LocalizationConfig(locale: .init(identifier: "fr")))
 ```
 

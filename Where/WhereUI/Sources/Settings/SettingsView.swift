@@ -49,19 +49,19 @@ struct SettingsView: View {
                     developerSection
                 #endif
             }
-            .navigationTitle(LocalizedStrings.Settings.title.localized())
+            .navigationTitle(LocalizedStrings.Settings.title.localized)
             .sheet(isPresented: $showAppIcon) {
                 AppIconView()
             }
             .alert(
-                LocalizedStrings.Settings.PermissionAlert.title.localized(),
+                LocalizedStrings.Settings.PermissionAlert.title.localized,
                 isPresented: $session.permissionDenied,
             ) {
-                Button(LocalizedStrings.Settings.PermissionAlert.openSettings.localized()) {
+                Button(LocalizedStrings.Settings.PermissionAlert.openSettings.localized) {
                     openSystemSettings()
                 }
                 Button(
-                    LocalizedStrings.Settings.PermissionAlert.notNow.localized(),
+                    LocalizedStrings.Settings.PermissionAlert.notNow.localized,
                     role: .cancel,
                 ) {}
             } message: {
@@ -73,30 +73,30 @@ struct SettingsView: View {
                 onCompletion: handleImportSelection,
             )
             .confirmationDialog(
-                LocalizedStrings.Settings.Backup.importStrategyTitle.localized(),
+                LocalizedStrings.Settings.Backup.importStrategyTitle.localized,
                 isPresented: $showStrategyDialog,
                 titleVisibility: .visible,
                 presenting: pendingImportURL,
             ) { url in
-                Button(LocalizedStrings.Settings.Backup.merge.localized()) { runImport(
+                Button(LocalizedStrings.Settings.Backup.merge.localized) { runImport(
                     url: url,
                     strategy: .merge,
                 ) }
-                Button(LocalizedStrings.Settings.Backup.replace.localized(), role: .destructive) {
+                Button(LocalizedStrings.Settings.Backup.replace.localized, role: .destructive) {
                     runImport(url: url, strategy: .replace)
                 }
-                Button(LocalizedStrings.Settings.Data.cancel.localized(), role: .cancel) {
+                Button(LocalizedStrings.Settings.Data.cancel.localized, role: .cancel) {
                     pendingImportURL = nil
                 }
             } message: { _ in
                 Text.localized(LocalizedStrings.Settings.Backup.importStrategyMessage)
             }
             .alert(
-                LocalizedStrings.Settings.Backup.importedTitle.localized(),
+                LocalizedStrings.Settings.Backup.importedTitle.localized,
                 isPresented: $showImportSuccess,
                 presenting: lastImportSummary,
             ) { _ in
-                Button(LocalizedStrings.Common.ok.localized(), role: .cancel) {}
+                Button(LocalizedStrings.Common.ok.localized, role: .cancel) {}
             } message: { summary in
                 Text.localized(LocalizedStrings.Settings.Backup.importedMessage(
                     samples: summary.sampleCount,
@@ -105,11 +105,11 @@ struct SettingsView: View {
                 ))
             }
             .alert(
-                LocalizedStrings.Settings.Backup.errorTitle.localized(),
+                LocalizedStrings.Settings.Backup.errorTitle.localized,
                 isPresented: $session.isShowingBackupError,
                 presenting: session.backupError,
             ) { _ in
-                Button(LocalizedStrings.Common.ok.localized(), role: .cancel) {}
+                Button(LocalizedStrings.Common.ok.localized, role: .cancel) {}
             } message: { message in
                 Text(message)
             }
@@ -123,7 +123,7 @@ struct SettingsView: View {
 
             Toggle(isOn: $session.trackingEnabled) {
                 Label(
-                    LocalizedStrings.Settings.Location.toggle.localized(),
+                    LocalizedStrings.Settings.Location.toggle.localized,
                     systemImage: "location.fill",
                 )
             }
@@ -133,7 +133,7 @@ struct SettingsView: View {
                     Task { await session.requestPermission() }
                 } label: {
                     Label(
-                        LocalizedStrings.Settings.Location.grant.localized(),
+                        LocalizedStrings.Settings.Location.grant.localized,
                         systemImage: "location.magnifyingglass",
                     )
                 }
@@ -144,7 +144,7 @@ struct SettingsView: View {
                     openSystemSettings()
                 } label: {
                     Label(
-                        LocalizedStrings.Settings.PermissionAlert.openSettings.localized(),
+                        LocalizedStrings.Settings.PermissionAlert.openSettings.localized,
                         systemImage: "gear",
                     )
                 }
@@ -178,14 +178,14 @@ struct SettingsView: View {
         return Section {
             Toggle(isOn: $session.remindersEnabled) {
                 Label(
-                    LocalizedStrings.Settings.Reminders.toggle.localized(),
+                    LocalizedStrings.Settings.Reminders.toggle.localized,
                     systemImage: "bell.badge",
                 )
             }
 
             if session.remindersEnabled {
                 DatePicker(
-                    LocalizedStrings.Settings.Reminders.time.localized(),
+                    LocalizedStrings.Settings.Reminders.time.localized,
                     selection: $session.reminderTimeOfDay,
                     displayedComponents: .hourAndMinute,
                 )
@@ -195,7 +195,7 @@ struct SettingsView: View {
                         openSystemSettings()
                     } label: {
                         Label(
-                            LocalizedStrings.Settings.Reminders.openSettings.localized(),
+                            LocalizedStrings.Settings.Reminders.openSettings.localized,
                             systemImage: "bell.slash",
                         )
                     }
@@ -210,9 +210,9 @@ struct SettingsView: View {
 
     private var remindersFooter: String {
         if session.remindersEnabled, !session.notificationsAuthorized {
-            return LocalizedStrings.Settings.Reminders.deniedFooter.localized()
+            return LocalizedStrings.Settings.Reminders.deniedFooter.localized
         }
-        return LocalizedStrings.Settings.Reminders.footer.localized()
+        return LocalizedStrings.Settings.Reminders.footer.localized
     }
 
     private var summarySection: some View {
@@ -220,14 +220,14 @@ struct SettingsView: View {
         return Section {
             Toggle(isOn: $session.summaryEnabled) {
                 Label(
-                    LocalizedStrings.Settings.Summary.toggle.localized(),
+                    LocalizedStrings.Settings.Summary.toggle.localized,
                     systemImage: "chart.bar.doc.horizontal",
                 )
             }
 
             if session.summaryEnabled {
                 DatePicker(
-                    LocalizedStrings.Settings.Summary.time.localized(),
+                    LocalizedStrings.Settings.Summary.time.localized,
                     selection: $session.summaryTimeOfDay,
                     displayedComponents: .hourAndMinute,
                 )
@@ -237,7 +237,7 @@ struct SettingsView: View {
                         openSystemSettings()
                     } label: {
                         Label(
-                            LocalizedStrings.Settings.Reminders.openSettings.localized(),
+                            LocalizedStrings.Settings.Reminders.openSettings.localized,
                             systemImage: "bell.slash",
                         )
                     }
@@ -252,9 +252,9 @@ struct SettingsView: View {
 
     private var summaryFooter: String {
         if session.summaryEnabled, !session.notificationsAuthorized {
-            return LocalizedStrings.Settings.Summary.deniedFooter.localized()
+            return LocalizedStrings.Settings.Summary.deniedFooter.localized
         }
-        return LocalizedStrings.Settings.Summary.footer.localized()
+        return LocalizedStrings.Settings.Summary.footer.localized
     }
 
     private var appIconSection: some View {
@@ -262,7 +262,7 @@ struct SettingsView: View {
             Button {
                 showAppIcon = true
             } label: {
-                Label(LocalizedStrings.Settings.AppIcon.link.localized(), systemImage: "app.badge")
+                Label(LocalizedStrings.Settings.AppIcon.link.localized, systemImage: "app.badge")
             }
         } header: {
             Text.localized(LocalizedStrings.Settings.AppIcon.header)
@@ -277,7 +277,7 @@ struct SettingsView: View {
                 ManualDayEntryView()
             } label: {
                 Label(
-                    LocalizedStrings.Settings.Manual.link.localized(),
+                    LocalizedStrings.Settings.Manual.link.localized,
                     systemImage: "calendar.badge.plus",
                 )
             }
@@ -295,10 +295,10 @@ struct SettingsView: View {
             // progress), so no custom `UIActivityViewController` is needed.
             ShareLink(
                 item: backupArchiveFile,
-                preview: SharePreview(LocalizedStrings.Settings.Backup.shareTitle.localized()),
+                preview: SharePreview(LocalizedStrings.Settings.Backup.shareTitle.localized),
             ) {
                 Label(
-                    LocalizedStrings.Settings.Backup.export.localized(),
+                    LocalizedStrings.Settings.Backup.export.localized,
                     systemImage: "square.and.arrow.up",
                 )
             }
@@ -311,7 +311,7 @@ struct SettingsView: View {
                     importProgressLabel
                 } else {
                     Label(
-                        LocalizedStrings.Settings.Backup.importData.localized(),
+                        LocalizedStrings.Settings.Backup.importData.localized,
                         systemImage: "square.and.arrow.down",
                     )
                 }
@@ -329,7 +329,7 @@ struct SettingsView: View {
     private var importProgressLabel: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(
-                LocalizedStrings.Settings.Backup.importing.localized(),
+                LocalizedStrings.Settings.Backup.importing.localized,
                 systemImage: "square.and.arrow.down",
             )
             ProgressView(value: session.backupProgress)
@@ -383,7 +383,7 @@ struct SettingsView: View {
                 Button(eraseTitle, role: .destructive) {
                     Task { await session.clearSelectedYear() }
                 }
-                Button(LocalizedStrings.Settings.Data.cancel.localized(), role: .cancel) {}
+                Button(LocalizedStrings.Settings.Data.cancel.localized, role: .cancel) {}
             } message: {
                 Text
                     .localized(LocalizedStrings.Settings.Data
@@ -397,7 +397,7 @@ struct SettingsView: View {
     }
 
     private var eraseTitle: String {
-        LocalizedStrings.Settings.Data.erase(year: session.selectedYear).localized()
+        LocalizedStrings.Settings.Data.erase(year: session.selectedYear).localized
     }
 
     /// Whole-app teardown: wipes every year's data and returns to first-run
@@ -410,19 +410,19 @@ struct SettingsView: View {
                 showResetConfirmation = true
             } label: {
                 Label(
-                    LocalizedStrings.Settings.Reset.erase.localized(),
+                    LocalizedStrings.Settings.Reset.erase.localized,
                     systemImage: "arrow.counterclockwise",
                 )
             }
             .confirmationDialog(
-                LocalizedStrings.Settings.Reset.erase.localized(),
+                LocalizedStrings.Settings.Reset.erase.localized,
                 isPresented: $showResetConfirmation,
                 titleVisibility: .visible,
             ) {
-                Button(LocalizedStrings.Settings.Reset.confirm.localized(), role: .destructive) {
+                Button(LocalizedStrings.Settings.Reset.confirm.localized, role: .destructive) {
                     requestReset()
                 }
-                Button(LocalizedStrings.Settings.Data.cancel.localized(), role: .cancel) {}
+                Button(LocalizedStrings.Settings.Data.cancel.localized, role: .cancel) {}
             } message: {
                 Text.localized(LocalizedStrings.Settings.Reset.message)
             }
@@ -445,11 +445,11 @@ struct SettingsView: View {
                 NavigationLink {
                     LogViewer(configuration: LogViewerConfiguration(
                         store: WhereLog.store,
-                        title: LocalizedStrings.Settings.Debug.logsTitle.localized(),
+                        title: LocalizedStrings.Settings.Debug.logsTitle.localized,
                     ))
                 } label: {
                     Label(
-                        LocalizedStrings.Settings.Debug.logsLink.localized(),
+                        LocalizedStrings.Settings.Debug.logsLink.localized,
                         systemImage: "ladybug",
                     )
                 }
@@ -459,7 +459,7 @@ struct SettingsView: View {
                         SwiftDataInspectorView(configuration: configuration)
                     } label: {
                         Label(
-                            LocalizedStrings.Settings.Debug.inspectorLink.localized(),
+                            LocalizedStrings.Settings.Debug.inspectorLink.localized,
                             systemImage: "cylinder.split.1x2",
                         )
                     }

@@ -62,10 +62,10 @@ struct WidgetViewsTests {
     }
 
     @Test func widgetStringsResolve() {
-        #expect(LocalizedStrings.Widget.todayTitle.localized() == "Today")
-        #expect(LocalizedStrings.Widget.todayEmpty.localized() == "Nothing logged yet")
-        #expect(LocalizedStrings.Widget.yearTitle(year: 2026).localized() == "Days in 2026")
-        #expect(LocalizedStrings.Widget.yearEmpty.localized() == "No days logged")
+        #expect(LocalizedStrings.Widget.todayTitle.localized == "Today")
+        #expect(LocalizedStrings.Widget.todayEmpty.localized == "Nothing logged yet")
+        #expect(LocalizedStrings.Widget.yearTitle(year: 2026).localized == "Days in 2026")
+        #expect(LocalizedStrings.Widget.yearEmpty.localized == "No days logged")
     }
 
     // MARK: - Lock-screen accessories

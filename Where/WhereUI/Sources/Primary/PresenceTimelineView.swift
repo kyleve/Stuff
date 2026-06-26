@@ -20,7 +20,7 @@ struct PresenceTimelineView: View {
                 if stints.isEmpty {
                     ContentUnavailableView {
                         Label(
-                            LocalizedStrings.Timeline.emptyTitle.localized(),
+                            LocalizedStrings.Timeline.emptyTitle.localized,
                             systemImage: "calendar.day.timeline.left",
                         )
                     } description: {
@@ -33,11 +33,11 @@ struct PresenceTimelineView: View {
                 }
             }
             .navigationTitle(LocalizedStrings.Timeline.title(year: session.selectedYear)
-                .localized())
+                .localized)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(LocalizedStrings.Timeline.done.localized()) { dismiss() }
+                    Button(LocalizedStrings.Timeline.done.localized) { dismiss() }
                 }
             }
         }
@@ -88,7 +88,7 @@ private struct StintRow: View {
                 region: stint.region.localizedName,
                 range: dateRange,
                 days: stint.dayCount,
-            ).localized(),
+            ).localized,
         )
     }
 

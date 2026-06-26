@@ -15,7 +15,7 @@ struct SecondaryView: View {
     var body: some View {
         NavigationStack {
             screen
-                .navigationTitle(LocalizedStrings.Secondary.title.localized())
+                .navigationTitle(LocalizedStrings.Secondary.title.localized)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         YearSelector()
@@ -46,12 +46,12 @@ struct SecondaryView: View {
     private var screen: some View {
         switch session.loadState {
             case .loading where session.report == nil:
-                ProgressView(LocalizedStrings.Secondary.loading.localized())
+                ProgressView(LocalizedStrings.Secondary.loading.localized)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .failed(message):
                 ContentUnavailableView {
                     Label(
-                        LocalizedStrings.Common.loadErrorTitle.localized(),
+                        LocalizedStrings.Common.loadErrorTitle.localized,
                         systemImage: "exclamationmark.icloud",
                     )
                 } description: {
@@ -100,7 +100,7 @@ struct SecondaryView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(LocalizedStrings.Secondary.emptyTitle.localized(), systemImage: "globe.americas")
+            Label(LocalizedStrings.Secondary.emptyTitle.localized, systemImage: "globe.americas")
         } description: {
             Text.localized(LocalizedStrings.Secondary.emptyDescription)
         }
@@ -108,7 +108,7 @@ struct SecondaryView: View {
 
     /// Light whimsy for the briefest stays.
     private func caption(for item: RegionDays) -> String? {
-        item.days <= 3 ? LocalizedStrings.Secondary.captionPassingThrough.localized() : nil
+        item.days <= 3 ? LocalizedStrings.Secondary.captionPassingThrough.localized : nil
     }
 }
 

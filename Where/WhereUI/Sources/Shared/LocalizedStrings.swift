@@ -6,7 +6,7 @@ import StuffCore
 /// Every user-facing string in the module is funneled through here so views
 /// stay free of literals. Members return a ``LocalizedString`` (a deferred
 /// builder) rather than a resolved `String`, so the catalog lookup happens at
-/// the point of display — call `.localized()` (or `Text.localized(_:)`) there.
+/// the point of display — call `.localized` (or `Text.localized(_:)`) there.
 ///
 /// Each builder performs a literal `String(localized:defaultValue:bundle:.module)`
 /// lookup so both Xcode's catalog extraction and the repo's `./localize` script

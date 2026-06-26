@@ -40,4 +40,9 @@ public struct LocalizedString {
     public func localized(_ config: LocalizationConfig? = nil) -> String {
         build(config)
     }
+
+    /// Resolve the string via `localized()` with the default `localized()` arguments.
+    public var localized: String {
+        localized()
+    }
 }

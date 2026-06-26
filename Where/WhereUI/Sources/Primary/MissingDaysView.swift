@@ -13,11 +13,11 @@ struct MissingDaysView: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle(LocalizedStrings.MissingDays.title.localized())
+                .navigationTitle(LocalizedStrings.MissingDays.title.localized)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(LocalizedStrings.MissingDays.done.localized()) { dismiss() }
+                        Button(LocalizedStrings.MissingDays.done.localized) { dismiss() }
                     }
                 }
         }
@@ -28,7 +28,7 @@ struct MissingDaysView: View {
         if session.missingDays.isEmpty {
             ContentUnavailableView {
                 Label(
-                    LocalizedStrings.MissingDays.emptyTitle.localized(),
+                    LocalizedStrings.MissingDays.emptyTitle.localized,
                     systemImage: "checkmark.circle",
                 )
             } description: {

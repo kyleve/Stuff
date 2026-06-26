@@ -22,7 +22,7 @@ public struct YearTotalsRectangularAccessoryView: View {
     public var body: some View {
         if ranked.isEmpty {
             Label(
-                LocalizedStrings.Widget.yearEmpty.localized(),
+                LocalizedStrings.Widget.yearEmpty.localized,
                 systemImage: "calendar.badge.exclamationmark",
             )
             .font(.caption)
@@ -47,7 +47,7 @@ public struct YearTotalsRectangularAccessoryView: View {
                         LocalizedStrings.Common.regionDaysAccessibility(
                             region: entry.region.localizedName,
                             days: entry.days,
-                        ).localized(),
+                        ).localized,
                     )
                 }
             }

@@ -32,7 +32,7 @@ struct DayRelabelView: View {
 
         Form {
             Section {
-                LabeledContent(LocalizedStrings.Relabel.title.localized(), value: dateText)
+                LabeledContent(LocalizedStrings.Relabel.title.localized, value: dateText)
             }
 
             Section {
@@ -46,25 +46,25 @@ struct DayRelabelView: View {
             }
 
             Section {
-                Button(LocalizedStrings.Relabel.reset.localized(), role: .destructive) { reset() }
+                Button(LocalizedStrings.Relabel.reset.localized, role: .destructive) { reset() }
                     .disabled(isSaving)
             } footer: {
                 Text.localized(LocalizedStrings.Relabel.resetFooter)
             }
         }
-        .navigationTitle(LocalizedStrings.Relabel.title.localized())
+        .navigationTitle(LocalizedStrings.Relabel.title.localized)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button(LocalizedStrings.ManualEntry.save.localized()) { save() }
+                Button(LocalizedStrings.ManualEntry.save.localized) { save() }
                     .disabled(!canSave)
             }
         }
         .alert(
-            LocalizedStrings.ManualEntry.saveErrorTitle.localized(),
+            LocalizedStrings.ManualEntry.saveErrorTitle.localized,
             isPresented: $saveError.isPresented,
         ) {
-            Button(LocalizedStrings.Common.ok.localized(), role: .cancel) {}
+            Button(LocalizedStrings.Common.ok.localized, role: .cancel) {}
         } message: {
             if let saveError = saveError.message {
                 Text(saveError)

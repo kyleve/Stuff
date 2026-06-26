@@ -20,8 +20,8 @@ struct ManualDayEntryView: View {
 
         var title: String {
             switch self {
-                case .singleDay: LocalizedStrings.ManualEntry.modeSingleDay.localized()
-                case .range: LocalizedStrings.ManualEntry.modeRange.localized()
+                case .singleDay: LocalizedStrings.ManualEntry.modeSingleDay.localized
+                case .range: LocalizedStrings.ManualEntry.modeRange.localized
             }
         }
     }
@@ -63,7 +63,7 @@ struct ManualDayEntryView: View {
 
         Form {
             Section {
-                Picker(LocalizedStrings.ManualEntry.pickerLabel.localized(), selection: $mode) {
+                Picker(LocalizedStrings.ManualEntry.pickerLabel.localized, selection: $mode) {
                     ForEach(EntryMode.allCases) { mode in
                         Text(mode.title).tag(mode)
                     }
@@ -86,22 +86,22 @@ struct ManualDayEntryView: View {
                 Text.localized(LocalizedStrings.ManualEntry.regionsFooter)
             }
         }
-        .navigationTitle(LocalizedStrings.ManualEntry.title.localized())
+        .navigationTitle(LocalizedStrings.ManualEntry.title.localized)
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: startDate) { _, newValue in
             if endDate < newValue { endDate = newValue }
         }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button(LocalizedStrings.ManualEntry.save.localized()) { save() }
+                Button(LocalizedStrings.ManualEntry.save.localized) { save() }
                     .disabled(!canSave)
             }
         }
         .alert(
-            LocalizedStrings.ManualEntry.saveErrorTitle.localized(),
+            LocalizedStrings.ManualEntry.saveErrorTitle.localized,
             isPresented: $saveError.isPresented,
         ) {
-            Button(LocalizedStrings.Common.ok.localized(), role: .cancel) {}
+            Button(LocalizedStrings.Common.ok.localized, role: .cancel) {}
         } message: {
             if let saveError = saveError.message {
                 Text(saveError)
@@ -114,20 +114,20 @@ struct ManualDayEntryView: View {
         switch mode {
             case .singleDay:
                 DatePicker(
-                    LocalizedStrings.ManualEntry.day.localized(),
+                    LocalizedStrings.ManualEntry.day.localized,
                     selection: $startDate,
                     in: ...Date(),
                     displayedComponents: .date,
                 )
             case .range:
                 DatePicker(
-                    LocalizedStrings.ManualEntry.from.localized(),
+                    LocalizedStrings.ManualEntry.from.localized,
                     selection: $startDate,
                     in: ...Date(),
                     displayedComponents: .date,
                 )
                 DatePicker(
-                    LocalizedStrings.ManualEntry.through.localized(),
+                    LocalizedStrings.ManualEntry.through.localized,
                     selection: $endDate,
                     in: startDate ... Date(),
                     displayedComponents: .date,
@@ -138,9 +138,9 @@ struct ManualDayEntryView: View {
     private var dateFooter: String {
         switch mode {
             case .singleDay:
-                LocalizedStrings.ManualEntry.singleDayFooter.localized()
+                LocalizedStrings.ManualEntry.singleDayFooter.localized
             case .range:
-                LocalizedStrings.ManualEntry.rangeFooter(count: dayCount).localized()
+                LocalizedStrings.ManualEntry.rangeFooter(count: dayCount).localized
         }
     }
 
