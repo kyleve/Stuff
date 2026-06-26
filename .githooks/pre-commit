@@ -15,5 +15,8 @@ if [ -n "$staged" ]; then
       | xargs -0 git add
 fi
 
+# Reconcile .xcstrings catalogs from Swift source, then re-stage any changes.
+./localize --git-add
+
 # Sync AGENTS.md + .agents/skills → CLAUDE.md + .claude/skills.
 ./sync-agents --git-add
