@@ -247,13 +247,24 @@ struct AppIconView: View {
 
 /// A rounded app-icon thumbnail rendered from the WhereUI preview catalog,
 /// using iOS's continuous-corner squircle proportion so it reads as an icon.
+///
+/// The hairline `separator` border keeps a thumbnail legible against the
+/// picker's system background; pass `bordered: false` where the icon is the
+/// hero on its own backdrop (e.g. the launch splash) and the border would read
+/// as a stray outline.
 struct AppIconImage: View {
+    /// Fraction of an icon's side length used for its rounded corners — Apple's
+    /// continuous-corner superellipse proportion (~22.37%). Shared so every
+    /// icon rendering (the picker thumbnail here, the launch splash hero) reads
+    /// as the same squircle.
+    static let cornerRadiusRatio: CGFloat = 0.2237
+
     let name: String
     let size: CGFloat
+    var bordered = true
 
     private var cornerRadius: CGFloat {
-        // ~22.37% of the side length is Apple's icon superellipse proportion.
-        size * 0.2237
+        size * Self.cornerRadiusRatio
     }
 
     var body: some View {
@@ -263,10 +274,12 @@ struct AppIconImage: View {
             .scaledToFit()
             .frame(width: size, height: size)
             .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .strokeBorder(Color(.separator), lineWidth: 0.5),
-            )
+            .overlay {
+                if bordered {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(Color(.separator), lineWidth: 0.5)
+                }
+            }
             .accessibilityHidden(true)
     }
 }

@@ -48,8 +48,8 @@ struct WhereLaunchTests {
     }
 
     @Test func sequenceStepsRunInStartParityOrder() throws {
-        // The work steps mirror WhereSession.start()'s order; the only insertions
-        // are open-store's migration presentation and the onboarding gate.
+        // The work steps mirror WhereSession.start()'s order; the only insertion
+        // is the onboarding gate.
         let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.sequence(for: model).steps.map(\.id)
         #expect(ids == [

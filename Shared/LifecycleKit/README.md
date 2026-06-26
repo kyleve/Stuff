@@ -153,6 +153,22 @@ The transition is keyed on `LifecyclePhase.surfaceIdentity`, which collapses
 still showing the splash — doesn't retrigger the transition and flash it; only
 reaching `.failed`/`.ready` animates.
 
+The launch surfaces (splash / step presentation / failure) are layered **above**
+`content`. When the runner reaches `.ready` the leaving splash plays its
+*removal* transition over the entering destination — so a reveal that scales the
+splash up and fades it out uncovers the app UI beneath, rather than being
+clipped to a pop behind freshly-inserted content:
+
+```swift
+LifecycleContainer(
+    runner,
+    transition: .asymmetric(insertion: .identity,
+                            removal: .scale(scale: 16).combined(with: .opacity)),
+    animation: .easeIn(duration: 0.55),
+    splash: { LaunchSplashView() },
+) { MainTabView() }
+```
+
 The container also publishes the runner into the environment as
 `\.lifecycleRunner`, a `LifecycleRunnerProxy` (not a bare optional), letting
 nested views reach `retry()`/`teardown()` without prop-drilling. When no
