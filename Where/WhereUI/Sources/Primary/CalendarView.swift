@@ -23,11 +23,12 @@ struct CalendarView: View {
         NavigationStack {
             Group {
                 if let report = session.report {
-                    calendarContent(months: report.calendarMonths(
-                        calendar: session.dayCalendar,
-                        referenceDate: session.referenceDate,
-                        missingDates: session.missingDayKeys,
-                    ))
+                    switch loadCalendarMonths(from: report) {
+                        case let .success(months):
+                            calendarContent(months: months)
+                        case let .failure(error):
+                            calendarLayoutError(error)
+                    }
                 } else if session.loadState == .loading {
                     ProgressView(Strings.primaryLoading)
                 } else if case let .failed(message) = session.loadState {
@@ -61,6 +62,27 @@ struct CalendarView: View {
                     .navigationTitle(Strings.timelineTitle(year: session.selectedYear))
                     .navigationBarTitleDisplayMode(.inline)
             }
+        }
+    }
+
+    private func loadCalendarMonths(from report: YearReport) -> Result<[CalendarMonth], Error> {
+        Result {
+            try report.calendarMonths(
+                calendar: session.calendar,
+                referenceDate: session.referenceDate,
+                missingDates: session.missingDayKeys,
+            )
+        }
+    }
+
+    private func calendarLayoutError(_ error: Error) -> some View {
+        ContentUnavailableView {
+            Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+        } description: {
+            Text(Strings.calendarUnavailableDescription)
+        }
+        .onAppear {
+            Self.logger.warning("Calendar layout failed: \(error)")
         }
     }
 

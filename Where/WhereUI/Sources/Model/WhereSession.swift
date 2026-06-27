@@ -77,7 +77,7 @@ public final class WhereSession {
     /// into `reminderTime` (and its persistence/reconcile).
     public var reminderTimeOfDay: Date {
         get {
-            Self.calendar.date(
+            calendar.date(
                 bySettingHour: reminderTime.hour,
                 minute: reminderTime.minute,
                 second: 0,
@@ -85,7 +85,7 @@ public final class WhereSession {
             ) ?? now()
         }
         set {
-            let components = Self.calendar.dateComponents([.hour, .minute], from: newValue)
+            let components = calendar.dateComponents([.hour, .minute], from: newValue)
             reminderTime = ReminderTime(
                 hour: components.hour ?? ReminderTime.defaultEvening.hour,
                 minute: components.minute ?? ReminderTime.defaultEvening.minute,
@@ -123,7 +123,7 @@ public final class WhereSession {
     /// its persistence/reconcile).
     public var summaryTimeOfDay: Date {
         get {
-            Self.calendar.date(
+            calendar.date(
                 bySettingHour: summaryTime.hour,
                 minute: summaryTime.minute,
                 second: 0,
@@ -131,7 +131,7 @@ public final class WhereSession {
             ) ?? now()
         }
         set {
-            let components = Self.calendar.dateComponents([.hour, .minute], from: newValue)
+            let components = calendar.dateComponents([.hour, .minute], from: newValue)
             summaryTime = ReminderTime(
                 hour: components.hour ?? ReminderTime.defaultMorning.hour,
                 minute: components.minute ?? ReminderTime.defaultMorning.minute,
@@ -171,6 +171,10 @@ public final class WhereSession {
     /// read/write the same store.
     let preferences: WherePreferences
     private let now: @Sendable () -> Date
+
+    /// Gregorian calendar in the current time zone — matches the day keys the
+    /// aggregator produces in `report.days`, so the missing-day math lines up.
+    let calendar: Calendar
 
     private static let logger = WhereLog.channel(.session)
 
@@ -217,9 +221,9 @@ public final class WhereSession {
         // yet — the evening reminder covers it instead of the banner/backfill.
         return MissingDays.missingRanges(
             year: report.year,
-            through: MissingDays.backlogCutoff(asOf: now(), calendar: Self.calendar),
+            through: MissingDays.backlogCutoff(asOf: now(), calendar: calendar),
             present: present,
-            calendar: Self.calendar,
+            calendar: calendar,
         )
     }
 
@@ -234,33 +238,19 @@ public final class WhereSession {
         now()
     }
 
-    /// Gregorian calendar in the current time zone — matches the day keys the
-    /// aggregator produces in `report.days`, so the missing-day math lines up.
-    public var dayCalendar: Calendar {
-        Self.calendar
-    }
-
     /// Start-of-day keys for days that still need logging in the loaded year.
     public var missingDayKeys: Set<Date> {
         guard let report, isViewingCurrentYear else { return [] }
         return Set(MissingDays.missingDayKeys(
             year: report.year,
-            through: MissingDays.backlogCutoff(asOf: now(), calendar: Self.calendar),
+            through: MissingDays.backlogCutoff(asOf: now(), calendar: calendar),
             present: Set(report.days.map(\.date)),
-            calendar: Self.calendar,
+            calendar: calendar,
         ))
     }
 
     private var isViewingCurrentYear: Bool {
-        selectedYear == Self.calendar.component(.year, from: now())
-    }
-
-    /// Gregorian calendar in the current time zone — matches the day keys the
-    /// aggregator produces in `report.days`, so the missing-day math lines up.
-    private static var calendar: Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = .current
-        return calendar
+        selectedYear == calendar.component(.year, from: now())
     }
 
     /// Number of calendar days in the selected year (365, or 366 in a leap
@@ -294,6 +284,9 @@ public final class WhereSession {
         self.selectedYear = selectedYear
         self.preferences = preferences
         self.now = now
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        self.calendar = calendar
         remindersEnabledStorage = preferences.remindersEnabled
         reminderTimeStorage = preferences.reminderTime
         summaryEnabledStorage = preferences.summaryEnabled

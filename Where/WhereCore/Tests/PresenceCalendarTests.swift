@@ -22,8 +22,8 @@ struct PresenceCalendarTests {
         day(year, month, dayOfMonth)
     }
 
-    @Test func monthsFromReportReturnsTwelveMonthsInOrder() {
-        let months = PresenceCalendar.months(
+    @Test func monthsFromReportReturnsTwelveMonthsInOrder() throws {
+        let months = try PresenceCalendar.months(
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
@@ -33,7 +33,7 @@ struct PresenceCalendarTests {
         #expect(months.allSatisfy { $0.year == 2026 })
     }
 
-    @Test func monthCountFollowsCalendarYearRange() {
+    @Test func monthCountFollowsCalendarYearRange() throws {
         guard
             let yearStart = calendar.date(from: DateComponents(year: 2026, month: 1, day: 1)),
             let expected = calendar.range(of: .month, in: .year, for: yearStart)?.count
@@ -41,7 +41,7 @@ struct PresenceCalendarTests {
             Issue.record("Could not resolve month range for 2026")
             return
         }
-        let months = PresenceCalendar.months(
+        let months = try PresenceCalendar.months(
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
@@ -49,9 +49,9 @@ struct PresenceCalendarTests {
         #expect(months.count == expected)
     }
 
-    @Test func leadingBlankCountForJanuary2026() {
+    @Test func leadingBlankCountForJanuary2026() throws {
         // Jan 1 2026 is a Thursday; with Sunday-first, that is 4 leading blanks.
-        let months = PresenceCalendar.months(
+        let months = try PresenceCalendar.months(
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
@@ -61,22 +61,25 @@ struct PresenceCalendarTests {
         #expect(january.leadingBlankCount == 4)
     }
 
-    @Test func weekdayCountMatchesCalendarMaximumRange() {
-        let months = PresenceCalendar.months(
+    @Test func weekdayCountMatchesCalendarMaximumRange() throws {
+        let months = try PresenceCalendar.months(
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
         )
-        let expected = calendar.maximumRange(of: .weekday)?.count ?? 7
+        guard let expected = calendar.maximumRange(of: .weekday)?.count else {
+            Issue.record("Could not resolve weekday range")
+            return
+        }
         #expect(months.allSatisfy { $0.weekdayCount == expected })
         #expect(months[0].weekdaySymbols.count == expected)
     }
 
-    @Test func dayRegionsAreSortedByRegionAllCasesOrder() {
+    @Test func dayRegionsAreSortedByRegionAllCasesOrder() throws {
         let days = [
             DayPresence(date: day(2026, 3, 15), regions: [.newYork, .california]),
         ]
-        let months = PresenceCalendar.months(
+        let months = try PresenceCalendar.months(
             from: report(days),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
@@ -85,8 +88,8 @@ struct PresenceCalendarTests {
         #expect(marchDay?.regions == [.california, .newYork])
     }
 
-    @Test func dayCountMatchesCalendarRange() {
-        let months = PresenceCalendar.months(
+    @Test func dayCountMatchesCalendarRange() throws {
+        let months = try PresenceCalendar.months(
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
@@ -95,8 +98,8 @@ struct PresenceCalendarTests {
         #expect(february.days.count == 28)
     }
 
-    @Test func dayWithNoPresenceHasEmptyRegions() {
-        let months = PresenceCalendar.months(
+    @Test func dayWithNoPresenceHasEmptyRegions() throws {
+        let months = try PresenceCalendar.months(
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
@@ -106,11 +109,11 @@ struct PresenceCalendarTests {
         #expect(januaryFirst.regions.isEmpty)
     }
 
-    @Test func dayWithPresenceIncludesMatchingRegions() {
+    @Test func dayWithPresenceIncludesMatchingRegions() throws {
         let days = [
             DayPresence(date: day(2026, 6, 10), regions: [.canada, .europeanUnion]),
         ]
-        let months = PresenceCalendar.months(
+        let months = try PresenceCalendar.months(
             from: report(days),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
@@ -119,9 +122,9 @@ struct PresenceCalendarTests {
         #expect(juneDay?.regions == [.canada, .europeanUnion])
     }
 
-    @Test func marksReferenceDateAsToday() {
+    @Test func marksReferenceDateAsToday() throws {
         let reference = referenceDate(2026, 3, 4)
-        let months = PresenceCalendar.months(
+        let months = try PresenceCalendar.months(
             from: report([]),
             calendar: calendar,
             referenceDate: reference,
@@ -131,9 +134,9 @@ struct PresenceCalendarTests {
         #expect(months[2].isCurrentMonth == true)
     }
 
-    @Test func marksMissingDatesAsNeedingAttention() {
+    @Test func marksMissingDatesAsNeedingAttention() throws {
         let missing = day(2026, 2, 5)
-        let months = PresenceCalendar.months(
+        let months = try PresenceCalendar.months(
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
@@ -143,12 +146,17 @@ struct PresenceCalendarTests {
         #expect(februaryDay?.needsAttention == true)
     }
 
-    @Test func yearReportCalendarMonthsMatchesPresenceCalendar() {
+    @Test func yearReportCalendarMonthsMatchesPresenceCalendar() throws {
         let report = report([
             DayPresence(date: day(2026, 1, 1), regions: [.california]),
         ])
         let reference = referenceDate(2026, 1, 1)
-        #expect(report.calendarMonths(calendar: calendar, referenceDate: reference)
-            == PresenceCalendar.months(from: report, calendar: calendar, referenceDate: reference))
+        let fromReport = try report.calendarMonths(calendar: calendar, referenceDate: reference)
+        let fromPresence = try PresenceCalendar.months(
+            from: report,
+            calendar: calendar,
+            referenceDate: reference,
+        )
+        #expect(fromReport == fromPresence)
     }
 }
