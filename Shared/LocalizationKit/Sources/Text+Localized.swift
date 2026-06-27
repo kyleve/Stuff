@@ -1,4 +1,3 @@
-import StuffCore
 import SwiftUI
 
 extension Text {

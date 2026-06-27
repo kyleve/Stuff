@@ -181,6 +181,12 @@ let project = Project(
             sources: ["Shared/StuffCore/Tests/**"],
         ),
         unitTests(
+            name: "LocalizationKitTests",
+            bundleIdSuffix: "localizationkit",
+            productDependency: "LocalizationKit",
+            sources: ["Shared/LocalizationKit/Tests/**"],
+        ),
+        unitTests(
             name: "LifecycleKitTests",
             bundleIdSuffix: "lifecyclekit",
             productDependency: "LifecycleKit",
@@ -230,6 +236,7 @@ let project = Project(
     // target a single bundle without building the whole workspace.
     schemes: [
         testScheme(name: "StuffCoreTests"),
+        testScheme(name: "LocalizationKitTests"),
         testScheme(name: "LifecycleKitTests"),
         testScheme(name: "LogKitTests"),
         testScheme(name: "LogViewerUITests"),

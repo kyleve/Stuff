@@ -31,7 +31,7 @@ public struct LocalizedString: Sendable {
 
     /// Wrap a builder that resolves the string, optionally honoring an override
     /// config. The builder should perform a `String(localized:)` lookup against
-    /// the owning module's catalog (`bundle: .module`).
+    /// the owning module's catalog.
     ///
     /// The builder is `@Sendable` so a `LocalizedString` can be cached in a
     /// `static let` and handed across isolation boundaries (e.g. a widget

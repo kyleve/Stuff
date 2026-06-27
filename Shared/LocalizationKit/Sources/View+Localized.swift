@@ -1,4 +1,3 @@
-import StuffCore
 import SwiftUI
 
 extension View {
@@ -6,7 +5,7 @@ extension View {
     /// at the point of display.
     ///
     /// The `LocalizedString`-taking modifiers below mirror
-    /// ``SwiftUI/Text/localized(_:_:)``: they keep the resolution seam in one
+    /// ``SwiftUI/Text/init(localized:_:)``: they keep the resolution seam in one
     /// place so a future Environment-driven locale override has a single place to
     /// read the locale from. Prefer them over `someString.localized` at call
     /// sites.
