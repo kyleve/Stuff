@@ -45,6 +45,8 @@ struct StringsTests {
 
     @Test func calendarStringsResolveToCatalogValues() {
         #expect(Strings.primaryCalendar == "Calendar")
+        #expect(Strings
+            .calendarUnavailableDescription == "Your year data isn't available right now.")
     }
 
     @Test func interpolatedStringsSubstituteArguments() {

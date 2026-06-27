@@ -729,8 +729,27 @@ enum Strings {
         )
     }
 
-    static func calendarDayAccessibility(date: Date, regions: [Region]) -> String {
+    static var calendarUnavailableDescription: String {
+        String(
+            localized: "calendar.unavailable.description",
+            defaultValue: "Your year data isn't available right now.",
+            bundle: .module,
+        )
+    }
+
+    static func calendarDayAccessibility(
+        date: Date,
+        regions: [Region],
+        needsAttention: Bool,
+    ) -> String {
         let day = date.formatted(.dateTime.weekday(.wide).month(.wide).day())
+        if needsAttention {
+            return String(
+                localized: "calendar.day.needsAttention.accessibility",
+                defaultValue: "\(day), needs a location",
+                bundle: .module,
+            )
+        }
         if regions.isEmpty {
             return String(
                 localized: "calendar.day.empty.accessibility",

@@ -228,6 +228,29 @@ public final class WhereSession {
         missingDays.reduce(0) { $0 + $1.dayCount }
     }
 
+    /// The session's notion of "now", forwarded for calendar and missing-day
+    /// math in views and tests.
+    public var referenceDate: Date {
+        now()
+    }
+
+    /// Gregorian calendar in the current time zone — matches the day keys the
+    /// aggregator produces in `report.days`, so the missing-day math lines up.
+    public var dayCalendar: Calendar {
+        Self.calendar
+    }
+
+    /// Start-of-day keys for days that still need logging in the loaded year.
+    public var missingDayKeys: Set<Date> {
+        guard let report, isViewingCurrentYear else { return [] }
+        return Set(MissingDays.missingDayKeys(
+            year: report.year,
+            through: MissingDays.backlogCutoff(asOf: now(), calendar: Self.calendar),
+            present: Set(report.days.map(\.date)),
+            calendar: Self.calendar,
+        ))
+    }
+
     private var isViewingCurrentYear: Bool {
         selectedYear == Self.calendar.component(.year, from: now())
     }

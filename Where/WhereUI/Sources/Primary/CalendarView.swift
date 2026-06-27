@@ -10,6 +10,8 @@ struct CalendarView: View {
 
     @State private var timelineTarget: TimelineMonthTarget?
 
+    private static let logger = WhereLog.channel(.session)
+
     private struct TimelineMonthTarget: Hashable, Identifiable {
         let startOfMonth: Date
         var id: Date {
@@ -20,10 +22,31 @@ struct CalendarView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if session.report == nil {
+                if let report = session.report {
+                    calendarContent(months: report.calendarMonths(
+                        calendar: session.dayCalendar,
+                        referenceDate: session.referenceDate,
+                        missingDates: session.missingDayKeys,
+                    ))
+                } else if session.loadState == .loading {
                     ProgressView(Strings.primaryLoading)
+                } else if case let .failed(message) = session.loadState {
+                    ContentUnavailableView {
+                        Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                    } description: {
+                        Text(message)
+                    }
                 } else {
-                    calendarContent
+                    ContentUnavailableView {
+                        Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                    } description: {
+                        Text(Strings.calendarUnavailableDescription)
+                    }
+                    .onAppear {
+                        Self.logger.warning(
+                            "Calendar opened without a year report (loadState: \(session.loadState))",
+                        )
+                    }
                 }
             }
             .navigationTitle(Strings.calendarTitle(year: session.selectedYear))
@@ -41,9 +64,8 @@ struct CalendarView: View {
         }
     }
 
-    private var calendarContent: some View {
-        let months = PresenceCalendar.months(from: session.report!)
-        return ScrollViewReader { proxy in
+    private func calendarContent(months: [CalendarMonth]) -> some View {
+        ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: UIConstants.Spacings.xxLarge) {
                     ForEach(months) { month in
@@ -63,33 +85,17 @@ struct CalendarView: View {
 
     /// When viewing the current year, scrolls the grid to today's month.
     private func scrollToCurrentMonth(_ proxy: ScrollViewProxy, months: [CalendarMonth]) {
-        guard let targetID = currentMonthID(in: months) else { return }
+        guard let targetID = months.first(where: \.isCurrentMonth)?.id else { return }
         DispatchQueue.main.async {
             proxy.scrollTo(targetID, anchor: .top)
         }
     }
-
-    private func currentMonthID(in months: [CalendarMonth]) -> String? {
-        let calendar = Calendar.current
-        let now = Date()
-        guard calendar.component(.year, from: now) == session.selectedYear else { return nil }
-        let month = calendar.component(.month, from: now)
-        return months.first { $0.month == month }?.id
-    }
 }
 
-/// One month section: weekday header row plus a 7-column day grid.
+/// One month section: weekday header row plus a day grid.
 private struct MonthGridView: View {
     let month: CalendarMonth
     let onSelectDay: (CalendarDayCell) -> Void
-
-    private var calendar: Calendar {
-        .current
-    }
-
-    private var isCurrentMonth: Bool {
-        calendar.isDate(month.startOfMonth, equalTo: Date(), toGranularity: .month)
-    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: UIConstants.Spacings.medium) {
@@ -100,11 +106,11 @@ private struct MonthGridView: View {
             LazyVGrid(
                 columns: Array(
                     repeating: GridItem(.flexible(), spacing: UIConstants.Spacings.small),
-                    count: 7,
+                    count: month.weekdayCount,
                 ),
                 spacing: UIConstants.Spacings.small,
             ) {
-                ForEach(orderedWeekdaySymbols(calendar), id: \.self) { symbol in
+                ForEach(month.weekdaySymbols, id: \.self) { symbol in
                     Text(symbol)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -128,17 +134,11 @@ private struct MonthGridView: View {
         }
         .padding(UIConstants.Padding.compactCard)
         .background {
-            if isCurrentMonth {
+            if month.isCurrentMonth {
                 RoundedRectangle(cornerRadius: UIConstants.CornerRadius.compactCard)
                     .fill(Color.accentColor.opacity(0.08))
             }
         }
-    }
-
-    private func orderedWeekdaySymbols(_ calendar: Calendar) -> [String] {
-        let symbols = calendar.shortWeekdaySymbols
-        let shift = calendar.firstWeekday - 1
-        return Array(symbols[shift...] + symbols[..<shift])
     }
 }
 
@@ -146,21 +146,20 @@ private struct MonthGridView: View {
 private struct DayCell: View {
     let day: CalendarDayCell
 
-    private var isToday: Bool {
-        Calendar.current.isDateInToday(day.date)
-    }
-
     var body: some View {
         VStack(spacing: UIConstants.Spacings.xxSmall) {
             Text("\(day.dayOfMonth)")
                 .font(.callout)
                 .monospacedDigit()
-                .foregroundStyle(isToday ? Color.white : .primary)
+                .foregroundStyle(dayNumberColor)
                 .frame(width: 26, height: 26)
                 .background {
-                    if isToday {
+                    if day.isToday {
                         Circle()
                             .fill(Color.accentColor)
+                    } else if day.needsAttention {
+                        Circle()
+                            .fill(Color.red.opacity(0.15))
                     }
                 }
 
@@ -179,7 +178,23 @@ private struct DayCell: View {
         .frame(maxWidth: .infinity, minHeight: UIConstants.Size.calendarDayMinHeight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Strings.calendarDayAccessibility(date: day.date, regions: day.regions))
+        .accessibilityLabel(
+            Strings.calendarDayAccessibility(
+                date: day.date,
+                regions: day.regions,
+                needsAttention: day.needsAttention,
+            ),
+        )
+    }
+
+    private var dayNumberColor: Color {
+        if day.isToday {
+            .white
+        } else if day.needsAttention {
+            .red
+        } else {
+            .primary
+        }
     }
 }
 
@@ -192,5 +207,10 @@ private struct DayCell: View {
     #Preview("Empty") {
         CalendarView()
             .environment(PreviewSupport.emptySession())
+    }
+
+    #Preview("Missing days") {
+        CalendarView()
+            .environment(PreviewSupport.missingDaysSession())
     }
 #endif
