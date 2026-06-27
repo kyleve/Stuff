@@ -150,6 +150,40 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   enums from other modules (e.g. `UNAuthorizationStatus`), handle known cases
   explicitly plus `@unknown default:`, which still flags newly added cases.
 
+### Modeling state
+
+**Make invalid states unrepresentable.** When a set of values is only meaningful
+in certain combinations, model it as a *single* type — usually an `enum`, often
+with associated values — instead of several parallel properties that can drift
+into nonsensical combinations. Default to one type; reach for separate stored
+properties only when the values are genuinely independent, and let that be the
+exception you can justify, not the reflex. A good type makes the illegal states
+impossible to spell and the legal ones obvious.
+
+The Where app does this with `WhereSession.LoadState` (`idle` / `loading` /
+`loaded` / `failed(String)`) rather than juggling `isLoading` + `error` +
+`data`, and `CalendarView` keeps one `Result<[CalendarMonth], Error>?` instead
+of separate `months` and `layoutError` properties — success and failure can't
+both be set, and "not loaded yet" is the `nil`.
+
+Smells that signal a missing type:
+
+- **Several `Bool`s/optionals that together encode one state machine** — e.g.
+  `isLoading` + `loadError` + `value`, where `(true, someError, nil)` is
+  meaningless. Collapse into an `enum` whose cases carry exactly the data each
+  state needs (this also kills "can both be true?" pairs like
+  `isExpanded`/`isCollapsed`).
+- **Parallel collections kept in lockstep by index** (`names[i]` ↔ `values[i]`)
+  — use one array of a small named struct so the two can't desync.
+- **Sentinel values standing in for "absent"** (`-1`, `""`, `Date.distantPast`,
+  `NSNotFound`) — use `Optional` or a dedicated case so "none" is a real,
+  checked state instead of a magic value callers must remember.
+- **A `kind`/`type` tag sitting beside optionals only valid for some kinds** (a
+  `kind` plus `imageURL`/`text`/`count` that are nil for the "wrong" kind) — use
+  an `enum` with associated values so each case owns exactly its payload.
+- **Stringly-typed status or flags** (`status == "active"`) — use a typed enum,
+  per the identifier/keys convention above.
+
 ## Generating the Xcode project
 
 Agents must never open Xcode on the user's machine — it steals focus and

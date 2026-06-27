@@ -8,33 +8,61 @@ struct PresenceTimelineView: View {
     @Environment(WhereSession.self) private var session
     @Environment(\.dismiss) private var dismiss
 
+    var body: some View {
+        NavigationStack {
+            PresenceTimelineList()
+                .navigationTitle(Strings.timelineTitle(year: session.selectedYear))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(Strings.timelineDone) { dismiss() }
+                    }
+                }
+        }
+    }
+}
+
+/// The stint list shared by `PresenceTimelineView` and the calendar drill-in.
+/// When `scrollToMonth` is set, scrolls to the first stint overlapping that
+/// month on appear.
+struct PresenceTimelineList: View {
+    @Environment(WhereSession.self) private var session
+
+    var scrollToMonth: Date?
+
     private var stints: [RegionStint] {
         guard let report = session.report else { return [] }
         return PresenceTimeline.stints(from: report)
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if stints.isEmpty {
-                    ContentUnavailableView {
-                        Label(Strings.timelineEmptyTitle, systemImage: "calendar.day.timeline.left")
-                    } description: {
-                        Text(Strings.timelineEmptyDescription)
-                    }
-                } else {
-                    List(stints) { stint in
-                        StintRow(stint: stint)
-                    }
+        if stints.isEmpty {
+            ContentUnavailableView {
+                Label(Strings.timelineEmptyTitle, systemImage: "calendar.day.timeline.left")
+            } description: {
+                Text(Strings.timelineEmptyDescription)
+            }
+        } else {
+            ScrollViewReader { proxy in
+                List(stints) { stint in
+                    StintRow(stint: stint)
+                }
+                .onAppear {
+                    scrollToTargetMonth(proxy)
                 }
             }
-            .navigationTitle(Strings.timelineTitle(year: session.selectedYear))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(Strings.timelineDone) { dismiss() }
-                }
-            }
+        }
+    }
+
+    private func scrollToTargetMonth(_ proxy: ScrollViewProxy) {
+        guard let startOfMonth = scrollToMonth else { return }
+        let calendar = Calendar.current
+        guard let nextMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)
+        else { return }
+        guard let target = stints.first(where: { $0.end >= startOfMonth && $0.start < nextMonth })
+        else { return }
+        DispatchQueue.main.async {
+            proxy.scrollTo(target.id, anchor: .top)
         }
     }
 }

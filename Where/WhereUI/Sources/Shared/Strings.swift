@@ -1,4 +1,5 @@
 import Foundation
+import WhereCore
 
 /// Localized, catalog-backed strings for WhereUI.
 ///
@@ -710,6 +711,56 @@ enum Strings {
         String(
             localized: "manual.range.footer",
             defaultValue: "Backfilling \(count) days.",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Calendar
+
+    static var primaryCalendar: String {
+        String(localized: "primary.calendar", defaultValue: "Calendar", bundle: .module)
+    }
+
+    static func calendarTitle(year: Int) -> String {
+        String(
+            localized: "calendar.title",
+            defaultValue: "Calendar · \(yearText(year))",
+            bundle: .module,
+        )
+    }
+
+    static var calendarUnavailableDescription: String {
+        String(
+            localized: "calendar.unavailable.description",
+            defaultValue: "Your year data isn't available right now.",
+            bundle: .module,
+        )
+    }
+
+    static func calendarDayAccessibility(
+        date: Date,
+        regions: [Region],
+        needsAttention: Bool,
+    ) -> String {
+        let day = date.formatted(.dateTime.weekday(.wide).month(.wide).day())
+        if needsAttention {
+            return String(
+                localized: "calendar.day.needsAttention.accessibility",
+                defaultValue: "\(day), needs a location",
+                bundle: .module,
+            )
+        }
+        if regions.isEmpty {
+            return String(
+                localized: "calendar.day.empty.accessibility",
+                defaultValue: "\(day), nothing logged",
+                bundle: .module,
+            )
+        }
+        let names = regions.map(\.localizedName).joined(separator: ", ")
+        return String(
+            localized: "calendar.day.accessibility",
+            defaultValue: "\(day), \(names)",
             bundle: .module,
         )
     }
