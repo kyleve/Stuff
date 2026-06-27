@@ -32,8 +32,7 @@ struct PresenceTimelineView: View {
                     }
                 }
             }
-            .navigationTitle(LocalizedStrings.Timeline.title(year: session.selectedYear)
-                .localized)
+            .navigationTitle(LocalizedStrings.Timeline.title(year: session.selectedYear))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -88,7 +87,7 @@ private struct StintRow: View {
                 region: stint.region.localizedName,
                 range: dateRange,
                 days: stint.dayCount,
-            ).localized,
+            ),
         )
     }
 

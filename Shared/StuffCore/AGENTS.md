@@ -9,11 +9,11 @@ Complements root [`AGENTS.md`](../../AGENTS.md). Tests: `StuffCoreTests` in
 ## Key types
 
 - [`LocalizedString`](Sources/LocalizedString.swift) — a **deferred** localized
-  string. Wraps a `(LocalizationConfig?) -> String` builder; `.localized(_:)`
-  runs it. Producers return this instead of `String` so the catalog lookup (and
-  locale choice) happens at display time. Non-`Sendable` for now (the UI pilot
-  doesn't cross actor boundaries); mark the builder `@Sendable` and conform when
-  a `Sendable` consumer like `WhereCore` adopts it.
+  string. Wraps a `@Sendable (LocalizationConfig?) -> String` builder;
+  `.localized(_:)` runs it. Producers return this instead of `String` so the
+  catalog lookup (and locale choice) happens at display time. `Sendable`, so a
+  `LocalizedString` can be cached in a `static let` and cross isolation
+  boundaries (e.g. a widget timeline) — the producer enums rely on this.
 - [`LocalizationConfig`](Sources/LocalizedString.swift) — `Sendable, Hashable`
   value type carrying the `locale` to resolve against. `nil` means "process
   default" (`.current`).

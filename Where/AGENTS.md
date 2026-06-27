@@ -218,7 +218,7 @@ stay rigid — see root
 
 - A single `enum LocalizedStrings` with **nested enums** per MARK section
   (`LocalizedStrings.Tabs.primary`, `LocalizedStrings.Settings.title`, …).
-- Each member is a `static var` (parameter-less) or `static func` (parameterized)
+- Each member is a `static let` (parameter-less) or `static func` (parameterized)
   returning a [`LocalizedString`](../Shared/StuffCore/Sources/LocalizedString.swift)
   built with the
   [`.module(_:_:)`](WhereUI/Sources/Shared/LocalizedString+Module.swift) factory
@@ -226,7 +226,8 @@ stay rigid — see root
   locale plumbing. Both arguments must be **literals**: the key is a
   `StaticString` (also what lets `String(localized:)` resolve plurals), and the
   script (and Xcode extraction) read both statically, failing loudly on anything
-  dynamic.
+  dynamic. (`LocalizedString` is `Sendable`, so the parameter-less members are
+  cached `static let`s rather than recomputed `static var`s.)
 - Members that **compose** another string (interpolating a nested
   `.localized(config)`, e.g. `Common.regionDaysAccessibility`,
   `Timeline.rowAccessibility`) use the closure overload
@@ -240,11 +241,14 @@ stay rigid — see root
   owns plural `variations` and translations. The pre-commit hook runs
   `./localize --git-add` to reconcile the catalog from this file.
 
-At call sites, prefer [`Text.localized(_:)`](WhereUI/Sources/Shared/Text+Localized.swift)
-for SwiftUI `Text`, and `.localized` everywhere a plain `String` is needed
-(`Button`, `Label`, `.navigationTitle`, accessibility, etc.). Both run through
-`LocalizedString.localized(_:)`, the single seam a future Environment-driven
-locale override will hook into.
+At call sites, pass the `LocalizedString` directly into the helpers that take
+one — [`Text.localized(_:)`](WhereUI/Sources/Shared/Text+Localized.swift) for
+SwiftUI `Text`, and the `View` overloads of `navigationTitle`,
+`accessibilityLabel`, and `accessibilityHint`
+([`View+Localized.swift`](WhereUI/Sources/Shared/View+Localized.swift)). Anywhere
+else a plain `String` is needed (`Button`, `Label`, `accessibilityValue`, …),
+call `.localized`. All of these run through `LocalizedString.localized(_:)`, the
+single seam a future Environment-driven locale override will hook into.
 
 ## Adding things
 

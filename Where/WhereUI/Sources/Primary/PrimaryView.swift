@@ -261,8 +261,8 @@ private struct MissingDaysBanner: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("where_missing_days_banner")
-        .accessibilityLabel(LocalizedStrings.MissingBanner.compact(count: count).localized)
-        .accessibilityHint(LocalizedStrings.MissingBanner.accessibilityHint.localized)
+        .accessibilityLabel(LocalizedStrings.MissingBanner.compact(count: count))
+        .accessibilityHint(LocalizedStrings.MissingBanner.accessibilityHint)
     }
 }
 

@@ -26,13 +26,17 @@ public struct LocalizationConfig: Sendable, Hashable {
 /// Deferring resolution is what lets a call site override the locale (via
 /// ``LocalizationConfig``) at the moment of display rather than at the moment
 /// the string is referenced.
-public struct LocalizedString {
-    private let build: (LocalizationConfig?) -> String
+public struct LocalizedString: Sendable {
+    private let build: @Sendable (LocalizationConfig?) -> String
 
     /// Wrap a builder that resolves the string, optionally honoring an override
     /// config. The builder should perform a `String(localized:)` lookup against
     /// the owning module's catalog (`bundle: .module`).
-    public init(_ build: @escaping (LocalizationConfig?) -> String) {
+    ///
+    /// The builder is `@Sendable` so a `LocalizedString` can be cached in a
+    /// `static let` and handed across isolation boundaries (e.g. a widget
+    /// timeline) without tripping Swift's concurrency checks.
+    public init(_ build: @Sendable @escaping (LocalizationConfig?) -> String) {
         self.build = build
     }
 

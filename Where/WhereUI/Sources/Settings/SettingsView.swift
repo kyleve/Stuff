@@ -49,7 +49,7 @@ struct SettingsView: View {
                     developerSection
                 #endif
             }
-            .navigationTitle(LocalizedStrings.Settings.title.localized)
+            .navigationTitle(LocalizedStrings.Settings.title)
             .sheet(isPresented: $showAppIcon) {
                 AppIconView()
             }

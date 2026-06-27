@@ -4,10 +4,12 @@ Foundation-only SPM library for code shared across Stuff apps. It currently
 hosts the localization primitives every module builds its strings on:
 
 - **`LocalizedString`** — a user-facing string that hasn't been localized yet.
-  It wraps a builder closure (`(LocalizationConfig?) -> String`) and resolves
-  lazily when you call `.localized(_:)`. Per-module `LocalizedStrings` enums
-  return these instead of `String`, deferring the catalog lookup to the point
-  of display so a call site can override the locale.
+  It wraps a `@Sendable` builder closure (`(LocalizationConfig?) -> String`) and
+  resolves lazily when you call `.localized(_:)`. Per-module `LocalizedStrings`
+  enums return these instead of `String`, deferring the catalog lookup to the
+  point of display so a call site can override the locale. It's `Sendable`, so
+  producers can cache each string in a `static let` and pass it across isolation
+  boundaries.
 - **`LocalizationConfig`** — a small value type (today just a `Locale`) passed
   to `.localized(config)` to render against a locale other than the process
   default.

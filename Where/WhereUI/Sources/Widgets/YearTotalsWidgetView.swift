@@ -64,7 +64,7 @@ public struct YearTotalsWidgetView: View {
                     LocalizedStrings.Common.regionDaysAccessibility(
                         region: entry.region.localizedName,
                         days: entry.days,
-                    ).localized,
+                    ),
                 )
             }
         }

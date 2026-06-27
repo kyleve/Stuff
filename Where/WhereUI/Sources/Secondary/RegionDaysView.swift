@@ -77,7 +77,7 @@ struct RegionDaysView: View {
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
         .frame(height: UIConstants.Size.regionMapHeight)
-        .accessibilityLabel(LocalizedStrings.Secondary.Region.mapAccessibility.localized)
+        .accessibilityLabel(LocalizedStrings.Secondary.Region.mapAccessibility)
     }
 
     private var dayList: some View {

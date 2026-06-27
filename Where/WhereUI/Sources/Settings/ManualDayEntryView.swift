@@ -86,7 +86,7 @@ struct ManualDayEntryView: View {
                 Text.localized(LocalizedStrings.ManualEntry.regionsFooter)
             }
         }
-        .navigationTitle(LocalizedStrings.ManualEntry.title.localized)
+        .navigationTitle(LocalizedStrings.ManualEntry.title)
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: startDate) { _, newValue in
             if endDate < newValue { endDate = newValue }

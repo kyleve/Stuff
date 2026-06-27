@@ -15,7 +15,7 @@ struct SecondaryView: View {
     var body: some View {
         NavigationStack {
             screen
-                .navigationTitle(LocalizedStrings.Secondary.title.localized)
+                .navigationTitle(LocalizedStrings.Secondary.title)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         YearSelector()

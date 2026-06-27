@@ -34,7 +34,7 @@ extension LocalizedString {
     /// into a nested `.localized($0)`.
     static func module(
         _ key: StaticString,
-        _ defaultValue: @escaping (LocalizationConfig?) -> String.LocalizationValue,
+        _ defaultValue: @Sendable @escaping (LocalizationConfig?) -> String.LocalizationValue,
     ) -> LocalizedString {
         LocalizedString {
             String(

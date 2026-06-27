@@ -247,7 +247,7 @@ struct RegionSummaryCard: View {
             LocalizedStrings.Common.regionDaysAccessibility(
                 region: regionDays.region.localizedName,
                 days: regionDays.days,
-            ).localized,
+            ),
         )
     }
 }

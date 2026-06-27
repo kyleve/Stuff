@@ -38,7 +38,7 @@ struct AppIconView: View {
                             .transition(.move(edge: .bottom))
                     }
                 }
-                .navigationTitle(LocalizedStrings.AppIcon.title.localized)
+                .navigationTitle(LocalizedStrings.AppIcon.title)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -125,7 +125,7 @@ struct AppIconView: View {
             .transition(.opacity)
             .onTapGesture { dismissPreview() }
             .accessibilityAddTraits(.isButton)
-            .accessibilityLabel(LocalizedStrings.Common.done.localized)
+            .accessibilityLabel(LocalizedStrings.Common.done)
             .accessibilityAction { dismissPreview() }
     }
 
@@ -146,7 +146,7 @@ struct AppIconView: View {
             .accessibilityValue(previewMode == .dark
                 ? LocalizedStrings.AppIcon.appearanceDark.localized
                 : LocalizedStrings.AppIcon.appearanceLight.localized)
-            .accessibilityHint(LocalizedStrings.AppIcon.appearanceHint.localized)
+            .accessibilityHint(LocalizedStrings.AppIcon.appearanceHint)
 
             VStack(spacing: UIConstants.Spacings.xSmall) {
                 Text(option.displayName)

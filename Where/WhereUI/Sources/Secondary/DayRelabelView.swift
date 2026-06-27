@@ -52,7 +52,7 @@ struct DayRelabelView: View {
                 Text.localized(LocalizedStrings.Relabel.resetFooter)
             }
         }
-        .navigationTitle(LocalizedStrings.Relabel.title.localized)
+        .navigationTitle(LocalizedStrings.Relabel.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {

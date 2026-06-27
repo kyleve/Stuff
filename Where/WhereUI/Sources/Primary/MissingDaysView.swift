@@ -13,7 +13,7 @@ struct MissingDaysView: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle(LocalizedStrings.MissingDays.title.localized)
+                .navigationTitle(LocalizedStrings.MissingDays.title)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
