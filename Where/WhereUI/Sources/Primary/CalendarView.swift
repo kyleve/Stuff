@@ -9,8 +9,16 @@ struct CalendarView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var timelineTarget: TimelineMonthTarget?
+    @State private var monthsLoad: Result<[CalendarMonth], Error>?
 
     private static let logger = WhereLog.channel(.session)
+
+    /// Inputs that invalidate a cached month grid.
+    private struct CalendarLoadID: Equatable {
+        let report: YearReport
+        let missingDayKeys: Set<Date>
+        let referenceDay: Date
+    }
 
     private struct TimelineMonthTarget: Hashable, Identifiable {
         let startOfMonth: Date
@@ -23,11 +31,20 @@ struct CalendarView: View {
         NavigationStack {
             Group {
                 if let report = session.report {
-                    switch loadCalendarMonths(from: report) {
-                        case let .success(months):
-                            calendarContent(months: months)
-                        case let .failure(error):
-                            calendarLayoutError(error)
+                    Group {
+                        switch monthsLoad {
+                            case let .success(months):
+                                calendarContent(months: months)
+                            case let .failure(error):
+                                calendarLayoutError(error)
+                            case nil:
+                                ProgressView(Strings.primaryLoading)
+                        }
+                    }
+                    .task(id: calendarLoadID(report: report)) {
+                        let result = loadCalendarMonths(from: report)
+                        guard !Task.isCancelled else { return }
+                        monthsLoad = result
                     }
                 } else if session.loadState == .loading {
                     ProgressView(Strings.primaryLoading)
@@ -63,6 +80,14 @@ struct CalendarView: View {
                     .navigationBarTitleDisplayMode(.inline)
             }
         }
+    }
+
+    private func calendarLoadID(report: YearReport) -> CalendarLoadID {
+        CalendarLoadID(
+            report: report,
+            missingDayKeys: session.missingDayKeys,
+            referenceDay: session.calendar.startOfDay(for: session.referenceDate),
+        )
     }
 
     private func loadCalendarMonths(from report: YearReport) -> Result<[CalendarMonth], Error> {
