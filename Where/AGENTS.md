@@ -282,11 +282,18 @@ with the same `.module` / `./localize` convention and a sibling
 call sites are unchanged. WhereCore has no dot-syntax helpers; strings resolve
 immediately at the call site.
 
-### Follow-up
+### LifecycleKit
 
-[`WhereWidgets/Sources/WidgetStrings.swift`](WhereWidgets/Sources/WidgetStrings.swift)
-still uses raw `String(localized:)` for widget gallery names — migrate when the
-extension adopts `LocalizedStrings`.
+Launch failure UI copy lives in
+[`Shared/LifecycleKit/Sources/LocalizedStrings.swift`](../Shared/LifecycleKit/Sources/LocalizedStrings.swift)
+with the same `.module` / `./localize` convention.
+
+### WhereWidgets
+
+Widget gallery name/description strings live in
+[`WhereWidgets/Sources/LocalizedStrings.swift`](WhereWidgets/Sources/LocalizedStrings.swift)
+with the same `.module` / `./localize` convention. Runtime widget content stays
+in WhereUI.
 
 ## Adding things
 

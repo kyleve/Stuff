@@ -13,8 +13,8 @@ struct YearTotalsWidget: Widget {
         StaticConfiguration(kind: Self.kind, provider: WhereWidgetProvider()) { entry in
             YearTotalsWidgetContent(entry: entry)
         }
-        .configurationDisplayName(WidgetStrings.yearTotalsGalleryName)
-        .description(WidgetStrings.yearTotalsGalleryDescription)
+        .configurationDisplayName(LocalizedStrings.Gallery.yearTotalsName.localized)
+        .description(LocalizedStrings.Gallery.yearTotalsDescription.localized)
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
     }
 }

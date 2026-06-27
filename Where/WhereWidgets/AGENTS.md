@@ -12,7 +12,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 - **Tuist app-extension target** ([`Project.swift`](../../Project.swift),
   `Where/WhereWidgets/Sources`, bundle ID `com.stuff.where.widgets`).
-- Depends on **WhereCore** (snapshot types + App Group store),
+- Depends on **LocalizationKit**, **WhereCore** (snapshot types + App Group store),
   **WhereUI** (widget views + in-widget localized strings), and **LogKit**
   (via `WhereLog.channel(.whereWidgets)`).
 - Must **not** import SwiftData, open the user's store, or duplicate aggregation
@@ -34,8 +34,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   content views live in **WhereUI**.
 - [`WidgetSnapshotFixtures`](Sources/WidgetSnapshotFixtures.swift) – shared
   `DayAggregator().calendar` and snapshot builders for the provider + previews.
-- [`WidgetStrings`](Sources/WidgetStrings.swift) – gallery name/description from
-  this extension's `Localizable.xcstrings` (`bundle: .module`).
+- [`LocalizedStrings`](Sources/LocalizedStrings.swift) – gallery name/description
+  from this extension's `Localizable.xcstrings` via `.module(_:_:)`.
 
 ## Behaviors to preserve
 
@@ -63,8 +63,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 - Follow root rules: exhaustive enum switches, small named structs, no closure
   `Binding(get:set:)`.
-- In-widget strings come from **WhereUI** (`Strings.*`); gallery strings from
-  **this extension's catalog** (`WidgetStrings`).
+- In-widget strings come from **WhereUI** (`LocalizedStrings`); gallery strings from
+  **this extension's catalog** (`LocalizedStrings.Gallery.*`).
 - Every widget ships `#Preview` timelines (DEBUG, bottom of file).
 
 ## Testing gaps (documented)

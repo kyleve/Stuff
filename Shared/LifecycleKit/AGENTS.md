@@ -12,10 +12,10 @@ system, formatting, and global conventions. Read that first.
 
 ## Scope & dependencies
 
-- Pure **SwiftUI + Foundation + Observation**. It must **not** import WhereCore,
-  UIKit, or any app code — it's a generic library that the Where app (and any
-  future app) adopts. Keep it that way: app-specific launch logic lives in the
-  consumer (e.g. `WhereUI/Sources/Launch/`), not here.
+- Pure **SwiftUI + Foundation + Observation + LocalizationKit**. It must **not**
+  import WhereCore, UIKit, or any app code — it's a generic library that the
+  Where app (and any future app) adopts. Keep it that way: app-specific launch
+  logic lives in the consumer (e.g. `WhereUI/Sources/Launch/`), not here.
 - Library target only ([`Package.swift`](../../Package.swift),
   `Shared/LifecycleKit/Sources`); the hosted test bundle `LifecycleKitTests`
   is wired in [`Project.swift`](../../Project.swift) via the `unitTests` helper
@@ -90,6 +90,9 @@ itself.
   destination (`content`, e.g. the app's `TabView`) is **not** a step — it's
   terminal and shown only at `.ready`.
 - [`LifecycleSplash`](Sources/LifecycleSplash.swift) – the default placeholder.
+- [`LocalizedStrings`](Sources/LocalizedStrings.swift) – launch failure UI
+  copy (`failure.launch.*`), reconciled via `./localize` against
+  [`Resources/Localizable.xcstrings`](Sources/Resources/Localizable.xcstrings).
 
 ## Two invariants to preserve
 

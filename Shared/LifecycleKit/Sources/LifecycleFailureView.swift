@@ -1,3 +1,4 @@
+import LocalizationKit
 import SwiftUI
 
 /// The UI shown when a launch step throws. Describes the failure and offers a
@@ -14,13 +15,13 @@ public struct LifecycleFailureView: View {
     public var body: some View {
         ContentUnavailableView {
             Label(
-                String(localized: "failure.launch.title", bundle: .module),
+                LocalizedStrings.Failure.launchTitle.localized,
                 systemImage: "exclamationmark.triangle",
             )
         } description: {
             Text(failure.error.localizedDescription)
         } actions: {
-            Button(String(localized: "failure.launch.retry", bundle: .module), action: retry)
+            Button(LocalizedStrings.Failure.launchRetry.localized, action: retry)
                 .buttonStyle(.borderedProminent)
         }
     }

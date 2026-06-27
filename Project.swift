@@ -119,9 +119,10 @@ let project = Project(
                 ]),
             ]),
             sources: ["Where/WhereWidgets/Sources/**"],
-            resources: ["Where/WhereWidgets/Resources/**"],
+            resources: ["Where/WhereWidgets/Sources/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
+                .package(product: "LocalizationKit"),
                 .package(product: "LogKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),

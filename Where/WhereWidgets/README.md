@@ -34,16 +34,16 @@ app never wakes.
 ## Localization
 
 - **In-widget copy** — resolved from [`WhereUI`](../WhereUI/)'s
-  `Localizable.xcstrings` (`Strings.widgetTodayTitle`, etc.).
+  `Localizable.xcstrings` (`LocalizedStrings.Widget.*`, etc.).
 - **Widget gallery name/description** — resolved from this extension's
-  [`Resources/Localizable.xcstrings`](Resources/Localizable.xcstrings) via
-  `WidgetStrings` (`bundle: .module`).
+  [`Sources/Resources/Localizable.xcstrings`](Sources/Resources/Localizable.xcstrings)
+  via [`LocalizedStrings.swift`](Sources/LocalizedStrings.swift).
 
 ## Installation
 
 `WhereWidgets` is a Tuist app-extension target in
 [`Project.swift`](../../Project.swift) (bundle ID `com.stuff.where.widgets`).
-It depends on **WhereCore**, **WhereUI**, and **LogKit**. The main **Where**
+It depends on **LocalizationKit**, **WhereCore**, **WhereUI**, and **LogKit**. The main **Where**
 app embeds the extension and shares the App Group entitlement.
 
 ## Previews

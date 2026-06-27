@@ -32,6 +32,9 @@ let package = Package(
         ),
         .target(
             name: "LifecycleKit",
+            dependencies: [
+                .target(name: "LocalizationKit"),
+            ],
             path: "Shared/LifecycleKit/Sources",
             resources: [
                 .process("Resources"),

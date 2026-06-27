@@ -13,8 +13,8 @@ struct TodayWidget: Widget {
         StaticConfiguration(kind: Self.kind, provider: WhereWidgetProvider()) { entry in
             TodayWidgetContent(entry: entry)
         }
-        .configurationDisplayName(WidgetStrings.todayGalleryName)
-        .description(WidgetStrings.todayGalleryDescription)
+        .configurationDisplayName(LocalizedStrings.Gallery.todayName.localized)
+        .description(LocalizedStrings.Gallery.todayDescription.localized)
         .supportedFamilies([.systemSmall, .accessoryInline, .accessoryCircular])
     }
 }

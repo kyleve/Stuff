@@ -71,12 +71,10 @@ so the two can't drift:
 ```
 
 The pre-commit hook runs `./localize --git-add` and the CI `format` job runs
-`./localize --lint`. **WhereUI** and **WhereCore** each have a
-`LocalizedStrings.swift`; the script auto-discovers every such file. The
-**WhereWidgets** app extension still uses raw `String(localized:)` in
-[`WidgetStrings.swift`](Where/WhereWidgets/Sources/WidgetStrings.swift) — a
-follow-up to migrate. No Tuist/Xcode build is involved, so it runs in the hook
-and on Linux CI.
+`./localize --lint`. **WhereUI**, **WhereCore**, **LifecycleKit**, and
+**WhereWidgets** each have a `LocalizedStrings.swift`; the script auto-discovers
+every such file. No Tuist/Xcode build is involved, so it runs in the hook and
+on Linux CI.
 
 ## Formatting
 
