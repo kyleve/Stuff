@@ -25,8 +25,7 @@ struct YearSelector: View {
                 }
             }
         } label: {
-            Label { Text(yearText(session.selectedYear)) } icon: { Image(systemName: "calendar")
-            }
+            Text(yearText(session.selectedYear))
         }
         .accessibilityIdentifier("where_year_selector")
     }

@@ -39,7 +39,12 @@ struct StringsTests {
 
     @Test func yearsAreFormattedWithoutGroupingSeparator() {
         #expect(Strings.timelineTitle(year: 2026) == "Timeline · 2026")
+        #expect(Strings.calendarTitle(year: 2026) == "Calendar · 2026")
         #expect(Strings.settingsDataErase(year: 2026) == "Erase 2026 data")
+    }
+
+    @Test func calendarStringsResolveToCatalogValues() {
+        #expect(Strings.primaryCalendar == "Calendar")
     }
 
     @Test func interpolatedStringsSubstituteArguments() {
