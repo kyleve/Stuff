@@ -2,6 +2,11 @@ import Foundation
 
 public enum PresenceCalendarError: Error, Equatable {
     case missingWeekdayRange
+    case missingYearStart(year: Int)
+    case missingMonthRange(year: Int)
+    case missingMonthStart(year: Int, month: Int)
+    case missingDayRange(year: Int, month: Int)
+    case missingDayDate(year: Int, month: Int, day: Int)
 }
 
 /// One cell in a month grid: a real calendar day plus the regions present that
@@ -93,9 +98,13 @@ public enum PresenceCalendar {
                 year: report.year,
                 month: 1,
                 day: 1,
-            )),
-            let monthRange = calendar.range(of: .month, in: .year, for: yearStart)
-        else { return [] }
+            ))
+        else {
+            throw PresenceCalendarError.missingYearStart(year: report.year)
+        }
+        guard let monthRange = calendar.range(of: .month, in: .year, for: yearStart) else {
+            throw PresenceCalendarError.missingMonthRange(year: report.year)
+        }
 
         let normalizedMissing = Set(missingDates.map { calendar.startOfDay(for: $0) })
         let referenceStartOfDay = calendar.startOfDay(for: referenceDate)
@@ -120,9 +129,16 @@ public enum PresenceCalendar {
         referenceDate: Date,
         missingDates: Set<Date> = [],
     ) throws -> CalendarMonth {
-        let firstOfMonth = calendar.date(from: DateComponents(year: year, month: month, day: 1))!
+        guard
+            let firstOfMonth = calendar.date(from: DateComponents(year: year, month: month, day: 1))
+        else {
+            throw PresenceCalendarError.missingMonthStart(year: year, month: month)
+        }
         let startOfMonth = calendar.startOfDay(for: firstOfMonth)
-        let numberOfDays = calendar.range(of: .day, in: .month, for: firstOfMonth)!.count
+        guard let dayRange = calendar.range(of: .day, in: .month, for: firstOfMonth) else {
+            throw PresenceCalendarError.missingDayRange(year: year, month: month)
+        }
+        let numberOfDays = dayRange.count
         let weekday = calendar.component(.weekday, from: firstOfMonth)
         let weekdayCount = try Self.weekdayCount(in: calendar)
         let leadingBlankCount = (weekday - calendar.firstWeekday + weekdayCount) % weekdayCount
@@ -133,24 +149,34 @@ public enum PresenceCalendar {
             toGranularity: .month,
         )
 
-        let days = (1 ... numberOfDays).map { dayOfMonth in
-            let date = calendar.date(
-                byAdding: .day,
-                value: dayOfMonth - 1,
-                to: startOfMonth,
-            )!
+        var days: [CalendarDayCell] = []
+        days.reserveCapacity(numberOfDays)
+        for dayOfMonth in 1 ... numberOfDays {
+            guard
+                let date = calendar.date(
+                    byAdding: .day,
+                    value: dayOfMonth - 1,
+                    to: startOfMonth,
+                )
+            else {
+                throw PresenceCalendarError.missingDayDate(
+                    year: year,
+                    month: month,
+                    day: dayOfMonth,
+                )
+            }
             let regions: [Region] = if let dayRegions = regionsByDay[date] {
                 Region.allCases.filter { dayRegions.contains($0) }
             } else {
                 []
             }
-            return CalendarDayCell(
+            days.append(CalendarDayCell(
                 date: date,
                 dayOfMonth: dayOfMonth,
                 regions: regions,
                 isToday: calendar.isDate(date, inSameDayAs: referenceDate),
                 needsAttention: missingDates.contains(date),
-            )
+            ))
         }
 
         return CalendarMonth(
