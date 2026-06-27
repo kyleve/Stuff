@@ -8,7 +8,7 @@
 | SwiftFormat | 0.60.1   | `.mise.toml` |
 | Swift PM    | 6.2      | `Package.swift` (`swift-tools-version`) |
 
-**Libraries** (**StuffCore**, **LifecycleKit**, **LogKit**, **LogViewerUI**, **WhereCore**, **WhereUI**, **WhereTesting**) are defined in the root [`Package.swift`](Package.swift) — local package for libraries, Tuist for apps and test bundles.
+**Libraries** (**StuffCore**, **LocalizationKit**, **LifecycleKit**, **LogKit**, **LogViewerUI**, **WhereCore**, **WhereUI**, **WhereTesting**) are defined in the root [`Package.swift`](Package.swift) — local package for libraries, Tuist for apps and test bundles.
 
 Tuist manifests live at the repo root ([`Project.swift`](Project.swift), [`Tuist.swift`](Tuist.swift)). `Project.swift` references `Package.local(path: .relativeToRoot("."))` and declares the **Where** app, **StuffTestHost**, and unit-test targets that depend on package products.
 
@@ -49,12 +49,14 @@ macOS-only. The primary "Classic" icon is reserved.
 
 ### Keeping localization in sync
 
-Swift is the single source of truth for user-facing strings. Each UI module
-declares every key and its English default in a `LocalizedStrings.swift` (each
-member is a literal `.module("<key>", "<value>")` factory call — the key a
-`StaticString` — that bakes in `bundle: .module` and the locale), and
-`./localize` (a build-free Ruby script, like `sync-agents`) reconciles the
-sibling `Resources/Localizable.xcstrings` so the two can't drift:
+Swift is the single source of truth for user-facing strings. Framework types
+live in [`LocalizationKit`](Shared/LocalizationKit/) (`LocalizedString`,
+`LocalizationConfig`, `LocalizedString.catalog(_:_:bundle:)`, and the SwiftUI
+helpers). Each module that ships a catalog declares keys in its own
+`LocalizedStrings.swift` via a thin `.module(_:_:)` wrapper (delegating to
+`.catalog(..., bundle: .module)`), and `./localize` (a build-free Ruby script,
+like `sync-agents`) reconciles the sibling `Resources/Localizable.xcstrings`
+so the two can't drift:
 
 - **add** keys present in Swift but missing from the catalog,
 - **prune** catalog keys no longer referenced in Swift,
@@ -69,9 +71,12 @@ sibling `Resources/Localizable.xcstrings` so the two can't drift:
 ```
 
 The pre-commit hook runs `./localize --git-add` and the CI `format` job runs
-`./localize --lint`. Currently piloted in **WhereUI**; other modules adopt the
-`LocalizedStrings` convention to opt in. No Tuist/Xcode build is involved, so
-it runs in the hook and on Linux CI.
+`./localize --lint`. **WhereUI** and **WhereCore** each have a
+`LocalizedStrings.swift`; the script auto-discovers every such file. The
+**WhereWidgets** app extension still uses raw `String(localized:)` in
+[`WidgetStrings.swift`](Where/WhereWidgets/Sources/WidgetStrings.swift) — a
+follow-up to migrate. No Tuist/Xcode build is involved, so it runs in the hook
+and on Linux CI.
 
 ## Formatting
 
@@ -98,8 +103,8 @@ by `./sync-agents`.
 
 ## Targets
 
-- **Package products** ([`Package.swift`](Package.swift)) — **StuffCore** ([`Shared/StuffCore/Sources/`](Shared/StuffCore/Sources/)), **LifecycleKit** ([`Shared/LifecycleKit/Sources/`](Shared/LifecycleKit/Sources/)), **LogKit** ([`Shared/LogKit/Sources/`](Shared/LogKit/Sources/), the logging facade), **LogViewerUI** ([`Shared/LogViewerUI/Sources/`](Shared/LogViewerUI/Sources/), the generic SwiftUI log viewer), and **SwiftDataInspector** ([`Shared/SwiftDataInspector/Sources/`](Shared/SwiftDataInspector/Sources/), the generic SwiftData browser) under [`Shared/`](Shared/); **WhereCore** / **WhereUI** / **WhereTesting** under [`Where/`](Where/).
-- **Tuist targets** ([`Project.swift`](Project.swift)) — **Where** app ([`Where/Where/`](Where/Where/)), **StuffTestHost** ([`Shared/StuffTestHost/`](Shared/StuffTestHost/)), **WhereTests** (app tests, no host), and hosted **\*Tests** bundles (**StuffCoreTests**, **LifecycleKitTests**, **LogKitTests**, **LogViewerUITests**, **SwiftDataInspectorTests**, **WhereCoreTests**, **WhereUITests**) that depend on **StuffTestHost** + **WhereTesting** + the relevant package product.
+- **Package products** ([`Package.swift`](Package.swift)) — **StuffCore** ([`Shared/StuffCore/Sources/`](Shared/StuffCore/Sources/), Foundation-only placeholder), **LocalizationKit** ([`Shared/LocalizationKit/Sources/`](Shared/LocalizationKit/Sources/), deferred localization framework + SwiftUI helpers), **LifecycleKit** ([`Shared/LifecycleKit/Sources/`](Shared/LifecycleKit/Sources/)), **LogKit** ([`Shared/LogKit/Sources/`](Shared/LogKit/Sources/), the logging facade), **LogViewerUI** ([`Shared/LogViewerUI/Sources/`](Shared/LogViewerUI/Sources/), the generic SwiftUI log viewer), and **SwiftDataInspector** ([`Shared/SwiftDataInspector/Sources/`](Shared/SwiftDataInspector/Sources/), the generic SwiftData browser) under [`Shared/`](Shared/); **WhereCore** / **WhereUI** / **WhereTesting** under [`Where/`](Where/).
+- **Tuist targets** ([`Project.swift`](Project.swift)) — **Where** app ([`Where/Where/`](Where/Where/)), **StuffTestHost** ([`Shared/StuffTestHost/`](Shared/StuffTestHost/)), **WhereTests** (app tests, no host), and hosted **\*Tests** bundles (**StuffCoreTests**, **LocalizationKitTests**, **LifecycleKitTests**, **LogKitTests**, **LogViewerUITests**, **SwiftDataInspectorTests**, **WhereCoreTests**, **WhereUITests**) that depend on **StuffTestHost** + **WhereTesting** + the relevant package product.
 - Add SPM library targets in `Package.swift` and wire apps/tests in `Project.swift` (see existing `unitTests` helper). A new module also ships a root `README.md` and `AGENTS.md` — see [Per-module docs](#per-module-docs).
 
 ## Deployment

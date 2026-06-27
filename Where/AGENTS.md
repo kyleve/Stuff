@@ -208,7 +208,18 @@ states.
   any distinct edge state (e.g. missing-days, elsewhere-only) each deserve a
   preview when the view renders them differently.
 
-## Localized strings (`WhereUI`)
+## Localized strings (`WhereUI` + `WhereCore`)
+
+Framework types live in [`LocalizationKit`](../Shared/LocalizationKit/) —
+`LocalizedString`, `LocalizationConfig`, the generic
+[`LocalizedString.catalog(_:_:bundle:)`](../Shared/LocalizationKit/Sources/LocalizedString+Catalog.swift)
+factory, and the SwiftUI helpers
+([`Text(localized:)`](../Shared/LocalizationKit/Sources/Text+Localized.swift),
+[`View` overloads](../Shared/LocalizationKit/Sources/View+Localized.swift)).
+Each Where module keeps its own catalog and a thin `.module(_:_:)` wrapper that
+passes `bundle: .module`.
+
+### WhereUI
 
 Every user-facing string in `WhereUI` is funneled through
 [`LocalizedStrings`](WhereUI/Sources/Shared/LocalizedStrings.swift) — views hold
@@ -219,13 +230,13 @@ stay rigid — see root
 - A single `enum LocalizedStrings` with **nested enums** per MARK section
   (`LocalizedStrings.Tabs.primary`, `LocalizedStrings.Settings.title`, …).
 - Each member is a `static let` (parameter-less) or `static func` (parameterized)
-  returning a [`LocalizedString`](../Shared/StuffCore/Sources/LocalizedString.swift)
+  returning a [`LocalizedString`](../Shared/LocalizationKit/Sources/LocalizedString.swift)
   built with the
-  [`.module(_:_:)`](WhereUI/Sources/Shared/LocalizedString+Module.swift) factory
-  — `.module("<key>", "<en value>")` — which bakes in `bundle: .module` and the
-  locale plumbing. Both arguments must be **literals**: the key is a
-  `StaticString` (also what lets `String(localized:)` resolve plurals), and the
-  script (and Xcode extraction) read both statically, failing loudly on anything
+  [`.module(_:_:)`](WhereUI/Sources/Shared/LocalizedString+Module.swift) wrapper
+  — `.module("<key>", "<en value>")` — which delegates to
+  `.catalog(..., bundle: .module)`. Both arguments must be **literals**: the key
+  is a `StaticString` (also what lets `String(localized:)` resolve plurals), and
+  the script (and Xcode extraction) read both statically, failing loudly on anything
   dynamic. (`LocalizedString` is `Sendable`, so the parameter-less members are
   cached `static let`s rather than recomputed `static var`s.)
 - Members that **compose** another string (interpolating a nested
@@ -243,10 +254,10 @@ stay rigid — see root
 
 At call sites that take a `LocalizedString`, use **leading-dot syntax** rather
 than spelling out `LocalizedStrings.<Category>`:
-[`Text(localized: .primary.emptyDescription)`](WhereUI/Sources/Shared/Text+Localized.swift)
+[`Text(localized: .primary.emptyDescription)`](../Shared/LocalizationKit/Sources/Text+Localized.swift)
 and the `View` overloads `.navigationTitle(.settings.title)` /
 `.accessibilityLabel(.timeline.rowAccessibility(…))` /
-`.accessibilityHint(…)` ([`View+Localized.swift`](WhereUI/Sources/Shared/View+Localized.swift)).
+`.accessibilityHint(…)` ([`View+Localized.swift`](../Shared/LocalizationKit/Sources/View+Localized.swift)).
 The dot accessors live in
 [`LocalizedString+DotSyntax.swift`](WhereUI/Sources/Shared/LocalizedString+DotSyntax.swift):
 each is the metatype of a `LocalizedStrings` nested enum, so the chain resolves
@@ -259,6 +270,23 @@ plain `String` is needed (`Button`, `Label`, `accessibilityValue`, interpolation
 …), keep `LocalizedStrings.<Category>.<member>.localized`. Both paths run through
 `LocalizedString.localized(_:)`, the single seam a future Environment-driven
 locale override will hook into.
+
+### WhereCore
+
+Non-UI strings (region names, notification copy, backup errors) live in
+[`WhereCore/Sources/LocalizedStrings.swift`](WhereCore/Sources/LocalizedStrings.swift)
+with the same `.module` / `./localize` convention and a sibling
+[`Resources/Localizable.xcstrings`](WhereCore/Sources/Resources/Localizable.xcstrings).
+[`Region.localizedName`](WhereCore/Sources/Region.swift) resolves via
+`LocalizedStrings.Region.<case>.localized` — the property stays `String` so UI
+call sites are unchanged. WhereCore has no dot-syntax helpers; strings resolve
+immediately at the call site.
+
+### Follow-up
+
+[`WhereWidgets/Sources/WidgetStrings.swift`](WhereWidgets/Sources/WidgetStrings.swift)
+still uses raw `String(localized:)` for widget gallery names — migrate when the
+extension adopts `LocalizedStrings`.
 
 ## Adding things
 
