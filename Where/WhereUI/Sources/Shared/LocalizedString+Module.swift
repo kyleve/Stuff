@@ -13,9 +13,8 @@ extension LocalizedString {
     /// `variations`, and it keeps both Xcode's catalog extraction and the repo's
     /// `./localize` script able to read every key statically.
     ///
-    /// Members that compose other strings (interpolating a nested
-    /// `.localized(config)`) or branch on a count use the `LocalizedString { … }`
-    /// closure initializer directly instead.
+    /// Members that branch on a count pick between two `.module` keys; members
+    /// that compose another string use the closure overload below.
     static func module(
         _ key: StaticString,
         _ defaultValue: String.LocalizationValue,
@@ -24,6 +23,23 @@ extension LocalizedString {
             String(
                 localized: key,
                 defaultValue: defaultValue,
+                bundle: .module,
+                locale: $0?.locale ?? .current,
+            )
+        }
+    }
+
+    /// Same as ``module(_:_:)``, but the default value is built from the
+    /// resolution config so a composed string can thread the locale override
+    /// into a nested `.localized($0)`.
+    static func module(
+        _ key: StaticString,
+        _ defaultValue: @escaping (LocalizationConfig?) -> String.LocalizationValue,
+    ) -> LocalizedString {
+        LocalizedString {
+            String(
+                localized: key,
+                defaultValue: defaultValue($0),
                 bundle: .module,
                 locale: $0?.locale ?? .current,
             )

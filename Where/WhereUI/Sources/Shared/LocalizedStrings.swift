@@ -58,13 +58,8 @@ enum LocalizedStrings {
         }
 
         static func regionDaysAccessibility(region: String, days: Int) -> LocalizedString {
-            LocalizedString { config in
-                String(
-                    localized: "common.regionDays.accessibility",
-                    defaultValue: "\(region): \(dayCount(days).localized(config))",
-                    bundle: .module,
-                    locale: config?.locale ?? .current,
-                )
+            .module("common.regionDays.accessibility") {
+                "\(region): \(dayCount(days).localized($0))"
             }
         }
     }
@@ -733,13 +728,8 @@ enum LocalizedStrings {
         }
 
         static func rowAccessibility(region: String, range: String, days: Int) -> LocalizedString {
-            LocalizedString { config in
-                String(
-                    localized: "timeline.row.accessibility",
-                    defaultValue: "\(region), \(range), \(LocalizedStrings.Common.dayCount(days).localized(config))",
-                    bundle: .module,
-                    locale: config?.locale ?? .current,
-                )
+            .module("timeline.row.accessibility") {
+                "\(region), \(range), \(LocalizedStrings.Common.dayCount(days).localized($0))"
             }
         }
     }

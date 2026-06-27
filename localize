@@ -5,10 +5,11 @@
 #
 # Swift is the single source of truth for user-facing strings: each module's
 # `LocalizedStrings.swift` declares every key and its English default via a
-# literal `.module("<key>", "<value>")` factory call (or, for composed members,
-# a raw `String(localized: "<key>", defaultValue: "<value>", …)`). This script
-# extracts those calls and reconciles the sibling
-# `Resources/Localizable.xcstrings` catalog so the two can't drift:
+# literal `.module("<key>", "<value>")` factory call — or, for composed strings,
+# `.module("<key>") { "<value>" }`, and as a fallback the raw
+# `String(localized: "<key>", defaultValue: "<value>", …)`. This script extracts
+# those calls and reconciles the sibling `Resources/Localizable.xcstrings`
+# catalog so the two can't drift:
 #
 #   • ADD     keys present in Swift but missing from the catalog.
 #   • PRUNE   catalog keys no longer referenced in Swift (orphans).
@@ -78,10 +79,12 @@ class SwiftParser
   private
 
   # Yields [call_start_index, key, value_segments] for every key-defining call.
-  # Two forms are recognized, both with a literal key then a literal default:
-  #   • `.module("<key>", "<value>")`        — the LocalizedStrings factory.
-  #   • `String(localized: "<key>", defaultValue: "<value>", …)` — composed
-  #     members that drop to the raw initializer.
+  # Each has a literal key followed by a literal default value, in one of:
+  #   • `.module("<key>", "<value>")`            — the LocalizedStrings factory.
+  #   • `.module("<key>") { "<value>" }`         — its config-aware overload
+  #     (composed strings); the default is the first literal in the closure.
+  #   • `String(localized: "<key>", defaultValue: "<value>", …)` — the raw
+  #     initializer, still understood as a fallback.
   # value_segments is an array of [:text, "..."] / [:interp, "expr"].
   def scan_calls
     index = 0
@@ -94,7 +97,7 @@ class SwiftParser
       end
       key, cursor = read_string_literal(cursor)
       cursor = if module_form
-        expect_comma(cursor, call_start)
+        seek_module_default(cursor, call_start)
       else
         expect_label(cursor, "defaultValue:", call_start)
       end
@@ -107,15 +110,20 @@ class SwiftParser
     end
   end
 
-  # Advance past whitespace to a `,` (the separator between a `.module` key and
-  # its default value), returning the index just after it.
-  def expect_comma(cursor, call_start)
+  # After a `.module` key, advance to the opening quote of its default value:
+  # either `, "<value>"` (the value factory) or the first string literal in a
+  # `) { "<value>" … }` trailing closure (the config-aware factory).
+  def seek_module_default(cursor, call_start)
     cursor += 1 while @source[cursor] =~ /\s/
-    unless @source[cursor] == ","
-      raise "localize: expected ',' after .module key near:\n#{context(call_start)}"
+    case @source[cursor]
+    when ","
+      cursor += 1
+      cursor += 1 while @source[cursor] =~ /\s/
+    when ")"
+      cursor += 1 while @source[cursor] && @source[cursor] != '"'
+    else
+      raise "localize: expected ',' or a trailing closure after .module key near:\n#{context(call_start)}"
     end
-    cursor += 1
-    cursor += 1 while @source[cursor] =~ /\s/
     cursor
   end
 

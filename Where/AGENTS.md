@@ -229,10 +229,12 @@ stay rigid — see root
   dynamic.
 - Members that **compose** another string (interpolating a nested
   `.localized(config)`, e.g. `Common.regionDaysAccessibility`,
-  `Timeline.rowAccessibility`) or **branch on a count** (`Common.dayUnit`,
-  `MissingBanner.compact`) drop to the raw `LocalizedString { … }` closure with a
-  literal `String(localized: "<key>", defaultValue: …)`. The script parses that
-  form too.
+  `Timeline.rowAccessibility`) use the closure overload
+  `.module("<key>") { "… \(nested.localized($0)) …" }`, which threads the locale
+  override into the nested resolution. Members that **branch on a count**
+  (`Common.dayUnit`, `MissingBanner.compact`) pick between two `.module` keys.
+  The script reads the default literal out of the closure too — so every member
+  stays on `.module`.
 - Swift is the source of truth for keys + English defaults; the sibling
   [`Resources/Localizable.xcstrings`](WhereUI/Sources/Resources/Localizable.xcstrings)
   owns plural `variations` and translations. The pre-commit hook runs

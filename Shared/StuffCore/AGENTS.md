@@ -26,8 +26,8 @@ Complements root [`AGENTS.md`](../../AGENTS.md). Tests: `StuffCoreTests` in
   `Bundle.module` (see WhereUI's `LocalizedString+Module.swift`).
 - Per-module `LocalizedStrings.swift` enums are the canonical producers; the
   root `localize` script parses those literal `.module("<key>", "<value>")`
-  factory calls (and the raw `String(localized:defaultValue:…)` form used by
-  composed members) — see root
+  factory calls — and the closure overload `.module("<key>") { "<value>" }` used
+  by composed members — see root
   [`AGENTS.md`](../../AGENTS.md#keeping-localization-in-sync). Keep the key and
   default value as **string literals** (the key is a `StaticString`) — anything
   dynamic makes the script fail loudly rather than drift silently.
