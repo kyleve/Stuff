@@ -1,4 +1,4 @@
-import StuffCore
+import LocalizationKit
 import SwiftUI
 import Testing
 import WhereCore

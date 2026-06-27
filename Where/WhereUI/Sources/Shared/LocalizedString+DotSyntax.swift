@@ -1,4 +1,4 @@
-import StuffCore
+import LocalizationKit
 
 /// Leading-dot access to ``LocalizedStrings`` wherever a `LocalizedString` is
 /// expected (e.g. `Text(localized: .primary.emptyDescription)`,

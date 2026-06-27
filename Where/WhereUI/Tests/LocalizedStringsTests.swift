@@ -1,5 +1,5 @@
 import Foundation
-import StuffCore
+import LocalizationKit
 import Testing
 @testable import WhereUI
 

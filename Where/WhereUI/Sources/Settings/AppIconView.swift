@@ -1,4 +1,4 @@
-import StuffCore
+import LocalizationKit
 import SwiftUI
 
 /// The app-icon picker. A grid of options that flexes with the container width

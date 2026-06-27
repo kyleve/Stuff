@@ -222,7 +222,7 @@ let project = Project(
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
             extraPackageProducts: [
-                "StuffCore",
+                "LocalizationKit",
                 "LifecycleKit",
                 "LogViewerUI",
                 "SwiftDataInspector",

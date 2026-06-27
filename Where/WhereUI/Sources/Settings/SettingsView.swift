@@ -1,6 +1,6 @@
 import LifecycleKit
+import LocalizationKit
 import LogViewerUI
-import StuffCore
 #if DEBUG
     import SwiftDataInspector
 #endif

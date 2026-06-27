@@ -1,7 +1,7 @@
 import Foundation
+import LocalizationKit
 import LogKit
 import Observation
-import StuffCore
 #if DEBUG
     import SwiftDataInspector
 #endif

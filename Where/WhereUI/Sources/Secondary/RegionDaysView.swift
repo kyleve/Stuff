@@ -1,5 +1,5 @@
+import LocalizationKit
 import MapKit
-import StuffCore
 import SwiftUI
 import WhereCore
 

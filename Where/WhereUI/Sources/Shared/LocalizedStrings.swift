@@ -1,5 +1,5 @@
 import Foundation
-import StuffCore
+import LocalizationKit
 
 /// Catalog-backed, deferred strings for WhereUI.
 ///
