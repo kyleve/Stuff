@@ -1,5 +1,6 @@
 import Foundation
 import LocalizationKit
+import WhereCore
 
 /// Catalog-backed, deferred strings for WhereUI.
 ///
@@ -63,6 +64,8 @@ enum LocalizedStrings {
         static let title: LocalizedString = .module("primary.title", "Where")
 
         static let timeline: LocalizedString = .module("primary.timeline", "Timeline")
+
+        static let calendar: LocalizedString = .module("primary.calendar", "Calendar")
 
         static let loading: LocalizedString = .module("primary.loading", "Charting your year…")
 
@@ -581,6 +584,38 @@ enum LocalizedStrings {
 
         static func rangeFooter(count: Int) -> LocalizedString {
             .module("manual.range.footer", "Backfilling \(count) days.")
+        }
+    }
+
+    // MARK: Calendar
+
+    enum Calendar {
+        static let unavailableDescription: LocalizedString = .module(
+            "calendar.unavailable.description",
+            "Your year data isn't available right now.",
+        )
+
+        static func title(year: Int) -> LocalizedString {
+            .module("calendar.title", "Calendar · \(yearText(year))")
+        }
+
+        static func dayAccessibility(
+            date: Date,
+            regions: [Region],
+            needsAttention: Bool,
+        ) -> LocalizedString {
+            let day = date.formatted(.dateTime.weekday(.wide).month(.wide).day())
+            if needsAttention {
+                return .module(
+                    "calendar.day.needsAttention.accessibility",
+                    "\(day), needs a location",
+                )
+            }
+            if regions.isEmpty {
+                return .module("calendar.day.empty.accessibility", "\(day), nothing logged")
+            }
+            let names = regions.map(\.localizedName).joined(separator: ", ")
+            return .module("calendar.day.accessibility", "\(day), \(names)")
         }
     }
 

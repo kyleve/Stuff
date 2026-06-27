@@ -8,6 +8,7 @@ struct PrimaryView: View {
     @Environment(WhereSession.self) private var session
 
     @State private var showingTimeline = false
+    @State private var showingCalendar = false
     @State private var showingMissingDays = false
 
     /// Drives the passport's tilt-reactive holographic sheen. Started/stopped
@@ -48,6 +49,17 @@ struct PrimaryView: View {
                     .accessibilityIdentifier("where_timeline_button")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingCalendar = true
+                    } label: {
+                        Label(
+                            LocalizedStrings.Primary.calendar.localized,
+                            systemImage: "calendar",
+                        )
+                    }
+                    .accessibilityIdentifier("where_calendar_button")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     YearSelector()
                 }
             }
@@ -56,6 +68,10 @@ struct PrimaryView: View {
         .onDisappear { tilt.stop() }
         .sheet(isPresented: $showingTimeline) {
             PresenceTimelineView()
+                .environment(session)
+        }
+        .sheet(isPresented: $showingCalendar) {
+            CalendarView()
                 .environment(session)
         }
         .sheet(isPresented: $showingMissingDays) {

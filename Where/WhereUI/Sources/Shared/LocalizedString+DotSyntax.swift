@@ -57,6 +57,10 @@ extension LocalizedString {
         LocalizedStrings.ManualEntry.self
     }
 
+    static var calendar: LocalizedStrings.Calendar.Type {
+        LocalizedStrings.Calendar.self
+    }
+
     static var timeline: LocalizedStrings.Timeline.Type {
         LocalizedStrings.Timeline.self
     }

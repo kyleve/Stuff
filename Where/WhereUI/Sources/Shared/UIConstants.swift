@@ -45,6 +45,8 @@ enum UIConstants {
         static let progressBarHeight: CGFloat = 6
         static let timelineAccentWidth: CGFloat = 4
         static let timelineAccentHeight: CGFloat = 34
+        static let calendarDot: CGFloat = 6
+        static let calendarDayMinHeight: CGFloat = 44
         static let heroNumberFontSize: CGFloat = 46
         static let statusIconWidth: CGFloat = 28
         /// Diameter of the region card's circular "entry stamp" impression.

@@ -47,7 +47,14 @@ struct LocalizedStringsTests {
 
     @Test func yearsAreFormattedWithoutGroupingSeparator() {
         #expect(LocalizedStrings.Timeline.title(year: 2026).localized == "Timeline · 2026")
+        #expect(LocalizedStrings.Calendar.title(year: 2026).localized == "Calendar · 2026")
         #expect(LocalizedStrings.Settings.Data.erase(year: 2026).localized == "Erase 2026 data")
+    }
+
+    @Test func calendarStringsResolveToCatalogValues() {
+        #expect(LocalizedStrings.Primary.calendar.localized == "Calendar")
+        #expect(LocalizedStrings.Calendar.unavailableDescription.localized
+            == "Your year data isn't available right now.")
     }
 
     @Test func interpolatedStringsSubstituteArguments() {

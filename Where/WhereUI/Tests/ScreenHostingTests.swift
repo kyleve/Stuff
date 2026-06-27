@@ -89,6 +89,13 @@ struct ScreenHostingTests {
         }
     }
 
+    @Test func calendarViewHostsWithData() throws {
+        let session = PreviewSupport.loadedSession()
+        try show(UIHostingController(rootView: CalendarView().environment(session))) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
     @Test func appIconViewHosts() throws {
         let rootView = NavigationStack { AppIconView(model: .preview()) }
         try show(UIHostingController(rootView: rootView)) { hosted in
