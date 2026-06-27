@@ -18,6 +18,9 @@
 #             (interpolated) — those stay hand-authored in the catalog — plus
 #             every non-English translation, untouched.
 #
+# Duplicate keys in the same `LocalizedStrings.swift` abort reconciliation
+# (same fail-loudly rule as a non-literal key or default).
+#
 # It writes the catalog byte-for-byte in Xcode's own format (pretty-printed
 # JSON: 2-space indent, "key" : value, case-insensitively sorted keys, no
 # trailing newline), so a reconciled, already-in-sync catalog produces no diff.
@@ -60,11 +63,18 @@ class SwiftParser
   end
 
   # Returns { key => ExtractedKey }, raising on any call we can't statically
-  # read (a dynamic key or default value) so drift can't slip through.
+  # read (a dynamic key or default value) so drift can't slip through, and on
+  # duplicate keys within the same file.
   def extract
     params = parameter_types_by_position
     keys = {}
+    first_at = {}
     scan_calls do |call_start, key, value_segments|
+      if first_at.key?(key)
+        raise duplicate_key_error(key, first_at[key], call_start)
+      end
+
+      first_at[key] = call_start
       simple = value_segments.all? { |seg| seg[0] == :text }
       key_struct = ExtractedKey.new(
         key: key,
@@ -246,6 +256,12 @@ class SwiftParser
 
   def context(index)
     @source[[index - 40, 0].max, 120]
+  end
+
+  def duplicate_key_error(key, first_start, second_start)
+    "localize: duplicate key #{key.inspect} in the same LocalizedStrings.swift\n" \
+      "  first:  …#{context(first_start).strip}\n" \
+      "  second: …#{context(second_start).strip}"
   end
 end
 
