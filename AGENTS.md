@@ -137,6 +137,15 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   mapping an optional error to the `Bool` an `.alert` wants), expose a computed
   `get`/`set` on the `@Observable` model and bind to that, keeping the
   underlying value the single source of truth.
+- **Core behavior belongs in the model/controller layer, not in views.**
+  Persistence, domain rules, detection, and side effects live in the feature's
+  core module (for Where: `WhereCore` collaborators on `WhereServices`). UI
+  modules hold view models that *orchestrate* those services for SwiftUI
+  (`WhereSession` mirrors output and exposes intent methods) and views that
+  *render* and *route* — not reimplement rules, cache policy, or store I/O.
+  When adding behavior, default to Core (+ view-model glue if the UI needs a
+  trigger or observable mirror); push logic into a `View` only for presentation.
+  See [`Where/AGENTS.md`](Where/AGENTS.md#layering).
 - **`didSet` must skip work when the value is unchanged.** When the stored
   type is `Equatable`, guard `oldValue != newValue` before invalidation,
   logging, or other side effects — reassigning the same value should be a no-op.

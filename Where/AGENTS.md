@@ -27,13 +27,15 @@ Where/
 - **App target** `Where` ([`Project.swift`](../Project.swift),
   bundle ID `com.stuff.where`) is intentionally tiny: it wires
   `RootView` from `WhereUI` into a `WindowGroup`. Almost no logic
-  lives here — add behavior to `WhereCore` (rules + persistence)
-  or `WhereUI` (views).
+  lives here — add domain behavior to `WhereCore`, presentation and
+  view-model wiring to `WhereUI`.
 - **`WhereCore`** is the domain layer. It is pure Swift + Foundation +
   SwiftData + CoreLocation; it must not import SwiftUI or UIKit.
   Bundled region polygons (`Resources/*.geojson`) ship here.
-- **`WhereUI`** is the SwiftUI layer. It depends on `WhereCore` and
-  is what the app target imports.
+- **`WhereUI`** is the SwiftUI layer: views plus `@Observable` view
+  models (`WhereModel`, `WhereSession`) that mirror service state and
+  expose UI intent methods. It depends on `WhereCore` and is what the
+  app target imports. It is **not** the domain model — see [Layering](#layering).
 - **`WhereTesting`** is a UIKit-only helper library for hosted unit
   tests (`show(_:perform:)`, `waitFor(...)`, `recursiveDescription`).
   It is meant for test bundles, not production code.
@@ -171,28 +173,48 @@ without inflating Console's error-level queries. There is no fine-grained
 `.debug` tracing on the hot paths (per-GPS-sample persist, per-day reminder
 scheduling, widget throttle/skip) — those stay quiet by design.
 
-## App model & launch (`WhereUI`)
+## Layering
 
-The app target is tiny; `WhereUI` owns the model layer and the launch flow,
-driven by [`LifecycleKit`](../Shared/LifecycleKit) (read its
+Where splits **domain** from **presentation**. Keep the split sharp when adding
+features — views should not grow business logic just because SwiftUI makes it
+easy.
+
+| Layer | Where | Owns |
+|-------|-------|------|
+| **Domain / services** | `WhereCore` (`WhereServices` collaborators) | Rules, detection, aggregation, persistence, side effects (reminders, widgets, backup). Unit-test here. |
+| **View model** | `WhereUI` (`WhereSession`, `WhereModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods (`refresh()`, `dismiss(_:)`, `select(year:)`). Orchestrates `WhereServices`; does not reimplement Core rules. |
+| **Views** | `WhereUI` (`*View`) | Layout, navigation, localized copy, bindings to session/model. Calls view-model methods; does not talk to the store, run detection, or own cache/throttle policy. |
+
+**Data resolution** is the reference shape: `DataIssueScanner` + detectors live in
+Core; `WhereSession.refreshDataIssues` / `dismiss(_:)` mirror and trigger;
+[`ResolutionView`](WhereUI/Sources/Resolution/ResolutionView.swift) only lists,
+routes by `IssueResolution`, and forwards dismiss.
+
+When in doubt: if the behavior would still be correct without SwiftUI, it
+belongs in `WhereCore` (or, for logged-in orchestration that exists only to
+serve the UI, on `WhereSession` — still not in a `View`).
+
+## View models & launch (`WhereUI`)
+
+`WhereUI` hosts the SwiftUI shell and **view models** — not the domain model.
+Launch is driven by [`LifecycleKit`](../Shared/LifecycleKit) (read its
 [`AGENTS.md`](../Shared/LifecycleKit/AGENTS.md) for the engine).
 
 - [`WhereModel`](WhereUI/Sources/Model/WhereModel.swift) (`@MainActor
-  @Observable`) – the long-lived, app-level model: the onboarding gate, the
-  persisted `WherePreferences`, and an **optional** `WhereSession`. It lives for
-  the whole process and is built *before* the store opens, so a background
-  relaunch can wire CoreLocation first.
+  @Observable`) – app-level view model: the onboarding gate, persisted
+  `WherePreferences`, and an **optional** `WhereSession`. Lives for the whole
+  process and is built *before* the store opens so a background relaunch can
+  wire CoreLocation first.
 - [`WhereSession`](WhereUI/Sources/Model/WhereSession.swift) (`@MainActor
-  @Observable`) – the logged-in, services-backed state (`selectedYear`,
-  `report`, `loadState`, tracking/authorization, reminder + summary settings,
-  backup, **data issues**) over a **non-optional** `WhereServices`. Created by the launch's
+  @Observable`) – logged-in view model over a **non-optional** `WhereServices`:
+  `selectedYear`, `report`, `loadState`, tracking/authorization, reminder +
+  summary settings, backup, **data issues**. Created by the launch's
   `open-store` step (`startSession()`), dropped on reset (`endSession()`), and
   read by logged-in views via `@Environment(WhereSession.self)` — so there are
-  no `guard let session` checks sprinkled through the UI. Data-issue state is a
-  thin mirror: `dataIssues` / `dataIssueCount` reflect
-  `services.resolution.issues(...)` (throttled on foreground, forced after
-  mutations/dismiss/import/threshold change). `dismiss(_:)` writes through
-  `services.journal.dismissIssue(key:)` then rescans with `force: true`.
+  no `guard let session` checks sprinkled through the UI. Exposes intent
+  methods that delegate to Core (`refresh()` → `ReportReader`, `dismiss(_:)` →
+  `DayJournal` + `DataIssueScanner`, etc.) and holds thin mirrors (e.g.
+  `dataIssues` from `services.resolution.issues(...)`).
 - [`WhereLaunch`](WhereUI/Sources/Launch/WhereLaunch.swift) – assembles the
   cold-launch `LifecycleSteps` and its reverse `resetSequence` (erase + reset),
   with steps named by the typed `LaunchStepID` enum (a parity test guards step
