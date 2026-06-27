@@ -48,6 +48,11 @@ public struct RootView: View {
                     SecondaryView()
                 }
 
+                Tab(Strings.tabResolution, systemImage: "checklist") {
+                    ResolutionView()
+                }
+                .badge(model.session?.dataIssueCount ?? 0)
+
                 Tab(Strings.tabSettings, systemImage: "gearshape.fill") {
                     SettingsView()
                 }

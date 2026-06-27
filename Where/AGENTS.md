@@ -69,6 +69,16 @@ boundary, never SwiftData records.
       snapshot + the rebuild/throttle policy.
     - `BackupCoordinator` (`actor`) – backup export/import
       (`ImportStrategy` / `ImportSummary` live here).
+    - [`DataIssueScanner`](WhereCore/Sources/DataResolution/DataIssueScanner.swift)
+      (`actor`) – scans the year report + raw samples for fixable data
+      quality issues (missing days, GPS border drift, abrupt location
+      changes). Owns detection I/O, a ~3h throttle/cache keyed by
+      `(year, driftThresholdMeters)`, and sorting; exposes
+      `issues(year:primaryRegions:driftThresholdMeters:force:)` and
+      `invalidate()`. Detectors implement [`DataIssueDetector`](WhereCore/Sources/DataResolution/DataIssueDetector.swift)
+      (typed `Issue` per detector, erased to `[any DataIssue]` for the
+      UI). Dismissals are read from the store and filtered out before
+      return. `WhereServices.reset()` calls `await resolution.invalidate()`.
   The one cross-collaborator op is `WhereServices.reset()` (quiesce GPS
   ingestion, then wipe the store) — the app's erase/teardown path.
 - [`LocationSample`](WhereCore/Sources/LocationSample.swift) +
@@ -94,6 +104,16 @@ boundary, never SwiftData records.
   [`EvidenceBlobStore`](WhereCore/Sources/Evidence/EvidenceBlobStore.swift)
   – metadata + externally-stored bytes for user-attached proofs
   (boarding passes, hotel receipts, …).
+- **Data resolution** ([`DataResolution/`](WhereCore/Sources/DataResolution/))
+  – [`DataIssue`](WhereCore/Sources/DataResolution/DataIssue.swift) protocol +
+  per-detector issue types (`MissingDaysIssue`, `BorderDriftIssue`,
+  `AbruptChangeIssue`), closed [`IssueResolution`](WhereCore/Sources/DataResolution/DataIssue.swift)
+  enum (backfill / relabel / mark-travel-day), and [`DriftThreshold`](WhereCore/Sources/DataResolution/DataIssue.swift)
+  (persisted via `WherePreferences.driftThresholdMeters`). UI switches on
+  `IssueResolution`, not detector types.
+- [`GeoPolygon`](WhereCore/Sources/GeoPolygon.swift) – planar polygon
+  geometry used by `RegionAttributor`; exposes
+  `distanceToBoundary(from:)` for border-drift detection.
 
 ### Persistence
 
@@ -108,7 +128,9 @@ boundary, never SwiftData records.
   success, discard on throw, nested `perform`s coalesce).
   Storage modes: `.inMemory` / `.localOnly` / `.cloudKit`, with
   `.default` auto-picking based on test env + `#if DEBUG` —
-  production is CloudKit-synced.
+  production is CloudKit-synced. Record types include
+  `SDDismissedIssue` (CloudKit-synced dismissal keys for the Resolve
+  tab; **not** included in v1 backup export — see [`TODOs.md`](TODOs.md)).
 
 ### GPS
 
@@ -163,10 +185,14 @@ driven by [`LifecycleKit`](../Shared/LifecycleKit) (read its
 - [`WhereSession`](WhereUI/Sources/Model/WhereSession.swift) (`@MainActor
   @Observable`) – the logged-in, services-backed state (`selectedYear`,
   `report`, `loadState`, tracking/authorization, reminder + summary settings,
-  backup) over a **non-optional** `WhereServices`. Created by the launch's
+  backup, **data issues**) over a **non-optional** `WhereServices`. Created by the launch's
   `open-store` step (`startSession()`), dropped on reset (`endSession()`), and
   read by logged-in views via `@Environment(WhereSession.self)` — so there are
-  no `guard let session` checks sprinkled through the UI.
+  no `guard let session` checks sprinkled through the UI. Data-issue state is a
+  thin mirror: `dataIssues` / `dataIssueCount` reflect
+  `services.resolution.issues(...)` (throttled on foreground, forced after
+  mutations/dismiss/import/threshold change). `dismiss(_:)` writes through
+  `services.journal.dismissIssue(key:)` then rescans with `force: true`.
 - [`WhereLaunch`](WhereUI/Sources/Launch/WhereLaunch.swift) – assembles the
   cold-launch `LifecycleSteps` and its reverse `resetSequence` (erase + reset),
   with steps named by the typed `LaunchStepID` enum (a parity test guards step
@@ -176,7 +202,10 @@ driven by [`LifecycleKit`](../Shared/LifecycleKit) (read its
   event isn't lost), and `makeServices()` opens the store off the main actor.
 - [`RootView`](WhereUI/Sources/RootView.swift) wraps the real `TabView` in a
   `LifecycleContainer`, gating `enterForeground()` on `scenePhase == .active` so
-  a headless background launch stays UI-less.
+  a headless background launch stays UI-less. Tabs: Primary, Calendar,
+  **Resolve** ([`ResolutionView`](WhereUI/Sources/Resolution/ResolutionView.swift)
+  — missing days, border drift, abrupt changes; badge shows
+  `session.dataIssueCount`), Settings.
   [`AppDelegate`](Where/Sources/AppDelegate.swift) picks the `LifecycleReason`
   from `launchOptions` and drives the runner.
 
@@ -196,9 +225,10 @@ states.
   fixtures from
   [`PreviewSupport`](WhereUI/Sources/Preview/PreviewSupport.swift) —
   `loadedSession()`, `emptySession()`, `elsewhereOnlySession()`,
-  `missingDaysSession()`, `loadedModel()`, and `sampleReport()` are all
-  synchronous, in-memory, and never touch disk, CloudKit, or CoreLocation. Add a
-  new helper there rather than hand-rolling `WhereServices` in a `#Preview`.
+  `missingDaysSession()`, `resolutionSession()`, `loadedModel()`, and
+  `sampleReport()` are all synchronous, in-memory, and never touch disk,
+  CloudKit, or CoreLocation. Add a new helper there rather than hand-rolling
+  `WhereServices` in a `#Preview`.
 - Inject whatever the view reads from the environment: logged-in views read
   `@Environment(WhereSession.self)`, so pass a `*Session()` fixture
   (`.environment(PreviewSupport.loadedSession())`); the app-level shell

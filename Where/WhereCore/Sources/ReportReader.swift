@@ -47,4 +47,9 @@ public struct ReportReader: Sendable {
         let samples = try await store.samples(in: interval)
         return aggregator.representativeCoordinates(samples: samples, attributor: attributor)
     }
+
+    /// Every persisted dismissal key for data-resolution issues.
+    public func dismissedIssueKeys() async throws -> Set<String> {
+        try await store.dismissedIssueKeys()
+    }
 }

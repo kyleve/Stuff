@@ -87,7 +87,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         // change (new optional fields, new models); the launch flow shows
         // migration UI purely off slowness, not a predicted version, so no
         // `VersionedSchema`/`SchemaMigrationPlan` scaffolding is needed.
-        let schema = Schema([SDLocationSample.self, SDEvidence.self, SDManualDay.self])
+        let schema = Schema([
+            SDLocationSample.self,
+            SDEvidence.self,
+            SDManualDay.self,
+            SDDismissedIssue.self,
+        ])
         let config = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,
@@ -131,7 +136,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// SwiftData inspector can enumerate them without naming the (intentionally
     /// internal) record types. Mirrors the `Schema` in `makeContainer`.
     public static var inspectorModelTypes: [any PersistentModel.Type] {
-        [SDLocationSample.self, SDEvidence.self, SDManualDay.self]
+        [SDLocationSample.self, SDEvidence.self, SDManualDay.self, SDDismissedIssue.self]
     }
 
     private static let logger = WhereLog.channel(.swiftDataStore)
@@ -433,6 +438,31 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         for manual in try context.fetch(FetchDescriptor<SDManualDay>()) {
             context.delete(manual)
         }
+        for dismissed in try context.fetch(FetchDescriptor<SDDismissedIssue>()) {
+            context.delete(dismissed)
+        }
+    }
+
+    public func dismissedIssueKeys() async throws -> Set<String> {
+        let context = readContext()
+        var descriptor = FetchDescriptor<SDDismissedIssue>()
+        descriptor.includePendingChanges = true
+        let keys = try context.fetch(descriptor).compactMap(\.key)
+        return Set(keys)
+    }
+
+    public func setIssueDismissed(_ dismissed: Bool, key: String) async throws {
+        let context = mutationContext()
+        let descriptor = FetchDescriptor<SDDismissedIssue>(predicate: #Predicate { $0.key == key })
+        let existing = try context.fetch(descriptor)
+        if dismissed {
+            guard existing.isEmpty else { return }
+            context.insert(SDDismissedIssue(key: key, dismissedAt: Date()))
+        } else {
+            for record in existing {
+                context.delete(record)
+            }
+        }
     }
 
     private static func logFault<Record>(forCorrupt _: Record) {
@@ -584,5 +614,18 @@ final class SDManualDay {
             regions: Set((regionRaws ?? []).compactMap { Region(rawValue: $0) }),
             isAuthoritative: isAuthoritative ?? false,
         )
+    }
+}
+
+@Model
+final class SDDismissedIssue {
+    var key: String?
+    var dismissedAt: Date?
+
+    init() {}
+
+    init(key: String, dismissedAt: Date) {
+        self.key = key
+        self.dismissedAt = dismissedAt
     }
 }

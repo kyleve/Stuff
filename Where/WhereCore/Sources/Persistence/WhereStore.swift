@@ -59,4 +59,11 @@ public protocol WhereStore: Sendable {
     /// Erase every sample / evidence / manual entry in the store. Used by the
     /// "replace" backup-import strategy to mirror the imported file exactly.
     func clearAll() async throws
+
+    /// Every persisted dismissal key for data-resolution issues.
+    func dismissedIssueKeys() async throws -> Set<String>
+
+    /// Persist or remove a dismissed data-resolution issue key. Must run inside
+    /// `perform { ... }`. Upserts when `dismissed == true`; deletes when false.
+    func setIssueDismissed(_ dismissed: Bool, key: String) async throws
 }

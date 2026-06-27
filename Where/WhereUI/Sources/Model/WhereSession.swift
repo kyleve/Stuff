@@ -34,6 +34,13 @@ public final class WhereSession {
     public private(set) var report: YearReport?
     public private(set) var loadState: LoadState = .idle
 
+    /// Unresolved data-quality issues for the selected year (Resolve tab + badge).
+    public private(set) var dataIssues: [any DataIssue] = []
+
+    public var dataIssueCount: Int {
+        dataIssues.count
+    }
+
     /// Whether background GPS ingestion is currently attached. Reflects reality
     /// (authorization + the user's intent), not just the last button tap.
     public private(set) var isTracking = false
@@ -149,6 +156,16 @@ public final class WhereSession {
     /// the reminder storage above.
     private var summaryEnabledStorage: Bool
     private var summaryTimeStorage: ReminderTime
+
+    /// GPS border-drift detection threshold (device setting).
+    public var driftThreshold: DriftThreshold {
+        get { DriftThreshold(rawValue: preferences.driftThresholdMeters) ?? .default }
+        set {
+            guard newValue.rawValue != preferences.driftThresholdMeters else { return }
+            preferences.driftThresholdMeters = newValue.rawValue
+            Task { await refreshDataIssues(force: true) }
+        }
+    }
 
     /// Whether the system has granted notification permission. Lets the Settings
     /// UI route the user to the system Settings app when they've enabled
@@ -318,6 +335,7 @@ public final class WhereSession {
         await refresh()
         await applyReminderConfiguration()
         await applySummaryConfiguration()
+        await refreshDataIssues(force: false)
         // Republish the widget snapshot from whatever is already on disk so a
         // cold launch with no writes this session doesn't leave the widget
         // blank or showing the previous day's "today".
@@ -332,6 +350,7 @@ public final class WhereSession {
         await refresh()
         await applyReminderConfiguration()
         await applySummaryConfiguration()
+        await refreshDataIssues(force: false)
         // The calendar day may have rolled over while backgrounded; recompute
         // so the widget's "today" reflects the current day rather than stale
         // foreground state.
@@ -418,6 +437,29 @@ public final class WhereSession {
         // state instead of rendering stale data under the new year's label.
         report = nil
         await refresh()
+        await refreshDataIssues(force: true)
+    }
+
+    func refreshDataIssues(force: Bool) async {
+        dataIssues = await (try? services.resolution.issues(
+            year: selectedYear,
+            primaryRegions: ranking.primary.map(\.region),
+            driftThresholdMeters: Double(preferences.driftThresholdMeters),
+            force: force,
+        )) ?? []
+    }
+
+    public func dismiss(_ issue: any DataIssue) async {
+        guard issue.isDismissible else { return }
+        do {
+            try await services.journal.dismissIssue(key: issue.id.storageKey)
+            dataIssues.removeAll { $0.id == issue.id }
+            await refreshDataIssues(force: true)
+        } catch {
+            Self.logger.warning(
+                "Failed to dismiss data issue \(issue.id.storageKey): \(error.localizedDescription)",
+            )
+        }
     }
 
     public func refresh() async {
@@ -449,6 +491,7 @@ public final class WhereSession {
     public func setManualDay(date: Date, regions: Set<Region>) async throws {
         try await services.journal.addManualDay(date: date, regions: regions)
         await refresh()
+        await refreshDataIssues(force: true)
     }
 
     /// Persist a manual day range. Throws on persistence failure (see
@@ -460,6 +503,7 @@ public final class WhereSession {
     ) async throws {
         try await services.journal.addManualDays(from: start, through: end, regions: regions)
         await refresh()
+        await refreshDataIssues(force: true)
     }
 
     /// Authoritatively set a day's regions, *replacing* whatever was
@@ -469,6 +513,7 @@ public final class WhereSession {
     public func overrideDay(date: Date, regions: Set<Region>) async throws {
         try await services.journal.overrideDay(date: date, regions: regions)
         await refresh()
+        await refreshDataIssues(force: true)
     }
 
     /// Undo a day's manual override/backfill, restoring the GPS-detected
@@ -477,6 +522,7 @@ public final class WhereSession {
     public func clearManualDay(date: Date) async throws {
         try await services.journal.clearManualDay(date: date)
         await refresh()
+        await refreshDataIssues(force: true)
     }
 
     /// The days in the loaded report whose presence includes `region`, sorted
@@ -585,6 +631,7 @@ public final class WhereSession {
         do {
             try await services.journal.clearYear(selectedYear)
             await refresh()
+            await refreshDataIssues(force: true)
         } catch {
             loadState = .failed(error.localizedDescription)
             Self.logger.warning(
@@ -604,6 +651,7 @@ public final class WhereSession {
         try await services.reset()
         isTracking = false
         report = nil
+        dataIssues = []
         loadState = .idle
         Self.logger.info("Erased session and reset state")
     }
@@ -697,6 +745,7 @@ public final class WhereSession {
             continuation.finish()
             await observer.value
             await refresh()
+            await refreshDataIssues(force: true)
             Self.logger.info(
                 "Imported backup (\(summary.sampleCount) samples, \(summary.evidenceCount) evidence, \(summary.manualDayCount) manual days)",
             )
@@ -722,6 +771,13 @@ public final class WhereSession {
 }
 
 #if DEBUG
+    @_spi(Testing) extension WhereSession {
+        /// Inject issues for previews/tests without seeding raw samples.
+        public func setDataIssues(_ issues: [any DataIssue]) {
+            dataIssues = issues
+        }
+    }
+
     extension WhereSession {
         /// A read-only SwiftData inspector over the live store, for the DEBUG-only
         /// developer entry point in Settings. `nil` when the backing store isn't

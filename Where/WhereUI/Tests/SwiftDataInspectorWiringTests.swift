@@ -26,7 +26,12 @@ struct SwiftDataInspectorWiringTests {
         // container's actual schema, or the inspector would silently omit (or
         // invent) entities.
         #expect(typeNames == schemaNames)
-        #expect(schemaNames == ["SDEvidence", "SDLocationSample", "SDManualDay"])
+        #expect(schemaNames == [
+            "SDDismissedIssue",
+            "SDEvidence",
+            "SDLocationSample",
+            "SDManualDay",
+        ])
     }
 
     @Test func inspectorRendersAgainstTheLiveStore() async throws {

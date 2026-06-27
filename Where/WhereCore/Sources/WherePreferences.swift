@@ -75,6 +75,15 @@ public final class WherePreferences {
         }
     }
 
+    /// GPS border-drift detection threshold in meters. Defaults to 10 km.
+    public var driftThresholdMeters: Int {
+        get {
+            store.object(forKey: Keys.driftThresholdMeters.rawValue) as? Int
+                ?? DriftThreshold.default.rawValue
+        }
+        set { store.set(newValue, forKey: Keys.driftThresholdMeters.rawValue) }
+    }
+
     /// Clear every persisted preference so the next launch behaves like a fresh
     /// install: onboarding shows again, background tracking returns to its
     /// default intent, and the reminder/summary schedules revert to defaults.
@@ -98,5 +107,6 @@ public final class WherePreferences {
         case summaryEnabled = "where.summaryEnabled"
         case summaryHour = "where.summaryHour"
         case summaryMinute = "where.summaryMinute"
+        case driftThresholdMeters = "where.driftThresholdMeters"
     }
 }

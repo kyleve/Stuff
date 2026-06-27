@@ -16,9 +16,11 @@ struct DayRelabelView: View {
     @State private var saveError = SaveErrorAlertState()
     @State private var isSaving = false
 
-    init(day: DayPresence) {
+    init(day: DayPresence, initialRegions: Set<Region>? = nil) {
         self.day = day
-        _regionSelection = State(initialValue: RegionSelectionState(selectedRegions: day.regions))
+        _regionSelection = State(
+            initialValue: RegionSelectionState(selectedRegions: initialRegions ?? day.regions),
+        )
     }
 
     private var canSave: Bool {

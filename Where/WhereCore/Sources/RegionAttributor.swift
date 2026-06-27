@@ -43,6 +43,14 @@ public struct RegionAttributor: Sendable {
         return .other
     }
 
+    /// Smallest distance in meters from `coordinate` to the boundary of
+    /// `region`'s bundled polygons. Returns `nil` for regions without
+    /// polygons (e.g. `.other`).
+    public func distanceToBoundary(of region: Region, from coordinate: Coordinate) -> Double? {
+        guard let entry = regionPolygons.first(where: { $0.region == region }) else { return nil }
+        return entry.polygons.map { $0.distanceToBoundary(from: coordinate) }.min()
+    }
+
     /// `Logger` from `os` — used in `loadFromBundle` to surface
     /// missing/unparseable bundled resources as Console.app faults
     /// alongside the debug-build `assertionFailure`.

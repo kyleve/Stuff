@@ -42,19 +42,24 @@ struct ScreenHostingTests {
         }
     }
 
-    @Test func primaryViewHostsTheMissingDaysBanner() throws {
+    @Test func primaryViewHostsWithMissingDaysSession() throws {
         let session = PreviewSupport.missingDaysSession()
-        // The fixture must have gaps, otherwise the banner branch never renders.
-        #expect(session.missingDayCount > 0)
         try show(UIHostingController(rootView: PrimaryView().environment(session))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
-    @Test func missingDaysViewHostsWithRanges() throws {
-        let session = PreviewSupport.missingDaysSession()
-        #expect(!session.missingDays.isEmpty)
-        try show(UIHostingController(rootView: MissingDaysView().environment(session))) { hosted in
+    @Test func resolutionViewHostsWithIssues() throws {
+        let session = PreviewSupport.resolutionSession()
+        #expect(session.dataIssueCount > 0)
+        try show(UIHostingController(rootView: ResolutionView().environment(session))) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func resolutionViewHostsEmpty() throws {
+        let session = PreviewSupport.loadedSession()
+        try show(UIHostingController(rootView: ResolutionView().environment(session))) { hosted in
             #expect(hosted.view != nil)
         }
     }

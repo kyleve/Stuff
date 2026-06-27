@@ -98,4 +98,54 @@ struct GeoPolygon: Hashable {
         }
         return inside
     }
+
+    /// Smallest distance in meters from `coordinate` to this polygon's edge ring.
+    func distanceToBoundary(from coordinate: Coordinate) -> Double {
+        guard vertices.count >= 2 else { return .infinity }
+        let metersPerLatitude = 111_320.0
+        let metersPerLongitude = 111_320.0 * cos(coordinate.latitude * .pi / 180)
+        func project(_ c: Coordinate) -> PlanarPoint {
+            PlanarPoint(
+                x: (c.longitude - coordinate.longitude) * metersPerLongitude,
+                y: (c.latitude - coordinate.latitude) * metersPerLatitude,
+            )
+        }
+        let origin = PlanarPoint(x: 0, y: 0)
+        var best = Double.infinity
+        var previous = vertices.count - 1
+        for current in vertices.indices {
+            best = min(
+                best,
+                Self.distance(
+                    origin,
+                    toSegment: project(vertices[previous]),
+                    project(vertices[current]),
+                ),
+            )
+            previous = current
+        }
+        return best
+    }
+
+    private static func distance(
+        _ point: PlanarPoint,
+        toSegment a: PlanarPoint,
+        _ b: PlanarPoint,
+    ) -> Double {
+        let dx = b.x - a.x
+        let dy = b.y - a.y
+        let lengthSquared = dx * dx + dy * dy
+        guard lengthSquared > 0 else {
+            return hypot(point.x - a.x, point.y - a.y)
+        }
+        let t = max(0, min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared))
+        let projectionX = a.x + t * dx
+        let projectionY = a.y + t * dy
+        return hypot(point.x - projectionX, point.y - projectionY)
+    }
+}
+
+private struct PlanarPoint {
+    let x: Double
+    let y: Double
 }

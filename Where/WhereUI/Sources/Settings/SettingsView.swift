@@ -39,6 +39,7 @@ struct SettingsView: View {
                 trackingSection
                 remindersSection
                 summarySection
+                resolutionSection
                 appIconSection
                 manualEntrySection
                 backupSection
@@ -220,6 +221,20 @@ struct SettingsView: View {
             return Strings.settingsSummaryDeniedFooter
         }
         return Strings.settingsSummaryFooter
+    }
+
+    private var resolutionSection: some View {
+        @Bindable var session = session
+
+        return Section {
+            Picker(Strings.settingsResolutionHeader, selection: $session.driftThreshold) {
+                ForEach(DriftThreshold.allCases, id: \.self) { threshold in
+                    Text(Strings.driftThresholdLabel(km: threshold.rawValue / 1000)).tag(threshold)
+                }
+            }
+        } footer: {
+            Text(Strings.settingsResolutionFooter)
+        }
     }
 
     private var appIconSection: some View {
