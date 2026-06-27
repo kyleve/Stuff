@@ -13,7 +13,7 @@ struct MissingDaysView: View {
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle(LocalizedStrings.MissingDays.title)
+                .navigationTitle(.missingDays.title)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -32,7 +32,7 @@ struct MissingDaysView: View {
                     systemImage: "checkmark.circle",
                 )
             } description: {
-                Text.localized(LocalizedStrings.MissingDays.emptyDescription)
+                Text(localized: .missingDays.emptyDescription)
             }
         } else {
             List {
@@ -45,9 +45,9 @@ struct MissingDaysView: View {
                         }
                     }
                 } header: {
-                    Text.localized(LocalizedStrings.MissingDays.header)
+                    Text(localized: .missingDays.header)
                 } footer: {
-                    Text.localized(LocalizedStrings.MissingDays.footer)
+                    Text(localized: .missingDays.footer)
                 }
             }
             .accessibilityIdentifier("where_missing_days_list")
@@ -68,7 +68,7 @@ private struct MissingDayRow: View {
             VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
                 Text(dateRange)
                     .font(.headline)
-                Text.localized(LocalizedStrings.Common.dayCount(range.dayCount))
+                Text(localized: .common.dayCount(range.dayCount))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .monospacedDigit()

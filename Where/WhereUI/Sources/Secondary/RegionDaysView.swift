@@ -56,7 +56,7 @@ struct RegionDaysView: View {
                     systemImage: "checkmark.circle",
                 )
             } description: {
-                Text.localized(LocalizedStrings.Secondary.Region.emptyDescription)
+                Text(localized: .secondary.region.emptyDescription)
             }
         } else {
             VStack(spacing: 0) {
@@ -77,7 +77,7 @@ struct RegionDaysView: View {
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
         .frame(height: UIConstants.Size.regionMapHeight)
-        .accessibilityLabel(LocalizedStrings.Secondary.Region.mapAccessibility)
+        .accessibilityLabel(.secondary.region.mapAccessibility)
     }
 
     private var dayList: some View {
@@ -91,7 +91,7 @@ struct RegionDaysView: View {
                     }
                 }
             } footer: {
-                Text.localized(LocalizedStrings.Secondary.Region.footer)
+                Text(localized: .secondary.region.footer)
             }
         }
         .accessibilityIdentifier("where_region_days_list")
@@ -149,7 +149,7 @@ private struct DayRow: View {
                         .font(.subheadline)
                         .foregroundStyle(.primary)
                 }
-                Text.localized(LocalizedStrings.Secondary.Region.current(regions: regionsText))
+                Text(localized: .secondary.region.current(regions: regionsText))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

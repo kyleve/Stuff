@@ -200,7 +200,7 @@ struct RegionSummaryCard: View {
                     )
                     .contentTransition(.numericText())
                     .foregroundStyle(style.tint)
-                Text.localized(LocalizedStrings.Common.dayUnit(regionDays.days))
+                Text(localized: .common.dayUnit(regionDays.days))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
             }
@@ -244,7 +244,7 @@ struct RegionSummaryCard: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            LocalizedStrings.Common.regionDaysAccessibility(
+            .common.regionDaysAccessibility(
                 region: regionDays.region.localizedName,
                 days: regionDays.days,
             ),

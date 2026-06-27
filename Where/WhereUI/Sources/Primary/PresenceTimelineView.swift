@@ -24,7 +24,7 @@ struct PresenceTimelineView: View {
                             systemImage: "calendar.day.timeline.left",
                         )
                     } description: {
-                        Text.localized(LocalizedStrings.Timeline.emptyDescription)
+                        Text(localized: .timeline.emptyDescription)
                     }
                 } else {
                     List(stints) { stint in
@@ -32,7 +32,7 @@ struct PresenceTimelineView: View {
                     }
                 }
             }
-            .navigationTitle(LocalizedStrings.Timeline.title(year: session.selectedYear))
+            .navigationTitle(.timeline.title(year: session.selectedYear))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -75,7 +75,7 @@ private struct StintRow: View {
 
             Spacer(minLength: UIConstants.Spacings.medium)
 
-            Text.localized(LocalizedStrings.Common.dayCount(stint.dayCount))
+            Text(localized: .common.dayCount(stint.dayCount))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -83,7 +83,7 @@ private struct StintRow: View {
         .padding(.vertical, UIConstants.Spacings.xSmall)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            LocalizedStrings.Timeline.rowAccessibility(
+            .timeline.rowAccessibility(
                 region: stint.region.localizedName,
                 range: dateRange,
                 days: stint.dayCount,

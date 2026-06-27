@@ -44,7 +44,7 @@ public struct YearTotalsRectangularAccessoryView: View {
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel(
-                        LocalizedStrings.Common.regionDaysAccessibility(
+                        .common.regionDaysAccessibility(
                             region: entry.region.localizedName,
                             days: entry.days,
                         ),

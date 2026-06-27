@@ -241,14 +241,24 @@ stay rigid — see root
   owns plural `variations` and translations. The pre-commit hook runs
   `./localize --git-add` to reconcile the catalog from this file.
 
-At call sites, pass the `LocalizedString` directly into the helpers that take
-one — [`Text.localized(_:)`](WhereUI/Sources/Shared/Text+Localized.swift) for
-SwiftUI `Text`, and the `View` overloads of `navigationTitle`,
-`accessibilityLabel`, and `accessibilityHint`
-([`View+Localized.swift`](WhereUI/Sources/Shared/View+Localized.swift)). Anywhere
-else a plain `String` is needed (`Button`, `Label`, `accessibilityValue`, …),
-call `.localized`. All of these run through `LocalizedString.localized(_:)`, the
-single seam a future Environment-driven locale override will hook into.
+At call sites that take a `LocalizedString`, use **leading-dot syntax** rather
+than spelling out `LocalizedStrings.<Category>`:
+[`Text(localized: .primary.emptyDescription)`](WhereUI/Sources/Shared/Text+Localized.swift)
+and the `View` overloads `.navigationTitle(.settings.title)` /
+`.accessibilityLabel(.timeline.rowAccessibility(…))` /
+`.accessibilityHint(…)` ([`View+Localized.swift`](WhereUI/Sources/Shared/View+Localized.swift)).
+The dot accessors live in
+[`LocalizedString+DotSyntax.swift`](WhereUI/Sources/Shared/LocalizedString+DotSyntax.swift):
+each is the metatype of a `LocalizedStrings` nested enum, so the chain resolves
+to the same `static let`/`static func` members (no second copy of any string).
+Add a new category there (top-level on `LocalizedString`; nested ones on their
+parent, e.g. `LocalizedStrings.Settings`).
+
+Dot syntax only fires where the contextual type is `LocalizedString`. Anywhere a
+plain `String` is needed (`Button`, `Label`, `accessibilityValue`, interpolation,
+…), keep `LocalizedStrings.<Category>.<member>.localized`. Both paths run through
+`LocalizedString.localized(_:)`, the single seam a future Environment-driven
+locale override will hook into.
 
 ## Adding things
 

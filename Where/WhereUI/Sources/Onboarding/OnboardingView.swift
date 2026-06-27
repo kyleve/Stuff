@@ -80,7 +80,7 @@ public struct OnboardingView: View {
             Button {
                 withAnimation { page += 1 }
             } label: {
-                Text.localized(LocalizedStrings.Onboarding.continueButton)
+                Text(localized: .onboarding.continueButton)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -98,7 +98,7 @@ public struct OnboardingView: View {
                         completeAndContinue()
                     }
                 } label: {
-                    Text.localized(LocalizedStrings.Onboarding.enableLocation)
+                    Text(localized: .onboarding.enableLocation)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)

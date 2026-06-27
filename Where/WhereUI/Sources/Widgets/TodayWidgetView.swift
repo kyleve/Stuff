@@ -22,7 +22,7 @@ public struct TodayWidgetView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: UIConstants.Spacings.small) {
             HStack(alignment: .firstTextBaseline) {
-                Text.localized(LocalizedStrings.Widget.todayTitle)
+                Text(localized: .widget.todayTitle)
                     .font(.caption2.weight(.semibold))
                     .textCase(.uppercase)
                     .tracking(1)
@@ -90,7 +90,7 @@ public struct TodayWidgetView: View {
                 .font(.title3)
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
-            Text.localized(LocalizedStrings.Widget.todayEmpty)
+            Text(localized: .widget.todayEmpty)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
         }

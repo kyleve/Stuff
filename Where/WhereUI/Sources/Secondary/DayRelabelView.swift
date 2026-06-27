@@ -40,19 +40,19 @@ struct DayRelabelView: View {
                     RegionToggleRow(item: item)
                 }
             } header: {
-                Text.localized(LocalizedStrings.Relabel.regionsHeader)
+                Text(localized: .relabel.regionsHeader)
             } footer: {
-                Text.localized(LocalizedStrings.Relabel.regionsFooter)
+                Text(localized: .relabel.regionsFooter)
             }
 
             Section {
                 Button(LocalizedStrings.Relabel.reset.localized, role: .destructive) { reset() }
                     .disabled(isSaving)
             } footer: {
-                Text.localized(LocalizedStrings.Relabel.resetFooter)
+                Text(localized: .relabel.resetFooter)
             }
         }
-        .navigationTitle(LocalizedStrings.Relabel.title)
+        .navigationTitle(.relabel.title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {

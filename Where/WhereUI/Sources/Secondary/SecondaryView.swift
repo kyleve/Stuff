@@ -15,7 +15,7 @@ struct SecondaryView: View {
     var body: some View {
         NavigationStack {
             screen
-                .navigationTitle(LocalizedStrings.Secondary.title)
+                .navigationTitle(.secondary.title)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         YearSelector()
@@ -69,7 +69,7 @@ struct SecondaryView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: UIConstants.Spacings.xLarge) {
-                Text.localized(LocalizedStrings.Secondary.header(year: session.selectedYear))
+                Text(localized: .secondary.header(year: session.selectedYear))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -102,7 +102,7 @@ struct SecondaryView: View {
         ContentUnavailableView {
             Label(LocalizedStrings.Secondary.emptyTitle.localized, systemImage: "globe.americas")
         } description: {
-            Text.localized(LocalizedStrings.Secondary.emptyDescription)
+            Text(localized: .secondary.emptyDescription)
         }
     }
 

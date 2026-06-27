@@ -62,8 +62,7 @@ struct LaunchSplashView: View {
         .background(Color.black)
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(showCaption ? LocalizedStrings.Migration.title : LocalizedStrings.Launch
-            .accessibilityLabel)
+        .accessibilityLabel(showCaption ? .migration.title : .launch.accessibilityLabel)
         .task {
             try? await Task.sleep(for: Self.captionDelay)
             guard !Task.isCancelled else { return }
@@ -80,9 +79,9 @@ struct LaunchSplashView: View {
     /// light since the backdrop is always dark.
     private var caption: some View {
         VStack(spacing: UIConstants.Spacings.small) {
-            Text.localized(LocalizedStrings.Migration.title)
+            Text(localized: .migration.title)
                 .font(.headline)
-            Text.localized(LocalizedStrings.Migration.subtitle)
+            Text(localized: .migration.subtitle)
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.7))
         }

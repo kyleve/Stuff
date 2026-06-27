@@ -136,7 +136,7 @@ struct PrimaryView: View {
                 systemImage: "map",
             )
         } description: {
-            Text.localized(LocalizedStrings.Primary.emptyDescription)
+            Text(localized: .primary.emptyDescription)
         }
     }
 
@@ -147,9 +147,7 @@ struct PrimaryView: View {
                 systemImage: "globe.americas",
             )
         } description: {
-            Text
-                .localized(LocalizedStrings.Primary
-                    .elsewhereOnlyDescription(count: session.trackedDayCount))
+            Text(localized: .primary.elsewhereOnlyDescription(count: session.trackedDayCount))
         }
     }
 }
@@ -236,7 +234,7 @@ private struct MissingDaysBanner: View {
                     .symbolEffect(.variableColor.iterative, isActive: !reduceMotion)
                     .accessibilityHidden(true)
 
-                Text.localized(LocalizedStrings.MissingBanner.compact(count: count))
+                Text(localized: .missingBanner.compact(count: count))
                     .font(.footnote.weight(.semibold))
                     .foregroundStyle(.primary)
 
@@ -261,8 +259,8 @@ private struct MissingDaysBanner: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("where_missing_days_banner")
-        .accessibilityLabel(LocalizedStrings.MissingBanner.compact(count: count))
-        .accessibilityHint(LocalizedStrings.MissingBanner.accessibilityHint)
+        .accessibilityLabel(.missingBanner.compact(count: count))
+        .accessibilityHint(.missingBanner.accessibilityHint)
     }
 }
 

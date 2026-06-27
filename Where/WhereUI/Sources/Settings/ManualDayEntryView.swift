@@ -81,12 +81,12 @@ struct ManualDayEntryView: View {
                     RegionToggleRow(item: item)
                 }
             } header: {
-                Text.localized(LocalizedStrings.ManualEntry.regionsHeader)
+                Text(localized: .manualEntry.regionsHeader)
             } footer: {
-                Text.localized(LocalizedStrings.ManualEntry.regionsFooter)
+                Text(localized: .manualEntry.regionsFooter)
             }
         }
-        .navigationTitle(LocalizedStrings.ManualEntry.title)
+        .navigationTitle(.manualEntry.title)
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: startDate) { _, newValue in
             if endDate < newValue { endDate = newValue }

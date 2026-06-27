@@ -6,7 +6,7 @@ import StuffCore
 /// Every user-facing string in the module is funneled through here so views
 /// stay free of literals. Members return a ``LocalizedString`` (a deferred
 /// builder) rather than a resolved `String`, so the catalog lookup happens at
-/// the point of display — call `.localized` (or `Text.localized(_:)`) there.
+/// the point of display — call `.localized` (or `Text(localized:)`) there.
 ///
 /// Simple members use the ``LocalizedString/module(_:_:)`` factory, which is a
 /// `key` plus its English default (`.module` and the locale are baked in). The

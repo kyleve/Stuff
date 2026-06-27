@@ -49,7 +49,7 @@ struct SettingsView: View {
                     developerSection
                 #endif
             }
-            .navigationTitle(LocalizedStrings.Settings.title)
+            .navigationTitle(.settings.title)
             .sheet(isPresented: $showAppIcon) {
                 AppIconView()
             }
@@ -65,7 +65,7 @@ struct SettingsView: View {
                     role: .cancel,
                 ) {}
             } message: {
-                Text.localized(LocalizedStrings.Settings.PermissionAlert.message)
+                Text(localized: .settings.permissionAlert.message)
             }
             .fileImporter(
                 isPresented: $showImporter,
@@ -89,7 +89,7 @@ struct SettingsView: View {
                     pendingImportURL = nil
                 }
             } message: { _ in
-                Text.localized(LocalizedStrings.Settings.Backup.importStrategyMessage)
+                Text(localized: .settings.backup.importStrategyMessage)
             }
             .alert(
                 LocalizedStrings.Settings.Backup.importedTitle.localized,
@@ -98,7 +98,7 @@ struct SettingsView: View {
             ) { _ in
                 Button(LocalizedStrings.Common.ok.localized, role: .cancel) {}
             } message: { summary in
-                Text.localized(LocalizedStrings.Settings.Backup.importedMessage(
+                Text(localized: .settings.backup.importedMessage(
                     samples: summary.sampleCount,
                     evidence: summary.evidenceCount,
                     manualDays: summary.manualDayCount,
@@ -150,9 +150,9 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            Text.localized(LocalizedStrings.Settings.Location.header)
+            Text(localized: .settings.location.header)
         } footer: {
-            Text.localized(LocalizedStrings.Settings.Location.footer)
+            Text(localized: .settings.location.footer)
         }
     }
 
@@ -202,7 +202,7 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            Text.localized(LocalizedStrings.Settings.Reminders.header)
+            Text(localized: .settings.reminders.header)
         } footer: {
             Text(remindersFooter)
         }
@@ -244,7 +244,7 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            Text.localized(LocalizedStrings.Settings.Summary.header)
+            Text(localized: .settings.summary.header)
         } footer: {
             Text(summaryFooter)
         }
@@ -265,9 +265,9 @@ struct SettingsView: View {
                 Label(LocalizedStrings.Settings.AppIcon.link.localized, systemImage: "app.badge")
             }
         } header: {
-            Text.localized(LocalizedStrings.Settings.AppIcon.header)
+            Text(localized: .settings.appIcon.header)
         } footer: {
-            Text.localized(LocalizedStrings.Settings.AppIcon.footer)
+            Text(localized: .settings.appIcon.footer)
         }
     }
 
@@ -282,9 +282,9 @@ struct SettingsView: View {
                 )
             }
         } header: {
-            Text.localized(LocalizedStrings.Settings.Manual.header)
+            Text(localized: .settings.manual.header)
         } footer: {
-            Text.localized(LocalizedStrings.Settings.Manual.footer)
+            Text(localized: .settings.manual.footer)
         }
     }
 
@@ -318,9 +318,9 @@ struct SettingsView: View {
             }
             .disabled(session.backupState != .idle)
         } header: {
-            Text.localized(LocalizedStrings.Settings.Backup.header)
+            Text(localized: .settings.backup.header)
         } footer: {
-            Text.localized(LocalizedStrings.Settings.Backup.footer)
+            Text(localized: .settings.backup.footer)
         }
     }
 
@@ -385,14 +385,12 @@ struct SettingsView: View {
                 }
                 Button(LocalizedStrings.Settings.Data.cancel.localized, role: .cancel) {}
             } message: {
-                Text
-                    .localized(LocalizedStrings.Settings.Data
-                        .confirmMessage(year: session.selectedYear))
+                Text(localized: .settings.data.confirmMessage(year: session.selectedYear))
             }
         } header: {
-            Text.localized(LocalizedStrings.Settings.Data.header)
+            Text(localized: .settings.data.header)
         } footer: {
-            Text.localized(LocalizedStrings.Settings.Data.footer(year: session.selectedYear))
+            Text(localized: .settings.data.footer(year: session.selectedYear))
         }
     }
 
@@ -424,10 +422,10 @@ struct SettingsView: View {
                 }
                 Button(LocalizedStrings.Settings.Data.cancel.localized, role: .cancel) {}
             } message: {
-                Text.localized(LocalizedStrings.Settings.Reset.message)
+                Text(localized: .settings.reset.message)
             }
         } footer: {
-            Text.localized(LocalizedStrings.Settings.Reset.footer)
+            Text(localized: .settings.reset.footer)
         }
     }
 
@@ -465,9 +463,9 @@ struct SettingsView: View {
                     }
                 }
             } header: {
-                Text.localized(LocalizedStrings.Settings.Debug.header)
+                Text(localized: .settings.debug.header)
             } footer: {
-                Text.localized(LocalizedStrings.Settings.Debug.footer)
+                Text(localized: .settings.debug.footer)
             }
         }
     #endif
