@@ -33,9 +33,11 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - What’s with all the `.accessibilityIdentifier(…)` modifiers, do we need them?
 - Remove get/set closure-based bindings
 - Add a UI that represents where you currently are? Maybe a border on the current location card?
+- feat: Include data-resolution dismissals (`SDDismissedIssue`) in the backup export/import format, so a replace-import doesn’t silently re-surface issues the user already dismissed. Needs a new versioned backup archive (`BackupArchive`/`BackupService`) carrying the dismissed keys.
 
 ## P2s (Nice to have)
 - The `guard let controller else { return }` in the WhereModel in WhereUI is weird
+- refactor: Move `RegionDays` / `RegionRanking` down from `WhereUI` into `WhereCore` so `DataIssueScanner` can derive primary regions itself instead of `WhereSession` passing `primaryRegions` in. Reverses the current "ranking is a presentation concept" placement; check the widget/UI call sites still compile.
 - Raw data browser (similar to SD browser)
 - Move `let calendar = Calendar.current` into a var on the controller? There’s a few of these
 - Move test only code behind @_spi
