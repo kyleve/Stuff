@@ -89,7 +89,7 @@ public actor DailySummaryReconciler {
             .prefix(regionLimit)
 
         guard !ranked.isEmpty else {
-            return String(localized: "summary.notification.body.empty", bundle: .module)
+            return LocalizedStrings.Summary.notificationBodyEmpty.localized
         }
 
         return ranked
@@ -98,18 +98,9 @@ public actor DailySummaryReconciler {
     }
 
     private static func summaryFragment(region: Region, days: Int) -> String {
-        let count = String(
-            localized: "summary.notification.dayCount",
-            defaultValue: "\(days) days",
-            bundle: .module,
-        )
-        return String(
-            format: String(
-                localized: "summary.notification.regionDays",
-                defaultValue: "%1$@ in %2$@",
-                bundle: .module,
-            ),
-            count,
+        String(
+            format: LocalizedStrings.Summary.regionDays.localized,
+            LocalizedStrings.Summary.dayCount(days).localized,
             region.localizedName,
         )
     }

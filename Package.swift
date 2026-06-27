@@ -55,6 +55,7 @@ let package = Package(
         .target(
             name: "WhereCore",
             dependencies: [
+                .target(name: "LocalizationKit"),
                 .target(name: "LogKit"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],

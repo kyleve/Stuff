@@ -136,7 +136,7 @@ public final class UserNotificationDailySummaryScheduler: DailySummaryScheduling
         components.minute = time.minute
 
         let content = UNMutableNotificationContent()
-        content.title = String(localized: "summary.notification.title", bundle: .module)
+        content.title = LocalizedStrings.Summary.notificationTitle.localized
         content.body = body
         content.sound = .default
 

@@ -19,26 +19,25 @@ public enum Region: String, Codable, Sendable, Hashable, CaseIterable {
     case other
 
     /// User-facing name for this region, read from the `WhereCore`
-    /// string catalog (`Resources/Localizable.xcstrings`).
+    /// string catalog via ``LocalizedStrings/Region``.
     ///
-    /// Uses `String(localized:)` with a literal key per case (rather
-    /// than `NSLocalizedString` with a runtime-composed
-    /// `"region.\(rawValue)"`) so Xcode's string-catalog extraction
-    /// tooling can statically find every key. Adding a new region
-    /// case is intentionally a compile error here until you add a
-    /// matching string catalog entry.
+    /// Each case maps to a literal catalog key (rather than a runtime-composed
+    /// `"region.\(rawValue)"`) so Xcode's string-catalog extraction tooling and
+    /// the repo's `./localize` script can statically find every key. Adding a
+    /// new region case is intentionally a compile error here until you add a
+    /// matching ``LocalizedStrings/Region`` member and catalog entry.
     public var localizedName: String {
         switch self {
             case .california:
-                String(localized: "region.california", bundle: .module)
+                LocalizedStrings.Region.california.localized
             case .newYork:
-                String(localized: "region.newYork", bundle: .module)
+                LocalizedStrings.Region.newYork.localized
             case .canada:
-                String(localized: "region.canada", bundle: .module)
+                LocalizedStrings.Region.canada.localized
             case .europeanUnion:
-                String(localized: "region.europeanUnion", bundle: .module)
+                LocalizedStrings.Region.europeanUnion.localized
             case .other:
-                String(localized: "region.other", bundle: .module)
+                LocalizedStrings.Region.other.localized
         }
     }
 }

@@ -220,8 +220,8 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         components.minute = time.minute
 
         let content = UNMutableNotificationContent()
-        content.title = String(localized: "reminder.notification.title", bundle: .module)
-        content.body = String(localized: "reminder.notification.body", bundle: .module)
+        content.title = LocalizedStrings.Reminder.notificationTitle.localized
+        content.body = LocalizedStrings.Reminder.notificationBody.localized
         content.sound = .default
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
