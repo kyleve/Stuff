@@ -9,6 +9,7 @@
 # Open issues
 
 ## PX (Exploratory)
+- File system containerization for more structured storage.
 - Thinking outloud, every write into the DB results in various "view" and output changes; but nothing really changes beyond that if writes havent happened. What if we established a pipeline that is:
 	1) Write into DB
 	2) Kick off async jobs to re-evaluate DB contents
@@ -42,7 +43,6 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - Move test only code behind @_spi
 - Add comments to strings in xcstrings files
 - Can we code-gen the strings.swift file somehow so we're not referencing the string keys manually?
-
 
 # Completed issues
 
