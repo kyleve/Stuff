@@ -35,6 +35,32 @@ mise exec -- tuist build RegionViewer
 (Builds, like the rest of the project, are **macOS-only** — see the root
 [`AGENTS.md`](../../AGENTS.md).)
 
+### Build it with an SDK that matches your macOS
+
+As the only Mac Catalyst target, RegionViewer is sensitive to a
+build-SDK-vs-running-OS skew that the iOS-only targets never hit. **Build
+it with an Xcode whose SDK matches the macOS you'll run it on** (e.g.
+Xcode 26.x → macOS SDK 26.x on macOS 26). If you build with a *newer*
+Xcode (say a beta one OS ahead), launch fails with a `dyld` error like:
+
+```
+dyld: Symbol not found: _UIFontTextStyleCallout
+  Referenced from: …/RegionViewer.app/Contents/MacOS/RegionViewer.debug.dylib
+  Expected in:     …/AppKit.framework/Versions/C/AppKit
+```
+
+It's not a code or project-config problem: the newer Catalyst SDK records
+some UIKit font symbols (`_UIFontTextStyleCallout`, `_NSFontAttributeName`,
+`UIFont`, `_UIFontWeightRegular`) as re-exported through AppKit, but the
+older OS's AppKit doesn't vend them yet. Fixes:
+
+- Running from the **Xcode GUI**: open the project in the matching stable
+  Xcode (the GUI uses its *own* bundled SDK, regardless of `xcode-select`).
+- Running CLI builds (`tuist` / `./ide`): point the command-line tools at
+  it — `sudo xcode-select -s /Applications/Xcode.app`.
+
+CI is unaffected — it runs on `macos-26` with the matching Xcode.
+
 ## How it works
 
 `RegionViewerApp` is just a `@main App` with a
