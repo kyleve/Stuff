@@ -268,11 +268,14 @@ states.
   then wire a hosted test bundle in
   [`Project.swift`](../Project.swift) via the existing `unitTests`
   helper (`Where/<Name>/Tests/**`).
-- **New region:** add the `Region` case, add a
-  `Localizable.xcstrings` entry (the compiler will tell you),
-  extend `RegionAttributor.usStateNames` or drop a new
+- **New region:** add the `Region` case, then resolve the two
+  compile errors it forces: a `localizedName` `Localizable.xcstrings`
+  entry, and a `Region.geometrySource` case declaring where its
+  polygons come from — `.usStateFeature(name:)` (a feature already in
+  `us-states.geojson`, no new file) or `.bundledFile` (drop a new
   `<rawValue>.geojson` into
-  [`Resources/`](WhereCore/Sources/Resources/), and add a
+  [`Resources/`](WhereCore/Sources/Resources/)). `RegionAttributor`
+  loads it automatically from `geometrySource`; add a
   `RegionAttributorTests` spot-check.
 - **New evidence kind / sample source:** add the case, then update
   the exhaustive switches in `fromDiscriminator(...)` and the

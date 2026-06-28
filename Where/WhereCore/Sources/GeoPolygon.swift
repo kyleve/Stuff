@@ -33,17 +33,23 @@ struct BoundingBox: Hashable {
     /// (which never happens with bundled GeoJSON; the optional is
     /// there so the helper is safe to use on arbitrary inputs too).
     static func enclosing(_ polygons: [GeoPolygon]) -> BoundingBox? {
+        enclosing(polygons.lazy.flatMap(\.vertices))
+    }
+
+    /// The smallest box that contains every coordinate in `coordinates`,
+    /// or `nil` when the sequence is empty. The shared core both the
+    /// `[GeoPolygon]` overload and the region-map viewer's camera
+    /// framing build on, so the min/max sweep lives in one place.
+    static func enclosing(_ coordinates: some Sequence<Coordinate>) -> BoundingBox? {
         var minLat = Double.infinity
         var maxLat = -Double.infinity
         var minLng = Double.infinity
         var maxLng = -Double.infinity
-        for polygon in polygons {
-            for vertex in polygon.vertices {
-                minLat = min(minLat, vertex.latitude)
-                maxLat = max(maxLat, vertex.latitude)
-                minLng = min(minLng, vertex.longitude)
-                maxLng = max(maxLng, vertex.longitude)
-            }
+        for coordinate in coordinates {
+            minLat = min(minLat, coordinate.latitude)
+            maxLat = max(maxLat, coordinate.latitude)
+            minLng = min(minLng, coordinate.longitude)
+            maxLng = max(maxLng, coordinate.longitude)
         }
         guard minLat.isFinite, maxLat.isFinite else { return nil }
         return BoundingBox(

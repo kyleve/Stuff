@@ -6,15 +6,18 @@ import LogKit
 /// match wins (regions are mutually exclusive at our resolution).
 ///
 /// Polygons are loaded from bundled GeoJSON in `Resources/` via the
-/// `GeoJSON` namespace:
-/// - US states (`Region.california`, `Region.newYork`, ...) come out of a
-///   single `us-states.geojson` indexed by feature `NAME`. Adding another
-///   US state is just a new `Region` case plus an entry in `usStateNames`
-///   below — no new file to bundle.
-/// - Non-US regions (`.canada`, `.europeanUnion`) keep a dedicated
-///   per-region file named after the enum `rawValue`.
+/// `GeoJSON` namespace, driven entirely by each region's
+/// `Region.geometrySource`:
+/// - `.usStateFeature(name:)` regions (`.california`, `.newYork`, ...)
+///   come out of a single `us-states.geojson` indexed by feature `NAME`.
+///   Adding another US state is just a new `Region` case whose
+///   `geometrySource` names its Census feature — no new file to bundle.
+/// - `.bundledFile` regions (`.canada`, `.europeanUnion`) keep a
+///   dedicated per-region file named after the enum `rawValue`.
 ///
-/// Anything not inside any bundled polygon is `.other`.
+/// Regions are loaded in `Region.allCases` order, which fixes the
+/// first-match priority in `region(at:)`. Anything not inside any
+/// bundled polygon (and any `.none` region, e.g. `.other`) is `.other`.
 public struct RegionAttributor: Sendable {
     private let regionPolygons: [RegionPolygons]
 
@@ -56,60 +59,64 @@ public struct RegionAttributor: Sendable {
     /// alongside the debug-build `assertionFailure`.
     private static let logger = WhereLog.channel(.regionAttributor)
 
-    /// `Region` cases that resolve to a US state in `us-states.geojson`.
-    /// The value is the GeoJSON feature's `properties.NAME` — **a data
-    /// identifier for matching against the bundled file**, never
-    /// shown to the user. User-facing labels go through
-    /// `Region.localizedName` (string catalog) instead.
-    private static let usStateNames: [Region: String] = [
-        .california: "California",
-        .newYork: "New York",
-    ]
-
     private static func loadFromBundle() -> RegionAttributor {
-        let regions: [Region] = [.california, .newYork, .canada, .europeanUnion]
-        let usStateIndex = loadUSStateIndex(matching: Set(usStateNames.values))
+        // Every Census `NAME` any `.usStateFeature` region wants, so the
+        // shared `us-states.geojson` is read and indexed in a single pass.
+        let wantedStateNames = Set(Region.allCases.compactMap { region -> String? in
+            guard case let .usStateFeature(name) = region.geometrySource else { return nil }
+            return name
+        })
+        let usStateIndex = loadUSStateIndex(matching: wantedStateNames)
 
+        // `Region.allCases` order fixes the first-match priority in
+        // `region(at:)`; `.none` regions (e.g. `.other`) contribute no
+        // polygons and are skipped.
         var entries: [RegionPolygons] = []
-        for region in regions {
-            if let stateName = usStateNames[region] {
-                if let polygons = usStateIndex[stateName] {
-                    entries.append(RegionPolygons(region: region, polygons: polygons))
-                } else {
-                    // Either the bundle resource is missing entirely (caught
-                    // upstream and logged) or the named feature isn't in the
-                    // file. Either way, this region would silently attribute
-                    // to `.other`; surface it via fault + assertionFailure.
-                    logger
-                        .fault(
-                            "Missing feature \(stateName) in bundled us-states.geojson for region \(region.rawValue)",
+        for region in Region.allCases {
+            switch region.geometrySource {
+                case let .usStateFeature(name):
+                    if let polygons = usStateIndex[name] {
+                        entries.append(RegionPolygons(region: region, polygons: polygons))
+                    } else {
+                        // Either the bundle resource is missing entirely (caught
+                        // upstream and logged) or the named feature isn't in the
+                        // file. Either way, this region would silently attribute
+                        // to `.other`; surface it via fault + assertionFailure.
+                        logger
+                            .fault(
+                                "Missing feature \(name) in bundled us-states.geojson for region \(region.rawValue)",
+                            )
+                        assertionFailure(
+                            "Missing feature \(name) in us-states.geojson for region \(region.rawValue)",
                         )
-                    assertionFailure(
-                        "Missing feature \(stateName) in us-states.geojson for region \(region.rawValue)",
-                    )
-                }
-                continue
-            }
+                    }
 
-            guard let url = Bundle.module
-                .url(forResource: region.rawValue, withExtension: "geojson")
-            else {
-                logger
-                    .fault(
-                        "Missing required bundled GeoJSON for region \(region.rawValue)",
-                    )
-                assertionFailure("Missing bundled GeoJSON for region \(region.rawValue)")
-                continue
-            }
-            do {
-                let polygons = try GeoJSON.polygons(at: url)
-                entries.append(RegionPolygons(region: region, polygons: polygons))
-            } catch {
-                logger
-                    .fault(
-                        "Failed to decode bundled GeoJSON \(region.rawValue): \(error.localizedDescription)",
-                    )
-                assertionFailure("Failed to decode bundled GeoJSON \(region.rawValue): \(error)")
+                case .bundledFile:
+                    guard let url = Bundle.module
+                        .url(forResource: region.rawValue, withExtension: "geojson")
+                    else {
+                        logger
+                            .fault(
+                                "Missing required bundled GeoJSON for region \(region.rawValue)",
+                            )
+                        assertionFailure("Missing bundled GeoJSON for region \(region.rawValue)")
+                        continue
+                    }
+                    do {
+                        let polygons = try GeoJSON.polygons(at: url)
+                        entries.append(RegionPolygons(region: region, polygons: polygons))
+                    } catch {
+                        logger
+                            .fault(
+                                "Failed to decode bundled GeoJSON \(region.rawValue): \(error.localizedDescription)",
+                            )
+                        assertionFailure(
+                            "Failed to decode bundled GeoJSON \(region.rawValue): \(error)",
+                        )
+                    }
+
+                case .none:
+                    continue
             }
         }
         logger.info("Loaded region polygons for \(entries.count) region(s)")
@@ -129,13 +136,10 @@ public struct RegionAttributor: Sendable {
             return [:]
         }
         do {
-            let data = try Data(contentsOf: url)
-            let decoded = try JSONDecoder().decode(GeoJSON.FeatureCollection.self, from: data)
             var index: [String: [GeoPolygon]] = [:]
-            for feature in decoded.features {
-                guard let name = feature.properties?.name, wanted.contains(name) else { continue }
-                index[name, default: []]
-                    .append(contentsOf: GeoJSON.polygons(from: feature.geometry))
+            for feature in try GeoJSON.namedPolygons(at: url) {
+                guard let name = feature.name, wanted.contains(name) else { continue }
+                index[name, default: []].append(contentsOf: feature.polygons)
             }
             logger.info("Indexed \(index.count) US state(s) from us-states.geojson")
             return index
