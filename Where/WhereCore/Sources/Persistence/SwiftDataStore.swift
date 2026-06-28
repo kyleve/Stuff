@@ -451,6 +451,17 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return Set(keys)
     }
 
+    public func allDismissedIssues() async throws -> [DismissedIssue] {
+        let context = readContext()
+        var descriptor = FetchDescriptor<SDDismissedIssue>(sortBy: [SortDescriptor(\.key)])
+        descriptor.includePendingChanges = true
+        return try context.fetch(descriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
+    }
+
     public func setIssueDismissed(_ dismissed: Bool, key: String) async throws {
         let context = mutationContext()
         let descriptor = FetchDescriptor<SDDismissedIssue>(predicate: #Predicate { $0.key == key })
@@ -462,6 +473,17 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             for record in existing {
                 context.delete(record)
             }
+        }
+    }
+
+    public func restoreDismissedIssue(_ issue: DismissedIssue) async throws {
+        let context = mutationContext()
+        let key = issue.key
+        let descriptor = FetchDescriptor<SDDismissedIssue>(predicate: #Predicate { $0.key == key })
+        if let record = try context.fetch(descriptor).first {
+            record.dismissedAt = issue.dismissedAt
+        } else {
+            context.insert(SDDismissedIssue(key: issue.key, dismissedAt: issue.dismissedAt))
         }
     }
 
@@ -627,5 +649,10 @@ final class SDDismissedIssue {
     init(key: String, dismissedAt: Date) {
         self.key = key
         self.dismissedAt = dismissedAt
+    }
+
+    func toValue() -> DismissedIssue? {
+        guard let key, let dismissedAt else { return nil }
+        return DismissedIssue(key: key, dismissedAt: dismissedAt)
     }
 }

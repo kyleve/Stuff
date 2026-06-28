@@ -60,10 +60,22 @@ public protocol WhereStore: Sendable {
     /// "replace" backup-import strategy to mirror the imported file exactly.
     func clearAll() async throws
 
-    /// Every persisted dismissal key for data-resolution issues.
+    /// Every persisted dismissal key for data-resolution issues. Used by the
+    /// scanner to filter out already-dismissed issues (it only needs the keys).
     func dismissedIssueKeys() async throws -> Set<String>
 
+    /// Every persisted dismissal with its original `dismissedAt` timestamp. Used
+    /// by the whole-database backup export so a restore round-trips dismissals
+    /// verbatim.
+    func allDismissedIssues() async throws -> [DismissedIssue]
+
     /// Persist or remove a dismissed data-resolution issue key. Must run inside
-    /// `perform { ... }`. Upserts when `dismissed == true`; deletes when false.
+    /// `perform { ... }`. Upserts when `dismissed == true` (stamping the current
+    /// date); deletes when false.
     func setIssueDismissed(_ dismissed: Bool, key: String) async throws
+
+    /// Restore a dismissal verbatim, preserving its original `dismissedAt`
+    /// instead of stamping "now". Upserts by `key`. Must run inside
+    /// `perform { ... }`. Used by backup import.
+    func restoreDismissedIssue(_ issue: DismissedIssue) async throws
 }

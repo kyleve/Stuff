@@ -132,7 +132,8 @@ boundary, never SwiftData records.
   `.default` auto-picking based on test env + `#if DEBUG` —
   production is CloudKit-synced. Record types include
   `SDDismissedIssue` (CloudKit-synced dismissal keys for the Resolve
-  tab; **not** included in v1 backup export — see [`TODOs.md`](TODOs.md)).
+  tab; included in backup export/import via `BackupArchive.dismissedIssues`,
+  round-tripped as `DismissedIssue` value types preserving `dismissedAt`).
 
 ### GPS
 

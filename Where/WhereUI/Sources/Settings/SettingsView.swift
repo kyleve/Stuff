@@ -89,6 +89,7 @@ struct SettingsView: View {
                     samples: summary.sampleCount,
                     evidence: summary.evidenceCount,
                     manualDays: summary.manualDayCount,
+                    dismissedIssues: summary.dismissedIssueCount,
                 ))
             }
             .alert(

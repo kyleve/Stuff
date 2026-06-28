@@ -28,6 +28,7 @@ struct WhereSessionBackupTests {
             ),
             blob: Data("boarding-pass".utf8),
         )
+        try await services.journal.dismissIssue(key: "borderDrift:1700000000")
     }
 
     @Test func exportThenImportRoundTripsThroughTheSession() async throws {
@@ -53,10 +54,14 @@ struct WhereSessionBackupTests {
         )
         #expect(summary.evidenceCount == 1)
         #expect(summary.manualDayCount == 1)
+        #expect(summary.dismissedIssueCount == 1)
         #expect(destinationSession.backupState == .idle)
 
         #expect(try await destinationStore.allEvidence() == sourceStore.allEvidence())
         #expect(try await destinationStore.allManualDays() == sourceStore.allManualDays())
+        #expect(
+            try await destinationStore.dismissedIssueKeys() == sourceStore.dismissedIssueKeys(),
+        )
     }
 
     @Test func importingABogusFileSetsBackupError() async throws {

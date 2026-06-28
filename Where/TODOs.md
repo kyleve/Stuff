@@ -33,7 +33,6 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - What’s with all the `.accessibilityIdentifier(…)` modifiers, do we need them?
 - Remove get/set closure-based bindings
 - Add a UI that represents where you currently are? Maybe a border on the current location card?
-- feat: Include data-resolution dismissals (`SDDismissedIssue`) in the backup export/import format, so a replace-import doesn’t silently re-surface issues the user already dismissed. Needs a new versioned backup archive (`BackupArchive`/`BackupService`) carrying the dismissed keys.
 
 ## P2s (Nice to have)
 - The `guard let controller else { return }` in the WhereModel in WhereUI is weird
@@ -52,6 +51,7 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 
 ## P1s (Should do)
 - Export / import system (JSON? Zip?)
+- feat: Include data-resolution dismissals (`SDDismissedIssue`) in the backup export/import format, so a replace-import doesn’t silently re-surface issues the user already dismissed. (`BackupArchive.dismissedIssues` round-trips `DismissedIssue` value types, preserving `dismissedAt`.)
 - Schedule local push notifications if we haven’t recorded for the day yet
 - refactor: `WhereController` is getting quite big. Break it up into one parent controller with children. (dissolved into `WhereServices` + focused collaborators)
 - Remove `caption(forRank rank: Int) -> String?`, I don’t want the caption

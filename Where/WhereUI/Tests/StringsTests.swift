@@ -75,11 +75,16 @@ struct StringsTests {
         #expect(Strings.settingsBackupImportedTitle == "Backup imported")
     }
 
-    @Test func backupImportedMessageSubstitutesAllThreeCountsInOrder() {
+    @Test func backupImportedMessageSubstitutesAllCountsInOrder() {
         #expect(
-            Strings.settingsBackupImportedMessage(samples: 3, evidence: 2, manualDays: 5)
+            Strings.settingsBackupImportedMessage(
+                samples: 3,
+                evidence: 2,
+                manualDays: 5,
+                dismissedIssues: 4,
+            )
                 ==
-                "Imported 3 location samples, 2 pieces of evidence, and 5 manual days.",
+                "Imported 3 location samples, 2 pieces of evidence, 5 manual days, and 4 dismissed issues.",
         )
     }
 

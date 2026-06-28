@@ -23,11 +23,18 @@ public actor BackupCoordinator {
         public let sampleCount: Int
         public let evidenceCount: Int
         public let manualDayCount: Int
+        public let dismissedIssueCount: Int
 
-        public init(sampleCount: Int, evidenceCount: Int, manualDayCount: Int) {
+        public init(
+            sampleCount: Int,
+            evidenceCount: Int,
+            manualDayCount: Int,
+            dismissedIssueCount: Int,
+        ) {
             self.sampleCount = sampleCount
             self.evidenceCount = evidenceCount
             self.manualDayCount = manualDayCount
+            self.dismissedIssueCount = dismissedIssueCount
         }
     }
 
@@ -40,13 +47,14 @@ public actor BackupCoordinator {
         self.widgets = widgets
     }
 
-    /// Serialize the entire store (all three tables plus evidence blobs) to a
+    /// Serialize the entire store (all four tables plus evidence blobs) to a
     /// `.zip` in the temporary directory and return its URL. The caller owns the
     /// file: share it, then delete it (or its parent directory).
     public func exportBackup() async throws -> URL {
         let samples = try await store.allSamples()
         let evidence = try await store.allEvidence()
         let manualDays = try await store.allManualDays()
+        let dismissedIssues = try await store.allDismissedIssues()
         var blobs: [UUID: Data] = [:]
         for item in evidence {
             if let blob = try await store.evidenceBlob(for: item.id) {
@@ -59,6 +67,7 @@ public actor BackupCoordinator {
                 samples: samples,
                 evidence: evidence,
                 manualDays: manualDays,
+                dismissedIssues: dismissedIssues,
                 blobs: blobs,
             )
         }.value
@@ -89,7 +98,8 @@ public actor BackupCoordinator {
         }.value
         let archive = result.archive
         let blobs = result.blobs
-        let total = archive.samples.count + archive.evidence.count + archive.manualDays.count
+        let total = archive.samples.count + archive.evidence.count
+            + archive.manualDays.count + archive.dismissedIssues.count
 
         try await store.perform {
             if strategy == .replace {
@@ -120,6 +130,10 @@ public actor BackupCoordinator {
                 try await store.setManualDay(day)
                 report()
             }
+            for dismissal in archive.dismissedIssues {
+                try await store.restoreDismissedIssue(dismissal)
+                report()
+            }
         }
         await widgets.publish()
 
@@ -127,6 +141,7 @@ public actor BackupCoordinator {
             sampleCount: archive.samples.count,
             evidenceCount: archive.evidence.count,
             manualDayCount: archive.manualDays.count,
+            dismissedIssueCount: archive.dismissedIssues.count,
         )
     }
 }

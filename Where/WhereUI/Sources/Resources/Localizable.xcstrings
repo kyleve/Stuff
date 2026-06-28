@@ -1229,7 +1229,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported %lld location samples, %lld pieces of evidence, and %lld manual days."
+            "value" : "Imported %lld location samples, %lld pieces of evidence, %lld manual days, and %lld dismissed issues."
           }
         }
       }

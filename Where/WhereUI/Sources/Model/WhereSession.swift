@@ -757,7 +757,7 @@ public final class WhereSession {
             await refresh()
             await refreshDataIssues(force: true)
             Self.logger.info(
-                "Imported backup (\(summary.sampleCount) samples, \(summary.evidenceCount) evidence, \(summary.manualDayCount) manual days)",
+                "Imported backup (\(summary.sampleCount) samples, \(summary.evidenceCount) evidence, \(summary.manualDayCount) manual days, \(summary.dismissedIssueCount) dismissals)",
             )
             return summary
         } catch {
