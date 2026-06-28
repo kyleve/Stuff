@@ -27,6 +27,25 @@ struct DataIssueScannerTests {
         )
     }
 
+    private func makeScanner(
+        store: SwiftDataStore,
+        now: @escaping @Sendable () -> Date,
+        scanInterval: TimeInterval = 3600,
+    ) -> DataIssueScanner {
+        let reader = ReportReader(
+            store: store,
+            aggregator: DayAggregator(calendar: Self.calendar, timeZone: Self.calendar.timeZone),
+            attributor: .shared,
+        )
+        return DataIssueScanner(
+            reportReader: reader,
+            attributor: .shared,
+            calendar: Self.calendar,
+            now: now,
+            scanInterval: scanInterval,
+        )
+    }
+
     @Test func issues_returnsSortedIssues() async throws {
         let fixedNow = Self.day(2026, 6, 15)
         let services = try makeServices(now: { fixedNow })
@@ -69,69 +88,161 @@ struct DataIssueScannerTests {
         #expect(second.allSatisfy { $0.id.storageKey != issue.id.storageKey })
     }
 
-    @Test func issues_throttleServesCache() async throws {
-        var now = Self.day(2026, 6, 15)
+    /// Within the interval, a non-forced call serves the cached result even
+    /// after the underlying dismissed set changes; once the interval elapses it
+    /// recomputes and reflects the change. Dismissing one of the returned keys
+    /// out from under the cache is the observable lever: a served cache still
+    /// contains it, a recompute drops it.
+    @Test func issues_throttleServesCacheUntilIntervalElapses() async throws {
+        let clock = MutableClock(Self.day(2026, 6, 15))
         let store = try SwiftDataStore.inMemory()
-        let reader = ReportReader(
-            store: store,
-            aggregator: DayAggregator(calendar: Self.calendar, timeZone: Self.calendar.timeZone),
-            attributor: .shared,
-        )
-        let scanner = DataIssueScanner(
-            reportReader: reader,
-            attributor: .shared,
-            calendar: Self.calendar,
-            now: { now },
-            scanInterval: 3600,
-        )
+        let scanner = makeScanner(store: store, now: { clock.now })
 
         let first = try await scanner.issues(
             year: 2026,
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
-        now = try #require(Self.calendar.date(byAdding: .hour, value: 1, to: now))
+        let dismissedKey = try #require(first.first).id.storageKey
+        try await store.perform { try await store.setIssueDismissed(true, key: dismissedKey) }
+
+        // Within the interval: the cache is served, so the new dismissal is not
+        // yet reflected.
+        clock.advance(by: 30 * 60)
         let cached = try await scanner.issues(
             year: 2026,
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
         #expect(cached.map(\.id) == first.map(\.id))
-    }
+        #expect(cached.contains { $0.id.storageKey == dismissedKey })
 
-    @Test func issues_forceRecomputesWithinInterval() async throws {
-        let now = Self.day(2026, 6, 15)
-        let services = try makeServices(now: { now })
-        let scanner = services.resolution
-
-        _ = try await scanner.issues(
+        // Past the interval: recomputes and drops the dismissed issue.
+        clock.advance(by: 4 * 60 * 60)
+        let recomputed = try await scanner.issues(
             year: 2026,
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
-        _ = try await scanner.issues(
+        #expect(!recomputed.contains { $0.id.storageKey == dismissedKey })
+    }
+
+    @Test func issues_forceRecomputesWithinInterval() async throws {
+        let now = Self.day(2026, 6, 15)
+        let store = try SwiftDataStore.inMemory()
+        let scanner = makeScanner(store: store, now: { now })
+
+        let first = try await scanner.issues(
+            year: 2026,
+            primaryRegions: [.california],
+            driftThresholdMeters: 10000,
+        )
+        let dismissedKey = try #require(first.first).id.storageKey
+        try await store.perform { try await store.setIssueDismissed(true, key: dismissedKey) }
+
+        // `force` ignores the throttle and reflects the dismissal immediately,
+        // without advancing `now`.
+        let forced = try await scanner.issues(
             year: 2026,
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
             force: true,
         )
+        #expect(!forced.contains { $0.id.storageKey == dismissedKey })
+    }
+
+    @Test func issues_recomputesWhenThresholdChanges() async throws {
+        let now = Self.day(2026, 6, 15)
+        let store = try SwiftDataStore.inMemory()
+        let scanner = makeScanner(store: store, now: { now })
+
+        let first = try await scanner.issues(
+            year: 2026,
+            primaryRegions: [.california],
+            driftThresholdMeters: 10000,
+        )
+        let dismissedKey = try #require(first.first).id.storageKey
+        try await store.perform { try await store.setIssueDismissed(true, key: dismissedKey) }
+
+        // A different threshold is a cache-key miss, so it recomputes even
+        // within the interval and without `force`.
+        let differentThreshold = try await scanner.issues(
+            year: 2026,
+            primaryRegions: [.california],
+            driftThresholdMeters: 25000,
+        )
+        #expect(!differentThreshold.contains { $0.id.storageKey == dismissedKey })
+    }
+
+    @Test func issues_recomputesWhenYearChanges() async throws {
+        let now = Self.day(2026, 6, 15)
+        let store = try SwiftDataStore.inMemory()
+        let scanner = makeScanner(store: store, now: { now })
+
+        let currentYear = try await scanner.issues(
+            year: 2026,
+            primaryRegions: [.california],
+            driftThresholdMeters: 10000,
+        )
+        // A year switch is a cache-key miss: the second call must reflect 2025
+        // (its missing range starts in Jan 2025), not the cached 2026 result.
+        let pastYear = try await scanner.issues(
+            year: 2025,
+            primaryRegions: [.california],
+            driftThresholdMeters: 10000,
+        )
+        #expect(currentYear.map(\.id) != pastYear.map(\.id))
+        #expect(pastYear.contains { issue in
+            guard case let .backfill(range) = issue.resolution else { return false }
+            return Self.calendar.component(.year, from: range.start) == 2025
+        })
     }
 
     @Test func invalidate_forcesRecompute() async throws {
         let now = Self.day(2026, 6, 15)
-        let services = try makeServices(now: { now })
-        let scanner = services.resolution
+        let store = try SwiftDataStore.inMemory()
+        let scanner = makeScanner(store: store, now: { now })
 
-        _ = try await scanner.issues(
+        let first = try await scanner.issues(
             year: 2026,
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
+        let dismissedKey = try #require(first.first).id.storageKey
+        try await store.perform { try await store.setIssueDismissed(true, key: dismissedKey) }
+
         await scanner.invalidate()
-        _ = try await scanner.issues(
+
+        // After invalidation the next call recomputes despite being within the
+        // interval, so the dismissal is reflected.
+        let afterInvalidate = try await scanner.issues(
             year: 2026,
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
+        #expect(!afterInvalidate.contains { $0.id.storageKey == dismissedKey })
+    }
+}
+
+/// A `Sendable` clock whose `now` the scanner reads through its injected closure
+/// while the test advances it, so the throttle can be driven deterministically.
+private final class MutableClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var current: Date
+
+    init(_ start: Date) {
+        current = start
+    }
+
+    var now: Date {
+        lock.lock()
+        defer { lock.unlock() }
+        return current
+    }
+
+    func advance(by interval: TimeInterval) {
+        lock.lock()
+        defer { lock.unlock() }
+        current += interval
     }
 }
