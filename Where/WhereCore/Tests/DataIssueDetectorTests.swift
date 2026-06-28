@@ -57,6 +57,16 @@ struct DataIssueDetectorTests {
         #expect(issues[0].isDismissible == false)
     }
 
+    @Test func missingDaysDetector_futureYearReturnsEmpty() {
+        // A year that hasn't started yet must not report every day as missing.
+        let issues = MissingDaysDetector().detectIssues(in: Self.input(
+            year: 2027,
+            days: [],
+            now: Self.day(2026, 6, 15),
+        ))
+        #expect(issues.isEmpty)
+    }
+
     @Test func missingDaysDetector_pastYearThroughDec31() {
         let present: [DayPresence] = [
             DayPresence(date: Self.day(2025, 12, 30), regions: [.california]),
