@@ -13,7 +13,7 @@ import WhereCore
 /// the standalone `RegionViewer` Mac Catalyst app (which has no session /
 /// dependency injection). The catalog decodes off the main thread, so the
 /// `.task` below never blocks the UI on the heavy `.source` parse.
-struct RegionMapView: View {
+public struct RegionMapView: View {
     @State private var kind: RegionGeometryKind = .attribution
     /// One `Result` rather than parallel value/error/loading flags:
     /// `nil` is "not loaded yet", success and failure can't both be set.
@@ -23,7 +23,11 @@ struct RegionMapView: View {
     @State private var selectedTitle: String?
     @State private var cameraPosition: MapCameraPosition = .automatic
 
-    var body: some View {
+    /// Public so the standalone `RegionViewer` app (a separate module) can
+    /// present the same screen as the in-app Settings → Developer entry.
+    public init() {}
+
+    public var body: some View {
         VStack(spacing: 0) {
             kindPicker
             stateContent
