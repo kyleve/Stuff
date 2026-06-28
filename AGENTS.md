@@ -121,6 +121,13 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
 ## Conventions
 
 - **Swift Testing** (`import Testing`) for all unit tests – do not use XCTest.
+- **Test files are 1:1 with implementation files.** A type in `Foo.swift` is
+  tested in `FooTests.swift`; when a source file is split (e.g. one detector per
+  file), split its tests to match rather than keeping one omnibus file. Shared
+  fixtures/helpers live in their own support file (e.g.
+  `WhereCoreTestSupport.swift`, `DataIssueDetectorTestSupport.swift`), not bundled
+  into a test file — so a single test clock or input builder isn't copy-pasted
+  across suites.
 - Generated `.xcodeproj` and `Derived/` are git-ignored; never commit them.
 - Bundle IDs follow `com.stuff.<suffix>`.
 - Prefer small named structs over tuples for any value with more than
