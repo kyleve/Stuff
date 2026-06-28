@@ -136,25 +136,26 @@ func changesDeliversFinalSnapshotAfterConcurrentRecords() async {
 func changesInitialYieldReflectsPreRegistrationSnapshot() async {
     let store = LogStore()
 
-    let initialCount = await withTaskGroup(of: Int.self) { group in
-        group.addTask {
-            var iterator = store.changes().makeAsyncIterator()
-            let initial = await iterator.next()
-            return initial?.count ?? -1
-        }
-        group.addTask {
-            for index in 0 ..< 10 {
-                store.record(entry("\(index)"))
-            }
-            return store.snapshot().count
-        }
+    // `changes()` synchronously captures and yields the snapshot that exists at
+    // subscription time *before* it registers the observer, so records that land
+    // afterwards cannot deliver an update ahead of the initial yield. Subscribing
+    // to an empty store and only then recording proves it deterministically: the
+    // records are already buffered behind the empty initial element by the time
+    // we consume the stream, yet the first yield is still empty.
+    var iterator = store.changes().makeAsyncIterator()
 
-        var counts: [Int] = []
-        for await count in group {
-            counts.append(count)
-        }
-        return counts.first(where: { $0 >= 0 }) ?? -1
+    for index in 0 ..< 10 {
+        store.record(entry("\(index)"))
     }
 
-    #expect(initialCount == 0)
+    let initial = await iterator.next()
+    #expect(initial?.isEmpty == true)
+
+    // The post-subscription records still arrive, just as later updates.
+    var last: [LogEntry]?
+    while let snapshot = await iterator.next() {
+        last = snapshot
+        if snapshot.count == 10 { break }
+    }
+    #expect(last?.count == 10)
 }
