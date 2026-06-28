@@ -43,7 +43,7 @@ struct RegionDaysView: View {
             locations.map { ($0.date, $0.points.map(\.coordinate)) },
             uniquingKeysWith: { first, _ in first },
         )
-        pins = MapPin.deduplicated(from: locations.flatMap(\.points).map(\.coordinate))
+        pins = MapPin.deduplicated(from: locations.flatMap(\.points))
     }
 
     @ViewBuilder
@@ -67,6 +67,11 @@ struct RegionDaysView: View {
     private var map: some View {
         Map(initialPosition: .automatic) {
             ForEach(pins) { pin in
+                if let radius = drawnUncertaintyRadius(for: pin) {
+                    MapCircle(center: pin.coordinate, radius: radius)
+                        .foregroundStyle(region.style.tint.opacity(0.15))
+                        .stroke(region.style.tint.opacity(0.6), lineWidth: 1)
+                }
                 Marker("", coordinate: pin.coordinate)
                     .tint(region.style.tint)
             }
@@ -74,6 +79,17 @@ struct RegionDaysView: View {
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
         .frame(height: UIConstants.Size.regionMapHeight)
         .accessibilityLabel(Strings.secondaryRegionMapAccessibility)
+    }
+
+    /// Radius in meters to draw for a pin's GPS uncertainty, or `nil` when the
+    /// fix is precise enough that a circle would just clutter the map. Clamped
+    /// so a very coarse fix (the data routinely has 1-2 km radii) doesn't swamp
+    /// the auto-framed map while a near-border drift still reads as uncertain.
+    private func drawnUncertaintyRadius(for pin: MapPin) -> CLLocationDistance? {
+        let minimumVisible = 25.0
+        let maximumDrawn = 500.0
+        guard pin.horizontalAccuracy > minimumVisible else { return nil }
+        return min(pin.horizontalAccuracy, maximumDrawn)
     }
 
     private var dayList: some View {
@@ -94,31 +110,45 @@ struct RegionDaysView: View {
     }
 }
 
-/// A map annotation for one recorded point. Coordinates are de-duplicated onto
-/// a coarse grid so a day's GPS jitter collapses to a single pin and the map
-/// isn't carpeted with overlapping markers.
+/// A map annotation for one recorded point, with its GPS uncertainty radius.
+/// Points are de-duplicated onto a coarse grid so a day's jitter collapses to a
+/// single pin and the map isn't carpeted with overlapping markers.
 private struct MapPin: Identifiable {
     let id: Int
     let coordinate: CLLocationCoordinate2D
+    let horizontalAccuracy: CLLocationDistance
 
     /// ~0.01° (~1 km) buckets, capped so a very dense region stays responsive.
-    static func deduplicated(from coordinates: [Coordinate], limit: Int = 250) -> [MapPin] {
-        var seen = Set<Int>()
-        var pins: [MapPin] = []
-        for coordinate in coordinates {
-            let latBucket = Int((coordinate.latitude * 100).rounded())
-            let lngBucket = Int((coordinate.longitude * 100).rounded())
-            guard seen.insert(latBucket &* 100_000 &+ lngBucket).inserted else { continue }
-            pins.append(MapPin(
-                id: pins.count,
-                coordinate: CLLocationCoordinate2D(
-                    latitude: coordinate.latitude,
-                    longitude: coordinate.longitude,
-                ),
-            ))
-            if pins.count >= limit { break }
+    /// When several points land in one bucket the most accurate (smallest
+    /// radius) wins, so the pin sits on the best fix and the drawn uncertainty
+    /// circle reflects it rather than a coarse outlier.
+    static func deduplicated(from points: [RegionDayPoint], limit: Int = 250) -> [MapPin] {
+        var bestByBucket: [Int: RegionDayPoint] = [:]
+        var bucketOrder: [Int] = []
+        for point in points {
+            let latBucket = Int((point.coordinate.latitude * 100).rounded())
+            let lngBucket = Int((point.coordinate.longitude * 100).rounded())
+            let bucket = latBucket &* 100_000 &+ lngBucket
+            if let existing = bestByBucket[bucket] {
+                if point.horizontalAccuracy < existing.horizontalAccuracy {
+                    bestByBucket[bucket] = point
+                }
+            } else {
+                bestByBucket[bucket] = point
+                bucketOrder.append(bucket)
+            }
         }
-        return pins
+        return bucketOrder.prefix(limit).enumerated().compactMap { index, bucket in
+            guard let point = bestByBucket[bucket] else { return nil }
+            return MapPin(
+                id: index,
+                coordinate: CLLocationCoordinate2D(
+                    latitude: point.coordinate.latitude,
+                    longitude: point.coordinate.longitude,
+                ),
+                horizontalAccuracy: point.horizontalAccuracy,
+            )
+        }
     }
 }
 
