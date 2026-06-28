@@ -1,5 +1,12 @@
 import Foundation
 
+/// Detects calendar-adjacent days whose regions are completely disjoint — e.g.
+/// California one day and New York the next with no overlap — and reports an
+/// `AbruptChangeIssue` suggesting the boundary was actually a travel day.
+///
+/// Walks the day-sorted report comparing each day to the following one, flagging
+/// a pair only when both have regions, the two sets share nothing, and the days
+/// are exactly one calendar day apart (a gap in the calendar is left alone).
 public struct AbruptLocationChangeDetector: DataIssueDetector {
     public typealias Issue = AbruptChangeIssue
 
