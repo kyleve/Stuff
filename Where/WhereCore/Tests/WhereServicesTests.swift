@@ -1007,29 +1007,6 @@ struct WhereServicesTests {
     }
 }
 
-/// A hand-advanced clock so tests can drive `WhereServices`' `now` past the
-/// widget snapshot's freshness window and across a day boundary.
-private final class MutableClock: @unchecked Sendable {
-    private let lock = NSLock()
-    private var current: Date
-
-    init(_ start: Date) {
-        current = start
-    }
-
-    var now: Date {
-        lock.lock()
-        defer { lock.unlock() }
-        return current
-    }
-
-    func advance(by interval: TimeInterval) {
-        lock.lock()
-        defer { lock.unlock() }
-        current += interval
-    }
-}
-
 @Sendable
 private func waitUntil(
     timeout: Duration = .seconds(2),

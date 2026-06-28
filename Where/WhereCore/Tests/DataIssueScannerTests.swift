@@ -223,26 +223,3 @@ struct DataIssueScannerTests {
         #expect(!afterInvalidate.contains { $0.id.storageKey == dismissedKey })
     }
 }
-
-/// A `Sendable` clock whose `now` the scanner reads through its injected closure
-/// while the test advances it, so the throttle can be driven deterministically.
-private final class MutableClock: @unchecked Sendable {
-    private let lock = NSLock()
-    private var current: Date
-
-    init(_ start: Date) {
-        current = start
-    }
-
-    var now: Date {
-        lock.lock()
-        defer { lock.unlock() }
-        return current
-    }
-
-    func advance(by interval: TimeInterval) {
-        lock.lock()
-        defer { lock.unlock() }
-        current += interval
-    }
-}
