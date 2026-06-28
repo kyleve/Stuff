@@ -67,6 +67,35 @@ struct RegionGeometryCatalogTests {
         }
     }
 
+    @Test func outlineHashesByIdNotCoordinates() {
+        let id = RegionOutline.ID(title: "California", index: 0)
+        let a = RegionOutline(
+            id: id,
+            title: "California",
+            region: .california,
+            coordinates: [
+                Coordinate(latitude: 0, longitude: 0),
+                Coordinate(latitude: 1, longitude: 1),
+                Coordinate(latitude: 2, longitude: 2),
+            ],
+        )
+        let b = RegionOutline(
+            id: id,
+            title: "California",
+            region: .california,
+            coordinates: [
+                Coordinate(latitude: 9, longitude: 9),
+                Coordinate(latitude: 8, longitude: 8),
+                Coordinate(latitude: 7, longitude: 7),
+            ],
+        )
+        // Same identity → same hash, no matter how big or different the
+        // coordinate rings are...
+        #expect(a.hashValue == b.hashValue)
+        // ...while value equality still distinguishes the differing rings.
+        #expect(a != b)
+    }
+
     // MARK: - Bounding box
 
     @Test func boundingBox_enclosesEveryOutlineCoordinate() async throws {

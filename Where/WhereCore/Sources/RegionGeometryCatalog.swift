@@ -39,6 +39,15 @@ public struct RegionOutline: Identifiable, Sendable, Hashable {
     public let region: Region?
     /// The exterior ring, in order.
     public let coordinates: [Coordinate]
+
+    /// Hash on identity alone. `id` is unique within an `outlines(for:)`
+    /// result, so this avoids walking the (often thousands-of-points)
+    /// coordinate ring on every `Set`/dictionary insertion. The
+    /// synthesized `==` still compares every field, so value equality is
+    /// unchanged and the `a == b ⇒ hash(a) == hash(b)` contract holds.
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 }
 
 /// Failure decoding bundled region geometry. Surfaced (never swallowed)
