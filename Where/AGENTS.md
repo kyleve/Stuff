@@ -111,8 +111,12 @@ boundary, never SwiftData records.
   per-detector issue types (`MissingDaysIssue`, `BorderDriftIssue`,
   `AbruptChangeIssue`), closed [`IssueResolution`](WhereCore/Sources/DataResolution/DataIssue.swift)
   enum (backfill / relabel / mark-travel-day), and [`DriftThreshold`](WhereCore/Sources/DataResolution/DataIssue.swift)
-  (persisted via `WherePreferences.driftThresholdMeters`). UI switches on
-  `IssueResolution`, not detector types.
+  (persisted via `WherePreferences.driftThresholdMeters`, default 1 km). UI
+  switches on `IssueResolution`, not detector types. `BorderDriftIssue` covers
+  both a day attributed *only* to `.other` and a *mixed* day where a real
+  region also picked up a stray `.other` (GPS jitter across a border); its
+  relabel resolution suggests the day's real regions, dropping only the
+  spurious `.other`.
 - [`GeoPolygon`](WhereCore/Sources/GeoPolygon.swift) – planar polygon
   geometry used by `RegionAttributor`; exposes
   `distanceToBoundary(from:)` for border-drift detection.
