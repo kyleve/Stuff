@@ -184,6 +184,21 @@ struct DayAggregatorTests {
         #expect(california.isEmpty)
     }
 
+    @Test func locationsCarryHorizontalAccuracy() {
+        // The fix's horizontal accuracy must survive aggregation so the map can
+        // draw a GPS uncertainty radius around the point.
+        let samples = [
+            makeSample(at: "2026-05-01T09:00:00-07:00", lat: 37.7749, lng: -122.4194, accuracy: 65),
+        ]
+        let locations = aggregator.locations(
+            in: .california,
+            samples: samples,
+            attributor: attributor,
+        )
+        #expect(locations.count == 1)
+        #expect(locations[0].points.first?.horizontalAccuracy == 65)
+    }
+
     @Test func representativeCoordinatePicksTheMostSampledCellPerRegion() {
         let samples = [
             // San Francisco ×3 — the dominant California cell.
@@ -237,12 +252,17 @@ struct DayAggregatorTests {
 
     // MARK: - Helpers
 
-    private func makeSample(at iso: String, lat: Double, lng: Double) -> LocationSample {
+    private func makeSample(
+        at iso: String,
+        lat: Double,
+        lng: Double,
+        accuracy: Double = 0,
+    ) -> LocationSample {
         let formatter = ISO8601DateFormatter()
         return LocationSample(
             timestamp: formatter.date(from: iso) ?? Date(timeIntervalSince1970: 0),
             coordinate: Coordinate(latitude: lat, longitude: lng),
-            horizontalAccuracy: 0,
+            horizontalAccuracy: accuracy,
             source: .manual,
         )
     }
