@@ -75,6 +75,15 @@ struct ScreenHostingTests {
         }
     }
 
+    @Test func regionMapViewHosts() throws {
+        // Self-contained — reads geometry from RegionGeometryCatalog, so
+        // it needs no session/environment.
+        let rootView = NavigationStack { RegionMapView() }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
     @Test func dayRelabelViewHosts() throws {
         let session = PreviewSupport.loadedSession()
         let day = DayPresence(date: .now, regions: [.other])

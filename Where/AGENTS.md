@@ -273,6 +273,22 @@ states.
   any distinct edge state (e.g. missing-days, elsewhere-only) each deserve a
   preview when the view renders them differently.
 
+## Developer tools
+
+- [`RegionMapView`](WhereUI/Sources/Developer/RegionMapView.swift) draws
+  region boundary polygons on a real map with a segmented toggle between
+  `.attribution` (what `RegionAttributor` loaded) and `.source` (every
+  authored GeoJSON feature), reading geometry from
+  [`RegionGeometryCatalog`](WhereCore/Sources/RegionGeometryCatalog.swift).
+  It is **self-contained** — no `@Environment(WhereSession.self)` — so the
+  same view backs both the DEBUG-only Settings → Developer → Region map entry
+  and the standalone `RegionViewer` Mac Catalyst app. Geometry decodes off
+  the main thread (the catalog is `async`); a decode failure lands in a
+  `.failure` state (and the logs), never a silently empty map.
+- Map views bridge model `Coordinate`s to MapKit with the shared
+  [`Coordinate.clLocationCoordinate`](WhereUI/Sources/Shared/Coordinate+MapKit.swift)
+  extension (`Coordinate` itself stays CoreLocation-free in the model layer).
+
 ## Adding things
 
 - **New library target:** add to root

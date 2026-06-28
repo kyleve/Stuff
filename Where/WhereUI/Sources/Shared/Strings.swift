@@ -428,6 +428,91 @@ enum Strings {
         localized("settings.debug.inspectorTitle")
     }
 
+    static var settingsDebugRegionMapLink: String {
+        String(
+            localized: "settings.debug.regionMapLink",
+            defaultValue: "Region map",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Region map (developer)
+
+    static var regionMapTitle: String {
+        String(localized: "regionMap.title", defaultValue: "Region Map", bundle: .module)
+    }
+
+    /// Accessibility label for the picker that switches the drawn geometry.
+    static var regionMapKindPicker: String {
+        String(localized: "regionMap.kind.picker", defaultValue: "Geometry", bundle: .module)
+    }
+
+    static func regionMapKind(_ kind: RegionGeometryKind) -> String {
+        switch kind {
+            case .attribution:
+                String(
+                    localized: "regionMap.kind.attribution",
+                    defaultValue: "Attribution",
+                    bundle: .module,
+                )
+            case .source:
+                String(localized: "regionMap.kind.source", defaultValue: "Source", bundle: .module)
+        }
+    }
+
+    static func regionMapKindFooter(_ kind: RegionGeometryKind) -> String {
+        switch kind {
+            case .attribution:
+                String(
+                    localized: "regionMap.kind.attribution.footer",
+                    defaultValue: "The simplified polygons the app uses to attribute coordinates today.",
+                    bundle: .module,
+                )
+            case .source:
+                String(
+                    localized: "regionMap.kind.source.footer",
+                    defaultValue: "Every feature decoded straight from the bundled GeoJSON, at full authored fidelity.",
+                    bundle: .module,
+                )
+        }
+    }
+
+    static var regionMapLegendHeader: String {
+        String(localized: "regionMap.legend.header", defaultValue: "Features", bundle: .module)
+    }
+
+    static var regionMapShowAll: String {
+        String(localized: "regionMap.showAll", defaultValue: "Show all", bundle: .module)
+    }
+
+    static var regionMapMapAccessibility: String {
+        String(
+            localized: "regionMap.map.accessibility",
+            defaultValue: "Map of region boundaries",
+            bundle: .module,
+        )
+    }
+
+    static var regionMapLoadErrorTitle: String {
+        String(
+            localized: "regionMap.loadError.title",
+            defaultValue: "Couldn't load regions",
+            bundle: .module,
+        )
+    }
+
+    static var regionMapEmptyTitle: String {
+        String(localized: "regionMap.empty.title", defaultValue: "No regions", bundle: .module)
+    }
+
+    static var regionMapEmptyDescription: String {
+        String(
+            localized: "regionMap.empty.description",
+            defaultValue: "No region geometry was found in the bundle.",
+            bundle: .module,
+        )
+    }
+
     // MARK: App icon picker
 
     static var appIconTitle: String {

@@ -111,10 +111,7 @@ private struct MapPin: Identifiable {
             guard seen.insert(latBucket &* 100_000 &+ lngBucket).inserted else { continue }
             pins.append(MapPin(
                 id: pins.count,
-                coordinate: CLLocationCoordinate2D(
-                    latitude: coordinate.latitude,
-                    longitude: coordinate.longitude,
-                ),
+                coordinate: coordinate.clLocationCoordinate,
             ))
             if pins.count >= limit { break }
         }
