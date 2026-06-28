@@ -996,12 +996,14 @@ enum Strings {
         )
     }
 
-    static func driftThresholdLabel(km: Int) -> String {
-        String(
-            localized: "settings.resolution.threshold",
-            defaultValue: "\(km) km",
-            bundle: .module,
-        )
+    /// A localized "10 km"-style label for a drift-threshold preset. Formatted
+    /// through `Measurement` so the number and unit symbol localize, while
+    /// staying in kilometers (`.asProvided`, no conversion to miles) — the
+    /// presets are defined in km. No catalog entry is needed; the formatter is
+    /// locale-driven, like the date/number styles elsewhere in this file.
+    static func driftThresholdLabel(kilometers: Int) -> String {
+        Measurement(value: Double(kilometers), unit: UnitLength.kilometers)
+            .formatted(.measurement(width: .abbreviated, usage: .asProvided))
     }
 
     // MARK: Widgets

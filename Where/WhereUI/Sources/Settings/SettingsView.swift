@@ -229,7 +229,8 @@ struct SettingsView: View {
         return Section {
             Picker(Strings.settingsResolutionHeader, selection: $session.driftThreshold) {
                 ForEach(DriftThreshold.allCases, id: \.self) { threshold in
-                    Text(Strings.driftThresholdLabel(km: threshold.rawValue / 1000)).tag(threshold)
+                    Text(Strings.driftThresholdLabel(kilometers: threshold.rawValue / 1000))
+                        .tag(threshold)
                 }
             }
         } footer: {
