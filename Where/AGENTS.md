@@ -128,6 +128,11 @@ boundary, never SwiftData records.
 - [`GeoPolygon`](WhereCore/Sources/GeoPolygon.swift) – planar polygon
   geometry used by `RegionAttributor`; exposes
   `distanceToBoundary(from:)` for border-drift detection.
+- [`LongitudeSpan`](WhereCore/Sources/LongitudeSpan.swift) – the shortest
+  longitudinal arc enclosing a set of longitudes, **antimeridian-aware**
+  (a cluster straddling ±180° like Alaska's Aleutians frames as a tight
+  arc, not a near-global span). The region-map viewer pairs it with
+  `BoundingBox` (latitude) to frame its camera.
 
 ### Persistence
 

@@ -191,19 +191,25 @@ public struct RegionMapView: View {
         cameraPosition = Self.cameraPosition(enclosing: outlines)
     }
 
-    /// A camera framed to the bounding box of `outlines` (with a little
-    /// padding), reusing `BoundingBox.enclosing` so the framing math isn't
-    /// re-derived here. Falls back to `.automatic` when there's nothing to
-    /// show.
+    /// A camera framed to `outlines` (with a little padding). Latitude
+    /// comes from `BoundingBox` (latitude never wraps); longitude from
+    /// `LongitudeSpan`, which is antimeridian-aware — so filtering to
+    /// Alaska frames the Aleutians tightly instead of zooming out to the
+    /// whole globe (its rings span ~+172° across 180° to ~−130°). Falls
+    /// back to `.automatic` when there's nothing to show.
     private static func cameraPosition(enclosing outlines: [RegionOutline]) -> MapCameraPosition {
-        guard let box = BoundingBox.enclosing(outlines) else { return .automatic }
+        guard let box = BoundingBox.enclosing(outlines),
+              let longitude = LongitudeSpan.enclosing(
+                  outlines.lazy.flatMap { $0.coordinates.lazy.map(\.longitude) },
+              )
+        else { return .automatic }
         let center = CLLocationCoordinate2D(
             latitude: (box.minLatitude + box.maxLatitude) / 2,
-            longitude: (box.minLongitude + box.maxLongitude) / 2,
+            longitude: longitude.center,
         )
         let span = MKCoordinateSpan(
             latitudeDelta: min(max((box.maxLatitude - box.minLatitude) * 1.3, 1), 170),
-            longitudeDelta: min(max((box.maxLongitude - box.minLongitude) * 1.3, 1), 350),
+            longitudeDelta: min(max(longitude.degrees * 1.3, 1), 350),
         )
         return .region(MKCoordinateRegion(center: center, span: span))
     }
