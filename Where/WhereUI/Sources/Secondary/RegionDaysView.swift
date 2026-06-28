@@ -82,12 +82,13 @@ struct RegionDaysView: View {
     }
 
     /// Radius in meters to draw for a pin's GPS uncertainty, or `nil` when the
-    /// fix is precise enough that a circle would just clutter the map. Clamped
-    /// so a very coarse fix (the data routinely has 1-2 km radii) doesn't swamp
-    /// the auto-framed map while a near-border drift still reads as uncertain.
+    /// fix is precise enough that a circle would just clutter the map. The cap
+    /// is deliberately generous so the user sees close to the real radius (the
+    /// translucent fill keeps the map readable underneath); it only reins in a
+    /// pathologically coarse fix so it can't zoom the auto-framed map way out.
     private func drawnUncertaintyRadius(for pin: MapPin) -> CLLocationDistance? {
         let minimumVisible = 25.0
-        let maximumDrawn = 500.0
+        let maximumDrawn = 3000.0
         guard pin.horizontalAccuracy > minimumVisible else { return nil }
         return min(pin.horizontalAccuracy, maximumDrawn)
     }
