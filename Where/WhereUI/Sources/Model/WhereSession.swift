@@ -441,12 +441,22 @@ public final class WhereSession {
     }
 
     func refreshDataIssues(force: Bool) async {
-        dataIssues = await (try? services.resolution.issues(
-            year: selectedYear,
-            primaryRegions: ranking.primary.map(\.region),
-            driftThresholdMeters: Double(preferences.driftThresholdMeters),
-            force: force,
-        )) ?? []
+        do {
+            dataIssues = try await services.resolution.issues(
+                year: selectedYear,
+                primaryRegions: ranking.primary.map(\.region),
+                driftThresholdMeters: Double(preferences.driftThresholdMeters),
+                force: force,
+            )
+        } catch {
+            // Surface the failure in the log and keep the last good list rather
+            // than silently blanking the tab + badge (which would read as "all
+            // clear"). The report's own `loadState` already covers the common
+            // case where the shared store is unreadable.
+            Self.logger.warning(
+                "Failed to scan for data issues: \(error.localizedDescription)",
+            )
+        }
     }
 
     public func dismiss(_ issue: any DataIssue) async {

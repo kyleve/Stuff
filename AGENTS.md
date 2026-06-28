@@ -146,6 +146,15 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   When adding behavior, default to Core (+ view-model glue if the UI needs a
   trigger or observable mirror); push logic into a `View` only for presentation.
   See [`Where/AGENTS.md`](Where/AGENTS.md#layering).
+- **Never silently swallow errors.** Core APIs surface failure by `throw`ing
+  (or returning a `Result`/typed error) — never absorb it into a benign-looking
+  default like `[]`, `nil`, or `false`. Don't discard errors with `try?` or an
+  empty `catch {}` that hides the failure: at minimum a `catch` must log
+  (`WhereLog.warning`/`error`) *and* leave observable state honest (preserve the
+  last good value or move to a `failed` state — not a default that reads as
+  success, e.g. an empty list rendering as "all clear"). Callers decide *how* to
+  react (rethrow, log + keep state, set a `failed` case), but the failure must
+  always be observable — in logs, in state, or both.
 - **`didSet` must skip work when the value is unchanged.** When the stored
   type is `Equatable`, guard `oldValue != newValue` before invalidation,
   logging, or other side effects — reassigning the same value should be a no-op.
