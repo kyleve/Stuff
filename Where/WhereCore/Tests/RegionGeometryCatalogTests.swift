@@ -82,4 +82,14 @@ struct RegionGeometryCatalogTests {
     @Test func boundingBox_ofEmptyOutlinesIsNil() {
         #expect(BoundingBox.enclosing([] as [RegionOutline]) == nil)
     }
+
+    // MARK: - Errors
+
+    @Test func missingResourceErrorNamesTheFile() {
+        let error = RegionGeometryError.missingResource("us-states")
+        // `errorDescription` (LocalizedError) is what the viewer renders;
+        // it must name the file, not fall back to the generic message.
+        #expect(error.errorDescription?.contains("us-states.geojson") == true)
+        #expect(error.localizedDescription.contains("us-states.geojson"))
+    }
 }

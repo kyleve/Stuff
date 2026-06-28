@@ -47,6 +47,19 @@ public enum RegionGeometryError: Error {
     case missingResource(String)
 }
 
+extension RegionGeometryError: LocalizedError {
+    /// A developer-facing message that names the missing file, rather than
+    /// the generic "operation couldn't be completed" the viewer's error
+    /// state would otherwise show. Not localized — this only ever appears
+    /// in the DEBUG region-map tool.
+    public var errorDescription: String? {
+        switch self {
+            case let .missingResource(resource):
+                "Missing bundled region geometry resource “\(resource).geojson”."
+        }
+    }
+}
+
 /// Read-only catalog of region boundary geometry for the developer
 /// region-map viewer. The single public entry point is
 /// ``outlines(for:)``; UI never touches `RegionAttributor`'s internal
