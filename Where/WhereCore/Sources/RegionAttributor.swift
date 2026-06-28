@@ -27,6 +27,14 @@ public struct RegionAttributor: Sendable {
         self.regionPolygons = regionPolygons
     }
 
+    /// The loaded polygons per region, exposed for the developer
+    /// region-map viewer (`RegionGeometryCatalog`). Internal on purpose:
+    /// callers outside `WhereCore` consume drawable outlines via
+    /// `RegionGeometryCatalog.outlines(for:)`, never raw `RegionPolygons`.
+    var loadedRegionPolygons: [RegionPolygons] {
+        regionPolygons
+    }
+
     public func region(at coordinate: Coordinate) -> Region {
         // Per-region bounding-box pre-pass: cheap rectangular comparison
         // rejects coordinates that can't possibly be inside the

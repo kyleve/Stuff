@@ -4,11 +4,15 @@ import Foundation
 /// pre-pass before running the polygon ray-cast: any coordinate
 /// outside the box can't possibly be inside the underlying polygons,
 /// so the more expensive `GeoPolygon.contains` check is skipped.
-struct BoundingBox: Hashable {
-    let minLatitude: Double
-    let maxLatitude: Double
-    let minLongitude: Double
-    let maxLongitude: Double
+///
+/// Public so the developer region-map viewer can frame its camera from
+/// the same min/max math (via `enclosing(_:)`); WhereCore stays UI-free,
+/// so the MapKit conversion happens in the UI layer.
+public struct BoundingBox: Hashable, Sendable {
+    public let minLatitude: Double
+    public let maxLatitude: Double
+    public let minLongitude: Double
+    public let maxLongitude: Double
 
     func contains(_ coordinate: Coordinate) -> Bool {
         coordinate.latitude >= minLatitude

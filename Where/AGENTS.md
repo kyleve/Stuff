@@ -93,15 +93,27 @@ boundary, never SwiftData records.
   (pure, no I/O).
 - [`Region`](WhereCore/Sources/Region.swift) – the closed set of
   tracked regions (`california`, `newYork`, `canada`,
-  `europeanUnion`, `other`). Adding a region is intentionally a
-  compile error in `Region.localizedName` until you add a matching
-  string-catalog entry under
-  [`Resources/Localizable.xcstrings`](WhereCore/Sources/Resources/Localizable.xcstrings).
+  `europeanUnion`, `other`). Two exhaustive switches make adding a
+  region a compile error until resolved: `Region.localizedName`
+  (needs a matching string-catalog entry under
+  [`Resources/Localizable.xcstrings`](WhereCore/Sources/Resources/Localizable.xcstrings))
+  and `Region.geometrySource` (the single source of truth for where a
+  region's polygons come from — `.usStateFeature(name:)`, `.bundledFile`,
+  or `.none`).
 - [`RegionAttributor`](WhereCore/Sources/RegionAttributor.swift) –
   maps `Coordinate` → `Region` via bundled GeoJSON
   ([`Resources/`](WhereCore/Sources/Resources/), see that folder's
-  README for provenance). `RegionAttributor.shared` is the
-  process-wide instance.
+  README for provenance). Loads polygons in `Region.allCases` order
+  (which fixes first-match priority) driven entirely by each region's
+  `geometrySource`. `RegionAttributor.shared` is the process-wide
+  instance.
+- [`RegionGeometryCatalog`](WhereCore/Sources/RegionGeometryCatalog.swift) –
+  read-only, off-main API behind the developer region-map viewer. Its
+  `outlines(for:)` returns drawable `RegionOutline`s (exterior ring +
+  title + optional `Region`) for either `.attribution` (what
+  `RegionAttributor` loaded) or `.source` (every authored GeoJSON
+  feature, cached). UI consumes outlines via this catalog, never the raw
+  `RegionPolygons`/`GeoJSON` internals.
 - [`Evidence`](WhereCore/Sources/Evidence/Evidence.swift) +
   [`EvidenceBlobStore`](WhereCore/Sources/Evidence/EvidenceBlobStore.swift)
   – metadata + externally-stored bytes for user-attached proofs
