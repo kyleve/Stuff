@@ -59,6 +59,19 @@ struct BackupServiceTests {
         ]
     }
 
+    private static func dismissedIssueFixtures() -> [DismissedIssue] {
+        [
+            DismissedIssue(
+                key: "borderDrift:1700000000",
+                dismissedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            ),
+            DismissedIssue(
+                key: "missingDays:1700100000",
+                dismissedAt: Date(timeIntervalSince1970: 1_700_100_000),
+            ),
+        ]
+    }
+
     @Test func archiveFileRoundTripsEveryTableAndBlobs() throws {
         let service = BackupService()
         let samples = Self.sampleFixtures()
@@ -66,10 +79,13 @@ struct BackupServiceTests {
         let manualDays = Self.manualDayFixtures()
         let blobs: [UUID: Data] = [Self.evidenceWithBlobId: Data("boarding-pass-pdf".utf8)]
 
+        let dismissedIssues = Self.dismissedIssueFixtures()
+
         let url = try service.makeArchiveFile(
             samples: samples,
             evidence: evidence,
             manualDays: manualDays,
+            dismissedIssues: dismissedIssues,
             blobs: blobs,
             exportedAt: Self.exportDate,
         )
@@ -85,6 +101,8 @@ struct BackupServiceTests {
         #expect(result.archive.samples == samples)
         #expect(result.archive.evidence == evidence)
         #expect(result.archive.manualDays == manualDays)
+        // Dismissals round-trip verbatim, key and timestamp.
+        #expect(result.archive.dismissedIssues == dismissedIssues)
         // Only the evidence with bytes gets an asset; the other is metadata-only.
         #expect(result.archive.assets.map(\.evidenceId) == [Self.evidenceWithBlobId])
         #expect(result.blobs == blobs)
@@ -130,6 +148,7 @@ struct BackupServiceTests {
             samples: Self.sampleFixtures(),
             evidence: Self.evidenceFixtures(),
             manualDays: Self.manualDayFixtures(),
+            dismissedIssues: Self.dismissedIssueFixtures(),
             assets: [BackupAssetEntry(
                 evidenceId: Self.evidenceWithBlobId,
                 filename: "assets/\(Self.evidenceWithBlobId.uuidString)",
@@ -145,6 +164,20 @@ struct BackupServiceTests {
         let decoded = try decoder.decode(BackupArchive.self, from: data)
 
         #expect(decoded == archive)
+    }
+
+    @Test func legacyManifestWithoutDismissedIssuesDecodesAsEmpty() throws {
+        // Simulates a manifest written before `dismissedIssues` existed: the
+        // missing key must decode as empty rather than failing the import.
+        let json = """
+        {"formatVersion":1,"exportedAt":"2023-11-14T22:13:20Z",\
+        "samples":[],"evidence":[],"manualDays":[],"assets":[]}
+        """
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(BackupArchive.self, from: Data(json.utf8))
+        #expect(decoded.dismissedIssues.isEmpty)
+        #expect(decoded.formatVersion == 1)
     }
 
     @Test func readingAFileThatIsNotAZipThrows() throws {

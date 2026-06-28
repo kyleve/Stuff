@@ -19,6 +19,10 @@ enum Strings {
         localized("tab.elsewhere")
     }
 
+    static var tabResolution: String {
+        localized("tab.resolution")
+    }
+
     static var tabSettings: String {
         localized("tab.settings")
     }
@@ -649,10 +653,11 @@ enum Strings {
         samples: Int,
         evidence: Int,
         manualDays: Int,
+        dismissedIssues: Int,
     ) -> String {
         String(
             localized: "settings.backup.imported.message",
-            defaultValue: "Imported \(samples) location samples, \(evidence) pieces of evidence, and \(manualDays) manual days.",
+            defaultValue: "Imported \(samples) location samples, \(evidence) pieces of evidence, \(manualDays) manual days, and \(dismissedIssues) dismissed issues.",
             bundle: .module,
         )
     }
@@ -853,6 +858,153 @@ enum Strings {
             defaultValue: "Opens the list of days that still need logging.",
             bundle: .module,
         )
+    }
+
+    // MARK: Resolution
+
+    static var resolutionTitle: String {
+        String(localized: "resolution.title", defaultValue: "Resolve", bundle: .module)
+    }
+
+    static var resolutionEmptyTitle: String {
+        String(localized: "resolution.empty.title", defaultValue: "All clear", bundle: .module)
+    }
+
+    static var resolutionEmptyDescription: String {
+        String(
+            localized: "resolution.empty.description",
+            defaultValue: "No data issues need your attention right now.",
+            bundle: .module,
+        )
+    }
+
+    static var resolutionDismiss: String {
+        String(localized: "resolution.dismiss", defaultValue: "Dismiss", bundle: .module)
+    }
+
+    static func resolutionSectionHeader(_ category: DataIssueCategory) -> String {
+        switch category {
+            case .missingDays:
+                String(
+                    localized: "resolution.section.missingDays",
+                    defaultValue: "Missing days",
+                    bundle: .module,
+                )
+            case .borderDrift:
+                String(
+                    localized: "resolution.section.borderDrift",
+                    defaultValue: "Near the border",
+                    bundle: .module,
+                )
+            case .abruptChange:
+                String(
+                    localized: "resolution.section.abruptChange",
+                    defaultValue: "Sudden moves",
+                    bundle: .module,
+                )
+        }
+    }
+
+    static func driftRowSubtitle(region: String, distance: String) -> String {
+        String(
+            localized: "resolution.drift.subtitle",
+            defaultValue: "Looks like \(region), ~\(distance) over the border",
+            bundle: .module,
+        )
+    }
+
+    static func resolutionAbruptRowTitle(earlier: Set<Region>, later: Set<Region>) -> String {
+        let earlierNames = earlier.map(\.localizedName).sorted().joined(separator: ", ")
+        let laterNames = later.map(\.localizedName).sorted().joined(separator: ", ")
+        return String(
+            localized: "resolution.abrupt.rowTitle",
+            defaultValue: "\(earlierNames) → \(laterNames)",
+            bundle: .module,
+        )
+    }
+
+    static var resolutionAbruptDetailTitle: String {
+        String(
+            localized: "resolution.abrupt.detail.title",
+            defaultValue: "Sudden location change",
+            bundle: .module,
+        )
+    }
+
+    static var resolutionAbruptDetailExplanation: String {
+        String(
+            localized: "resolution.abrupt.detail.explanation",
+            defaultValue:
+            "These back-to-back days don't overlap at all — you were probably traveling and one day wasn't logged in both places.",
+            bundle: .module,
+        )
+    }
+
+    static var resolutionAbruptDetailEarlierHeader: String {
+        String(
+            localized: "resolution.abrupt.detail.earlier",
+            defaultValue: "Earlier day",
+            bundle: .module,
+        )
+    }
+
+    static var resolutionAbruptDetailLaterHeader: String {
+        String(
+            localized: "resolution.abrupt.detail.later",
+            defaultValue: "Later day",
+            bundle: .module,
+        )
+    }
+
+    static var resolutionAbruptDetailRelabelEarlier: String {
+        String(
+            localized: "resolution.abrupt.detail.relabelEarlier",
+            defaultValue: "Mark as a travel day",
+            bundle: .module,
+        )
+    }
+
+    static var resolutionAbruptDetailRelabelLater: String {
+        String(
+            localized: "resolution.abrupt.detail.relabelLater",
+            defaultValue: "Mark as a travel day",
+            bundle: .module,
+        )
+    }
+
+    static var resolutionAbruptDetailBothRight: String {
+        String(
+            localized: "resolution.abrupt.detail.bothRight",
+            defaultValue: "These are both right",
+            bundle: .module,
+        )
+    }
+
+    static var settingsResolutionHeader: String {
+        String(
+            localized: "settings.resolution.header",
+            defaultValue: "Data resolution",
+            bundle: .module,
+        )
+    }
+
+    static var settingsResolutionFooter: String {
+        String(
+            localized: "settings.resolution.footer",
+            defaultValue:
+            "Days logged just outside a primary region within this distance are flagged as possible GPS drift.",
+            bundle: .module,
+        )
+    }
+
+    /// A localized "10 km"-style label for a drift-threshold preset. Formatted
+    /// through `Measurement` so the number and unit symbol localize, while
+    /// staying in kilometers (`.asProvided`, no conversion to miles) — the
+    /// presets are defined in km. No catalog entry is needed; the formatter is
+    /// locale-driven, like the date/number styles elsewhere in this file.
+    static func driftThresholdLabel(kilometers: Int) -> String {
+        Measurement(value: Double(kilometers), unit: UnitLength.kilometers)
+            .formatted(.measurement(width: .abbreviated, usage: .asProvided))
     }
 
     // MARK: Widgets

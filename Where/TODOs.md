@@ -36,6 +36,7 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 
 ## P2s (Nice to have)
 - The `guard let controller else { return }` in the WhereModel in WhereUI is weird
+- refactor: Move `RegionDays` / `RegionRanking` down from `WhereUI` into `WhereCore` so `DataIssueScanner` can derive primary regions itself instead of `WhereSession` passing `primaryRegions` in. Reverses the current "ranking is a presentation concept" placement; check the widget/UI call sites still compile.
 - Raw data browser (similar to SD browser)
 - Move `let calendar = Calendar.current` into a var on the controller? There’s a few of these
 - Move test only code behind @_spi
@@ -50,6 +51,7 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 
 ## P1s (Should do)
 - Export / import system (JSON? Zip?)
+- feat: Include data-resolution dismissals (`SDDismissedIssue`) in the backup export/import format, so a replace-import doesn’t silently re-surface issues the user already dismissed. (`BackupArchive.dismissedIssues` round-trips `DismissedIssue` value types, preserving `dismissedAt`.)
 - Schedule local push notifications if we haven’t recorded for the day yet
 - refactor: `WhereController` is getting quite big. Break it up into one parent controller with children. (dissolved into `WhereServices` + focused collaborators)
 - Remove `caption(forRank rank: Int) -> String?`, I don’t want the caption

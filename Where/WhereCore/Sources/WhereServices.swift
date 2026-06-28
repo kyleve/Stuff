@@ -26,6 +26,8 @@ public struct WhereServices: Sendable {
     public let journal: DayJournal
     /// Backup export / import.
     public let backup: BackupCoordinator
+    /// Data-quality issue detection for the Resolve tab.
+    public let resolution: DataIssueScanner
     /// The live SwiftData container when the backing store is the production
     /// `SwiftDataStore`; `nil` for non-SwiftData stores (e.g. test fakes).
     /// Surfaced only for read-only debug tooling (the SwiftData inspector) so
@@ -104,6 +106,12 @@ public struct WhereServices: Sendable {
             widgets: widgets,
         )
         let backup = BackupCoordinator(store: store, widgets: widgets)
+        let resolution = DataIssueScanner(
+            reportReader: reports,
+            attributor: attributor,
+            calendar: aggregator.calendar,
+            now: now,
+        )
 
         self.reports = reports
         self.reminders = reminders
@@ -112,6 +120,7 @@ public struct WhereServices: Sendable {
         self.ingestor = ingestor
         self.journal = journal
         self.backup = backup
+        self.resolution = resolution
         modelContainer = (store as? SwiftDataStore)?.inspectorContainer
     }
 
@@ -131,5 +140,6 @@ public struct WhereServices: Sendable {
     public func reset() async throws {
         await ingestor.quiesce()
         try await journal.eraseAllData()
+        await resolution.invalidate()
     }
 }

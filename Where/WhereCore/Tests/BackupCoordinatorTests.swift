@@ -50,8 +50,13 @@ struct BackupCoordinatorTests {
     )
     private static let blob = Data("boarding-pass-pdf".utf8)
 
-    /// Seed all three tables (sample, evidence + blob, manual day) directly into
-    /// a store so backup tests don't depend on the journal.
+    private static let dismissal = DismissedIssue(
+        key: "borderDrift:1700000000",
+        dismissedAt: Date(timeIntervalSince1970: 1_700_000_000),
+    )
+
+    /// Seed all four tables (sample, evidence + blob, manual day, dismissed
+    /// issue) directly into a store so backup tests don't depend on the journal.
     private static func seed(_ store: SwiftDataStore) async throws {
         try await store.perform {
             try await store.add(sample: sample(at: "2026-03-15T12:00:00-07:00"))
@@ -60,6 +65,7 @@ struct BackupCoordinatorTests {
                 date: WhereCoreTestSupport.iso("2026-07-04T00:00:00-07:00"),
                 regions: [.newYork],
             ))
+            try await store.restoreDismissedIssue(dismissal)
         }
     }
 
@@ -76,10 +82,15 @@ struct BackupCoordinatorTests {
         #expect(summary.sampleCount == 1)
         #expect(summary.evidenceCount == 1)
         #expect(summary.manualDayCount == 1)
+        #expect(summary.dismissedIssueCount == 1)
 
         #expect(try await destination.store.allSamples() == source.store.allSamples())
         #expect(try await destination.store.allEvidence() == source.store.allEvidence())
         #expect(try await destination.store.allManualDays() == source.store.allManualDays())
+        // Dismissals come back verbatim (key + original timestamp).
+        #expect(try await destination.store.allDismissedIssues() == source.store
+            .allDismissedIssues())
+        #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
         #expect(try await destination.store.evidenceBlob(for: Self.evidence.id) == Self.blob)
         // An import that lands new data republishes the widget snapshot.
         #expect(await destination.widgets.publishCount == 1)
@@ -115,12 +126,21 @@ struct BackupCoordinatorTests {
                 date: WhereCoreTestSupport.iso("2026-02-02T00:00:00-08:00"),
                 regions: [.canada],
             ))
+            // A preexisting dismissal that the file doesn't contain must be wiped
+            // by `.replace` so the device mirrors the file exactly.
+            try await destination.store.restoreDismissedIssue(DismissedIssue(
+                key: "missingDays:42",
+                dismissedAt: Date(timeIntervalSince1970: 1),
+            ))
         }
 
         _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
 
         #expect(try await destination.store.allSamples() == source.store.allSamples())
         #expect(try await destination.store.allManualDays() == source.store.allManualDays())
+        #expect(try await destination.store.allDismissedIssues() == source.store
+            .allDismissedIssues())
+        #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
     }
 
     @Test func importReportsProgressUpToCompletion() async throws {

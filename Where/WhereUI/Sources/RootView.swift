@@ -3,7 +3,7 @@ import SwiftUI
 import WhereCore
 
 /// The app's root: the launch sequence gated in front of a Liquid Glass tab bar
-/// over the three top-level screens.
+/// over the four top-level screens (Primary, Elsewhere, Resolve, Settings).
 ///
 /// `LifecycleContainer` renders the splash / onboarding / migration UI while
 /// the `LifecycleRunner` runs, then the `TabView` (the real "logged-in" UI —
@@ -47,6 +47,11 @@ public struct RootView: View {
                 Tab(Strings.tabElsewhere, systemImage: "globe.americas.fill") {
                     SecondaryView()
                 }
+
+                Tab(Strings.tabResolution, systemImage: "checklist") {
+                    ResolutionView()
+                }
+                .badge(model.session?.dataIssueCount ?? 0)
 
                 Tab(Strings.tabSettings, systemImage: "gearshape.fill") {
                     SettingsView()

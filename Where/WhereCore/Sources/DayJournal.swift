@@ -2,8 +2,9 @@ import Foundation
 import LogKit
 
 /// Owns the user-sourced writes into the store — sample ingestion, manual-day
-/// overlays, range backfills, year/all clears, and evidence — together with the
-/// reminder reconcile + widget publish each one triggers.
+/// overlays, range backfills, year/all clears, evidence, and data-resolution
+/// dismissals — together with the reminder reconcile + widget publish each
+/// day mutation triggers.
 ///
 /// Every write runs inside a single `store.perform` transaction and then
 /// *awaits* its reminder reconcile / widget publish in sequence, so the existing
@@ -162,6 +163,16 @@ public actor DayJournal {
 
     public func evidenceBlob(for id: UUID) async throws -> Data? {
         try await store.evidenceBlob(for: id)
+    }
+
+    // MARK: - Data resolution dismissals
+
+    public func dismissIssue(key: String) async throws {
+        try await store.perform { try await store.setIssueDismissed(true, key: key) }
+    }
+
+    public func restoreIssue(key: String) async throws {
+        try await store.perform { try await store.setIssueDismissed(false, key: key) }
     }
 
     private static func dayLogLabel(_ day: Date, calendar: Calendar) -> String {

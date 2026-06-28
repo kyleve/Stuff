@@ -55,7 +55,7 @@ struct WidgetSnapshotPublisherTests {
     }
 
     @Test func refreshIfStaleRepublishesOncePastTheFreshnessWindow() async throws {
-        let clock = TestClock(WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
+        let clock = MutableClock(WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
         let (publisher, _, refresher) = try Self.makePublisher(now: { clock.now }, maxAge: 60)
         await publisher.publish()
         #expect(await refresher.publishCount == 1)
@@ -111,22 +111,5 @@ struct WidgetSnapshotPublisherTests {
         )
         await publisher.publishAfterIngest(of: nyc)
         #expect(await refresher.publishCount == 2)
-    }
-}
-
-private final class TestClock: @unchecked Sendable {
-    private let lock = NSLock()
-    private var current: Date
-
-    init(_ start: Date) {
-        current = start
-    }
-
-    var now: Date {
-        lock.withLock { current }
-    }
-
-    func advance(by seconds: TimeInterval) {
-        lock.withLock { current = current.addingTimeInterval(seconds) }
     }
 }

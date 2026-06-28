@@ -90,6 +90,7 @@ public struct BackupService: Sendable {
         samples: [LocationSample],
         evidence: [Evidence],
         manualDays: [DayPresence],
+        dismissedIssues: [DismissedIssue] = [],
         blobs: [UUID: Data],
         exportedAt: Date = Date(),
         archiveName: String? = nil,
@@ -119,6 +120,7 @@ public struct BackupService: Sendable {
             samples: samples,
             evidence: evidence,
             manualDays: manualDays,
+            dismissedIssues: dismissedIssues,
             assets: assetEntries,
         )
         let manifestData = try Self.makeEncoder().encode(archive)
@@ -133,7 +135,7 @@ public struct BackupService: Sendable {
             compressionMethod: .deflate,
         )
         Self.logger.info(
-            "Wrote backup with \(samples.count) samples, \(evidence.count) evidence, \(manualDays.count) manual days",
+            "Wrote backup with \(samples.count) samples, \(evidence.count) evidence, \(manualDays.count) manual days, \(dismissedIssues.count) dismissals",
         )
         return zipURL
     }

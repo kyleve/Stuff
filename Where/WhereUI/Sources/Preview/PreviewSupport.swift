@@ -100,8 +100,8 @@
         }
 
         /// A session whose current year has several unlogged stretches before a
-        /// fixed "today", so the missing-day banner and `MissingDaysView` have
-        /// real gaps to render.
+        /// fixed "today", so missing-day detection and the Resolve tab have real
+        /// gaps to render.
         @MainActor
         public static func missingDaysSession() -> WhereSession {
             var calendar = Calendar(identifier: .gregorian)
@@ -123,6 +123,32 @@
                 selectedYear: year,
                 now: { today },
             )
+        }
+
+        /// A session with injected data-resolution issues (one per category) for
+        /// Resolve tab previews.
+        @MainActor
+        public static func resolutionSession() -> WhereSession {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+            let start = calendar.date(from: DateComponents(year: year, month: 3, day: 1))!
+            let day2 = calendar.date(byAdding: .day, value: 1, to: start)!
+            let day3 = calendar.date(byAdding: .day, value: 2, to: start)!
+
+            let session = loadedSession()
+            session.setDataIssues([
+                MissingDaysIssue(range: MissingDayRange(start: start, end: start, dayCount: 1)),
+                BorderDriftIssue(
+                    day: DayPresence(date: day2, regions: [.other]),
+                    nearestRegion: .california,
+                    distanceMeters: 6000,
+                ),
+                AbruptChangeIssue(
+                    earlierDay: DayPresence(date: day2, regions: [.california]),
+                    laterDay: DayPresence(date: day3, regions: [.newYork]),
+                ),
+            ])
+            return session
         }
 
         // MARK: - Models (app-level shell)

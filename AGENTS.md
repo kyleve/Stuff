@@ -121,6 +121,13 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
 ## Conventions
 
 - **Swift Testing** (`import Testing`) for all unit tests – do not use XCTest.
+- **Test files are 1:1 with implementation files.** A type in `Foo.swift` is
+  tested in `FooTests.swift`; when a source file is split (e.g. one detector per
+  file), split its tests to match rather than keeping one omnibus file. Shared
+  fixtures/helpers live in their own support file (e.g.
+  `WhereCoreTestSupport.swift`, `DataIssueDetectorTestSupport.swift`), not bundled
+  into a test file — so a single test clock or input builder isn't copy-pasted
+  across suites.
 - Generated `.xcodeproj` and `Derived/` are git-ignored; never commit them.
 - Bundle IDs follow `com.stuff.<suffix>`.
 - Prefer small named structs over tuples for any value with more than
@@ -137,6 +144,24 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   mapping an optional error to the `Bool` an `.alert` wants), expose a computed
   `get`/`set` on the `@Observable` model and bind to that, keeping the
   underlying value the single source of truth.
+- **Core behavior belongs in the model/controller layer, not in views.**
+  Persistence, domain rules, detection, and side effects live in the feature's
+  core module (for Where: `WhereCore` collaborators on `WhereServices`). UI
+  modules hold view models that *orchestrate* those services for SwiftUI
+  (`WhereSession` mirrors output and exposes intent methods) and views that
+  *render* and *route* — not reimplement rules, cache policy, or store I/O.
+  When adding behavior, default to Core (+ view-model glue if the UI needs a
+  trigger or observable mirror); push logic into a `View` only for presentation.
+  See [`Where/AGENTS.md`](Where/AGENTS.md#layering).
+- **Never silently swallow errors.** Core APIs surface failure by `throw`ing
+  (or returning a `Result`/typed error) — never absorb it into a benign-looking
+  default like `[]`, `nil`, or `false`. Don't discard errors with `try?` or an
+  empty `catch {}` that hides the failure: at minimum a `catch` must log
+  (`WhereLog.warning`/`error`) *and* leave observable state honest (preserve the
+  last good value or move to a `failed` state — not a default that reads as
+  success, e.g. an empty list rendering as "all clear"). Callers decide *how* to
+  react (rethrow, log + keep state, set a `failed` case), but the failure must
+  always be observable — in logs, in state, or both.
 - **`didSet` must skip work when the value is unchanged.** When the stored
   type is `Equatable`, guard `oldValue != newValue` before invalidation,
   logging, or other side effects — reassigning the same value should be a no-op.
