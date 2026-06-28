@@ -156,12 +156,12 @@ struct DayAggregatorTests {
             attributor: attributor,
         )
         #expect(locations.count == 2)
-        #expect(locations[0].coordinates.count == 2)
-        #expect(locations[1].coordinates.count == 1)
+        #expect(locations[0].points.count == 2)
+        #expect(locations[1].points.count == 1)
         // Sorted ascending by day.
         #expect(locations[0].date < locations[1].date)
         // The New York point never lands in the California grouping.
-        #expect(!locations.flatMap(\.coordinates).contains(Coordinate(
+        #expect(!locations.flatMap(\.points).map(\.coordinate).contains(Coordinate(
             latitude: 40.7128,
             longitude: -74.0060,
         )))
@@ -174,7 +174,7 @@ struct DayAggregatorTests {
         ]
         let other = aggregator.locations(in: .other, samples: samples, attributor: attributor)
         #expect(other.count == 1)
-        #expect(other[0].coordinates.count == 1)
+        #expect(other[0].points.count == 1)
 
         let california = aggregator.locations(
             in: .california,

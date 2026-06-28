@@ -40,10 +40,10 @@ struct RegionDaysView: View {
             .filter { listedDates.contains($0.date) }
         guard !Task.isCancelled else { return }
         coordinatesByDay = Dictionary(
-            locations.map { ($0.date, $0.coordinates) },
+            locations.map { ($0.date, $0.points.map(\.coordinate)) },
             uniquingKeysWith: { first, _ in first },
         )
-        pins = MapPin.deduplicated(from: locations.flatMap(\.coordinates))
+        pins = MapPin.deduplicated(from: locations.flatMap(\.points).map(\.coordinate))
     }
 
     @ViewBuilder
