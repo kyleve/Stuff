@@ -378,6 +378,12 @@ public actor StorageContainer {
 
     private func removeChild(_ childKey: StorageKey) {
         children[childKey] = nil
+        // A model store lives in the child keyed by `childKey`, so its cached
+        // `ModelContainer` is held here on the parent. Drop it when the child is
+        // detached (e.g. by `deleteContents()` deleting that child) so a re-vend
+        // rebuilds against fresh files instead of returning a container backed by
+        // a just-deleted store.
+        modelContainerCache[childKey] = nil
     }
 
     private func clearLooseFiles() throws {

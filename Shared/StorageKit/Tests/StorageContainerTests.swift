@@ -128,6 +128,29 @@ struct StorageContainerTests {
         try await system.deleteAll()
     }
 
+    @Test
+    func modelContainerIsRecreatedAfterDeleteContents() async throws {
+        let temp = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+
+        let user = try await system.container("user-1")
+        let first = try await user.modelContainer(for: [Note.self])
+        let writeContext = ModelContext(first)
+        writeContext.insert(Note(text: "hi"))
+        try writeContext.save()
+        #expect(try writeContext.fetchCount(FetchDescriptor<Note>()) == 1)
+
+        try await user.deleteContents()
+
+        // The store's files were deleted; re-vending must rebuild a fresh container
+        // rather than hand back the stale cached one pointing at deleted files.
+        let second = try await user.modelContainer(for: [Note.self])
+        #expect(second !== first)
+        let readContext = ModelContext(second)
+        #expect(try readContext.fetchCount(FetchDescriptor<Note>()) == 0)
+    }
+
     // MARK: - Deactivate
 
     @Test
