@@ -360,6 +360,28 @@ struct StorageContainerTests {
         try await user.deleteContainer()
     }
 
+    @Test
+    func reVendingAfterAFailedAfterDeletionGivesAFreshContainer() async throws {
+        let temp = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+
+        let user = try await system.container("user-1")
+        let throwOnce = ThrowOnce()
+        await user.afterDeletion { try await throwOnce.fireIfArmed() }
+
+        await #expect(throws: StorageTestError.self) { try await user.deleteContainer() }
+        #expect(await user.state == .deleted)
+
+        // Despite the afterDeletion throw, the node was deregistered from its
+        // parent, so re-vending the key builds a fresh, usable container rather
+        // than handing back the deleted one.
+        let fresh = try await system.container("user-1")
+        #expect(fresh !== user)
+        #expect(FileManager.default.fileExists(atPath: fresh.url.path))
+        _ = try await fresh.container("logs")
+    }
+
     // MARK: - deleteContents
 
     @Test

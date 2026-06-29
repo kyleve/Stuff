@@ -301,10 +301,11 @@ public actor StorageContainer {
     /// doc for the phase order and the park-safe guarantee.
     public func deleteContainer() async throws {
         if state == .deleted {
-            // Retry after a post-commit (`afterDeletion`) throw: the data is
-            // already gone, so only the post-commit tail remains to re-run.
+            // Retry after a post-commit (`afterDeletion`) throw: the data is gone
+            // and the node is already detached, so only the post-commit tail
+            // remains to re-run.
             try await runAfterDeletion()
-            await detachFromParent()
+            releaseChildren()
             return
         }
 
@@ -322,8 +323,14 @@ public actor StorageContainer {
             throw error
         }
         await purgeAndMarkDeleted()
-        try await runAfterDeletion()
+        // Deregister from the parent as part of the commit, *before* the
+        // post-commit step — so that even if an `afterDeletion` handler throws,
+        // re-vending this key builds a fresh node instead of handing back this
+        // deleted one. `runAfterDeletion` still recurses the (not-yet-released)
+        // children, which are freed once it succeeds.
         await detachFromParent()
+        try await runAfterDeletion()
+        releaseChildren()
     }
 
     /// Delete every child container and clear this container's own files, but keep
@@ -463,6 +470,12 @@ public actor StorageContainer {
     private func detachFromParent() async {
         await parent?.removeChild(key)
         parent = nil
+    }
+
+    /// Release the subtree's child registry once `afterDeletion` has run. Kept
+    /// separate from `detachFromParent()` so the post-commit step can still
+    /// recurse the children before they're dropped.
+    private func releaseChildren() {
         children.removeAll()
     }
 
