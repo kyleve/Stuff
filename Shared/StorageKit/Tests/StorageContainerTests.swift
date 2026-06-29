@@ -213,6 +213,35 @@ struct StorageContainerTests {
     }
 
     @Test
+    func deactivateDropsVendCachesAndReVendReopensPersistedData() async throws {
+        let temp = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+
+        let user = try await system.container("user-1")
+        let firstModel = try await user.modelContainer(for: [Note.self])
+        let writeContext = ModelContext(firstModel)
+        writeContext.insert(Note(text: "hi"))
+        try writeContext.save()
+        await user.keyValueStore().set(7, forKey: "count")
+
+        try await user.deactivate()
+        #expect(await user.state == .inactive)
+
+        // Reactivation re-vends a *fresh* ModelContainer (cache was dropped) over
+        // the surviving on-disk store.
+        let secondModel = try await user.modelContainer(for: [Note.self])
+        #expect(secondModel !== firstModel)
+        let readContext = ModelContext(secondModel)
+        #expect(try readContext.fetchCount(FetchDescriptor<Note>()) == 1)
+
+        // The KV cache was dropped too, but the persisted suite round-trips.
+        #expect(await user.keyValueStore().integer(forKey: "count") == 7)
+
+        try await system.deleteAll()
+    }
+
+    @Test
     func deactivateIsANoOpWhenAlreadyInactive() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
@@ -488,6 +517,29 @@ struct StorageContainerTests {
         #expect(FileManager.default.fileExists(atPath: logsRevived.url.path))
     }
 
+    @Test
+    func deleteContentsRunsChildTeardownHooks() async throws {
+        let temp = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+
+        let user = try await system.container("user-1")
+        let logs = try await user.container("logs")
+        let log = CallLog()
+        await logs.prepareForDeletion { await log.record("prepare") }
+        await logs.onDeactivate { await log.record("deactivate") }
+        await logs.afterDeletion { await log.record("after") }
+
+        try await user.deleteContents()
+
+        // Each child is fully deleted (all three hooks fire) while the node lives.
+        #expect(await log.entries == ["prepare", "deactivate", "after"])
+        #expect(await user.state == .active)
+        #expect(await logs.state == .deleted)
+        #expect(!FileManager.default.fileExists(atPath: logs.url.path))
+        #expect(FileManager.default.fileExists(atPath: user.url.path))
+    }
+
     // MARK: - Error surfacing
 
     @Test
@@ -517,5 +569,33 @@ struct StorageContainerTests {
             ofItemAtPath: parent.path,
         )
         #expect(FileManager.default.fileExists(atPath: user.url.path))
+    }
+
+    // MARK: - Concurrency
+
+    @Test
+    func concurrentVendsDoNotResurrectADeletedContainer() async throws {
+        let temp = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+
+        let user = try await system.container("user-1")
+
+        // Hammer the node with vends while it's torn down. Each vend either lands
+        // before the freeze (and is deleted with the tree) or after it (and
+        // throws) — never recreating the directory mid-delete.
+        await withTaskGroup(of: Void.self) { group in
+            for index in 0 ..< 50 {
+                group.addTask {
+                    _ = try? await user.container(StorageKey("child-\(index)"))
+                }
+            }
+            group.addTask {
+                try? await user.deleteContainer()
+            }
+        }
+
+        #expect(await user.state == .deleted)
+        #expect(!FileManager.default.fileExists(atPath: user.url.path))
     }
 }
