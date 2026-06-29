@@ -28,9 +28,13 @@ public struct BorderDriftIssue: DataIssue, Hashable {
     }
 
     public var resolution: IssueResolution {
-        .relabelDay(
+        // Drop the spurious `.other` while keeping whatever real regions the
+        // day already counts for. A pure-`.other` day has nothing left, so it
+        // falls back to the nearest primary region as the suggested label.
+        let realRegions = day.regions.subtracting([.other])
+        return .relabelDay(
             day: day,
-            suggestedRegions: [nearestRegion],
+            suggestedRegions: realRegions.isEmpty ? [nearestRegion] : realRegions,
             approximateMeters: distanceMeters,
         )
     }

@@ -46,6 +46,7 @@ public protocol DataIssue: Identifiable, Sendable where ID == DataIssueID {
 }
 
 public enum DriftThreshold: Int, CaseIterable, Sendable, Hashable {
+    case km1 = 1000
     case km5 = 5000
     case km10 = 10000
     case km25 = 25000
@@ -55,5 +56,5 @@ public enum DriftThreshold: Int, CaseIterable, Sendable, Hashable {
         Double(rawValue)
     }
 
-    public static let `default` = DriftThreshold.km10
+    public static let `default` = DriftThreshold.km1
 }

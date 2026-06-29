@@ -39,9 +39,10 @@ public struct DayAggregator: Sendable {
     }
 
     /// Group every sample that fell inside `region` by calendar day, keeping
-    /// the raw coordinates so the UI can map and name them. Samples outside
-    /// `region` (per `attributor`) are dropped; days with no in-region samples
-    /// don't appear. Days are sorted ascending.
+    /// the raw points (coordinate + horizontal accuracy) so the UI can map,
+    /// name, and draw an uncertainty radius for them. Samples outside `region`
+    /// (per `attributor`) are dropped; days with no in-region samples don't
+    /// appear. Days are sorted ascending.
     ///
     /// This intentionally ignores manual day overlays: it reflects where the
     /// device *actually* recorded points, which is what "where was I?" means —
@@ -51,13 +52,16 @@ public struct DayAggregator: Sendable {
         samples: [LocationSample],
         attributor: RegionAttributor,
     ) -> [RegionDayLocations] {
-        var byDay: [Date: [Coordinate]] = [:]
+        var byDay: [Date: [RegionDayPoint]] = [:]
         for sample in samples where attributor.region(at: sample.coordinate) == region {
             let dayStart = calendar.startOfDay(for: sample.timestamp)
-            byDay[dayStart, default: []].append(sample.coordinate)
+            byDay[dayStart, default: []].append(RegionDayPoint(
+                coordinate: sample.coordinate,
+                horizontalAccuracy: sample.horizontalAccuracy,
+            ))
         }
         return byDay
-            .map { RegionDayLocations(date: $0.key, coordinates: $0.value) }
+            .map { RegionDayLocations(date: $0.key, points: $0.value) }
             .sorted { $0.date < $1.date }
     }
 

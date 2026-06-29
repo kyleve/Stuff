@@ -62,7 +62,7 @@ public actor DataIssueScanner {
         let report = try await reportReader.yearReport(for: year)
         let otherLocations = try await reportReader.locations(in: .other, year: year)
         let otherDayCoordinates = Dictionary(
-            uniqueKeysWithValues: otherLocations.map { ($0.date, $0.coordinates) },
+            uniqueKeysWithValues: otherLocations.map { ($0.date, $0.points.map(\.coordinate)) },
         )
         let dismissed = try await reportReader.dismissedIssueKeys()
         let input = DataIssueInput(
