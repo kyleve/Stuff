@@ -70,12 +70,31 @@ enum GeoJSON {
         }
     }
 
-    /// Load every polygon (exterior ring only — holes aren't modeled)
-    /// from a bundled GeoJSON file at `url`.
-    static func polygons(at url: URL) throws -> [GeoPolygon] {
+    /// One decoded feature reduced to what `WhereCore` consumes: its
+    /// optional `NAME` plus the exterior-ring polygons it contributes.
+    struct NamedPolygons {
+        let name: String?
+        let polygons: [GeoPolygon]
+    }
+
+    /// Decode every feature in the bundled GeoJSON file at `url`,
+    /// projecting each to its `NAME` and exterior-ring polygons. This is
+    /// the single decode path behind both region attribution loading
+    /// (`RegionAttributor`) and the developer region-map viewer
+    /// (`RegionGeometryCatalog`), so the file is read and parsed in one
+    /// place.
+    static func namedPolygons(at url: URL) throws -> [NamedPolygons] {
         let data = try Data(contentsOf: url)
         let decoded = try JSONDecoder().decode(FeatureCollection.self, from: data)
-        return decoded.features.flatMap { polygons(from: $0.geometry) }
+        return decoded.features.map {
+            NamedPolygons(name: $0.properties?.name, polygons: polygons(from: $0.geometry))
+        }
+    }
+
+    /// Load every polygon (exterior ring only — holes aren't modeled)
+    /// from a bundled GeoJSON file at `url`, discarding feature names.
+    static func polygons(at url: URL) throws -> [GeoPolygon] {
+        try namedPolygons(at: url).flatMap(\.polygons)
     }
 
     /// Project a `Geometry` to a list of `GeoPolygon` exterior rings.

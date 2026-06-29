@@ -143,10 +143,7 @@ private struct MapPin: Identifiable {
             guard let point = bestByBucket[bucket] else { return nil }
             return MapPin(
                 id: index,
-                coordinate: CLLocationCoordinate2D(
-                    latitude: point.coordinate.latitude,
-                    longitude: point.coordinate.longitude,
-                ),
+                coordinate: point.coordinate.clLocationCoordinate,
                 horizontalAccuracy: point.horizontalAccuracy,
             )
         }

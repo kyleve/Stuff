@@ -67,16 +67,6 @@ struct SDLocationSampleTests {
     }
 }
 
-struct RegionTests {
-    @Test func localizedName_returnsEnglishStringForEachCase() {
-        #expect(Region.california.localizedName == "California")
-        #expect(Region.newYork.localizedName == "New York")
-        #expect(Region.canada.localizedName == "Canada")
-        #expect(Region.europeanUnion.localizedName == "European Union")
-        #expect(Region.other.localizedName == "Other")
-    }
-}
-
 struct EvidenceKindTests {
     @Test func otherWithLabel_roundTripsThroughCodable() throws {
         let original = EvidenceKind.other("ferry ticket")

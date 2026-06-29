@@ -4,11 +4,17 @@ import Foundation
 /// pre-pass before running the polygon ray-cast: any coordinate
 /// outside the box can't possibly be inside the underlying polygons,
 /// so the more expensive `GeoPolygon.contains` check is skipped.
-struct BoundingBox: Hashable {
-    let minLatitude: Double
-    let maxLatitude: Double
-    let minLongitude: Double
-    let maxLongitude: Double
+///
+/// Public so the developer region-map viewer can frame its camera's
+/// latitude from the same min/max math (via `enclosing(_:)`); longitude
+/// is framed separately with `LongitudeSpan` because it can wrap the
+/// antimeridian. WhereCore stays UI-free, so the MapKit conversion
+/// happens in the UI layer.
+public struct BoundingBox: Hashable, Sendable {
+    public let minLatitude: Double
+    public let maxLatitude: Double
+    public let minLongitude: Double
+    public let maxLongitude: Double
 
     func contains(_ coordinate: Coordinate) -> Bool {
         coordinate.latitude >= minLatitude
@@ -33,17 +39,23 @@ struct BoundingBox: Hashable {
     /// (which never happens with bundled GeoJSON; the optional is
     /// there so the helper is safe to use on arbitrary inputs too).
     static func enclosing(_ polygons: [GeoPolygon]) -> BoundingBox? {
+        enclosing(polygons.lazy.flatMap(\.vertices))
+    }
+
+    /// The smallest box that contains every coordinate in `coordinates`,
+    /// or `nil` when the sequence is empty. The shared core both the
+    /// `[GeoPolygon]` overload and the region-map viewer's camera
+    /// framing build on, so the min/max sweep lives in one place.
+    static func enclosing(_ coordinates: some Sequence<Coordinate>) -> BoundingBox? {
         var minLat = Double.infinity
         var maxLat = -Double.infinity
         var minLng = Double.infinity
         var maxLng = -Double.infinity
-        for polygon in polygons {
-            for vertex in polygon.vertices {
-                minLat = min(minLat, vertex.latitude)
-                maxLat = max(maxLat, vertex.latitude)
-                minLng = min(minLng, vertex.longitude)
-                maxLng = max(maxLng, vertex.longitude)
-            }
+        for coordinate in coordinates {
+            minLat = min(minLat, coordinate.latitude)
+            maxLat = max(maxLat, coordinate.latitude)
+            minLng = min(minLng, coordinate.longitude)
+            maxLng = max(maxLng, coordinate.longitude)
         }
         guard minLat.isFinite, maxLat.isFinite else { return nil }
         return BoundingBox(
@@ -66,8 +78,8 @@ struct GeoPolygon: Hashable {
     let vertices: [Coordinate]
 
     func contains(_ coordinate: Coordinate) -> Bool {
+        guard vertices.isValidPolygonRing else { return false }
         let vertexCount = vertices.count
-        guard vertexCount >= 3 else { return false }
         let pointX = coordinate.longitude
         let pointY = coordinate.latitude
 

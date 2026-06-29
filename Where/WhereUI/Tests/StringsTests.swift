@@ -1,4 +1,5 @@
 import Testing
+import WhereCore
 @testable import WhereUI
 
 /// Verifies the WhereUI string catalog is actually wired up (lookups resolve to
@@ -94,9 +95,34 @@ struct StringsTests {
         #expect(Strings.settingsDebugLogsTitle == "Logs")
         #expect(Strings.settingsDebugInspectorLink == "SwiftData Inspector")
         #expect(Strings.settingsDebugInspectorTitle == "SwiftData")
+        #expect(Strings.settingsDebugRegionMapLink == "Region map")
         #expect(
             Strings.settingsDebugFooter
                 == "On-device logs and data tools. Debug builds only.",
+        )
+    }
+
+    @Test func regionMapStringsResolveToCatalogValues() {
+        #expect(Strings.regionMapTitle == "Region Map")
+        #expect(Strings.regionMapKindPicker == "Geometry")
+        #expect(Strings.regionMapKind(.attribution) == "Attribution")
+        #expect(Strings.regionMapKind(.source) == "Source")
+        #expect(Strings.regionMapLegendHeader == "Features")
+        #expect(Strings.regionMapShowAll == "Show all")
+        #expect(Strings.regionMapMapAccessibility == "Map of region boundaries")
+        #expect(Strings.regionMapLoadErrorTitle == "Couldn't load regions")
+        #expect(Strings.regionMapEmptyTitle == "No regions")
+        #expect(
+            Strings.regionMapEmptyDescription == "No region geometry was found in the bundle.",
+        )
+        #expect(
+            Strings.regionMapKindFooter(.attribution)
+                == "The simplified polygons the app uses to attribute coordinates today.",
+        )
+        #expect(
+            Strings.regionMapKindFooter(.source)
+                ==
+                "Every feature decoded straight from the bundled GeoJSON, at full authored fidelity.",
         )
     }
 }

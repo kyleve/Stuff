@@ -41,4 +41,36 @@ public enum Region: String, Codable, Sendable, Hashable, CaseIterable {
                 String(localized: "region.other", bundle: .module)
         }
     }
+
+    /// Where this region's boundary geometry comes from. This is the
+    /// single source of truth that drives `RegionAttributor`'s bundle
+    /// load (and the developer region-map viewer) — collapsing what used
+    /// to be a hardcoded region list plus a separate name table. Like
+    /// `localizedName`, the exhaustive `switch` makes adding a `Region`
+    /// case a compile error until its geometry source is declared here.
+    public var geometrySource: GeometrySource {
+        switch self {
+            case .california: .usStateFeature(name: "California")
+            case .newYork: .usStateFeature(name: "New York")
+            case .canada: .bundledFile
+            case .europeanUnion: .bundledFile
+            case .other: .none
+        }
+    }
+
+    /// How a `Region`'s boundary polygons are sourced from bundled
+    /// GeoJSON in `Resources/`.
+    public enum GeometrySource: Hashable, Sendable {
+        /// A feature in the shared `us-states.geojson`, matched by its
+        /// Census `properties.NAME` (the associated value). The name is a
+        /// **data identifier** for matching the bundled file, never shown
+        /// to the user — user-facing labels go through `localizedName`.
+        /// Adding a US state needs no new bundled file.
+        case usStateFeature(name: String)
+        /// A dedicated `<Region.rawValue>.geojson` file (e.g. `.canada`,
+        /// `.europeanUnion`).
+        case bundledFile
+        /// No bundled polygons — the catch-all `.other`.
+        case none
+    }
 }

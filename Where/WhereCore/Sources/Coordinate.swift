@@ -12,3 +12,12 @@ public struct Coordinate: Hashable, Codable, Sendable {
         self.longitude = longitude
     }
 }
+
+extension Collection<Coordinate> {
+    /// Whether these coordinates form a drawable polygon ring. A ring
+    /// needs at least three vertices to enclose an area; fewer can't be
+    /// drawn or attributed against, so callers drop them.
+    var isValidPolygonRing: Bool {
+        count >= 3
+    }
+}

@@ -93,15 +93,27 @@ boundary, never SwiftData records.
   (pure, no I/O).
 - [`Region`](WhereCore/Sources/Region.swift) – the closed set of
   tracked regions (`california`, `newYork`, `canada`,
-  `europeanUnion`, `other`). Adding a region is intentionally a
-  compile error in `Region.localizedName` until you add a matching
-  string-catalog entry under
-  [`Resources/Localizable.xcstrings`](WhereCore/Sources/Resources/Localizable.xcstrings).
+  `europeanUnion`, `other`). Two exhaustive switches make adding a
+  region a compile error until resolved: `Region.localizedName`
+  (needs a matching string-catalog entry under
+  [`Resources/Localizable.xcstrings`](WhereCore/Sources/Resources/Localizable.xcstrings))
+  and `Region.geometrySource` (the single source of truth for where a
+  region's polygons come from — `.usStateFeature(name:)`, `.bundledFile`,
+  or `.none`).
 - [`RegionAttributor`](WhereCore/Sources/RegionAttributor.swift) –
   maps `Coordinate` → `Region` via bundled GeoJSON
   ([`Resources/`](WhereCore/Sources/Resources/), see that folder's
-  README for provenance). `RegionAttributor.shared` is the
-  process-wide instance.
+  README for provenance). Loads polygons in `Region.allCases` order
+  (which fixes first-match priority) driven entirely by each region's
+  `geometrySource`. `RegionAttributor.shared` is the process-wide
+  instance.
+- [`RegionGeometryCatalog`](WhereCore/Sources/RegionGeometryCatalog.swift) –
+  read-only, off-main API behind the developer region-map viewer. Its
+  `outlines(for:)` returns drawable `RegionOutline`s (exterior ring +
+  title + optional `Region`) for either `.attribution` (what
+  `RegionAttributor` loaded) or `.source` (every authored GeoJSON
+  feature, cached). UI consumes outlines via this catalog, never the raw
+  `RegionPolygons`/`GeoJSON` internals.
 - [`Evidence`](WhereCore/Sources/Evidence/Evidence.swift) +
   [`EvidenceBlobStore`](WhereCore/Sources/Evidence/EvidenceBlobStore.swift)
   – metadata + externally-stored bytes for user-attached proofs
@@ -120,6 +132,11 @@ boundary, never SwiftData records.
 - [`GeoPolygon`](WhereCore/Sources/GeoPolygon.swift) – planar polygon
   geometry used by `RegionAttributor`; exposes
   `distanceToBoundary(from:)` for border-drift detection.
+- [`LongitudeSpan`](WhereCore/Sources/LongitudeSpan.swift) – the shortest
+  longitudinal arc enclosing a set of longitudes, **antimeridian-aware**
+  (a cluster straddling ±180° like Alaska's Aleutians frames as a tight
+  arc, not a near-global span). The region-map viewer pairs it with
+  `BoundingBox` (latitude) to frame its camera.
 
 ### Persistence
 
@@ -265,6 +282,22 @@ states.
   any distinct edge state (e.g. missing-days, elsewhere-only) each deserve a
   preview when the view renders them differently.
 
+## Developer tools
+
+- [`RegionMapView`](WhereUI/Sources/Developer/RegionMapView.swift) draws
+  region boundary polygons on a real map with a segmented toggle between
+  `.attribution` (what `RegionAttributor` loaded) and `.source` (every
+  authored GeoJSON feature), reading geometry from
+  [`RegionGeometryCatalog`](WhereCore/Sources/RegionGeometryCatalog.swift).
+  It is **self-contained** — no `@Environment(WhereSession.self)` — so the
+  same view backs both the DEBUG-only Settings → Developer → Region map entry
+  and the standalone `RegionViewer` Mac Catalyst app. Geometry decodes off
+  the main thread (the catalog is `async`); a decode failure lands in a
+  `.failure` state (and the logs), never a silently empty map.
+- Map views bridge model `Coordinate`s to MapKit with the shared
+  [`Coordinate.clLocationCoordinate`](WhereUI/Sources/Shared/Coordinate+MapKit.swift)
+  extension (`Coordinate` itself stays CoreLocation-free in the model layer).
+
 ## Adding things
 
 - **New library target:** add to root
@@ -272,11 +305,14 @@ states.
   then wire a hosted test bundle in
   [`Project.swift`](../Project.swift) via the existing `unitTests`
   helper (`Where/<Name>/Tests/**`).
-- **New region:** add the `Region` case, add a
-  `Localizable.xcstrings` entry (the compiler will tell you),
-  extend `RegionAttributor.usStateNames` or drop a new
+- **New region:** add the `Region` case, then resolve the two
+  compile errors it forces: a `localizedName` `Localizable.xcstrings`
+  entry, and a `Region.geometrySource` case declaring where its
+  polygons come from — `.usStateFeature(name:)` (a feature already in
+  `us-states.geojson`, no new file) or `.bundledFile` (drop a new
   `<rawValue>.geojson` into
-  [`Resources/`](WhereCore/Sources/Resources/), and add a
+  [`Resources/`](WhereCore/Sources/Resources/)). `RegionAttributor`
+  loads it automatically from `geometrySource`; add a
   `RegionAttributorTests` spot-check.
 - **New evidence kind / sample source:** add the case, then update
   the exhaustive switches in `fromDiscriminator(...)` and the

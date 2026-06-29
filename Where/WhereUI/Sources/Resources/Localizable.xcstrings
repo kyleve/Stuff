@@ -751,6 +751,138 @@
         }
       }
     },
+    "regionMap.empty.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No region geometry was found in the bundle."
+          }
+        }
+      }
+    },
+    "regionMap.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No regions"
+          }
+        }
+      }
+    },
+    "regionMap.kind.attribution" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attribution"
+          }
+        }
+      }
+    },
+    "regionMap.kind.attribution.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The simplified polygons the app uses to attribute coordinates today."
+          }
+        }
+      }
+    },
+    "regionMap.kind.picker" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Geometry"
+          }
+        }
+      }
+    },
+    "regionMap.kind.source" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Source"
+          }
+        }
+      }
+    },
+    "regionMap.kind.source.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Every feature decoded straight from the bundled GeoJSON, at full authored fidelity."
+          }
+        }
+      }
+    },
+    "regionMap.legend.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Features"
+          }
+        }
+      }
+    },
+    "regionMap.loadError.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load regions"
+          }
+        }
+      }
+    },
+    "regionMap.map.accessibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Map of region boundaries"
+          }
+        }
+      }
+    },
+    "regionMap.showAll" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show all"
+          }
+        }
+      }
+    },
+    "regionMap.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Region Map"
+          }
+        }
+      }
+    },
     "relabel.regions.footer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1434,6 +1566,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Logs"
+          }
+        }
+      }
+    },
+    "settings.debug.regionMapLink" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Region map"
           }
         }
       }

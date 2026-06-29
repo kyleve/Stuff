@@ -423,6 +423,12 @@ struct SettingsView: View {
                         Label(Strings.settingsDebugInspectorLink, systemImage: "cylinder.split.1x2")
                     }
                 }
+
+                NavigationLink {
+                    RegionMapView()
+                } label: {
+                    Label(Strings.settingsDebugRegionMapLink, systemImage: "map")
+                }
             } header: {
                 Text(Strings.settingsDebugHeader)
             } footer: {
