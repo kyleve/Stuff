@@ -66,6 +66,11 @@ public actor StorageContainer {
             case afterDeletion
         }
 
+        /// Identity of the container that issued the token. Per-node token ids
+        /// start at 0, so without this a token from one container could match (and
+        /// deregister) an unrelated handler on another. `deregister(_:)` ignores a
+        /// token whose `node` isn't this container.
+        fileprivate let node: ObjectIdentifier
         fileprivate let id: UInt64
         fileprivate let phase: Phase
     }
@@ -271,7 +276,7 @@ public actor StorageContainer {
     public func onDeactivate(_ handler: @escaping TeardownHandler) -> Token {
         let id = takeTokenID()
         onDeactivateHandlers[id] = handler
-        return Token(id: id, phase: .onDeactivate)
+        return Token(node: ObjectIdentifier(self), id: id, phase: .onDeactivate)
     }
 
     /// Register a handler run **only** on deletion, first, while resources are
@@ -281,7 +286,7 @@ public actor StorageContainer {
     public func prepareForDeletion(_ handler: @escaping TeardownHandler) -> Token {
         let id = takeTokenID()
         prepareForDeletionHandlers[id] = handler
-        return Token(id: id, phase: .prepareForDeletion)
+        return Token(node: ObjectIdentifier(self), id: id, phase: .prepareForDeletion)
     }
 
     /// Register a handler run **only** on deletion, after the files are gone — the
@@ -292,11 +297,13 @@ public actor StorageContainer {
     public func afterDeletion(_ handler: @escaping TeardownHandler) -> Token {
         let id = takeTokenID()
         afterDeletionHandlers[id] = handler
-        return Token(id: id, phase: .afterDeletion)
+        return Token(node: ObjectIdentifier(self), id: id, phase: .afterDeletion)
     }
 
-    /// Remove a previously registered handler.
+    /// Remove a previously registered handler. A token issued by a different
+    /// container is ignored (it identifies no handler here).
     public func deregister(_ token: Token) {
+        guard token.node == ObjectIdentifier(self) else { return }
         switch token.phase {
             case .onDeactivate: onDeactivateHandlers[token.id] = nil
             case .prepareForDeletion: prepareForDeletionHandlers[token.id] = nil

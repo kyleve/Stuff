@@ -243,6 +243,26 @@ struct StorageContainerTests {
         #expect(await log.entries.isEmpty)
     }
 
+    @Test
+    func deregisterIgnoresATokenFromAnotherContainer() async throws {
+        let temp = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+
+        let a = try await system.container("a")
+        let b = try await system.container("b")
+        let log = CallLog()
+        // Both first tokens share id 0; only the issuing node may deregister them.
+        let tokenA = await a.onDeactivate { await log.record("a") }
+        await b.onDeactivate { await log.record("b") }
+
+        await b.deregister(tokenA)
+
+        try await a.deactivate()
+        try await b.deactivate()
+        #expect(await log.entries.sorted() == ["a", "b"])
+    }
+
     // MARK: - Delete
 
     @Test
