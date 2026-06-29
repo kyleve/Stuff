@@ -36,7 +36,7 @@ public typealias TeardownHandler = @Sendable () async throws -> Void
 public actor StorageContainer {
     /// Lifecycle of a node, modeled as one enum (not loose flags) per the repo's
     /// "make invalid states unrepresentable" rule.
-    enum State {
+    enum State: Equatable {
         /// Live: the directory exists and vends work.
         case active
         /// `deactivate()`d: cached vends dropped and `onDeactivate` handlers run,
@@ -44,9 +44,12 @@ public actor StorageContainer {
         case inactive
         /// `deleteContainer()` / `deleteContents()` is mid-flight on this subtree.
         /// Vends are rejected so a concurrent caller can't resurrect a directory
-        /// that is being torn down. A parked (pre-commit) throw reverts this to
-        /// `active`; committing the delete advances it to `deleted`.
-        case deleting
+        /// that is being torn down. `wasActive` remembers the pre-freeze state so
+        /// `onDeactivate` runs exactly once (skipped if the node was already
+        /// `inactive`) and a parked (pre-commit) throw reverts to the right resting
+        /// state (`active` or `inactive`); committing the delete advances it to
+        /// `deleted`.
+        case deleting(wasActive: Bool)
         /// `deleteContainer()`d: the directory is gone and the node is detached.
         /// Any further vend throws (or, for the non-throwing `keyValueStore()`,
         /// traps as the programmer error it is).
@@ -340,7 +343,9 @@ public actor StorageContainer {
         let existingChildren = Array(children.values)
         // Freeze this node while clearing it so a concurrent vend can't slip a new
         // child past the snapshot and have `clearLooseFiles()` delete it underfoot.
-        state = .deleting
+        // `activate()` above left it `active`, and the node itself survives, so the
+        // `wasActive` payload is moot here.
+        state = .deleting(wasActive: true)
         do {
             for child in existingChildren {
                 try await child.deleteContainer()
@@ -391,12 +396,15 @@ public actor StorageContainer {
     }
 
     /// Mark the subtree `deleting` so vends are rejected for the duration of a
-    /// teardown. Marks `self` before recursing: once `self` is `deleting` no new
-    /// child can be vended onto it, so the child set it then snapshots is stable.
+    /// teardown, recording each node's pre-freeze state in `wasActive`. Marks
+    /// `self` before recursing: once `self` is `deleting` no new child can be
+    /// vended onto it, so the child set it then snapshots is stable.
     private func beginDeleting() async {
         switch state {
-            case .active, .inactive:
-                state = .deleting
+            case .active:
+                state = .deleting(wasActive: true)
+            case .inactive:
+                state = .deleting(wasActive: false)
             case .deleting, .deleted:
                 return
         }
@@ -405,25 +413,29 @@ public actor StorageContainer {
         }
     }
 
-    /// Undo `beginDeleting()` after a parked (pre-commit) throw, returning the
-    /// still-intact subtree to `active`.
+    /// Undo `beginDeleting()` after a parked (pre-commit) throw, returning each
+    /// still-intact node to the exact resting state it came from.
     private func revertDeleting() async {
         for child in children.values {
             await child.revertDeleting()
         }
-        if state == .deleting {
-            state = .active
+        if case let .deleting(wasActive) = state {
+            state = wasActive ? .active : .inactive
         }
     }
 
     /// The deletion-path counterpart to `deactivate()`: run `onDeactivate` +
     /// drop cached vends across the subtree, children-first, but keep the
-    /// `deleting` state rather than going `inactive`.
+    /// `deleting` state rather than going `inactive`. Skips a node that was
+    /// already `inactive` before the delete, so its `onDeactivate` handlers (which
+    /// ran during that earlier `deactivate()`) don't fire a second time.
     private func runOnDeactivate() async throws {
         for child in children.values {
             try await child.runOnDeactivate()
         }
-        try await fireOnDeactivate()
+        if case .deleting(wasActive: true) = state {
+            try await fireOnDeactivate()
+        }
     }
 
     private func runPrepareForDeletion() async throws {

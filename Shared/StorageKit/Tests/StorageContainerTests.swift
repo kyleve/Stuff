@@ -279,6 +279,28 @@ struct StorageContainerTests {
     }
 
     @Test
+    func deletingAnAlreadyDeactivatedNodeRunsOnDeactivateOnce() async throws {
+        let temp = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+
+        let user = try await system.container("user-1")
+        let logs = try await user.container("logs")
+        let log = CallLog()
+        await user.onDeactivate { await log.record("user") }
+        await logs.onDeactivate { await log.record("logs") }
+
+        try await user.deactivate()
+        #expect(await log.entries == ["logs", "user"])
+
+        try await user.deleteContainer()
+
+        // The delete must not re-fire onDeactivate — it already ran on deactivate.
+        #expect(await log.entries == ["logs", "user"])
+        #expect(!FileManager.default.fileExists(atPath: user.url.path))
+    }
+
+    @Test
     func vendingIsRejectedWhileTeardownIsInFlight() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
@@ -339,6 +361,26 @@ struct StorageContainerTests {
 
         try await user.deleteContainer()
         #expect(!FileManager.default.fileExists(atPath: user.url.path))
+    }
+
+    @Test
+    func parkedDeleteOfAnInactiveNodeRevertsToInactive() async throws {
+        let temp = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+
+        let user = try await system.container("user-1")
+        try await user.deactivate()
+        #expect(await user.state == .inactive)
+
+        let throwOnce = ThrowOnce()
+        await user.prepareForDeletion { try await throwOnce.fireIfArmed() }
+
+        await #expect(throws: StorageTestError.self) { try await user.deleteContainer() }
+
+        // A parked delete restores the exact prior resting state, not just `active`.
+        #expect(await user.state == .inactive)
+        #expect(FileManager.default.fileExists(atPath: user.url.path))
     }
 
     @Test

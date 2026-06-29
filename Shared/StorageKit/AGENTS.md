@@ -78,13 +78,17 @@ system, formatting, and global conventions. Read that first.
   parks with the subtree intact (retry-safe); only `afterDeletion` may run after
   the point of no return, and a throw there retries just that step. Preserve this
   ordering and the "nothing deleted on an early throw" guarantee.
-- **State is one enum.** `State` is `active` / `inactive` / `deleting` /
-  `deleted` (no loose flags); vending reactivates an `inactive` node and
-  throws/traps on a `deleting` or `deleted` one; `deactivate()` is a no-op when
-  already `inactive`. `deleting` is the in-flight teardown state that makes the
-  subtree reject vends so a race can't resurrect a directory mid-delete — a
-  pre-commit throw reverts it to `active`, committing advances it to `deleted`.
-  Keep invalid states unrepresentable per the root rules.
+- **State is one enum.** `State` is `active` / `inactive` /
+  `deleting(wasActive:)` / `deleted` (no loose flags); vending reactivates an
+  `inactive` node and throws/traps on a `deleting` or `deleted` one;
+  `deactivate()` is a no-op when already `inactive`. `deleting` is the in-flight
+  teardown state that makes the subtree reject vends so a race can't resurrect a
+  directory mid-delete. Its `wasActive` payload records the pre-freeze state so
+  `onDeactivate` fires exactly once (skipped when the node was already
+  `inactive`, since it ran during that `deactivate()`) and a pre-commit throw
+  reverts to the *exact* prior resting state (`active` or `inactive`);
+  committing advances it to `deleted`. Keep invalid states unrepresentable per
+  the root rules.
 - **Errors surface.** Vending/teardown throw `StorageError` or rethrow the
   underlying `FileManager`/SwiftData error — never swallow into an empty default.
   The one deliberate exception is the **non-throwing `keyValueStore()`**, which
