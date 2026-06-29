@@ -78,8 +78,8 @@ struct GeoPolygon: Hashable {
     let vertices: [Coordinate]
 
     func contains(_ coordinate: Coordinate) -> Bool {
+        guard vertices.isValidPolygonRing else { return false }
         let vertexCount = vertices.count
-        guard vertexCount >= 3 else { return false }
         let pointX = coordinate.longitude
         let pointY = coordinate.latitude
 

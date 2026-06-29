@@ -186,7 +186,7 @@ private struct OutlineBuilder {
     private var nextIndex = 0
 
     mutating func add(title: String, region: Region?, coordinates: [Coordinate]) {
-        guard coordinates.count >= 3 else { return }
+        guard coordinates.isValidPolygonRing else { return }
         outlines.append(RegionOutline(
             id: RegionOutline.ID(title: title, index: nextIndex),
             title: title,
