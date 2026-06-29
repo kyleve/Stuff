@@ -157,6 +157,17 @@ public actor StorageContainer {
     /// `.persistent` mode, an in-memory store in `.inMemory` mode. Cached per node
     /// (repeated calls return the same instance) and dropped by `deactivate()` /
     /// `deleteContainer()`.
+    ///
+    /// - Important: This is deliberately **non-throwing** so the common case reads
+    ///   like `store.bool(forKey:)` without a `try`. The price is that calling it
+    ///   on a container that is being deleted or is already deleted is a
+    ///   **programmer error and traps** — don't wrap every access in
+    ///   `try`/`catch`. Reach for the store through a live handle and stop using it
+    ///   once you've torn its container down (e.g. release it in an `onDeactivate`
+    ///   handler); a vend racing a concurrent delete is the one case where the
+    ///   trap can fire, and that's a lifecycle bug to fix at the call site, not to
+    ///   defend against on each call. Use `container(_:)` / `modelContainer(for:)`
+    ///   instead if you need a throwing failure mode.
     public func keyValueStore() -> any KeyValueStore {
         switch state {
             case .active:

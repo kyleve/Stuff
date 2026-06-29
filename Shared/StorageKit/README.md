@@ -169,8 +169,16 @@ public final class InMemoryKeyValueStore: KeyValueStore { public init() }
   the same name, so keep keys distinct (prefer typed enums).
 - **Errors surface.** Vending and teardown throw on real failures; nothing is
   swallowed into a benign default. Using a deleted container throws
-  `StorageError.containerDeleted` (the non-throwing `keyValueStore()` traps, since
-  that's a programmer error).
+  `StorageError.containerDeleted`.
+- **`keyValueStore()` is intentionally non-throwing — don't `try`/`catch` it.**
+  So reads stay terse (`store.bool(forKey:)`), it traps (rather than throws) when
+  called on a container that's being deleted or already deleted. That's a
+  *programmer error*, not a runtime condition to defend against on every access:
+  hold the store through a live handle, and release it when you tear the container
+  down (e.g. in an `onDeactivate` handler). The only way to hit the trap is to
+  vend while a concurrent delete is in flight — a lifecycle bug to fix at the call
+  site. If you need a throwing failure mode, use `container(_:)` /
+  `modelContainer(for:)` instead.
 - **CloudKit is a pass-through** (`.none` / `.automatic`), and is forced off in
   `.inMemory` mode. Richer CloudKit configuration is out of scope.
 - **`deleteAll()` spends the system** — its namespace directory is gone

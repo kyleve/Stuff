@@ -78,14 +78,21 @@ system, formatting, and global conventions. Read that first.
   parks with the subtree intact (retry-safe); only `afterDeletion` may run after
   the point of no return, and a throw there retries just that step. Preserve this
   ordering and the "nothing deleted on an early throw" guarantee.
-- **State is one enum.** `State` is `active` / `inactive` / `deleted` (no loose
-  flags); vending reactivates an `inactive` node and throws/traps on a `deleted`
-  one; `deactivate()` is a no-op when already `inactive`. Keep invalid states
-  unrepresentable per the root rules.
+- **State is one enum.** `State` is `active` / `inactive` / `deleting` /
+  `deleted` (no loose flags); vending reactivates an `inactive` node and
+  throws/traps on a `deleting` or `deleted` one; `deactivate()` is a no-op when
+  already `inactive`. `deleting` is the in-flight teardown state that makes the
+  subtree reject vends so a race can't resurrect a directory mid-delete — a
+  pre-commit throw reverts it to `active`, committing advances it to `deleted`.
+  Keep invalid states unrepresentable per the root rules.
 - **Errors surface.** Vending/teardown throw `StorageError` or rethrow the
   underlying `FileManager`/SwiftData error — never swallow into an empty default.
-  The only trap is the non-throwing `keyValueStore()` on a `deleted` node, which
-  is a genuine programmer error.
+  The one deliberate exception is the **non-throwing `keyValueStore()`**, which
+  *traps* (not throws) when called on a `deleting`/`deleted` node. This keeps
+  reads terse; it's a genuine programmer error (vending while/after a delete is a
+  lifecycle bug), so don't make callers `try`/`catch` it — preserve the
+  non-throwing signature and the trap, and route through the throwing
+  `container(_:)` / `modelContainer(for:)` when a recoverable failure is wanted.
 - **Key-value suites live outside the directory.** Because a `UserDefaults` suite
   isn't under the container's directory, deletion must `removePersistentDomain`
   per node (it does, in the purge phase). If you change suite naming, keep it
