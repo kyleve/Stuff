@@ -278,6 +278,33 @@ struct StorageContainerTests {
         #expect(FileManager.default.fileExists(atPath: user1Revived.url.path))
     }
 
+    @Test
+    func vendingIsRejectedWhileTeardownIsInFlight() async throws {
+        let temp = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+
+        let user = try await system.container("user-1")
+        let outcome = VendOutcome()
+        // A handler running mid-teardown tries to vend onto the node being deleted;
+        // it must be rejected rather than resurrecting the directory.
+        await user.prepareForDeletion {
+            do {
+                _ = try await user.container("sneaky")
+                await outcome.record(rejected: false)
+            } catch {
+                await outcome.record(rejected: true)
+            }
+        }
+
+        try await user.deleteContainer()
+
+        #expect(await outcome.wasRejected == true)
+        #expect(!FileManager.default.fileExists(atPath: user.url.path))
+        let sneaky = user.url.appending(path: "sneaky", directoryHint: .isDirectory)
+        #expect(!FileManager.default.fileExists(atPath: sneaky.path))
+    }
+
     // MARK: - Park-safe retries
 
     @Test

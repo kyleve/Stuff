@@ -39,6 +39,16 @@ actor ThrowOnce {
     }
 }
 
+/// Records whether a vend attempted from inside a teardown handler was rejected,
+/// so a test can prove the subtree refuses vends while it is being deleted.
+actor VendOutcome {
+    private(set) var wasRejected: Bool?
+
+    func record(rejected: Bool) {
+        wasRejected = rejected
+    }
+}
+
 /// A fresh, unique temporary directory for a `.custom` base, isolating each test
 /// from the others and from the host's real Application Support.
 func makeTemporaryDirectory() throws -> URL {

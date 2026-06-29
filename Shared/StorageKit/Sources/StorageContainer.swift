@@ -30,8 +30,9 @@ public typealias TeardownHandler = @Sendable () async throws -> Void
 ///   directories and key-value suites and deregisters, then every `afterDeletion`
 ///   handler. Everything before the delete is **park-safe** — a throw aborts with
 ///   nothing deleted, so a retry is safe; an `afterDeletion` throw is post-commit
-///   (the data is already gone, so it retries only that step). (delete account /
-///   wipe-on-logout)
+///   (the data is already gone, so it retries only that step). The subtree is
+///   marked `deleting` up front, so a vend racing the teardown is rejected rather
+///   than resurrecting a directory mid-delete. (delete account / wipe-on-logout)
 public actor StorageContainer {
     /// Lifecycle of a node, modeled as one enum (not loose flags) per the repo's
     /// "make invalid states unrepresentable" rule.
@@ -41,6 +42,11 @@ public actor StorageContainer {
         /// `deactivate()`d: cached vends dropped and `onDeactivate` handlers run,
         /// but the directory and registrations remain. The next vend reactivates.
         case inactive
+        /// `deleteContainer()` / `deleteContents()` is mid-flight on this subtree.
+        /// Vends are rejected so a concurrent caller can't resurrect a directory
+        /// that is being torn down. A parked (pre-commit) throw reverts this to
+        /// `active`; committing the delete advances it to `deleted`.
+        case deleting
         /// `deleteContainer()`d: the directory is gone and the node is detached.
         /// Any further vend throws (or, for the non-throwing `keyValueStore()`,
         /// traps as the programmer error it is).
@@ -157,7 +163,7 @@ public actor StorageContainer {
                 break
             case .inactive:
                 state = .active
-            case .deleted:
+            case .deleting, .deleted:
                 preconditionFailure(
                     "StorageKit: keyValueStore() on a deleted container \"\(key)\"",
                 )
@@ -276,19 +282,34 @@ public actor StorageContainer {
         for child in children.values {
             try await child.deactivate()
         }
-        for handler in onDeactivateHandlers.values {
-            try await handler()
-        }
-        dropCachedVends()
+        try await fireOnDeactivate()
         state = .inactive
     }
 
     /// Irreversible teardown of this container and its whole subtree. See the type
     /// doc for the phase order and the park-safe guarantee.
     public func deleteContainer() async throws {
-        try await runPrepareForDeletion()
-        try await deactivate()
-        try removeDirectoryTree()
+        if state == .deleted {
+            // Retry after a post-commit (`afterDeletion`) throw: the data is
+            // already gone, so only the post-commit tail remains to re-run.
+            try await runAfterDeletion()
+            await detachFromParent()
+            return
+        }
+
+        // Mark the whole subtree `deleting` first, so a vend racing the teardown
+        // is rejected instead of recreating a directory we're about to remove.
+        await beginDeleting()
+        do {
+            try await runPrepareForDeletion()
+            try await runOnDeactivate()
+            try removeDirectoryTree()
+        } catch {
+            // Park-safe: nothing is committed yet, so undo the freeze and leave
+            // the subtree usable for a later retry.
+            await revertDeleting()
+            throw error
+        }
         await purgeAndMarkDeleted()
         try await runAfterDeletion()
         await detachFromParent()
@@ -298,10 +319,20 @@ public actor StorageContainer {
     /// this (now empty) node live. The node's key-value suite is left intact.
     public func deleteContents() async throws {
         try activate()
-        for child in Array(children.values) {
-            try await child.deleteContainer()
+        let existingChildren = Array(children.values)
+        // Freeze this node while clearing it so a concurrent vend can't slip a new
+        // child past the snapshot and have `clearLooseFiles()` delete it underfoot.
+        state = .deleting
+        do {
+            for child in existingChildren {
+                try await child.deleteContainer()
+            }
+            try clearLooseFiles()
+        } catch {
+            state = .active
+            throw error
         }
-        try clearLooseFiles()
+        state = .active
     }
 
     // MARK: - Internals
@@ -321,7 +352,7 @@ public actor StorageContainer {
                     withIntermediateDirectories: true,
                 )
                 state = .active
-            case .deleted:
+            case .deleting, .deleted:
                 throw StorageError.containerDeleted(key)
         }
     }
@@ -331,8 +362,53 @@ public actor StorageContainer {
         modelContainerCache.removeAll()
     }
 
+    /// Run this node's `onDeactivate` handlers and drop its cached vends. Shared by
+    /// the reversible `deactivate()` and the deletion path; neither touches state
+    /// here so each can set its own (`inactive` vs. keep `deleting`).
+    private func fireOnDeactivate() async throws {
+        for handler in onDeactivateHandlers.values {
+            try await handler()
+        }
+        dropCachedVends()
+    }
+
+    /// Mark the subtree `deleting` so vends are rejected for the duration of a
+    /// teardown. Marks `self` before recursing: once `self` is `deleting` no new
+    /// child can be vended onto it, so the child set it then snapshots is stable.
+    private func beginDeleting() async {
+        switch state {
+            case .active, .inactive:
+                state = .deleting
+            case .deleting, .deleted:
+                return
+        }
+        for child in children.values {
+            await child.beginDeleting()
+        }
+    }
+
+    /// Undo `beginDeleting()` after a parked (pre-commit) throw, returning the
+    /// still-intact subtree to `active`.
+    private func revertDeleting() async {
+        for child in children.values {
+            await child.revertDeleting()
+        }
+        if state == .deleting {
+            state = .active
+        }
+    }
+
+    /// The deletion-path counterpart to `deactivate()`: run `onDeactivate` +
+    /// drop cached vends across the subtree, children-first, but keep the
+    /// `deleting` state rather than going `inactive`.
+    private func runOnDeactivate() async throws {
+        for child in children.values {
+            try await child.runOnDeactivate()
+        }
+        try await fireOnDeactivate()
+    }
+
     private func runPrepareForDeletion() async throws {
-        guard state != .deleted else { return }
         for child in children.values {
             try await child.runPrepareForDeletion()
         }
