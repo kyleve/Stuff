@@ -179,6 +179,12 @@ public final class InMemoryKeyValueStore: KeyValueStore { public init() }
   vend while a concurrent delete is in flight — a lifecycle bug to fix at the call
   site. If you need a throwing failure mode, use `container(_:)` /
   `modelContainer(for:)` instead.
+- **A model store is a child container named `named` (default `"store"`).** In
+  `.persistent` mode it lives in the same key namespace as `container(_:)`, so
+  don't also vend a plain child under that key — `container("store")` and the
+  default model store would share one directory. Pass a distinct `named:` for
+  each store, and avoid colliding child keys. Re-vending a store under the same
+  name with a different `types` set throws `StorageError.modelStoreSchemaMismatch`.
 - **CloudKit is a pass-through** (`.none` / `.automatic`), and is forced off in
   `.inMemory` mode. Richer CloudKit configuration is out of scope.
 - **`deleteAll()` spends the system** — its namespace directory is gone

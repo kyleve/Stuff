@@ -61,12 +61,18 @@ system, formatting, and global conventions. Read that first.
   file) — don't make any vend construct a fresh instance each call.
 - **In-memory does the right thing automatically.** `.inMemory` mode roots in a
   temp directory, vends `InMemoryKeyValueStore`, and builds the SwiftData store
-  `isStoredInMemoryOnly` with **CloudKit forced off**. Callers use identical code
-  in both modes — keep that invariant when touching the vends.
-- **Each SwiftData store gets its own child directory.** `modelContainer(for:)`
-  vends a dedicated child (`named`, default `"store"`) and places the store at
-  `<child>/<named>.store`, so the db + `-wal`/`-shm` + external blobs are isolated
-  and deletable as a unit. Don't put a store directly in a shared directory.
+  `isStoredInMemoryOnly` with **CloudKit forced off** and **no disk access** (it
+  skips vending the store child, so no directory is created). Callers use
+  identical code in both modes — keep that invariant when touching the vends.
+- **Each SwiftData store gets its own child directory (persistent only).**
+  `modelContainer(for:)` vends a dedicated child (`named`, default `"store"`) and
+  places the store at `<child>/<named>.store`, so the db + `-wal`/`-shm` +
+  external blobs are isolated and deletable as a unit. The store child shares the
+  `container(_:)` key namespace, so the default `"store"` collides with a
+  user-vended `container("store")` — documented; use distinct `named:` keys. A
+  store name pins one schema: re-vending the same name with different `types`
+  throws `StorageError.modelStoreSchemaMismatch` (cache keys on the type set).
+  Don't put a store directly in a shared directory.
 - **Two teardown paths, never a flag.** `deactivate()` (reversible: run
   `onDeactivate` + drop cached vends, keep files, go `inactive`, reactivate on
   re-vend) and `deleteContainer()` (destructive). Don't collapse them into a

@@ -227,6 +227,13 @@ public actor StorageContainer {
     /// same `named` key with a different set of `types` throws
     /// `StorageError.modelStoreSchemaMismatch` rather than handing back the first
     /// container with a mismatched schema. Use distinct names for distinct stores.
+    ///
+    /// - Important: In `.persistent` mode the store occupies a child container
+    ///   named `named` (default `"store"`), in the **same** key namespace as
+    ///   `container(_:)`. Don't also vend a plain child under that key — e.g.
+    ///   `container("store")` and the default model store would share one
+    ///   directory and stomp each other. Pass a distinct `named:` (or avoid that
+    ///   key for your own children) to keep them apart.
     public func modelContainer(
         for types: [any PersistentModel.Type],
         named name: StorageKey = "store",
