@@ -16,6 +16,16 @@ final class Note {
     }
 }
 
+/// A second `@Model` fixture, used to vary a store's schema across calls.
+@Model
+final class Tag {
+    var label: String
+
+    init(label: String) {
+        self.label = label
+    }
+}
+
 /// Records the order teardown handlers fire in, so a test can assert phase
 /// ordering and children-first traversal.
 actor CallLog {

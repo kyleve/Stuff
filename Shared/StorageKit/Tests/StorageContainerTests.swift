@@ -151,6 +151,25 @@ struct StorageContainerTests {
         #expect(try readContext.fetchCount(FetchDescriptor<Note>()) == 0)
     }
 
+    @Test
+    func reVendingAStoreWithDifferentTypesThrows() async throws {
+        let temp = try makeTemporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+
+        let user = try await system.container("user-1")
+        let first = try await user.modelContainer(for: [Note.self])
+
+        // Same name, different schema → caught, not silently the wrong container.
+        await #expect(throws: StorageError.modelStoreSchemaMismatch("store")) {
+            _ = try await user.modelContainer(for: [Note.self, Tag.self])
+        }
+
+        // The same type set still returns the cached container.
+        let again = try await user.modelContainer(for: [Note.self])
+        #expect(again === first)
+    }
+
     // MARK: - Deactivate
 
     @Test

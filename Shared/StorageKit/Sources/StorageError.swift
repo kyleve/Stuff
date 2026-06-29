@@ -4,4 +4,11 @@ public enum StorageError: Error, Sendable, Equatable {
     /// was destroyed via `deleteContainer()` / `deleteAll()`. The node is gone;
     /// vend a fresh one from a live `StorageSystem`.
     case containerDeleted(StorageKey)
+
+    /// `modelContainer(for:named:)` was called again under the same `named` store
+    /// (the associated key) but with a different set of model types than the
+    /// already-open store was built with. A store has exactly one schema — vend
+    /// distinct schemas under distinct names rather than silently reusing the
+    /// first one.
+    case modelStoreSchemaMismatch(StorageKey)
 }

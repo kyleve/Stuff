@@ -70,6 +70,14 @@ public actor StorageContainer {
         fileprivate let phase: Phase
     }
 
+    /// A cached `ModelContainer` plus the identity of the model types it was built
+    /// from, so a re-vend under the same store name with a different type set is
+    /// caught instead of silently returning a container with the wrong schema.
+    private struct CachedModelStore {
+        let container: ModelContainer
+        let typeIDs: Set<ObjectIdentifier>
+    }
+
     /// This node's key (a single, sanitized path component).
     public nonisolated let key: StorageKey
     /// This node's directory on disk.
@@ -91,7 +99,7 @@ public actor StorageContainer {
     private var children: [StorageKey: StorageContainer] = [:]
 
     private var keyValueStoreCache: (any KeyValueStore)?
-    private var modelContainerCache: [StorageKey: ModelContainer] = [:]
+    private var modelContainerCache: [StorageKey: CachedModelStore] = [:]
 
     private var nextTokenID: UInt64 = 0
     private var onDeactivateHandlers: [UInt64: TeardownHandler] = [:]
@@ -209,14 +217,23 @@ public actor StorageContainer {
     /// or this container — deletes exactly that store's files). Cached per `named`
     /// key. In `.inMemory` mode the store is `isStoredInMemoryOnly` and CloudKit
     /// is forced off.
+    ///
+    /// A store name identifies exactly one schema: calling this again under the
+    /// same `named` key with a different set of `types` throws
+    /// `StorageError.modelStoreSchemaMismatch` rather than handing back the first
+    /// container with a mismatched schema. Use distinct names for distinct stores.
     public func modelContainer(
         for types: [any PersistentModel.Type],
         named name: StorageKey = "store",
         cloudKit: CloudKitOption = .none,
     ) throws -> ModelContainer {
         try activate()
+        let typeIDs = Set(types.map { ObjectIdentifier($0) })
         if let cached = modelContainerCache[name] {
-            return cached
+            guard cached.typeIDs == typeIDs else {
+                throw StorageError.modelStoreSchemaMismatch(name)
+            }
+            return cached.container
         }
         let storeContainer = try container(name)
         let schema = Schema(types)
@@ -240,7 +257,7 @@ public actor StorageContainer {
                 )
         }
         let modelContainer = try ModelContainer(for: schema, configurations: [configuration])
-        modelContainerCache[name] = modelContainer
+        modelContainerCache[name] = CachedModelStore(container: modelContainer, typeIDs: typeIDs)
         return modelContainer
     }
 
