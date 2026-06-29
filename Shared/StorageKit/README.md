@@ -179,6 +179,10 @@ public final class InMemoryKeyValueStore: KeyValueStore { public init() }
   vend while a concurrent delete is in flight — a lifecycle bug to fix at the call
   site. If you need a throwing failure mode, use `container(_:)` /
   `modelContainer(for:)` instead.
+- **`fileURL(_:)` is pure path construction.** It's `nonisolated`, so it doesn't
+  check the node's state or create the directory: on an `inactive` node the
+  directory is absent until the next vend, and on a `deleted` one it's gone, so
+  the URL points at a missing directory. Use it only while the container is live.
 - **A model store is a child container named `named` (default `"store"`).** In
   `.persistent` mode it lives in the same key namespace as `container(_:)`, so
   don't also vend a plain child under that key — `container("store")` and the

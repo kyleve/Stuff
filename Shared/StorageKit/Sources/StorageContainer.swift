@@ -163,6 +163,13 @@ public actor StorageContainer {
     /// A URL for a raw file named `name` directly inside this container's
     /// directory. The directory already exists for a live container; writing the
     /// file is the caller's job.
+    ///
+    /// - Warning: This is `nonisolated` pure path construction — it can't read the
+    ///   node's state, so it neither checks liveness nor ensures the directory
+    ///   exists. On an `inactive` node the directory is absent until the next vend
+    ///   reactivates it, and on a `deleted` one it's gone for good; in both cases
+    ///   the returned URL points into a missing directory and writes will fail.
+    ///   Only use the URL while the container is live.
     public nonisolated func fileURL(_ name: String) -> URL {
         url.appending(path: name, directoryHint: .notDirectory)
     }
