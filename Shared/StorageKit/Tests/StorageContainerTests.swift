@@ -120,10 +120,11 @@ struct StorageContainerTests {
         try context.save()
         #expect(try context.fetchCount(FetchDescriptor<Note>()) == 1)
 
-        let storeFile = user.url
-            .appending(path: "store", directoryHint: .isDirectory)
-            .appending(path: "store.store", directoryHint: .notDirectory)
+        let storeDir = user.url.appending(path: "store", directoryHint: .isDirectory)
+        let storeFile = storeDir.appending(path: "store.store", directoryHint: .notDirectory)
         #expect(!FileManager.default.fileExists(atPath: storeFile.path))
+        // In-memory mode must not touch disk at all — not even the store directory.
+        #expect(!FileManager.default.fileExists(atPath: storeDir.path))
 
         try await system.deleteAll()
     }

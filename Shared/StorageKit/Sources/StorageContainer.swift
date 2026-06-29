@@ -235,17 +235,18 @@ public actor StorageContainer {
             }
             return cached.container
         }
-        let storeContainer = try container(name)
         let schema = Schema(types)
         let configuration: ModelConfiguration
         switch mode {
             case .inMemory:
+                // No backing files, so don't vend a store child / touch disk.
                 configuration = ModelConfiguration(
                     schema: schema,
                     isStoredInMemoryOnly: true,
                     cloudKitDatabase: .none,
                 )
             case .persistent:
+                let storeContainer = try container(name)
                 let storeURL = storeContainer.url.appending(
                     path: "\(name.name).store",
                     directoryHint: .notDirectory,
