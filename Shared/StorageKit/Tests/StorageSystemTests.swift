@@ -50,6 +50,30 @@ struct StorageSystemTests {
     }
 
     @Test
+    func sameNamedSystemsWithDifferentBasesHaveIndependentKeyValueStores() async throws {
+        let tempA = try makeTemporaryDirectory()
+        let tempB = try makeTemporaryDirectory()
+        defer {
+            try? FileManager.default.removeItem(at: tempA)
+            try? FileManager.default.removeItem(at: tempB)
+        }
+
+        let systemA = try StorageSystem("Where", mode: .persistent, base: .custom(tempA))
+        let systemB = try StorageSystem("Where", mode: .persistent, base: .custom(tempB))
+        let userA = try await systemA.container("user-1")
+        let userB = try await systemB.container("user-1")
+
+        await userA.keyValueStore().set(99, forKey: "count")
+
+        // Same logical key path, different base: the suites must not collide.
+        #expect(await userA.keyValueStore().integer(forKey: "count") == 99)
+        #expect(await userB.keyValueStore().integer(forKey: "count") == 0)
+
+        try await systemA.deleteAll()
+        try await systemB.deleteAll()
+    }
+
+    @Test
     func subdirectoryNamespacesTheSystemUnderTheBase() throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }

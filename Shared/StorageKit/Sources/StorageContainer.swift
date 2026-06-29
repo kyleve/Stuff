@@ -69,7 +69,10 @@ public actor StorageContainer {
     public nonisolated let mode: StorageMode
 
     /// Hierarchical suite-name for this node's `.persistent` key-value store, e.g.
-    /// `"Where.user-1.logs"`. Unused in `.inMemory` mode.
+    /// `"Where.<base-hash>.user-1.logs"`. The root segment folds in a hash of the
+    /// system's resolved base directory (see `StorageSystem.rootSuiteName`) so
+    /// distinct systems don't share a global suite; children append their keys.
+    /// Unused in `.inMemory` mode.
     nonisolated let suiteName: String
 
     private weak var parent: StorageContainer?
