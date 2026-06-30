@@ -819,6 +819,16 @@ enum Strings {
         )
     }
 
+    /// Title for the calendar when it's focused on a single region, e.g.
+    /// "California · 2026".
+    static func calendarRegionTitle(region: Region, year: Int) -> String {
+        String(
+            localized: "calendar.region.title",
+            defaultValue: "\(region.localizedName) · \(yearText(year))",
+            bundle: .module,
+        )
+    }
+
     static var calendarUnavailableDescription: String {
         String(
             localized: "calendar.unavailable.description",
