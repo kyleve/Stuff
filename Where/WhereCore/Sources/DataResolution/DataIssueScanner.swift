@@ -41,7 +41,11 @@ public actor DataIssueScanner {
             BorderDriftDetector(),
             AbruptLocationChangeDetector(),
         ],
-        storeChanges: AsyncStream<Void> = AsyncStream { _ in },
+        // Defaults to an already-finished stream — *not* `AsyncStream { _ in }`,
+        // which never yields or finishes and so would park the observation task
+        // below forever — so callers that don't wire a store (previews, unit
+        // tests) let that task complete immediately instead.
+        storeChanges: AsyncStream<Void> = AsyncStream { $0.finish() },
     ) {
         self.reportReader = reportReader
         self.attributor = attributor
