@@ -69,6 +69,34 @@ struct SwiftDataStoreTests {
 
         #expect(await firstPing(stream, within: .seconds(2)))
     }
+
+    /// Once `perform`'s `peer.save()` returns, the committed write must be
+    /// visible to a later read through the main (read) context — the question
+    /// raised in review (`send()` after `save()` is only useful if readers then
+    /// observe the data). The subtle case is an *update* to a row a prior read
+    /// already registered in that long-lived read context, where a stale cached
+    /// instance could shadow the new value: insert, read (registering the row),
+    /// update the same day, then read again and require the *updated* regions —
+    /// not the originally-read ones.
+    @Test func committedWriteIsVisibleToALaterRead() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let date = Date(timeIntervalSince1970: 0)
+
+        try await store.perform {
+            try await store.setManualDay(DayPresence(date: date, regions: [.california]))
+        }
+        let afterInsert = try await store.allManualDays()
+        #expect(afterInsert.count == 1)
+        #expect(afterInsert.first?.regions == [.california])
+
+        // Same `date` key, so this replaces the row the read above registered.
+        try await store.perform {
+            try await store.setManualDay(DayPresence(date: date, regions: [.newYork]))
+        }
+        let afterUpdate = try await store.allManualDays()
+        #expect(afterUpdate.count == 1)
+        #expect(afterUpdate.first?.regions == [.newYork])
+    }
 }
 
 /// Awaits the first `changes()` ping, returning `false` if none arrives within
