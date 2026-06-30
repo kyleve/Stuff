@@ -253,4 +253,56 @@ struct DataIssueScannerTests {
         )
         #expect(!afterInvalidate.contains { $0.id.storageKey == dismissedKey })
     }
+
+    /// The original bug's fix at the scanner level: a committed store change
+    /// drops the cache *out-of-band* via the observed `store.changes()` stream,
+    /// so a `force: false` reader stays honest even when no session is alive to
+    /// force a rescan (a headless background ingest). Uses the real
+    /// `WhereServices` assembly — which wires `storeChanges: store.changes()`
+    /// into the scanner — so a severed subscription would fail this test.
+    ///
+    /// Dismissing a returned key is the observable lever: within the throttle
+    /// interval the throttle would normally keep serving it (see
+    /// `issues_throttleServesCacheUntilIntervalElapses`), but the dismissal's
+    /// own commit pings `store.changes()`, so the next non-forced scan —
+    /// `now` unchanged — recomputes and drops it.
+    @Test func storeChangeSignalInvalidatesCacheForHeadlessReaders() async throws {
+        let fixedNow = Self.day(2026, 6, 15)
+        let services = try makeServices(now: { fixedNow })
+        let scanner = services.resolution
+
+        let first = try await scanner.issues(
+            year: 2026,
+            primaryRegions: [.california],
+            driftThresholdMeters: 10000,
+        )
+        let dismissedKey = try #require(first.first).id.storageKey
+
+        // Commit through the journal exactly as a headless write would; this
+        // pings `store.changes()`, which the scanner observes asynchronously to
+        // drop its cache. No `force`, no `invalidate()` call, `now` unchanged.
+        try await services.journal.dismissIssue(key: dismissedKey)
+
+        try await waitUntil {
+            let issues = try await scanner.issues(
+                year: 2026,
+                primaryRegions: [.california],
+                driftThresholdMeters: 10000,
+            )
+            return !issues.contains { $0.id.storageKey == dismissedKey }
+        }
+    }
+}
+
+@Sendable
+private func waitUntil(
+    timeout: Duration = .seconds(2),
+    _ condition: @Sendable () async throws -> Bool,
+) async throws {
+    let deadline = ContinuousClock.now.advanced(by: timeout)
+    while ContinuousClock.now < deadline {
+        if try await condition() { return }
+        try await Task.sleep(for: .milliseconds(10))
+    }
+    Issue.record("waitUntil timed out")
 }

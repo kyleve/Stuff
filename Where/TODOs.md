@@ -19,6 +19,7 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - I still think _WhereServices_' sub-services should be optional based on the current state of the application. Worth trying to see what happens. Or better yet, decompose it all into an enum representing "logged in" vs "logged out" state.
 - For logging out / resetting, why do we need to delete all the DB entries? Could we just write the DB into a folder, and on reset, move to another one?
 - Noticed when I don't move for a day, nothing gets recorded. I assume this is because we're relying on GPS updates for updates in the background. Any way to guarantee a daily boot outside of GPS?
+- Update deployment target to iOS 27; this allows us to use HistoryObserver for CloudKit/SwiftData over the notification.
 
 ## P0s (Must do)
 - Remove the `waitForOneRunloop` calls added to UI tests; it's a flake paradise.
@@ -28,9 +29,9 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 
 ## P1s (Should do)
 - `WhereModel` is also getting quite large. Break it up into one parent with children we can pass down.
+- refactor: Split `WhereSession` into an always-on coordinator + a presentation view-model whose lifetime scopes its subscriptions. The session is a ~800-line `@Observable` mixing always-on concerns (tracking intent, authorization, reset) with UI mirrors (year report, data issues, ranking, widget snapshot). The always-on reactive work already lives in `WhereCore`/`WhereServices` — `DataIssueScanner` self-invalidates off `store.changes()`, and reminder/widget reconcile is in `DayJournal`/`LocationIngestor` — so it's the presentation half that should become a scene-scoped model. Concretely closes the efficiency leak found in review: `observeDataChanges()` is wired in the headless `syncAuth` launch step (`WhereLaunch.swift`), so every background GPS commit drives a `refresh()` + forced rescan no UI consumes — redundant with the scanner's headless invalidation and `appBecameActive()`'s foreground catch-up (`WhereSession.swift`). Drive the data-change subscription from `RootView`'s scenePhase/`.task` (start on `.active`, cancel on background) instead; synchronous `subscribe()` + the `appBecameActive()` pull cover the background→foreground gap with no staleness regression. Its own PR — touches launch/reset/previews/tests. Pairs with the `WhereModel` break-up above.
 - Rewrite controller layer to be a state machine so invariants can’t exist
 - SwiftData browser
-- Do we live refresh the Primary UI / Elsewhere UI? Or regularly?
 - What’s with all the `.accessibilityIdentifier(…)` modifiers, do we need them?
 - Remove get/set closure-based bindings
 - Add a UI that represents where you currently are? Maybe a border on the current location card?
@@ -50,6 +51,7 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 
 
 ## P1s (Should do)
+- refactor: Live-refresh the Primary / Calendar / Resolve UI off a single store-change signal. Every committed write (manual edit, live GPS, CloudKit remote import) emits `WhereStore.changes()`; `WhereSession.observeDataChanges()` re-pulls report + data issues, so the UI can't go stale behind an out-of-band write.
 - Export / import system (JSON? Zip?)
 - feat: Include data-resolution dismissals (`SDDismissedIssue`) in the backup export/import format, so a replace-import doesn’t silently re-surface issues the user already dismissed. (`BackupArchive.dismissedIssues` round-trips `DismissedIssue` value types, preserving `dismissedAt`.)
 - Schedule local push notifications if we haven’t recorded for the day yet

@@ -28,6 +28,15 @@ public actor DataIssueScanner {
 
     private var cache: CachedScan?
 
+    /// Drops the cache whenever the store reports a committed change. Lets the
+    /// cache stay honest for `force: false` readers even when no session is
+    /// alive to force a rescan (e.g. a headless background GPS ingest).
+    ///
+    /// `nonisolated(unsafe)` because it's assigned once in the (nonisolated)
+    /// initializer and only read by `deinit` — there is no concurrent access to
+    /// guard.
+    private nonisolated(unsafe) var invalidationTask: Task<Void, Never>?
+
     public init(
         reportReader: ReportReader,
         attributor: RegionAttributor,
@@ -39,6 +48,11 @@ public actor DataIssueScanner {
             BorderDriftDetector(),
             AbruptLocationChangeDetector(),
         ],
+        // Defaults to an already-finished stream — *not* `AsyncStream { _ in }`,
+        // which never yields or finishes and so would park the observation task
+        // below forever — so callers that don't wire a store (previews, unit
+        // tests) let that task complete immediately instead.
+        storeChanges: AsyncStream<Void> = AsyncStream { $0.finish() },
     ) {
         self.reportReader = reportReader
         self.attributor = attributor
@@ -46,6 +60,15 @@ public actor DataIssueScanner {
         self.now = now
         self.scanInterval = scanInterval
         self.detectors = detectors
+        invalidationTask = Task { [weak self] in
+            for await _ in storeChanges {
+                await self?.invalidate()
+            }
+        }
+    }
+
+    deinit {
+        invalidationTask?.cancel()
     }
 
     /// Throttled detection. Recomputes when `force`, when the cache is empty,

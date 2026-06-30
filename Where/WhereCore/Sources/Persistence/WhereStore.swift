@@ -27,6 +27,18 @@ public protocol WhereStore: Sendable {
         _ block: @Sendable () async throws -> T,
     ) async throws -> T
 
+    /// A fresh stream that emits whenever committed data changes — once after
+    /// every outermost `perform` transaction commits, and (for a CloudKit-backed
+    /// store) on a remote import synced from another device. The payload is a
+    /// bare `Void`: subscribers re-read what they care about, so they only need
+    /// to know *that* something changed, not what. Each call returns its own
+    /// independent stream that drops out of the fan-out when iteration stops.
+    ///
+    /// This is the single read-refresh signal: every write origin (manual edit,
+    /// live GPS ingestion, remote sync) funnels through `perform` or the remote
+    /// import, so a consumer that re-derives on each ping can't go stale.
+    func changes() -> AsyncStream<Void>
+
     func add(sample: LocationSample) async throws
     func samples(in interval: DateInterval) async throws -> [LocationSample]
     func allSamples() async throws -> [LocationSample]

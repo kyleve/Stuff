@@ -426,6 +426,37 @@ struct WhereServicesTests {
         await services.ingestor.stop()
     }
 
+    /// Live GPS ingestion never goes through a session intent method, so the
+    /// committed persist's `changes()` ping is the only thing that keeps readers
+    /// fresh. Proves the live path funnels through the same unified signal a
+    /// manual edit does.
+    @Test func liveGPSIngestPingsDataChangeUpdates() async throws {
+        let (services, _, source) = try Self.makeServices()
+        // Subscribe before the ingest; the broadcaster buffers the newest ping,
+        // so a commit landing before the consumer iterates still delivers.
+        let changes = services.dataChangeUpdates()
+        let recorder = PingRecorder()
+        // Don't `break` after the first ping: keep draining so a duplicate
+        // signal from the same commit would bump the count and fail the
+        // exact-count assertion below.
+        let consumer = Task { for await _ in changes {
+            await recorder.record()
+        } }
+
+        await services.ingestor.start()
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+
+        try await waitUntil { await recorder.pingCount >= 1 }
+
+        consumer.cancel()
+        await services.ingestor.stop()
+
+        // One ingested sample commits exactly one transaction, so the unified
+        // signal must fire exactly once — a higher count would mean a single
+        // write fanned out duplicate pings.
+        #expect(await recorder.pingCount == 1)
+    }
+
     @Test func performThrow_rollsBackEntireTransaction() async throws {
         let store = try SwiftDataStore.inMemory()
         let s1 = sample(at: "2026-04-10T08:00:00-07:00")
@@ -1020,6 +1051,16 @@ private func waitUntil(
     Issue.record("waitUntil timed out")
 }
 
+/// Counts `dataChangeUpdates()` pings, so a test can assert (via `waitUntil`)
+/// that a committed write fired the unified signal — and, by checking the exact
+/// count, that it fired exactly once rather than fanning out duplicates.
+private actor PingRecorder {
+    private(set) var pingCount = 0
+    func record() {
+        pingCount += 1
+    }
+}
+
 /// Records the calls the reminder reconciler makes to its scheduler so tests
 /// can assert the badge count, scheduled days, and enabled state without
 /// touching `UNUserNotificationCenter`.
@@ -1138,6 +1179,10 @@ private actor ToggleFailingStore: WhereStore {
         _ block: @Sendable () async throws -> T,
     ) async throws -> T {
         try await backing.perform(block)
+    }
+
+    nonisolated func changes() -> AsyncStream<Void> {
+        backing.changes()
     }
 
     func add(sample: LocationSample) async throws {
