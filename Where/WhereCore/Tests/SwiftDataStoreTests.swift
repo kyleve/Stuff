@@ -52,6 +52,21 @@ struct SwiftDataStoreTests {
 
         #expect(await !firstPing(stream, within: .milliseconds(200)))
     }
+
+    /// A remote import (simulated via a scripted source) re-pings the same
+    /// `changes()` fan-out a local commit does, so observers can't tell a sync
+    /// from another device apart from a local write — one read path.
+    @Test func remoteChangeForwardsToChanges() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedStoreRemoteChangeSource()
+        store.startObservingRemoteChanges(source)
+        // Subscribe before emitting so the forwarded ping isn't missed.
+        let stream = store.changes()
+
+        source.emit()
+
+        #expect(await firstPing(stream, within: .seconds(2)))
+    }
 }
 
 /// Awaits the first `changes()` ping, returning `false` if none arrives within

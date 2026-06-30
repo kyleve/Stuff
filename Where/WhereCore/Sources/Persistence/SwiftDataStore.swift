@@ -93,6 +93,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDManualDay.self,
             SDDismissedIssue.self,
         ])
+        // CloudKit mode backs the container with `NSPersistentCloudKitContainer`,
+        // which enables persistent-history tracking and posts
+        // `.NSPersistentStoreRemoteChange` on remote import — no extra knobs
+        // needed (and SwiftData exposes none). `make` observes that notification
+        // via `PersistentStoreRemoteChangeSource`.
         let config = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,
@@ -120,7 +125,14 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public static func make(storage: Storage = .default) throws -> SwiftDataStore {
         let container = try makeContainer(storage: storage)
         logger.info("Opened SwiftData store (mode: \(storage))")
-        return SwiftDataStore(modelContainer: container)
+        let store = SwiftDataStore(modelContainer: container)
+        // Only CloudKit storage imports changes from other devices. The mirror
+        // posts `.NSPersistentStoreRemoteChange` on import; forward those into
+        // `changes()` so a remote sync refreshes the UI like a local commit.
+        if storage == .cloudKit {
+            store.startObservingRemoteChanges(PersistentStoreRemoteChangeSource())
+        }
+        return store
     }
 
     /// The live model container, re-exposed for read-only debug tooling (the
@@ -151,6 +163,31 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// `let`, and `subscribe()` is itself thread-safe.
     public nonisolated func changes() -> AsyncStream<Void> {
         changeBroadcaster.subscribe()
+    }
+
+    /// Forwards a `StoreRemoteChangeSource`'s remote-import events into the same
+    /// `changes()` fan-out a local commit pings. `nonisolated(unsafe)` for the
+    /// same reason as the scanner's: assigned once during setup, cancelled in
+    /// `deinit`, never accessed concurrently. The task captures only the
+    /// `Sendable` broadcaster + source (no `self`), so there's no retain cycle.
+    private nonisolated(unsafe) var remoteChangeTask: Task<Void, Never>?
+
+    /// Begin re-pinging `changes()` on every remote import from `source`, so a
+    /// CloudKit sync from another device refreshes observers identically to a
+    /// local write — one read path for every write origin. `nonisolated` so the
+    /// `make` factory can wire it without hopping onto the actor; call once.
+    /// The forwarding task retains `source`, so the caller needn't.
+    nonisolated func startObservingRemoteChanges(_ source: any StoreRemoteChangeSource) {
+        remoteChangeTask?.cancel()
+        remoteChangeTask = Task { [changeBroadcaster] in
+            for await _ in source.remoteChanges {
+                changeBroadcaster.send()
+            }
+        }
+    }
+
+    deinit {
+        remoteChangeTask?.cancel()
     }
 
     /// Peer `ModelContext` active for the duration of an outermost
