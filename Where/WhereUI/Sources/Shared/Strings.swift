@@ -70,6 +70,16 @@ enum Strings {
         localized("primary.timeline")
     }
 
+    /// Accessibility hint on a Primary region card: tapping it opens that
+    /// region's calendar, filtered to the days spent there.
+    static var primaryCardCalendarHint: String {
+        String(
+            localized: "primary.card.calendarHint",
+            defaultValue: "Opens the calendar of days spent here.",
+            bundle: .module,
+        )
+    }
+
     static var primaryLoading: String {
         localized("primary.loading")
     }
