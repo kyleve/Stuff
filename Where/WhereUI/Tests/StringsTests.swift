@@ -50,6 +50,10 @@ struct StringsTests {
             .calendarUnavailableDescription == "Your year data isn't available right now.")
     }
 
+    @Test func calendarRegionTitleFormatsRegionAndGroupingFreeYear() {
+        #expect(Strings.calendarRegionTitle(region: .california, year: 2026) == "California · 2026")
+    }
+
     @Test func interpolatedStringsSubstituteArguments() {
         #expect(Strings.primaryEmptyTitle(year: 2024) == "No travels logged for 2024")
     }
