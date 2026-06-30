@@ -28,6 +28,11 @@ public struct WhereServices: Sendable {
     public let backup: BackupCoordinator
     /// Data-quality issue detection for the Resolve tab.
     public let resolution: DataIssueScanner
+    /// The persistence boundary, retained so `dataChangeUpdates()` can hand out
+    /// the store's `changes()` stream — the single read-refresh signal every
+    /// write origin (manual edit, live GPS, remote sync) funnels through.
+    /// Plumbing, so it stays off the public surface.
+    let store: any WhereStore
     /// The live SwiftData container when the backing store is the production
     /// `SwiftDataStore`; `nil` for non-SwiftData stores (e.g. test fakes).
     /// Surfaced only for read-only debug tooling (the SwiftData inspector) so
@@ -106,11 +111,15 @@ public struct WhereServices: Sendable {
             widgets: widgets,
         )
         let backup = BackupCoordinator(store: store, widgets: widgets)
+        // Subscribes to `store.changes()` and drops its cache on every commit,
+        // so a `force: false` read stays honest even when no session is alive to
+        // force a rescan (e.g. a headless background GPS ingest).
         let resolution = DataIssueScanner(
             reportReader: reports,
             attributor: attributor,
             calendar: aggregator.calendar,
             now: now,
+            storeChanges: store.changes(),
         )
 
         self.reports = reports
@@ -121,7 +130,18 @@ public struct WhereServices: Sendable {
         self.journal = journal
         self.backup = backup
         self.resolution = resolution
+        self.store = store
         modelContainer = (store as? SwiftDataStore)?.inspectorContainer
+    }
+
+    /// A fresh stream that fires whenever persisted data changes — local commits
+    /// (manual edits, live GPS ingestion) and, for a CloudKit-backed store,
+    /// remote imports synced from another device. `WhereSession` subscribes and
+    /// re-pulls its report + data-issue scan, so the UI it mirrors can't go stale
+    /// behind a write it didn't initiate. Each subscriber gets an isolated stream
+    /// (see `StoreChangeBroadcaster`).
+    public func dataChangeUpdates() -> AsyncStream<Void> {
+        store.changes()
     }
 
     /// Return the services to a clean slate for the app's "erase all data &
