@@ -2,8 +2,12 @@ import Foundation
 
 /// Reads the persisted year + dismissals, runs the pure detectors, and returns
 /// the sorted, not-yet-dismissed issues — throttling repeat scans of the same
-/// (year, threshold) to once per `scanInterval` and serving the cached result
-/// in between. An `actor` because it holds that cache; composes `ReportReader`.
+/// (year, threshold, calendar day) to once per `scanInterval` and serving the
+/// cached result in between. The calendar day is part of the key because the
+/// missing-days backlog cutoff (`MissingDays.backlogCutoff`) is day-relative, so
+/// a midnight rollover must recompute even mid-throttle — the cache fully
+/// describes when it's stale, so callers just keep asking with `force: false`.
+/// An `actor` because it holds that cache; composes `ReportReader`.
 public actor DataIssueScanner {
     private let reportReader: ReportReader
     private let attributor: RegionAttributor
@@ -15,6 +19,9 @@ public actor DataIssueScanner {
     private struct CachedScan {
         let year: Int
         let driftThresholdMeters: Double
+        /// Start-of-day of the `now` this scan ran against. The day-relative
+        /// backlog cutoff is baked into `issues`, so a different day is a miss.
+        let day: Date
         let at: Date
         let issues: [any DataIssue]
     }
@@ -42,19 +49,24 @@ public actor DataIssueScanner {
     }
 
     /// Throttled detection. Recomputes when `force`, when the cache is empty,
-    /// when `(year, driftThresholdMeters)` differs from the cached run, or when
-    /// the cached run is older than `scanInterval`; otherwise returns cached.
+    /// when `(year, driftThresholdMeters)` differs from the cached run, when the
+    /// calendar day has rolled over since it (the backlog cutoff is
+    /// day-relative), or when the cached run is older than `scanInterval`;
+    /// otherwise returns cached.
     public func issues(
         year: Int,
         primaryRegions: [Region],
         driftThresholdMeters: Double,
         force: Bool = false,
     ) async throws -> [any DataIssue] {
+        let currentDate = now()
+        let currentDay = calendar.startOfDay(for: currentDate)
         if !force,
            let cached = cache,
            cached.year == year,
            cached.driftThresholdMeters == driftThresholdMeters,
-           now().timeIntervalSince(cached.at) < scanInterval
+           cached.day == currentDay,
+           currentDate.timeIntervalSince(cached.at) < scanInterval
         {
             return cached.issues
         }
@@ -73,7 +85,7 @@ public actor DataIssueScanner {
             attributor: attributor,
             driftThresholdMeters: driftThresholdMeters,
             calendar: calendar,
-            now: now(),
+            now: currentDate,
         )
         let sorted = Self.sortIssues(
             detectors
@@ -83,7 +95,8 @@ public actor DataIssueScanner {
         cache = CachedScan(
             year: year,
             driftThresholdMeters: driftThresholdMeters,
-            at: now(),
+            day: currentDay,
+            at: currentDate,
             issues: sorted,
         )
         return sorted

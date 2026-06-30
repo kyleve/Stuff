@@ -174,6 +174,37 @@ struct DataIssueScannerTests {
         #expect(!differentThreshold.contains { $0.id.storageKey == dismissedKey })
     }
 
+    /// A calendar-day rollover is a cache-key miss, so the scan recomputes even
+    /// within `scanInterval` and without `force` — the missing-days backlog
+    /// cutoff is day-relative, so a day that crosses it mid-throttle must show up
+    /// without anyone tracking the rollover. Dismissing a returned key is the
+    /// observable lever: a served cache still contains it, a recompute drops it.
+    @Test func issues_recomputesWhenCalendarDayRollsOver() async throws {
+        // 23:30 local, so a sub-`scanInterval` advance still crosses midnight.
+        let clock = MutableClock(Self.day(2026, 6, 15).addingTimeInterval(23.5 * 60 * 60))
+        let store = try SwiftDataStore.inMemory()
+        let scanner = makeScanner(store: store, now: { clock.now })
+
+        let first = try await scanner.issues(
+            year: 2026,
+            primaryRegions: [.california],
+            driftThresholdMeters: 10000,
+        )
+        let dismissedKey = try #require(first.first).id.storageKey
+        try await store.perform { try await store.setIssueDismissed(true, key: dismissedKey) }
+
+        // 40 min later it is the next calendar day but still well inside the 1h
+        // throttle, so only the day-key miss can drive the recompute that drops
+        // the now-dismissed key.
+        clock.advance(by: 40 * 60)
+        let nextDay = try await scanner.issues(
+            year: 2026,
+            primaryRegions: [.california],
+            driftThresholdMeters: 10000,
+        )
+        #expect(!nextDay.contains { $0.id.storageKey == dismissedKey })
+    }
+
     @Test func issues_recomputesWhenYearChanges() async throws {
         let now = Self.day(2026, 6, 15)
         let store = try SwiftDataStore.inMemory()

@@ -75,7 +75,10 @@ boundary, never SwiftData records.
       (`actor`) – scans the year report + raw samples for fixable data
       quality issues (missing days, GPS border drift, abrupt location
       changes). Owns detection I/O, a ~3h throttle/cache keyed by
-      `(year, driftThresholdMeters)`, and sorting; exposes
+      `(year, driftThresholdMeters, calendar day)` — the calendar day is part
+      of the key so a midnight rollover recomputes the day-relative missing-days
+      backlog cutoff even mid-throttle, without callers tracking the rollover —
+      and sorting; exposes
       `issues(year:primaryRegions:driftThresholdMeters:force:)` and
       `invalidate()`. Detectors implement [`DataIssueDetector`](WhereCore/Sources/DataResolution/DataIssueDetector.swift)
       (typed `Issue` per detector, erased to `[any DataIssue]` for the
