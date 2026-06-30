@@ -175,8 +175,14 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// Begin re-pinging `changes()` on every remote import from `source`, so a
     /// CloudKit sync from another device refreshes observers identically to a
     /// local write — one read path for every write origin. `nonisolated` so the
-    /// `make` factory can wire it without hopping onto the actor; call once.
-    /// The forwarding task retains `source`, so the caller needn't.
+    /// `make` factory can wire it without hopping onto the actor. The forwarding
+    /// task retains `source`, so the caller needn't.
+    ///
+    /// Call **exactly once**, from `make` before the store is shared:
+    /// `remoteChangeTask` is `nonisolated(unsafe)` with no synchronization, so
+    /// this is not safe to call concurrently or to re-arm from another thread.
+    /// The leading `cancel()` is defensive cleanup of a stray prior task, not a
+    /// thread-safe replace.
     nonisolated func startObservingRemoteChanges(_ source: any StoreRemoteChangeSource) {
         remoteChangeTask?.cancel()
         remoteChangeTask = Task { [changeBroadcaster] in

@@ -44,13 +44,20 @@ final class PersistentStoreRemoteChangeSource: StoreRemoteChangeSource, @uncheck
         var cont: AsyncStream<Void>.Continuation!
         remoteChanges = AsyncStream { cont = $0 }
         continuation = cont
-        let continuation = cont!
+        // Capture the continuation in a local — deliberately *not*
+        // `self.continuation` — so the long-lived observer block (which
+        // `NotificationCenter` retains until `removeObserver`) doesn't capture
+        // `self`. Capturing `self` would keep this source alive for as long as
+        // the observer is registered, so `deinit` (which removes it) could
+        // never run. The stored `continuation` property exists only for
+        // `deinit` to `finish()`.
+        let captured = cont!
         observer = center.addObserver(
             forName: .NSPersistentStoreRemoteChange,
             object: nil,
             queue: nil,
         ) { _ in
-            continuation.yield()
+            captured.yield()
         }
     }
 
