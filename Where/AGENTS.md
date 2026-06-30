@@ -195,6 +195,66 @@ without inflating Console's error-level queries. There is no fine-grained
 `.debug` tracing on the hot paths (per-GPS-sample persist, per-day reminder
 scheduling, widget throttle/skip) — those stay quiet by design.
 
+## Localization
+
+All user-facing copy resolves through module string catalogs — no literals in
+views or thrown errors.
+
+- **WhereUI:** funnel every string through
+  [`Strings.swift`](WhereUI/Sources/Shared/Strings.swift), which looks up keys
+  in [`Resources/Localizable.xcstrings`](WhereUI/Sources/Resources/Localizable.xcstrings)
+  with `bundle: .module`. Counts use catalog plural variations; years use a
+  grouping-free number style so they read "2026", not "2,026".
+- **WhereCore:** user-visible errors and region names use static
+  `String(localized:bundle: .module)` keys in
+  [`Resources/Localizable.xcstrings`](WhereCore/Sources/Resources/Localizable.xcstrings)
+  (see `Region.localizedName` — add a case + key when adding a region).
+- **DEBUG-only UI** (Settings → Developer links, inspector labels) still gets
+  catalog entries — don't bypass localization because a surface is dev-only.
+- **WhereWidgets:** gallery name/description live in the extension's own
+  `Localizable.xcstrings` (see [`WhereWidgets/AGENTS.md`](WhereWidgets/AGENTS.md));
+  in-widget copy reuses WhereUI `Strings`.
+
+When adding copy, add the key to the catalog first, then reference it from
+`Strings` or Core — never ship English literals in SwiftUI `Text` or
+`errorDescription`.
+
+## Calendar, dates & presentation
+
+### Calendar and date ranges
+
+- **Year bounds are half-open.** `DayAggregator.yearInterval(year:)` spans
+  `[Jan 1 year, Jan 1 year+1)` in the aggregator's calendar/time zone; store
+  filters use `timestamp >= start && timestamp < end` so Jan 1 of the next year
+  is never double-counted.
+- **Day ranges are inclusive.** `Date.calendarDays(through:in:)` normalizes
+  both endpoints to start-of-day and walks `first ... last` inclusively; an
+  empty range means `end` fell before `start`.
+- **Inject `Calendar`, don't reach for globals.** Logged-in UI reads
+  `WhereSession.calendar` (Gregorian, current time zone); layout types like
+  `CalendarMonth` carry the calendar they were built with. Prefer
+  `calendar.component(...)` and `calendar.range(of:in:for:)` over hardcoding
+  `7` weekdays or day counts.
+- **Core layout APIs throw on failure.** When calendar metadata can't be derived
+  (e.g. weekday count), throw rather than silently returning a default — callers
+  surface `ContentUnavailableView` and log, not `!`.
+
+### WhereUI presentation helpers
+
+- **Layout constants → [`UIConstants`](WhereUI/Sources/Shared/UIConstants.swift).**
+  Spacing, padding, corner radii, and one-off sizes live there — not magic
+  numbers sprinkled through views.
+- **Shared date-range copy → [`DateRangeFormatting`](WhereUI/Sources/Shared/DateRangeFormatting.swift).**
+- **Numbers and dates → `FormatStyle` / formatters**, not string interpolation.
+- **Expensive layout belongs in state.** Calendar months, filtered lists, and
+  similar work compute once into `@State` or the view model and invalidate on
+  input changes — don't rebuild on every `body` pass (same idea as
+  `LogViewerModel`'s cached `filteredEntries`).
+- **Missing data in views → `ContentUnavailableView` + log**, not force-unwrap.
+- **Sharing files → `ShareLink` / `Transferable`**, not custom
+  `UIActivityViewController` wiring unless the platform API truly can't handle
+  the payload.
+
 ## Layering
 
 Where splits **domain** from **presentation**. Keep the split sharp when adding
@@ -336,3 +396,15 @@ states.
   never touch the user's on-disk / CloudKit store.
 - UI tests that need a UIKit window go through `show(_:perform:)`
   from `WhereTesting`.
+- **Split tests when sources split** — e.g. each
+  [`DataIssueDetector`](WhereCore/Sources/DataResolution/DataIssueDetector.swift)
+  gets its own `*Tests.swift`; shared clocks/builders live in
+  `*TestSupport.swift`, not copied across files.
+- **Wait for conditions** (`waitFor`, `waitUntil`, `renders(within:_:)` from
+  WhereTesting / LifecycleKit test support) instead of fixed run-loop iterations.
+- **Inject production limits in tests** — e.g. `LocationIngestor` retry-queue
+  capacity via `@_spi(Testing)` with a small value, not the live 1000-cap.
+- Non-obvious detectors and geometry helpers get a **brief doc comment** on the
+  type (what it detects / key invariants) — see existing
+  [`DataIssueDetector`](WhereCore/Sources/DataResolution/DataIssueDetector.swift)
+  implementations.
