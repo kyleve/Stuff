@@ -426,6 +426,29 @@ struct WhereServicesTests {
         await services.ingestor.stop()
     }
 
+    /// Live GPS ingestion never goes through a session intent method, so the
+    /// committed persist's `changes()` ping is the only thing that keeps readers
+    /// fresh. Proves the live path funnels through the same unified signal a
+    /// manual edit does.
+    @Test func liveGPSIngestPingsDataChangeUpdates() async throws {
+        let (services, _, source) = try Self.makeServices()
+        // Subscribe before the ingest; the broadcaster buffers the newest ping,
+        // so a commit landing before the consumer iterates still delivers.
+        let changes = services.dataChangeUpdates()
+        let recorder = PingRecorder()
+        let consumer = Task { for await _ in changes {
+            await recorder.record(); break
+        } }
+
+        await services.ingestor.start()
+        source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
+
+        try await waitUntil { await recorder.didPing }
+
+        consumer.cancel()
+        await services.ingestor.stop()
+    }
+
     @Test func performThrow_rollsBackEntireTransaction() async throws {
         let store = try SwiftDataStore.inMemory()
         let s1 = sample(at: "2026-04-10T08:00:00-07:00")
@@ -1018,6 +1041,15 @@ private func waitUntil(
         try await Task.sleep(for: .milliseconds(10))
     }
     Issue.record("waitUntil timed out")
+}
+
+/// Records whether a `dataChangeUpdates()` ping has arrived, so a test can
+/// assert (via `waitUntil`) that a committed write fired the unified signal.
+private actor PingRecorder {
+    private(set) var didPing = false
+    func record() {
+        didPing = true
+    }
 }
 
 /// Records the calls the reminder reconciler makes to its scheduler so tests

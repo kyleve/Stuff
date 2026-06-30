@@ -30,7 +30,6 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - `WhereModel` is also getting quite large. Break it up into one parent with children we can pass down.
 - Rewrite controller layer to be a state machine so invariants can’t exist
 - SwiftData browser
-- Do we live refresh the Primary UI / Elsewhere UI? Or regularly?
 - What’s with all the `.accessibilityIdentifier(…)` modifiers, do we need them?
 - Remove get/set closure-based bindings
 - Add a UI that represents where you currently are? Maybe a border on the current location card?
@@ -50,6 +49,7 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 
 
 ## P1s (Should do)
+- refactor: Live-refresh the Primary / Calendar / Resolve UI off a single store-change signal. Every committed write (manual edit, live GPS, CloudKit remote import) emits `WhereStore.changes()`; `WhereSession.observeDataChanges()` re-pulls report + data issues, so the UI can't go stale behind an out-of-band write.
 - Export / import system (JSON? Zip?)
 - feat: Include data-resolution dismissals (`SDDismissedIssue`) in the backup export/import format, so a replace-import doesn’t silently re-surface issues the user already dismissed. (`BackupArchive.dismissedIssues` round-trips `DismissedIssue` value types, preserving `dismissedAt`.)
 - Schedule local push notifications if we haven’t recorded for the day yet

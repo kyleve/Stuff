@@ -77,7 +77,10 @@ boundary, never SwiftData records.
       changes). Owns detection I/O, a ~3h throttle/cache keyed by
       `(year, driftThresholdMeters)`, and sorting; exposes
       `issues(year:primaryRegions:driftThresholdMeters:force:)` and
-      `invalidate()`. Detectors implement [`DataIssueDetector`](WhereCore/Sources/DataResolution/DataIssueDetector.swift)
+      `invalidate()`. Subscribes to the store-change signal (`store.changes()`,
+      passed at init) and drops its cache on every committed write, so a
+      non-forced read can't serve a stale scan after a background GPS ingest or
+      remote sync. Detectors implement [`DataIssueDetector`](WhereCore/Sources/DataResolution/DataIssueDetector.swift)
       (typed `Issue` per detector, erased to `[any DataIssue]` for the
       UI). Dismissals are read from the store and filtered out before
       return. `WhereServices.reset()` calls `await resolution.invalidate()`.
@@ -155,6 +158,17 @@ boundary, never SwiftData records.
   `SDDismissedIssue` (CloudKit-synced dismissal keys for the Resolve
   tab; included in backup export/import via `BackupArchive.dismissedIssues`,
   round-tripped as `DismissedIssue` value types preserving `dismissedAt`).
+- **Store-change signal.** [`WhereStore.changes()`](WhereCore/Sources/Persistence/WhereStore.swift)
+  returns a fresh `AsyncStream<Void>` that pings once after every committed
+  `perform` and on a CloudKit remote import — the single read-refresh signal
+  every write origin (manual edit, live GPS, remote sync) funnels through.
+  `SwiftDataStore` owns a [`StoreChangeBroadcaster`](WhereCore/Sources/StoreChangeBroadcaster.swift)
+  (per-subscriber fan-out) that `perform` pings on commit, plus a
+  [`StoreRemoteChangeSource`](WhereCore/Sources/Persistence/StoreRemoteChangeSource.swift)
+  seam — production `PersistentStoreRemoteChangeSource` observes
+  `.NSPersistentStoreRemoteChange`; tests wire `ScriptedStoreRemoteChangeSource`
+  and call `emit()`. `WhereServices.dataChangeUpdates()` re-exposes the stream
+  for the view-model (see [Layering](#layering)).
 
 ### GPS
 
@@ -212,6 +226,16 @@ Core; `WhereSession.refreshDataIssues` / `dismiss(_:)` mirror and trigger;
 [`ResolutionView`](WhereUI/Sources/Resolution/ResolutionView.swift) only lists,
 routes by `IssueResolution`, and forwards dismiss.
 
+**One read path.** Every committed write emits a single store-change signal
+(`WhereStore.changes()`), and readers refresh purely off it rather than at each
+write site. `WhereSession.observeDataChanges()` subscribes to
+`services.dataChangeUpdates()` and re-pulls its report + data-issue scan on every
+ping; `DataIssueScanner` drops its cache on the same signal. So the write intent
+methods (`setManualDay`, `overrideDay`, …) just commit — they don't refresh
+inline — and live GPS ingestion and CloudKit remote imports refresh the UI the
+same way a manual edit does. `select(year:)` / `appBecameActive()` still refresh
+explicitly (navigation / lifecycle, not writes).
+
 When in doubt: if the behavior would still be correct without SwiftUI, it
 belongs in `WhereCore` (or, for logged-in orchestration that exists only to
 serve the UI, on `WhereSession` — still not in a `View`).
@@ -233,10 +257,14 @@ Launch is driven by [`LifecycleKit`](../Shared/LifecycleKit) (read its
   summary settings, backup, **data issues**. Created by the launch's
   `open-store` step (`startSession()`), dropped on reset (`endSession()`), and
   read by logged-in views via `@Environment(WhereSession.self)` — so there are
-  no `guard let session` checks sprinkled through the UI. Exposes intent
+  no `guard let session` checks sprinkled through the UI.   Exposes intent
   methods that delegate to Core (`refresh()` → `ReportReader`, `dismiss(_:)` →
   `DayJournal` + `DataIssueScanner`, etc.) and holds thin mirrors (e.g.
-  `dataIssues` from `services.resolution.issues(...)`).
+  `dataIssues` from `services.resolution.issues(...)`). A long-lived
+  `observeDataChanges()` (wired into `start()` and the `syncAuth` launch step
+  alongside the authorization observer) subscribes to the store-change signal
+  and re-pulls report + data issues, so write intents just commit without
+  refreshing inline (see [One read path](#layering)).
 - [`WhereLaunch`](WhereUI/Sources/Launch/WhereLaunch.swift) – assembles the
   cold-launch `LifecycleSteps` and its reverse `resetSequence` (erase + reset),
   with steps named by the typed `LaunchStepID` enum (a parity test guards step
