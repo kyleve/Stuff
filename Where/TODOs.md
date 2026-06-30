@@ -19,6 +19,7 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - I still think _WhereServices_' sub-services should be optional based on the current state of the application. Worth trying to see what happens. Or better yet, decompose it all into an enum representing "logged in" vs "logged out" state.
 - For logging out / resetting, why do we need to delete all the DB entries? Could we just write the DB into a folder, and on reset, move to another one?
 - Noticed when I don't move for a day, nothing gets recorded. I assume this is because we're relying on GPS updates for updates in the background. Any way to guarantee a daily boot outside of GPS?
+- Update deployment target to iOS 27; this allows us to use HistoryObserver for CloudKit/SwiftData over the notification.
 
 ## P0s (Must do)
 - Remove the `waitForOneRunloop` calls added to UI tests; it's a flake paradise.
