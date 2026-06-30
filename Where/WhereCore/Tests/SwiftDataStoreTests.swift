@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// `SwiftDataStore` behavior as a `WhereStore` — specifically the `changes()`
 /// signal that backs the app's single read-refresh path. The fan-out itself is
@@ -57,13 +57,15 @@ struct SwiftDataStoreTests {
     /// `changes()` fan-out a local commit does, so observers can't tell a sync
     /// from another device apart from a local write — one read path.
     @Test func remoteChangeForwardsToChanges() async throws {
-        let store = try SwiftDataStore.inMemory()
         let source = ScriptedStoreRemoteChangeSource()
-        store.startObservingRemoteChanges(source)
+        // The remote-change wiring is folded into the factory (there's no
+        // public `startObservingRemoteChanges` to call), so the store observes
+        // `source` from construction.
+        let store = try SwiftDataStore.inMemory(remoteChangeSource: source)
         // Subscribe before emitting so the forwarded ping isn't missed.
         let stream = store.changes()
 
-        source.emit()
+        source.yield()
 
         #expect(await firstPing(stream, within: .seconds(2)))
     }

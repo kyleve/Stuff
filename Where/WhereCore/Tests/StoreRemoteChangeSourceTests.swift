@@ -1,19 +1,19 @@
 import CoreData
 import Foundation
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// The `StoreRemoteChangeSource` seam that makes the CloudKit remote-import path
 /// drivable off-device: the scripted double on demand, and the production source
 /// from a posted Core Data notification.
 struct StoreRemoteChangeSourceTests {
-    /// The scripted double yields on `emit()`, so a test can drive the
+    /// The scripted double yields on `yield()`, so a test can drive the
     /// store-observes-remote-change path deterministically.
-    @Test func scriptedSourceYieldsOnEmit() async {
+    @Test func scriptedSourceYields() async {
         let source = ScriptedStoreRemoteChangeSource()
         let stream = source.remoteChanges
 
-        source.emit()
+        source.yield()
 
         var received = false
         for await _ in stream {

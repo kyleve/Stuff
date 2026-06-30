@@ -135,6 +135,25 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return store
     }
 
+    #if DEBUG
+        /// Test seam: an `.inMemory` store wired to drive its `changes()`
+        /// fan-out from `remoteChangeSource`, so the remote-import path is
+        /// exercisable without CloudKit or a device. The production equivalent
+        /// is `make(storage: .cloudKit)`, which wires a
+        /// `PersistentStoreRemoteChangeSource`. `@_spi(Testing)` (per the
+        /// agents.md) so the remote-change wiring stays folded into a factory —
+        /// there's no public `startObservingRemoteChanges` to call twice.
+        @_spi(Testing)
+        public static func inMemory(
+            remoteChangeSource: ScriptedStoreRemoteChangeSource,
+        ) throws -> SwiftDataStore {
+            let container = try makeContainer(storage: .inMemory)
+            let store = SwiftDataStore(modelContainer: container)
+            store.startObservingRemoteChanges(remoteChangeSource)
+            return store
+        }
+    #endif
+
     /// The live model container, re-exposed for read-only debug tooling (the
     /// SwiftData inspector). The `@ModelActor`-synthesized `modelContainer` is
     /// otherwise module-internal; this narrow accessor surfaces it without
@@ -175,16 +194,16 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// Begin re-pinging `changes()` on every remote import from `source`, so a
     /// CloudKit sync from another device refreshes observers identically to a
     /// local write — one read path for every write origin. `nonisolated` so the
-    /// `make` factory can wire it without hopping onto the actor. The forwarding
-    /// task retains `source`, so the caller needn't.
+    /// factories can wire it without hopping onto the actor. The forwarding task
+    /// retains `source`, so the caller needn't.
     ///
-    /// Call **exactly once**, from `make` before the store is shared:
-    /// `remoteChangeTask` is `nonisolated(unsafe)` with no synchronization, so
-    /// this is not safe to call concurrently or to re-arm from another thread.
-    /// The leading `cancel()` is defensive cleanup of a stray prior task, not a
-    /// thread-safe replace.
-    nonisolated func startObservingRemoteChanges(_ source: any StoreRemoteChangeSource) {
-        remoteChangeTask?.cancel()
+    /// `private` and wired exactly once per store from a factory — `make`
+    /// (production CloudKit) or `inMemory(remoteChangeSource:)` (tests) — so
+    /// there's deliberately no way to call it twice. That keeps the
+    /// unsynchronized, `nonisolated(unsafe)` `remoteChangeTask` sound without a
+    /// re-arm/cancel dance: it's assigned once before the store is shared and
+    /// only read again in `deinit`.
+    private nonisolated func startObservingRemoteChanges(_ source: any StoreRemoteChangeSource) {
         remoteChangeTask = Task { [changeBroadcaster] in
             for await _ in source.remoteChanges {
                 changeBroadcaster.send()

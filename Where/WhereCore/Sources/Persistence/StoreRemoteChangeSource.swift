@@ -10,8 +10,8 @@ import Foundation
 /// The seam exists so the whole remote-change path is exercisable off-device:
 /// production wires `PersistentStoreRemoteChangeSource` (a real Core Data
 /// notification observer), tests wire `ScriptedStoreRemoteChangeSource` and call
-/// `emit()`. Only Apple's contract — that the CloudKit mirror actually posts the
-/// notification on import — stays untested here.
+/// `yield()`. Only Apple's contract — that the CloudKit mirror actually posts
+/// the notification on import — stays untested here.
 ///
 /// Class-only (`AnyObject`) because every implementation owns long-lived state
 /// (a notification token, an `AsyncStream.Continuation`) that can't be
@@ -67,26 +67,36 @@ final class PersistentStoreRemoteChangeSource: StoreRemoteChangeSource, @uncheck
     }
 }
 
-/// Hand-driven `StoreRemoteChangeSource` for tests and previews: `emit()`
-/// simulates a remote import landing, so the store-observes-remote-change path
-/// can be driven deterministically without CloudKit or a device.
-final class ScriptedStoreRemoteChangeSource: StoreRemoteChangeSource, @unchecked Sendable {
-    let remoteChanges: AsyncStream<Void>
-    private let continuation: AsyncStream<Void>.Continuation
+#if DEBUG
+    /// Hand-driven `StoreRemoteChangeSource` for tests: `yield()` simulates a
+    /// remote import landing, so the store-observes-remote-change path can be
+    /// driven deterministically without CloudKit or a device.
+    ///
+    /// `@_spi(Testing)` + `#if DEBUG` per the agents.md testing-hook convention:
+    /// it's test-only scaffolding that mustn't ship in release. Import it with
+    /// `@_spi(Testing) @testable import WhereCore` and inject it via
+    /// `SwiftDataStore.inMemory(remoteChangeSource:)`.
+    @_spi(Testing)
+    public final class ScriptedStoreRemoteChangeSource: StoreRemoteChangeSource,
+        @unchecked Sendable
+    {
+        let remoteChanges: AsyncStream<Void>
+        private let continuation: AsyncStream<Void>.Continuation
 
-    init() {
-        var cont: AsyncStream<Void>.Continuation!
-        remoteChanges = AsyncStream { cont = $0 }
-        continuation = cont
-    }
+        init() {
+            var cont: AsyncStream<Void>.Continuation!
+            remoteChanges = AsyncStream { cont = $0 }
+            continuation = cont
+        }
 
-    /// Simulate a remote import: a store observing this source re-pings its
-    /// `changes()` fan-out.
-    func emit() {
-        continuation.yield()
-    }
+        /// Simulate a remote import: a store observing this source re-pings its
+        /// `changes()` fan-out. Named for the `continuation.yield()` it makes.
+        func yield() {
+            continuation.yield()
+        }
 
-    func finish() {
-        continuation.finish()
+        func finish() {
+            continuation.finish()
+        }
     }
-}
+#endif

@@ -166,9 +166,12 @@ boundary, never SwiftData records.
   (per-subscriber fan-out) that `perform` pings on commit, plus a
   [`StoreRemoteChangeSource`](WhereCore/Sources/Persistence/StoreRemoteChangeSource.swift)
   seam — production `PersistentStoreRemoteChangeSource` observes
-  `.NSPersistentStoreRemoteChange`; tests wire `ScriptedStoreRemoteChangeSource`
-  and call `emit()`. `WhereServices.dataChangeUpdates()` re-exposes the stream
-  for the view-model (see [Layering](#layering)).
+  `.NSPersistentStoreRemoteChange`; tests wire the `@_spi(Testing)`
+  `ScriptedStoreRemoteChangeSource` and call `yield()`. The wiring is folded
+  into the factories (`make` for CloudKit, `inMemory(remoteChangeSource:)` for
+  tests), so there's no public `startObservingRemoteChanges` to call twice.
+  `WhereServices.dataChangeUpdates()` re-exposes the stream for the view-model
+  (see [Layering](#layering)).
 
 ### GPS
 
@@ -361,6 +364,10 @@ states.
   `LocationIngestor`) from tests — never instantiate
   `CoreLocationSource` outside production wiring.
 - Use `SwiftDataStore.inMemory()` for persistence tests so you
-  never touch the user's on-disk / CloudKit store.
+  never touch the user's on-disk / CloudKit store. To exercise the
+  remote-import (CloudKit sync) path off-device, use the `@_spi(Testing)`
+  `SwiftDataStore.inMemory(remoteChangeSource:)` with a
+  `ScriptedStoreRemoteChangeSource` and drive it via `yield()` — both reached
+  through `@_spi(Testing) @testable import WhereCore`.
 - UI tests that need a UIKit window go through `show(_:perform:)`
   from `WhereTesting`.
