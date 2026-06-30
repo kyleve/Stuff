@@ -106,7 +106,9 @@ struct WhereResetTests {
         #expect(session.isTracking) // .always authorization resumed GPS
 
         try await session.setManualDay(date: Date(), regions: [.california])
-        #expect(session.trackedDayCount == 1)
+        // The write path no longer refreshes inline; the committed write pings
+        // the store-change signal and the session's observer re-pulls.
+        try await waitUntil { session.trackedDayCount == 1 }
 
         try await model.eraseAllData()
         #expect(!session.isTracking)
@@ -182,7 +184,7 @@ struct WhereResetTests {
 
         let session = try #require(model.session)
         try await session.setManualDay(date: Date(), regions: [.california])
-        #expect(session.trackedDayCount == 1)
+        try await waitUntil { session.trackedDayCount == 1 }
 
         // reset re-drives the launch, which parks on onboarding again (now that
         // hasOnboarded is cleared), so reset() doesn't return until onboarding
@@ -221,7 +223,7 @@ struct WhereResetTests {
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
         try await original.setManualDay(date: Date(), regions: [.california])
-        #expect(original.trackedDayCount == 1)
+        try await waitUntil { original.trackedDayCount == 1 }
 
         // Drive the reset and finish the onboarding it re-drives into.
         let task = Task { @MainActor in

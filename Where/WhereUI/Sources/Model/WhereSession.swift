@@ -182,6 +182,12 @@ public final class WhereSession {
     /// access to race.
     @ObservationIgnored private nonisolated(unsafe) var authorizationTask: Task<Void, Never>?
 
+    /// Long-lived subscription to `services.dataChangeUpdates()` — the store's
+    /// single "data changed" signal (local commits + CloudKit remote imports).
+    /// Same `@ObservationIgnored` / `nonisolated(unsafe)` rationale as
+    /// `authorizationTask`.
+    @ObservationIgnored private nonisolated(unsafe) var dataChangeTask: Task<Void, Never>?
+
     /// The persisted user intent (tracking, reminder/summary schedules) the
     /// session mirrors into its observable storage. Owned by `WhereModel` and
     /// shared by reference so onboarding (model) and the logged-in UI (session)
@@ -319,6 +325,7 @@ public final class WhereSession {
     /// until the next status change resumes it.
     deinit {
         authorizationTask?.cancel()
+        dataChangeTask?.cancel()
     }
 
     /// Sync authorization, resume tracking if appropriate, then load the
@@ -331,6 +338,7 @@ public final class WhereSession {
     public func start() async {
         await syncAuthorization()
         observeAuthorizationChanges()
+        observeDataChanges()
         await reconcileTracking()
         await refresh()
         await applyReminderConfiguration()
@@ -413,6 +421,27 @@ public final class WhereSession {
         }
     }
 
+    /// Subscribe to the store's data-change signal so the report and data-issue
+    /// scan the UI mirrors refresh on any committed write — live GPS ingestion
+    /// and CloudKit remote imports the session never sees, *and* the session's
+    /// own manual edits/dismissals. Those write methods commit, the store pings,
+    /// and this observer re-pulls — so they don't refresh inline. Idempotent.
+    func observeDataChanges() {
+        guard dataChangeTask == nil else { return }
+        // Subscribe *synchronously*, before spawning the loop: a write that
+        // commits the instant after this returns can't slip its ping in ahead of
+        // the subscription. (The stream also buffers the newest pending ping, so
+        // one that lands before the loop's first `await` is still delivered.)
+        let updates = services.dataChangeUpdates()
+        dataChangeTask = Task { @MainActor [weak self] in
+            for await _ in updates {
+                guard let self else { break }
+                await refresh()
+                await refreshDataIssues(force: true)
+            }
+        }
+    }
+
     /// Start or stop GPS ingestion so it matches the user's intent and the
     /// current authorization. Tracking only runs with Always authorization. A
     /// launch step (see `WhereLaunch.sequence`).
@@ -463,8 +492,10 @@ public final class WhereSession {
         guard issue.isDismissible else { return }
         do {
             try await services.journal.dismissIssue(key: issue.id.storageKey)
+            // Optimistically drop the row for instant feedback; the committed
+            // write pings the store-change signal, so `observeDataChanges()`
+            // re-pulls the authoritative scan a beat later.
             dataIssues.removeAll { $0.id == issue.id }
-            await refreshDataIssues(force: true)
         } catch {
             Self.logger.warning(
                 "Failed to dismiss data issue \(issue.id.storageKey): \(error.localizedDescription)",
@@ -498,10 +529,12 @@ public final class WhereSession {
     /// Persist a single manual day. Throws on persistence failure so the
     /// caller (the entry form) can keep itself open and show the error inline
     /// instead of dismissing as if the save succeeded.
+    ///
+    /// No inline refresh: the committed write pings the store-change signal, so
+    /// `observeDataChanges()` re-pulls the report + data-issue scan. The other
+    /// write methods below follow the same pattern.
     public func setManualDay(date: Date, regions: Set<Region>) async throws {
         try await services.journal.addManualDay(date: date, regions: regions)
-        await refresh()
-        await refreshDataIssues(force: true)
     }
 
     /// Persist a manual day range. Throws on persistence failure (see
@@ -512,8 +545,6 @@ public final class WhereSession {
         regions: Set<Region>,
     ) async throws {
         try await services.journal.addManualDays(from: start, through: end, regions: regions)
-        await refresh()
-        await refreshDataIssues(force: true)
     }
 
     /// Authoritatively set a day's regions, *replacing* whatever was
@@ -522,8 +553,6 @@ public final class WhereSession {
     /// surface the error instead of dismissing as if the save succeeded.
     public func overrideDay(date: Date, regions: Set<Region>) async throws {
         try await services.journal.overrideDay(date: date, regions: regions)
-        await refresh()
-        await refreshDataIssues(force: true)
     }
 
     /// Undo a day's manual override/backfill, restoring the GPS-detected
@@ -531,8 +560,6 @@ public final class WhereSession {
     /// failure so the editor can stay open and surface the error.
     public func clearManualDay(date: Date) async throws {
         try await services.journal.clearManualDay(date: date)
-        await refresh()
-        await refreshDataIssues(force: true)
     }
 
     /// The days in the loaded report whose presence includes `region`, sorted
