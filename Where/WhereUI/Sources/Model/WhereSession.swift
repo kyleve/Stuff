@@ -674,9 +674,10 @@ public final class WhereSession {
 
     public func clearSelectedYear() async {
         do {
+            // The committed write pings the store-change signal, so
+            // `observeDataChanges()` re-pulls the report + data-issue scan; no
+            // inline refresh needed (see "One read path" in Where/AGENTS.md).
             try await services.journal.clearYear(selectedYear)
-            await refresh()
-            await refreshDataIssues(force: true)
         } catch {
             loadState = .failed(error.localizedDescription)
             Self.logger.warning(
@@ -789,8 +790,9 @@ public final class WhereSession {
             }
             continuation.finish()
             await observer.value
-            await refresh()
-            await refreshDataIssues(force: true)
+            // The import commits through the store, which pings the
+            // store-change signal; `observeDataChanges()` re-pulls the report +
+            // data-issue scan, so no inline refresh is needed here.
             Self.logger.info(
                 "Imported backup (\(summary.sampleCount) samples, \(summary.evidenceCount) evidence, \(summary.manualDayCount) manual days, \(summary.dismissedIssueCount) dismissals)",
             )
