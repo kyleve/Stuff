@@ -70,6 +70,16 @@ enum Strings {
         localized("primary.timeline")
     }
 
+    /// Accessibility hint on a Primary region card: tapping it opens that
+    /// region's calendar, filtered to the days spent there.
+    static var primaryCardCalendarHint: String {
+        String(
+            localized: "primary.card.calendarHint",
+            defaultValue: "Opens the calendar of days spent here.",
+            bundle: .module,
+        )
+    }
+
     static var primaryLoading: String {
         localized("primary.loading")
     }
@@ -815,6 +825,16 @@ enum Strings {
         String(
             localized: "calendar.title",
             defaultValue: "Calendar · \(yearText(year))",
+            bundle: .module,
+        )
+    }
+
+    /// Title for the calendar when it's focused on a single region, e.g.
+    /// "California · 2026".
+    static func calendarRegionTitle(region: Region, year: Int) -> String {
+        String(
+            localized: "calendar.region.title",
+            defaultValue: "\(region.localizedName) · \(yearText(year))",
             bundle: .module,
         )
     }

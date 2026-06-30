@@ -8,10 +8,20 @@ struct PrimaryView: View {
 
     @State private var showingTimeline = false
     @State private var showingCalendar = false
+    @State private var calendarFocus: CalendarFocus?
 
     /// Drives the passport's tilt-reactive holographic sheen. Started/stopped
     /// with the view's lifecycle; a no-op on hardware without device motion.
     @State private var tilt = TiltProvider()
+
+    /// Identifies which region's calendar to present as a sheet. `Region` isn't
+    /// `Identifiable`, and `.sheet(item:)` needs identity.
+    private struct CalendarFocus: Identifiable {
+        let region: Region
+        var id: Region {
+            region
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -65,6 +75,10 @@ struct PrimaryView: View {
             CalendarView()
                 .environment(session)
         }
+        .sheet(item: $calendarFocus) { focus in
+            CalendarView(focusedRegion: focus.region)
+                .environment(session)
+        }
     }
 
     /// A deep, near-black gradient that makes the Primary tab read like a
@@ -115,12 +129,21 @@ struct PrimaryView: View {
             GlassEffectContainer(spacing: UIConstants.Spacings.xxLarge) {
                 VStack(spacing: UIConstants.Spacings.xxLarge) {
                     ForEach(session.ranking.primary) { item in
-                        RegionSummaryCard(
-                            regionDays: item,
-                            yearLength: session.daysInSelectedYear,
-                            year: session.selectedYear,
-                            tilt: tilt,
-                        )
+                        Button {
+                            calendarFocus = CalendarFocus(region: item.region)
+                        } label: {
+                            RegionSummaryCard(
+                                regionDays: item,
+                                interactive: true,
+                                yearLength: session.daysInSelectedYear,
+                                year: session.selectedYear,
+                                tilt: tilt,
+                            )
+                        }
+                        // Plain so the card's interactive Liquid Glass owns the
+                        // press feel rather than the button adding its own.
+                        .buttonStyle(.plain)
+                        .accessibilityHint(Strings.primaryCardCalendarHint)
                     }
                 }
             }

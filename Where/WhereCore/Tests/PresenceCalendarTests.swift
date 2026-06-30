@@ -159,4 +159,89 @@ struct PresenceCalendarTests {
         )
         #expect(fromReport == fromPresence)
     }
+
+    @Test func focusedRegionKeepsOnlyThatRegionsDots() throws {
+        let days = [
+            DayPresence(date: day(2026, 6, 1), regions: [.california, .newYork]),
+            DayPresence(date: day(2026, 6, 2), regions: [.newYork]),
+        ]
+        let months = try PresenceCalendar.months(
+            from: report(days),
+            calendar: calendar,
+            referenceDate: referenceDate(2026, 6, 15),
+            focusedRegion: .california,
+        )
+        let june = months[5]
+        let mixedDay = june.days.first { $0.dayOfMonth == 1 }
+        let otherRegionDay = june.days.first { $0.dayOfMonth == 2 }
+        #expect(mixedDay?.regions == [.california])
+        // A day where the focused region wasn't present shows no dots.
+        #expect(otherRegionDay?.regions == [])
+    }
+
+    @Test func unfocusedMonthShowsEveryRegionDot() throws {
+        let days = [
+            DayPresence(date: day(2026, 6, 1), regions: [.california, .newYork]),
+        ]
+        let months = try PresenceCalendar.months(
+            from: report(days),
+            calendar: calendar,
+            referenceDate: referenceDate(2026, 6, 15),
+        )
+        let mixedDay = months[5].days.first { $0.dayOfMonth == 1 }
+        #expect(mixedDay?.regions == [.california, .newYork])
+    }
+
+    @Test func regionTotalsCountDistinctDaysSortedByCount() throws {
+        let days = [
+            DayPresence(date: day(2026, 6, 1), regions: [.california]),
+            DayPresence(date: day(2026, 6, 2), regions: [.california, .newYork]),
+            DayPresence(date: day(2026, 6, 3), regions: [.california]),
+        ]
+        let months = try PresenceCalendar.months(
+            from: report(days),
+            calendar: calendar,
+            referenceDate: referenceDate(2026, 6, 15),
+        )
+        let totals = months[5].regionTotals
+        #expect(totals == [
+            RegionDayTally(region: .california, days: 3),
+            RegionDayTally(region: .newYork, days: 1),
+        ])
+    }
+
+    @Test func regionTotalsAreUnaffectedByFocus() throws {
+        let days = [
+            DayPresence(date: day(2026, 6, 1), regions: [.california]),
+            DayPresence(date: day(2026, 6, 2), regions: [.california, .newYork]),
+            DayPresence(date: day(2026, 6, 3), regions: [.newYork]),
+        ]
+        let months = try PresenceCalendar.months(
+            from: report(days),
+            calendar: calendar,
+            referenceDate: referenceDate(2026, 6, 15),
+            focusedRegion: .newYork,
+        )
+        let june = months[5]
+        let californiaOnlyDay = june.days.first { $0.dayOfMonth == 1 }
+        let mixedDay = june.days.first { $0.dayOfMonth == 2 }
+        // Focus filters the dots ...
+        #expect(californiaOnlyDay?.regions == [])
+        #expect(mixedDay?.regions == [.newYork])
+        // ... but the footer still tallies every region (tie → allCases order).
+        #expect(june.regionTotals == [
+            RegionDayTally(region: .california, days: 2),
+            RegionDayTally(region: .newYork, days: 2),
+        ])
+    }
+
+    @Test func monthsWithNoPresenceHaveEmptyRegionTotals() throws {
+        let months = try PresenceCalendar.months(
+            from: report([]),
+            calendar: calendar,
+            referenceDate: referenceDate(2026, 6, 15),
+        )
+        let allEmpty = months.allSatisfy(\.regionTotals.isEmpty)
+        #expect(allEmpty)
+    }
 }

@@ -77,16 +77,12 @@ public actor DailySummaryReconciler {
     /// by day count, e.g. "132 days in California, 40 days in New York". Falls
     /// back to an empty-state line when nothing has been logged yet.
     private func summaryBody(for report: YearReport) -> String {
-        let order = Dictionary(
-            uniqueKeysWithValues: Region.allCases.enumerated().map { ($1, $0) },
+        let ranked = Region.rankedByDayCount(
+            report.totals.filter { $0.value > 0 },
+            days: { $0.value },
+            region: { $0.key },
         )
-        let ranked = report.totals
-            .filter { $0.value > 0 }
-            .sorted { lhs, rhs in
-                if lhs.value != rhs.value { return lhs.value > rhs.value }
-                return (order[lhs.key] ?? 0) < (order[rhs.key] ?? 0)
-            }
-            .prefix(regionLimit)
+        .prefix(regionLimit)
 
         guard !ranked.isEmpty else {
             return String(localized: "summary.notification.body.empty", bundle: .module)

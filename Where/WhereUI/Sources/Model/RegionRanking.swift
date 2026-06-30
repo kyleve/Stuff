@@ -50,16 +50,13 @@ public struct RegionRanking: Hashable, Sendable {
     /// All present regions sorted by day count descending, ties broken by
     /// `Region.allCases` declaration order so the layout is stable.
     static func ranked(report: YearReport) -> [RegionDays] {
-        let order = Dictionary(
-            uniqueKeysWithValues: Region.allCases.enumerated().map { ($1, $0) },
+        Region.rankedByDayCount(
+            report.totals
+                .filter { $0.value > 0 }
+                .map { RegionDays(region: $0.key, days: $0.value) },
+            days: \.days,
+            region: \.region,
         )
-        return report.totals
-            .filter { $0.value > 0 }
-            .map { RegionDays(region: $0.key, days: $0.value) }
-            .sorted { lhs, rhs in
-                if lhs.days != rhs.days { return lhs.days > rhs.days }
-                return (order[lhs.region] ?? 0) < (order[rhs.region] ?? 0)
-            }
     }
 
     public var isEmpty: Bool {
