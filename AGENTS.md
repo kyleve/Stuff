@@ -128,6 +128,15 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   `WhereCoreTestSupport.swift`, `DataIssueDetectorTestSupport.swift`), not bundled
   into a test file — so a single test clock or input builder isn't copy-pasted
   across suites.
+- **Wait for conditions, not timing.** Prefer polling a predicate (`waitUntil`,
+  `waitFor`, `waitForResolution`) over fixed run-loop counts or `sleep` — fixed
+  delays flake under load.
+- **Injectable test knobs.** Capacities, clocks, and failure injection belong
+  behind `@_spi(Testing)` (with `#if DEBUG` when release must not ship them);
+  tests inject small values (e.g. a retry-queue size of 20) instead of
+  hardcoding production limits.
+- State machines with many branches (launch runners, lifecycle drives) benefit
+  from **seeded fuzz/adversarial tests** that replay failures exactly.
 - Generated `.xcodeproj` and `Derived/` are git-ignored; never commit them.
 - Bundle IDs follow `com.stuff.<suffix>`.
 - Prefer small named structs over tuples for any value with more than
@@ -153,6 +162,11 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   When adding behavior, default to Core (+ view-model glue if the UI needs a
   trigger or observable mirror); push logic into a `View` only for presentation.
   See [`Where/AGENTS.md`](Where/AGENTS.md#layering).
+- **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
+  arguments so new behavior isn't silently opted into. Reserve defaults for
+  SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
+  omission can't change semantics. Test overrides use `@_spi(Testing)` hooks or
+  dedicated test factories — not production parameter defaults.
 - **Never silently swallow errors.** Core APIs surface failure by `throw`ing
   (or returning a `Result`/typed error) — never absorb it into a benign-looking
   default like `[]`, `nil`, or `false`. Don't discard errors with `try?` or an
@@ -162,6 +176,12 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   success, e.g. an empty list rendering as "all clear"). Callers decide *how* to
   react (rethrow, log + keep state, set a `failed` case), but the failure must
   always be observable — in logs, in state, or both.
+- **Distinguish user failures from programmer errors.** User/recoverable failures
+  must throw (or surface honest UI state) and log. Impossible/misconfigured
+  states — corrupt bundled resources, duplicate step IDs, invalid invariants —
+  use `precondition` / `assertionFailure` in debug with a minimal safe fallback
+  in release; don't paper over them with silent `??` defaults that read as
+  success. "Degraded but handled" recovery belongs at `warning`, not hidden.
 - **`didSet` must skip work when the value is unchanged.** When the stored
   type is `Equatable`, guard `oldValue != newValue` before invalidation,
   logging, or other side effects — reassigning the same value should be a no-op.
