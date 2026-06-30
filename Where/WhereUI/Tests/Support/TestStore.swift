@@ -55,6 +55,10 @@ actor TestStore: WhereStore {
         try await backing.perform(block)
     }
 
+    nonisolated func changes() -> AsyncStream<Void> {
+        backing.changes()
+    }
+
     func add(sample: LocationSample) async throws {
         try await backing.add(sample: sample)
     }

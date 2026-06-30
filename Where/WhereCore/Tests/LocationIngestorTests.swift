@@ -331,6 +331,10 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.perform(block)
     }
 
+    nonisolated func changes() -> AsyncStream<Void> {
+        backing.changes()
+    }
+
     func add(sample: LocationSample) async throws {
         if shouldFail { throw ToggleFailingStoreError() }
         try await backing.add(sample: sample)

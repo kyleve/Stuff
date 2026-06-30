@@ -141,6 +141,18 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
     private static let logger = WhereLog.channel(.swiftDataStore)
 
+    /// Fans "committed data changed" pings to `changes()` subscribers. Fired
+    /// once per outermost `perform` commit (see `perform`).
+    private let changeBroadcaster = StoreChangeBroadcaster()
+
+    /// A fresh stream that pings whenever committed data changes (see the
+    /// `WhereStore` contract). `nonisolated` so a subscriber needn't hop onto
+    /// the actor just to subscribe — the broadcaster is an immutable, `Sendable`
+    /// `let`, and `subscribe()` is itself thread-safe.
+    public nonisolated func changes() -> AsyncStream<Void> {
+        changeBroadcaster.subscribe()
+    }
+
     /// Peer `ModelContext` active for the duration of an outermost
     /// `perform { ... }` block. `nil` outside `perform`. See the
     /// type doc for the full context-strategy explanation.
@@ -165,6 +177,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             // `modelContext` picks the changes up on its next fetch.
             try peer.save()
             writerContext = nil
+            // Committed: ping `changes()` subscribers so they re-read. Only the
+            // outermost `perform` reaches here (nested calls returned above
+            // without saving), so a transaction pings exactly once.
+            changeBroadcaster.send()
             return result
         } catch {
             // Outermost throw: drop the peer. Without a save() call
