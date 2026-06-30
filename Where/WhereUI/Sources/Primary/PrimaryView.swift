@@ -134,12 +134,15 @@ struct PrimaryView: View {
                         } label: {
                             RegionSummaryCard(
                                 regionDays: item,
+                                interactive: true,
                                 yearLength: session.daysInSelectedYear,
                                 year: session.selectedYear,
                                 tilt: tilt,
                             )
                         }
-                        .buttonStyle(PressableScaleButtonStyle())
+                        // Plain so the card's interactive Liquid Glass owns the
+                        // press feel rather than the button adding its own.
+                        .buttonStyle(.plain)
                         .accessibilityHint(Strings.primaryCardCalendarHint)
                     }
                 }

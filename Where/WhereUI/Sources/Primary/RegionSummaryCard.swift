@@ -13,6 +13,12 @@ struct RegionSummaryCard: View {
     var places: String?
     var compact = false
 
+    /// When `true`, the card's Liquid Glass reacts to touch with the system's
+    /// interactive press (scale + illumination), so a tappable card feels
+    /// physical without a custom animation. The Primary cards opt in; the
+    /// display-only / link cards leave it `false`.
+    var interactive = false
+
     /// Calendar days in the year being summarized; the ambient bar is drawn as
     /// a fraction of this. Callers pass the selected year's real length
     /// (`WhereSession.daysInSelectedYear`); the default is only for previews.
@@ -220,7 +226,10 @@ struct RegionSummaryCard: View {
         .padding(compact ? UIConstants.Padding.compactCard : UIConstants.Padding.card)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { stampPaper }
-        .glassEffect(.regular.tint(style.tint.opacity(0.18)), in: cardShape)
+        .glassEffect(
+            .regular.tint(style.tint.opacity(0.18)).interactive(interactive),
+            in: cardShape,
+        )
         .holographicSheen(
             roll: tilt?.roll ?? 0,
             pitch: tilt?.pitch ?? 0,
@@ -230,6 +239,10 @@ struct RegionSummaryCard: View {
         )
         .overlay { stampFrame }
         .clipShape(cardShape)
+        // Make the whole card a single hit target — without this only the
+        // opaque sub-views (text, stamp, bar) take taps, leaving dead gaps
+        // (e.g. the bottom-right) when the card is wrapped in a Button/link.
+        .contentShape(cardShape)
         .shadow(
             color: style.tint.opacity(compact ? 0.55 : 0.75),
             radius: compact
