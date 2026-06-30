@@ -219,32 +219,6 @@ When adding copy, add the key to the catalog first, then reference it from
 `Strings` or Core — never ship English literals in SwiftUI `Text` or
 `errorDescription`.
 
-## Post-write reconcile
-
-Mutations that change presence or stored history must trigger the right
-downstream side effects. Don't leave reminders, the daily-summary notification,
-or widgets stale — and don't patch one path in isolation when the contract is
-still being designed (see [`MODULE_AUDIT.md`](../MODULE_AUDIT.md)).
-
-| Write path | `ReminderReconciler` | `DailySummaryReconciler` | `WidgetSnapshotPublisher` |
-|------------|----------------------|--------------------------|---------------------------|
-| GPS ingest (live sample) | `reconcileAfterIngest` | — | `publishAfterIngest` or full `publish` |
-| GPS ingest (drain batch, no live sample) | `reconcile()` if `changedDays` non-empty | — | `publish()` when needed |
-| `DayJournal` user writes | `reconcile()` | — | `publish()` |
-| Backup import | **not yet wired** | **not yet wired** | `publish()` |
-| Summary settings (`WhereSession`) | — | `configure` → `reconcile()` | — |
-
-`DailySummaryReconciler` is driven by user settings today, not by every presence
-change — extending that is a **needs-design** item, not a one-line fix.
-`BackupCoordinator.importBackup` likewise only republishes widgets; reminders,
-badge, and summary stay stale until a unified post-import policy lands.
-
-When adding a new write path: run inside `store.perform { … }`, then `await`
-the applicable reconcilers/publishers in sequence (same pattern as
-[`DayJournal`](WhereCore/Sources/DayJournal.swift) — commit before reconcile
-reads). If the path bulk-changes data the way import does, treat reconcile as
-part of the design, not an afterthought.
-
 ## Calendar, dates & presentation
 
 ### Calendar and date ranges
