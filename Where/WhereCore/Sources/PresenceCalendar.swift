@@ -216,21 +216,11 @@ public enum PresenceCalendar {
             ))
         }
 
-        // Iterate `Region.allCases` so the offset gives a stable tiebreak when
-        // two regions share a day count, keeping the footer deterministic.
-        let regionTotals = Region.allCases
-            .compactMap { region -> RegionDayTally? in
-                guard let count = dayCountsByRegion[region] else { return nil }
-                return RegionDayTally(region: region, days: count)
-            }
-            .enumerated()
-            .sorted { lhs, rhs in
-                if lhs.element.days == rhs.element.days {
-                    return lhs.offset < rhs.offset
-                }
-                return lhs.element.days > rhs.element.days
-            }
-            .map(\.element)
+        let regionTotals = Region.rankedByDayCount(
+            dayCountsByRegion.map { RegionDayTally(region: $0.key, days: $0.value) },
+            days: \.days,
+            region: \.region,
+        )
 
         return CalendarMonth(
             year: year,

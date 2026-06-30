@@ -89,6 +89,6 @@ public enum PresenceTimeline {
     }
 
     private static func regionOrder(_ region: Region) -> Int {
-        Region.allCases.firstIndex(of: region) ?? 0
+        Region.declarationOrder[region, default: 0]
     }
 }
