@@ -160,6 +160,11 @@ public struct WhereServices: Sendable {
     public func reset() async throws {
         await ingestor.quiesce()
         try await journal.eraseAllData()
+        // `eraseAllData()` commits, which pings `store.changes()` and the
+        // scanner self-invalidates off it — but that observation is async. Drop
+        // the cache inline too so it's provably empty by the time `reset()`
+        // returns rather than racing the observer; this is the deterministic
+        // half of that pair, not redundant with it.
         await resolution.invalidate()
     }
 }
