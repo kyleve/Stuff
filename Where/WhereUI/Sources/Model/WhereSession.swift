@@ -470,13 +470,21 @@ public final class WhereSession {
     }
 
     func refreshDataIssues(force: Bool) async {
+        // Capture the year this scan is for. `WhereSession` is reentrant while
+        // awaiting the scan, so a concurrent `select(year:)` (or an out-of-band
+        // refresh from `observeDataChanges()`) can change `selectedYear`
+        // mid-flight; without this guard a slower older scan could install its
+        // issues under the newer year's label. Mirrors `refresh()`.
+        let requestedYear = selectedYear
         do {
-            dataIssues = try await services.resolution.issues(
-                year: selectedYear,
+            let issues = try await services.resolution.issues(
+                year: requestedYear,
                 primaryRegions: ranking.primary.map(\.region),
                 driftThresholdMeters: Double(preferences.driftThresholdMeters),
                 force: force,
             )
+            guard requestedYear == selectedYear else { return }
+            dataIssues = issues
         } catch {
             // Surface the failure in the log and keep the last good list rather
             // than silently blanking the tab + badge (which would read as "all
