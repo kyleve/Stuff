@@ -39,6 +39,24 @@ public struct CalendarDayCell: Hashable, Sendable, Identifiable {
     }
 }
 
+/// How many distinct days a region was present in a single month — the data
+/// behind the month grid's footer. Computed from the full (unfiltered) day
+/// presence, so it lists every location that month even when the calendar is
+/// focused on one region.
+public struct RegionDayTally: Hashable, Sendable, Identifiable {
+    public let region: Region
+    public let days: Int
+
+    public var id: Region {
+        region
+    }
+
+    public init(region: Region, days: Int) {
+        self.region = region
+        self.days = days
+    }
+}
+
 /// A single month laid out for a grid: leading blank cells (so day 1 lands on
 /// the right weekday column) followed by every day in the month.
 public struct CalendarMonth: Hashable, Sendable, Identifiable {
@@ -50,6 +68,10 @@ public struct CalendarMonth: Hashable, Sendable, Identifiable {
     public let weekdaySymbols: [String]
     public let isCurrentMonth: Bool
     public let days: [CalendarDayCell]
+    /// Per-region day counts for this month, sorted by day count descending
+    /// (ties broken by `Region.allCases` order). Always reflects every region
+    /// present that month, regardless of any focus filter applied to `days`.
+    public let regionTotals: [RegionDayTally]
 
     public var id: String {
         "\(year)-\(month)"
@@ -64,6 +86,7 @@ public struct CalendarMonth: Hashable, Sendable, Identifiable {
         weekdaySymbols: [String],
         isCurrentMonth: Bool,
         days: [CalendarDayCell],
+        regionTotals: [RegionDayTally],
     ) {
         self.year = year
         self.month = month
@@ -73,6 +96,7 @@ public struct CalendarMonth: Hashable, Sendable, Identifiable {
         self.weekdaySymbols = weekdaySymbols
         self.isCurrentMonth = isCurrentMonth
         self.days = days
+        self.regionTotals = regionTotals
     }
 }
 
@@ -81,11 +105,17 @@ public struct CalendarMonth: Hashable, Sendable, Identifiable {
 public enum PresenceCalendar {
     /// Build every month in `report.year`. `missingDates` should be start-of-day
     /// keys in the same `calendar` used here and in `DayAggregator`.
+    ///
+    /// When `focusedRegion` is non-nil, each day's dots are filtered to just
+    /// that region (days where it wasn't present show no dots), so the calendar
+    /// reads as "only the days I spent in this location". The per-month
+    /// `regionTotals` footer still reflects every region present that month.
     public static func months(
         from report: YearReport,
         calendar: Calendar,
         referenceDate: Date,
         missingDates: Set<Date> = [],
+        focusedRegion: Region? = nil,
     ) throws -> [CalendarMonth] {
         var regionsByDay: [Date: Set<Region>] = [:]
         for day in report.days {
@@ -117,6 +147,7 @@ public enum PresenceCalendar {
                 calendar: calendar,
                 referenceDate: referenceStartOfDay,
                 missingDates: normalizedMissing,
+                focusedRegion: focusedRegion,
             )
         }
     }
@@ -128,6 +159,7 @@ public enum PresenceCalendar {
         calendar: Calendar,
         referenceDate: Date,
         missingDates: Set<Date> = [],
+        focusedRegion: Region? = nil,
     ) throws -> CalendarMonth {
         guard
             let firstOfMonth = calendar.date(from: DateComponents(year: year, month: month, day: 1))
@@ -151,6 +183,7 @@ public enum PresenceCalendar {
 
         var days: [CalendarDayCell] = []
         days.reserveCapacity(numberOfDays)
+        var dayCountsByRegion: [Region: Int] = [:]
         for dayOfMonth in 1 ... numberOfDays {
             guard
                 let date = calendar.date(
@@ -165,10 +198,14 @@ public enum PresenceCalendar {
                     day: dayOfMonth,
                 )
             }
-            let regions: [Region] = if let dayRegions = regionsByDay[date] {
-                Region.allCases.filter { dayRegions.contains($0) }
-            } else {
-                []
+            let presentRegions = regionsByDay[date] ?? []
+            for region in presentRegions {
+                dayCountsByRegion[region, default: 0] += 1
+            }
+            // Dots reflect the focus filter; the footer (regionTotals) keeps
+            // counting every region present that day.
+            let regions = Region.allCases.filter { region in
+                presentRegions.contains(region) && (focusedRegion == nil || region == focusedRegion)
             }
             days.append(CalendarDayCell(
                 date: date,
@@ -179,6 +216,22 @@ public enum PresenceCalendar {
             ))
         }
 
+        // Iterate `Region.allCases` so the offset gives a stable tiebreak when
+        // two regions share a day count, keeping the footer deterministic.
+        let regionTotals = Region.allCases
+            .compactMap { region -> RegionDayTally? in
+                guard let count = dayCountsByRegion[region] else { return nil }
+                return RegionDayTally(region: region, days: count)
+            }
+            .enumerated()
+            .sorted { lhs, rhs in
+                if lhs.element.days == rhs.element.days {
+                    return lhs.offset < rhs.offset
+                }
+                return lhs.element.days > rhs.element.days
+            }
+            .map(\.element)
+
         return CalendarMonth(
             year: year,
             month: month,
@@ -188,6 +241,7 @@ public enum PresenceCalendar {
             weekdaySymbols: weekdaySymbols,
             isCurrentMonth: isCurrentMonth,
             days: days,
+            regionTotals: regionTotals,
         )
     }
 
@@ -213,12 +267,14 @@ extension YearReport {
         calendar: Calendar,
         referenceDate: Date,
         missingDates: Set<Date> = [],
+        focusedRegion: Region? = nil,
     ) throws -> [CalendarMonth] {
         try PresenceCalendar.months(
             from: self,
             calendar: calendar,
             referenceDate: referenceDate,
             missingDates: missingDates,
+            focusedRegion: focusedRegion,
         )
     }
 }
