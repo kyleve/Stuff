@@ -17,7 +17,8 @@ public enum LaunchStepID: String {
     /// relaunch skips it.
     case onboarding
     /// Read location authorization into the session and start observing live
-    /// changes.
+    /// changes — both authorization updates and out-of-band store writes
+    /// (live GPS ingestion) that the UI mirrors.
     case syncAuth = "sync-auth"
     /// Start or stop GPS ingestion to match the user's intent + authorization.
     case reconcileTracking = "reconcile-tracking"
@@ -121,6 +122,7 @@ public enum WhereLaunch {
             LifecycleStep.work(LaunchStepID.syncAuth) { _ in
                 await model.session?.syncAuthorization()
                 model.session?.observeAuthorizationChanges()
+                model.session?.observeDataChanges()
             }
             LifecycleStep.work(LaunchStepID.reconcileTracking) { _ in
                 await model.session?.reconcileTracking()

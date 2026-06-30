@@ -357,6 +357,65 @@ struct WhereServicesTests {
         #expect(report.totals.isEmpty)
     }
 
+    @Test func gpsIngestInvalidatesResolutionCacheAndPingsDataChanges() async throws {
+        let now = WhereCoreTestSupport.iso("2026-06-15T12:00:00-07:00")
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource()
+        let services = WhereServices(
+            store: store,
+            locationSource: source,
+            aggregator: Self.makeAggregator(),
+            now: { now },
+        )
+        let jan15 = try #require(Self.pacificCalendar.date(
+            from: DateComponents(year: 2026, month: 1, day: 15),
+        ))
+        func listsJan15Missing(_ issues: [any DataIssue]) -> Bool {
+            issues.contains { issue in
+                guard case let .backfill(range) = issue.resolution else { return false }
+                return range.start <= jan15 && jan15 <= range.end
+            }
+        }
+
+        // Prime the throttled scan: with an empty store the backlog covers Jan 15,
+        // and the result is now cached so a non-forced reread would serve it.
+        let before = try await services.resolution.issues(
+            year: 2026,
+            primaryRegions: [],
+            driftThresholdMeters: 10000,
+        )
+        #expect(listsJan15Missing(before))
+
+        // Subscribe before the ingest so the change ping can't be missed.
+        let pings = services.dataChangeUpdates()
+        await services.ingestor.start()
+        source.emit(LocationSample(
+            timestamp: WhereCoreTestSupport.iso("2026-01-15T12:00:00-07:00"),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 0,
+            source: .gpsSignificantChange,
+        ))
+
+        // The committed ingest fires a data-change ping...
+        var pinged = false
+        for await _ in pings {
+            pinged = true
+            break
+        }
+        #expect(pinged)
+
+        // ...and invalidated the cache, so a *non-forced* reread recomputes from
+        // the store (which now has Jan 15) instead of serving the stale scan.
+        let after = try await services.resolution.issues(
+            year: 2026,
+            primaryRegions: [],
+            driftThresholdMeters: 10000,
+        )
+        #expect(!listsJan15Missing(after))
+
+        await services.ingestor.stop()
+    }
+
     @Test func gpsFailuresEnqueueAndDrainOnRecovery() async throws {
         let backing = try SwiftDataStore.inMemory()
         let store = ToggleFailingStore(backing: backing)

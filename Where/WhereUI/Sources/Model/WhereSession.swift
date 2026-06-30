@@ -181,6 +181,11 @@ public final class WhereSession {
     /// definition runs with no other live references, so there is no concurrent
     /// access to race.
     @ObservationIgnored private nonisolated(unsafe) var authorizationTask: Task<Void, Never>?
+    /// Long-lived subscription to out-of-band store changes (live GPS ingestion).
+    /// Same `@ObservationIgnored` / `nonisolated(unsafe)` rationale as
+    /// `authorizationTask`: only the `deinit` touches it off the main actor, and
+    /// by then there are no other live references to race.
+    @ObservationIgnored private nonisolated(unsafe) var dataChangeTask: Task<Void, Never>?
 
     /// The persisted user intent (tracking, reminder/summary schedules) the
     /// session mirrors into its observable storage. Owned by `WhereModel` and
@@ -319,6 +324,7 @@ public final class WhereSession {
     /// until the next status change resumes it.
     deinit {
         authorizationTask?.cancel()
+        dataChangeTask?.cancel()
     }
 
     /// Sync authorization, resume tracking if appropriate, then load the
@@ -331,6 +337,7 @@ public final class WhereSession {
     public func start() async {
         await syncAuthorization()
         observeAuthorizationChanges()
+        observeDataChanges()
         await reconcileTracking()
         await refresh()
         await applyReminderConfiguration()
@@ -409,6 +416,25 @@ public final class WhereSession {
                 authorizationStatus = status
                 warnIfAuthorizationDegraded()
                 await reconcileTracking()
+            }
+        }
+    }
+
+    /// Subscribe to out-of-band store changes (live GPS ingestion writing into
+    /// the store) so the report and data-issue scan the UI mirrors don't go
+    /// stale while the app is open. User-driven writes refresh inline at their
+    /// call site; this covers the one path that doesn't. Idempotent.
+    func observeDataChanges() {
+        guard dataChangeTask == nil else { return }
+        // Capture the value-type services locally so the long-lived stream loop
+        // keeps `self` weak (an injected services reference, not the session).
+        let services = services
+        dataChangeTask = Task { @MainActor [weak self] in
+            let updates = services.dataChangeUpdates()
+            for await _ in updates {
+                guard let self else { break }
+                await refresh()
+                await refreshDataIssues(force: true)
             }
         }
     }

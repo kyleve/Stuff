@@ -28,6 +28,10 @@ public struct WhereServices: Sendable {
     public let backup: BackupCoordinator
     /// Data-quality issue detection for the Resolve tab.
     public let resolution: DataIssueScanner
+    /// Out-of-band data-change fan-out: live GPS ingestion pings this after a
+    /// committed persist that changed a day, and the view-model re-pulls via
+    /// `dataChangeUpdates()`. Plumbing, so it stays off the public surface.
+    let dataChanges: StoreChangeBroadcaster
     /// The live SwiftData container when the backing store is the production
     /// `SwiftDataStore`; `nil` for non-SwiftData stores (e.g. test fakes).
     /// Surfaced only for read-only debug tooling (the SwiftData inspector) so
@@ -73,6 +77,15 @@ public struct WhereServices: Sendable {
             calendar: aggregator.calendar,
             now: now,
         )
+        // Created before the ingestor so its post-persist hook can keep the
+        // data-issue scan honest (see `onPersisted`).
+        let resolution = DataIssueScanner(
+            reportReader: reports,
+            attributor: attributor,
+            calendar: aggregator.calendar,
+            now: now,
+        )
+        let dataChanges = StoreChangeBroadcaster()
         // After each committed GPS persist, reconcile the badge/reminders and
         // republish the widget snapshot. A live single sample uses the cheap
         // change-detection unless a drain also re-persisted other days; a
@@ -84,6 +97,15 @@ public struct WhereServices: Sendable {
             calendar: aggregator.calendar,
             outbox: locationOutbox,
             onPersisted: { outcome in
+                // A committed ingest changed day presence, so any cached
+                // data-issue scan is stale. Drop it (so even a non-forced
+                // foreground rescan recomputes) and ping observers to re-pull —
+                // GPS doesn't go through a `WhereSession` intent method, so this
+                // is the only thing keeping the Resolve tab from going stale.
+                if !outcome.changedDays.isEmpty {
+                    await resolution.invalidate()
+                    dataChanges.send()
+                }
                 if let sample = outcome.liveSample {
                     await reminders.reconcileAfterIngest(changedDays: outcome.changedDays)
                     if outcome.needsFullWidgetRebuild {
@@ -106,12 +128,6 @@ public struct WhereServices: Sendable {
             widgets: widgets,
         )
         let backup = BackupCoordinator(store: store, widgets: widgets)
-        let resolution = DataIssueScanner(
-            reportReader: reports,
-            attributor: attributor,
-            calendar: aggregator.calendar,
-            now: now,
-        )
 
         self.reports = reports
         self.reminders = reminders
@@ -121,7 +137,17 @@ public struct WhereServices: Sendable {
         self.journal = journal
         self.backup = backup
         self.resolution = resolution
+        self.dataChanges = dataChanges
         modelContainer = (store as? SwiftDataStore)?.inspectorContainer
+    }
+
+    /// A fresh stream that fires whenever persisted day/presence data changes
+    /// out-of-band — i.e. live GPS ingestion, which doesn't go through a
+    /// `WhereSession` intent method and so can't refresh the view-model at the
+    /// call site the way a manual edit does. The session subscribes and re-pulls
+    /// its report + data-issue scan. Each subscriber gets an isolated stream.
+    public func dataChangeUpdates() -> AsyncStream<Void> {
+        dataChanges.subscribe()
     }
 
     /// Return the services to a clean slate for the app's "erase all data &

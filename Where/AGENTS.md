@@ -80,7 +80,10 @@ boundary, never SwiftData records.
       `invalidate()`. Detectors implement [`DataIssueDetector`](WhereCore/Sources/DataResolution/DataIssueDetector.swift)
       (typed `Issue` per detector, erased to `[any DataIssue]` for the
       UI). Dismissals are read from the store and filtered out before
-      return. `WhereServices.reset()` calls `await resolution.invalidate()`.
+      return. `WhereServices.reset()` calls `await resolution.invalidate()`;
+      so does the ingestion post-persist hook on any committed GPS write that
+      changed a day, which then pings `dataChangeUpdates()` so the session
+      re-pulls (the Resolve tab can't go stale from a background persist).
   The one cross-collaborator op is `WhereServices.reset()` (quiesce GPS
   ingestion, then wipe the store) — the app's erase/teardown path.
 - [`LocationSample`](WhereCore/Sources/LocationSample.swift) +
@@ -236,7 +239,12 @@ Launch is driven by [`LifecycleKit`](../Shared/LifecycleKit) (read its
   no `guard let session` checks sprinkled through the UI. Exposes intent
   methods that delegate to Core (`refresh()` → `ReportReader`, `dismiss(_:)` →
   `DayJournal` + `DataIssueScanner`, etc.) and holds thin mirrors (e.g.
-  `dataIssues` from `services.resolution.issues(...)`).
+  `dataIssues` from `services.resolution.issues(...)`). User-driven writes
+  refresh those mirrors inline at the call site; the one write that doesn't go
+  through an intent method — live GPS ingestion — is covered by observing
+  `WhereServices.dataChangeUpdates()` (set up in the `sync-auth` step alongside
+  `observeAuthorizationChanges()`), which re-pulls the report + data-issue scan
+  so the UI can't go stale from a background persist.
 - [`WhereLaunch`](WhereUI/Sources/Launch/WhereLaunch.swift) – assembles the
   cold-launch `LifecycleSteps` and its reverse `resetSequence` (erase + reset),
   with steps named by the typed `LaunchStepID` enum (a parity test guards step
