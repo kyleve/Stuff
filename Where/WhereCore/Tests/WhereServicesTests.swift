@@ -436,17 +436,25 @@ struct WhereServicesTests {
         // so a commit landing before the consumer iterates still delivers.
         let changes = services.dataChangeUpdates()
         let recorder = PingRecorder()
+        // Don't `break` after the first ping: keep draining so a duplicate
+        // signal from the same commit would bump the count and fail the
+        // exact-count assertion below.
         let consumer = Task { for await _ in changes {
-            await recorder.record(); break
+            await recorder.record()
         } }
 
         await services.ingestor.start()
         source.emit(sample(at: "2026-03-15T12:00:00-07:00"))
 
-        try await waitUntil { await recorder.didPing }
+        try await waitUntil { await recorder.pingCount >= 1 }
 
         consumer.cancel()
         await services.ingestor.stop()
+
+        // One ingested sample commits exactly one transaction, so the unified
+        // signal must fire exactly once — a higher count would mean a single
+        // write fanned out duplicate pings.
+        #expect(await recorder.pingCount == 1)
     }
 
     @Test func performThrow_rollsBackEntireTransaction() async throws {
@@ -1043,12 +1051,13 @@ private func waitUntil(
     Issue.record("waitUntil timed out")
 }
 
-/// Records whether a `dataChangeUpdates()` ping has arrived, so a test can
-/// assert (via `waitUntil`) that a committed write fired the unified signal.
+/// Counts `dataChangeUpdates()` pings, so a test can assert (via `waitUntil`)
+/// that a committed write fired the unified signal — and, by checking the exact
+/// count, that it fired exactly once rather than fanning out duplicates.
 private actor PingRecorder {
-    private(set) var didPing = false
+    private(set) var pingCount = 0
     func record() {
-        didPing = true
+        pingCount += 1
     }
 }
 
