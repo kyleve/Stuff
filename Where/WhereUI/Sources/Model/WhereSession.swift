@@ -517,14 +517,24 @@ public final class WhereSession {
         // newer fetch that finishes first; without this guard a slower older
         // fetch could install its report under the newer year's label.
         let requestedYear = selectedYear
-        loadState = .loading
+        // Only surface the loading state when there's nothing on screen yet — an
+        // initial load or a year switch (which nils `report` first). The
+        // observer re-pulls on *every* commit, so a background refresh keeps the
+        // current report visible (no spinner flicker) and, with the equality
+        // guards below, makes no observable mutation at all when nothing changed
+        // — an unrelated commit (e.g. a dismissal that didn't touch presence)
+        // shouldn't re-render the report views.
+        if report == nil { loadState = .loading }
         do {
             let report = try await services.reports.yearReport(for: requestedYear)
             guard requestedYear == selectedYear else { return }
-            self.report = report
-            loadState = .loaded
-            Self.logger
-                .info("Year report loaded for \(requestedYear) (\(report.days.count) day(s))")
+            let changed = self.report != report
+            if changed { self.report = report }
+            if loadState != .loaded { loadState = .loaded }
+            if changed {
+                Self.logger
+                    .info("Year report loaded for \(requestedYear) (\(report.days.count) day(s))")
+            }
         } catch {
             guard requestedYear == selectedYear else { return }
             loadState = .failed(error.localizedDescription)
