@@ -8,7 +8,7 @@ struct StorageSystemTests {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
 
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
         #expect(system.url == temp.appending(path: "Where", directoryHint: .isDirectory))
         #expect(FileManager.default.fileExists(atPath: system.url.path))
     }
@@ -18,7 +18,7 @@ struct StorageSystemTests {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
 
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
         let first = try await system.container("user-1")
         let second = try await system.container("user-1")
         #expect(first === second)
@@ -41,7 +41,7 @@ struct StorageSystemTests {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
 
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
         _ = try await system.container("user-1")
         #expect(FileManager.default.fileExists(atPath: system.url.path))
 
@@ -58,8 +58,8 @@ struct StorageSystemTests {
             try? FileManager.default.removeItem(at: tempB)
         }
 
-        let systemA = try StorageSystem("Where", mode: .persistent, base: .custom(tempA))
-        let systemB = try StorageSystem("Where", mode: .persistent, base: .custom(tempB))
+        let systemA = try StorageSystem("Where", mode: .persistent(base: .custom(tempA)))
+        let systemB = try StorageSystem("Where", mode: .persistent(base: .custom(tempB)))
         let userA = try await systemA.container("user-1")
         let userB = try await systemB.container("user-1")
 
@@ -80,8 +80,9 @@ struct StorageSystemTests {
 
         let system = try StorageSystem(
             "Where",
-            mode: .persistent,
-            base: .custom(temp.appending(path: "ns", directoryHint: .isDirectory)),
+            mode: .persistent(
+                base: .custom(temp.appending(path: "ns", directoryHint: .isDirectory)),
+            ),
         )
         #expect(system.url.deletingLastPathComponent().lastPathComponent == "ns")
         #expect(FileManager.default.fileExists(atPath: system.url.path))

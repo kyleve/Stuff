@@ -49,7 +49,7 @@ a target's dependencies in [`Package.swift`](../../Package.swift):
 import StorageKit
 
 // One system per app (or per test). Persistent in production…
-let storage = try StorageSystem("Where", mode: .persistent)
+let storage = try StorageSystem("Where", mode: .persistent(base: .applicationSupport()))
 // …or ephemeral in tests/previews — nothing below changes:
 // let storage = try StorageSystem("Where", mode: .inMemory)
 
@@ -84,7 +84,7 @@ try await storage.deleteAll()
 ## Public API
 
 ```swift
-public enum StorageMode { case persistent, inMemory }
+public enum StorageMode { case persistent(base: BaseDirectory), inMemory }
 
 public struct BaseDirectory {
     public static func applicationSupport(subdirectory: String? = nil) -> BaseDirectory
@@ -103,7 +103,6 @@ public struct StorageKey: Hashable, Sendable, ExpressibleByStringLiteral {
 
 public actor StorageSystem {
     public init(_ name: StorageKey, mode: StorageMode,
-                base: BaseDirectory = .applicationSupport(),
                 fileManager: FileManager = .default) throws
     public nonisolated let mode: StorageMode
     public nonisolated let url: URL
@@ -141,8 +140,9 @@ public final class InMemoryKeyValueStore: KeyValueStore { public init() }
 
 ## How it works
 
-- **Root vs. node.** `StorageSystem` is pure configuration (mode, base directory,
-  injected `FileManager`) plus a vending point; it does no storage work beyond
+- **Root vs. node.** `StorageSystem` is pure configuration (the `mode` — which
+  carries the base directory in `.persistent` — plus an injected `FileManager`)
+  and a vending point; it does no storage work beyond
   creating its namespace directory and delegating to a hidden root container. All
   operations live on `StorageContainer`. The split costs one extra directory level
   on disk, which is invisible to users.
@@ -198,8 +198,9 @@ public final class InMemoryKeyValueStore: KeyValueStore { public init() }
 
 ## Testing
 
-Exercised with Swift Testing in a hosted bundle. Tests use `base: .custom(temp)`
-so they never touch the real Application Support directory, and cover the tree,
+Exercised with Swift Testing in a hosted bundle. Tests use
+`.persistent(base: .custom(temp))` so they never touch the real Application
+Support directory, and cover the tree,
 both modes, cached/idempotent vends, key sanitization, key-value and SwiftData
 vends, and — in detail — the two teardown paths: children-first ordering, the
 `prepareForDeletion → onDeactivate → delete → afterDeletion` sequence, park-safe

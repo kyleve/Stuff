@@ -19,22 +19,21 @@ public actor StorageSystem {
 
     /// Create a storage system named `name`.
     ///
-    /// - `.persistent`: rooted at `<base.resolvedURL>/<name>`.
+    /// - `.persistent(base:)`: rooted at `<base.resolvedURL>/<name>`.
     /// - `.inMemory`: rooted at a unique temporary directory removed by
-    ///   `deleteAll()`; `base` is ignored.
+    ///   `deleteAll()`.
     ///
     /// `fileManager` is injectable so tests can resolve a `.custom` base
     /// deterministically.
     public init(
         _ name: StorageKey,
         mode: StorageMode,
-        base: BaseDirectory = .applicationSupport(),
         fileManager: FileManager = .default,
     ) throws {
         self.mode = mode
         let rootURL: URL
         switch mode {
-            case .persistent:
+            case let .persistent(base):
                 let baseURL = try base.resolvedURL(using: fileManager)
                 rootURL = baseURL.appending(path: name.name, directoryHint: .isDirectory)
             case .inMemory:

@@ -10,7 +10,7 @@ struct StorageContainerTests {
     func vendsAndCachesChildContainers() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let logs = try await user.container("logs")
@@ -25,7 +25,7 @@ struct StorageContainerTests {
     func vendsANestedPath() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let leaf = try await user.container(path: ["logs", "today"])
@@ -41,7 +41,7 @@ struct StorageContainerTests {
     func fileURLPointsIntoTheContainerDirectory() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let fileURL = user.fileURL("note.txt")
@@ -72,7 +72,7 @@ struct StorageContainerTests {
     func persistentKeyValueStoreRoundTripsAndIsPurgedOnDelete() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         await user.keyValueStore().set(99, forKey: "count")
@@ -92,7 +92,7 @@ struct StorageContainerTests {
     func persistentModelContainerIsolatesItsStoreAndCaches() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let container = try await user.modelContainer(for: [Note.self])
@@ -133,7 +133,7 @@ struct StorageContainerTests {
     func modelContainerIsRecreatedAfterDeleteContents() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let first = try await user.modelContainer(for: [Note.self])
@@ -156,7 +156,7 @@ struct StorageContainerTests {
     func reVendingAStoreWithDifferentTypesThrows() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let first = try await user.modelContainer(for: [Note.self])
@@ -177,7 +177,7 @@ struct StorageContainerTests {
     func deactivateRunsHandlersChildrenFirstAndKeepsData() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let logs = try await user.container("logs")
@@ -200,7 +200,7 @@ struct StorageContainerTests {
     func reVendingReactivatesAnInactiveContainer() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         _ = try await user.container("logs")
@@ -216,7 +216,7 @@ struct StorageContainerTests {
     func deactivateDropsVendCachesAndReVendReopensPersistedData() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let firstModel = try await user.modelContainer(for: [Note.self])
@@ -245,7 +245,7 @@ struct StorageContainerTests {
     func deactivateIsANoOpWhenAlreadyInactive() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let log = CallLog()
@@ -261,7 +261,7 @@ struct StorageContainerTests {
     func deregisterStopsAHandlerFromFiring() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let log = CallLog()
@@ -276,7 +276,7 @@ struct StorageContainerTests {
     func deregisterIgnoresATokenFromAnotherContainer() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let a = try await system.container("a")
         let b = try await system.container("b")
@@ -298,7 +298,7 @@ struct StorageContainerTests {
     func deleteContainerRunsPhasesInOrderChildrenFirst() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let logs = try await user.container("logs")
@@ -326,7 +326,7 @@ struct StorageContainerTests {
     func deleteContainerLeavesSiblingsAndDeregisters() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user1 = try await system.container("user-1")
         let user2 = try await system.container("user-2")
@@ -351,7 +351,7 @@ struct StorageContainerTests {
     func deletingAnAlreadyDeactivatedNodeRunsOnDeactivateOnce() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let logs = try await user.container("logs")
@@ -373,7 +373,7 @@ struct StorageContainerTests {
     func vendingIsRejectedWhileTeardownIsInFlight() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let outcome = VendOutcome()
@@ -402,7 +402,7 @@ struct StorageContainerTests {
     func throwingPrepareForDeletionParksWithNothingDeleted() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let throwOnce = ThrowOnce()
@@ -419,7 +419,7 @@ struct StorageContainerTests {
     func throwingOnDeactivateParksWithNothingDeleted() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let throwOnce = ThrowOnce()
@@ -436,7 +436,7 @@ struct StorageContainerTests {
     func parkedDeleteOfAnInactiveNodeRevertsToInactive() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         try await user.deactivate()
@@ -456,7 +456,7 @@ struct StorageContainerTests {
     func throwingAfterDeletionIsPostCommitAndRetriesOnlyThatStep() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let throwOnce = ThrowOnce()
@@ -475,7 +475,7 @@ struct StorageContainerTests {
     func reVendingAfterAFailedAfterDeletionGivesAFreshContainer() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let throwOnce = ThrowOnce()
@@ -499,7 +499,7 @@ struct StorageContainerTests {
     func deleteContentsClearsDescendantsAndFilesButKeepsTheNode() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let logs = try await user.container("logs")
@@ -521,7 +521,7 @@ struct StorageContainerTests {
     func deleteContentsRunsChildTeardownHooks() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let logs = try await user.container("logs")
@@ -546,7 +546,7 @@ struct StorageContainerTests {
     func deletionErrorsSurfaceAndLeaveDataInPlace() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
         let parent = system.url
@@ -577,7 +577,7 @@ struct StorageContainerTests {
     func concurrentVendsDoNotResurrectADeletedContainer() async throws {
         let temp = try makeTemporaryDirectory()
         defer { try? FileManager.default.removeItem(at: temp) }
-        let system = try StorageSystem("Where", mode: .persistent, base: .custom(temp))
+        let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
 

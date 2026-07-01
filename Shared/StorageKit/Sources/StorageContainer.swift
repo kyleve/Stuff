@@ -505,7 +505,7 @@ public actor StorageContainer {
     }
 
     private func purgeKeyValueSuite() {
-        guard mode == .persistent else { return }
+        guard case .persistent = mode else { return }
         UserDefaults().removePersistentDomain(forName: suiteName)
     }
 

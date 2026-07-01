@@ -44,9 +44,11 @@ system, formatting, and global conventions. Read that first.
   App Group / security-scoped URL); `resolvedURL(using:)` is public so a `.custom`
   base can be built from a standard one.
 - [`StorageMode`](Sources/StorageMode.swift) / [`CloudKitOption`](Sources/CloudKitOption.swift)
-  / [`StorageError`](Sources/StorageError.swift) – the mode switch, the CloudKit
-  pass-through (`.none` / `.automatic`), and the typed error
-  (`containerDeleted`).
+  / [`StorageError`](Sources/StorageError.swift) – the mode switch
+  (`.persistent(base:)` / `.inMemory`; the base rides inside `.persistent` so
+  on-disk storage can't be asked for without saying where, and is consumed only at
+  the system root), the CloudKit pass-through (`.none` / `.automatic`), and the
+  typed error (`containerDeleted` / `modelStoreSchemaMismatch`).
 - [`KeyValueStore`](Sources/KeyValueStore.swift) – a minimal, `Sendable`-clean
   protocol (typed `bool/int/double/string/data`, no `Any?`) with two conformers:
   `UserDefaultsKeyValueStore` (`@unchecked Sendable` wrapper around a suite) and
@@ -117,8 +119,9 @@ system, formatting, and global conventions. Read that first.
 - `FileManager` is injected into `StorageSystem` (mirroring
   `FileLocationOutbox.applicationSupport(fileManager:)`) for resolving the base
   and creating the namespace directory; containers use `FileManager.default` for
-  their own I/O. Test determinism comes from `base: .custom(tempDir)`, not from
-  threading a mock `FileManager` through every actor (which would fight Sendable).
+  their own I/O. Test determinism comes from `.persistent(base: .custom(tempDir))`,
+  not from threading a mock `FileManager` through every actor (which would fight
+  Sendable).
 - Concurrency: both types are `actor`s; cross-actor reads use `nonisolated let`.
   Teardown handlers are `@Sendable () async throws -> Void` (`TeardownHandler`).
 
@@ -129,8 +132,8 @@ sources, hosted in `StuffTestHost`. Shared fixtures (the `Note` `@Model`, a
 `CallLog` actor, a `ThrowOnce` actor, `makeTemporaryDirectory()`) live in
 [`StorageKitTestSupport.swift`](Tests/StorageKitTestSupport.swift). Patterns:
 
-- Always use `base: .custom(makeTemporaryDirectory())` (+ `defer` cleanup) so a
-  test never touches the host's real Application Support or Caches.
+- Always use `.persistent(base: .custom(makeTemporaryDirectory()))` (+ `defer`
+  cleanup) so a test never touches the host's real Application Support or Caches.
 - Assert tree shape via the on-disk directories (`FileManager.fileExists`) and
   identity via `===` on the vended actors / objects.
 - Drive teardown ordering with a `CallLog` actor recording `phase:node` strings
