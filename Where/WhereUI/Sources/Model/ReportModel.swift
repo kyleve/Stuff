@@ -351,17 +351,32 @@ public final class ReportModel {
     }
 
     /// The raw coordinates recorded inside `region` during the selected year,
-    /// grouped by day, for the Elsewhere drill-in's map and place names. Empty on
-    /// failure, so the view can simply render nothing.
+    /// grouped by day, for the Elsewhere drill-in's map and place names. Logs and
+    /// returns empty on failure — the view renders nothing, but the failure still
+    /// surfaces in the log rather than passing silently as "no locations".
     public func locations(in region: Region) async -> [RegionDayLocations] {
-        await (try? services.reports.locations(in: region, year: selectedYear)) ?? []
+        do {
+            return try await services.reports.locations(in: region, year: selectedYear)
+        } catch {
+            Self.logger.warning(
+                "Failed to load locations for \(region.rawValue) in \(selectedYear): \(error.localizedDescription)",
+            )
+            return []
+        }
     }
 
     /// One representative coordinate per region for the selected year (the most
     /// heavily sampled spot in each), for the Elsewhere cards' place-name teaser.
-    /// Empty on failure.
+    /// Logs and returns empty on failure (see `locations(in:)`).
     public func representativeCoordinates() async -> [Region: Coordinate] {
-        await (try? services.reports.representativeCoordinates(for: selectedYear)) ?? [:]
+        do {
+            return try await services.reports.representativeCoordinates(for: selectedYear)
+        } catch {
+            Self.logger.warning(
+                "Failed to load representative coordinates for \(selectedYear): \(error.localizedDescription)",
+            )
+            return [:]
+        }
     }
 }
 
