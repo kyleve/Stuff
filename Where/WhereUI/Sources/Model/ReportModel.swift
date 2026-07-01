@@ -253,7 +253,10 @@ public final class ReportModel {
             let issues = try await services.resolution.issues(
                 year: requestedYear,
                 primaryRegions: ranking.primary.map(\.region),
-                driftThresholdMeters: Double(preferences.driftThresholdMeters),
+                // Read the observable mirror (same value the `dataIssueScanInputs`
+                // key the Resolve list scans on uses), so the badge recount and
+                // the list can't scan against different thresholds.
+                driftThresholdMeters: Double(driftThreshold.rawValue),
                 force: force,
             )
             guard requestedYear == selectedYear else { return }
