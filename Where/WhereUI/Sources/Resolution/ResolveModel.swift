@@ -22,6 +22,14 @@ public final class ResolveModel {
     /// by the scanner.
     public private(set) var dataIssues: [any DataIssue] = []
 
+    /// Whether the first scan has completed (or a fixture was seeded). Until it
+    /// has, `ResolutionView` shows a spinner rather than the "all clear" empty
+    /// state — otherwise a populated tab (whose badge already scanned) would
+    /// flash empty for the frame before this model's own `load` lands. Once true
+    /// it stays true, so later re-scans update the list in place without a
+    /// spinner flicker.
+    public private(set) var hasLoaded = false
+
     private let services: WhereServices
     private let preferences: WherePreferences
     private static let logger = WhereLog.channel(.session)
@@ -60,6 +68,10 @@ public final class ResolveModel {
                 "Failed to scan for data issues: \(error.localizedDescription)",
             )
         }
+        // Mark loaded even on failure so the view leaves the spinner (the error
+        // was logged and the last good list preserved); a stuck spinner would be
+        // its own bug.
+        hasLoaded = true
     }
 
     public func dismiss(_ issue: any DataIssue) async {
@@ -85,6 +97,7 @@ public final class ResolveModel {
         public func setDataIssues(_ issues: [any DataIssue]) {
             dataIssues = issues
             isSeeded = true
+            hasLoaded = true
         }
     }
 #endif

@@ -67,4 +67,46 @@ struct ResolveModelTests {
         let keys = try await store.dismissedIssueKeys()
         #expect(keys.contains(issue.id.storageKey))
     }
+
+    /// The empty-state guard: `hasLoaded` starts false and flips once the first
+    /// scan lands, so `ResolutionView` can hold a spinner instead of flashing
+    /// "all clear" under a non-zero badge.
+    @Test func loadMarksTheModelLoaded() async throws {
+        let store = try TestStore()
+        let now = date(year: 2026, month: 2, day: 10)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            now: { now },
+        )
+        let resolve = ResolveModel(
+            services: services,
+            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+        )
+
+        #expect(!resolve.hasLoaded)
+        await resolve.load(year: 2026, primaryRegions: [.california])
+        #expect(resolve.hasLoaded)
+    }
+
+    /// Seeding a fixture also counts as loaded, so the seeded "empty" preview
+    /// renders its empty state rather than a stuck spinner.
+    @Test func seedingMarksTheModelLoaded() throws {
+        let store = try TestStore()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        let resolve = ResolveModel(
+            services: services,
+            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+        )
+
+        resolve.setDataIssues([])
+        #expect(resolve.hasLoaded)
+    }
 }

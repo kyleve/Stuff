@@ -55,7 +55,13 @@ struct ResolutionView: View {
                     Text(message)
                 }
             case .idle, .loaded, .loading:
-                if resolve.dataIssues.isEmpty {
+                if !resolve.hasLoaded {
+                    // The report is loaded but this tab's own scan hasn't landed
+                    // yet; show a spinner rather than flash "all clear" under a
+                    // non-zero badge.
+                    ProgressView(Strings.primaryLoading)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if resolve.dataIssues.isEmpty {
                     ContentUnavailableView {
                         Label(Strings.resolutionEmptyTitle, systemImage: "checkmark.seal")
                     } description: {
