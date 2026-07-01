@@ -368,7 +368,8 @@ Launch is driven by [`LifecycleKit`](../Shared/LifecycleKit) (read its
   [`MainTabs`](WhereUI/Sources/MainTabs.swift) in a `LifecycleContainer`, gating
   `enterForeground()` on `scenePhase == .active` so a headless background launch
   stays UI-less. `MainTabs` owns the scene `ReportModel` (`@State`, keyed on the
-  session's identity so a reset rebuilds it) and drives its `activate()` /
+  session's monotonic `id` — never reused within the process, so a reset rebuilds
+  it without an address-collision risk) and drives its `activate()` /
   `deactivate()` from `scenePhase`. Tabs: Primary, Elsewhere,
   **Resolve** ([`ResolutionView`](WhereUI/Sources/Resolution/ResolutionView.swift)
   — missing days, border drift, abrupt changes; badge shows

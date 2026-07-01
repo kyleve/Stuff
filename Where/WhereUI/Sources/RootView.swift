@@ -41,14 +41,16 @@ public struct RootView: View {
         ) {
             // At `.ready` the session is always present; `MainTabs` owns the
             // scene-scoped `ReportModel` and gets a fresh one whenever a reset
-            // rebuilds the session (keyed on its identity).
+            // rebuilds the session. Keyed on the session's monotonic `id` (never
+            // reused within the process) rather than its address, so a rebuilt
+            // session can't collide with a freed one and skip the rebuild.
             if let session = model.session {
                 MainTabs(
                     session: session,
                     initialReport: model.initialReport,
                     selectedYear: model.initialSelectedYear,
                 )
-                .id(ObjectIdentifier(session))
+                .id(session.id)
             }
         }
         .environment(model)

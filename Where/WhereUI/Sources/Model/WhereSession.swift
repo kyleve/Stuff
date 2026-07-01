@@ -32,6 +32,14 @@ import WhereCore
 @MainActor
 @Observable
 public final class WhereSession {
+    /// A process-unique, monotonically increasing identity for this session.
+    /// `RootView` keys `MainTabs` (and thus the scene-scoped `ReportModel`) on
+    /// it, so a reset that rebuilds the session forces a fresh scene. Unlike an
+    /// address-derived `ObjectIdentifier`, a monotonic token is never reused
+    /// within the process — a session freed and reallocated at the same address
+    /// gets a new token, so the scene can't fail to rebuild on a collision.
+    public let id: SessionID
+
     /// Whether background GPS ingestion is currently attached. Reflects reality
     /// (authorization + the user's intent), not just the last button tap.
     public private(set) var isTracking = false
@@ -91,12 +99,29 @@ public final class WhereSession {
         set { preferences.wantsTracking = newValue }
     }
 
+    /// A process-unique session identity. A typed token rather than a raw `Int`
+    /// so it can't be transposed with any other counter, and `Hashable` so
+    /// SwiftUI's `.id(_:)` can key a subtree on it.
+    public struct SessionID: Hashable, Sendable {
+        fileprivate let value: Int
+    }
+
+    /// Monotonic source for `SessionID`s. `@MainActor`-isolated (the enclosing
+    /// class is), so minting from `init` needs no extra synchronization.
+    private static var nextRawID = 0
+
+    private static func mintID() -> SessionID {
+        defer { nextRawID += 1 }
+        return SessionID(value: nextRawID)
+    }
+
     /// Build a coordinator over an already-assembled service layer.
     public init(
         services: WhereServices,
         preferences: WherePreferences = WherePreferences(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
+        id = Self.mintID()
         self.services = services
         self.preferences = preferences
         self.now = now
