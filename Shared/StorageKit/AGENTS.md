@@ -39,9 +39,10 @@ system, formatting, and global conventions. Read that first.
 - [`StorageKey`](Sources/StorageKey.swift) – a sanitized single path component
   (`Hashable`, `ExpressibleByStringLiteral`, `init(some RawRepresentable<String>)`).
 - [`BaseDirectory`](Sources/BaseDirectory.swift) – where a persistent system
-  roots (`applicationSupport` / `caches` with optional `subdirectory`, or
-  `custom`); `resolvedURL(using:)` is public so a `.custom` base can be built from
-  a standard one.
+  roots (`applicationSupport` / `caches` / `documents` / `library` with optional
+  `subdirectory`, or `custom` for the exceptional cases — tests, relocations, an
+  App Group / security-scoped URL); `resolvedURL(using:)` is public so a `.custom`
+  base can be built from a standard one.
 - [`StorageMode`](Sources/StorageMode.swift) / [`CloudKitOption`](Sources/CloudKitOption.swift)
   / [`StorageError`](Sources/StorageError.swift) – the mode switch, the CloudKit
   pass-through (`.none` / `.automatic`), and the typed error

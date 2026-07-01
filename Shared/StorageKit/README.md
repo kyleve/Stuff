@@ -89,7 +89,9 @@ public enum StorageMode { case persistent, inMemory }
 public struct BaseDirectory {
     public static func applicationSupport(subdirectory: String? = nil) -> BaseDirectory
     public static func caches(subdirectory: String? = nil) -> BaseDirectory
-    public static func custom(_ url: URL) -> BaseDirectory
+    public static func documents(subdirectory: String? = nil) -> BaseDirectory
+    public static func library(subdirectory: String? = nil) -> BaseDirectory
+    public static func custom(_ url: URL) -> BaseDirectory   // tests, relocations, App Group / security-scoped URLs
     public func resolvedURL(using: FileManager = .default) throws -> URL
 }
 

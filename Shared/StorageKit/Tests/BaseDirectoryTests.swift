@@ -20,6 +20,19 @@ struct BaseDirectoryTests {
     }
 
     @Test
+    func standardDirectoriesResolveToDistinctLocations() throws {
+        let appSupport = try BaseDirectory.applicationSupport().resolvedURL()
+        let caches = try BaseDirectory.caches().resolvedURL()
+        let documents = try BaseDirectory.documents().resolvedURL()
+        let library = try BaseDirectory.library().resolvedURL()
+
+        // Each standard directory maps to its own location — no two collapse.
+        #expect(Set([appSupport.path, caches.path, documents.path, library.path]).count == 4)
+        #expect(documents.lastPathComponent == "Documents")
+        #expect(library.lastPathComponent == "Library")
+    }
+
+    @Test
     func omittingSubdirectoryReturnsTheStandardDirectory() throws {
         let without = try BaseDirectory.applicationSupport().resolvedURL()
         let with = try BaseDirectory
