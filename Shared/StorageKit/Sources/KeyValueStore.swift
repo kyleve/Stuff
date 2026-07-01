@@ -2,7 +2,7 @@ import Foundation
 
 /// A minimal, `Sendable`-clean key-value store: typed accessors only (no
 /// `Any?`), so a value can't silently fail to round-trip the way an arbitrary
-/// `set(_: Any?)` can. `StorageContainer.keyValueStore()` vends a namespaced one
+/// `set(_: Any?)` can. `StorageContainer.keyValue.store()` vends a namespaced one
 /// per node — a real `UserDefaults` suite in `.persistent` mode, an in-memory
 /// dictionary in `.inMemory` mode — behind this same protocol, so app code
 /// doesn't know or care which it got.

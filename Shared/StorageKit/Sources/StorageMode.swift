@@ -2,9 +2,9 @@
 ///
 /// The mode is set once on the `StorageSystem` and inherited by every container,
 /// so test and preview code can flip a single switch and nothing below has to
-/// know it is running against ephemeral storage. The vending methods
-/// (`StorageContainer.keyValueStore()` / `modelContainer(for:)`) do "the right
-/// thing" for each mode automatically.
+/// know it is running against ephemeral storage. The vending namespaces
+/// (`StorageContainer.keyValue.store()` / `.swiftData.modelContainer(for:)`) do
+/// "the right thing" for each mode automatically.
 ///
 /// `.persistent` carries its `base` so the two are inseparable — you can't ask for
 /// on-disk storage without saying *where*, and `.inMemory` can't carry a base it

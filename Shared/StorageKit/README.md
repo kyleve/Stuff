@@ -17,14 +17,18 @@ want one).
 - **A tree of containers.** A `StorageSystem` is the root (configuration + a
   vending point); every `StorageContainer` below it owns one directory and can
   vend child containers recursively. The on-disk layout mirrors the tree.
+- **Storage lives on typed namespaces.** The container base type stays small;
+  what you store hangs off `container.files` (raw file URLs), `container.keyValue`
+  (a key-value store), and `container.swiftData` (isolated `ModelContainer`s), so
+  each concern is separable and you can add your own namespace by extension.
 - **Mode-aware vends.** In `.persistent` mode you get real files, a
   `UserDefaults` suite, and an on-disk SwiftData store; flip to `.inMemory` and
   the same calls give you a temp directory, an in-memory key-value store, and an
   `isStoredInMemoryOnly` SwiftData store with CloudKit forced off — **app and
   model code never has to know**.
-- **Isolated SwiftData stores.** `modelContainer(for:)` puts each store in its
-  own child directory, so the `.store` file, its `-wal` / `-shm` sidecars, and any
-  external-storage blobs stay together and delete together.
+- **Isolated SwiftData stores.** `swiftData.modelContainer(for:)` puts each store
+  in its own child directory, so the `.store` file, its `-wal` / `-shm` sidecars,
+  and any external-storage blobs stay together and delete together.
 - **Idempotent, cached vends.** Asking for the same child container, key-value
   store, or model container twice returns the same instance (critical for
   `ModelContainer`, which must be unique per file).
@@ -57,15 +61,15 @@ let user = try await storage.container("user-1")     // a directory per user
 let logs = try await user.container("logs")          // a subdirectory
 
 // Raw file
-let url = logs.fileURL("today.json")
+let url = logs.files.url("today.json")
 try Data(...).write(to: url)
 
 // Key-value (a UserDefaults suite, or in-memory)
-let prefs = await user.keyValueStore()
+let prefs = await user.keyValue.store()
 prefs.set(true, forKey: "onboarded")
 
 // SwiftData (its store isolated in its own child directory)
-let container = try await user.modelContainer(for: [Note.self])
+let container = try await user.swiftData.modelContainer(for: [Note.self])
 ```
 
 ### Tearing down
@@ -118,11 +122,11 @@ public actor StorageContainer {
 
     public func container(_ key: StorageKey) async throws -> StorageContainer
     public func container(path keys: [StorageKey]) async throws -> StorageContainer
-    public nonisolated func fileURL(_ name: String) -> URL
-    public func keyValueStore() async -> any KeyValueStore
-    public func modelContainer(for types: [any PersistentModel.Type],
-                               named: StorageKey = "store",
-                               cloudKit: CloudKitOption = .none) async throws -> ModelContainer
+
+    // Storage namespaces (see below)
+    public nonisolated var files: FileStorage
+    public nonisolated var keyValue: KeyValueStorage
+    public nonisolated var swiftData: SwiftDataStorage
 
     @discardableResult public func onDeactivate(_ handler: @escaping TeardownHandler) async -> Token
     @discardableResult public func prepareForDeletion(_ handler: @escaping TeardownHandler) async -> Token
@@ -132,6 +136,19 @@ public actor StorageContainer {
     public func deactivate() async throws
     public func deleteContainer() async throws
     public func deleteContents() async throws
+}
+
+// Storage namespaces — tiny Sendable facades vended by the accessors above.
+public struct FileStorage: Sendable {
+    public func url(_ name: String) -> URL
+}
+public struct KeyValueStorage: Sendable {
+    public func store() async -> any KeyValueStore
+}
+public struct SwiftDataStorage: Sendable {
+    public func modelContainer(for types: [any PersistentModel.Type],
+                               named: StorageKey = "store",
+                               cloudKit: CloudKitOption = .none) async throws -> ModelContainer
 }
 
 public protocol KeyValueStore: AnyObject, Sendable { /* typed bool/int/double/string/data */ }
@@ -172,7 +189,7 @@ public final class InMemoryKeyValueStore: KeyValueStore { public init() }
 - **Errors surface.** Vending and teardown throw on real failures; nothing is
   swallowed into a benign default. Using a deleted container throws
   `StorageError.containerDeleted`.
-- **`keyValueStore()` is intentionally non-throwing — don't `try`/`catch` it.**
+- **`keyValue.store()` is intentionally non-throwing — don't `try`/`catch` it.**
   So reads stay terse (`store.bool(forKey:)`), it traps (rather than throws) when
   called on a container that's being deleted or already deleted. That's a
   *programmer error*, not a runtime condition to defend against on every access:
@@ -180,11 +197,11 @@ public final class InMemoryKeyValueStore: KeyValueStore { public init() }
   down (e.g. in an `onDeactivate` handler). The only way to hit the trap is to
   vend while a concurrent delete is in flight — a lifecycle bug to fix at the call
   site. If you need a throwing failure mode, use `container(_:)` /
-  `modelContainer(for:)` instead.
-- **`fileURL(_:)` is pure path construction.** It's `nonisolated`, so it doesn't
-  check the node's state or create the directory: on an `inactive` node the
-  directory is absent until the next vend, and on a `deleted` one it's gone, so
-  the URL points at a missing directory. Use it only while the container is live.
+  `swiftData.modelContainer(for:)` instead.
+- **`files.url(_:)` is pure path construction.** It doesn't check the node's state
+  or create the directory: on an `inactive` node the directory is absent until the
+  next vend, and on a `deleted` one it's gone, so the URL points at a missing
+  directory. Use it only while the container is live.
 - **A model store is a child container named `named` (default `"store"`).** In
   `.persistent` mode it lives in the same key namespace as `container(_:)`, so
   don't also vend a plain child under that key — `container("store")` and the

@@ -44,7 +44,7 @@ struct StorageContainerTests {
         let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
-        let fileURL = user.fileURL("note.txt")
+        let fileURL = user.files.url("note.txt")
         try Data("hello".utf8).write(to: fileURL)
 
         #expect(fileURL == user.url.appending(path: "note.txt", directoryHint: .notDirectory))
@@ -59,13 +59,13 @@ struct StorageContainerTests {
         let a = try await system.container("a")
         let b = try await system.container("b")
 
-        let aStore = await a.keyValueStore()
-        let bStore = await b.keyValueStore()
+        let aStore = await a.keyValue.store()
+        let bStore = await b.keyValue.store()
         aStore.set(true, forKey: "flag")
 
         #expect(aStore.bool(forKey: "flag"))
         #expect(!bStore.bool(forKey: "flag"))
-        #expect(await a.keyValueStore() === aStore)
+        #expect(await a.keyValue.store() === aStore)
     }
 
     @Test
@@ -75,13 +75,13 @@ struct StorageContainerTests {
         let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
-        await user.keyValueStore().set(99, forKey: "count")
-        #expect(await user.keyValueStore().integer(forKey: "count") == 99)
+        await user.keyValue.store().set(99, forKey: "count")
+        #expect(await user.keyValue.store().integer(forKey: "count") == 99)
 
         try await user.deleteContainer()
 
         let revived = try await system.container("user-1")
-        #expect(await revived.keyValueStore().integer(forKey: "count") == 0)
+        #expect(await revived.keyValue.store().integer(forKey: "count") == 0)
 
         try await system.deleteAll()
     }
@@ -95,8 +95,8 @@ struct StorageContainerTests {
         let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
-        let container = try await user.modelContainer(for: [Note.self])
-        let again = try await user.modelContainer(for: [Note.self])
+        let container = try await user.swiftData.modelContainer(for: [Note.self])
+        let again = try await user.swiftData.modelContainer(for: [Note.self])
         #expect(container === again)
 
         let context = ModelContext(container)
@@ -113,7 +113,7 @@ struct StorageContainerTests {
     func inMemoryModelContainerWritesNoStoreFile() async throws {
         let system = try StorageSystem("Where", mode: .inMemory)
         let user = try await system.container("user-1")
-        let container = try await user.modelContainer(for: [Note.self])
+        let container = try await user.swiftData.modelContainer(for: [Note.self])
 
         let context = ModelContext(container)
         context.insert(Note(text: "hi"))
@@ -136,7 +136,7 @@ struct StorageContainerTests {
         let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
-        let first = try await user.modelContainer(for: [Note.self])
+        let first = try await user.swiftData.modelContainer(for: [Note.self])
         let writeContext = ModelContext(first)
         writeContext.insert(Note(text: "hi"))
         try writeContext.save()
@@ -146,7 +146,7 @@ struct StorageContainerTests {
 
         // The store's files were deleted; re-vending must rebuild a fresh container
         // rather than hand back the stale cached one pointing at deleted files.
-        let second = try await user.modelContainer(for: [Note.self])
+        let second = try await user.swiftData.modelContainer(for: [Note.self])
         #expect(second !== first)
         let readContext = ModelContext(second)
         #expect(try readContext.fetchCount(FetchDescriptor<Note>()) == 0)
@@ -159,15 +159,15 @@ struct StorageContainerTests {
         let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
-        let first = try await user.modelContainer(for: [Note.self])
+        let first = try await user.swiftData.modelContainer(for: [Note.self])
 
         // Same name, different schema → caught, not silently the wrong container.
         await #expect(throws: StorageError.modelStoreSchemaMismatch("store")) {
-            _ = try await user.modelContainer(for: [Note.self, Tag.self])
+            _ = try await user.swiftData.modelContainer(for: [Note.self, Tag.self])
         }
 
         // The same type set still returns the cached container.
-        let again = try await user.modelContainer(for: [Note.self])
+        let again = try await user.swiftData.modelContainer(for: [Note.self])
         #expect(again === first)
     }
 
@@ -181,7 +181,7 @@ struct StorageContainerTests {
 
         let user = try await system.container("user-1")
         let logs = try await user.container("logs")
-        let file = logs.fileURL("a.txt")
+        let file = logs.files.url("a.txt")
         try Data("x".utf8).write(to: file)
 
         let log = CallLog()
@@ -219,24 +219,24 @@ struct StorageContainerTests {
         let system = try StorageSystem("Where", mode: .persistent(base: .custom(temp)))
 
         let user = try await system.container("user-1")
-        let firstModel = try await user.modelContainer(for: [Note.self])
+        let firstModel = try await user.swiftData.modelContainer(for: [Note.self])
         let writeContext = ModelContext(firstModel)
         writeContext.insert(Note(text: "hi"))
         try writeContext.save()
-        await user.keyValueStore().set(7, forKey: "count")
+        await user.keyValue.store().set(7, forKey: "count")
 
         try await user.deactivate()
         #expect(await user.state == .inactive)
 
         // Reactivation re-vends a *fresh* ModelContainer (cache was dropped) over
         // the surviving on-disk store.
-        let secondModel = try await user.modelContainer(for: [Note.self])
+        let secondModel = try await user.swiftData.modelContainer(for: [Note.self])
         #expect(secondModel !== firstModel)
         let readContext = ModelContext(secondModel)
         #expect(try readContext.fetchCount(FetchDescriptor<Note>()) == 1)
 
         // The KV cache was dropped too, but the persisted suite round-trips.
-        #expect(await user.keyValueStore().integer(forKey: "count") == 7)
+        #expect(await user.keyValue.store().integer(forKey: "count") == 7)
 
         try await system.deleteAll()
     }
@@ -503,7 +503,7 @@ struct StorageContainerTests {
 
         let user = try await system.container("user-1")
         let logs = try await user.container("logs")
-        let loose = user.fileURL("note.txt")
+        let loose = user.files.url("note.txt")
         try Data("x".utf8).write(to: loose)
 
         try await user.deleteContents()

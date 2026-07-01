@@ -7,10 +7,19 @@ import SwiftData
 public typealias TeardownHandler = @Sendable () async throws -> Void
 
 /// A node in a `StorageSystem`'s tree, and the place where storage actually
-/// happens. Each container owns one directory and can vend child containers
-/// (subdirectories), raw file URLs, a namespaced key-value store, and a SwiftData
-/// `ModelContainer`. Children are `StorageContainer`s too, so the tree is
-/// recursive below the root.
+/// happens. Each container owns one directory and vends child containers
+/// (subdirectories) directly; the things you store inside it hang off typed
+/// namespaces — ``files`` (raw file URLs), ``keyValue`` (a namespaced key-value
+/// store), and ``swiftData`` (an isolated SwiftData `ModelContainer`). Children
+/// are `StorageContainer`s too, so the tree is recursive below the root.
+///
+/// The base type stays deliberately small — lifecycle, the child registry, and
+/// teardown — and each storage concern lives in its own namespace file
+/// (`StorageContainer+Files`, `+KeyValue`, `+SwiftData`) that vends through a tiny
+/// `Sendable` facade (`container.swiftData.modelContainer(for:)`). Add your own
+/// namespace the same way: extend `StorageContainer` with a `nonisolated` accessor
+/// returning a facade that composes the public primitives (child containers,
+/// `files`, the teardown hooks).
 ///
 /// An `actor`: it guards a mutable child registry and teardown registrations, and
 /// serializes the file I/O behind vending and deletion. `key` / `url` / `mode`
@@ -51,7 +60,7 @@ public actor StorageContainer {
         /// `deleted`.
         case deleting(wasActive: Bool)
         /// `deleteContainer()`d: the directory is gone and the node is detached.
-        /// Any further vend throws (or, for the non-throwing `keyValueStore()`,
+        /// Any further vend throws (or, for the non-throwing `keyValue.store()`,
         /// traps as the programmer error it is).
         case deleted
     }
@@ -78,7 +87,9 @@ public actor StorageContainer {
     /// A cached `ModelContainer` plus the identity of the model types it was built
     /// from, so a re-vend under the same store name with a different type set is
     /// caught instead of silently returning a container with the wrong schema.
-    private struct CachedModelStore {
+    /// Internal (not `private`) so the `swiftData` namespace extension in a sibling
+    /// file can build and read it.
+    struct CachedModelStore {
         let container: ModelContainer
         let typeIDs: Set<ObjectIdentifier>
     }
@@ -103,8 +114,12 @@ public actor StorageContainer {
     private(set) var state: State = .active
     private var children: [StorageKey: StorageContainer] = [:]
 
-    private var keyValueStoreCache: (any KeyValueStore)?
-    private var modelContainerCache: [StorageKey: CachedModelStore] = [:]
+    /// Cached vends. Internal (not `private`) so the `keyValue` / `swiftData`
+    /// namespace extensions in sibling files can read and refresh them; only this
+    /// type touches them, always under the actor. Dropped by teardown via
+    /// `dropCachedVends()`.
+    var keyValueStoreCache: (any KeyValueStore)?
+    var modelContainerCache: [StorageKey: CachedModelStore] = [:]
 
     private var nextTokenID: UInt64 = 0
     private var onDeactivateHandlers: [UInt64: TeardownHandler] = [:]
@@ -156,129 +171,6 @@ public actor StorageContainer {
             node = try await node.container(childKey)
         }
         return node
-    }
-
-    // MARK: - Files
-
-    /// A URL for a raw file named `name` directly inside this container's
-    /// directory. The directory already exists for a live container; writing the
-    /// file is the caller's job.
-    ///
-    /// - Warning: This is `nonisolated` pure path construction — it can't read the
-    ///   node's state, so it neither checks liveness nor ensures the directory
-    ///   exists. On an `inactive` node the directory is absent until the next vend
-    ///   reactivates it, and on a `deleted` one it's gone for good; in both cases
-    ///   the returned URL points into a missing directory and writes will fail.
-    ///   Only use the URL while the container is live.
-    public nonisolated func fileURL(_ name: String) -> URL {
-        url.appending(path: name, directoryHint: .notDirectory)
-    }
-
-    // MARK: - Key-value store
-
-    /// Vend this node's namespaced key-value store: a `UserDefaults` suite in
-    /// `.persistent` mode, an in-memory store in `.inMemory` mode. Cached per node
-    /// (repeated calls return the same instance) and dropped by `deactivate()` /
-    /// `deleteContainer()`.
-    ///
-    /// - Important: This is deliberately **non-throwing** so the common case reads
-    ///   like `store.bool(forKey:)` without a `try`. The price is that calling it
-    ///   on a container that is being deleted or is already deleted is a
-    ///   **programmer error and traps** — don't wrap every access in
-    ///   `try`/`catch`. Reach for the store through a live handle and stop using it
-    ///   once you've torn its container down (e.g. release it in an `onDeactivate`
-    ///   handler); a vend racing a concurrent delete is the one case where the
-    ///   trap can fire, and that's a lifecycle bug to fix at the call site, not to
-    ///   defend against on each call. Use `container(_:)` / `modelContainer(for:)`
-    ///   instead if you need a throwing failure mode.
-    public func keyValueStore() -> any KeyValueStore {
-        switch state {
-            case .active:
-                break
-            case .inactive:
-                state = .active
-            case .deleting, .deleted:
-                preconditionFailure(
-                    "StorageKit: keyValueStore() on a deleted container \"\(key)\"",
-                )
-        }
-        if let cached = keyValueStoreCache {
-            return cached
-        }
-        let store: any KeyValueStore
-        switch mode {
-            case .persistent:
-                guard let suite = UserDefaults(suiteName: suiteName) else {
-                    preconditionFailure(
-                        "StorageKit: invalid UserDefaults suite name \"\(suiteName)\"",
-                    )
-                }
-                store = UserDefaultsKeyValueStore(suite)
-            case .inMemory:
-                store = InMemoryKeyValueStore()
-        }
-        keyValueStoreCache = store
-        return store
-    }
-
-    // MARK: - SwiftData
-
-    /// Vend a SwiftData `ModelContainer` whose store lives in a dedicated child
-    /// container, so the `.store` file and its `-wal` / `-shm` sidecars and any
-    /// external-storage blobs are isolated in one directory (deleting that child —
-    /// or this container — deletes exactly that store's files). Cached per `named`
-    /// key. In `.inMemory` mode the store is `isStoredInMemoryOnly` and CloudKit
-    /// is forced off.
-    ///
-    /// A store name identifies exactly one schema: calling this again under the
-    /// same `named` key with a different set of `types` throws
-    /// `StorageError.modelStoreSchemaMismatch` rather than handing back the first
-    /// container with a mismatched schema. Use distinct names for distinct stores.
-    ///
-    /// - Important: In `.persistent` mode the store occupies a child container
-    ///   named `named` (default `"store"`), in the **same** key namespace as
-    ///   `container(_:)`. Don't also vend a plain child under that key — e.g.
-    ///   `container("store")` and the default model store would share one
-    ///   directory and stomp each other. Pass a distinct `named:` (or avoid that
-    ///   key for your own children) to keep them apart.
-    public func modelContainer(
-        for types: [any PersistentModel.Type],
-        named name: StorageKey = "store",
-        cloudKit: CloudKitOption = .none,
-    ) throws -> ModelContainer {
-        try activate()
-        let typeIDs = Set(types.map { ObjectIdentifier($0) })
-        if let cached = modelContainerCache[name] {
-            guard cached.typeIDs == typeIDs else {
-                throw StorageError.modelStoreSchemaMismatch(name)
-            }
-            return cached.container
-        }
-        let schema = Schema(types)
-        let configuration: ModelConfiguration
-        switch mode {
-            case .inMemory:
-                // No backing files, so don't vend a store child / touch disk.
-                configuration = ModelConfiguration(
-                    schema: schema,
-                    isStoredInMemoryOnly: true,
-                    cloudKitDatabase: .none,
-                )
-            case .persistent:
-                let storeContainer = try container(name)
-                let storeURL = storeContainer.url.appending(
-                    path: "\(name.name).store",
-                    directoryHint: .notDirectory,
-                )
-                configuration = ModelConfiguration(
-                    schema: schema,
-                    url: storeURL,
-                    cloudKitDatabase: cloudKit.cloudKitDatabase,
-                )
-        }
-        let modelContainer = try ModelContainer(for: schema, configurations: [configuration])
-        modelContainerCache[name] = CachedModelStore(container: modelContainer, typeIDs: typeIDs)
-        return modelContainer
     }
 
     // MARK: - Teardown registration
@@ -404,7 +296,11 @@ public actor StorageContainer {
         return nextTokenID
     }
 
-    private func activate() throws {
+    /// Ensure the node is live before a throwing vend, recreating the directory for
+    /// an `inactive` node. Internal so the `swiftData` namespace extension can
+    /// gate its vend on it. Throws `StorageError.containerDeleted` on a torn-down
+    /// node.
+    func activate() throws {
         switch state {
             case .active:
                 break
@@ -416,6 +312,25 @@ public actor StorageContainer {
                 state = .active
             case .deleting, .deleted:
                 throw StorageError.containerDeleted(key)
+        }
+    }
+
+    /// Ensure the node is live enough to vend its **non-throwing** key-value store,
+    /// reactivating an `inactive` node in place (the suite needs no directory, so
+    /// this doesn't recreate one). Traps on a `deleting`/`deleted` node — see
+    /// `KeyValueStorage.store()` for why that's a programmer error, not a throw.
+    /// Internal so the `keyValue` namespace extension can gate its vend on it while
+    /// the `state` setter stays private to this file.
+    func requireLiveForKeyValueVend() {
+        switch state {
+            case .active:
+                break
+            case .inactive:
+                state = .active
+            case .deleting, .deleted:
+                preconditionFailure(
+                    "StorageKit: keyValue.store() on a deleted container \"\(key)\"",
+                )
         }
     }
 

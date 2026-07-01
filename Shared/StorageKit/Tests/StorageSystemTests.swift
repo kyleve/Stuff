@@ -63,11 +63,11 @@ struct StorageSystemTests {
         let userA = try await systemA.container("user-1")
         let userB = try await systemB.container("user-1")
 
-        await userA.keyValueStore().set(99, forKey: "count")
+        await userA.keyValue.store().set(99, forKey: "count")
 
         // Same logical key path, different base: the suites must not collide.
-        #expect(await userA.keyValueStore().integer(forKey: "count") == 99)
-        #expect(await userB.keyValueStore().integer(forKey: "count") == 0)
+        #expect(await userA.keyValue.store().integer(forKey: "count") == 99)
+        #expect(await userB.keyValue.store().integer(forKey: "count") == 0)
 
         try await systemA.deleteAll()
         try await systemB.deleteAll()

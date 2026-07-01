@@ -6,7 +6,7 @@ enum StorageTestError: Error, Equatable {
     case injected
 }
 
-/// A `@Model` fixture for `modelContainer(for:)` tests.
+/// A `@Model` fixture for `swiftData.modelContainer(for:)` tests.
 @Model
 final class Note {
     var text: String
