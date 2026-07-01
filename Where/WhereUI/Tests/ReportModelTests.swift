@@ -287,6 +287,103 @@ struct ReportModelTests {
         #expect(weakReport == nil)
     }
 
+    // MARK: - Scene activate / deactivate (the background-rescan leak fix)
+
+    /// `activate()` subscribes and pulls, so the scene shows fresh data the moment
+    /// it appears and stays live for later writes without a second `activate()`.
+    @Test func activatePullsFreshDataAndStaysLive() async throws {
+        let store = try TestStore()
+        let now = date(year: 2026, month: 2, day: 10)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            now: { now },
+        )
+        try await services.journal.addManualDay(
+            date: date(year: 2026, month: 1, day: 1),
+            regions: [.california],
+        )
+
+        let report = ReportModel(services: services, selectedYear: 2026, now: { now })
+        await report.activate()
+        #expect(report.report?.days.count == 1)
+        #expect(report.loadState == .loaded)
+
+        // Still subscribed — a later committed write re-pulls on its own.
+        try await report.setManualDay(
+            date: date(year: 2026, month: 1, day: 2),
+            regions: [.california],
+        )
+        await waitUntil { report.report?.days.count == 2 }
+    }
+
+    /// The leak fix: once the scene backgrounds, `deactivate()` cancels the
+    /// subscription so a committed write drives no refresh. Proven against a live
+    /// probe sharing the same store — both subscribe to the same fan-out, so by
+    /// the time the probe reacts to the write the paused model has already seen
+    /// (and ignored) the same ping.
+    @Test func deactivateStopsRefreshingOnWrites() async throws {
+        let store = try TestStore()
+        let now = date(year: 2026, month: 2, day: 10)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            now: { now },
+        )
+
+        let report = ReportModel(services: services, selectedYear: 2026, now: { now })
+        await report.activate()
+        #expect(report.report?.days.count == 0)
+        report.deactivate()
+
+        let probe = ReportModel(services: services, selectedYear: 2026, now: { now })
+        await probe.activate()
+
+        try await services.journal.addManualDay(
+            date: date(year: 2026, month: 1, day: 1),
+            regions: [.california],
+        )
+        await waitUntil { probe.report?.days.count == 1 }
+
+        // The paused model never re-pulled off the same signal.
+        #expect(report.report?.days.count == 0)
+    }
+
+    /// Reactivating on foreground re-subscribes *and* pulls, so a write that
+    /// landed while the scene was backgrounded (live GPS, a remote sync) is caught
+    /// up — the deactivate/activate pair can't strand the UI on stale data.
+    @Test func reactivatingAfterBackgroundPullsTheGap() async throws {
+        let store = try TestStore()
+        let now = date(year: 2026, month: 2, day: 10)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            now: { now },
+        )
+
+        let report = ReportModel(services: services, selectedYear: 2026, now: { now })
+        await report.activate()
+        #expect(report.report?.days.count == 0)
+        report.deactivate()
+
+        // A write while "backgrounded" — the paused model can't observe it.
+        try await services.journal.addManualDay(
+            date: date(year: 2026, month: 1, day: 1),
+            regions: [.california],
+        )
+        #expect(report.report?.days.count == 0)
+
+        // Foregrounding re-subscribes and pulls the gap.
+        await report.activate()
+        #expect(report.report?.days.count == 1)
+    }
+
     private func waitUntil(
         timeout: Duration = .seconds(2),
         _ predicate: () -> Bool,
