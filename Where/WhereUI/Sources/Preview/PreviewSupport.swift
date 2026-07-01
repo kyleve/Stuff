@@ -57,32 +57,44 @@
             )
         }
 
-        // MARK: - Sessions (logged-in views)
+        // MARK: - Coordinator (always-on views)
 
-        /// A ready-to-render session with the sample report injected and
-        /// in-memory services behind it. Synchronous, so it drops straight into
-        /// `#Preview`.
+        /// A ready-to-render `WhereSession` coordinator over in-memory services,
+        /// for the always-on views that read `@Environment(WhereSession.self)`
+        /// (Settings, onboarding). It holds no report — that lives on
+        /// `ReportModel` now — so the report/year previews take a
+        /// `*ReportModel()` fixture instead.
         @MainActor
         public static func loadedSession() -> WhereSession {
-            WhereSession(services: previewServices(), report: sampleReport(), selectedYear: year)
+            WhereSession(services: previewServices())
         }
 
-        /// An empty session (in-memory services, no data) for empty-state
+        // MARK: - Report models (scene / report + year views)
+
+        /// A ready-to-render scene report model with the sample report injected
+        /// and in-memory services behind it. Synchronous, so it drops straight
+        /// into `#Preview`.
+        @MainActor
+        public static func loadedReportModel() -> ReportModel {
+            ReportModel(services: previewServices(), report: sampleReport(), selectedYear: year)
+        }
+
+        /// An empty report model (in-memory services, no data) for empty-state
         /// previews.
         @MainActor
-        public static func emptySession() -> WhereSession {
-            WhereSession(
+        public static func emptyReportModel() -> ReportModel {
+            ReportModel(
                 services: previewServices(),
                 report: YearReport(year: year, days: [], totals: [:]),
                 selectedYear: year,
             )
         }
 
-        /// A session whose only tracked days are in `.other` — there's data, but
-        /// nothing ranks as "primary". Exercises the Primary tab's distinct
+        /// A report model whose only tracked days are in `.other` — there's data,
+        /// but nothing ranks as "primary". Exercises the Primary tab's distinct
         /// "nothing in your headline spots" state.
         @MainActor
-        public static func elsewhereOnlySession() -> WhereSession {
+        public static func elsewhereOnlyReportModel() -> ReportModel {
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
             let startOfYear = calendar.date(from: DateComponents(year: year, month: 1, day: 1))!
@@ -92,18 +104,18 @@
                     regions: [.other],
                 )
             }
-            return WhereSession(
+            return ReportModel(
                 services: previewServices(),
                 report: YearReport(year: year, days: days, totals: [.other: days.count]),
                 selectedYear: year,
             )
         }
 
-        /// A session whose current year has several unlogged stretches before a
-        /// fixed "today", so missing-day detection and the Resolve tab have real
-        /// gaps to render.
+        /// A report model whose current year has several unlogged stretches
+        /// before a fixed "today", so missing-day detection has real gaps to
+        /// render.
         @MainActor
-        public static func missingDaysSession() -> WhereSession {
+        public static func missingDaysReportModel() -> ReportModel {
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = .current
             let startOfYear = calendar.date(from: DateComponents(year: year, month: 1, day: 1))!
@@ -117,7 +129,7 @@
                     regions: [.california],
                 )
             }
-            return WhereSession(
+            return ReportModel(
                 services: previewServices(),
                 report: YearReport(year: year, days: days, totals: [.california: days.count]),
                 selectedYear: year,
@@ -125,18 +137,16 @@
             )
         }
 
-        /// A session with injected data-resolution issues (one per category) for
-        /// Resolve tab previews.
-        @MainActor
-        public static func resolutionSession() -> WhereSession {
+        // MARK: - Resolve model (Resolve tab)
+
+        /// One data-resolution issue per category, for Resolve tab previews/tests.
+        public static func sampleDataIssues() -> [any DataIssue] {
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
             let start = calendar.date(from: DateComponents(year: year, month: 3, day: 1))!
             let day2 = calendar.date(byAdding: .day, value: 1, to: start)!
             let day3 = calendar.date(byAdding: .day, value: 2, to: start)!
-
-            let session = loadedSession()
-            session.setDataIssues([
+            return [
                 MissingDaysIssue(range: MissingDayRange(start: start, end: start, dayCount: 1)),
                 BorderDriftIssue(
                     day: DayPresence(date: day2, regions: [.other]),
@@ -147,14 +157,24 @@
                     earlierDay: DayPresence(date: day2, regions: [.california]),
                     laterDay: DayPresence(date: day3, regions: [.newYork]),
                 ),
-            ])
-            return session
+            ]
+        }
+
+        /// A Resolve model seeded (via the `@_spi(Testing)` seam) with one issue
+        /// per category, so Resolve previews/tests render a populated list without
+        /// raw samples to scan. Pass `seededWithIssues: false` for the empty state.
+        @MainActor
+        public static func resolveModel(seededWithIssues: Bool = true) -> ResolveModel {
+            let resolve = ResolveModel(services: previewServices(), preferences: WherePreferences())
+            if seededWithIssues { resolve.setDataIssues(sampleDataIssues()) }
+            return resolve
         }
 
         // MARK: - Models (app-level shell)
 
         /// A ready-to-render app model with the sample report injected and
-        /// in-memory services behind it (so its `session` is built up front).
+        /// in-memory services behind it (so its `session` is built up front and
+        /// `MainTabs` seeds its `ReportModel` with the sample report).
         /// Synchronous, so it drops straight into `#Preview`.
         @MainActor
         public static func loadedModel() -> WhereModel {

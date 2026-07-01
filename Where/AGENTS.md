@@ -33,9 +33,12 @@ Where/
   SwiftData + CoreLocation; it must not import SwiftUI or UIKit.
   Bundled region polygons (`Resources/*.geojson`) ship here.
 - **`WhereUI`** is the SwiftUI layer: views plus `@Observable` view
-  models (`WhereModel`, `WhereSession`) that mirror service state and
-  expose UI intent methods. It depends on `WhereCore` and is what the
-  app target imports. It is **not** the domain model — see [Layering](#layering).
+  models — a slim always-on `WhereSession` coordinator plus scope-tiered
+  children (scene-scoped `ReportModel`, view-scoped `ResolveModel` /
+  `BackupModel` / `RemindersSettingsModel`), all over the process-level
+  `WhereModel`. They mirror service state and expose UI intent methods. It
+  depends on `WhereCore` and is what the app target imports. It is **not**
+  the domain model — see [Layering](#layering).
 - **`WhereTesting`** is a UIKit-only helper library for hosted unit
   tests (`show(_:perform:)`, `waitFor(...)`, `recursiveDescription`).
   It is meant for test bundles, not production code.
@@ -250,11 +253,11 @@ When adding copy, add the key to the catalog first, then reference it from
 - **Day ranges are inclusive.** `Date.calendarDays(through:in:)` normalizes
   both endpoints to start-of-day and walks `first ... last` inclusively; an
   empty range means `end` fell before `start`.
-- **Inject `Calendar`, don't reach for globals.** Logged-in UI reads
-  `WhereSession.calendar` (Gregorian, current time zone); layout types like
-  `CalendarMonth` carry the calendar they were built with. Prefer
-  `calendar.component(...)` and `calendar.range(of:in:for:)` over hardcoding
-  `7` weekdays or day counts.
+- **Inject `Calendar`, don't reach for globals.** The scene's `ReportModel`
+  owns the calendar (Gregorian, current time zone) for its missing-day math;
+  layout types like `CalendarMonth` carry the calendar they were built with.
+  Prefer `calendar.component(...)` and `calendar.range(of:in:for:)` over
+  hardcoding `7` weekdays or day counts.
 - **Core layout APIs throw on failure.** When calendar metadata can't be derived
   (e.g. weekday count), throw rather than silently returning a default — callers
   surface `ContentUnavailableView` and log, not `!`.
@@ -284,27 +287,28 @@ easy.
 | Layer | Where | Owns |
 |-------|-------|------|
 | **Domain / services** | `WhereCore` (`WhereServices` collaborators) | Rules, detection, aggregation, persistence, side effects (reminders, widgets, backup). Unit-test here. |
-| **View model** | `WhereUI` (`WhereSession`, `WhereModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods (`refresh()`, `dismiss(_:)`, `select(year:)`). Orchestrates `WhereServices`; does not reimplement Core rules. |
-| **Views** | `WhereUI` (`*View`) | Layout, navigation, localized copy, bindings to session/model. Calls view-model methods; does not talk to the store, run detection, or own cache/throttle policy. |
+| **View model** | `WhereUI` (`WhereSession` coordinator + scope-tiered children, `WhereModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods (`refresh()`, `dismiss(_:)`, `select(year:)`). Orchestrates `WhereServices`; does not reimplement Core rules. |
+| **Views** | `WhereUI` (`*View`) | Layout, navigation, localized copy, bindings to the scoped models/coordinator. Calls view-model methods; does not talk to the store, run detection, or own cache/throttle policy. |
 
 **Data resolution** is the reference shape: `DataIssueScanner` + detectors live in
-Core; `WhereSession.refreshDataIssues` / `dismiss(_:)` mirror and trigger;
+Core; the scene `ReportModel` mirrors the badge *count* (`refreshDataIssueCount`)
+and the view-scoped `ResolveModel` mirrors the *list* + `dismiss(_:)`;
 [`ResolutionView`](WhereUI/Sources/Resolution/ResolutionView.swift) only lists,
 routes by `IssueResolution`, and forwards dismiss.
 
 **One read path.** Every committed write emits a single store-change signal
 (`WhereStore.changes()`), and readers refresh purely off it rather than at each
-write site. `WhereSession.observeDataChanges()` subscribes to
-`services.dataChangeUpdates()` and re-pulls its report + data-issue scan on every
+write site. The scene's `ReportModel.observeDataChanges()` subscribes to
+`services.dataChangeUpdates()` and re-pulls its report + badge count on every
 ping; `DataIssueScanner` drops its cache on the same signal. So the write intent
 methods (`setManualDay`, `overrideDay`, …) just commit — they don't refresh
 inline — and live GPS ingestion and CloudKit remote imports refresh the UI the
-same way a manual edit does. `select(year:)` / `appBecameActive()` still refresh
-explicitly (navigation / lifecycle, not writes).
+same way a manual edit does. `select(year:)` refreshes explicitly (navigation,
+not a write), as does the scene's `.task`/`scenePhase` `activate()`.
 
 When in doubt: if the behavior would still be correct without SwiftUI, it
 belongs in `WhereCore` (or, for logged-in orchestration that exists only to
-serve the UI, on `WhereSession` — still not in a `View`).
+serve the UI, on the coordinator / a scoped model — still not in a `View`).
 
 ## View models & launch (`WhereUI`)
 
@@ -318,32 +322,57 @@ Launch is driven by [`LifecycleKit`](../Shared/LifecycleKit) (read its
   process and is built *before* the store opens so a background relaunch can
   wire CoreLocation first.
 - [`WhereSession`](WhereUI/Sources/Model/WhereSession.swift) (`@MainActor
-  @Observable`) – logged-in view model over a **non-optional** `WhereServices`:
-  `selectedYear`, `report`, `loadState`, tracking/authorization, reminder +
-  summary settings, backup, **data issues**. Created by the launch's
-  `open-store` step (`startSession()`), dropped on reset (`endSession()`), and
-  read by logged-in views via `@Environment(WhereSession.self)` — so there are
-  no `guard let session` checks sprinkled through the UI.   Exposes intent
-  methods that delegate to Core (`refresh()` → `ReportReader`, `dismiss(_:)` →
-  `DayJournal` + `DataIssueScanner`, etc.) and holds thin mirrors (e.g.
-  `dataIssues` from `services.resolution.issues(...)`). A long-lived
-  `observeDataChanges()` (wired into `start()` and the `syncAuth` launch step
-  alongside the authorization observer) subscribes to the store-change signal
-  and re-pulls report + data issues, so write intents just commit without
-  refreshing inline (see [One read path](#layering)).
+  @Observable`) – the **always-on coordinator** over a **non-optional**
+  `WhereServices`, holding **no presentation state**: tracking/authorization
+  (`isTracking`, `startTracking`, `requestPermission`, `observeAuthorizationChanges`),
+  the launch-time reminder/summary *application* (`applyReminderConfiguration` /
+  `applySummaryConfiguration`, reading `WherePreferences`), `refreshWidgetSnapshot`,
+  and `eraseSession`. Created by the launch's `open-store` step
+  (`startSession()`), dropped on reset (`endSession()`), and read by
+  always-on views via `@Environment(WhereSession.self)`. It vends
+  `services` / `preferences` / `now` so `MainTabs` and the tabs can build their
+  scoped models.
+- **Scope-tiered children** decompose the old god-object by *lifetime*, so
+  presentation state isn't retained (or refreshed) when its UI is gone:
+    - [`ReportModel`](WhereUI/Sources/Model/ReportModel.swift) (**scene-scoped**,
+      `@State` in `MainTabs`) – `selectedYear`, `report`, `loadState`, `ranking`,
+      missing days, the day-write intents (`setManualDay`, `overrideDay`, …),
+      `driftThreshold`, and the Resolve **badge count** (`dataIssueCount`). Owns
+      the store-change subscription (`observeDataChanges()`), started on scene
+      `.active` (`activate()`) and cancelled on background (`deactivate()`) —
+      this is the leak fix: a headless background relaunch never drives a
+      `refresh()` no UI consumes.
+    - [`ResolveModel`](WhereUI/Sources/Resolution/ResolveModel.swift)
+      (**view-scoped**, `@State` in `ResolutionView`) – the data-issue **list** +
+      `dismiss(_:)`, re-scanned from a `.task(id:)` on the injected report.
+    - [`BackupModel`](WhereUI/Sources/Settings/BackupModel.swift) +
+      [`RemindersSettingsModel`](WhereUI/Sources/Settings/RemindersSettingsModel.swift)
+      (**view-scoped**, `@State` in `SettingsView`) – backup export/import
+      progress, and the reminder/summary editing surface (toggles/pickers, all
+      persisting through the shared `WherePreferences` the coordinator re-applies).
+- **Injection rule (hybrid):** ambient app-lifetime state goes through the
+  environment (`WhereModel`, the `WhereSession` coordinator — read *non-optional*
+  so broken wiring is a loud crash the mandatory `#Preview`s catch); scoped
+  models are passed explicitly via initializers (`report:`), so their wiring is
+  compile-checked and their lifetime is visible.
 - [`WhereLaunch`](WhereUI/Sources/Launch/WhereLaunch.swift) – assembles the
   cold-launch `LifecycleSteps` and its reverse `resetSequence` (erase + reset),
   with steps named by the typed `LaunchStepID` enum (a parity test guards step
-  order against `WhereSession.start()`). The nested `WhereBootstrap` owns the
-  service assembly: `prepareLocation()` runs as the runner's synchronous
+  order against `WhereSession.start()`). The report loads with the scene, not a
+  launch step, so there's no `loadYear` step and `syncAuth` no longer wires the
+  store-change subscription. The nested `WhereBootstrap` owns the service
+  assembly: `prepareLocation()` runs as the runner's synchronous
   `initializePrerequisites` (installs `CLLocationManager` so a queued background
   event isn't lost), and `makeServices()` opens the store off the main actor.
-- [`RootView`](WhereUI/Sources/RootView.swift) wraps the real `TabView` in a
-  `LifecycleContainer`, gating `enterForeground()` on `scenePhase == .active` so
-  a headless background launch stays UI-less. Tabs: Primary, Calendar,
+- [`RootView`](WhereUI/Sources/RootView.swift) wraps
+  [`MainTabs`](WhereUI/Sources/MainTabs.swift) in a `LifecycleContainer`, gating
+  `enterForeground()` on `scenePhase == .active` so a headless background launch
+  stays UI-less. `MainTabs` owns the scene `ReportModel` (`@State`, keyed on the
+  session's identity so a reset rebuilds it) and drives its `activate()` /
+  `deactivate()` from `scenePhase`. Tabs: Primary, Elsewhere,
   **Resolve** ([`ResolutionView`](WhereUI/Sources/Resolution/ResolutionView.swift)
   — missing days, border drift, abrupt changes; badge shows
-  `session.dataIssueCount`), Settings.
+  `report.dataIssueCount`), Settings.
   [`AppDelegate`](Where/Sources/AppDelegate.swift) picks the `LifecycleReason`
   from `launchOptions` and drives the runner.
 
@@ -361,17 +390,19 @@ states.
   for the canonical shape).
 - Don't construct services, stores, or location sources inline. Pull
   fixtures from
-  [`PreviewSupport`](WhereUI/Sources/Preview/PreviewSupport.swift) —
-  `loadedSession()`, `emptySession()`, `elsewhereOnlySession()`,
-  `missingDaysSession()`, `resolutionSession()`, `loadedModel()`, and
-  `sampleReport()` are all synchronous, in-memory, and never touch disk,
-  CloudKit, or CoreLocation. Add a new helper there rather than hand-rolling
-  `WhereServices` in a `#Preview`.
-- Inject whatever the view reads from the environment: logged-in views read
-  `@Environment(WhereSession.self)`, so pass a `*Session()` fixture
-  (`.environment(PreviewSupport.loadedSession())`); the app-level shell
-  (onboarding, Settings reset) reads `WhereModel`, so pass
-  `.environment(PreviewSupport.loadedModel())`.
+  [`PreviewSupport`](WhereUI/Sources/Preview/PreviewSupport.swift) — the
+  coordinator `loadedSession()`; the scene models `loadedReportModel()`,
+  `emptyReportModel()`, `elsewhereOnlyReportModel()`, `missingDaysReportModel()`;
+  the seeded `resolveModel(seededWithIssues:)`; plus `loadedModel()` and
+  `sampleReport()` — all synchronous, in-memory, and never touch disk, CloudKit,
+  or CoreLocation. Add a new helper there rather than hand-rolling `WhereServices`
+  in a `#Preview`.
+- Match the [injection rule](#view-models--launch-whereui): pass scoped models
+  explicitly (`ReportModel` via `report:`, a seeded `ResolveModel` via the
+  DEBUG `init(report:resolve:)` seam), and inject ambient app state through the
+  environment — the app-level shell (onboarding, Settings reset) reads
+  `WhereModel` (`.environment(PreviewSupport.loadedModel())`) and Settings/
+  onboarding also read the coordinator (`.environment(PreviewSupport.loadedSession())`).
 - Cover the states that matter, not just the happy path — empty, loaded, and
   any distinct edge state (e.g. missing-days, elsewhere-only) each deserve a
   preview when the view renders them differently.

@@ -12,7 +12,8 @@ struct CalendarView: View {
     /// region. `nil` shows every region's dots.
     var focusedRegion: Region?
 
-    @Environment(WhereSession.self) private var session
+    let report: ReportModel
+
     @Environment(\.dismiss) private var dismiss
 
     @State private var timelineTarget: TimelineMonthTarget?
@@ -38,7 +39,7 @@ struct CalendarView: View {
     var body: some View {
         NavigationStack {
             Group {
-                if let report = session.report {
+                if let yearReport = report.report {
                     Group {
                         switch monthsLoad {
                             case let .success(months):
@@ -49,14 +50,14 @@ struct CalendarView: View {
                                 ProgressView(Strings.primaryLoading)
                         }
                     }
-                    .task(id: calendarLoadID(report: report)) {
-                        let result = loadCalendarMonths(from: report)
+                    .task(id: calendarLoadID(report: yearReport)) {
+                        let result = loadCalendarMonths(from: yearReport)
                         guard !Task.isCancelled else { return }
                         monthsLoad = result
                     }
-                } else if session.loadState == .loading {
+                } else if report.loadState == .loading {
                     ProgressView(Strings.primaryLoading)
-                } else if case let .failed(message) = session.loadState {
+                } else if case let .failed(message) = report.loadState {
                     ContentUnavailableView {
                         Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
                     } description: {
@@ -70,7 +71,7 @@ struct CalendarView: View {
                     }
                     .onAppear {
                         Self.logger.warning(
-                            "Calendar opened without a year report (loadState: \(session.loadState))",
+                            "Calendar opened without a year report (loadState: \(report.loadState))",
                         )
                     }
                 }
@@ -83,8 +84,8 @@ struct CalendarView: View {
                 }
             }
             .navigationDestination(item: $timelineTarget) { target in
-                PresenceTimelineList(scrollToMonth: target.startOfMonth)
-                    .navigationTitle(Strings.timelineTitle(year: session.selectedYear))
+                PresenceTimelineList(report: report, scrollToMonth: target.startOfMonth)
+                    .navigationTitle(Strings.timelineTitle(year: report.selectedYear))
                     .navigationBarTitleDisplayMode(.inline)
             }
         }
@@ -92,27 +93,27 @@ struct CalendarView: View {
 
     private var navigationTitle: String {
         if let focusedRegion {
-            Strings.calendarRegionTitle(region: focusedRegion, year: session.selectedYear)
+            Strings.calendarRegionTitle(region: focusedRegion, year: report.selectedYear)
         } else {
-            Strings.calendarTitle(year: session.selectedYear)
+            Strings.calendarTitle(year: report.selectedYear)
         }
     }
 
-    private func calendarLoadID(report: YearReport) -> CalendarLoadID {
+    private func calendarLoadID(report yearReport: YearReport) -> CalendarLoadID {
         CalendarLoadID(
-            report: report,
-            missingDayKeys: session.missingDayKeys,
-            referenceDay: session.calendar.startOfDay(for: session.referenceDate),
+            report: yearReport,
+            missingDayKeys: report.missingDayKeys,
+            referenceDay: report.calendar.startOfDay(for: report.referenceDate),
             focusedRegion: focusedRegion,
         )
     }
 
-    private func loadCalendarMonths(from report: YearReport) -> Result<[CalendarMonth], Error> {
+    private func loadCalendarMonths(from yearReport: YearReport) -> Result<[CalendarMonth], Error> {
         Result {
-            try report.calendarMonths(
-                calendar: session.calendar,
-                referenceDate: session.referenceDate,
-                missingDates: session.missingDayKeys,
+            try yearReport.calendarMonths(
+                calendar: report.calendar,
+                referenceDate: report.referenceDate,
+                missingDates: report.missingDayKeys,
                 focusedRegion: focusedRegion,
             )
         }
@@ -317,22 +318,18 @@ private struct DayCell: View {
 
 #if DEBUG
     #Preview("Loaded") {
-        CalendarView()
-            .environment(PreviewSupport.loadedSession())
+        CalendarView(report: PreviewSupport.loadedReportModel())
     }
 
     #Preview("Focused") {
-        CalendarView(focusedRegion: .california)
-            .environment(PreviewSupport.loadedSession())
+        CalendarView(focusedRegion: .california, report: PreviewSupport.loadedReportModel())
     }
 
     #Preview("Empty") {
-        CalendarView()
-            .environment(PreviewSupport.emptySession())
+        CalendarView(report: PreviewSupport.emptyReportModel())
     }
 
     #Preview("Missing days") {
-        CalendarView()
-            .environment(PreviewSupport.missingDaysSession())
+        CalendarView(report: PreviewSupport.missingDaysReportModel())
     }
 #endif

@@ -6,28 +6,31 @@ import WhereTesting
 @testable import WhereUI
 
 /// Hosts each top-level screen in a real window with seeded preview data to
-/// confirm the Liquid Glass layouts mount without crashing.
+/// confirm the Liquid Glass layouts mount without crashing. Report/year screens
+/// take a `ReportModel` explicitly (constructor injection); the always-on views
+/// (Settings) also read the `WhereSession` coordinator from the environment.
 @MainActor
 struct ScreenHostingTests {
     @Test func primaryViewHostsWithData() throws {
-        let session = PreviewSupport.loadedSession()
-        try show(UIHostingController(rootView: PrimaryView().environment(session))) { hosted in
+        let report = PreviewSupport.loadedReportModel()
+        try show(UIHostingController(rootView: PrimaryView(report: report))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func secondaryViewHostsWithData() throws {
-        let session = PreviewSupport.loadedSession()
-        try show(UIHostingController(rootView: SecondaryView().environment(session))) { hosted in
+        let report = PreviewSupport.loadedReportModel()
+        try show(UIHostingController(rootView: SecondaryView(report: report))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func settingsViewHosts() throws {
-        // Settings reads both the app model (reset) and the logged-in session.
+        // Settings reads the app model (reset) and the logged-in session (tracking
+        // + inspector) from the environment, and takes the scene report explicitly.
         let model = PreviewSupport.loadedModel()
         let session = PreviewSupport.loadedSession()
-        let rootView = SettingsView()
+        let rootView = SettingsView(report: PreviewSupport.loadedReportModel())
             .environment(model)
             .environment(session)
         try show(UIHostingController(rootView: rootView)) { hosted in
@@ -36,40 +39,41 @@ struct ScreenHostingTests {
     }
 
     @Test func primaryViewHostsWithElsewhereOnlyData() throws {
-        let session = PreviewSupport.elsewhereOnlySession()
-        try show(UIHostingController(rootView: PrimaryView().environment(session))) { hosted in
+        let report = PreviewSupport.elsewhereOnlyReportModel()
+        try show(UIHostingController(rootView: PrimaryView(report: report))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
-    @Test func primaryViewHostsWithMissingDaysSession() throws {
-        let session = PreviewSupport.missingDaysSession()
-        try show(UIHostingController(rootView: PrimaryView().environment(session))) { hosted in
+    @Test func primaryViewHostsWithMissingDays() throws {
+        let report = PreviewSupport.missingDaysReportModel()
+        try show(UIHostingController(rootView: PrimaryView(report: report))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func resolutionViewHostsWithIssues() throws {
-        let session = PreviewSupport.resolutionSession()
-        #expect(session.dataIssueCount > 0)
-        try show(UIHostingController(rootView: ResolutionView().environment(session))) { hosted in
+        let resolve = PreviewSupport.resolveModel()
+        #expect(!resolve.dataIssues.isEmpty)
+        let rootView = ResolutionView(report: PreviewSupport.loadedReportModel(), resolve: resolve)
+        try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func resolutionViewHostsEmpty() throws {
-        let session = PreviewSupport.loadedSession()
-        try show(UIHostingController(rootView: ResolutionView().environment(session))) { hosted in
+        let resolve = PreviewSupport.resolveModel(seededWithIssues: false)
+        let rootView = ResolutionView(report: PreviewSupport.loadedReportModel(), resolve: resolve)
+        try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func regionDaysViewHostsWithData() throws {
-        // `elsewhereOnlySession` has only `.other` days, so the drill-in list
+        // `elsewhereOnlyReportModel` has only `.other` days, so the drill-in list
         // for that region has rows to render.
-        let session = PreviewSupport.elsewhereOnlySession()
-        let rootView = NavigationStack { RegionDaysView(region: .other) }
-            .environment(session)
+        let report = PreviewSupport.elsewhereOnlyReportModel()
+        let rootView = NavigationStack { RegionDaysView(region: .other, report: report) }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
@@ -85,27 +89,24 @@ struct ScreenHostingTests {
     }
 
     @Test func dayRelabelViewHosts() throws {
-        let session = PreviewSupport.loadedSession()
+        let report = PreviewSupport.loadedReportModel()
         let day = DayPresence(date: .now, regions: [.other])
-        let rootView = NavigationStack { DayRelabelView(day: day) }
-            .environment(session)
+        let rootView = NavigationStack { DayRelabelView(day: day, report: report) }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func presenceTimelineViewHostsWithData() throws {
-        let session = PreviewSupport.loadedSession()
-        try show(UIHostingController(rootView: PresenceTimelineView()
-                .environment(session)))
-        { hosted in
+        let report = PreviewSupport.loadedReportModel()
+        try show(UIHostingController(rootView: PresenceTimelineView(report: report))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func calendarViewHostsWithData() throws {
-        let session = PreviewSupport.loadedSession()
-        try show(UIHostingController(rootView: CalendarView().environment(session))) { hosted in
+        let report = PreviewSupport.loadedReportModel()
+        try show(UIHostingController(rootView: CalendarView(report: report))) { hosted in
             #expect(hosted.view != nil)
         }
     }
@@ -118,19 +119,17 @@ struct ScreenHostingTests {
     }
 
     @Test func manualDayEntryViewHostsDefault() throws {
-        let session = PreviewSupport.loadedSession()
-        let rootView = NavigationStack { ManualDayEntryView() }
-            .environment(session)
+        let report = PreviewSupport.loadedReportModel()
+        let rootView = NavigationStack { ManualDayEntryView(report: report) }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
     @Test func manualDayEntryViewHostsPrefill() throws {
-        let session = PreviewSupport.missingDaysSession()
-        let range = try #require(session.missingDays.first)
-        let rootView = NavigationStack { ManualDayEntryView(prefill: range) }
-            .environment(session)
+        let report = PreviewSupport.missingDaysReportModel()
+        let range = try #require(report.missingDays.first)
+        let rootView = NavigationStack { ManualDayEntryView(report: report, prefill: range) }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }

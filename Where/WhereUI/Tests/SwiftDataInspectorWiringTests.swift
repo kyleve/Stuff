@@ -16,7 +16,7 @@ struct SwiftDataInspectorWiringTests {
     }
 
     @Test func configurationModelTypesMatchTheLiveSchema() throws {
-        let session = WhereSession(services: PreviewSupport.previewServices(), selectedYear: 2026)
+        let session = WhereSession(services: PreviewSupport.previewServices())
         let configuration = try #require(session.swiftDataInspectorConfiguration)
 
         let schemaNames = Set(configuration.container.schema.entities.map(\.name))
@@ -43,7 +43,7 @@ struct SwiftDataInspectorWiringTests {
             regions: [.california],
         )
 
-        let session = WhereSession(services: services, selectedYear: 2026)
+        let session = WhereSession(services: services)
         let configuration = try #require(session.swiftDataInspectorConfiguration)
 
         let rootView = NavigationStack {

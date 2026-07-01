@@ -79,10 +79,11 @@ struct WhereResetTests {
     @Test func resetPreferencesRestoresFirstInstallDefaults() throws {
         let preferences = makePreferences()
         let model = try makeModel(preferences: preferences)
-        let session = try #require(model.session)
         model.completeOnboarding()
-        session.remindersEnabled = false
-        session.summaryEnabled = false
+        // Turn the reminder/summary schedules off through the shared preferences
+        // (the editing surface, `RemindersSettingsModel`, writes here).
+        preferences.remindersEnabled = false
+        preferences.summaryEnabled = false
         #expect(model.hasOnboarded)
 
         model.resetPreferences()
@@ -90,34 +91,32 @@ struct WhereResetTests {
         // Removing the keys lets the default-valued getters report first-install
         // state again: onboarding returns and reminders/summary default back on.
         #expect(!model.hasOnboarded)
-        // A fresh session re-reads the now-cleared preferences and sees the
-        // restored defaults (the live session caches its values, so the reset
-        // is observed by the rebuilt session the relaunch creates).
-        let reloaded = try WhereSession(services: makeServices(), preferences: preferences)
-        #expect(reloaded.remindersEnabled)
-        #expect(reloaded.summaryEnabled)
+        #expect(preferences.remindersEnabled)
+        #expect(preferences.summaryEnabled)
     }
 
     @Test func eraseAllDataClearsTheStoreAndStopsTracking() async throws {
-        let model = try makeModel(status: .always, preferences: makePreferences())
+        let preferences = makePreferences()
+        let services = try makeServices(status: .always)
+        let model = WhereModel(services: services, preferences: preferences)
         model.completeOnboarding()
         let session = try #require(model.session)
+        // The scene's report model shares the coordinator's services (its store).
+        let report = ReportModel(services: services, preferences: preferences)
         await session.start()
         #expect(session.isTracking) // .always authorization resumed GPS
 
-        try await session.setManualDay(date: Date(), regions: [.california])
-        // The write path no longer refreshes inline; the committed write pings
-        // the store-change signal and the session's observer re-pulls.
-        try await waitUntil { session.trackedDayCount == 1 }
+        try await report.setManualDay(date: Date(), regions: [.california])
+        await report.refresh()
+        #expect(report.trackedDayCount == 1)
 
         try await model.eraseAllData()
         #expect(!session.isTracking)
-        #expect(session.trackedDayCount == 0)
 
         // The store really is empty, not just the in-memory report: a reload
         // from disk finds nothing.
-        await session.refresh()
-        #expect(session.trackedDayCount == 0)
+        await report.refresh()
+        #expect(report.trackedDayCount == 0)
     }
 
     @Test func endSessionDropsTheSessionAndRelaunchRebuildsIt() async throws {
@@ -176,15 +175,19 @@ struct WhereResetTests {
     }
 
     @Test func resetReturnsToOnboardingWithDataErased() async throws {
-        let model = try makeModel(status: .always, preferences: makePreferences())
+        let preferences = makePreferences()
+        let services = try makeServices(status: .always)
+        let model = WhereModel(services: services, preferences: preferences)
         model.completeOnboarding()
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
         #expect(launcher.phase.isReady)
 
         let session = try #require(model.session)
-        try await session.setManualDay(date: Date(), regions: [.california])
-        try await waitUntil { session.trackedDayCount == 1 }
+        let report = ReportModel(services: services, preferences: preferences)
+        try await report.setManualDay(date: Date(), regions: [.california])
+        await report.refresh()
+        #expect(report.trackedDayCount == 1)
 
         // reset re-drives the launch, which parks on onboarding again (now that
         // hasOnboarded is cleared), so reset() doesn't return until onboarding
@@ -206,24 +209,28 @@ struct WhereResetTests {
         await task.value
 
         #expect(launcher.phase.isReady)
-        // load-year reran against the now-empty store.
-        #expect(model.session?.trackedDayCount == 0)
+        // The store was wiped: a fresh report read against it finds nothing.
+        await report.refresh()
+        #expect(report.trackedDayCount == 0)
     }
 
     @Test func resetDropsSessionClearsPreferencesAndReturnsToOnboarding() async throws {
         // The end-to-end reset cycle: a user who has onboarded, turned the
         // reminders/summary off, and logged a day runs "Erase all data & reset".
         let preferences = makePreferences()
-        let model = try makeModel(status: .always, preferences: preferences)
+        let services = try makeServices(status: .always)
+        let model = WhereModel(services: services, preferences: preferences)
         let original = try #require(model.session)
         model.completeOnboarding()
-        original.remindersEnabled = false
-        original.summaryEnabled = false
+        preferences.remindersEnabled = false
+        preferences.summaryEnabled = false
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
-        try await original.setManualDay(date: Date(), regions: [.california])
-        try await waitUntil { original.trackedDayCount == 1 }
+        let report = ReportModel(services: services, preferences: preferences)
+        try await report.setManualDay(date: Date(), regions: [.california])
+        await report.refresh()
+        #expect(report.trackedDayCount == 1)
 
         // Drive the reset and finish the onboarding it re-drives into.
         let task = Task { @MainActor in
@@ -231,20 +238,21 @@ struct WhereResetTests {
         }
         try await waitUntil { launcher.phase.isRunning(LaunchStepID.onboarding) }
 
-        // Mid-relaunch: the session was dropped and rebuilt fresh, preferences
-        // were cleared (onboarding gate reopened), and the rebuilt session reads
-        // the restored reminder/summary defaults — not the off state above.
+        // Mid-relaunch: the session was dropped and rebuilt fresh, and the
+        // preferences were cleared (onboarding gate reopened; the reminder/summary
+        // schedules default back on) — not the off state above.
         let rebuilt = try #require(model.session)
         #expect(rebuilt !== original)
         #expect(!model.hasOnboarded)
-        #expect(rebuilt.remindersEnabled)
-        #expect(rebuilt.summaryEnabled)
+        #expect(preferences.remindersEnabled)
+        #expect(preferences.summaryEnabled)
 
         launcher.phase.runningBridge?.complete()
         await task.value
         #expect(launcher.phase.isReady)
-        // The store was wiped: the rebuilt session's reloaded report is empty.
-        #expect(model.session?.trackedDayCount == 0)
+        // The store was wiped: a fresh report read against it is empty.
+        await report.refresh()
+        #expect(report.trackedDayCount == 0)
     }
 
     @Test func resetFailureParksLauncherAndKeepsPreferences() async throws {

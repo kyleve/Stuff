@@ -6,7 +6,8 @@ import WhereCore
 /// and unions with whatever GPS recorded (see
 /// `DayJournal.addManualDay` / `addManualDays`).
 struct ManualDayEntryView: View {
-    @Environment(WhereSession.self) private var session
+    let report: ReportModel
+
     @Environment(\.dismiss) private var dismiss
 
     private enum EntryMode: Hashable, CaseIterable, Identifiable {
@@ -34,7 +35,8 @@ struct ManualDayEntryView: View {
 
     /// Open with the dates (and single-day vs range mode) preselected — used by
     /// the backfill flow so tapping a missing range lands on a populated form.
-    init(prefill: MissingDayRange? = nil) {
+    init(report: ReportModel, prefill: MissingDayRange? = nil) {
+        self.report = report
         guard let prefill else { return }
         _mode = State(initialValue: prefill.dayCount > 1 ? .range : .singleDay)
         _startDate = State(initialValue: prefill.start)
@@ -150,12 +152,12 @@ struct ManualDayEntryView: View {
             do {
                 switch mode {
                     case .singleDay:
-                        try await session.setManualDay(
+                        try await report.setManualDay(
                             date: startDate,
                             regions: regionSelection.selectedRegions,
                         )
                     case .range:
-                        try await session.setManualDays(
+                        try await report.setManualDays(
                             from: startDate,
                             through: endDate,
                             regions: regionSelection.selectedRegions,
@@ -174,19 +176,20 @@ struct ManualDayEntryView: View {
 #if DEBUG
     #Preview("Default") {
         NavigationStack {
-            ManualDayEntryView()
+            ManualDayEntryView(report: PreviewSupport.loadedReportModel())
         }
-        .environment(PreviewSupport.loadedSession())
     }
 
     #Preview("Prefill range") {
         NavigationStack {
-            ManualDayEntryView(prefill: MissingDayRange(
-                start: Date(timeIntervalSince1970: 0),
-                end: Date(timeIntervalSince1970: 86400 * 4),
-                dayCount: 5,
-            ))
+            ManualDayEntryView(
+                report: PreviewSupport.missingDaysReportModel(),
+                prefill: MissingDayRange(
+                    start: Date(timeIntervalSince1970: 0),
+                    end: Date(timeIntervalSince1970: 86400 * 4),
+                    dayCount: 5,
+                ),
+            )
         }
-        .environment(PreviewSupport.missingDaysSession())
     }
 #endif

@@ -5,13 +5,14 @@ import WhereCore
 /// year — "California, Jan 1 – Feb 3", "New York, Feb 3 – Mar 10", and so on.
 /// Presented as a sheet from the Primary tab.
 struct PresenceTimelineView: View {
-    @Environment(WhereSession.self) private var session
+    let report: ReportModel
+
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            PresenceTimelineList()
-                .navigationTitle(Strings.timelineTitle(year: session.selectedYear))
+            PresenceTimelineList(report: report)
+                .navigationTitle(Strings.timelineTitle(year: report.selectedYear))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -26,12 +27,12 @@ struct PresenceTimelineView: View {
 /// When `scrollToMonth` is set, scrolls to the first stint overlapping that
 /// month on appear.
 struct PresenceTimelineList: View {
-    @Environment(WhereSession.self) private var session
+    let report: ReportModel
 
     var scrollToMonth: Date?
 
     private var stints: [RegionStint] {
-        guard let report = session.report else { return [] }
+        guard let report = report.report else { return [] }
         return PresenceTimeline.stints(from: report)
     }
 
@@ -122,7 +123,6 @@ private struct StintRow: View {
 
 #if DEBUG
     #Preview {
-        PresenceTimelineView()
-            .environment(PreviewSupport.loadedSession())
+        PresenceTimelineView(report: PreviewSupport.loadedReportModel())
     }
 #endif
