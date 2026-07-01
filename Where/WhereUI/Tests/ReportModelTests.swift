@@ -205,6 +205,35 @@ struct ReportModelTests {
         #expect(preferences.driftThresholdMeters == DriftThreshold.km25.rawValue)
     }
 
+    /// The Resolve list keys its scan `.task(id:)` on `dataIssueScanInputs`, so a
+    /// drift-threshold change must change that identity — otherwise the list keeps
+    /// a stale scan while the badge count moves and the two visibly disagree. The
+    /// mirror also has to be observable (it can't read straight through the
+    /// non-observable `WherePreferences`) or a dependent view's `body` would never
+    /// re-run to re-key the task.
+    @Test func dataIssueScanInputsTrackTheDriftThreshold() throws {
+        let store = try TestStore()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        let report = ReportModel(
+            services: services,
+            report: YearReport(year: 2026, days: [], totals: [:]),
+            selectedYear: 2026,
+            preferences: preferences,
+        )
+
+        let before = report.dataIssueScanInputs
+        report.driftThreshold = .km25
+
+        #expect(report.dataIssueScanInputs != before)
+        #expect(report.dataIssueScanInputs.driftThreshold == .km25)
+    }
+
     // MARK: - Store-change observer
 
     /// The write path no longer refreshes inline: a manual edit commits, the

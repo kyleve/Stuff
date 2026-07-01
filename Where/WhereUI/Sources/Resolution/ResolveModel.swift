@@ -11,9 +11,10 @@ import WhereCore
 /// The tab-bar badge *count* lives on the scene-scoped `ReportModel` instead
 /// (it must render before this tab is ever materialized); this model owns the
 /// list the screen shows. `ResolutionView` drives `load(year:primaryRegions:)`
-/// from a `.task(id:)` keyed on the injected report, so the list re-scans on
-/// appear, on any committed write (the report value changes), and on a year
-/// switch — all while sharing the scanner's cache with the badge recount.
+/// from a `.task(id:)` keyed on the report's `dataIssueScanInputs`, so the list
+/// re-scans on appear, on any committed write, on a year switch, and on a
+/// drift-threshold change — all while sharing the scanner's cache with the badge
+/// recount.
 @MainActor
 @Observable
 public final class ResolveModel {

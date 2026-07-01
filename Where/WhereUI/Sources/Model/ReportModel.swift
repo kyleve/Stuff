@@ -31,6 +31,14 @@ public final class ReportModel {
         case failed(String)
     }
 
+    /// Identity of the inputs a data-issue scan depends on; see
+    /// `dataIssueScanInputs`.
+    struct DataIssueScanInputs: Equatable {
+        let year: Int
+        let report: YearReport?
+        let driftThreshold: DriftThreshold
+    }
+
     public private(set) var selectedYear: Int
     public private(set) var report: YearReport?
     public private(set) var loadState: LoadState = .idle
@@ -61,16 +69,37 @@ public final class ReportModel {
 
     private static let logger = WhereLog.channel(.session)
 
-    /// GPS border-drift detection threshold (device setting). Persists and forces
-    /// a badge recount on change; the Resolve list re-scans on its next load
-    /// (the scanner cache is keyed by `(year, threshold)`).
+    /// Observed mirror of `preferences.driftThresholdMeters`, which isn't itself
+    /// observable (`WherePreferences` is a plain defaults wrapper — callers that
+    /// need observation mirror it). Kept in sync by the `driftThreshold` setter so
+    /// a change re-evaluates dependent views' `body`; without it `ResolutionView`
+    /// couldn't key its scan on the threshold and the Resolve list would drift out
+    /// of sync with the badge count.
+    private var driftThresholdStorage: DriftThreshold
+
+    /// GPS border-drift detection threshold (device setting). The setter persists
+    /// it, forces a badge recount, and — through the observed mirror — re-keys
+    /// `dataIssueScanInputs` so the Resolve list re-scans immediately, not just on
+    /// its next unrelated load. The scanner cache is keyed by `(year, threshold)`,
+    /// so the recount and the list both recompute for the new threshold no matter
+    /// which of the two concurrent scans runs first.
     public var driftThreshold: DriftThreshold {
-        get { DriftThreshold(rawValue: preferences.driftThresholdMeters) ?? .default }
+        get { driftThresholdStorage }
         set {
-            guard newValue.rawValue != preferences.driftThresholdMeters else { return }
+            guard newValue != driftThresholdStorage else { return }
+            driftThresholdStorage = newValue
             preferences.driftThresholdMeters = newValue.rawValue
             Task { await refreshDataIssueCount(force: true) }
         }
+    }
+
+    /// The inputs that determine a data-issue scan's result: the selected year,
+    /// the loaded report (any committed write re-pulls it; a year switch nils
+    /// then reloads it), and the drift threshold. `ResolutionView` keys its scan
+    /// `.task(id:)` on this, so the Resolve list re-scans on exactly the triggers
+    /// the badge count recomputes on — the two can't drift apart.
+    var dataIssueScanInputs: DataIssueScanInputs {
+        DataIssueScanInputs(year: selectedYear, report: report, driftThreshold: driftThreshold)
     }
 
     /// Primary/secondary split of the current report, or an empty ranking while
@@ -154,6 +183,8 @@ public final class ReportModel {
         self.selectedYear = selectedYear
         self.preferences = preferences
         self.now = now
+        driftThresholdStorage = DriftThreshold(rawValue: preferences.driftThresholdMeters)
+            ?? .default
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar

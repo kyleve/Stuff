@@ -4,8 +4,9 @@ import WhereCore
 /// Lists data-quality issues for the selected year and routes each to its fix
 /// flow. The scene's `ReportModel` owns the badge *count*; this view owns the
 /// list via a view-scoped `ResolveModel`, re-scanned from a `.task(id:)` keyed
-/// on the injected report (so it refreshes on appear, on any committed write,
-/// and on a year switch).
+/// on the report's `dataIssueScanInputs` (so it refreshes on appear, on any
+/// committed write, on a year switch, and on a drift-threshold change — the same
+/// triggers that recompute the badge count).
 struct ResolutionView: View {
     let report: ReportModel
     @State private var resolve: ResolveModel
@@ -32,7 +33,7 @@ struct ResolutionView: View {
             screen
                 .navigationTitle(Strings.resolutionTitle)
                 .navigationBarTitleDisplayMode(.inline)
-                .task(id: report.report) {
+                .task(id: report.dataIssueScanInputs) {
                     await resolve.load(
                         year: report.selectedYear,
                         primaryRegions: report.ranking.primary.map(\.region),
