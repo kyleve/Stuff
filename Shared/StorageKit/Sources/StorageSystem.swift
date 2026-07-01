@@ -59,6 +59,13 @@ public actor StorageSystem {
     /// locations) get independent global suites instead of clobbering one shared
     /// `"<name>"` domain. Child suites append their keys to this. Unused in
     /// `.inMemory` mode, where key-value stores never touch `UserDefaults`.
+    ///
+    /// Why a *hash* of the URL rather than the URL string itself: a suite name
+    /// becomes a plist filename (`~/Library/Preferences/<suite>.plist`), so the
+    /// raw path can't be used — it contains `/`, is absolute, and would leak the
+    /// user's home directory into a global preferences filename. Sanitizing the
+    /// full path would sidestep the slashes but stays long and leaky; the hash is
+    /// a compact, stable disambiguator that keeps the readable `name` up front.
     private static func rootSuiteName(name: StorageKey, url: URL) -> String {
         "\(name.name).\(stableHash(url.path))"
     }

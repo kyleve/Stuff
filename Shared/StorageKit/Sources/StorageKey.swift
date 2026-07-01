@@ -34,6 +34,11 @@ public struct StorageKey: Hashable, Sendable, ExpressibleByStringLiteral, Custom
         name
     }
 
+    // Foundation has no built-in "make a safe single path component" API — the
+    // near-misses all fall short: `addingPercentEncoding` is URL-oriented (it
+    // leaves `.`/`..` intact and `%`-mangles otherwise-fine names),
+    // `URL(fileURLWithPath:).lastPathComponent` doesn't neutralize traversal, and
+    // `FileManager` offers no name sanitizer. So we sanitize scalar-by-scalar here.
     private static func sanitized(_ raw: String) -> String {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         var result = ""
