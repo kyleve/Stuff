@@ -261,7 +261,11 @@ struct ReportModelTests {
             regions: [.california],
         )
 
-        await waitUntil { report.report?.days.isEmpty == false }
+        // The observer re-pulls the report first, then the badge count, so wait
+        // for the *count* to land rather than just the report — otherwise this
+        // races the two awaits and can read a stale 0 count between them.
+        await waitUntil { report.report?.days.isEmpty == false && report.dataIssueCount > 0 }
+        #expect(report.report?.days.isEmpty == false)
         #expect(report.dataIssueCount > 0)
     }
 
