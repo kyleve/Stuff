@@ -16,9 +16,14 @@ struct MenuContentView: View {
     let session: ForemanSession
 
     @State private var screen: Screen = .list
-    @Environment(\.controlActiveState) private var controlActiveState
+    /// Bumped on every menu open purely to force a body re-evaluation; see
+    /// the `onReceive` below.
+    @State private var refreshTick = 0
 
     var body: some View {
+        // Deliberate read: ties this body to `refreshTick` so the bump in
+        // `onReceive` re-evaluates it even when observation tracking is dead.
+        let _ = refreshTick
         Group {
             switch screen {
                 case .list:
@@ -34,25 +39,27 @@ struct MenuContentView: View {
             }
         }
         .frame(width: 340)
-        // Keep the repo list fresh on every open without file watching.
-        // MenuBarExtra(.window) doesn't document whether the content view is
-        // rebuilt per open or kept alive across opens, so cover both:
-        // onAppear fires when the content is (re)mounted, and the
-        // controlActiveState transition fires when a kept-alive window
-        // becomes key again. A doubled rescan is harmless — it's cheap and
-        // idempotent.
+        // Keep the repo list fresh on every open without file watching — and
+        // recover from a MenuBarExtra(.window) defect: the panel's content is
+        // built once at launch, and @Observable mutations that land while the
+        // panel is closed (e.g. the launch-time scan populating `rows`) are
+        // dropped instead of re-rendering. Observation tracking is one-shot,
+        // so after one dropped change the body stops observing entirely and
+        // no later mutation — Rescan included — renders until some other
+        // dependency (local @State) invalidates it. Neither `onAppear` nor
+        // `controlActiveState` reliably fires per open here, so the hook is
+        // AppKit's became-key notification, and `refreshTick` is a @State
+        // dependency that can't go stale.
         .onAppear {
             session.rescan()
         }
-        .onChange(of: controlActiveState) { _, newValue in
-            switch newValue {
-                case .key, .active:
-                    session.rescan()
-                case .inactive:
-                    break
-                @unknown default:
-                    break
-            }
+        .onReceive(
+            NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification),
+        ) { _ in
+            // Fires for any of the app's windows (the settings open panel
+            // included) — the redundant rescan is cheap and idempotent.
+            session.rescan()
+            refreshTick += 1
         }
     }
 
