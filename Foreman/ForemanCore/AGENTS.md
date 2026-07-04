@@ -37,7 +37,10 @@ build system, formatting, and global conventions. Read that first.
   – the persisted state (scan directory, explicit agent executable,
   enabled-repo set, per-repo options) and its JSON store. `load()`
   distinguishes *missing* (first launch → `.initial`) from *corrupt* (throws);
-  don't collapse the two.
+  don't collapse the two. `prune(discovered:under:)` drops entries for repos
+  gone from the scan directory but must keep entries *outside* it — they're
+  another scan directory's history (the prefix check appends "/" so a
+  sibling like `~/CodeArchive` doesn't match a `~/Code` scan directory).
 - [`WorkerSupervisor`](Sources/WorkerSupervisor.swift) – `@MainActor
   @Observable` owner of the worker processes. Per-repo state is the single
   `WorkerState` enum (`stopped` / `running(pid:)` /

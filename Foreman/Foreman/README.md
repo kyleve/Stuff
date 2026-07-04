@@ -46,6 +46,11 @@ any worker is live).
 - Quitting stops every worker (stop-on-quit: the app owns its processes and
   never leaves orphans).
 - The repo list refreshes every time the menu opens, and on **Rescan**.
+- A worker whose repo vanishes from the scan (deleted, renamed, or the scan
+  directory changed) is stopped on the next rescan — no worker keeps running
+  without a row to control it. Saved toggles and options for repos deleted
+  from the current scan directory are pruned; settings for other scan
+  directories are kept and re-apply when you switch back.
 
 ## Limitations
 

@@ -47,6 +47,29 @@ public struct ForemanConfiguration: Codable, Equatable, Sendable {
     public func options(for repo: RepoID) -> WorkerOptions {
         repoOptions[repo] ?? .standard
     }
+
+    /// Drops `enabledRepoIDs` / `repoOptions` entries for repos that live
+    /// under `scanDirectory` but are no longer in `discovered` — entries for
+    /// deleted or renamed repos would otherwise accumulate forever. Entries
+    /// *outside* `scanDirectory` are kept: they belong to another scan
+    /// directory's history and re-apply when the user switches back.
+    /// Returns whether anything was removed.
+    public mutating func prune(discovered: Set<RepoID>, under scanDirectory: URL) -> Bool {
+        let prefix = scanDirectory.standardizedFileURL.path + "/"
+        func isStale(_ id: RepoID) -> Bool {
+            id.rawValue.hasPrefix(prefix) && !discovered.contains(id)
+        }
+
+        let staleEnabled = enabledRepoIDs.filter(isStale)
+        let staleOptions = repoOptions.keys.filter(isStale)
+        guard !staleEnabled.isEmpty || !staleOptions.isEmpty else { return false }
+
+        enabledRepoIDs.subtract(staleEnabled)
+        for key in staleOptions {
+            repoOptions.removeValue(forKey: key)
+        }
+        return true
+    }
 }
 
 /// Loads and saves the ``ForemanConfiguration`` JSON file.

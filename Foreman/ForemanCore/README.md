@@ -56,6 +56,9 @@ let argv = options.arguments(workerDirectory: repos[0].rootURL)
 - **`ForemanConfiguration`** — everything Foreman persists: the scan directory
   (default `~/Development`), an explicit `cursor-agent` executable (or `nil`
   for auto-locate), the enabled-repo set, and the per-repo options map.
+  `prune(discovered:under:)` drops entries for repos that vanished from the
+  scan directory while keeping entries outside it (another directory's
+  history, re-applied when the user switches back).
 - **`WorkerConfigStore`** — throwing `load()` / `save(_:)` of the configuration
   JSON under `~/Library/Application Support/com.stuff.foreman/`. A missing
   file loads as `ForemanConfiguration.initial` (first launch); a corrupt file

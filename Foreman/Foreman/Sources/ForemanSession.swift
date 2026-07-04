@@ -104,7 +104,10 @@ final class ForemanSession {
     // MARK: - Repos
 
     /// Re-lists the scan directory, preserving toggle state for repos that
-    /// remain. A failed scan keeps the last good rows and reports the problem.
+    /// remain. Workers whose repo vanished from the scan are stopped (they'd
+    /// otherwise keep running with no row left to control them), and saved
+    /// entries for repos deleted from the current scan directory are pruned.
+    /// A failed scan keeps the last good rows and reports the problem.
     func rescan() {
         do {
             let repos = try discovery.repos(in: configuration.resolvedScanDirectory)
@@ -117,6 +120,18 @@ final class ForemanSession {
                 }
             }
             issueMessage = nil
+
+            let discovered = Set(repos.map(\.id))
+            for (id, state) in supervisor.states where state.isLive && !discovered.contains(id) {
+                Self.logger.info("Stopping worker for vanished repo \(id.rawValue)")
+                supervisor.stop(id)
+            }
+            if configuration.prune(
+                discovered: discovered,
+                under: configuration.resolvedScanDirectory,
+            ) {
+                persist()
+            }
         } catch {
             Self.logger.error("Repo scan failed: \(error)")
             issueMessage =
