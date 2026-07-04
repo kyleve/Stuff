@@ -64,14 +64,12 @@ public struct WorkerConfigStore: Sendable {
     }
 
     /// The production store, under
-    /// `~/Library/Application Support/com.stuff.foreman/`.
-    public static func applicationSupport() throws -> WorkerConfigStore {
-        let base = try FileManager.default.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true,
-        )
+    /// `~/Library/Application Support/com.stuff.foreman/`. The path is
+    /// deterministic (Foreman is not sandboxed), so this can't fail; the
+    /// directory itself is created on first save.
+    public static func applicationSupport() -> WorkerConfigStore {
+        let base = FileManager.default.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support", isDirectory: true)
         return WorkerConfigStore(directory: base.appendingPathComponent("com.stuff.foreman"))
     }
 

@@ -25,7 +25,7 @@ it to a target's dependencies in [`Package.swift`](../../Package.swift):
 import ForemanCore
 
 // Load (or default) the persisted configuration.
-let store = try WorkerConfigStore.applicationSupport()
+let store = WorkerConfigStore.applicationSupport()
 var configuration = try store.load()
 
 // Find the git repositories to offer workers for.
