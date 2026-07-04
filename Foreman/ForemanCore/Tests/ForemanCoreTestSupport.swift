@@ -10,6 +10,21 @@ func makeTemporaryDirectory() throws -> URL {
     return url
 }
 
+/// Writes an executable shell script into `directory` and returns its URL.
+func makeStubExecutable(
+    in directory: URL,
+    named name: String = "stub-agent",
+    script: String,
+) throws -> URL {
+    let url = directory.appendingPathComponent(name)
+    try Data(script.utf8).write(to: url)
+    try FileManager.default.setAttributes(
+        [.posixPermissions: 0o755],
+        ofItemAtPath: url.path,
+    )
+    return url
+}
+
 /// Polls `condition` until it holds, failing the test if `timeout` elapses
 /// first. Prefer this over fixed sleeps — fixed delays flake under load.
 func waitUntil(

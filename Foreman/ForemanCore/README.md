@@ -60,6 +60,24 @@ let argv = options.arguments(workerDirectory: repos[0].rootURL)
   JSON under `~/Library/Application Support/com.stuff.foreman/`. A missing
   file loads as `ForemanConfiguration.initial` (first launch); a corrupt file
   throws rather than silently resetting.
+- **`WorkerSupervisor`** — the `@MainActor @Observable` controller owning one
+  worker process per enabled repo: `start(repo:options:executable:)`,
+  `stop(_:)`, `stopAll()`, and an observable `states` map. Each repo's state
+  is a single `WorkerState` enum (`stopped` / `starting` / `running(pid:)` /
+  `stopping` / `failed(reason:)`). Worker stdout+stderr append to
+  `~/Library/Logs/Foreman/<repo>.log` with start/exit marker lines. A spawn
+  failure lands in `.failed` (and the log); a user-requested stop reads as
+  `.stopped` even though SIGTERM technically kills the CLI by signal.
+- **`SleepInhibitor`** — while any worker is live the supervisor holds a
+  `ProcessInfo` `.idleSystemSleepDisabled` activity (the `caffeinate -i`
+  equivalent), so the machine won't doze off mid-agent-run. Display sleep and
+  an explicit lid close are unaffected. The observable `isActive` backs the
+  app's "preventing sleep" indicator.
+- **`CursorAgentLocator`** — resolves the `cursor-agent` executable. GUI apps
+  don't inherit the shell `PATH`, so it checks the CLI's known install
+  locations (`~/.local/bin`, `/usr/local/bin`, `/opt/homebrew/bin`); an
+  explicitly configured path is validated and a stale one throws
+  `NotFoundError` instead of falling back silently.
 - **`ForemanLog`** — the logging facade over LogKit: `ForemanLog.channel(_:)`
   with a typed `Category`, subsystem `com.stuff.foreman`.
 

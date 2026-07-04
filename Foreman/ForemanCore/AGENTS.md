@@ -38,6 +38,24 @@ build system, formatting, and global conventions. Read that first.
   enabled-repo set, per-repo options) and its JSON store. `load()`
   distinguishes *missing* (first launch → `.initial`) from *corrupt* (throws);
   don't collapse the two.
+- [`WorkerSupervisor`](Sources/WorkerSupervisor.swift) – `@MainActor
+  @Observable` owner of the worker processes. Per-repo state is the single
+  `WorkerState` enum (`stopped` / `starting` / `running(pid:)` / `stopping` /
+  `failed(reason:)`); the private `Handle` carries the `Process`, its log
+  `FileHandle`, and the `stopRequested` bit that turns a SIGTERM death into
+  `.stopped` instead of `.failed`. Worker output appends to
+  `<logDirectory>/<repo name>.log` with start/exit markers. `start` doesn't
+  throw — a spawn failure lands in `.failed` and the log, so the state *is*
+  the caller-observable result.
+- [`SleepInhibitor`](Sources/SleepInhibitor.swift) – idempotent wrapper around
+  `ProcessInfo.beginActivity(.idleSystemSleepDisabled)`. The supervisor
+  recomputes it after every state change (`updateSleepInhibition`), so the
+  assertion is held exactly while ≥1 worker is live. The `@_spi(Testing)`
+  init swaps the real assertion for begin/end observers.
+- [`CursorAgentLocator`](Sources/CursorAgentLocator.swift) – resolves the
+  executable from known install paths (GUI apps don't inherit shell `PATH`).
+  An explicit configured path is *validated*, and a stale one throws rather
+  than silently falling back to auto-locate.
 - [`ForemanLog`](Sources/ForemanLog.swift) – LogKit facade, subsystem
   `com.stuff.foreman`, typed `Category` enum. Add a case to introduce a new
   category; never log with raw strings.
@@ -53,6 +71,13 @@ build system, formatting, and global conventions. Read that first.
   CLI's default values into rendered argv.
 - **`RepoID` everywhere.** Config maps and supervisor lookups key by `RepoID`;
   never key by display name or raw path strings.
+- **Stop intent decides the end state.** A worker that dies after
+  `stop(_:)`/`stopAll()` reads as `.stopped` (SIGTERM kills the CLI by
+  signal, but the user asked for it); an *unrequested* death is `.failed`
+  with the exit code or signal in the reason. Don't collapse the two.
+- **The sleep assertion tracks liveness, not toggles.** It's recomputed from
+  `states` after every transition — held while any worker is live, released
+  when the last one ends, never taken per-worker.
 
 ## Conventions
 
