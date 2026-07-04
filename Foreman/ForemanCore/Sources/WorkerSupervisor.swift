@@ -148,6 +148,20 @@ public final class WorkerSupervisor {
         updateSleepInhibition()
     }
 
+    /// Records a start attempt that failed before any spawn (e.g. the
+    /// `cursor-agent` executable couldn't be located), so the repo reads
+    /// `.failed` with a reason like any other start failure instead of an
+    /// unexplained `.stopped`. Ignored (with a warning) while a worker is
+    /// live — a pre-spawn failure can't override a process that exists.
+    public func recordStartFailure(_ id: RepoID, reason: String) {
+        guard !state(for: id).isLive else {
+            Self.logger.warning("Ignoring start failure for \(id.rawValue): a worker is still live")
+            return
+        }
+        states[id] = .failed(reason: reason)
+        Self.logger.error("Worker for \(id.rawValue) couldn't start: \(reason)")
+    }
+
     /// Requests termination (SIGTERM); the state moves to `.stopped` once the
     /// process actually exits. A stop while a restart is queued cancels the
     /// restart. No-ops when nothing is live for `id`.

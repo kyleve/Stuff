@@ -203,6 +203,39 @@ struct WorkerSupervisorTests {
         if case let .running(pid) = state { pid } else { nil }
     }
 
+    @Test func recordStartFailureReadsAsFailed() throws {
+        let fixture = try makeFixture()
+        let repo = try makeRepo(named: "Thing", under: fixture.directory)
+
+        fixture.supervisor.recordStartFailure(repo.id, reason: "cursor-agent was not found")
+
+        #expect(
+            fixture.supervisor.state(for: repo.id)
+                == .failed(reason: "cursor-agent was not found"),
+        )
+    }
+
+    @Test func recordStartFailureWhileLiveIsIgnored() async throws {
+        let fixture = try makeFixture()
+        let repo = try makeRepo(named: "Thing", under: fixture.directory)
+        let stub = try makeStubExecutable(in: fixture.directory, script: Self.longRunningScript)
+
+        fixture.supervisor.start(repo: repo, options: .standard, executable: stub)
+        try await waitUntil("worker reaches running") {
+            if case .running = fixture.supervisor.state(for: repo.id) { true } else { false }
+        }
+        let runningState = fixture.supervisor.state(for: repo.id)
+
+        fixture.supervisor.recordStartFailure(repo.id, reason: "should not apply")
+
+        #expect(fixture.supervisor.state(for: repo.id) == runningState)
+
+        fixture.supervisor.stop(repo.id)
+        try await waitUntil("worker stops") {
+            fixture.supervisor.state(for: repo.id) == .stopped
+        }
+    }
+
     @Test func stopAllStopsEveryWorkerAndReleasesTheSleepAssertionOnce() async throws {
         let fixture = try makeFixture()
         let first = try makeRepo(named: "First", under: fixture.directory)

@@ -134,16 +134,17 @@ final class ForemanSession {
 
     // MARK: - Worker control
 
+    /// The toggle is declarative: the switch records the *desired* state
+    /// (persisted, so enabled workers restart at launch) and the status dot
+    /// reports the *actual* one. Any start failure — locate or spawn — reads
+    /// as `.failed` on the row with the switch still on; flipping off and on
+    /// retries.
     private func applyToggle(_ row: WorkerRow) {
-        // A revert (set back to what the config already says) is a no-op, so
-        // the didSet triggered by `row.isEnabled = oldValue` below can't loop.
+        // Idempotence: only act when the flip changes the desired state.
         guard row.isEnabled != configuration.enabledRepoIDs.contains(row.repo.id) else { return }
 
         if row.isEnabled {
-            guard startWorker(for: row.repo) else {
-                row.isEnabled = false
-                return
-            }
+            startWorker(for: row.repo)
             configuration.enabledRepoIDs.insert(row.repo.id)
         } else {
             supervisor.stop(row.repo.id)
@@ -152,17 +153,19 @@ final class ForemanSession {
         persist()
     }
 
-    /// Starts the worker for `repo`; returns whether a process was spawned
-    /// (locating `cursor-agent` can fail before any spawn is attempted).
-    @discardableResult
-    private func startWorker(for repo: Repo) -> Bool {
+    /// Starts the worker for `repo`. Locating `cursor-agent` can fail before
+    /// any spawn is attempted; that failure is recorded on the worker's state
+    /// (and the issue banner) just like a spawn failure, so both kinds of
+    /// "didn't start" look the same on the row.
+    private func startWorker(for repo: Repo) {
         let executable: URL
         do {
             executable = try locator.locate(explicit: configuration.agentExecutable)
         } catch {
             Self.logger.error("Can't start worker for \(repo.name): \(error)")
+            supervisor.recordStartFailure(repo.id, reason: error.localizedDescription)
             issueMessage = error.localizedDescription
-            return false
+            return
         }
         supervisor.start(
             repo: repo,
@@ -170,7 +173,6 @@ final class ForemanSession {
             executable: executable,
         )
         issueMessage = nil
-        return true
     }
 
     // MARK: - Options & settings

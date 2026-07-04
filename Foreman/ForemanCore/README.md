@@ -71,6 +71,8 @@ let argv = options.arguments(workerDirectory: repos[0].rootURL)
   signal. A start requested while the worker is still stopping queues one
   restart, applied when the old process exits (and cancelled by another
   stop), so a quick off-then-on flip restarts instead of silently dying.
+  `recordStartFailure(_:reason:)` lets callers land pre-spawn failures (like
+  a missing executable) in the same `.failed` state as spawn failures.
 - **`SleepInhibitor`** — while any worker is live the supervisor holds a
   `ProcessInfo` `.idleSystemSleepDisabled` activity (the `caffeinate -i`
   equivalent), so the machine won't doze off mid-agent-run. Display sleep and

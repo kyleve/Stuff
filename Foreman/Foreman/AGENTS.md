@@ -28,7 +28,12 @@ formatting, global conventions) and ForemanCore's
   change. `start()` restores the config and restarts previously-enabled
   workers. Failures (unreadable config, failed scan, missing `cursor-agent`,
   failed save) land in the observable `issueMessage` *and* the log — honest
-  state, never a silent default.
+  state, never a silent default. **The toggle is declarative**: the switch
+  records the desired state (persisted, restored at launch) and the status
+  dot reports the actual one — any start failure, locate or spawn, reads as
+  `.failed` on the row with the switch still on (locate failures go through
+  `WorkerSupervisor.recordStartFailure` so both kinds look the same). Don't
+  reintroduce switch-reverting on failure; off-then-on is the retry.
 - [`MenuContentView`](Sources/MenuContentView.swift) – the window. One
   `Screen` enum (`list` / `options(row)` / `settings`) keeps exactly one
   surface visible. `onAppear` rescans, so the list is fresh every time the
