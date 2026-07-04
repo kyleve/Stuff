@@ -1,0 +1,74 @@
+# ForemanCore
+
+The model/controller layer for **Foreman**, the macOS menu bar app that spins
+up [Cursor local agent workers](https://cursor.com/docs) (`cursor-agent worker
+start`) for the git repositories in a development directory. ForemanCore owns
+everything that isn't SwiftUI: repository discovery, per-repo worker options,
+configuration persistence, and the logging facade. The app target
+(`Foreman/Foreman`) holds only views and an observable session model.
+
+ForemanCore is macOS-only (macOS 26+) and depends on Foundation +
+[`LogKit`](../../Shared/LogKit).
+
+## Installation
+
+`ForemanCore` is a local SPM library in this repo (`Foreman/ForemanCore`). Add
+it to a target's dependencies in [`Package.swift`](../../Package.swift):
+
+```swift
+.target(name: "YourTarget", dependencies: [.target(name: "ForemanCore")])
+```
+
+## Quick start
+
+```swift
+import ForemanCore
+
+// Load (or default) the persisted configuration.
+let store = try WorkerConfigStore.applicationSupport()
+var configuration = try store.load()
+
+// Find the git repositories to offer workers for.
+let repos = try RepoDiscovery().repos(in: configuration.resolvedScanDirectory)
+
+// Render the CLI invocation for one of them.
+let options = configuration.options(for: repos[0].id)
+let argv = options.arguments(workerDirectory: repos[0].rootURL)
+// → ["worker", "--worker-dir", "/Users/you/Development/Thing", "start"]
+```
+
+## Public API
+
+- **`RepoDiscovery`** — `repos(in:)` lists the git repositories directly inside
+  a scan directory (a subdirectory with a `.git` entry — directory or file, so
+  worktrees count). Hidden directories are skipped; nesting is not searched.
+  Throws when the scan directory can't be listed.
+- **`Repo` / `RepoID`** — a discovered repository (name + root URL) and its
+  typed identifier (the canonical absolute path). `RepoID` keys the config
+  maps so ids can't silently typo into new entries.
+- **`WorkerOptions`** — the per-repo worker flags, mirroring the
+  `cursor agent worker` CLI one-to-one: `displayName` (`--name`),
+  `assignment` (`.shared` or `.pool(name:)` → `--pool` / `--pool-name`),
+  `labels` (`--label key=value`), `idleReleaseTimeoutSeconds`
+  (`--idle-release-timeout`), and `verbose` (`start --verbose`).
+  `arguments(workerDirectory:)` renders the full argv; `.standard` is the
+  CLI-default configuration.
+- **`ForemanConfiguration`** — everything Foreman persists: the scan directory
+  (default `~/Development`), an explicit `cursor-agent` executable (or `nil`
+  for auto-locate), the enabled-repo set, and the per-repo options map.
+- **`WorkerConfigStore`** — throwing `load()` / `save(_:)` of the configuration
+  JSON under `~/Library/Application Support/com.stuff.foreman/`. A missing
+  file loads as `ForemanConfiguration.initial` (first launch); a corrupt file
+  throws rather than silently resetting.
+- **`ForemanLog`** — the logging facade over LogKit: `ForemanLog.channel(_:)`
+  with a typed `Category`, subsystem `com.stuff.foreman`.
+
+## Contracts & limitations
+
+- `WorkerOptions.arguments(workerDirectory:)` is the single place that knows
+  the CLI flag spelling — worker-level flags precede the `start` subcommand,
+  `--verbose` follows it.
+- An empty pool name and a zero idle timeout defer to the CLI's own defaults
+  (pool "default", idle release disabled) by omitting the flag.
+- Discovery is intentionally shallow: one directory level, no recursion into
+  nested repositories.
