@@ -40,8 +40,10 @@ build system, formatting, and global conventions. Read that first.
   don't collapse the two.
 - [`WorkerSupervisor`](Sources/WorkerSupervisor.swift) – `@MainActor
   @Observable` owner of the worker processes. Per-repo state is the single
-  `WorkerState` enum (`stopped` / `starting` / `running(pid:)` / `stopping` /
-  `failed(reason:)`); the private `Handle` carries the `Process`, its log
+  `WorkerState` enum (`stopped` / `running(pid:)` / `stopping` /
+  `failed(reason:)` — no `.starting`: spawning is synchronous on the main
+  actor, so an in-between state would be unobservable); the private `Handle`
+  carries the `Process`, its log
   `FileHandle`, and the `stopRequested` bit that turns a SIGTERM death into
   `.stopped` instead of `.failed`. Worker output appends to
   `<logDirectory>/<repo name>.log` with start/exit markers. `start` doesn't

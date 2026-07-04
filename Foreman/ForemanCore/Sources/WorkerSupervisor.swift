@@ -13,16 +13,18 @@ import Observation
 public final class WorkerSupervisor {
     public enum WorkerState: Equatable, Sendable {
         case stopped
-        case starting
+        /// No `.starting`: spawning is synchronous on the main actor, so a
+        /// start resolves to `.running` or `.failed` before anyone can
+        /// observe an in-between state.
         case running(pid: Int32)
         /// Stop was requested; the process hasn't exited yet.
         case stopping
         case failed(reason: String)
 
-        /// Whether a process is (or is about to be) alive for this state.
+        /// Whether a process is alive for this state.
         public var isLive: Bool {
             switch self {
-                case .starting, .running, .stopping: true
+                case .running, .stopping: true
                 case .stopped, .failed: false
             }
         }
@@ -85,8 +87,6 @@ public final class WorkerSupervisor {
             Self.logger.debug("Ignoring start for \(repo.name): worker is already live")
             return
         }
-        states[id] = .starting
-        updateSleepInhibition()
 
         let arguments = options.arguments(workerDirectory: repo.rootURL)
         do {
@@ -177,7 +177,7 @@ public final class WorkerSupervisor {
                 Self.logger.info("Worker for \(id.rawValue) stopped")
             case let .failed(reason):
                 Self.logger.error("Worker for \(id.rawValue) failed: \(reason)")
-            case .starting, .running, .stopping:
+            case .running, .stopping:
                 assertionFailure("Termination resolved to a live state")
         }
         updateSleepInhibition()

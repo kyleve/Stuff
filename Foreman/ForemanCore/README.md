@@ -63,8 +63,8 @@ let argv = options.arguments(workerDirectory: repos[0].rootURL)
 - **`WorkerSupervisor`** — the `@MainActor @Observable` controller owning one
   worker process per enabled repo: `start(repo:options:executable:)`,
   `stop(_:)`, `stopAll()`, and an observable `states` map. Each repo's state
-  is a single `WorkerState` enum (`stopped` / `starting` / `running(pid:)` /
-  `stopping` / `failed(reason:)`). Worker stdout+stderr append to
+  is a single `WorkerState` enum (`stopped` / `running(pid:)` / `stopping` /
+  `failed(reason:)`). Worker stdout+stderr append to
   `~/Library/Logs/Foreman/<repo>.log` with start/exit marker lines. A spawn
   failure lands in `.failed` (and the log); a user-requested stop reads as
   `.stopped` even though SIGTERM technically kills the CLI by signal.

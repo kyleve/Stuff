@@ -70,7 +70,7 @@ struct StatusDot: View {
     private var color: Color {
         switch state {
             case .stopped: .secondary.opacity(0.4)
-            case .starting, .stopping: .yellow
+            case .stopping: .yellow
             case .running: .green
             case .failed: .red
         }
@@ -79,7 +79,6 @@ struct StatusDot: View {
     private var help: String {
         switch state {
             case .stopped: "Stopped"
-            case .starting: "Starting…"
             case let .running(pid): "Running (pid \(pid))"
             case .stopping: "Stopping…"
             case let .failed(reason): "Failed: \(reason)"

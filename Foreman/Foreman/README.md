@@ -25,7 +25,7 @@ any worker is live).
 ## What's in the menu
 
 - **Worker rows** — one per discovered repo: status dot (gray stopped, yellow
-  starting/stopping, green running, red failed with the reason underneath), an
+  stopping, green running, red failed with the reason underneath), an
   on/off switch, an open-log button (`~/Library/Logs/Foreman/<repo>.log`), and
   the options editor (enabled while the worker is stopped — options apply on
   the next start).
