@@ -80,7 +80,8 @@ struct StatusDot: View {
         switch state {
             case .stopped: "Stopped"
             case let .running(pid): "Running (pid \(pid))"
-            case .stopping: "Stopping…"
+            case .stopping(restartPending: true): "Restarting…"
+            case .stopping(restartPending: false): "Stopping…"
             case let .failed(reason): "Failed: \(reason)"
         }
     }

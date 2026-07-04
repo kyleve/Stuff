@@ -17,8 +17,11 @@ public final class WorkerSupervisor {
         /// start resolves to `.running` or `.failed` before anyone can
         /// observe an in-between state.
         case running(pid: Int32)
-        /// Stop was requested; the process hasn't exited yet.
-        case stopping
+        /// Stop was requested; the process hasn't exited yet. A start
+        /// requested in this window can't spawn immediately (the exiting
+        /// process still owns the log file), so it queues a restart —
+        /// `restartPending` — applied when the exit lands.
+        case stopping(restartPending: Bool)
         case failed(reason: String)
 
         /// Whether a process is alive for this state.
@@ -51,11 +54,21 @@ public final class WorkerSupervisor {
         var stopRequested = false
     }
 
+    /// A start requested while the previous process was still stopping,
+    /// replayed (with the arguments captured at request time) once the old
+    /// process exits.
+    private struct PendingStart {
+        let repo: Repo
+        let options: WorkerOptions
+        let executable: URL
+    }
+
     private static let logger = ForemanLog.channel(.workerSupervisor)
 
     private let logDirectory: URL
     private let sleepInhibitor: SleepInhibitor
     @ObservationIgnored private var handles: [RepoID: Handle] = [:]
+    @ObservationIgnored private var pendingStarts: [RepoID: PendingStart] = [:]
 
     public convenience init(logDirectory: URL) {
         self.init(logDirectory: logDirectory, sleepInhibitor: SleepInhibitor())
@@ -76,16 +89,28 @@ public final class WorkerSupervisor {
         logDirectory.appendingPathComponent("\(repo.name).log")
     }
 
-    /// Spawns a worker for `repo`. A start while the worker is already live is
-    /// ignored; starting over a `.failed` state retries. A spawn failure lands
-    /// in `.failed` (and the log) rather than throwing — the state is the
-    /// caller-observable result either way.
+    /// Spawns a worker for `repo`. A start while the worker is already
+    /// running is ignored; a start while it is `.stopping` queues a restart
+    /// applied when the exit lands; starting over a `.failed` state retries.
+    /// A spawn failure lands in `.failed` (and the log) rather than throwing
+    /// — the state is the caller-observable result either way.
     public func start(repo: Repo, options: WorkerOptions, executable: URL) {
         let id = repo.id
-        let current = state(for: id)
-        guard !current.isLive else {
-            Self.logger.debug("Ignoring start for \(repo.name): worker is already live")
-            return
+        switch state(for: id) {
+            case .running:
+                Self.logger.debug("Ignoring start for \(repo.name): worker is already running")
+                return
+            case .stopping:
+                pendingStarts[id] = PendingStart(
+                    repo: repo,
+                    options: options,
+                    executable: executable,
+                )
+                states[id] = .stopping(restartPending: true)
+                Self.logger.info("Queued restart for \(repo.name): worker is still stopping")
+                return
+            case .stopped, .failed:
+                break
         }
 
         let arguments = options.arguments(workerDirectory: repo.rootURL)
@@ -124,11 +149,19 @@ public final class WorkerSupervisor {
     }
 
     /// Requests termination (SIGTERM); the state moves to `.stopped` once the
-    /// process actually exits. No-ops when nothing is live for `id`.
+    /// process actually exits. A stop while a restart is queued cancels the
+    /// restart. No-ops when nothing is live for `id`.
     public func stop(_ id: RepoID) {
-        guard let handle = handles[id], !handle.stopRequested else { return }
+        guard let handle = handles[id] else { return }
+        if pendingStarts.removeValue(forKey: id) != nil {
+            // Termination was already requested; just drop the queued restart.
+            states[id] = .stopping(restartPending: false)
+            Self.logger.info("Cancelled queued restart for \(id.rawValue)")
+            return
+        }
+        guard !handle.stopRequested else { return }
         handles[id]?.stopRequested = true
-        states[id] = .stopping
+        states[id] = .stopping(restartPending: false)
         handle.process.terminate()
         Self.logger.info("Stopping worker for \(id.rawValue)")
     }
@@ -181,6 +214,11 @@ public final class WorkerSupervisor {
                 assertionFailure("Termination resolved to a live state")
         }
         updateSleepInhibition()
+
+        if let pending = pendingStarts.removeValue(forKey: id) {
+            Self.logger.info("Applying queued restart for \(pending.repo.name)")
+            start(repo: pending.repo, options: pending.options, executable: pending.executable)
+        }
     }
 
     private func updateSleepInhibition() {

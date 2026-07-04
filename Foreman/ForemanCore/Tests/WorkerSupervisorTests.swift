@@ -148,6 +148,61 @@ struct WorkerSupervisorTests {
         }
     }
 
+    @Test func startWhileStoppingQueuesARestart() async throws {
+        let fixture = try makeFixture()
+        let repo = try makeRepo(named: "Thing", under: fixture.directory)
+        let stub = try makeStubExecutable(in: fixture.directory, script: Self.longRunningScript)
+
+        fixture.supervisor.start(repo: repo, options: .standard, executable: stub)
+        try await waitUntil("worker reaches running") {
+            if case .running = fixture.supervisor.state(for: repo.id) { true } else { false }
+        }
+        let firstPid = try #require(pid(of: fixture.supervisor.state(for: repo.id)))
+
+        // The user's off-then-on flip, before the old process has exited.
+        fixture.supervisor.stop(repo.id)
+        #expect(fixture.supervisor.state(for: repo.id) == .stopping(restartPending: false))
+        fixture.supervisor.start(repo: repo, options: .standard, executable: stub)
+        #expect(fixture.supervisor.state(for: repo.id) == .stopping(restartPending: true))
+
+        try await waitUntil("replacement worker reaches running") {
+            if case .running = fixture.supervisor.state(for: repo.id) { true } else { false }
+        }
+        let secondPid = try #require(pid(of: fixture.supervisor.state(for: repo.id)))
+        #expect(secondPid != firstPid)
+
+        fixture.supervisor.stop(repo.id)
+        try await waitUntil("worker stops") {
+            fixture.supervisor.state(for: repo.id) == .stopped
+        }
+    }
+
+    @Test func stopWhileARestartIsPendingCancelsIt() async throws {
+        let fixture = try makeFixture()
+        let repo = try makeRepo(named: "Thing", under: fixture.directory)
+        let stub = try makeStubExecutable(in: fixture.directory, script: Self.longRunningScript)
+
+        fixture.supervisor.start(repo: repo, options: .standard, executable: stub)
+        try await waitUntil("worker reaches running") {
+            fixture.supervisor.state(for: repo.id).isLive
+        }
+
+        fixture.supervisor.stop(repo.id)
+        fixture.supervisor.start(repo: repo, options: .standard, executable: stub)
+        fixture.supervisor.stop(repo.id)
+        #expect(fixture.supervisor.state(for: repo.id) == .stopping(restartPending: false))
+
+        // With the restart cancelled the exit must settle at .stopped; a
+        // leaked pending start would resolve to .running and time out here.
+        try await waitUntil("worker settles at stopped") {
+            fixture.supervisor.state(for: repo.id) == .stopped
+        }
+    }
+
+    private func pid(of state: WorkerSupervisor.WorkerState) -> Int32? {
+        if case let .running(pid) = state { pid } else { nil }
+    }
+
     @Test func stopAllStopsEveryWorkerAndReleasesTheSleepAssertionOnce() async throws {
         let fixture = try makeFixture()
         let first = try makeRepo(named: "First", under: fixture.directory)

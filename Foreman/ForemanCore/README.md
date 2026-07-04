@@ -63,11 +63,14 @@ let argv = options.arguments(workerDirectory: repos[0].rootURL)
 - **`WorkerSupervisor`** — the `@MainActor @Observable` controller owning one
   worker process per enabled repo: `start(repo:options:executable:)`,
   `stop(_:)`, `stopAll()`, and an observable `states` map. Each repo's state
-  is a single `WorkerState` enum (`stopped` / `running(pid:)` / `stopping` /
-  `failed(reason:)`). Worker stdout+stderr append to
-  `~/Library/Logs/Foreman/<repo>.log` with start/exit marker lines. A spawn
-  failure lands in `.failed` (and the log); a user-requested stop reads as
-  `.stopped` even though SIGTERM technically kills the CLI by signal.
+  is a single `WorkerState` enum (`stopped` / `running(pid:)` /
+  `stopping(restartPending:)` / `failed(reason:)`). Worker stdout+stderr
+  append to `~/Library/Logs/Foreman/<repo>.log` with start/exit marker lines.
+  A spawn failure lands in `.failed` (and the log); a user-requested stop
+  reads as `.stopped` even though SIGTERM technically kills the CLI by
+  signal. A start requested while the worker is still stopping queues one
+  restart, applied when the old process exits (and cancelled by another
+  stop), so a quick off-then-on flip restarts instead of silently dying.
 - **`SleepInhibitor`** — while any worker is live the supervisor holds a
   `ProcessInfo` `.idleSystemSleepDisabled` activity (the `caffeinate -i`
   equivalent), so the machine won't doze off mid-agent-run. Display sleep and

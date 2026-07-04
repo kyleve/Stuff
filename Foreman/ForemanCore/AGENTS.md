@@ -40,10 +40,10 @@ build system, formatting, and global conventions. Read that first.
   don't collapse the two.
 - [`WorkerSupervisor`](Sources/WorkerSupervisor.swift) – `@MainActor
   @Observable` owner of the worker processes. Per-repo state is the single
-  `WorkerState` enum (`stopped` / `running(pid:)` / `stopping` /
-  `failed(reason:)` — no `.starting`: spawning is synchronous on the main
-  actor, so an in-between state would be unobservable); the private `Handle`
-  carries the `Process`, its log
+  `WorkerState` enum (`stopped` / `running(pid:)` /
+  `stopping(restartPending:)` / `failed(reason:)` — no `.starting`: spawning
+  is synchronous on the main actor, so an in-between state would be
+  unobservable); the private `Handle` carries the `Process`, its log
   `FileHandle`, and the `stopRequested` bit that turns a SIGTERM death into
   `.stopped` instead of `.failed`. Worker output appends to
   `<logDirectory>/<repo name>.log` with start/exit markers. `start` doesn't
@@ -77,6 +77,12 @@ build system, formatting, and global conventions. Read that first.
   `stop(_:)`/`stopAll()` reads as `.stopped` (SIGTERM kills the CLI by
   signal, but the user asked for it); an *unrequested* death is `.failed`
   with the exit code or signal in the reason. Don't collapse the two.
+- **A start during `.stopping` queues exactly one restart.** The old process
+  isn't gone yet, so the supervisor records a `PendingStart` (arguments
+  captured at request time), flips the state to
+  `.stopping(restartPending: true)`, and replays it when the exit lands. A
+  `stop` in that window cancels the queue. Never silently drop a start —
+  that's how the toggle-on-while-stopping bug read as "enabled but dead".
 - **The sleep assertion tracks liveness, not toggles.** It's recomputed from
   `states` after every transition — held while any worker is live, released
   when the last one ends, never taken per-worker.
