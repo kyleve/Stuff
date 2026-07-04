@@ -25,8 +25,14 @@ func makeStubExecutable(
     return url
 }
 
+/// The failure `waitUntil` throws when its condition never holds.
+struct WaitTimeoutError: Error {}
+
 /// Polls `condition` until it holds, failing the test if `timeout` elapses
 /// first. Prefer this over fixed sleeps — fixed delays flake under load.
+///
+/// Throws on timeout (after recording the issue) so the test stops instead of
+/// running its remaining assertions against a state that never materialized.
 func waitUntil(
     timeout: Duration = .seconds(5),
     _ comment: Comment,
@@ -39,4 +45,5 @@ func waitUntil(
         try await Task.sleep(for: .milliseconds(10))
     }
     Issue.record("Timed out waiting for condition: \(comment)")
+    throw WaitTimeoutError()
 }
