@@ -68,9 +68,10 @@ by `./sync-agents`.
 
 ## Targets
 
-- **Package products** ([`Package.swift`](Package.swift)) — **StuffCore** ([`Shared/StuffCore/Sources/`](Shared/StuffCore/Sources/)), **LifecycleKit** ([`Shared/LifecycleKit/Sources/`](Shared/LifecycleKit/Sources/)), **LogKit** ([`Shared/LogKit/Sources/`](Shared/LogKit/Sources/), the logging facade), **LogViewerUI** ([`Shared/LogViewerUI/Sources/`](Shared/LogViewerUI/Sources/), the generic SwiftUI log viewer), and **SwiftDataInspector** ([`Shared/SwiftDataInspector/Sources/`](Shared/SwiftDataInspector/Sources/), the generic SwiftData browser) under [`Shared/`](Shared/); **WhereCore** / **WhereUI** / **WhereTesting** under [`Where/`](Where/).
-- **Tuist targets** ([`Project.swift`](Project.swift)) — **Where** app ([`Where/Where/`](Where/Where/)), **RegionViewer** ([`Where/RegionViewer/`](Where/RegionViewer/), a thin standalone **Mac Catalyst** host for the WhereUI region-map developer tool — the only target with a `.macCatalyst` destination), **StuffTestHost** ([`Shared/StuffTestHost/`](Shared/StuffTestHost/)), **WhereTests** (app tests, no host), and hosted **\*Tests** bundles (**StuffCoreTests**, **LifecycleKitTests**, **LogKitTests**, **LogViewerUITests**, **SwiftDataInspectorTests**, **WhereCoreTests**, **WhereUITests**) that depend on **StuffTestHost** + **WhereTesting** + the relevant package product.
-- Add SPM library targets in `Package.swift` and wire apps/tests in `Project.swift` (see existing `unitTests` helper). A new module also ships a root `README.md` and `AGENTS.md` — see [Per-module docs](#per-module-docs).
+- **Package products** ([`Package.swift`](Package.swift)) — **StuffCore** ([`Shared/StuffCore/Sources/`](Shared/StuffCore/Sources/)), **LifecycleKit** ([`Shared/LifecycleKit/Sources/`](Shared/LifecycleKit/Sources/)), **LogKit** ([`Shared/LogKit/Sources/`](Shared/LogKit/Sources/), the logging facade), **LogViewerUI** ([`Shared/LogViewerUI/Sources/`](Shared/LogViewerUI/Sources/), the generic SwiftUI log viewer), and **SwiftDataInspector** ([`Shared/SwiftDataInspector/Sources/`](Shared/SwiftDataInspector/Sources/), the generic SwiftData browser) under [`Shared/`](Shared/); **WhereCore** / **WhereUI** / **WhereTesting** under [`Where/`](Where/); **ForemanCore** ([`Foreman/ForemanCore/Sources/`](Foreman/ForemanCore/Sources/), the only **macOS-only** package library) under [`Foreman/`](Foreman/).
+- **Tuist targets** ([`Project.swift`](Project.swift)) — **Where** app ([`Where/Where/`](Where/Where/)), **RegionViewer** ([`Where/RegionViewer/`](Where/RegionViewer/), a thin standalone **Mac Catalyst** host for the WhereUI region-map developer tool — the only target with a `.macCatalyst` destination), **Foreman** ([`Foreman/Foreman/`](Foreman/Foreman/), the **native-macOS** menu bar app that runs Cursor local agent workers per repo), **StuffTestHost** ([`Shared/StuffTestHost/`](Shared/StuffTestHost/)), **WhereTests** (app tests, no host), hosted **\*Tests** bundles (**StuffCoreTests**, **LifecycleKitTests**, **LogKitTests**, **LogViewerUITests**, **SwiftDataInspectorTests**, **WhereCoreTests**, **WhereUITests**) that depend on **StuffTestHost** + **WhereTesting** + the relevant package product, and the hostless macOS bundle **ForemanCoreTests**.
+- Add SPM library targets in `Package.swift` and wire apps/tests in `Project.swift` (see existing `unitTests` helper; macOS test bundles are declared directly, like `ForemanCoreTests`). A new module also ships a root `README.md` and `AGENTS.md` — see [Per-module docs](#per-module-docs).
+- **CI schemes**: the workspace mixes iOS and macOS targets, which no single xcodebuild destination can build, so CI runs two explicit shared schemes — **Stuff-iOS-Tests** (all iOS bundles) and **Foreman-macOS-Tests** (Foreman app + ForemanCoreTests). New iOS test bundles must be added to the `Stuff-iOS-Tests` scheme in `Project.swift` or CI won't run them.
 
 ## Deployment
 
@@ -81,7 +82,7 @@ by `./sync-agents`.
 
 ## Directory layout
 
-Shared code and the shared iOS test host live under **`Shared/`**. Feature apps and their modules (e.g. **Where**) live under a top-level folder per feature (e.g. **`Where/`**).
+Shared code and the shared iOS test host live under **`Shared/`**. Feature apps and their modules (e.g. **Where**, **Foreman**) live under a top-level folder per feature (e.g. **`Where/`**, **`Foreman/`**).
 
 ```
 Shared/<TargetName>/
@@ -330,6 +331,8 @@ Matches CI `.github/workflows/ci.yml`:
 mise install
 ./ide --no-open
 ./swiftformat --lint
-mise exec -- tuist test --no-selective-testing -- \
+mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
   -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
+mise exec -- tuist test Foreman-macOS-Tests --no-selective-testing -- \
+  -destination 'platform=macOS'
 ```
