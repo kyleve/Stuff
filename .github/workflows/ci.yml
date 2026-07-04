@@ -26,9 +26,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: jdx/mise-action@v3
-      # Pin the iOS Simulator so hosted tests and signing stay predictable (all test targets are iOS).
-      - name: Build & Test
-        run: mise exec -- tuist test --no-selective-testing -- -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
+      # The workspace mixes iOS targets and the macOS-only Foreman targets, so
+      # tests run as two platform-scoped schemes (declared in Project.swift) —
+      # no single xcodebuild destination can build both.
+      # Pin the iOS Simulator so hosted tests and signing stay predictable.
+      - name: Build & Test (iOS)
+        run: mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
+      - name: Build & Test (macOS)
+        run: mise exec -- tuist test Foreman-macOS-Tests --no-selective-testing -- -destination 'platform=macOS'
       # Hosted tests can crash the test-host process on CI without leaving any error
       # in Tuist's summarized log. On failure, capture crash reports + the .xcresult
       # bundle (which holds the per-test crash backtraces) and upload them for analysis.
