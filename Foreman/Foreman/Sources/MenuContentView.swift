@@ -16,6 +16,7 @@ struct MenuContentView: View {
     let session: ForemanSession
 
     @State private var screen: Screen = .list
+    @Environment(\.controlActiveState) private var controlActiveState
 
     var body: some View {
         Group {
@@ -33,10 +34,25 @@ struct MenuContentView: View {
             }
         }
         .frame(width: 340)
+        // Keep the repo list fresh on every open without file watching.
+        // MenuBarExtra(.window) doesn't document whether the content view is
+        // rebuilt per open or kept alive across opens, so cover both:
+        // onAppear fires when the content is (re)mounted, and the
+        // controlActiveState transition fires when a kept-alive window
+        // becomes key again. A doubled rescan is harmless — it's cheap and
+        // idempotent.
         .onAppear {
-            // The window content is rebuilt each time the status item opens,
-            // so this keeps the repo list current without any file watching.
             session.rescan()
+        }
+        .onChange(of: controlActiveState) { _, newValue in
+            switch newValue {
+                case .key, .active:
+                    session.rescan()
+                case .inactive:
+                    break
+                @unknown default:
+                    break
+            }
         }
     }
 

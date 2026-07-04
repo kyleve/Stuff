@@ -36,8 +36,10 @@ formatting, global conventions) and ForemanCore's
   reintroduce switch-reverting on failure; off-then-on is the retry.
 - [`MenuContentView`](Sources/MenuContentView.swift) – the window. One
   `Screen` enum (`list` / `options(row)` / `settings`) keeps exactly one
-  surface visible. `onAppear` rescans, so the list is fresh every time the
-  status item opens (no file watching).
+  surface visible. Rescans on `onAppear` *and* on the `controlActiveState`
+  key transition — `MenuBarExtra(.window)` doesn't document whether the
+  content view is rebuilt per open or kept alive, so both hooks stay (a
+  doubled rescan is cheap and idempotent; no file watching).
 - [`WorkerRowView`](Sources/WorkerRowView.swift) – status dot + toggle +
   open-log + options. The options button is disabled while the worker is
   live: options apply at spawn, so editing them mid-run would silently do
