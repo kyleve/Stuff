@@ -14,7 +14,9 @@ formatting, global conventions) and ForemanCore's
 ## Shape
 
 - [`ForemanApp` / `AppDelegate`](Sources/ForemanApp.swift) – `@main` app with
-  an inert `Settings` placeholder scene; the real UI is AppKit-managed by
+  an inert `Settings` placeholder scene (`.commandsRemoved()`, so the app
+  menu shown during the regular-app phase doesn't offer a "Settings…" item
+  that opens the empty placeholder); the real UI is AppKit-managed by
   `AppDelegate`, whose status-item icon swaps `hammer`/`hammer.fill` on
   worker liveness. It starts the session on launch and calls
   `stopAllWorkers()` in `applicationWillTerminate` — the **stop-on-quit

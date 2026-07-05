@@ -17,10 +17,14 @@ struct ForemanApp: App {
 
     var body: some Scene {
         // LSUIElement app with an AppKit-managed status item: no SwiftUI
-        // scenes to show. Settings is the conventional inert placeholder.
+        // scenes to show. Settings is the conventional inert placeholder —
+        // with its commands removed, or the app menu (visible during the
+        // regular-app phase; see showWindow) would offer a "Settings…" item
+        // that opens this empty window instead of the real settings sheet.
         Settings {
             EmptyView()
         }
+        .commandsRemoved()
     }
 }
 
