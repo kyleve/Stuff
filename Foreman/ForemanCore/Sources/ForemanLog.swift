@@ -21,6 +21,7 @@ public enum ForemanLog {
         case repoDiscovery = "RepoDiscovery"
         case session = "ForemanSession"
         case sleepInhibitor = "SleepInhibitor"
+        case worker = "Worker"
         case workerSupervisor = "WorkerSupervisor"
     }
 
