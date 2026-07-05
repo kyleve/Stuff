@@ -23,6 +23,11 @@ public final class ForemanServices {
     public private(set) var issueMessage: String?
 
     /// Global settings; created from the loaded configuration.
+    ///
+    /// `unowned` is safe here (and on `discovery`): both objects are reached
+    /// only through a live `ForemanServices`, and their callbacks fire from
+    /// direct property writes, not deferred work. Contrast `makeRepo`, whose
+    /// products escape to views and outlive-by-retention is possible.
     @ObservationIgnored
     public private(set) lazy var settings: AppSettings = .init(
         scanDirectory: configuration.scanDirectory,
@@ -146,6 +151,19 @@ public final class ForemanServices {
 
     // MARK: - Tree wiring
 
+    /// Thrown by a repo's executable resolution when the owning services
+    /// have been released — reachable only if something (a view, a test)
+    /// retains a `Repo` beyond the root's life and starts it.
+    private struct ServicesReleasedError: Error, LocalizedError {
+        var errorDescription: String? {
+            "Foreman is shutting down."
+        }
+    }
+
+    /// `Repo`/`Worker` escape the tree (SwiftUI views hold them via
+    /// `@Bindable`), so their callbacks capture `self` weakly: a retained
+    /// repo whose worker exits after the root is gone must degrade to a
+    /// no-op, not crash on a dangling reference.
     private func makeRepo(_ scanned: ScannedRepo) -> Repo {
         Repo(
             scanned: scanned,
@@ -155,12 +173,13 @@ public final class ForemanServices {
                 name: scanned.name,
                 workerDirectory: scanned.rootURL,
                 logDirectory: logDirectory,
-                onStateChange: { [unowned self] in workerStateDidChange() },
+                onStateChange: { [weak self] in self?.workerStateDidChange() },
             ),
-            resolveExecutable: { [unowned self] in
-                try locator.locate(explicit: settings.agentExecutable)
+            resolveExecutable: { [weak self] in
+                guard let self else { throw ServicesReleasedError() }
+                return try locator.locate(explicit: settings.agentExecutable)
             },
-            onPersistentChange: { [unowned self] in repoDidChange($0) },
+            onPersistentChange: { [weak self] in self?.repoDidChange($0) },
         )
     }
 
