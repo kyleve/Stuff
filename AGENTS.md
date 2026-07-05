@@ -25,25 +25,10 @@ tests, and slow type-check sites; see `./profile --help`), and `icons`
 
 ### Managing app icons
 
-`./icons` is the single command for the Where app's alternate icons. It keeps
-three things in sync and never edits Swift:
-
-- `Where/Where/Resources/AppIcon.xcassets` — the appiconset iOS swaps to.
-- `Where/WhereUI/Sources/Resources/AppIconPreviews.xcassets` — the imageset the
-  in-app picker renders (SwiftUI `Image` can't load appiconsets).
-- `Where/WhereUI/Sources/Resources/AppIcons.json` — the manifest the picker reads.
-
-```bash
-./icons --add art/ocean.png --name Ocean --dark art/ocean-dark.png
-./icons --remove ocean
-./icons --list
-```
-
-Inputs are 1024×1024 PNGs (light required; `--dark` / `--tinted` optional). The
-Where target sets `ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS`, so a new
-appiconset is registered automatically — run `./ide --no-open` afterward to
-regenerate. The script's file edits work on Linux; compiling the catalogs is
-macOS-only. The primary "Classic" icon is reserved.
+`./icons` is the single command for the Where app's alternate icons (see
+`./icons --help`). It keeps both asset catalogs and the picker's
+`AppIcons.json` manifest in sync — never hand-edit those or add icon Swift.
+Run `./ide --no-open` after adding one.
 
 ## Formatting
 
@@ -101,16 +86,18 @@ Shared/<TargetName>/
 
 ## Per-module docs
 
-Every module carries two docs at its root, and **a new module must add both**
-(use [`Shared/LifecycleKit`](Shared/LifecycleKit/) and
-[`Shared/SwiftDataInspector`](Shared/SwiftDataInspector/) as templates):
+Every module carries two docs at its root, and **a new module must add both**:
 
 - `README.md` — the human-facing overview: what the module is, install, a quick
   start, the public API, how it works, and any contracts/limitations.
-- `AGENTS.md` — the agent-facing module shape: scope & dependencies, the key
-  types, invariants/behaviors to preserve, conventions, and testing patterns. It
-  complements this root file (which owns build/format/global rules) and should
-  link back to it; it does **not** repeat global rules.
+- `AGENTS.md` — the agent-facing module shape, kept **deliberately short**: one
+  paragraph on what the module is (pointing at the `README.md`), scope &
+  dependency rules (what it may/may not import, where it's wired), the
+  architecture/layering rules, any invariants an agent could not re-derive from
+  the code (a line or two each), and a brief testing pointer. It complements
+  this root file (which owns build/format/global rules) and should link back to
+  it; it does **not** repeat global rules, catalog the module's types, or
+  restate behavior the source already documents — agents read code for that.
 
 Keep both **current as the code changes** — treat stale docs as a bug. When you
 change a module's architecture, public API, conventions, or a documented
@@ -214,19 +201,15 @@ both be set, and "not loaded yet" is the `nil`.
 
 Smells that signal a missing type:
 
-- **Several `Bool`s/optionals that together encode one state machine** — e.g.
-  `isLoading` + `loadError` + `value`, where `(true, someError, nil)` is
-  meaningless. Collapse into an `enum` whose cases carry exactly the data each
-  state needs (this also kills "can both be true?" pairs like
-  `isExpanded`/`isCollapsed`).
-- **Parallel collections kept in lockstep by index** (`names[i]` ↔ `values[i]`)
-  — use one array of a small named struct so the two can't desync.
-- **Sentinel values standing in for "absent"** (`-1`, `""`, `Date.distantPast`,
-  `NSNotFound`) — use `Optional` or a dedicated case so "none" is a real,
-  checked state instead of a magic value callers must remember.
-- **A `kind`/`type` tag sitting beside optionals only valid for some kinds** (a
-  `kind` plus `imageURL`/`text`/`count` that are nil for the "wrong" kind) — use
-  an `enum` with associated values so each case owns exactly its payload.
+- **Several `Bool`s/optionals encoding one state machine** (`isLoading` +
+  `loadError` + `value`) — collapse into an `enum` whose cases carry exactly
+  the data each state needs.
+- **Parallel collections kept in lockstep by index** — use one array of a
+  small named struct.
+- **Sentinel values standing in for "absent"** (`-1`, `""`, `Date.distantPast`)
+  — use `Optional` or a dedicated case.
+- **A `kind` tag beside optionals only valid for some kinds** — use an `enum`
+  with associated values.
 - **Stringly-typed status or flags** (`status == "active"`) — use a typed enum,
   per the identifier/keys convention above.
 
