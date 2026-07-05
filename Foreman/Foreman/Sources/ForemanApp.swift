@@ -77,6 +77,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         // open real windows.
         NSApp.setActivationPolicy(.regular)
         NSApp.activate()
+        // A minimized window reads isVisible == false, so a status-item click
+        // routes here — but makeKeyAndOrderFront alone won't pull it out of
+        // the Dock tray.
+        if window.isMiniaturized {
+            window.deminiaturize(nil)
+        }
         window.makeKeyAndOrderFront(nil)
         // Activation can land a beat after the request; re-assert key once
         // it has (harmless when the first attempt already took).
