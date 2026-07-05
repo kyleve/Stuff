@@ -99,6 +99,11 @@ formatting, global conventions) and ForemanCore's
 - Follow the root rules: exhaustive `switch`, no closure `Binding(get:set:)`
   in views, core behavior goes to `ForemanCore` (this target should stay
   view + view-model only).
+- Feature-level todos live in [`../TODOs.md`](../TODOs.md) (mirrors
+  [`Where/TODOs.md`](../../Where/TODOs.md)): tag entries with conventional
+  commit semantics (`feat:`, `fix:`, …), file them under the priority
+  sections, and move finished ones to "Completed issues" instead of
+  deleting them.
 - Every previewable view ships a `#Preview` using `PreviewSupport` fixtures.
 - New worker CLI flags: add the field + argv rendering to
   `WorkerOptions` in ForemanCore first (with tests), then surface it in
