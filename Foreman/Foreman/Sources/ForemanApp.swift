@@ -134,6 +134,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         // We hold the reference and reuse the window across opens.
         window.isReleasedWhenClosed = false
+        // Center first: setting the autosave name restores a saved frame
+        // when one exists (overriding the center), so this only decides the
+        // very first launch — otherwise the window lands at AppKit's
+        // bottom-left default.
+        window.center()
         window.setFrameAutosaveName("ForemanMain")
         window.delegate = self
         return window
