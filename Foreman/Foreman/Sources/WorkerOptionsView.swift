@@ -2,10 +2,10 @@ import ForemanCore
 import SwiftUI
 
 /// Inline editor for one repo's `WorkerOptions` — a `Section` for the worker
-/// detail form. Edits a local draft and writes back through the session on
-/// Save. Locked (all controls disabled) while the worker is live: options
-/// apply at spawn, so mid-run edits would silently do nothing until a
-/// restart.
+/// detail form. Edits a local draft and writes back to `repo.options` on
+/// Save (Core persists). Locked (all controls disabled) while the worker is
+/// live: options apply at spawn, so mid-run edits would silently do nothing
+/// until a restart.
 struct WorkerOptionsView: View {
     /// `WorkerOptions` reshaped for form binding: optionals become empty
     /// strings, the pool case splits into a toggle + name, labels get stable
@@ -51,21 +51,19 @@ struct WorkerOptionsView: View {
         }
     }
 
-    let session: ForemanSession
-    let repo: ScannedRepo
+    let repo: Repo
     let isLocked: Bool
 
     @State private var draft: Draft
 
-    init(session: ForemanSession, repo: ScannedRepo, isLocked: Bool) {
-        self.session = session
+    init(repo: Repo, isLocked: Bool) {
         self.repo = repo
         self.isLocked = isLocked
-        _draft = State(initialValue: Draft(session.configuration.options(for: repo.id)))
+        _draft = State(initialValue: Draft(repo.options))
     }
 
     private var isDirty: Bool {
-        draft.options != session.configuration.options(for: repo.id)
+        draft.options != repo.options
     }
 
     var body: some View {
@@ -98,11 +96,11 @@ struct WorkerOptionsView: View {
                 .disabled(isLocked)
                 Spacer()
                 Button("Revert") {
-                    draft = Draft(session.configuration.options(for: repo.id))
+                    draft = Draft(repo.options)
                 }
                 .disabled(isLocked || !isDirty)
                 Button("Save") {
-                    session.updateOptions(draft.options, for: repo)
+                    repo.options = draft.options
                 }
                 .keyboardShortcut(.defaultAction)
                 .disabled(isLocked || !isDirty)
@@ -154,7 +152,7 @@ struct WorkerOptionsView: View {
     #Preview {
         let session = PreviewSupport.populatedSession()
         return Form {
-            WorkerOptionsView(session: session, repo: session.rows[0].repo, isLocked: false)
+            WorkerOptionsView(repo: session.repos[0], isLocked: false)
         }
         .formStyle(.grouped)
         .frame(width: 420)

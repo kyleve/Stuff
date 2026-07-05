@@ -41,10 +41,10 @@
                     enabledRepoIDs: [],
                     repoOptions: [:],
                 ))
-                let session = ForemanSession(
+                let session = ForemanSession(services: ForemanServices(
                     configStore: store,
-                    supervisor: WorkerSupervisor(logDirectory: base.appendingPathComponent("logs")),
-                )
+                    logDirectory: base.appendingPathComponent("logs"),
+                ))
                 session.start()
                 return session
             } catch {

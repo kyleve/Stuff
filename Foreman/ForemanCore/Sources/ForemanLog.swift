@@ -21,10 +21,8 @@ public enum ForemanLog {
         case repo = "Repo"
         case repoDiscovery = "RepoDiscovery"
         case services = "ForemanServices"
-        case session = "ForemanSession"
         case sleepInhibitor = "SleepInhibitor"
         case worker = "Worker"
-        case workerSupervisor = "WorkerSupervisor"
     }
 
     /// A logging channel for `category`, wired to the shared buffer.

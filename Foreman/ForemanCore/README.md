@@ -1,11 +1,14 @@
 # ForemanCore
 
-The model/controller layer for **Foreman**, the macOS menu bar app that spins
-up [Cursor local agent workers](https://cursor.com/docs) (`cursor-agent worker
+The model layer for **Foreman**, the macOS menu bar app that spins up
+[Cursor local agent workers](https://cursor.com/docs) (`cursor-agent worker
 start`) for the git repositories in a development directory. ForemanCore owns
-everything that isn't SwiftUI: repository discovery, per-repo worker options,
-configuration persistence, and the logging facade. The app target
-(`Foreman/Foreman`) holds only views and an observable session model.
+everything that isn't SwiftUI, organized as a tree of `@MainActor
+@Observable` objects rooted in `ForemanServices`: global settings, repository
+discovery, one `Repo` per repository owning its `Worker` process, plus
+configuration persistence, the sleep assertion, and the logging facade. The
+app target (`Foreman/Foreman`) holds only views and a thin session facade
+that binds this tree.
 
 ForemanCore is macOS-only (macOS 26+) and depends on Foundation +
 [`LogKit`](../../Shared/LogKit).
@@ -24,28 +27,64 @@ it to a target's dependencies in [`Package.swift`](../../Package.swift):
 ```swift
 import ForemanCore
 
-// Load (or default) the persisted configuration.
-let store = WorkerConfigStore.applicationSupport()
-var configuration = try store.load()
+// The root owns everything: settings, discovery, workers, persistence.
+let services = ForemanServices(
+    configStore: .applicationSupport(),
+    logDirectory: ForemanServices.defaultLogDirectory,
+)
+services.start() // first scan + restart previously-enabled workers
 
-// Find the git repositories to offer workers for.
-let repos = try RepoDiscovery().repos(in: configuration.resolvedScanDirectory)
+// Each discovered repo is an observable object owning its worker.
+let repo = services.repos[0]
+repo.isEnabled = true            // starts the worker, persists the intent
+print(repo.worker.state)         // .running(pid:since:)
+print(repo.worker.logFileURL)    // ~/Library/Logs/Foreman/Thing.log
 
-// Render the CLI invocation for one of them.
-let options = configuration.options(for: repos[0].id)
-let argv = options.arguments(workerDirectory: repos[0].rootURL)
+// Render the CLI invocation the next start will use.
+let argv = repo.options.arguments(workerDirectory: repo.rootURL)
 // → ["worker", "--worker-dir", "/Users/you/Development/Thing", "start"]
 ```
 
 ## Public API
 
-- **`RepoDiscovery`** — `repos(in:)` lists the git repositories directly inside
-  a scan directory (a subdirectory with a `.git` entry — directory or file, so
-  worktrees count). Hidden directories are skipped; nesting is not searched.
-  Throws when the scan directory can't be listed.
-- **`Repo` / `RepoID`** — a discovered repository (name + root URL) and its
-  typed identifier (the canonical absolute path). `RepoID` keys the config
-  maps so ids can't silently typo into new entries.
+- **`ForemanServices`** — the root of the model tree. Loads the configuration
+  in `init`, `start()` runs the first scan and restarts previously-enabled
+  workers, `rescan()` re-lists the scan directory, `stopAll()` is the quit
+  path. Funnels every persisted mutation (repo toggles/options, settings)
+  into the saved JSON, recomputes the sleep assertion on every worker
+  transition, and surfaces tree-level problems (unreadable config, failed
+  scan, failed save) on the observable `issueMessage`.
+- **`Repo` / `RepoID`** — one discovered repository as an `@Observable`
+  object: identity (`name`, `rootURL`, typed `RepoID` = canonical absolute
+  path), the persisted intent (`isEnabled`, `options` — mutations start/stop
+  the worker and persist automatically), and its `Worker`. Transient intents
+  that don't change the persisted desired state: `retry()` (fresh attempt
+  for an enabled repo in `.failed`) and `restart()` (respawn a running
+  worker with the current options — the apply path for options edited while
+  running).
+- **`Worker`** — the per-repo process: `start(options:executable:)`,
+  `stop()`, an observable `state` enum (`stopped` / `running(pid:since:)` /
+  `stopping(restartPending:)` / `failed(reason:)`), and `logFileURL`.
+  Worker stdout+stderr append to `~/Library/Logs/Foreman/<repo>.log` with
+  start/exit marker lines. A spawn failure lands in `.failed` (and the log);
+  a user-requested stop reads as `.stopped` even though SIGTERM technically
+  kills the CLI by signal. A start requested while the worker is still
+  stopping queues one restart, applied when the old process exits (and
+  cancelled by another stop), so a quick off-then-on flip restarts instead
+  of silently dying. `recordStartFailure(reason:)` lets callers land
+  pre-spawn failures (like a missing executable) in the same `.failed`
+  state as spawn failures.
+- **`RepoDiscovery` / `ScannedRepo`** — the stateful repo list: `rescan(in:)`
+  updates `repos`, reusing existing `Repo` instances by id (live workers
+  survive a rescan) and stopping workers whose repo vanished. The static
+  `scan(_:)` is the pure listing: git repositories directly inside a scan
+  directory (a subdirectory with a `.git` entry — directory or file, so
+  worktrees count) as `ScannedRepo` values. Hidden directories are skipped;
+  nesting is not searched. Throws when the scan directory can't be listed.
+- **`AppSettings`** — observable global settings: `scanDirectory` (default
+  `~/Development` via `resolvedScanDirectory`) and `agentExecutable` (`nil`
+  = auto-locate). Assignments persist and — for the scan directory —
+  rescan automatically.
 - **`WorkerOptions`** — the per-repo worker flags, mirroring the
   `cursor agent worker` CLI one-to-one: `displayName` (`--name`),
   `assignment` (`.shared` or `.pool(name:)` → `--pool` / `--pool-name`),
@@ -63,20 +102,7 @@ let argv = options.arguments(workerDirectory: repos[0].rootURL)
   JSON under `~/Library/Application Support/com.stuff.foreman/`. A missing
   file loads as `ForemanConfiguration.initial` (first launch); a corrupt file
   throws rather than silently resetting.
-- **`WorkerSupervisor`** — the `@MainActor @Observable` controller owning one
-  worker process per enabled repo: `start(repo:options:executable:)`,
-  `stop(_:)`, `stopAll()`, and an observable `states` map. Each repo's state
-  is a single `WorkerState` enum (`stopped` / `running(pid:since:)` /
-  `stopping(restartPending:)` / `failed(reason:)`). Worker stdout+stderr
-  append to `~/Library/Logs/Foreman/<repo>.log` with start/exit marker lines.
-  A spawn failure lands in `.failed` (and the log); a user-requested stop
-  reads as `.stopped` even though SIGTERM technically kills the CLI by
-  signal. A start requested while the worker is still stopping queues one
-  restart, applied when the old process exits (and cancelled by another
-  stop), so a quick off-then-on flip restarts instead of silently dying.
-  `recordStartFailure(_:reason:)` lets callers land pre-spawn failures (like
-  a missing executable) in the same `.failed` state as spawn failures.
-- **`SleepInhibitor`** — while any worker is live the supervisor holds a
+- **`SleepInhibitor`** — while any worker is live the root holds a
   `ProcessInfo` `.idleSystemSleepDisabled` activity (the `caffeinate -i`
   equivalent), so the machine won't doze off mid-agent-run. Display sleep and
   an explicit lid close are unaffected. The observable `isActive` backs the

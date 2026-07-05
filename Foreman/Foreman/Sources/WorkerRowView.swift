@@ -4,18 +4,15 @@ import SwiftUI
 /// One repo in the sidebar: status dot, name, and the worker toggle. Detail
 /// and actions live in `WorkerDetailView`.
 struct WorkerRowView: View {
-    let session: ForemanSession
-    @Bindable var row: WorkerRow
+    @Bindable var repo: Repo
 
     var body: some View {
-        let state = session.workerState(for: row.repo)
-
         HStack(spacing: 8) {
-            StatusDot(state: state)
+            StatusDot(state: repo.worker.state)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(row.repo.name)
-                if case .failed = state {
+                Text(repo.name)
+                if case .failed = repo.worker.state {
                     Text("Failed — see detail")
                         .font(.caption)
                         .foregroundStyle(.red)
@@ -24,7 +21,7 @@ struct WorkerRowView: View {
 
             Spacer()
 
-            Toggle("Worker enabled", isOn: $row.isEnabled)
+            Toggle("Worker enabled", isOn: $repo.isEnabled)
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .controlSize(.small)
@@ -35,7 +32,7 @@ struct WorkerRowView: View {
 
 /// The colored liveness indicator for one worker.
 struct StatusDot: View {
-    let state: WorkerSupervisor.WorkerState
+    let state: Worker.State
 
     var body: some View {
         Circle()
@@ -68,8 +65,8 @@ struct StatusDot: View {
     #Preview {
         let session = PreviewSupport.populatedSession()
         return List {
-            ForEach(session.rows) { row in
-                WorkerRowView(session: session, row: row)
+            ForEach(session.repos) { repo in
+                WorkerRowView(repo: repo)
             }
         }
         .frame(width: 240, height: 200)

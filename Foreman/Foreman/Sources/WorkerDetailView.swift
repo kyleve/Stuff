@@ -5,11 +5,10 @@ import SwiftUI
 /// Everything about one repo's worker: status, the command it runs, its
 /// options, and a live log tail.
 struct WorkerDetailView: View {
-    let session: ForemanSession
-    @Bindable var row: WorkerRow
+    @Bindable var repo: Repo
 
     var body: some View {
-        let state = session.workerState(for: row.repo)
+        let state = repo.worker.state
 
         Form {
             Section {
@@ -33,9 +32,9 @@ struct WorkerDetailView: View {
                     }
                 }
                 LabeledContent("Path") {
-                    Text(row.repo.rootURL.path).textSelection(.enabled)
+                    Text(repo.rootURL.path).textSelection(.enabled)
                 }
-                Toggle("Worker enabled", isOn: $row.isEnabled)
+                Toggle("Worker enabled", isOn: $repo.isEnabled)
             }
 
             Section("Command") {
@@ -45,27 +44,27 @@ struct WorkerDetailView: View {
                     .textSelection(.enabled)
             }
 
-            WorkerOptionsView(session: session, repo: row.repo, isLocked: state.isLive)
+            WorkerOptionsView(repo: repo, isLocked: state.isLive)
 
             Section {
-                WorkerLogView(url: session.logFileURL(for: row.repo))
+                WorkerLogView(url: repo.worker.logFileURL)
             } header: {
                 HStack {
                     Text("Log")
                     Spacer()
                     Button("Open File") {
-                        NSWorkspace.shared.open(session.logFileURL(for: row.repo))
+                        NSWorkspace.shared.open(repo.worker.logFileURL)
                     }
                     .controlSize(.small)
                 }
             }
         }
         .formStyle(.grouped)
-        .navigationTitle(row.repo.name)
-        .navigationSubtitle(row.repo.rootURL.path)
+        .navigationTitle(repo.name)
+        .navigationSubtitle(repo.rootURL.path)
     }
 
-    private func statusText(for state: WorkerSupervisor.WorkerState) -> String {
+    private func statusText(for state: Worker.State) -> String {
         switch state {
             case .stopped: "Stopped"
             case .running: "Running"
@@ -76,9 +75,7 @@ struct WorkerDetailView: View {
     }
 
     private var commandPreview: String {
-        let arguments = session.configuration
-            .options(for: row.repo.id)
-            .arguments(workerDirectory: row.repo.rootURL)
+        let arguments = repo.options.arguments(workerDirectory: repo.rootURL)
         return (["cursor-agent"] + arguments).joined(separator: " ")
     }
 }
@@ -86,7 +83,7 @@ struct WorkerDetailView: View {
 #if DEBUG
     #Preview {
         let session = PreviewSupport.populatedSession()
-        return WorkerDetailView(session: session, row: session.rows[0])
+        return WorkerDetailView(repo: session.repos[0])
             .frame(width: 460, height: 640)
     }
 #endif
