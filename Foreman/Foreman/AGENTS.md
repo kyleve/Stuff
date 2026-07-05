@@ -67,7 +67,11 @@ formatting, global conventions) and ForemanCore's
 - [`WorkerDetailView`](Sources/WorkerDetailView.swift) – one worker's
   status/pid/uptime (uptime renders live via `Text(_, style: .relative)`),
   the exact command the next start will spawn, the inline options editor,
-  and the log tail.
+  and the log tail. The status row carries the contextual transient
+  controls: **Retry** for an enabled repo in `.failed`, **Restart** while
+  `.running` — both call the `Repo` intents (no view-local process logic)
+  and never touch the persisted toggle. Start/Stop as user actions stay the
+  enable toggle.
 - [`WorkerLogView`](Sources/WorkerLogView.swift) – tails the worker's log
   file via `LogTailReader`, polling once a second while visible. One `Tail`
   enum so "no file yet", content, and a read failure can't coexist; polls

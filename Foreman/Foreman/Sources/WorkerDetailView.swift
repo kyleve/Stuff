@@ -13,9 +13,10 @@ struct WorkerDetailView: View {
         Form {
             Section {
                 LabeledContent("Status") {
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         StatusDot(state: state)
                         Text(statusText(for: state))
+                        statusActions
                     }
                 }
                 if case let .running(pid, since) = state {
@@ -62,6 +63,31 @@ struct WorkerDetailView: View {
         .formStyle(.grouped)
         .navigationTitle(repo.name)
         .navigationSubtitle(repo.rootURL.path)
+    }
+
+    /// The transient actions the enable toggle can't express, shown only in
+    /// the states where they apply. Both are `Repo` intents — they respawn
+    /// without touching the persisted desired state.
+    @ViewBuilder
+    private var statusActions: some View {
+        switch repo.worker.state {
+            case .failed:
+                if repo.isEnabled {
+                    Button("Retry") {
+                        repo.retry()
+                    }
+                    .controlSize(.small)
+                    .help("Try starting the worker again.")
+                }
+            case .running:
+                Button("Restart") {
+                    repo.restart()
+                }
+                .controlSize(.small)
+                .help("Stop the worker and start it again with the saved options.")
+            case .stopped, .stopping:
+                EmptyView()
+        }
     }
 
     private func statusText(for state: Worker.State) -> String {

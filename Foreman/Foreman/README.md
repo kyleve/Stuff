@@ -34,7 +34,10 @@ closed. Closing the window just hides it — the app keeps running until Quit.
   the failure reason when it died, the repo path, the exact `cursor-agent`
   command the next start will spawn, the options editor inline, and a live
   tail of the worker's log (`~/Library/Logs/Foreman/<repo>.log`, refreshed
-  every second while the window is visible, with an Open File button).
+  every second while the window is visible, with an Open File button). The
+  status row offers **Retry** when an enabled worker failed and **Restart**
+  while it's running (a fresh process with the saved options); neither
+  changes the on/off switch.
 - **Worker options** — mirrors the `cursor agent worker` CLI flags: display
   name, pool mode + pool name, `key=value` labels, idle release timeout, and
   verbose startup logs. Editable while the worker is stopped — options apply
@@ -63,6 +66,7 @@ closed. Closing the window just hides it — the app keeps running until Quit.
 - The sleep assertion blocks *idle* sleep only (like `caffeinate -i`); closing
   the lid still sleeps the machine.
 - Workers are not restarted automatically if they crash — the row turns red
-  with the failure reason, and flipping the switch retries.
+  with the failure reason, and Retry (or flipping the switch) starts a fresh
+  attempt.
 - `cursor-agent` must already be installed and logged in; Foreman launches it
   but doesn't manage authentication.

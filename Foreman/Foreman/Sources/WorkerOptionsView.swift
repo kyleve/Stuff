@@ -110,7 +110,9 @@ struct WorkerOptionsView: View {
             Text("Options")
         } footer: {
             if isLocked {
-                Text("Stop the worker to edit — options apply on the next start.")
+                Text(
+                    "Stop the worker to edit — options apply when it starts. Restart respawns with the saved options.",
+                )
             }
         }
     }
