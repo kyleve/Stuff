@@ -4,7 +4,8 @@ import Foundation
 /// repo's ``WorkerOptions``, and the global settings.
 public struct ForemanConfiguration: Codable, Equatable, Sendable {
     /// Directory scanned for git repositories; `nil` means the default
-    /// (`~/Development`, see ``resolvedScanDirectory``).
+    /// (`~/Development`, applied by ``AppSettings/resolvedScanDirectory`` —
+    /// the snapshot stores only what the user chose).
     public var scanDirectory: URL?
     /// Explicit `cursor-agent` executable; `nil` means auto-locate via
     /// ``CursorAgentLocator``.
@@ -35,12 +36,6 @@ public struct ForemanConfiguration: Codable, Equatable, Sendable {
         enabledRepoIDs: [],
         repoOptions: [:],
     )
-
-    /// The scan directory with the `~/Development` default applied.
-    public var resolvedScanDirectory: URL {
-        scanDirectory
-            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Development")
-    }
 
     /// Options for `repo`, falling back to ``WorkerOptions/standard`` for
     /// repos that were never customized (absence is expected, not an error).

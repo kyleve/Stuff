@@ -15,10 +15,11 @@ struct ForemanServicesTests {
 
     /// A config-store + scan-directory sandbox. `repoNames` become git repos
     /// in the scan directory; `configure` edits the saved configuration
-    /// (which already points `agentExecutable` at a long-running stub).
+    /// (which already points `agentExecutable` at a long-running stub) and
+    /// receives the scan directory for building `RepoID`s.
     private func makeFixture(
         repoNames: [String],
-        configure: (inout ForemanConfiguration) -> Void = { _ in },
+        configure: (inout ForemanConfiguration, _ scanDirectory: URL) -> Void = { _, _ in },
     ) throws -> Fixture {
         let base = try makeTemporaryDirectory()
         let scanDirectory = base.appendingPathComponent("Development", isDirectory: true)
@@ -41,7 +42,7 @@ struct ForemanServicesTests {
             enabledRepoIDs: [],
             repoOptions: [:],
         )
-        configure(&configuration)
+        configure(&configuration, scanDirectory)
         try store.save(configuration)
 
         let recorder = SleepAssertionRecorder()
@@ -70,9 +71,12 @@ struct ForemanServicesTests {
     // MARK: - Launch
 
     @Test func startScansAndRestoresEnabledWorkers() async throws {
-        let fixture = try makeFixture(repoNames: ["Idle", "Restored"]) { configuration in
+        let fixture = try makeFixture(repoNames: [
+            "Idle",
+            "Restored",
+        ]) { configuration, scanDirectory in
             configuration.enabledRepoIDs = [
-                RepoID(rootURL: configuration.resolvedScanDirectory
+                RepoID(rootURL: scanDirectory
                     .appendingPathComponent("Restored", isDirectory: true)),
             ]
         }
@@ -180,8 +184,8 @@ struct ForemanServicesTests {
     @Test func rescanPrunesStaleEntriesButKeepsForeignScanDirectoryOnes() throws {
         let foreign = RepoID(rawValue: "/Users/dev/Elsewhere/Kept")
         var stale: RepoID?
-        let fixture = try makeFixture(repoNames: ["Thing"]) { configuration in
-            let gone = RepoID(rootURL: configuration.resolvedScanDirectory
+        let fixture = try makeFixture(repoNames: ["Thing"]) { configuration, scanDirectory in
+            let gone = RepoID(rootURL: scanDirectory
                 .appendingPathComponent("Gone", isDirectory: true))
             stale = gone
             configuration.enabledRepoIDs = [foreign, gone]
