@@ -35,22 +35,24 @@ formatting, global conventions) and ForemanCore's
   `WorkerSupervisor.recordStartFailure` so both kinds look the same). Don't
   reintroduce switch-reverting on failure; off-then-on is the retry.
 - [`ForemanApp` / `AppDelegate`](Sources/ForemanApp.swift) – **the status
-  item is AppKit (`NSStatusItem` + `NSPopover`), not `MenuBarExtra`, on
-  purpose.** `MenuBarExtra(.window)` built its content once at launch and
-  lost SwiftUI observation of it: `@Observable` mutations landing while the
-  panel was closed never rendered ("empty list until you open settings"),
-  and every open-detection hook tried — `onAppear`, `controlActiveState`,
-  key-window and occlusion notifications, an observation pump into `@State`
-  — failed to fire or failed to render. The delegate instead creates a
-  *fresh* `NSHostingController` per open, making a current render a
-  construction guarantee; inside the popover, observation works normally.
-  The status-item icon is plain AppKit driven by an `ObservationPump`
-  (ForemanCore) on `isAnyWorkerLive`. Don't migrate back to `MenuBarExtra`
-  without re-verifying all of the above.
-- [`MenuContentView`](Sources/MenuContentView.swift) – the popover content.
+  item is AppKit (`NSStatusItem` + a regular `NSWindow`), not
+  `MenuBarExtra`, on purpose.** `MenuBarExtra(.window)` built its content
+  once at launch and lost SwiftUI observation of it: `@Observable` mutations
+  landing while the panel was closed never rendered ("empty list until you
+  open settings"), and every open-detection hook tried — `onAppear`,
+  `controlActiveState`, key-window and occlusion notifications, an
+  observation pump into `@State` — failed to fire or failed to render.
+  The delegate owns a persistent, resizable window (frame autosaved as
+  `ForemanMain`, `isReleasedWhenClosed = false` since we reuse it); the
+  status-item click toggles it, closing it just hides it, and
+  `windowDidBecomeKey` — reliable for regular windows — drives the
+  rescan-on-open. The status-item icon is plain AppKit driven by an
+  `ObservationPump` (ForemanCore) on `isAnyWorkerLive`. Don't migrate back
+  to `MenuBarExtra` without re-verifying all of the above.
+- [`MenuContentView`](Sources/MenuContentView.swift) – the window content.
   One `Screen` enum (`list` / `options(row)` / `settings`) keeps exactly one
-  surface visible. `onAppear` rescans — it genuinely runs per open because
-  the hosting controller is recreated each time (no file watching).
+  surface visible. `onAppear` covers the first-open scan; later opens rescan
+  via the window delegate (no file watching).
 - [`WorkerRowView`](Sources/WorkerRowView.swift) – status dot + toggle +
   open-log + options. The options button is disabled while the worker is
   live: options apply at spawn, so editing them mid-run would silently do

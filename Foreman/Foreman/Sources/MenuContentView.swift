@@ -33,9 +33,9 @@ struct MenuContentView: View {
             }
         }
         .frame(width: 340)
-        // The popover gets a fresh hosting controller on every open (see
-        // AppDelegate.togglePopover), so this genuinely runs per open and
-        // keeps the repo list current without any file watching.
+        // First-open scan; subsequent opens rescan via the window delegate's
+        // windowDidBecomeKey (see AppDelegate), which regular windows post
+        // reliably. No file watching.
         .onAppear {
             session.rescan()
         }

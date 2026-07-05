@@ -19,10 +19,11 @@ mise exec -- tuist build Foreman
 ```
 
 or run the `Foreman` scheme from Xcode. The app is an `LSUIElement`: it shows
-no Dock icon and lives entirely in the menu bar (a hammer icon — filled while
-any worker is live).
+no Dock icon and lives in the menu bar (a hammer icon — filled while any
+worker is live). Clicking the icon toggles a regular, resizable window;
+closing the window just hides it — the app keeps running until Quit.
 
-## What's in the menu
+## What's in the window
 
 - **Worker rows** — one per discovered repo: status dot (gray stopped, yellow
   stopping/restarting, green running, red failed with the reason underneath —
@@ -45,7 +46,8 @@ any worker is live).
   that were enabled last time.
 - Quitting stops every worker (stop-on-quit: the app owns its processes and
   never leaves orphans).
-- The repo list refreshes every time the menu opens, and on **Rescan**.
+- The repo list refreshes every time the window is opened or focused, and on
+  **Rescan**.
 - A worker whose repo vanishes from the scan (deleted, renamed, or the scan
   directory changed) is stopped on the next rescan — no worker keeps running
   without a row to control it. Saved toggles and options for repos deleted
