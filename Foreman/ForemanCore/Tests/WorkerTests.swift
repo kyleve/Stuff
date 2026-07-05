@@ -235,6 +235,19 @@ struct WorkerTests {
         }
     }
 
+    @Test func stopAcknowledgesAFailureWhenNothingIsLive() throws {
+        let fixture = try makeFixture()
+
+        fixture.worker.recordStartFailure(reason: "no agent")
+        fixture.worker.stop()
+
+        #expect(fixture.worker.state == .stopped)
+
+        // Stopping an already-stopped worker stays a plain no-op.
+        fixture.worker.stop()
+        #expect(fixture.worker.state == .stopped)
+    }
+
     @Test func onStateChangeFiresOncePerTransitionAndSkipsSameValueWrites() throws {
         let fixture = try makeFixture()
 

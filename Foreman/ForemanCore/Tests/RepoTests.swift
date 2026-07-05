@@ -97,6 +97,19 @@ struct RepoTests {
         #expect(fixture.persistedChanges == 1)
     }
 
+    @Test func disablingAFailedRepoAcknowledgesTheFailure() throws {
+        let fixture = try makeFixture()
+        fixture.executable = .failure(LocateFailure())
+        fixture.repo.isEnabled = true
+        #expect(fixture.repo.worker.state == .failed(reason: "cursor-agent was not found"))
+
+        fixture.repo.isEnabled = false
+
+        // Switched off means not running *and* not failed — no red status
+        // on a disabled row.
+        #expect(fixture.repo.worker.state == .stopped)
+    }
+
     // MARK: - Options
 
     @Test func optionsEditsNotifyPersistenceOnlyOnRealChange() throws {

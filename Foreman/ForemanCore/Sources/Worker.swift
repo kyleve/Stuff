@@ -154,9 +154,17 @@ public final class Worker {
 
     /// Requests termination (SIGTERM); the state moves to `.stopped` once
     /// the process actually exits. A stop while a restart is queued cancels
-    /// the restart. No-ops when nothing is live.
+    /// the restart. With nothing live, a stop acknowledges a `.failed`
+    /// state — "make it not running" includes clearing a failure the user
+    /// has switched off — and is otherwise a no-op.
     public func stop() {
-        guard handle != nil else { return }
+        guard handle != nil else {
+            if case .failed = state {
+                state = .stopped
+                Self.logger.info("Cleared failure for \(name): worker was switched off")
+            }
+            return
+        }
         if pendingStart != nil {
             // Termination was already requested; just drop the queued restart.
             pendingStart = nil

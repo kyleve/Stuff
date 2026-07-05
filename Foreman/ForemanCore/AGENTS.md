@@ -44,7 +44,9 @@ build system, formatting, and global conventions. Read that first.
   intent (`isEnabled`, `options` — both `didSet`-guarded and funneled to the
   root), and its `Worker`. **The toggle is declarative**: `isEnabled` records
   desired state, `worker.state` reports the actual one; a locate failure
-  lands as `.failed` via `recordStartFailure` with the toggle still on.
+  lands as `.failed` via `recordStartFailure` with the toggle still on, and
+  switching a failed repo off acknowledges the failure (`Worker.stop()`
+  settles a dead `.failed` to `.stopped`, so a disabled row never reads red).
   Transient intents that don't touch desired state: `startIfEnabled()`
   (launch restore), `retry()` (enabled + `.failed` only), `restart()`
   (`.running` only — resolves the executable *before* stopping so a locate
