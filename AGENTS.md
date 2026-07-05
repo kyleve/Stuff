@@ -125,6 +125,9 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   hardcoding production limits.
 - State machines with many branches (launch runners, lifecycle drives) benefit
   from **seeded fuzz/adversarial tests** that replay failures exactly.
+- **Non-obvious types get a brief doc comment** on the type — detectors,
+  geometry/algorithm helpers, and the like state what they do and their key
+  invariants.
 - Generated `.xcodeproj` and `Derived/` are git-ignored; never commit them.
 - Bundle IDs follow `com.stuff.<suffix>`.
 - Prefer small named structs over tuples for any value with more than
