@@ -86,6 +86,24 @@ public final class RepoDiscovery {
         }
     }
 
+    /// Whether any worker owned by this tree — including vanished repos
+    /// whose processes are still exiting — has a live process.
+    public var isAnyWorkerLive: Bool {
+        repos.contains { $0.worker.state.isLive }
+            || draining.contains { $0.worker.state.isLive }
+    }
+
+    /// Requests termination for every live worker, draining ones included —
+    /// the app's quit path.
+    public func stopAllWorkers() {
+        for repo in repos {
+            repo.worker.stop()
+        }
+        for repo in draining {
+            repo.worker.stop()
+        }
+    }
+
     /// The pure directory listing: subdirectories of `directory` containing
     /// a `.git` entry — directory for a normal clone, file for worktrees and
     /// submodules — sorted by name. Hidden subdirectories are skipped;
