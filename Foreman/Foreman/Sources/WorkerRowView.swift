@@ -79,7 +79,7 @@ struct StatusDot: View {
     private var help: String {
         switch state {
             case .stopped: "Stopped"
-            case let .running(pid): "Running (pid \(pid))"
+            case let .running(pid, _): "Running (pid \(pid))"
             case .stopping(restartPending: true): "Restarting…"
             case .stopping(restartPending: false): "Stopping…"
             case let .failed(reason): "Failed: \(reason)"

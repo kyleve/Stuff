@@ -15,8 +15,9 @@ public final class WorkerSupervisor {
         case stopped
         /// No `.starting`: spawning is synchronous on the main actor, so a
         /// start resolves to `.running` or `.failed` before anyone can
-        /// observe an in-between state.
-        case running(pid: Int32)
+        /// observe an in-between state. `since` is the spawn time, for
+        /// uptime display.
+        case running(pid: Int32, since: Date)
         /// Stop was requested; the process hasn't exited yet. A start
         /// requested in this window can't spawn immediately (the exiting
         /// process still owns the log file), so it queues a restart —
@@ -137,7 +138,7 @@ public final class WorkerSupervisor {
             try process.run()
 
             handles[id] = Handle(process: process, logHandle: logHandle)
-            states[id] = .running(pid: process.processIdentifier)
+            states[id] = .running(pid: process.processIdentifier, since: Date())
             Self.logger.info(
                 "Started worker for \(repo.name) (pid \(process.processIdentifier))",
             )

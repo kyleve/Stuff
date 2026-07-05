@@ -200,7 +200,31 @@ struct WorkerSupervisorTests {
     }
 
     private func pid(of state: WorkerSupervisor.WorkerState) -> Int32? {
-        if case let .running(pid) = state { pid } else { nil }
+        if case let .running(pid, _) = state { pid } else { nil }
+    }
+
+    @Test func runningStateCarriesTheSpawnTime() async throws {
+        let fixture = try makeFixture()
+        let repo = try makeRepo(named: "Thing", under: fixture.directory)
+        let stub = try makeStubExecutable(in: fixture.directory, script: Self.longRunningScript)
+        let before = Date()
+
+        fixture.supervisor.start(repo: repo, options: .standard, executable: stub)
+        try await waitUntil("worker reaches running") {
+            if case .running = fixture.supervisor.state(for: repo.id) { true } else { false }
+        }
+
+        guard case let .running(_, since) = fixture.supervisor.state(for: repo.id) else {
+            Issue.record("Expected a running state")
+            return
+        }
+        #expect(since >= before)
+        #expect(since <= Date())
+
+        fixture.supervisor.stop(repo.id)
+        try await waitUntil("worker stops") {
+            fixture.supervisor.state(for: repo.id) == .stopped
+        }
     }
 
     @Test func recordStartFailureReadsAsFailed() throws {

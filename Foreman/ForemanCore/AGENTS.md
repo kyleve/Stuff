@@ -43,7 +43,7 @@ build system, formatting, and global conventions. Read that first.
   sibling like `~/CodeArchive` doesn't match a `~/Code` scan directory).
 - [`WorkerSupervisor`](Sources/WorkerSupervisor.swift) – `@MainActor
   @Observable` owner of the worker processes. Per-repo state is the single
-  `WorkerState` enum (`stopped` / `running(pid:)` /
+  `WorkerState` enum (`stopped` / `running(pid:since:)` /
   `stopping(restartPending:)` / `failed(reason:)` — no `.starting`: spawning
   is synchronous on the main actor, so an in-between state would be
   unobservable); the private `Handle` carries the `Process`, its log
