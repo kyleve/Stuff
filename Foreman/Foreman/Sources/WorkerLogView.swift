@@ -5,8 +5,9 @@ import SwiftUI
 /// (workers append continuously; there's no push signal for file growth).
 struct WorkerLogView: View {
     /// What the last poll produced. One value, so "no file", content, and a
-    /// read failure can't coexist.
-    private enum Tail {
+    /// read failure can't coexist. Equatable so unchanged polls can be
+    /// dropped instead of re-rendering (see `refresh`).
+    private enum Tail: Equatable {
         case noFileYet
         case content(String)
         case failed(String)
@@ -51,14 +52,21 @@ struct WorkerLogView: View {
     }
 
     private func refresh() {
+        let latest: Tail
         do {
             if let text = try LogTailReader.tail(of: url, maxBytes: 64 * 1024) {
-                tail = .content(text)
+                latest = .content(text)
             } else {
-                tail = .noFileYet
+                latest = .noFileYet
             }
         } catch {
-            tail = .failed("Couldn't read the log: \(error.localizedDescription)")
+            latest = .failed("Couldn't read the log: \(error.localizedDescription)")
+        }
+        // Only write when the tail actually changed: an idle worker polls the
+        // same content once a second, and each redundant @State write re-runs
+        // body, wiping the user's text selection and churning the scroll view.
+        if latest != tail {
+            tail = latest
         }
     }
 }
