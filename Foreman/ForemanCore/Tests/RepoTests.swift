@@ -194,6 +194,13 @@ struct RepoTests {
         try await waitUntil("worker stops") {
             fixture.repo.worker.state == .stopped
         }
+
+        // Failed + disabled (only constructible programmatically now that
+        // disabling acknowledges a failure): retry mirrors the Retry
+        // button's isEnabled gate and must not start anything.
+        fixture.repo.worker.recordStartFailure(reason: "boom")
+        fixture.repo.retry()
+        #expect(fixture.repo.worker.state == .failed(reason: "boom"))
     }
 
     // MARK: - Restart
