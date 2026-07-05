@@ -20,7 +20,7 @@ jobs:
       - run: ./swiftformat --lint
 
   test:
-    name: Build & Test
+    name: Build & Test (iOS)
     needs: format
     runs-on: macos-26
     steps:
@@ -28,10 +28,43 @@ jobs:
       - uses: jdx/mise-action@v3
       # The workspace mixes iOS targets and the macOS-only Foreman targets, so
       # tests run as two platform-scoped schemes (declared in Project.swift) —
-      # no single xcodebuild destination can build both.
+      # no single xcodebuild destination can build both. The macOS-only Foreman
+      # scheme runs in its own `test-macos` job (self-contained and fast) to keep
+      # it off this job's critical path.
       # Pin the iOS Simulator so hosted tests and signing stay predictable.
       - name: Build & Test (iOS)
         run: mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
+      # Hosted tests can crash the test-host process on CI without leaving any error
+      # in Tuist's summarized log. On failure, capture crash reports + the .xcresult
+      # bundle (which holds the per-test crash backtraces) and upload them for analysis.
+      - name: Collect test diagnostics
+        if: ${{ failure() }}
+        run: |
+          mkdir -p diagnostics/crashes diagnostics/xcresult
+          cp -R "$HOME/Library/Logs/DiagnosticReports/." diagnostics/crashes/ 2>/dev/null || true
+          find "$HOME/Library/Developer/Xcode/DerivedData" -maxdepth 6 -name '*.xcresult' \
+            -exec cp -R {} diagnostics/xcresult/ \; 2>/dev/null || true
+          cp -R "$HOME/.local/state/tuist/sessions" diagnostics/tuist-sessions 2>/dev/null || true
+          echo '--- collected diagnostics ---'
+          find diagnostics -maxdepth 3 | head -200
+      - name: Upload test diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-diagnostics-ios
+          path: diagnostics
+          if-no-files-found: warn
+          retention-days: 7
+
+  test-macos:
+    name: Build & Test (macOS)
+    needs: format
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      # The macOS-only Foreman scheme is self-contained and fast, so it runs
+      # here in parallel with the iOS `test` job rather than adding ~40s to it.
       - name: Build & Test (macOS)
         run: mise exec -- tuist test Foreman-macOS-Tests --no-selective-testing -- -destination 'platform=macOS'
       # Hosted tests can crash the test-host process on CI without leaving any error
@@ -51,7 +84,7 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: test-diagnostics
+          name: test-diagnostics-macos
           path: diagnostics
           if-no-files-found: warn
           retention-days: 7
