@@ -13,10 +13,10 @@ formatting, global conventions) and ForemanCore's
 
 ## Shape
 
-- [`ForemanApp` / `AppDelegate`](Sources/ForemanApp.swift) – `@main` app with
-  an inert `Settings` placeholder scene (`.commandsRemoved()`, so the app
-  menu shown during the regular-app phase doesn't offer a "Settings…" item
-  that opens the empty placeholder); the real UI is AppKit-managed by
+- [`ForemanApp` / `AppDelegate`](Sources/ForemanApp.swift) – `@main` app whose
+  only SwiftUI scene is `Settings` hosting `SettingsView` (reached via the
+  app menu / Cmd-, in the regular-app phase, or the toolbar `SettingsLink`);
+  the rest of the UI is AppKit-managed by
   `AppDelegate`, whose status-item icon swaps `hammer`/`hammer.fill` on
   worker liveness. It starts the session on launch and calls
   `stopAllWorkers()` in `applicationWillTerminate` — the **stop-on-quit
@@ -59,8 +59,8 @@ formatting, global conventions) and ForemanCore's
   without re-verifying all of the above.
 - [`MainWindowView`](Sources/MainWindowView.swift) – the window content: a
   `NavigationSplitView` with repo rows in the sidebar and the selected
-  worker's detail on the right, plus the toolbar (sleep badge, Rescan,
-  Settings-as-sheet, Quit) and the issue banner. The detail carries
+  worker's detail on the right, plus the toolbar (sleep badge, Rescan, a
+  `SettingsLink`, Quit) and the issue banner. The detail carries
   `.id(row.id)` so per-repo `@State` (options draft, log tail) resets on
   selection change. `onAppear` covers the first-open scan; later opens
   rescan via the window delegate (no file watching).
@@ -81,14 +81,19 @@ formatting, global conventions) and ForemanCore's
   on [`WindowVisibilityReader`](Sources/WindowVisibilityReader.swift), which
   reports the hosting window's occlusion state into a binding. Any future
   periodic work in this window needs the same gate.
-- [`WorkerOptionsView`](Sources/WorkerOptionsView.swift) /
-  [`SettingsView`](Sources/SettingsView.swift) – form editors over a local
-  `@State` draft, written back through session intents on Save. The draft
-  reshapes `WorkerOptions` for binding (optionals ↔ empty strings, the pool
-  case ↔ toggle + name); conversion lives in the draft type, not scattered
-  through the form. `WorkerOptionsView` is a `Section` embedded in the
-  detail form, locked while the worker is live: options apply at spawn, so
-  mid-run edits would silently do nothing until a restart.
+- [`WorkerOptionsView`](Sources/WorkerOptionsView.swift) – editor over a
+  local `@State` draft, written back through session intents on Save. The
+  draft reshapes `WorkerOptions` for binding (optionals ↔ empty strings, the
+  pool case ↔ toggle + name); conversion lives in the draft type, not
+  scattered through the form. It is a `Section` embedded in the detail form,
+  locked while the worker is live: options apply at spawn, so mid-run edits
+  would silently do nothing until a restart.
+- [`SettingsView`](Sources/SettingsView.swift) – lives in the `Settings`
+  scene, so it follows settings-window conventions: fields apply on commit
+  (Return / focus loss / panel selection) with no Save button. The window
+  keeps its hierarchy across opens, so the field drafts are re-seeded from
+  the session when the window becomes visible (`WindowVisibilityReader` —
+  same caveat as the log view).
 - [`PreviewSupport`](Sources/PreviewSupport.swift) – DEBUG-only fixtures
   (`emptySession()`, `populatedSession()`) backed by throwaway temp
   directories; previews never read the real config, spawn processes, or touch

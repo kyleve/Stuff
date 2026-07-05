@@ -10,15 +10,13 @@ struct ForemanApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        // LSUIElement app with an AppKit-managed status item: no SwiftUI
-        // scenes to show. Settings is the conventional inert placeholder —
-        // with its commands removed, or the app menu (visible during the
-        // regular-app phase; see showWindow) would offer a "Settings…" item
-        // that opens this empty window instead of the real settings sheet.
+        // The only SwiftUI scene: the standard Settings window, reachable
+        // from the app menu (Cmd-,) during the regular-app phase and the
+        // main window's toolbar SettingsLink. The main window itself is
+        // AppKit-managed (see AppDelegate).
         Settings {
-            EmptyView()
+            SettingsView(session: appDelegate.session)
         }
-        .commandsRemoved()
     }
 }
 

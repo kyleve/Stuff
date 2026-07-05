@@ -8,7 +8,6 @@ struct MainWindowView: View {
     let session: ForemanSession
 
     @State private var selection: RepoID?
-    @State private var isShowingSettings = false
 
     var body: some View {
         NavigationSplitView {
@@ -31,10 +30,6 @@ struct MainWindowView: View {
         .frame(minWidth: 680, minHeight: 420)
         .safeAreaInset(edge: .top, spacing: 0) { issueBanner }
         .toolbar { toolbarContent }
-        .sheet(isPresented: $isShowingSettings) {
-            SettingsView(session: session) { isShowingSettings = false }
-                .frame(width: 420)
-        }
         // First-open scan; later opens rescan via the window delegate's
         // windowDidBecomeKey (see AppDelegate). No file watching.
         .onAppear {
@@ -91,9 +86,7 @@ struct MainWindowView: View {
             .help("Re-scan the development directory for repositories.")
         }
         ToolbarItem {
-            Button {
-                isShowingSettings = true
-            } label: {
+            SettingsLink {
                 Label("Settings", systemImage: "gearshape")
             }
             .help("Change the scan directory or the cursor-agent executable.")

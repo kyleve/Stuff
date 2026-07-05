@@ -40,8 +40,9 @@ closed. Closing the window just hides it — the app keeps running until Quit.
   verbose startup logs. Editable while the worker is stopped — options apply
   on the next start.
 - **Toolbar** — a "Preventing sleep" badge while the sleep assertion is held,
-  Rescan, Settings (a sheet: the scan directory and an explicit
-  `cursor-agent` path, empty = auto-detect), and Quit.
+  Rescan, Settings (opens the standard settings window: the scan directory
+  and an explicit `cursor-agent` path, empty = auto-detect, applied as
+  fields commit), and Quit.
 
 ## Lifecycle
 
