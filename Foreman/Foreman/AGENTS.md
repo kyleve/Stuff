@@ -34,22 +34,23 @@ formatting, global conventions) and ForemanCore's
   `.failed` on the row with the switch still on (locate failures go through
   `WorkerSupervisor.recordStartFailure` so both kinds look the same). Don't
   reintroduce switch-reverting on failure; off-then-on is the retry.
-- [`MenuContentView`](Sources/MenuContentView.swift) – the window. One
-  `Screen` enum (`list` / `options(row)` / `settings`) keeps exactly one
-  surface visible. **Rendering works around a `MenuBarExtra(.window)`
-  defect**: the panel content is built once at launch and kept alive, and
-  `@Observable` mutations landing while the panel is closed are dropped —
-  and because observation tracking is one-shot, the body then stops
-  observing entirely until a local `@State` change re-evaluates it (the
-  "empty list until you open settings" bug). The fix is an
-  `ObservationPump` (ForemanCore) reading everything the hierarchy renders
-  and bumping a `refreshTick` `@State` on every session change — `@State`
-  invalidation doesn't depend on SwiftUI's observation, so the render can't
-  go stale. `MenuBarIcon` carries the same pump for the status-item label.
-  The on-open rescan hooks `NSWindow.didChangeOcclusionStateNotification`;
-  don't swap it for key-window notifications (the panel doesn't reliably
-  become key) or `onAppear`/`controlActiveState` (neither re-fires per open
-  on this scene type).
+- [`ForemanApp` / `AppDelegate`](Sources/ForemanApp.swift) – **the status
+  item is AppKit (`NSStatusItem` + `NSPopover`), not `MenuBarExtra`, on
+  purpose.** `MenuBarExtra(.window)` built its content once at launch and
+  lost SwiftUI observation of it: `@Observable` mutations landing while the
+  panel was closed never rendered ("empty list until you open settings"),
+  and every open-detection hook tried — `onAppear`, `controlActiveState`,
+  key-window and occlusion notifications, an observation pump into `@State`
+  — failed to fire or failed to render. The delegate instead creates a
+  *fresh* `NSHostingController` per open, making a current render a
+  construction guarantee; inside the popover, observation works normally.
+  The status-item icon is plain AppKit driven by an `ObservationPump`
+  (ForemanCore) on `isAnyWorkerLive`. Don't migrate back to `MenuBarExtra`
+  without re-verifying all of the above.
+- [`MenuContentView`](Sources/MenuContentView.swift) – the popover content.
+  One `Screen` enum (`list` / `options(row)` / `settings`) keeps exactly one
+  surface visible. `onAppear` rescans — it genuinely runs per open because
+  the hosting controller is recreated each time (no file watching).
 - [`WorkerRowView`](Sources/WorkerRowView.swift) – status dot + toggle +
   open-log + options. The options button is disabled while the worker is
   live: options apply at spawn, so editing them mid-run would silently do

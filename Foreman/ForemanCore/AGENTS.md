@@ -54,9 +54,9 @@ build system, formatting, and global conventions. Read that first.
   the caller-observable result.
 - [`ObservationPump`](Sources/ObservationPump.swift) – re-registering
   `withObservationTracking`: calls `onChange` on the main actor after *every*
-  change to the properties read by `tracking`, not just the first. Exists
-  because `MenuBarExtra(.window)` hosting loses SwiftUI's own observation
-  (see the app target's `AGENTS.md`); views pair it with a `@State` counter.
+  change to the properties read by `tracking`, not just the first. Lets
+  non-SwiftUI code react to `@Observable` state — the app's delegate drives
+  the AppKit status-item icon with one (see the app target's `AGENTS.md`).
   `onChange` fires on the next main-actor turn — read current state there,
   don't try to learn *what* changed. Cancel via `cancel()` or dealloc.
 - [`SleepInhibitor`](Sources/SleepInhibitor.swift) – idempotent wrapper around

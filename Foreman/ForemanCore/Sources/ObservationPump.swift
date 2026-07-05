@@ -4,13 +4,8 @@ import Observation
 /// the main actor after *every* change to the properties read by `tracking`,
 /// not just the first, by re-registering after each notification.
 ///
-/// This exists because some SwiftUI hosts lose their own observation
-/// dependencies — notably `MenuBarExtra(.window)` panel content, where a
-/// mutation landing while the panel is closed is dropped and (tracking being
-/// one-shot) the body never observes again. Views work around it by pairing
-/// a pump with a `@State` counter: the pump bumps the counter, and the
-/// `@State` change forces the body re-evaluation that SwiftUI's own tracking
-/// failed to deliver.
+/// This lets non-SwiftUI code react to `@Observable` state — the Foreman app
+/// drives its AppKit status-item icon with one.
 ///
 /// `onChange` runs on the next main-actor turn after a change, so any batch
 /// of synchronous mutations is complete by the time it fires; read current
