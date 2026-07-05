@@ -1,8 +1,9 @@
 import Foundation
+import Observation
 
 /// Stable identifier for a repository: its canonical absolute path.
 ///
-/// A typed wrapper (rather than a raw `String`) so config keys and supervisor
+/// A typed wrapper (rather than a raw `String`) so config keys and worker
 /// lookups can't silently typo into an untracked id. `RawRepresentable` with a
 /// `String` raw value makes it `CodingKeyRepresentable`, so dictionaries keyed
 /// by `RepoID` encode as plain JSON objects.
@@ -18,8 +19,9 @@ public struct RepoID: RawRepresentable, Hashable, Sendable, Codable {
     }
 }
 
-/// A git repository found by ``RepoDiscovery``.
-public struct Repo: Hashable, Identifiable, Sendable {
+/// A git repository as found on disk by ``RepoDiscovery/scan(_:)`` — pure
+/// identity (name + root), before it becomes a live ``Repo`` in the tree.
+public struct ScannedRepo: Hashable, Identifiable, Sendable {
     /// The directory name, e.g. `Stuff`.
     public let name: String
     /// Absolute file URL of the repository root.
@@ -35,17 +37,100 @@ public struct Repo: Hashable, Identifiable, Sendable {
     }
 }
 
-/// Finds git repositories one level below a scan directory.
+/// Finds git repositories one level below the scan directory and holds the
+/// resulting ``Repo`` objects — the tree's "many repos" node.
 ///
-/// A subdirectory counts as a repository when it contains a `.git` entry —
-/// directory for a normal clone, file for worktrees and submodules. Hidden
-/// subdirectories are skipped; nested repositories are not searched.
-public struct RepoDiscovery: Sendable {
-    public init() {}
+/// ``rescan(in:)`` reuses existing `Repo` instances by id (so a live worker
+/// survives a rescan), creates new ones through the injected factory, and
+/// stops + drops repos that vanished from the scan.
+@MainActor
+@Observable
+public final class RepoDiscovery {
+    /// The discovered repositories, sorted by name.
+    public private(set) var repos: [Repo] = []
 
-    /// Returns the repositories directly inside `directory`, sorted by name.
-    /// Throws if `directory` can't be listed (missing, unreadable, …).
-    public func repos(in directory: URL) throws -> [Repo] {
+    private static let logger = ForemanLog.channel(.repoDiscovery)
+
+    private let makeRepo: @MainActor (ScannedRepo) -> Repo
+    /// Vanished repos whose worker hasn't exited yet. Retained so the exit
+    /// bookkeeping (state transition, log footer) still lands; purged once
+    /// dead on the next rescan.
+    @ObservationIgnored private var draining: [Repo] = []
+
+    /// `makeRepo` builds the live `Repo` (worker, saved state, wiring) for a
+    /// newly discovered repository — the owning tree injects it.
+    public init(makeRepo: @escaping @MainActor (ScannedRepo) -> Repo) {
+        self.makeRepo = makeRepo
+    }
+
+    /// Re-lists `directory`, updating ``repos``. Throws if the directory
+    /// can't be listed (missing, unreadable, …) — existing repos are kept in
+    /// that case, so a transient failure doesn't tear down live workers.
+    public func rescan(in directory: URL) throws {
+        let scanned = try Self.scan(directory)
+
+        var existing: [RepoID: Repo] = [:]
+        for repo in repos {
+            existing[repo.id] = repo
+        }
+        // A repo whose directory reappears while its old worker is still
+        // exiting is resurrected, not rebuilt: a fresh Repo would put two
+        // processes — and two log-file writers — on one id, while the
+        // reused Worker queues any start behind the exiting process.
+        var resurrectable: [RepoID: Repo] = [:]
+        for repo in draining {
+            resurrectable[repo.id] = repo
+        }
+
+        repos = scanned.map { found in
+            existing.removeValue(forKey: found.id)
+                ?? resurrectable.removeValue(forKey: found.id)
+                ?? makeRepo(found)
+        }
+
+        // Repos that weren't resurrected keep draining until the exit
+        // lands (already stopping, no need to re-request); dead ones drop.
+        draining = resurrectable.values.filter(\.worker.state.isLive)
+        for (_, vanished) in existing where vanished.worker.state.isLive {
+            Self.logger.info("Stopping worker for vanished repo \(vanished.id.rawValue)")
+            vanished.worker.stop()
+            draining.append(vanished)
+        }
+    }
+
+    /// IDs with a presence in the tree: the discovered repos plus vanished
+    /// ones whose worker is still draining. Cleanups keyed on "is this repo
+    /// gone?" (like the configuration prune) should treat draining ids as
+    /// present — dropping their saved intent mid-exit would strand a
+    /// resurrected repo with state the config no longer backs.
+    public var retainedRepoIDs: Set<RepoID> {
+        Set(repos.map(\.id)).union(draining.map(\.id))
+    }
+
+    /// Whether any worker owned by this tree — including vanished repos
+    /// whose processes are still exiting — has a live process.
+    public var isAnyWorkerLive: Bool {
+        repos.contains { $0.worker.state.isLive }
+            || draining.contains { $0.worker.state.isLive }
+    }
+
+    /// Requests termination for every live worker, draining ones included —
+    /// the app's quit path.
+    public func stopAllWorkers() {
+        for repo in repos {
+            repo.worker.stop()
+        }
+        for repo in draining {
+            repo.worker.stop()
+        }
+    }
+
+    /// The pure directory listing: subdirectories of `directory` containing
+    /// a `.git` entry — directory for a normal clone, file for worktrees and
+    /// submodules — sorted by name. Hidden subdirectories are skipped;
+    /// nested repositories are not searched. Throws if `directory` can't be
+    /// listed.
+    public static func scan(_ directory: URL) throws -> [ScannedRepo] {
         let fileManager = FileManager.default
         let entries = try fileManager.contentsOfDirectory(
             at: directory,
@@ -53,13 +138,13 @@ public struct RepoDiscovery: Sendable {
             options: [.skipsHiddenFiles],
         )
 
-        let repos = entries.compactMap { entry -> Repo? in
+        let repos = entries.compactMap { entry -> ScannedRepo? in
             var isDirectory: ObjCBool = false
             guard fileManager.fileExists(atPath: entry.path, isDirectory: &isDirectory),
                   isDirectory.boolValue,
                   fileManager.fileExists(atPath: entry.appendingPathComponent(".git").path)
             else { return nil }
-            return Repo(name: entry.lastPathComponent, rootURL: entry.standardizedFileURL)
+            return ScannedRepo(name: entry.lastPathComponent, rootURL: entry.standardizedFileURL)
         }
         return repos.sorted {
             $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending

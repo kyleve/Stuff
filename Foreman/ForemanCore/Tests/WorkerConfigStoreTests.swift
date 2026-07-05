@@ -92,12 +92,4 @@ struct WorkerConfigStoreTests {
         #expect(!changed)
         #expect(configuration == before)
     }
-
-    @Test func scanDirectoryDefaultsToDevelopment() {
-        let configuration = ForemanConfiguration.initial
-
-        let expected = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Development")
-        #expect(configuration.resolvedScanDirectory == expected)
-    }
 }

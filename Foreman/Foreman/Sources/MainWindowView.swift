@@ -14,11 +14,11 @@ struct MainWindowView: View {
             sidebar
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240)
         } detail: {
-            if let row = session.rows.first(where: { $0.id == selection }) {
-                WorkerDetailView(session: session, row: row)
+            if let repo = session.repos.first(where: { $0.id == selection }) {
+                WorkerDetailView(repo: repo)
                     // Reset the detail's local state (options draft, log
                     // tail) when the selection changes.
-                    .id(row.id)
+                    .id(repo.id)
             } else {
                 ContentUnavailableView(
                     "Select a Repository",
@@ -39,17 +39,17 @@ struct MainWindowView: View {
 
     private var sidebar: some View {
         List(selection: $selection) {
-            ForEach(session.rows) { row in
-                WorkerRowView(session: session, row: row)
-                    .tag(row.id)
+            ForEach(session.repos) { repo in
+                WorkerRowView(repo: repo)
+                    .tag(repo.id)
             }
         }
         .overlay {
-            if session.rows.isEmpty {
+            if session.repos.isEmpty {
                 ContentUnavailableView {
                     Label("No Git Repositories", systemImage: "folder.badge.questionmark")
                 } description: {
-                    Text(session.configuration.resolvedScanDirectory.path)
+                    Text(session.settings.resolvedScanDirectory.path)
                 }
             }
         }

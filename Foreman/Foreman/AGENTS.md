@@ -1,11 +1,13 @@
 # Foreman (app target) – Module Shape
 
 The SwiftUI shell for the Foreman menu bar app: an AppKit status item that
-toggles a regular window, an `@Observable` session view-model, and the
-window's views (a `NavigationSplitView`). Domain behavior — repo discovery,
-worker process supervision, config persistence, the sleep assertion — lives
-in [`ForemanCore`](../ForemanCore); this target only orchestrates and
-renders it. See [`README.md`](README.md) for the narrative.
+toggles a regular window, a thin session facade, and the window's views (a
+`NavigationSplitView`). Domain behavior — the observable model tree
+(`ForemanServices` → `AppSettings` + `RepoDiscovery` → `Repo` → `Worker`),
+config persistence, the sleep assertion — lives in
+[`ForemanCore`](../ForemanCore); views bind the Core objects directly and
+this target only renders and routes. See [`README.md`](README.md) for the
+narrative.
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md) (build system,
 formatting, global conventions) and ForemanCore's
@@ -24,20 +26,15 @@ formatting, global conventions) and ForemanCore's
   orphans. The target is an `LSUIElement` with a hand-written Info.plist in
   [`Project.swift`](../../Project.swift) (don't switch it to
   `.extendingDefault`, which injects `NSMainStoryboardFile` on macOS).
-- [`ForemanSession`](Sources/ForemanSession.swift) – the view model. Mirrors
-  `WorkerSupervisor` state into `WorkerRow`s (an `@Observable` row per repo so
-  `Toggle` binds to `$row.isEnabled` — no closure-built `Binding`s, per root
-  rules), exposes intents (`rescan`, `updateOptions`, `setScanDirectory`,
-  `setAgentExecutable`), and persists through `WorkerConfigStore` after every
-  change. `start()` restores the config and restarts previously-enabled
-  workers. Failures (unreadable config, failed scan, missing `cursor-agent`,
-  failed save) land in the observable `issueMessage` *and* the log — honest
-  state, never a silent default. **The toggle is declarative**: the switch
-  records the desired state (persisted, restored at launch) and the status
-  dot reports the actual one — any start failure, locate or spawn, reads as
-  `.failed` on the row with the switch still on (locate failures go through
-  `WorkerSupervisor.recordStartFailure` so both kinds look the same). Don't
-  reintroduce switch-reverting on failure; off-then-on is the retry.
+- [`ForemanSession`](Sources/ForemanSession.swift) – a deliberately thin
+  facade: owns the `ForemanServices` root, forwards the app-level intents
+  (`start`, `rescan`, `stopAllWorkers`), and re-exposes `repos`, `settings`,
+  `issueMessage`, and the liveness flags. There is no mirroring layer —
+  views bind the Core `Repo` objects directly (`$repo.isEnabled`,
+  `repo.worker.state`), and toggle/options/settings semantics (declarative
+  toggle, persistence funnel, retry/restart intents) live in ForemanCore;
+  see [its AGENTS.md](../ForemanCore/AGENTS.md). If session logic grows
+  beyond forwarding, move it into Core.
 - **The status item is AppKit (`NSStatusItem` + a regular `NSWindow`), not
   `MenuBarExtra`, on purpose.** `MenuBarExtra(.window)` built its content
   once at launch and lost SwiftUI observation of it: `@Observable` mutations
@@ -61,7 +58,7 @@ formatting, global conventions) and ForemanCore's
   `NavigationSplitView` with repo rows in the sidebar and the selected
   worker's detail on the right, plus the toolbar (sleep badge, Rescan, a
   `SettingsLink`, Quit) and the issue banner. The detail carries
-  `.id(row.id)` so per-repo `@State` (options draft, log tail) resets on
+  `.id(repo.id)` so per-repo `@State` (options draft, log tail) resets on
   selection change. `onAppear` covers the first-open scan; later opens
   rescan via the window delegate (no file watching).
 - [`WorkerRowView`](Sources/WorkerRowView.swift) – sidebar row: status dot,
@@ -70,7 +67,11 @@ formatting, global conventions) and ForemanCore's
 - [`WorkerDetailView`](Sources/WorkerDetailView.swift) – one worker's
   status/pid/uptime (uptime renders live via `Text(_, style: .relative)`),
   the exact command the next start will spawn, the inline options editor,
-  and the log tail.
+  and the log tail. The status row carries the contextual transient
+  controls: **Retry** for an enabled repo in `.failed`, **Restart** while
+  `.running` — both call the `Repo` intents (no view-local process logic)
+  and never touch the persisted toggle. Start/Stop as user actions stay the
+  enable toggle.
 - [`WorkerLogView`](Sources/WorkerLogView.swift) – tails the worker's log
   file via `LogTailReader`, polling once a second while visible. One `Tail`
   enum so "no file yet", content, and a read failure can't coexist; polls
@@ -82,17 +83,18 @@ formatting, global conventions) and ForemanCore's
   reports the hosting window's occlusion state into a binding. Any future
   periodic work in this window needs the same gate.
 - [`WorkerOptionsView`](Sources/WorkerOptionsView.swift) – editor over a
-  local `@State` draft, written back through session intents on Save. The
-  draft reshapes `WorkerOptions` for binding (optionals ↔ empty strings, the
-  pool case ↔ toggle + name); conversion lives in the draft type, not
-  scattered through the form. It is a `Section` embedded in the detail form,
-  locked while the worker is live: options apply at spawn, so mid-run edits
-  would silently do nothing until a restart.
+  local `@State` draft, written back to `repo.options` on Save (Core
+  persists). The draft reshapes `WorkerOptions` for binding (optionals ↔
+  empty strings, the pool case ↔ toggle + name); conversion lives in the
+  draft type, not scattered through the form. It is a `Section` embedded in
+  the detail form, locked while the worker is live: options apply at spawn,
+  so mid-run edits would silently do nothing until a restart.
 - [`SettingsView`](Sources/SettingsView.swift) – lives in the `Settings`
   scene, so it follows settings-window conventions: fields apply on commit
-  (Return / focus loss / panel selection) with no Save button. The window
+  (Return / focus loss / panel selection) with no Save button, written to
+  the observable `AppSettings` (Core persists and rescans). The window
   keeps its hierarchy across opens, so the field drafts are re-seeded from
-  the session when the window becomes visible (`WindowVisibilityReader` —
+  the settings when the window becomes visible (`WindowVisibilityReader` —
   same caveat as the log view).
 - [`PreviewSupport`](Sources/PreviewSupport.swift) – DEBUG-only fixtures
   (`emptySession()`, `populatedSession()`) backed by throwaway temp

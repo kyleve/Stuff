@@ -6,8 +6,8 @@ import SwiftUI
 /// to run. Hosted by the `Settings` scene (app menu / Cmd-, / the toolbar's
 /// `SettingsLink`), so it behaves like a standard macOS settings window:
 /// edits apply on field commit (Return / focus change / panel selection) —
-/// no Save button. Values write through the session, which persists and
-/// rescans.
+/// no Save button. Values write through the observable `AppSettings`, which
+/// persists and rescans in Core.
 struct SettingsView: View {
     private enum Field {
         case scanDirectory
@@ -24,10 +24,10 @@ struct SettingsView: View {
     init(session: ForemanSession) {
         self.session = session
         _scanDirectory = State(
-            initialValue: session.configuration.scanDirectory?.path ?? "",
+            initialValue: session.settings.scanDirectory?.path ?? "",
         )
         _agentExecutable = State(
-            initialValue: session.configuration.agentExecutable?.path ?? "",
+            initialValue: session.settings.agentExecutable?.path ?? "",
         )
     }
 
@@ -84,20 +84,16 @@ struct SettingsView: View {
     }
 
     private func reseedDrafts() {
-        scanDirectory = session.configuration.scanDirectory?.path ?? ""
-        agentExecutable = session.configuration.agentExecutable?.path ?? ""
+        scanDirectory = session.settings.scanDirectory?.path ?? ""
+        agentExecutable = session.settings.agentExecutable?.path ?? ""
     }
 
     private func applyScanDirectory() {
-        let directory = parseURL(from: scanDirectory)
-        guard directory != session.configuration.scanDirectory else { return }
-        session.setScanDirectory(directory)
+        session.settings.scanDirectory = parseURL(from: scanDirectory)
     }
 
     private func applyAgentExecutable() {
-        let executable = parseURL(from: agentExecutable)
-        guard executable != session.configuration.agentExecutable else { return }
-        session.setAgentExecutable(executable)
+        session.settings.agentExecutable = parseURL(from: agentExecutable)
     }
 
     /// Empty means "use the default" (`nil`); otherwise a tilde-expanded
@@ -113,7 +109,7 @@ struct SettingsView: View {
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
-        panel.directoryURL = session.configuration.resolvedScanDirectory
+        panel.directoryURL = session.settings.resolvedScanDirectory
         if panel.runModal() == .OK, let url = panel.url {
             scanDirectory = url.path
             applyScanDirectory()
