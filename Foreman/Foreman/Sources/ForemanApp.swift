@@ -1,4 +1,5 @@
 import AppKit
+import ForemanCore
 import SwiftUI
 
 @main
@@ -20,8 +21,23 @@ struct ForemanApp: App {
 private struct MenuBarIcon: View {
     let session: ForemanSession
 
+    // Same observation workaround as MenuContentView (see its
+    // startPumpIfNeeded): the status-item label is another hierarchy
+    // MenuBarExtra hosts once at launch, so without the pump the icon would
+    // freeze on its launch-time state.
+    @State private var refreshTick = 0
+    @State private var pump: ObservationPump?
+
     var body: some View {
+        let _ = refreshTick
         Image(systemName: session.isAnyWorkerLive ? "hammer.fill" : "hammer")
+            .onAppear {
+                guard pump == nil else { return }
+                pump = ObservationPump(
+                    tracking: { _ = session.isAnyWorkerLive },
+                    onChange: { refreshTick += 1 },
+                )
+            }
     }
 }
 

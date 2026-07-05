@@ -36,15 +36,20 @@ formatting, global conventions) and ForemanCore's
   reintroduce switch-reverting on failure; off-then-on is the retry.
 - [`MenuContentView`](Sources/MenuContentView.swift) – the window. One
   `Screen` enum (`list` / `options(row)` / `settings`) keeps exactly one
-  surface visible. **Refresh works around a `MenuBarExtra(.window)` defect**:
-  the panel content is built once at launch and kept alive, and `@Observable`
-  mutations landing while the panel is closed are dropped — and because
-  observation tracking is one-shot, the body then stops observing entirely
-  until some other dependency re-evaluates it (the "empty list until you
-  open settings" bug). The fix listens for `NSWindow.didBecomeKeyNotification`
-  and bumps a `refreshTick` `@State` read by `body`, forcing a re-evaluation
-  (and re-registration of observation) on every open. Don't replace this
-  with `onAppear`/`controlActiveState` — neither fires on reopen here.
+  surface visible. **Rendering works around a `MenuBarExtra(.window)`
+  defect**: the panel content is built once at launch and kept alive, and
+  `@Observable` mutations landing while the panel is closed are dropped —
+  and because observation tracking is one-shot, the body then stops
+  observing entirely until a local `@State` change re-evaluates it (the
+  "empty list until you open settings" bug). The fix is an
+  `ObservationPump` (ForemanCore) reading everything the hierarchy renders
+  and bumping a `refreshTick` `@State` on every session change — `@State`
+  invalidation doesn't depend on SwiftUI's observation, so the render can't
+  go stale. `MenuBarIcon` carries the same pump for the status-item label.
+  The on-open rescan hooks `NSWindow.didChangeOcclusionStateNotification`;
+  don't swap it for key-window notifications (the panel doesn't reliably
+  become key) or `onAppear`/`controlActiveState` (neither re-fires per open
+  on this scene type).
 - [`WorkerRowView`](Sources/WorkerRowView.swift) – status dot + toggle +
   open-log + options. The options button is disabled while the worker is
   live: options apply at spawn, so editing them mid-run would silently do

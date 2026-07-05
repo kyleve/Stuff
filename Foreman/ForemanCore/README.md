@@ -86,6 +86,11 @@ let argv = options.arguments(workerDirectory: repos[0].rootURL)
   locations (`~/.local/bin`, `/usr/local/bin`, `/opt/homebrew/bin`); an
   explicitly configured path is validated and a stale one throws
   `NotFoundError` instead of falling back silently.
+- **`ObservationPump`** — re-registering `withObservationTracking`: calls
+  `onChange` on the main actor after every change to the properties read by
+  `tracking`, not just the first. The app pairs it with a `@State` counter to
+  keep `MenuBarExtra(.window)` content rendering when SwiftUI's own
+  observation tracking dies (a known defect of that scene type).
 - **`ForemanLog`** — the logging facade over LogKit: `ForemanLog.channel(_:)`
   with a typed `Category`, subsystem `com.stuff.foreman`.
 

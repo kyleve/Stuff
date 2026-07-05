@@ -52,6 +52,13 @@ build system, formatting, and global conventions. Read that first.
   `<logDirectory>/<repo name>.log` with start/exit markers. `start` doesn't
   throw — a spawn failure lands in `.failed` and the log, so the state *is*
   the caller-observable result.
+- [`ObservationPump`](Sources/ObservationPump.swift) – re-registering
+  `withObservationTracking`: calls `onChange` on the main actor after *every*
+  change to the properties read by `tracking`, not just the first. Exists
+  because `MenuBarExtra(.window)` hosting loses SwiftUI's own observation
+  (see the app target's `AGENTS.md`); views pair it with a `@State` counter.
+  `onChange` fires on the next main-actor turn — read current state there,
+  don't try to learn *what* changed. Cancel via `cancel()` or dealloc.
 - [`SleepInhibitor`](Sources/SleepInhibitor.swift) – idempotent wrapper around
   `ProcessInfo.beginActivity(.idleSystemSleepDisabled)`. The supervisor
   recomputes it after every state change (`updateSleepInhibition`), so the

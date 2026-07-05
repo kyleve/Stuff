@@ -16,13 +16,14 @@ struct MenuContentView: View {
     let session: ForemanSession
 
     @State private var screen: Screen = .list
-    /// Bumped on every menu open purely to force a body re-evaluation; see
-    /// the `onReceive` below.
+    /// Bumped by the pump on every session change purely to force a body
+    /// re-evaluation; see `startPumpIfNeeded`.
     @State private var refreshTick = 0
+    @State private var pump: ObservationPump?
 
     var body: some View {
-        // Deliberate read: ties this body to `refreshTick` so the bump in
-        // `onReceive` re-evaluates it even when observation tracking is dead.
+        // Deliberate read: ties this body to `refreshTick` so the pump's bump
+        // re-evaluates it even when SwiftUI's own observation tracking is dead.
         let _ = refreshTick
         Group {
             switch screen {
@@ -39,28 +40,48 @@ struct MenuContentView: View {
             }
         }
         .frame(width: 340)
-        // Keep the repo list fresh on every open without file watching — and
-        // recover from a MenuBarExtra(.window) defect: the panel's content is
-        // built once at launch, and @Observable mutations that land while the
-        // panel is closed (e.g. the launch-time scan populating `rows`) are
-        // dropped instead of re-rendering. Observation tracking is one-shot,
-        // so after one dropped change the body stops observing entirely and
-        // no later mutation — Rescan included — renders until some other
-        // dependency (local @State) invalidates it. Neither `onAppear` nor
-        // `controlActiveState` reliably fires per open here, so the hook is
-        // AppKit's became-key notification, and `refreshTick` is a @State
-        // dependency that can't go stale.
         .onAppear {
             session.rescan()
+            startPumpIfNeeded()
         }
+        // Refresh the repo list whenever the panel becomes visible (no file
+        // watching). Occlusion is the reliable "opened" signal here: the
+        // panel doesn't necessarily become key, so key-window notifications
+        // (and onAppear/controlActiveState, which don't re-fire per open on
+        // this scene type) can't be the trigger. Fires for other windows too
+        // — the redundant rescan is cheap and idempotent.
         .onReceive(
-            NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification),
-        ) { _ in
-            // Fires for any of the app's windows (the settings open panel
-            // included) — the redundant rescan is cheap and idempotent.
+            NotificationCenter.default.publisher(for: NSWindow.didChangeOcclusionStateNotification),
+        ) { notification in
+            guard let window = notification.object as? NSWindow,
+                  window.occlusionState.contains(.visible)
+            else { return }
             session.rescan()
-            refreshTick += 1
         }
+    }
+
+    /// Works around a `MenuBarExtra(.window)` defect: the panel content is
+    /// built once at launch, `@Observable` mutations landing while the panel
+    /// is closed (like the launch-time scan populating `rows`) are dropped,
+    /// and — tracking being one-shot — the body then stops observing
+    /// entirely, so nothing renders until a local `@State` change. The pump
+    /// re-observes after every change and bumps `refreshTick`, whose `@State`
+    /// invalidation doesn't depend on SwiftUI's observation at all.
+    private func startPumpIfNeeded() {
+        guard pump == nil else { return }
+        pump = ObservationPump(
+            tracking: {
+                // Everything this view's hierarchy renders.
+                for row in session.rows {
+                    _ = row.isEnabled
+                }
+                _ = session.issueMessage
+                _ = session.configuration
+                _ = session.isInhibitingSleep
+                _ = session.isAnyWorkerLive // registers the supervisor's states
+            },
+            onChange: { refreshTick += 1 },
+        )
     }
 
     private var workerList: some View {
