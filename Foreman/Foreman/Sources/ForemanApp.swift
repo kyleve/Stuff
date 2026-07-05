@@ -72,7 +72,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     private func makeWindow() -> NSWindow {
         let window = NSWindow(
             contentViewController: NSHostingController(
-                rootView: MenuContentView(session: session),
+                rootView: MainWindowView(session: session),
             ),
         )
         window.title = "Foreman"

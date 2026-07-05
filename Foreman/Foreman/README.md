@@ -25,20 +25,22 @@ closing the window just hides it — the app keeps running until Quit.
 
 ## What's in the window
 
-- **Worker rows** — one per discovered repo: status dot (gray stopped, yellow
-  stopping/restarting, green running, red failed with the reason underneath —
-  flipping a stopping worker back on queues a restart for when the old
-  process exits), an
-  on/off switch, an open-log button (`~/Library/Logs/Foreman/<repo>.log`), and
-  the options editor (enabled while the worker is stopped — options apply on
-  the next start).
+- **Sidebar** — one row per discovered repo: status dot (gray stopped, yellow
+  stopping/restarting, green running, red failed — flipping a stopping worker
+  back on queues a restart for when the old process exits) and the worker's
+  on/off switch.
+- **Detail pane** (select a repo) — the worker's status, pid and live uptime,
+  the failure reason when it died, the repo path, the exact `cursor-agent`
+  command the next start will spawn, the options editor inline, and a live
+  tail of the worker's log (`~/Library/Logs/Foreman/<repo>.log`, refreshed
+  every second, with an Open File button).
 - **Worker options** — mirrors the `cursor agent worker` CLI flags: display
   name, pool mode + pool name, `key=value` labels, idle release timeout, and
-  verbose startup logs.
-- **Settings** — the scan directory and an explicit `cursor-agent` path
-  (empty = auto-detect from the known install locations).
-- **Footer** — rescan, settings, quit. A "Preventing sleep" badge appears in
-  the header while the sleep assertion is held.
+  verbose startup logs. Editable while the worker is stopped — options apply
+  on the next start.
+- **Toolbar** — a "Preventing sleep" badge while the sleep assertion is held,
+  Rescan, Settings (a sheet: the scan directory and an explicit
+  `cursor-agent` path, empty = auto-detect), and Quit.
 
 ## Lifecycle
 

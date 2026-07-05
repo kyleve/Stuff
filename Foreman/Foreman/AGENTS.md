@@ -1,10 +1,11 @@
 # Foreman (app target) – Module Shape
 
-The SwiftUI shell for the Foreman menu bar app: a `MenuBarExtra` scene, an
-`@Observable` session view-model, and the menu's views. Domain behavior —
-repo discovery, worker process supervision, config persistence, the sleep
-assertion — lives in [`ForemanCore`](../ForemanCore); this target only
-orchestrates and renders it. See [`README.md`](README.md) for the narrative.
+The SwiftUI shell for the Foreman menu bar app: an AppKit status item that
+toggles a regular window, an `@Observable` session view-model, and the
+window's views (a `NavigationSplitView`). Domain behavior — repo discovery,
+worker process supervision, config persistence, the sleep assertion — lives
+in [`ForemanCore`](../ForemanCore); this target only orchestrates and
+renders it. See [`README.md`](README.md) for the narrative.
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md) (build system,
 formatting, global conventions) and ForemanCore's
@@ -12,9 +13,10 @@ formatting, global conventions) and ForemanCore's
 
 ## Shape
 
-- [`ForemanApp`](Sources/ForemanApp.swift) – `@main` `MenuBarExtra`
-  (`.window` style) whose label swaps `hammer`/`hammer.fill` on worker
-  liveness. `AppDelegate` starts the session on launch and calls
+- [`ForemanApp` / `AppDelegate`](Sources/ForemanApp.swift) – `@main` app with
+  an inert `Settings` placeholder scene; the real UI is AppKit-managed by
+  `AppDelegate`, whose status-item icon swaps `hammer`/`hammer.fill` on
+  worker liveness. It starts the session on launch and calls
   `stopAllWorkers()` in `applicationWillTerminate` — the **stop-on-quit
   lifecycle**: Foreman owns its worker processes and must never leave
   orphans. The target is an `LSUIElement` with a hand-written Info.plist in
@@ -34,8 +36,7 @@ formatting, global conventions) and ForemanCore's
   `.failed` on the row with the switch still on (locate failures go through
   `WorkerSupervisor.recordStartFailure` so both kinds look the same). Don't
   reintroduce switch-reverting on failure; off-then-on is the retry.
-- [`ForemanApp` / `AppDelegate`](Sources/ForemanApp.swift) – **the status
-  item is AppKit (`NSStatusItem` + a regular `NSWindow`), not
+- **The status item is AppKit (`NSStatusItem` + a regular `NSWindow`), not
   `MenuBarExtra`, on purpose.** `MenuBarExtra(.window)` built its content
   once at launch and lost SwiftUI observation of it: `@Observable` mutations
   landing while the panel was closed never rendered ("empty list until you
@@ -49,20 +50,32 @@ formatting, global conventions) and ForemanCore's
   rescan-on-open. The status-item icon is plain AppKit driven by an
   `ObservationPump` (ForemanCore) on `isAnyWorkerLive`. Don't migrate back
   to `MenuBarExtra` without re-verifying all of the above.
-- [`MenuContentView`](Sources/MenuContentView.swift) – the window content.
-  One `Screen` enum (`list` / `options(row)` / `settings`) keeps exactly one
-  surface visible. `onAppear` covers the first-open scan; later opens rescan
-  via the window delegate (no file watching).
-- [`WorkerRowView`](Sources/WorkerRowView.swift) – status dot + toggle +
-  open-log + options. The options button is disabled while the worker is
-  live: options apply at spawn, so editing them mid-run would silently do
-  nothing until a restart.
+- [`MainWindowView`](Sources/MainWindowView.swift) – the window content: a
+  `NavigationSplitView` with repo rows in the sidebar and the selected
+  worker's detail on the right, plus the toolbar (sleep badge, Rescan,
+  Settings-as-sheet, Quit) and the issue banner. The detail carries
+  `.id(row.id)` so per-repo `@State` (options draft, log tail) resets on
+  selection change. `onAppear` covers the first-open scan; later opens
+  rescan via the window delegate (no file watching).
+- [`WorkerRowView`](Sources/WorkerRowView.swift) – sidebar row: status dot,
+  name (+ a red "failed" hint), toggle. Actions and details live in the
+  detail pane.
+- [`WorkerDetailView`](Sources/WorkerDetailView.swift) – one worker's
+  status/pid/uptime (uptime renders live via `Text(_, style: .relative)`),
+  the exact command the next start will spawn, the inline options editor,
+  and the log tail.
+- [`WorkerLogView`](Sources/WorkerLogView.swift) – tails the worker's log
+  file via `LogTailReader`, polling once a second while visible (`.task`
+  cancels the loop when the view goes away). One `Tail` enum so "no file
+  yet", content, and a read failure can't coexist.
 - [`WorkerOptionsView`](Sources/WorkerOptionsView.swift) /
   [`SettingsView`](Sources/SettingsView.swift) – form editors over a local
   `@State` draft, written back through session intents on Save. The draft
   reshapes `WorkerOptions` for binding (optionals ↔ empty strings, the pool
   case ↔ toggle + name); conversion lives in the draft type, not scattered
-  through the form.
+  through the form. `WorkerOptionsView` is a `Section` embedded in the
+  detail form, locked while the worker is live: options apply at spawn, so
+  mid-run edits would silently do nothing until a restart.
 - [`PreviewSupport`](Sources/PreviewSupport.swift) – DEBUG-only fixtures
   (`emptySession()`, `populatedSession()`) backed by throwaway temp
   directories; previews never read the real config, spawn processes, or touch
