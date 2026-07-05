@@ -73,17 +73,38 @@ public final class RepoDiscovery {
         for repo in repos {
             existing[repo.id] = repo
         }
-
-        repos = scanned.map { found in
-            existing.removeValue(forKey: found.id) ?? makeRepo(found)
+        // A repo whose directory reappears while its old worker is still
+        // exiting is resurrected, not rebuilt: a fresh Repo would put two
+        // processes — and two log-file writers — on one id, while the
+        // reused Worker queues any start behind the exiting process.
+        var resurrectable: [RepoID: Repo] = [:]
+        for repo in draining {
+            resurrectable[repo.id] = repo
         }
 
-        draining.removeAll { !$0.worker.state.isLive }
+        repos = scanned.map { found in
+            existing.removeValue(forKey: found.id)
+                ?? resurrectable.removeValue(forKey: found.id)
+                ?? makeRepo(found)
+        }
+
+        // Repos that weren't resurrected keep draining until the exit
+        // lands (already stopping, no need to re-request); dead ones drop.
+        draining = resurrectable.values.filter(\.worker.state.isLive)
         for (_, vanished) in existing where vanished.worker.state.isLive {
             Self.logger.info("Stopping worker for vanished repo \(vanished.id.rawValue)")
             vanished.worker.stop()
             draining.append(vanished)
         }
+    }
+
+    /// IDs with a presence in the tree: the discovered repos plus vanished
+    /// ones whose worker is still draining. Cleanups keyed on "is this repo
+    /// gone?" (like the configuration prune) should treat draining ids as
+    /// present — dropping their saved intent mid-exit would strand a
+    /// resurrected repo with state the config no longer backs.
+    public var retainedRepoIDs: Set<RepoID> {
+        Set(repos.map(\.id)).union(draining.map(\.id))
     }
 
     /// Whether any worker owned by this tree — including vanished repos

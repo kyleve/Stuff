@@ -128,8 +128,11 @@ public final class ForemanServices {
         do {
             try discovery.rescan(in: directory)
             issueMessage = nil
+            // Draining ids count as discovered: pruning a repo mid-drain
+            // would strand it toggle-on-but-unsaved if it's resurrected.
+            // If it stays gone, the prune lands once the drain completes.
             if configuration.prune(
-                discovered: Set(discovery.repos.map(\.id)),
+                discovered: discovery.retainedRepoIDs,
                 under: directory,
             ) {
                 persist()

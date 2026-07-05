@@ -65,7 +65,11 @@ build system, formatting, and global conventions. Read that first.
   node: holds `repos`, and `rescan(in:)` **reuses existing `Repo` instances
   by id** (live workers survive a rescan), creates new ones via the injected
   factory, and stops + drains vanished repos (retained until their process
-  exit lands, so bookkeeping and the sleep assertion stay honest). The pure
+  exit lands, so bookkeeping and the sleep assertion stay honest). A repo
+  whose directory reappears while its old worker drains is *resurrected*
+  from the draining set, never rebuilt — one id must never own two
+  processes (or two log-file writers); `retainedRepoIDs` includes draining
+  ids so the configuration prune can't strand a resurrected repo. The pure
   listing is the static `scan(_:)`: one directory level, subdirectories with
   a `.git` entry (directory or file, so worktrees/submodules count), hidden
   entries skipped, case-insensitive sort, **throws** when the directory
@@ -117,7 +121,9 @@ build system, formatting, and global conventions. Read that first.
   the tree and would be silently dropped.
 - **Rescans reuse `Repo` instances by id.** A rescan must not replace the
   `Repo` (and thus kill or orphan its `Worker`) for a repo that's still
-  there; vanished repos are stopped and drained, not dropped mid-exit.
+  there; vanished repos are stopped and drained, not dropped mid-exit, and
+  a reappearing directory resurrects its draining `Repo` so a single id
+  can never have two live processes.
 - **Absence vs failure.** A repo with no customized options reads as
   `WorkerOptions.standard` (expected absence); an unreadable or undecodable
   config file throws (real failure). Keep that split — no `try?` or silent

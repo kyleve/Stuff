@@ -157,6 +157,38 @@ struct RepoDiscoveryTests {
         }
     }
 
+    @Test func rescanResurrectsAReappearingRepoWhileItsWorkerDrains() async throws {
+        let fixture = try makeFixture()
+        try addDirectory("Flicker", in: fixture.scanDirectory, git: .directory)
+        try fixture.discovery.rescan(in: fixture.scanDirectory)
+        let original = try #require(fixture.discovery.repos.first)
+
+        original.isEnabled = true
+        try await waitUntil("worker reaches running") {
+            original.worker.state.isLive
+        }
+
+        // The directory vanishes and reappears before the worker's exit
+        // lands (e.g. a rename undone or a volume remount).
+        try fileManager.removeItem(at: original.rootURL)
+        try fixture.discovery.rescan(in: fixture.scanDirectory)
+        #expect(fixture.discovery.repos.isEmpty)
+        try addDirectory("Flicker", in: fixture.scanDirectory, git: .directory)
+        try fixture.discovery.rescan(in: fixture.scanDirectory)
+
+        // The draining instance is resurrected — a fresh Repo would put two
+        // processes (and two log writers) on the same id.
+        let resurrected = try #require(fixture.discovery.repos.first)
+        #expect(resurrected === original)
+        #expect(fixture.discovery.repos.count == 1)
+        // The vanish-stop still lands; the toggle survives like any other
+        // rescan (worker stays down until the user acts or the next launch).
+        #expect(resurrected.isEnabled)
+        try await waitUntil("drained worker settles at stopped") {
+            resurrected.worker.state == .stopped
+        }
+    }
+
     @Test func failedRescanKeepsExistingRepos() throws {
         let fixture = try makeFixture()
         try addDirectory("Thing", in: fixture.scanDirectory, git: .directory)
