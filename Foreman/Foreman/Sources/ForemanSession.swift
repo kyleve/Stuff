@@ -8,7 +8,7 @@ import Observation
 @MainActor
 @Observable
 final class WorkerRow: Identifiable {
-    let repo: Repo
+    let repo: ScannedRepo
 
     var isEnabled: Bool {
         didSet {
@@ -23,7 +23,7 @@ final class WorkerRow: Identifiable {
         repo.id
     }
 
-    init(repo: Repo, isEnabled: Bool, onChange: @escaping @MainActor (WorkerRow) -> Void) {
+    init(repo: ScannedRepo, isEnabled: Bool, onChange: @escaping @MainActor (WorkerRow) -> Void) {
         self.repo = repo
         self.isEnabled = isEnabled
         self.onChange = onChange
@@ -56,7 +56,6 @@ final class ForemanSession {
 
     private let configStore: WorkerConfigStore
     private let supervisor: WorkerSupervisor
-    private let discovery = RepoDiscovery()
     private let locator = CursorAgentLocator()
 
     init(configStore: WorkerConfigStore, supervisor: WorkerSupervisor) {
@@ -110,7 +109,7 @@ final class ForemanSession {
     /// A failed scan keeps the last good rows and reports the problem.
     func rescan() {
         do {
-            let repos = try discovery.repos(in: configuration.resolvedScanDirectory)
+            let repos = try RepoDiscovery.scan(configuration.resolvedScanDirectory)
             rows = repos.map { repo in
                 WorkerRow(
                     repo: repo,
@@ -139,11 +138,11 @@ final class ForemanSession {
         }
     }
 
-    func workerState(for repo: Repo) -> WorkerSupervisor.WorkerState {
+    func workerState(for repo: ScannedRepo) -> WorkerSupervisor.WorkerState {
         supervisor.state(for: repo.id)
     }
 
-    func logFileURL(for repo: Repo) -> URL {
+    func logFileURL(for repo: ScannedRepo) -> URL {
         supervisor.logFileURL(for: repo)
     }
 
@@ -172,7 +171,7 @@ final class ForemanSession {
     /// any spawn is attempted; that failure is recorded on the worker's state
     /// (and the issue banner) just like a spawn failure, so both kinds of
     /// "didn't start" look the same on the row.
-    private func startWorker(for repo: Repo) {
+    private func startWorker(for repo: ScannedRepo) {
         let executable: URL
         do {
             executable = try locator.locate(explicit: configuration.agentExecutable)
@@ -194,7 +193,7 @@ final class ForemanSession {
 
     /// Saves `options` for `repo`. Options apply on the worker's next start,
     /// so the editor is only offered while the worker is stopped.
-    func updateOptions(_ options: WorkerOptions, for repo: Repo) {
+    func updateOptions(_ options: WorkerOptions, for repo: ScannedRepo) {
         if options == .standard {
             configuration.repoOptions.removeValue(forKey: repo.id)
         } else {

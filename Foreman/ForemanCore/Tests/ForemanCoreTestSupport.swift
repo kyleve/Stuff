@@ -18,6 +18,25 @@ final class SleepAssertionRecorder: SleepAssertionBackend {
     }
 }
 
+/// Builds a live `Repo` over a fixed executable for tree-level tests:
+/// disabled, standard options, no-op persistence and state-change hooks.
+@MainActor
+func makeStubRepo(scanned: ScannedRepo, logDirectory: URL, executable: URL) -> Repo {
+    Repo(
+        scanned: scanned,
+        isEnabled: false,
+        options: .standard,
+        worker: Worker(
+            name: scanned.name,
+            workerDirectory: scanned.rootURL,
+            logDirectory: logDirectory,
+            onStateChange: {},
+        ),
+        resolveExecutable: { executable },
+        onPersistentChange: { _ in },
+    )
+}
+
 /// Creates a unique empty directory under the system temporary directory.
 /// Callers don't need to remove it; the OS reaps temp storage.
 func makeTemporaryDirectory() throws -> URL {

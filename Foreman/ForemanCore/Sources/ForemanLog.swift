@@ -18,6 +18,7 @@ public enum ForemanLog {
     public enum Category: String, CaseIterable, Sendable {
         case app = "ForemanApp"
         case configStore = "WorkerConfigStore"
+        case repo = "Repo"
         case repoDiscovery = "RepoDiscovery"
         case session = "ForemanSession"
         case sleepInhibitor = "SleepInhibitor"

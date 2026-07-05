@@ -20,10 +20,10 @@ struct WorkerSupervisorTests {
         return Fixture(supervisor: supervisor, directory: directory, sleep: recorder)
     }
 
-    private func makeRepo(named name: String, under base: URL) throws -> Repo {
+    private func makeRepo(named name: String, under base: URL) throws -> ScannedRepo {
         let root = base.appendingPathComponent(name, isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
-        return Repo(name: name, rootURL: root)
+        return ScannedRepo(name: name, rootURL: root)
     }
 
     private static let longRunningScript = """

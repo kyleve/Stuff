@@ -52,12 +52,12 @@ struct WorkerOptionsView: View {
     }
 
     let session: ForemanSession
-    let repo: Repo
+    let repo: ScannedRepo
     let isLocked: Bool
 
     @State private var draft: Draft
 
-    init(session: ForemanSession, repo: Repo, isLocked: Bool) {
+    init(session: ForemanSession, repo: ScannedRepo, isLocked: Bool) {
         self.session = session
         self.repo = repo
         self.isLocked = isLocked

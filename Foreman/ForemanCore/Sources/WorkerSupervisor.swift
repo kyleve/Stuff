@@ -59,7 +59,7 @@ public final class WorkerSupervisor {
     /// replayed (with the arguments captured at request time) once the old
     /// process exits.
     private struct PendingStart {
-        let repo: Repo
+        let repo: ScannedRepo
         let options: WorkerOptions
         let executable: URL
     }
@@ -86,7 +86,7 @@ public final class WorkerSupervisor {
     }
 
     /// The log file worker output for `repo` is appended to.
-    public func logFileURL(for repo: Repo) -> URL {
+    public func logFileURL(for repo: ScannedRepo) -> URL {
         logDirectory.appendingPathComponent("\(repo.name).log")
     }
 
@@ -95,7 +95,7 @@ public final class WorkerSupervisor {
     /// applied when the exit lands; starting over a `.failed` state retries.
     /// A spawn failure lands in `.failed` (and the log) rather than throwing
     /// — the state is the caller-observable result either way.
-    public func start(repo: Repo, options: WorkerOptions, executable: URL) {
+    public func start(repo: ScannedRepo, options: WorkerOptions, executable: URL) {
         let id = repo.id
         switch state(for: id) {
             case .running:
@@ -243,7 +243,7 @@ public final class WorkerSupervisor {
         )
     }
 
-    private func openLogFile(for repo: Repo) throws -> FileHandle {
+    private func openLogFile(for repo: ScannedRepo) throws -> FileHandle {
         try FileManager.default.createDirectory(
             at: logDirectory,
             withIntermediateDirectories: true,
