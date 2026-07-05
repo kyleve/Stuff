@@ -47,9 +47,14 @@ formatting, global conventions) and ForemanCore's
   `ForemanMain`, `isReleasedWhenClosed = false` since we reuse it); the
   status-item click toggles it, closing it just hides it, and
   `windowDidBecomeKey` — reliable for regular windows — drives the
-  rescan-on-open. The status-item icon is plain AppKit driven by an
-  `ObservationPump` (ForemanCore) on `isAnyWorkerLive`. Don't migrate back
-  to `MenuBarExtra` without re-verifying all of the above.
+  rescan-on-open. **Key focus needs the activation-policy dance**:
+  cooperative activation won't reliably focus an accessory app's window, so
+  `showWindow` promotes the app to `.regular` (Dock icon appears while the
+  window is up) and hiding/closing reverts to `.accessory` after a short
+  delay (an immediate flip glitches the menu bar). The status-item icon is
+  plain AppKit driven by an `ObservationPump` (ForemanCore) on
+  `isAnyWorkerLive`. Don't migrate back to `MenuBarExtra` without
+  re-verifying all of the above.
 - [`MainWindowView`](Sources/MainWindowView.swift) – the window content: a
   `NavigationSplitView` with repo rows in the sidebar and the selected
   worker's detail on the right, plus the toolbar (sleep badge, Rescan,

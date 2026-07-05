@@ -18,10 +18,11 @@ SwiftUI shell.
 mise exec -- tuist build Foreman
 ```
 
-or run the `Foreman` scheme from Xcode. The app is an `LSUIElement`: it shows
-no Dock icon and lives in the menu bar (a hammer icon — filled while any
-worker is live). Clicking the icon toggles a regular, resizable window;
-closing the window just hides it — the app keeps running until Quit.
+or run the `Foreman` scheme from Xcode. The app lives in the menu bar (a
+hammer icon — filled while any worker is live). Clicking the icon toggles a
+regular, resizable window; a Dock icon appears while the window is open (the
+price of reliable keyboard focus for a menu bar app) and disappears when it's
+closed. Closing the window just hides it — the app keeps running until Quit.
 
 ## What's in the window
 

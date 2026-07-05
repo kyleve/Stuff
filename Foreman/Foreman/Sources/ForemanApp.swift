@@ -61,12 +61,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc private func toggleWindow() {
         if let window, window.isVisible, window.isKeyWindow {
             window.orderOut(nil)
+            restoreAccessoryPolicy()
             return
         }
+        showWindow()
+    }
+
+    private func showWindow() {
         let window = window ?? makeWindow()
         self.window = window
+        // Cooperative activation won't reliably hand key focus to an
+        // accessory app, so promote to a regular app while the window is
+        // shown (the Dock icon appears alongside it) and revert when it
+        // hides. This is the established pattern for status-item apps that
+        // open real windows.
+        NSApp.setActivationPolicy(.regular)
         NSApp.activate()
         window.makeKeyAndOrderFront(nil)
+        // Activation can land a beat after the request; re-assert key once
+        // it has (harmless when the first attempt already took).
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(100))
+            window.makeKeyAndOrderFront(nil)
+        }
+    }
+
+    /// Drops the Dock icon again once the window is hidden. Deferred a beat:
+    /// flipping the policy in the same runloop turn as the hide leaves the
+    /// menu bar glitchy.
+    private func restoreAccessoryPolicy() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+            guard let self, window?.isVisible != true else { return }
+            NSApp.setActivationPolicy(.accessory)
+        }
+    }
+
+    /// Red close button / Cmd-W: the window hides (`isReleasedWhenClosed`
+    /// is off), so just drop the Dock icon.
+    func windowWillClose(_: Notification) {
+        restoreAccessoryPolicy()
+    }
+
+    /// Dock-icon click while the window is hidden (possible in the brief
+    /// regular-app phase, or if the user hid the window without closing it).
+    func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if !hasVisibleWindows {
+            showWindow()
+        }
+        return true
     }
 
     private func makeWindow() -> NSWindow {
