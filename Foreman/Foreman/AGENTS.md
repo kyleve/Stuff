@@ -54,9 +54,9 @@ formatting, global conventions) and ForemanCore's
   `showWindow` promotes the app to `.regular` (Dock icon appears while the
   window is up) and hiding/closing reverts to `.accessory` after a short
   delay (an immediate flip glitches the menu bar). The status-item icon is
-  plain AppKit driven by an `ObservationPump` (ForemanCore) on
-  `isAnyWorkerLive`. Don't migrate back to `MenuBarExtra` without
-  re-verifying all of the above.
+  plain AppKit driven by a `for await` loop over the stdlib `Observations`
+  sequence on `isAnyWorkerLive`. Don't migrate back to `MenuBarExtra`
+  without re-verifying all of the above.
 - [`MainWindowView`](Sources/MainWindowView.swift) – the window content: a
   `NavigationSplitView` with repo rows in the sidebar and the selected
   worker's detail on the right, plus the toolbar (sleep badge, Rescan,

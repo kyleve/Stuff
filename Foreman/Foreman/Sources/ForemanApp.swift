@@ -1,5 +1,6 @@
 import AppKit
 import ForemanCore
+import Observation
 import SwiftUI
 
 /// The status item and window are AppKit (not MenuBarExtra) on purpose —
@@ -27,7 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     private var statusItem: NSStatusItem?
     private var window: NSWindow?
-    private var iconPump: ObservationPump?
+    private var iconTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_: Notification) {
         session.start()
@@ -38,12 +39,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         statusItem = item
 
         updateIcon()
-        // AppKit owns the icon, so keeping it current is a plain callback —
-        // no SwiftUI invalidation involved.
-        iconPump = ObservationPump(
-            tracking: { [session] in _ = session.isAnyWorkerLive },
-            onChange: { [weak self] in self?.updateIcon() },
-        )
+        // AppKit owns the icon, so keeping it current is a plain loop: the
+        // stdlib Observations sequence yields after every change to
+        // isAnyWorkerLive (no SwiftUI invalidation involved).
+        iconTask = Task { [weak self, session] in
+            for await _ in Observations({ @MainActor in session.isAnyWorkerLive }) {
+                self?.updateIcon()
+            }
+        }
     }
 
     /// Stop-on-quit lifecycle: Foreman owns its worker processes, so quitting

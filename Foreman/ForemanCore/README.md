@@ -89,11 +89,6 @@ let argv = options.arguments(workerDirectory: repos[0].rootURL)
 - **`LogTailReader`** — `tail(of:maxBytes:)` returns the end of a log file
   (starting on a line boundary) for display without loading the whole file;
   `nil` when the file doesn't exist yet.
-- **`ObservationPump`** — re-registering `withObservationTracking`: calls
-  `onChange` on the main actor after every change to the properties read by
-  `tracking`, not just the first. Lets non-SwiftUI code react to
-  `@Observable` state; the app uses one to keep its AppKit status-item icon
-  current.
 - **`ForemanLog`** — the logging facade over LogKit: `ForemanLog.channel(_:)`
   with a typed `Category`, subsystem `com.stuff.foreman`.
 
