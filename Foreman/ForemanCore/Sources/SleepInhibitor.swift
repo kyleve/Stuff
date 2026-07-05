@@ -1,6 +1,35 @@
 import Foundation
 import Observation
 
+/// Takes and releases the OS-level assertion behind ``SleepInhibitor``.
+/// Production uses the `ProcessInfo`-backed implementation; tests conform a
+/// recorder so no real assertion is taken.
+@MainActor
+@_spi(Testing)
+public protocol SleepAssertionBackend: AnyObject {
+    func begin(reason: String)
+    func end()
+}
+
+/// The real assertion: `ProcessInfo.beginActivity(.idleSystemSleepDisabled)`.
+@MainActor
+final class ProcessInfoSleepAssertionBackend: SleepAssertionBackend {
+    private var token: NSObjectProtocol?
+
+    func begin(reason: String) {
+        token = ProcessInfo.processInfo.beginActivity(
+            options: .idleSystemSleepDisabled,
+            reason: reason,
+        )
+    }
+
+    func end() {
+        guard let token else { return }
+        ProcessInfo.processInfo.endActivity(token)
+        self.token = nil
+    }
+}
+
 /// Holds a `ProcessInfo` activity assertion that blocks *idle* system sleep
 /// (the `caffeinate -i` equivalent) while workers run. Display sleep and an
 /// explicit lid close are unaffected.
@@ -15,47 +44,25 @@ public final class SleepInhibitor {
     /// a "preventing sleep" indicator.
     public private(set) var isActive = false
 
-    private let backend: Backend
-    @ObservationIgnored private var token: NSObjectProtocol?
-
-    private enum Backend {
-        case processInfo
-        /// Test seam: records transitions instead of taking a real assertion.
-        case observed(begin: @MainActor () -> Void, end: @MainActor () -> Void)
-    }
+    @ObservationIgnored private let backend: any SleepAssertionBackend
 
     public init() {
-        backend = .processInfo
+        backend = ProcessInfoSleepAssertionBackend()
     }
 
+    /// Swaps the real assertion for a test double.
     @_spi(Testing)
-    public init(
-        onBegin: @escaping @MainActor () -> Void,
-        onEnd: @escaping @MainActor () -> Void,
-    ) {
-        backend = .observed(begin: onBegin, end: onEnd)
+    public init(backend: any SleepAssertionBackend) {
+        self.backend = backend
     }
 
     public func setActive(_ active: Bool, reason: String) {
         guard active != isActive else { return }
         isActive = active
-        switch backend {
-            case .processInfo:
-                if active {
-                    token = ProcessInfo.processInfo.beginActivity(
-                        options: .idleSystemSleepDisabled,
-                        reason: reason,
-                    )
-                } else if let token {
-                    ProcessInfo.processInfo.endActivity(token)
-                    self.token = nil
-                }
-            case let .observed(begin, end):
-                if active {
-                    begin()
-                } else {
-                    end()
-                }
+        if active {
+            backend.begin(reason: reason)
+        } else {
+            backend.end()
         }
     }
 }

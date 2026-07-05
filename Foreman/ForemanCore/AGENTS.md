@@ -60,8 +60,10 @@ build system, formatting, and global conventions. Read that first.
 - [`SleepInhibitor`](Sources/SleepInhibitor.swift) – idempotent wrapper around
   `ProcessInfo.beginActivity(.idleSystemSleepDisabled)`. The supervisor
   recomputes it after every state change (`updateSleepInhibition`), so the
-  assertion is held exactly while ≥1 worker is live. The `@_spi(Testing)`
-  init swaps the real assertion for begin/end observers.
+  assertion is held exactly while ≥1 worker is live. The assertion itself
+  sits behind the `SleepAssertionBackend` protocol (`@_spi(Testing)`); the
+  testing init injects a conforming recorder instead of the real
+  `ProcessInfo` backend.
 - [`CursorAgentLocator`](Sources/CursorAgentLocator.swift) – resolves the
   executable from known install paths (GUI apps don't inherit shell `PATH`).
   An explicit configured path is *validated*, and a stale one throws rather

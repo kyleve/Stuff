@@ -1,5 +1,22 @@
+@_spi(Testing) import ForemanCore
 import Foundation
 import Testing
+
+/// A `SleepAssertionBackend` that counts transitions instead of taking a
+/// real assertion — shared by the inhibitor and supervisor suites.
+@MainActor
+final class SleepAssertionRecorder: SleepAssertionBackend {
+    private(set) var begins = 0
+    private(set) var ends = 0
+
+    func begin(reason _: String) {
+        begins += 1
+    }
+
+    func end() {
+        ends += 1
+    }
+}
 
 /// Creates a unique empty directory under the system temporary directory.
 /// Callers don't need to remove it; the OS reaps temp storage.

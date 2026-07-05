@@ -4,30 +4,20 @@ import Testing
 
 @MainActor
 struct WorkerSupervisorTests {
-    /// Counts sleep-assertion transitions so tests never take a real one.
-    @MainActor
-    private final class SleepCounter {
-        var begins = 0
-        var ends = 0
-    }
-
     private struct Fixture {
         let supervisor: WorkerSupervisor
         let directory: URL
-        let sleep: SleepCounter
+        let sleep: SleepAssertionRecorder
     }
 
     private func makeFixture() throws -> Fixture {
         let directory = try makeTemporaryDirectory()
-        let counter = SleepCounter()
+        let recorder = SleepAssertionRecorder()
         let supervisor = WorkerSupervisor(
             logDirectory: directory.appendingPathComponent("logs"),
-            sleepInhibitor: SleepInhibitor(
-                onBegin: { counter.begins += 1 },
-                onEnd: { counter.ends += 1 },
-            ),
+            sleepInhibitor: SleepInhibitor(backend: recorder),
         )
-        return Fixture(supervisor: supervisor, directory: directory, sleep: counter)
+        return Fixture(supervisor: supervisor, directory: directory, sleep: recorder)
     }
 
     private func makeRepo(named name: String, under base: URL) throws -> Repo {
