@@ -13,9 +13,17 @@ struct WorkerLogView: View {
         case failed(String)
     }
 
+    /// Identity for the polling task: restart it when the file changes, and
+    /// cancel/relaunch it as the window hides/shows.
+    private struct PollKey: Equatable {
+        let url: URL
+        let isWindowVisible: Bool
+    }
+
     let url: URL
 
     @State private var tail: Tail = .noFileYet
+    @State private var isWindowVisible = true
 
     var body: some View {
         Group {
@@ -39,13 +47,19 @@ struct WorkerLogView: View {
                         .foregroundStyle(.orange)
             }
         }
-        .task(id: url) {
+        .background(WindowVisibilityReader(isVisible: $isWindowVisible))
+        // Hiding the window does NOT tear the hierarchy down or cancel .task
+        // (verified empirically — see WindowVisibilityReader), so gate the
+        // polling on window visibility too or a hidden Foreman would keep
+        // reading the tail once a second forever.
+        .task(id: PollKey(url: url, isWindowVisible: isWindowVisible)) {
+            guard isWindowVisible else { return }
             while !Task.isCancelled {
                 refresh()
                 do {
                     try await Task.sleep(for: .seconds(1))
                 } catch {
-                    return // Cancelled: the view went away.
+                    return // Cancelled: the view went away or the window hid.
                 }
             }
         }

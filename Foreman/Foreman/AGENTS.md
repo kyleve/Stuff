@@ -70,9 +70,15 @@ formatting, global conventions) and ForemanCore's
   the exact command the next start will spawn, the inline options editor,
   and the log tail.
 - [`WorkerLogView`](Sources/WorkerLogView.swift) – tails the worker's log
-  file via `LogTailReader`, polling once a second while visible (`.task`
-  cancels the loop when the view goes away). One `Tail` enum so "no file
-  yet", content, and a read failure can't coexist.
+  file via `LogTailReader`, polling once a second while visible. One `Tail`
+  enum so "no file yet", content, and a read failure can't coexist; polls
+  that read the same content don't write `@State` (a redundant write per
+  second would wipe text selection). **Hiding the window does not cancel
+  `.task`** — an ordered-out `NSWindow` keeps its SwiftUI hierarchy alive
+  and loops keep ticking (verified empirically) — so the poll is also gated
+  on [`WindowVisibilityReader`](Sources/WindowVisibilityReader.swift), which
+  reports the hosting window's occlusion state into a binding. Any future
+  periodic work in this window needs the same gate.
 - [`WorkerOptionsView`](Sources/WorkerOptionsView.swift) /
   [`SettingsView`](Sources/SettingsView.swift) – form editors over a local
   `@State` draft, written back through session intents on Save. The draft

@@ -34,7 +34,7 @@ closed. Closing the window just hides it — the app keeps running until Quit.
   the failure reason when it died, the repo path, the exact `cursor-agent`
   command the next start will spawn, the options editor inline, and a live
   tail of the worker's log (`~/Library/Logs/Foreman/<repo>.log`, refreshed
-  every second, with an Open File button).
+  every second while the window is visible, with an Open File button).
 - **Worker options** — mirrors the `cursor agent worker` CLI flags: display
   name, pool mode + pool name, `key=value` labels, idle release timeout, and
   verbose startup logs. Editable while the worker is stopped — options apply
