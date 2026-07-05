@@ -86,6 +86,9 @@ let argv = options.arguments(workerDirectory: repos[0].rootURL)
   locations (`~/.local/bin`, `/usr/local/bin`, `/opt/homebrew/bin`); an
   explicitly configured path is validated and a stale one throws
   `NotFoundError` instead of falling back silently.
+- **`LogTailReader`** — `tail(of:maxBytes:)` returns the end of a log file
+  (starting on a line boundary) for display without loading the whole file;
+  `nil` when the file doesn't exist yet.
 - **`ObservationPump`** — re-registering `withObservationTracking`: calls
   `onChange` on the main actor after every change to the properties read by
   `tracking`, not just the first. Lets non-SwiftUI code react to

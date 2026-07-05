@@ -52,6 +52,11 @@ build system, formatting, and global conventions. Read that first.
   `<logDirectory>/<repo name>.log` with start/exit markers. `start` doesn't
   throw — a spawn failure lands in `.failed` and the log, so the state *is*
   the caller-observable result.
+- [`LogTailReader`](Sources/LogTailReader.swift) – `tail(of:maxBytes:)` reads
+  the end of a worker log file for display. `nil` means *no file yet* (a
+  never-started worker — legitimate, not an error); other I/O failures
+  throw. Truncated reads drop the partial first line so output starts on a
+  line boundary.
 - [`ObservationPump`](Sources/ObservationPump.swift) – re-registering
   `withObservationTracking`: calls `onChange` on the main actor after *every*
   change to the properties read by `tracking`, not just the first. Lets
