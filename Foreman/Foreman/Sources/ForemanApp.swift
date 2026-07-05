@@ -85,9 +85,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         window.makeKeyAndOrderFront(nil)
         // Activation can land a beat after the request; re-assert key once
-        // it has (harmless when the first attempt already took).
+        // it has (harmless when the first attempt already took). Skip if the
+        // window was hidden again in the meantime — ordering front here would
+        // resurrect a window the user just dismissed.
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(100))
+            guard window.isVisible else { return }
             window.makeKeyAndOrderFront(nil)
         }
     }
