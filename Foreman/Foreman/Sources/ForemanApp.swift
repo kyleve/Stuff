@@ -2,15 +2,8 @@ import AppKit
 import ForemanCore
 import SwiftUI
 
-/// Why AppKit (NSStatusItem + NSWindow) instead of MenuBarExtra:
-/// MenuBarExtra(.window) builds its content hierarchy once at launch and loses
-/// SwiftUI's observation of it — @Observable mutations landing while the panel
-/// was closed never rendered, and every "detect the open and force a refresh"
-/// hook we tried (onAppear, controlActiveState, key-window and occlusion
-/// notifications, an observation pump into @State) failed to fire or failed to
-/// render. Managing the status item ourselves sidesteps all of it: inside a
-/// regular window, SwiftUI observation and key-window notifications behave
-/// normally. Don't migrate back to MenuBarExtra without re-verifying the above.
+/// The status item and window are AppKit (not MenuBarExtra) on purpose —
+/// see AGENTS.md for the observation bugs that led here.
 @main
 struct ForemanApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
