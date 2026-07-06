@@ -5,7 +5,7 @@ import SwiftUI
 /// The main window: repos in the sidebar, the selected repo's worker detail
 /// on the right, global actions in the toolbar.
 struct MainWindowView: View {
-    let session: ForemanSession
+    @Bindable var session: ForemanSession
 
     @State private var selection: RepoID?
 
@@ -15,7 +15,7 @@ struct MainWindowView: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240)
         } detail: {
             if let repo = session.repos.first(where: { $0.id == selection }) {
-                WorkerDetailView(repo: repo)
+                WorkerDetailView(repo: repo, session: session)
                     // Reset the detail's local state (options draft, log
                     // tail) when the selection changes.
                     .id(repo.id)
@@ -30,6 +30,16 @@ struct MainWindowView: View {
         .frame(minWidth: 680, minHeight: 420)
         .safeAreaInset(edge: .top, spacing: 0) { issueBanner }
         .toolbar { toolbarContent }
+        .alert(
+            .actionErrorTitle,
+            isPresented: $session.isShowingActionError,
+        ) {
+            Button(.commonOk, role: .cancel) {}
+        } message: {
+            if let actionError = session.actionError {
+                Text(actionError)
+            }
+        }
         // First-open scan; later opens rescan via the window delegate's
         // windowDidBecomeKey (see AppDelegate). No file watching.
         .onAppear {

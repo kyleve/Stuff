@@ -6,6 +6,9 @@ import SwiftUI
 /// options, and a live log tail.
 struct WorkerDetailView: View {
     @Bindable var repo: Repo
+    let session: ForemanSession
+
+    @State private var isConfirmingRemoval = false
 
     var body: some View {
         let state = repo.worker.state
@@ -38,6 +41,24 @@ struct WorkerDetailView: View {
                 Toggle(.workerEnabledToggle, isOn: $repo.isEnabled)
             }
 
+            if let provenance = repo.provenance {
+                Section(.detailCopyHeader) {
+                    LabeledContent(.detailCopyKindLabel) {
+                        Text(provenance.kindText)
+                    }
+                    LabeledContent(.detailCopyParentLabel) {
+                        Text(provenance.parentName).textSelection(.enabled)
+                    }
+                    LabeledContent(.detailCopyBranchLabel) {
+                        Text(provenance.branch).textSelection(.enabled)
+                    }
+                    Button(.detailRemoveCopy, role: .destructive) {
+                        isConfirmingRemoval = true
+                    }
+                    .help(.detailRemoveCopyHelp)
+                }
+            }
+
             Section(.detailCommandHeader) {
                 // What the next start will spawn (options apply at spawn).
                 Text(commandPreview)
@@ -63,6 +84,18 @@ struct WorkerDetailView: View {
         .formStyle(.grouped)
         .navigationTitle(repo.name)
         .navigationSubtitle(repo.rootURL.path)
+        .confirmationDialog(
+            .detailRemoveCopyConfirmTitle,
+            isPresented: $isConfirmingRemoval,
+            titleVisibility: .visible,
+        ) {
+            Button(.detailRemoveCopyConfirmButton, role: .destructive) {
+                Task { await session.removeCopy(repo) }
+            }
+            Button(.commonCancel, role: .cancel) {}
+        } message: {
+            Text(.detailRemoveCopyConfirmMessage(name: repo.name))
+        }
         .toolbar {
             ToolbarItem {
                 Button {
@@ -122,7 +155,7 @@ struct WorkerDetailView: View {
 #if DEBUG
     #Preview {
         let session = PreviewSupport.populatedSession()
-        return WorkerDetailView(repo: session.repos[0])
+        return WorkerDetailView(repo: session.repos[0], session: session)
             .frame(width: 460, height: 640)
     }
 #endif

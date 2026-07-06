@@ -85,6 +85,174 @@
         }
       }
     },
+    "action.error.title" : {
+      "comment" : "Title of the alert shown when a user-triggered action (e.g. Remove Copy) fails.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't complete the action"
+          }
+        }
+      }
+    },
+    "common.ok" : {
+      "comment" : "Button that dismisses an alert.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        }
+      }
+    },
+    "detail.copy.branchLabel" : {
+      "comment" : "Label for the branch a repo copy is checked out on.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Branch"
+          }
+        }
+      }
+    },
+    "detail.copy.header" : {
+      "comment" : "Section header for a repository copy's provenance and removal action.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy"
+          }
+        }
+      }
+    },
+    "detail.copy.kindLabel" : {
+      "comment" : "Label for whether a copy is a worktree or a clone.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type"
+          }
+        }
+      }
+    },
+    "detail.copy.parentLabel" : {
+      "comment" : "Label for the repository a copy was made from.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copied from"
+          }
+        }
+      }
+    },
+    "detail.removeCopy" : {
+      "comment" : "Button that removes a repository copy Foreman created.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Copy…"
+          }
+        }
+      }
+    },
+    "detail.removeCopy.confirmButton" : {
+      "comment" : "Confirmation button that carries out removing a copy.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove Copy"
+          }
+        }
+      }
+    },
+    "detail.removeCopy.confirmMessage" : {
+      "comment" : "Confirmation dialog body for removing a copy. The placeholder is the copy's name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foreman stops the worker, then removes “%(name)@”. A worktree is removed with git; a full clone is moved to the Trash."
+          }
+        }
+      }
+    },
+    "detail.removeCopy.confirmTitle" : {
+      "comment" : "Confirmation dialog title for removing a copy.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove this copy?"
+          }
+        }
+      }
+    },
+    "detail.removeCopy.help" : {
+      "comment" : "Tooltip for the Remove Copy button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop the worker and remove this copy."
+          }
+        }
+      }
+    },
+    "provenance.clone" : {
+      "comment" : "Copy kind: a full git clone.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clone"
+          }
+        }
+      }
+    },
+    "provenance.worktree" : {
+      "comment" : "Copy kind: a git worktree.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worktree"
+          }
+        }
+      }
+    },
+    "row.copy.help" : {
+      "comment" : "Tooltip on the copy badge in a sidebar row. First placeholder is the kind (Worktree/Clone), second the parent repo name, third the branch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%(kind)@ of %(parent)@ on branch %(branch)@"
+          }
+        }
+      }
+    },
     "detail.empty.description" : {
       "comment" : "Description of the empty detail pane shown when no repo is selected.",
       "extractionState" : "manual",

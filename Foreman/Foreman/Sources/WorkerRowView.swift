@@ -19,6 +19,17 @@ struct WorkerRowView: View {
                 }
             }
 
+            if let provenance = repo.provenance {
+                Image(systemName: provenance.badgeSymbol)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .help(.rowCopyHelp(
+                        kind: String(localized: provenance.kindText),
+                        parent: provenance.parentName,
+                        branch: provenance.branch,
+                    ))
+            }
+
             if repo.isFavorite {
                 Image(systemName: "star.fill")
                     .font(.caption2)
