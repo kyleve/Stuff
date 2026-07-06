@@ -272,9 +272,11 @@ public final class ForemanServices {
         }
         repo.provenance = provenance
 
+        // Enabling starts the worker; if it was already enabled (a re-adopt),
+        // startIfEnabled() (re)starts it when it isn't already live — .failed
+        // included, since that isn't a live state.
         if repo.isEnabled {
             repo.startIfEnabled()
-            repo.retry()
         } else {
             repo.isEnabled = true
         }
