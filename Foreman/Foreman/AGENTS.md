@@ -27,6 +27,26 @@ formatting, global conventions) and ForemanCore's
 - Every previewable view ships a `#Preview` using `PreviewSupport` fixtures
   (temp-directory backed; never the real config or `~/Development`).
 
+## Localization
+
+All user-facing copy lives in
+[`Resources/Localizable.xcstrings`](Resources/Localizable.xcstrings) and is
+referenced through Xcode 26's **generated symbols** (the
+`STRING_CATALOG_GENERATE_SYMBOLS` build setting, set on the target in
+[`Project.swift`](../../Project.swift)) — e.g. `Text(.toolbarRescan)`,
+`Button(.commonSave)`, `.help(.toolbarRescanHelp)`,
+`Text(.statusFailedReason(reason: …))`. There is **no** hand-written `Strings`
+enum (unlike WhereUI). Add the key to the catalog first (a manual entry with a
+stable dotted key like `toolbar.rescan`), then reference the generated symbol;
+a missing key is a compile error. Interpolated strings use named placeholders
+(`%(pid)lld`, `%(message)@`) so the symbol is a function with typed arguments.
+
+Proper nouns stay literal — the app name **"Foreman"** (`navigationTitle`,
+`NSWindow.title`, the icon's accessibility description) and the **"cursor-agent"**
+CLI name. Dynamic data (repo names, paths, pids, upstream
+`error.localizedDescription`, the command preview) is passed as arguments into
+placeholder symbols, never added as catalog keys.
+
 ## Hard-won platform lessons (don't undo)
 
 - **The status item is AppKit (`NSStatusItem` + a reused `NSWindow`), not
