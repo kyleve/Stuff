@@ -12,8 +12,15 @@ ForemanServices ── AppSettings
        ├────────── RepoDiscovery ── [Repo] ── Worker
        ├────────── WorkerConfigStore (ForemanConfiguration JSON)
        ├────────── SleepInhibitor
-       └────────── LoginItemController (SMAppService)
+       ├────────── LoginItemController (SMAppService)
+       └────────── RepoCopyRemoving (worktree remove / trash clone)
 ```
+
+The MCP-facing control surface (`ControlRequest`/`ControlResponse`,
+`ControlRequestHandler`, the `describe`/`adopt`/`removeCopy` intents, and
+`CopyProvenance`) is transport-agnostic and lives here; the app target owns the
+socket (see [the app AGENTS](../Foreman/AGENTS.md)). The TypeScript client in
+[`foreman-mcp`](../foreman-mcp) mirrors the wire types.
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md), which owns the
 build system, formatting, and global conventions. Read that first.
@@ -60,6 +67,14 @@ build system, formatting, and global conventions. Read that first.
   `ForemanConfiguration` — the system is the source of truth. Launch-at-login
   just relaunches the app, which reuses the existing `start()` restore of
   enabled workers.
+- **Copies are Foreman's to own.** `removeCopy(at:)` only acts on a repo with
+  recorded `CopyProvenance` (throwing `ControlError.notACopy` otherwise) and
+  always stops + drains the worker *before* touching the filesystem — never
+  remove a copy out from under a live process. `adoptAndStartWorker` rejects a
+  path that isn't a direct child of the scan directory. The removal itself goes
+  through the injected `RepoCopyRemoving` so tests never trash real files. The
+  wire types (`ControlRequest`/`ControlResponse` and their DTOs) are the
+  contract with `foreman-mcp`'s `src/control.ts` — change both together.
 - **Absence vs failure.** Missing options read as `WorkerOptions.standard`
   and a missing config file is `.initial`; an unreadable/undecodable file
   throws. **CLI defaults are deferred to, not duplicated** — omit a flag
@@ -71,7 +86,8 @@ build system, formatting, and global conventions. Read that first.
 
 User-facing strings (worker failure reasons in `Worker`, the scan/save/login
 errors and config-load fallback in `ForemanServices`,
-`CursorAgentLocator.NotFoundError`) resolve through Xcode 26 **generated
+`CursorAgentLocator.NotFoundError`, and the `ControlError` messages surfaced
+back to the MCP) resolve through Xcode 26 **generated
 symbols** against [`Sources/Resources/Localizable.xcstrings`](Sources/Resources/Localizable.xcstrings)
 (a processed resource in [`Package.swift`](../../Package.swift)) — used as
 `String(localized: .workerExitedWithCode(code: …))` etc. The symbol already

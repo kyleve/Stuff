@@ -58,7 +58,9 @@ let argv = repo.options.arguments(workerDirectory: repo.rootURL)
   `loginItemNeedsApproval` and a dedicated `loginItemError` (login failures
   surface here, not on the shared `issueMessage`); `refreshLoginItemStatus()`
   re-reads it from the OS and `openSystemSettingsLoginItems()` jumps to the
-  approval UI.
+  approval UI. The MCP-facing intents (`describe()`,
+  `adoptAndStartWorker(at:provenance:)`, `removeCopy(at:)`) live here too —
+  see [MCP control](#mcp-control).
 - **`Repo` / `RepoID`** — one discovered repository as an `@Observable`
   object: identity (`name`, `rootURL`, typed `RepoID` = canonical absolute
   path), the persisted intent (`isEnabled`, `isFavorite`, `options` —
@@ -68,7 +70,8 @@ let argv = repo.options.arguments(workerDirectory: repo.rootURL)
   that don't change the persisted desired state: `retry()` (fresh attempt
   for an enabled repo in `.failed`) and `restart()` (respawn a running
   worker with the current options — the apply path for options edited while
-  running).
+  running). `provenance` is a `CopyProvenance?` recorded when the repo is an
+  MCP-created copy (persists on assignment); `nil` for ordinary repos.
 - **`Worker`** — the per-repo process: `start(options:executable:)`,
   `stop()`, an observable `state` enum (`stopped` / `running(pid:since:)` /
   `stopping(restartPending:)` / `failed(reason:)`), and `logFileURL`.
@@ -105,9 +108,11 @@ let argv = repo.options.arguments(workerDirectory: repo.rootURL)
   `arguments(workerDirectory:)` renders the full argv; `.standard` is the
   CLI-default configuration.
 - **`RepoConfiguration` / `ForemanConfiguration`** — everything Foreman
-  persists. `RepoConfiguration` is the single per-repo record (`isEnabled`,
-  `isFavorite`, `options`) — one struct instead of parallel maps keyed by
-  `RepoID`, so the flags and options can't drift apart. `ForemanConfiguration`
+  persists.   `RepoConfiguration` is the single per-repo record (`isEnabled`,
+  `isFavorite`, `options`, and an optional `provenance`) — one struct instead
+  of parallel maps keyed by `RepoID`, so the flags and options can't drift
+  apart. A recorded `provenance` makes the record non-`.standard`, so a copy's
+  origin survives even when its flags are otherwise default. `ForemanConfiguration`
   holds the scan directory (default `~/Development`), an explicit
   `cursor-agent` executable (or `nil` for auto-locate), and
   `repos: [RepoID: RepoConfiguration]`; a repo left at
@@ -145,6 +150,39 @@ let argv = repo.options.arguments(workerDirectory: repo.rootURL)
   `nil` when the file doesn't exist yet.
 - **`ForemanLog`** — the logging facade over LogKit: `ForemanLog.channel(_:)`
   with a typed `Category`, subsystem `com.stuff.foreman`.
+
+## MCP control
+
+The [`foreman-mcp`](../foreman-mcp) server drives Foreman over a local
+unix-domain socket. ForemanCore owns the transport-agnostic half; the app
+target owns the socket itself (see [the app's control server](../Foreman/README.md#mcp-control-socket)).
+
+- **`CopyProvenance`** — how an MCP-created copy came to be, modeled as one
+  value so invalid combinations can't be spelled: `kind` (`.worktree` /
+  `.clone`), `parentRepoID`, and `branch`. Persisted on `RepoConfiguration`
+  and mirrored on `Repo.provenance`; its absence is an ordinary repo.
+- **`ControlRequest` / `ControlResponse`** — the `Codable` wire protocol
+  (JSON-lines: one request, one response). Requests are `describe`, `adopt`
+  (path + provenance), and `removeCopy` (path); responses carry a
+  `DescribeResultDTO`, a `RepoStatusDTO`, a removed path, or an error string.
+  `CopyProvenanceDTO` / `RepoStatusDTO` / `DescribeResultDTO` are the flat
+  transfer shapes; `RepoStatusDTO(repo:)` projects a live `Repo`. **This is the
+  contract mirrored in `foreman-mcp`'s `src/control.ts` — keep them in sync.**
+- **`ControlRequestHandler`** — maps a decoded `ControlRequest` to the matching
+  `ForemanServices` intent on the main actor and wraps the outcome (or a
+  `ControlError`) in a `ControlResponse`.
+- **`ForemanServices` intents** — `describe()` returns the scan directory plus
+  every repo's worker state and provenance; `adoptAndStartWorker(at:provenance:)`
+  validates the path is a direct subdirectory of the scan directory (throwing a
+  `ControlError` otherwise), records the provenance, `rescan()`s, and enables
+  the worker; `removeCopy(at:)` stops and drains the worker, then removes the
+  copy (via `RepoCopyRemoving`) and `rescan()`s. `removeCopy` is gated on
+  recorded provenance, so Foreman only ever removes copies it created.
+  `controlSocketURL` is the shared socket path.
+- **`RepoCopyRemoving` / `SystemRepoCopyRemover`** — the removal seam:
+  `git worktree remove` for a worktree, move-to-Trash for a clone. Injected
+  into `ForemanServices` so tests substitute a recorder instead of touching the
+  filesystem.
 
 ## Localization
 

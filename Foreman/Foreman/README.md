@@ -31,7 +31,9 @@ closed. Closing the window just hides it — the app keeps running until Quit.
   between groups as you toggle or favorite them. Each row shows a status dot
   (gray stopped, yellow stopping/restarting, green running, red failed —
   flipping a stopping worker back on queues a restart for when the old process
-  exits), the worker's on/off switch, and a star on favorited repos.
+  exits), the worker's on/off switch, and a star on favorited repos. Repos that
+  Foreman created as copies (via the MCP — see below) carry a small
+  worktree/clone badge whose tooltip names the parent repo and branch.
   Right-click a row to favorite or unfavorite it.
 - **Detail pane** (select a repo) — the worker's status, pid and live uptime,
   the failure reason when it died, the repo path, the exact `cursor-agent`
@@ -41,7 +43,11 @@ closed. Closing the window just hides it — the app keeps running until Quit.
   status row offers **Retry** when an enabled worker failed and **Restart**
   while it's running (a fresh process with the saved options); neither
   changes the on/off switch. A toolbar star favorites the repo (mirrors the
-  sidebar's right-click toggle).
+  sidebar's right-click toggle). For a copy Foreman created, a **Copy** section
+  shows how it was made (worktree vs clone, the parent repo, the branch) and a
+  **Remove Copy…** button that — after a confirmation — stops the worker and
+  removes the worktree (git) or moves the clone to the Trash; failures surface
+  in an alert.
 - **Worker options** — mirrors the `cursor agent worker` CLI flags: display
   name, pool mode + pool name, `key=value` labels, idle release timeout, and
   verbose startup logs. Editable while the worker is stopped — options apply
@@ -69,6 +75,8 @@ small editor sheet that commits only on **Save** (Cancel or Escape discards).
 - On launch, Foreman restores the saved configuration and restarts the workers
   that were enabled last time. With *Launch Foreman at login* on, this happens
   automatically after you log in.
+- The MCP control socket is started after launch and closed (its file removed)
+  on quit.
 - Quitting stops every worker (stop-on-quit: the app owns its processes and
   never leaves orphans).
 - The repo list refreshes every time the window is opened or focused, and on
@@ -78,6 +86,19 @@ small editor sheet that commits only on **Save** (Cancel or Escape discards).
   without a row to control it. Saved toggles and options for repos deleted
   from the current scan directory are pruned; settings for other scan
   directories are kept and re-apply when you switch back.
+
+## MCP control socket
+
+On launch Foreman starts a small local control server on a unix-domain socket
+at `~/Library/Application Support/com.stuff.foreman/control.sock` (JSON-lines),
+and tears it down on quit — both wired through `ForemanSession`. The
+[`foreman-mcp`](../foreman-mcp) server connects to it so a Cursor agent can spin
+up a worktree/clone copy of its repo and have Foreman start a worker on it; the
+copy then appears in the sidebar like any other repo. The transport-agnostic
+protocol and the intents behind it (`describe` / `adopt` / `removeCopy`) live in
+[`ForemanCore`](../ForemanCore/README.md#mcp-control); this target only owns the
+socket. A stale socket file (e.g. after a hard kill) is unlinked on the next
+start, so a leftover file never blocks binding.
 
 ## Localization
 

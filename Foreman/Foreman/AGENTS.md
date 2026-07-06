@@ -20,6 +20,16 @@ formatting, global conventions) and ForemanCore's
 - **Stop-on-quit lifecycle.** The app delegate calls `stopAllWorkers()` in
   `applicationWillTerminate` — Foreman owns its worker processes and must
   never leave orphans.
+- **The control socket lives here, the protocol doesn't.** `ControlServer` is
+  the only socket-owning code (raw POSIX unix-domain socket, JSON-lines); it
+  decodes a line, calls `ControlRequestHandler` **on the main actor**, and
+  encodes the reply. Started in `applicationDidFinishLaunching` and torn down in
+  `applicationWillTerminate`, both via `ForemanSession`
+  (`startControlServer()` / `stopControlServer()`). All request→intent mapping
+  belongs in ForemanCore's `ControlRequestHandler`, not here. The Remove-copy UI
+  action goes through `ForemanSession.removeCopy(_:)`, which surfaces failures on
+  `actionError` (an alert) rather than throwing into a view; copy provenance for
+  the sidebar badge / detail is presented via `CopyProvenanceDisplay`.
 - New worker CLI flags start in ForemanCore (`WorkerOptions` field + argv
   rendering, with tests), then surface in `WorkerOptionsView`'s draft.
 - Feature-level todos live in [`../TODOs.md`](../TODOs.md) (conventional
