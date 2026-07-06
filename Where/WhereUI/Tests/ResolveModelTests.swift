@@ -40,7 +40,7 @@ struct ResolveModelTests {
 
     @Test func dismissWritesToStoreAndRemovesRow() async throws {
         let store = try TestStore()
-        let now = date(year: 2026, month: 2, day: 10)
+        let now = date(year: 2026, month: 6, day: 15)
         let services = WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
@@ -53,14 +53,21 @@ struct ResolveModelTests {
             preferences: WherePreferences(store: InMemoryKeyValueStore()),
         )
 
-        let issue = BorderDriftIssue(
-            day: DayPresence(date: date(year: 2026, month: 3, day: 1), regions: [.other]),
-            nearestRegion: .california,
-            distanceMeters: 1000,
+        // Two calendar-adjacent days with disjoint regions produce a real,
+        // dismissible abrupt-change issue, so `dismiss` runs against an issue the
+        // scanner actually returned from `load(...)` — no seeded fixture, no
+        // `setDataIssues` short-circuit.
+        try await services.journal.addManualDay(
+            date: date(year: 2026, month: 3, day: 1),
+            regions: [.california],
         )
-        resolve.setDataIssues([issue])
-        #expect(resolve.dataIssues.count == 1)
+        try await services.journal.addManualDay(
+            date: date(year: 2026, month: 3, day: 2),
+            regions: [.newYork],
+        )
+        await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
 
+        let issue = try #require(resolve.dataIssues.first { $0.isDismissible })
         await resolve.dismiss(issue)
         #expect(!resolve.dataIssues.contains { $0.id == issue.id })
 
