@@ -73,6 +73,31 @@ struct LocationIngestorTests {
         #expect(await !(ingestor.isActive))
     }
 
+    @Test func currentLocationForwardsTheSourceFix() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource()
+        let recorder = OutcomeRecorder()
+        let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
+        let fix = LocationSample(
+            timestamp: WhereCoreTestSupport.iso("2026-05-01T12:00:00-07:00"),
+            coordinate: Coordinate(latitude: 37.3349, longitude: -122.0090),
+            horizontalAccuracy: 6,
+            source: .gpsSignificantChange,
+        )
+        source.setNextRequestedLocation(fix)
+
+        #expect(await ingestor.currentLocation() == fix)
+    }
+
+    @Test func currentLocationIsNilWhenSourceHasNoFix() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource()
+        let recorder = OutcomeRecorder()
+        let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
+
+        #expect(await ingestor.currentLocation() == nil)
+    }
+
     @Test func liveSampleIsPersistedAndReported() async throws {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource(authorizationStatus: .always)

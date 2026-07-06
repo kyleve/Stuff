@@ -72,7 +72,23 @@ Rules the code enforces and agents must preserve:
   degraded-but-handled, `error`/`fault` = outright failure; hot paths
   (per-sample persist, widget throttle) stay quiet by design.
 - **Location comes through the `LocationSource` protocol** — production is
-  `CoreLocationSource`; tests and previews use `ScriptedLocationSource`.
+  `CoreLocationSource`; tests and previews use `ScriptedLocationSource`. Besides
+  the passive `sampleStream`, it offers a best-effort one-shot
+  `requestCurrentLocation()` (re-exposed as `LocationIngestor.currentLocation()`)
+  used to stamp manual entries; it returns `nil` rather than throwing when no
+  fix is available.
+- **Manual entries carry a `ManualEntryAudit`** (when made, an optional note,
+  and a best-effort capture-time `CapturedLocation`). The view-model intents
+  (`YearReportModel.setManualDay` / `setManualDays` / `overrideDay`) assemble it
+  from a `note:` plus `currentLocation()`; `DayJournal`'s write methods take an
+  explicit `audit:` (no default) and persist it on `DayPresence` /
+  `SDManualDay`. An additive backfill can't downgrade an authoritative row's
+  regions, but the newer audit always wins. `DayRelabelView` shows it read-only.
+- **`WhereServices.recentActivity`** is a standalone, on-demand
+  `RecentActivitySummarizer` that summarizes the last 24h of locations on device
+  via Foundation Models (behind the `ActivitySummaryGenerating` seam). It is
+  distinct from `WhereServices.summary` (the daily notification recap); model
+  unavailability surfaces as a typed reason, never a silent empty summary.
 
 ## Localization
 

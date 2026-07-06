@@ -97,6 +97,97 @@ struct SwiftDataStoreTests {
         #expect(afterUpdate.count == 1)
         #expect(afterUpdate.first?.regions == [.newYork])
     }
+
+    @Test func auditRoundTripsThroughAManualDay() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let date = Date(timeIntervalSince1970: 0)
+        let audit = ManualEntryAudit(
+            recordedAt: Date(timeIntervalSince1970: 1000),
+            note: "Filed after reviewing receipts.",
+            location: CapturedLocation(
+                coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
+                horizontalAccuracy: 8,
+                timestamp: Date(timeIntervalSince1970: 990),
+            ),
+        )
+
+        try await store.perform {
+            try await store.setManualDay(
+                DayPresence(date: date, regions: [.newYork], isAuthoritative: true, audit: audit),
+            )
+        }
+
+        let stored = try await store.allManualDays()
+        #expect(stored.first?.audit == audit)
+    }
+
+    @Test func auditWithoutLocationRoundTripsAsNoteOnly() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let date = Date(timeIntervalSince1970: 0)
+        let audit = ManualEntryAudit(
+            recordedAt: Date(timeIntervalSince1970: 1000),
+            note: "No GPS fix was available.",
+            location: nil,
+        )
+
+        try await store.perform {
+            try await store.setManualDay(DayPresence(
+                date: date,
+                regions: [.california],
+                audit: audit,
+            ))
+        }
+
+        let stored = try await store.allManualDays()
+        #expect(stored.first?.audit == audit)
+        #expect(stored.first?.audit?.location == nil)
+    }
+
+    /// An additive backfill can't downgrade an authoritative row's regions, but
+    /// its (newer) audit must still win — the trail tracks the latest action.
+    @Test func additiveBackfillOverAuthoritativeKeepsIncomingAudit() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let date = Date(timeIntervalSince1970: 0)
+        let firstAudit = ManualEntryAudit(
+            recordedAt: Date(timeIntervalSince1970: 100),
+            note: "Original override.",
+            location: nil,
+        )
+        let laterAudit = ManualEntryAudit(
+            recordedAt: Date(timeIntervalSince1970: 200),
+            note: "Later backfill sweep.",
+            location: nil,
+        )
+
+        try await store.perform {
+            try await store.setManualDay(
+                DayPresence(
+                    date: date,
+                    regions: [.california],
+                    isAuthoritative: true,
+                    audit: firstAudit,
+                ),
+            )
+        }
+        try await store.perform {
+            try await store.setManualDay(
+                DayPresence(
+                    date: date,
+                    regions: [.newYork],
+                    isAuthoritative: false,
+                    audit: laterAudit,
+                ),
+            )
+        }
+
+        let stored = try await store.allManualDays()
+        #expect(stored.count == 1)
+        // Regions can't be downgraded (stays authoritative, unions in the backfill)...
+        #expect(stored.first?.isAuthoritative == true)
+        #expect(stored.first?.regions == [.california, .newYork])
+        // ...but the newer audit wins.
+        #expect(stored.first?.audit == laterAudit)
+    }
 }
 
 /// Awaits the first `changes()` ping, returning `false` if none arrives within
