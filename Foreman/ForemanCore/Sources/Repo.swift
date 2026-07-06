@@ -44,6 +44,17 @@ public final class Repo: Identifiable {
         }
     }
 
+    /// Whether the user pinned this repo to the top of its sidebar section.
+    /// Pure presentation metadata — unlike `isEnabled` it has no worker side
+    /// effect, it only notifies the persistence funnel; reassigning the
+    /// current value is a no-op.
+    public var isFavorite: Bool {
+        didSet {
+            guard oldValue != isFavorite else { return }
+            onPersistentChange(self)
+        }
+    }
+
     private static let logger = ForemanLog.channel(.repo)
 
     private let resolveExecutable: @MainActor () throws -> URL
@@ -53,16 +64,20 @@ public final class Repo: Identifiable {
     ///   - scanned: The on-disk identity from ``RepoDiscovery``.
     ///   - isEnabled: The saved desired state. Assigning in `init` does not
     ///     start the worker — launch restore calls ``startIfEnabled()``.
+    ///   - isFavorite: The saved favorite flag (pins the repo to the top of
+    ///     its sidebar section).
     ///   - options: The saved worker options.
     ///   - worker: The repo's worker (the owning tree wires its
     ///     `onStateChange`).
     ///   - resolveExecutable: Locates the `cursor-agent` binary at start
     ///     time; a throw lands in the worker's `.failed` state.
-    ///   - onPersistentChange: Invoked after every `isEnabled`/`options`
-    ///     change so the owning tree can write through and save.
+    ///   - onPersistentChange: Invoked after every
+    ///     `isEnabled`/`isFavorite`/`options` change so the owning tree can
+    ///     write through and save.
     public init(
         scanned: ScannedRepo,
         isEnabled: Bool,
+        isFavorite: Bool,
         options: WorkerOptions,
         worker: Worker,
         resolveExecutable: @escaping @MainActor () throws -> URL,
@@ -73,6 +88,7 @@ public final class Repo: Identifiable {
         rootURL = scanned.rootURL
         self.worker = worker
         self.isEnabled = isEnabled
+        self.isFavorite = isFavorite
         self.options = options
         self.resolveExecutable = resolveExecutable
         self.onPersistentChange = onPersistentChange

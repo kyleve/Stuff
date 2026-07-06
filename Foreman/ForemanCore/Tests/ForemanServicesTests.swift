@@ -39,8 +39,7 @@ struct ForemanServicesTests {
         var configuration = ForemanConfiguration(
             scanDirectory: scanDirectory,
             agentExecutable: executable,
-            enabledRepoIDs: [],
-            repoOptions: [:],
+            repos: [:],
         )
         configure(&configuration, scanDirectory)
         try store.save(configuration)
@@ -75,10 +74,10 @@ struct ForemanServicesTests {
             "Idle",
             "Restored",
         ]) { configuration, scanDirectory in
-            configuration.enabledRepoIDs = [
+            configuration.repos[
                 RepoID(rootURL: scanDirectory
                     .appendingPathComponent("Restored", isDirectory: true)),
-            ]
+            ] = RepoConfiguration(isEnabled: true, isFavorite: false, options: .standard)
         }
 
         fixture.services.start()
@@ -134,10 +133,11 @@ struct ForemanServicesTests {
         try await waitUntil("worker reaches running") {
             repo.worker.state.isLive
         }
-        #expect(try fixture.store.load().enabledRepoIDs == [repo.id])
+        #expect(try fixture.store.load().repos[repo.id]?.isEnabled == true)
 
         repo.isEnabled = false
-        #expect(try fixture.store.load().enabledRepoIDs == [])
+        // Back to a fully default record: the entry is dropped entirely.
+        #expect(try fixture.store.load().repos[repo.id] == nil)
         try await waitUntil("worker stops") {
             repo.worker.state == .stopped
         }
@@ -151,10 +151,42 @@ struct ForemanServicesTests {
         var renamed = WorkerOptions.standard
         renamed.displayName = "Renamed"
         repo.options = renamed
-        #expect(try fixture.store.load().repoOptions[repo.id] == renamed)
+        #expect(try fixture.store.load().repos[repo.id]?.options == renamed)
 
         repo.options = .standard
-        #expect(try fixture.store.load().repoOptions[repo.id] == nil)
+        #expect(try fixture.store.load().repos[repo.id] == nil)
+    }
+
+    @Test func favoritingWritesThroughAndClearingDropsTheEntry() throws {
+        let fixture = try makeFixture(repoNames: ["Thing"])
+        fixture.services.start()
+        let repo = try #require(fixture.services.repos.first)
+
+        repo.isFavorite = true
+        #expect(try fixture.store.load().repos[repo.id]?.isFavorite == true)
+
+        // Favoriting alone doesn't enable the worker.
+        #expect(try fixture.store.load().repos[repo.id]?.isEnabled == false)
+        #expect(repo.worker.state == .stopped)
+
+        // Unfavoriting a repo with no other customization drops the entry.
+        repo.isFavorite = false
+        #expect(try fixture.store.load().repos[repo.id] == nil)
+    }
+
+    @Test func savedFavoriteIsRestoredOnLaunch() throws {
+        let fixture = try makeFixture(repoNames: ["Pinned"]) { configuration, scanDirectory in
+            configuration.repos[
+                RepoID(rootURL: scanDirectory
+                    .appendingPathComponent("Pinned", isDirectory: true)),
+            ] = RepoConfiguration(isEnabled: false, isFavorite: true, options: .standard)
+        }
+
+        fixture.services.start()
+
+        let pinned = try #require(fixture.services.repos.first)
+        #expect(pinned.isFavorite)
+        #expect(!pinned.isEnabled)
     }
 
     @Test func settingsChangesPersistAndAScanDirectoryChangeRescans() throws {
@@ -188,21 +220,29 @@ struct ForemanServicesTests {
             let gone = RepoID(rootURL: scanDirectory
                 .appendingPathComponent("Gone", isDirectory: true))
             stale = gone
-            configuration.enabledRepoIDs = [foreign, gone]
-            configuration.repoOptions[gone] = WorkerOptions(
-                displayName: "Gone",
-                assignment: .shared,
-                labels: [],
-                idleReleaseTimeoutSeconds: 0,
-                verbose: false,
+            configuration.repos[foreign] = RepoConfiguration(
+                isEnabled: true,
+                isFavorite: false,
+                options: .standard,
+            )
+            configuration.repos[gone] = RepoConfiguration(
+                isEnabled: true,
+                isFavorite: false,
+                options: WorkerOptions(
+                    displayName: "Gone",
+                    assignment: .shared,
+                    labels: [],
+                    idleReleaseTimeoutSeconds: 0,
+                    verbose: false,
+                ),
             )
         }
 
         fixture.services.start()
 
         let saved = try fixture.store.load()
-        #expect(saved.enabledRepoIDs == [foreign])
-        #expect(try saved.repoOptions[#require(stale)] == nil)
+        #expect(saved.repos[foreign]?.isEnabled == true)
+        #expect(try saved.repos[#require(stale)] == nil)
     }
 
     @Test func failedRescanKeepsReposAndReportsTheIssue() throws {
