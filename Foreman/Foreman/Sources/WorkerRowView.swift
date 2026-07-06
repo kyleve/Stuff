@@ -13,7 +13,7 @@ struct WorkerRowView: View {
             VStack(alignment: .leading, spacing: 1) {
                 Text(repo.name)
                 if case .failed = repo.worker.state {
-                    Text("Failed — see detail")
+                    Text(.rowFailed)
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
@@ -23,12 +23,12 @@ struct WorkerRowView: View {
                 Image(systemName: "star.fill")
                     .font(.caption2)
                     .foregroundStyle(.yellow)
-                    .help("Favorite")
+                    .help(.rowFavoriteHelp)
             }
 
             Spacer()
 
-            Toggle("Worker enabled", isOn: $repo.isEnabled)
+            Toggle(.workerEnabledToggle, isOn: $repo.isEnabled)
                 .labelsHidden()
                 .toggleStyle(.switch)
                 .controlSize(.small)
@@ -36,7 +36,7 @@ struct WorkerRowView: View {
         .padding(.vertical, 2)
         .contextMenu {
             Button(
-                repo.isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                repo.isFavorite ? .favoriteRemove : .favoriteAdd,
                 systemImage: repo.isFavorite ? "star.slash" : "star",
             ) {
                 repo.isFavorite.toggle()
@@ -65,13 +65,13 @@ struct StatusDot: View {
         }
     }
 
-    private var help: String {
+    private var help: LocalizedStringResource {
         switch state {
-            case .stopped: "Stopped"
-            case let .running(pid, _): "Running (pid \(pid))"
-            case .stopping(restartPending: true): "Restarting…"
-            case .stopping(restartPending: false): "Stopping…"
-            case let .failed(reason): "Failed: \(reason)"
+            case .stopped: .statusStopped
+            case let .running(pid, _): .statusRunningPid(pid: Int(pid))
+            case .stopping(restartPending: true): .statusRestarting
+            case .stopping(restartPending: false): .statusStopping
+            case let .failed(reason): .statusFailedReason(reason: reason)
         }
     }
 }

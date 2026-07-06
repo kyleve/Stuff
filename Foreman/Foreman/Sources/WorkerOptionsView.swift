@@ -69,37 +69,45 @@ struct WorkerOptionsView: View {
     var body: some View {
         Section {
             Group {
-                TextField("Worker name", text: $draft.displayName, prompt: Text("Host name"))
+                TextField(
+                    .optionsWorkerNameLabel,
+                    text: $draft.displayName,
+                    prompt: Text(.optionsWorkerNamePrompt),
+                )
 
-                Toggle("Pool worker (one agent at a time)", isOn: $draft.isPool)
+                Toggle(.optionsPoolToggle, isOn: $draft.isPool)
                 if draft.isPool {
-                    TextField("Pool name", text: $draft.poolName, prompt: Text("default"))
+                    TextField(
+                        .optionsPoolNameLabel,
+                        text: $draft.poolName,
+                        prompt: Text(.optionsPoolNamePrompt),
+                    )
                 }
 
                 TextField(
-                    "Idle release (seconds)",
+                    .optionsIdleReleaseLabel,
                     value: $draft.idleReleaseTimeoutSeconds,
                     format: .number,
-                    prompt: Text("0 = never"),
+                    prompt: Text(.optionsIdleReleasePrompt),
                 )
 
-                Toggle("Verbose startup logs", isOn: $draft.verbose)
+                Toggle(.optionsVerboseToggle, isOn: $draft.verbose)
 
                 labelsSection
             }
             .disabled(isLocked)
 
             HStack {
-                Button("Reset to Defaults") {
+                Button(.optionsResetDefaults) {
                     draft = Draft(.standard)
                 }
                 .disabled(isLocked)
                 Spacer()
-                Button("Revert") {
+                Button(.optionsRevert) {
                     draft = Draft(repo.options)
                 }
                 .disabled(isLocked || !isDirty)
-                Button("Save") {
+                Button(.commonSave) {
                     repo.options = draft.options
                 }
                 .keyboardShortcut(.defaultAction)
@@ -107,12 +115,10 @@ struct WorkerOptionsView: View {
             }
             .controlSize(.small)
         } header: {
-            Text("Options")
+            Text(.optionsHeader)
         } footer: {
             if isLocked {
-                Text(
-                    "Stop the worker to edit — options apply when it starts. Restart respawns with the saved options.",
-                )
+                Text(.optionsLockedFooter)
             }
         }
     }
@@ -120,7 +126,7 @@ struct WorkerOptionsView: View {
     private var labelsSection: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Labels")
+                Text(.optionsLabelsHeader)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()
@@ -130,14 +136,15 @@ struct WorkerOptionsView: View {
                     Image(systemName: "plus")
                 }
                 .buttonStyle(.borderless)
-                .help("Add a key=value label for this worker.")
+                .help(.optionsLabelsAddHelp)
             }
             ForEach($draft.labels) { $label in
                 HStack(spacing: 4) {
-                    TextField("key", text: $label.key)
-                    Text("=")
+                    TextField(.optionsLabelKey, text: $label.key)
+                    // Decorative separator between a label's key and value.
+                    Text(verbatim: "=")
                         .foregroundStyle(.secondary)
-                    TextField("value", text: $label.value)
+                    TextField(.optionsLabelValue, text: $label.value)
                     Button {
                         draft.labels.removeAll { $0.id == label.id }
                     } label: {

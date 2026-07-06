@@ -29,7 +29,7 @@ struct WorkerLogView: View {
         Group {
             switch tail {
                 case .noFileYet:
-                    Text("No log yet — this worker hasn't started.")
+                    Text(.logEmpty)
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 case let .content(text):
@@ -74,7 +74,7 @@ struct WorkerLogView: View {
                 latest = .noFileYet
             }
         } catch {
-            latest = .failed("Couldn't read the log: \(error.localizedDescription)")
+            latest = .failed(String(localized: .logReadFailed(message: error.localizedDescription)))
         }
         // Only write when the tail actually changed: an idle worker polls the
         // same content once a second, and each redundant @State write re-runs
