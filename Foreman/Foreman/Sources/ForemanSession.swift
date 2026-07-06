@@ -17,6 +17,12 @@ final class ForemanSession {
         services.repos
     }
 
+    /// The discovered repos grouped for the sidebar: enabled on top, disabled
+    /// below, favorites floated to the top of each section.
+    var repoSections: [RepoSection] {
+        services.repoSections
+    }
+
     /// Global settings; `SettingsView` writes through these observable
     /// properties (persistence and rescans happen in Core).
     var settings: AppSettings {

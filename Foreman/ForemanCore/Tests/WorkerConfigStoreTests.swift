@@ -17,8 +17,7 @@ struct WorkerConfigStoreTests {
         let configuration = ForemanConfiguration(
             scanDirectory: URL(fileURLWithPath: "/Users/dev/Code"),
             agentExecutable: URL(fileURLWithPath: "/usr/local/bin/cursor-agent"),
-            enabledRepoIDs: [repo],
-            repoOptions: [repo: options],
+            repos: [repo: RepoConfiguration(isEnabled: true, isFavorite: true, options: options)],
         )
 
         try store.save(configuration)
@@ -45,10 +44,10 @@ struct WorkerConfigStoreTests {
         }
     }
 
-    @Test func optionsForAnUncustomizedRepoAreStandard() {
+    @Test func configurationForAnUncustomizedRepoIsStandard() {
         let configuration = ForemanConfiguration.initial
 
-        #expect(configuration.options(for: RepoID(rawValue: "/nowhere")) == .standard)
+        #expect(configuration.configuration(for: RepoID(rawValue: "/nowhere")) == .standard)
     }
 
     @Test func pruneDropsVanishedReposOnlyUnderTheScanDirectory() {
@@ -60,20 +59,17 @@ struct WorkerConfigStoreTests {
         let sibling = RepoID(rawValue: "/Users/dev/CodeArchive/Old")
         // A different scan directory's history — must survive too.
         let elsewhere = RepoID(rawValue: "/Users/dev/Other/Repo")
-        var options = WorkerOptions.standard
-        options.verbose = true
+        let record = RepoConfiguration(isEnabled: true, isFavorite: false, options: .standard)
         var configuration = ForemanConfiguration(
             scanDirectory: scanDirectory,
             agentExecutable: nil,
-            enabledRepoIDs: [kept, vanished, sibling, elsewhere],
-            repoOptions: [kept: options, vanished: options, sibling: options],
+            repos: [kept: record, vanished: record, sibling: record, elsewhere: record],
         )
 
         let changed = configuration.prune(discovered: [kept], under: scanDirectory)
 
         #expect(changed)
-        #expect(configuration.enabledRepoIDs == [kept, sibling, elsewhere])
-        #expect(configuration.repoOptions == [kept: options, sibling: options])
+        #expect(configuration.repos == [kept: record, sibling: record, elsewhere: record])
     }
 
     @Test func pruneWithNothingStaleReportsNoChange() {
@@ -82,8 +78,11 @@ struct WorkerConfigStoreTests {
         var configuration = ForemanConfiguration(
             scanDirectory: scanDirectory,
             agentExecutable: nil,
-            enabledRepoIDs: [repo],
-            repoOptions: [:],
+            repos: [repo: RepoConfiguration(
+                isEnabled: true,
+                isFavorite: false,
+                options: .standard,
+            )],
         )
         let before = configuration
 

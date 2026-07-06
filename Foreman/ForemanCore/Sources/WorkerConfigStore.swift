@@ -1,7 +1,36 @@
 import Foundation
 
-/// Everything Foreman persists: which repos have their worker enabled, each
-/// repo's ``WorkerOptions``, and the global settings.
+/// Everything Foreman persists for a single repository: whether its worker
+/// should run, whether the user favorited it, and its ``WorkerOptions``.
+///
+/// One record per repo — rather than parallel maps keyed by ``RepoID`` — so
+/// the enabled flag, the favorite flag, and the options can't drift apart.
+public struct RepoConfiguration: Codable, Equatable, Sendable {
+    /// Whether this repo's worker should be running. Enabled workers are
+    /// restarted on app launch.
+    public var isEnabled: Bool
+    /// Whether the user pinned this repo to the top of its sidebar section.
+    public var isFavorite: Bool
+    /// This repo's worker options.
+    public var options: WorkerOptions
+
+    public init(isEnabled: Bool, isFavorite: Bool, options: WorkerOptions) {
+        self.isEnabled = isEnabled
+        self.isFavorite = isFavorite
+        self.options = options
+    }
+
+    /// The record an uncustomized repo reads as: disabled, unfavorited,
+    /// standard options. A repo whose state equals this needs no persisted
+    /// entry — absence reads identically.
+    public static let standard = RepoConfiguration(
+        isEnabled: false,
+        isFavorite: false,
+        options: .standard,
+    )
+}
+
+/// Everything Foreman persists: the per-repo records and the global settings.
 public struct ForemanConfiguration: Codable, Equatable, Sendable {
     /// Directory scanned for git repositories; `nil` means the default
     /// (`~/Development`, applied by ``AppSettings/resolvedScanDirectory`` —
@@ -10,58 +39,50 @@ public struct ForemanConfiguration: Codable, Equatable, Sendable {
     /// Explicit `cursor-agent` executable; `nil` means auto-locate via
     /// ``CursorAgentLocator``.
     public var agentExecutable: URL?
-    /// Repos whose worker should be running. Enabled workers are restarted on
-    /// app launch.
-    public var enabledRepoIDs: Set<RepoID>
-    /// Per-repo worker options; repos absent from the map use
-    /// ``WorkerOptions/standard``.
-    public var repoOptions: [RepoID: WorkerOptions]
+    /// Per-repo persisted state, keyed by ``RepoID``. Repos absent from the
+    /// map read as ``RepoConfiguration/standard`` (absence is expected, not an
+    /// error).
+    public var repos: [RepoID: RepoConfiguration]
 
     public init(
         scanDirectory: URL?,
         agentExecutable: URL?,
-        enabledRepoIDs: Set<RepoID>,
-        repoOptions: [RepoID: WorkerOptions],
+        repos: [RepoID: RepoConfiguration],
     ) {
         self.scanDirectory = scanDirectory
         self.agentExecutable = agentExecutable
-        self.enabledRepoIDs = enabledRepoIDs
-        self.repoOptions = repoOptions
+        self.repos = repos
     }
 
     /// The configuration a fresh install starts from.
     public static let initial = ForemanConfiguration(
         scanDirectory: nil,
         agentExecutable: nil,
-        enabledRepoIDs: [],
-        repoOptions: [:],
+        repos: [:],
     )
 
-    /// Options for `repo`, falling back to ``WorkerOptions/standard`` for
-    /// repos that were never customized (absence is expected, not an error).
-    public func options(for repo: RepoID) -> WorkerOptions {
-        repoOptions[repo] ?? .standard
+    /// The persisted record for `repo`, falling back to
+    /// ``RepoConfiguration/standard`` for repos that were never customized
+    /// (absence is expected, not an error).
+    public func configuration(for repo: RepoID) -> RepoConfiguration {
+        repos[repo] ?? .standard
     }
 
-    /// Drops `enabledRepoIDs` / `repoOptions` entries for repos that live
-    /// under `scanDirectory` but are no longer in `discovered` — entries for
-    /// deleted or renamed repos would otherwise accumulate forever. Entries
-    /// *outside* `scanDirectory` are kept: they belong to another scan
-    /// directory's history and re-apply when the user switches back.
-    /// Returns whether anything was removed.
+    /// Drops `repos` entries for repositories that live under `scanDirectory`
+    /// but are no longer in `discovered` — entries for deleted or renamed
+    /// repos would otherwise accumulate forever. Entries *outside*
+    /// `scanDirectory` are kept: they belong to another scan directory's
+    /// history and re-apply when the user switches back. Returns whether
+    /// anything was removed.
     public mutating func prune(discovered: Set<RepoID>, under scanDirectory: URL) -> Bool {
         let prefix = scanDirectory.standardizedFileURL.path + "/"
-        func isStale(_ id: RepoID) -> Bool {
+        let stale = repos.keys.filter { id in
             id.rawValue.hasPrefix(prefix) && !discovered.contains(id)
         }
+        guard !stale.isEmpty else { return false }
 
-        let staleEnabled = enabledRepoIDs.filter(isStale)
-        let staleOptions = repoOptions.keys.filter(isStale)
-        guard !staleEnabled.isEmpty || !staleOptions.isEmpty else { return false }
-
-        enabledRepoIDs.subtract(staleEnabled)
-        for key in staleOptions {
-            repoOptions.removeValue(forKey: key)
+        for key in stale {
+            repos.removeValue(forKey: key)
         }
         return true
     }

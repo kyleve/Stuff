@@ -39,11 +39,30 @@ struct MainWindowView: View {
 
     private var sidebar: some View {
         List(selection: $selection) {
-            ForEach(session.repos) { repo in
-                WorkerRowView(repo: repo)
-                    .tag(repo.id)
+            // One flat ForEach — group headers and repo rows share a single
+            // identity space — so a repo moving between the Enabled and
+            // Disabled groups animates as one glide instead of a cross-Section
+            // remove/insert. Ordering is computed in ForemanCore; the view
+            // only flattens it into headers + rows and renders them.
+            ForEach(sidebarRows) { row in
+                switch row {
+                    case let .header(kind):
+                        Text(title(for: kind))
+                            .font(.caption)
+                            .fontWeight(.semibold)
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 6)
+                            .selectionDisabled()
+                    case let .repo(id, repo):
+                        WorkerRowView(repo: repo)
+                            .tag(id)
+                }
             }
         }
+        // Tween the diff whenever the flattened order changes — whatever the
+        // trigger (enable toggle moving a repo across groups, favorite floating
+        // it within one, or a rescan adding/removing repos).
+        .animation(.snappy, value: sidebarRows.map(\.id))
         .overlay {
             if session.repos.isEmpty {
                 ContentUnavailableView {
@@ -54,6 +73,46 @@ struct MainWindowView: View {
             }
         }
         .navigationTitle("Foreman")
+    }
+
+    /// The sidebar's rows as one flat, stably-identified sequence: each
+    /// non-empty section contributes a group header followed by its repos.
+    /// A single identity space is what lets a repo glide across the group
+    /// boundary rather than fade out of one section and into another.
+    private var sidebarRows: [SidebarRow] {
+        session.repoSections.flatMap { section in
+            [SidebarRow.header(section.kind)] + section.repos.map { .repo(id: $0.id, repo: $0) }
+        }
+    }
+
+    private func title(for kind: RepoSection.Kind) -> String {
+        switch kind {
+            case .enabled: "Enabled"
+            case .disabled: "Disabled"
+        }
+    }
+
+    /// One rendered sidebar entry — a group header or a repo — carried in a
+    /// single `ForEach` so cross-group moves animate as a glide. Identity spans
+    /// both kinds: a header keys off its section kind, a repo off its `RepoID`.
+    ///
+    /// The repo's `RepoID` is captured alongside the `Repo` so the nonisolated
+    /// `Identifiable.id` getter needn't touch the `@MainActor`-isolated `Repo`.
+    private enum SidebarRow: Identifiable {
+        case header(RepoSection.Kind)
+        case repo(id: RepoID, repo: Repo)
+
+        enum ID: Hashable {
+            case header(RepoSection.Kind)
+            case repo(RepoID)
+        }
+
+        var id: ID {
+            switch self {
+                case let .header(kind): .header(kind)
+                case let .repo(id, _): .repo(id)
+            }
+        }
     }
 
     @ViewBuilder

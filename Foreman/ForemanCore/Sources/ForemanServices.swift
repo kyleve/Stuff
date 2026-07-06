@@ -46,6 +46,12 @@ public final class ForemanServices {
         discovery.repos
     }
 
+    /// The discovered repos grouped for the sidebar: enabled on top, disabled
+    /// below, favorites floated to the top of each section. See ``RepoSection``.
+    public var repoSections: [RepoSection] {
+        RepoSection.sections(from: discovery.repos)
+    }
+
     public var isAnyWorkerLive: Bool {
         discovery.isAnyWorkerLive
     }
@@ -165,10 +171,12 @@ public final class ForemanServices {
     /// repo whose worker exits after the root is gone must degrade to a
     /// no-op, not crash on a dangling reference.
     private func makeRepo(_ scanned: ScannedRepo) -> Repo {
-        Repo(
+        let record = configuration.configuration(for: scanned.id)
+        return Repo(
             scanned: scanned,
-            isEnabled: configuration.enabledRepoIDs.contains(scanned.id),
-            options: configuration.options(for: scanned.id),
+            isEnabled: record.isEnabled,
+            isFavorite: record.isFavorite,
+            options: record.options,
             worker: Worker(
                 name: scanned.name,
                 workerDirectory: scanned.rootURL,
@@ -184,17 +192,18 @@ public final class ForemanServices {
     }
 
     private func repoDidChange(_ repo: Repo) {
-        if repo.isEnabled {
-            configuration.enabledRepoIDs.insert(repo.id)
+        // The repo is the source of truth for its whole persisted record.
+        let record = RepoConfiguration(
+            isEnabled: repo.isEnabled,
+            isFavorite: repo.isFavorite,
+            options: repo.options,
+        )
+        if record == .standard {
+            // A fully default record reads identically to an absent entry;
+            // dropping it keeps the file from accumulating no-op records.
+            configuration.repos.removeValue(forKey: repo.id)
         } else {
-            configuration.enabledRepoIDs.remove(repo.id)
-        }
-        if repo.options == .standard {
-            // Standard options read identically to an absent entry; dropping
-            // the entry keeps the file from accumulating no-op records.
-            configuration.repoOptions.removeValue(forKey: repo.id)
-        } else {
-            configuration.repoOptions[repo.id] = repo.options
+            configuration.repos[repo.id] = record
         }
         persist()
     }

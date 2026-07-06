@@ -18,6 +18,7 @@ struct RepoTests {
             return Repo(
                 scanned: scanned,
                 isEnabled: false,
+                isFavorite: false,
                 options: .standard,
                 worker: Worker(
                     name: scanned.name,
@@ -122,6 +123,30 @@ struct RepoTests {
         renamed.displayName = "Renamed"
         fixture.repo.options = renamed
         #expect(fixture.persistedChanges == 1)
+    }
+
+    // MARK: - Favorite
+
+    @Test func favoritingNotifiesPersistenceWithoutTouchingTheWorker() throws {
+        let fixture = try makeFixture()
+
+        fixture.repo.isFavorite = true
+        #expect(fixture.repo.isFavorite)
+        #expect(fixture.persistedChanges == 1)
+        // Favorite is pure metadata: it must not start a worker.
+        #expect(fixture.repo.worker.state == .stopped)
+
+        fixture.repo.isFavorite = false
+        #expect(fixture.persistedChanges == 2)
+        #expect(fixture.repo.worker.state == .stopped)
+    }
+
+    @Test func reassigningTheSameFavoriteValueIsANoOp() throws {
+        let fixture = try makeFixture()
+
+        fixture.repo.isFavorite = false
+
+        #expect(fixture.persistedChanges == 0)
     }
 
     // MARK: - Launch restore

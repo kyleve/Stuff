@@ -56,8 +56,10 @@ let argv = repo.options.arguments(workerDirectory: repo.rootURL)
   scan, failed save) on the observable `issueMessage`.
 - **`Repo` / `RepoID`** — one discovered repository as an `@Observable`
   object: identity (`name`, `rootURL`, typed `RepoID` = canonical absolute
-  path), the persisted intent (`isEnabled`, `options` — mutations start/stop
-  the worker and persist automatically), and its `Worker`. Transient intents
+  path), the persisted intent (`isEnabled`, `isFavorite`, `options` —
+  mutations persist automatically; `isEnabled` also starts/stops the worker,
+  while `isFavorite` is pure sidebar-ordering metadata), and its `Worker`.
+  Transient intents
   that don't change the persisted desired state: `retry()` (fresh attempt
   for an enabled repo in `.failed`) and `restart()` (respawn a running
   worker with the current options — the apply path for options edited while
@@ -81,6 +83,11 @@ let argv = repo.options.arguments(workerDirectory: repo.rootURL)
   directory (a subdirectory with a `.git` entry — directory or file, so
   worktrees count) as `ScannedRepo` values. Hidden directories are skipped;
   nesting is not searched. Throws when the scan directory can't be listed.
+- **`RepoSection`** — the pure sidebar ordering rule. `sections(from:)` groups
+  the discovered repos into an `.enabled` section on top and a `.disabled` one
+  below, floating favorites to the top of each (stable — otherwise the
+  name-sorted order is preserved) and omitting an empty section. `ForemanServices`
+  exposes it as `repoSections`.
 - **`AppSettings`** — observable global settings: `scanDirectory` (default
   `~/Development` via `resolvedScanDirectory`) and `agentExecutable` (`nil`
   = auto-locate). Assignments persist and — for the scan directory —
@@ -92,9 +99,14 @@ let argv = repo.options.arguments(workerDirectory: repo.rootURL)
   (`--idle-release-timeout`), and `verbose` (`start --verbose`).
   `arguments(workerDirectory:)` renders the full argv; `.standard` is the
   CLI-default configuration.
-- **`ForemanConfiguration`** — everything Foreman persists: the scan directory
-  (default `~/Development`), an explicit `cursor-agent` executable (or `nil`
-  for auto-locate), the enabled-repo set, and the per-repo options map.
+- **`RepoConfiguration` / `ForemanConfiguration`** — everything Foreman
+  persists. `RepoConfiguration` is the single per-repo record (`isEnabled`,
+  `isFavorite`, `options`) — one struct instead of parallel maps keyed by
+  `RepoID`, so the flags and options can't drift apart. `ForemanConfiguration`
+  holds the scan directory (default `~/Development`), an explicit
+  `cursor-agent` executable (or `nil` for auto-locate), and
+  `repos: [RepoID: RepoConfiguration]`; a repo left at
+  `RepoConfiguration.standard` has no entry (absence reads identically).
   `prune(discovered:under:)` drops entries for repos that vanished from the
   scan directory while keeping entries outside it (another directory's
   history, re-applied when the user switches back).

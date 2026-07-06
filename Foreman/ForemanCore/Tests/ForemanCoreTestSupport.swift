@@ -19,12 +19,14 @@ final class SleepAssertionRecorder: SleepAssertionBackend {
 }
 
 /// Builds a live `Repo` over a fixed executable for tree-level tests:
-/// disabled, standard options, no-op persistence and state-change hooks.
+/// disabled, unfavorited, standard options, no-op persistence and
+/// state-change hooks.
 @MainActor
 func makeStubRepo(scanned: ScannedRepo, logDirectory: URL, executable: URL) -> Repo {
     Repo(
         scanned: scanned,
         isEnabled: false,
+        isFavorite: false,
         options: .standard,
         worker: Worker(
             name: scanned.name,

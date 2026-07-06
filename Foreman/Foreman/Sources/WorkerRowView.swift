@@ -19,6 +19,13 @@ struct WorkerRowView: View {
                 }
             }
 
+            if repo.isFavorite {
+                Image(systemName: "star.fill")
+                    .font(.caption2)
+                    .foregroundStyle(.yellow)
+                    .help("Favorite")
+            }
+
             Spacer()
 
             Toggle("Worker enabled", isOn: $repo.isEnabled)
@@ -27,6 +34,14 @@ struct WorkerRowView: View {
                 .controlSize(.small)
         }
         .padding(.vertical, 2)
+        .contextMenu {
+            Button(
+                repo.isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                systemImage: repo.isFavorite ? "star.slash" : "star",
+            ) {
+                repo.isFavorite.toggle()
+            }
+        }
     }
 }
 
