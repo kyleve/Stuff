@@ -3,9 +3,9 @@ import Foundation
 import Testing
 
 /// Exercises the production remover against real `git` in a temp repo (never
-/// the user's real repos). The clone path (moving to the Trash via
-/// `FileManager`) is left to the `removeCopy` flow test with a stubbed remover
-/// so tests don't pollute the user's Trash.
+/// the user's real repos). The clone path really trashes via `FileManager`, so
+/// those tests locate the volume-appropriate Trash and clean up the moved item
+/// afterwards rather than leaving it behind.
 struct RepoCopyRemoverTests {
     @Test func removesARealWorktree() throws {
         let base = try makeTemporaryDirectory()
@@ -37,6 +37,44 @@ struct RepoCopyRemoverTests {
 
         #expect(throws: (any Error).self) {
             try SystemRepoCopyRemover().removeWorktree(at: notAWorktree, parentRepoPath: repo)
+        }
+    }
+
+    @Test func removesACloneToTheTrash() throws {
+        let base = try makeTemporaryDirectory()
+        // A unique name so the trashed item can't collide (and thus be renamed),
+        // which keeps cleanup deterministic.
+        let name = "Clone-\(UUID().uuidString)"
+        let clone = base.appendingPathComponent(name, isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: clone.appendingPathComponent(".git"),
+            withIntermediateDirectories: true,
+        )
+
+        // Where this volume trashes items, so we can remove the moved copy and
+        // not litter the Trash.
+        let trashDirectory = try FileManager.default.url(
+            for: .trashDirectory,
+            in: .userDomainMask,
+            appropriateFor: clone,
+            create: false,
+        )
+        let trashedItem = trashDirectory.appendingPathComponent(name)
+        defer { try? FileManager.default.removeItem(at: trashedItem) }
+
+        try SystemRepoCopyRemover().removeClone(at: clone)
+
+        // Gone from its original spot, and moved (not hard-deleted) to the Trash.
+        #expect(!FileManager.default.fileExists(atPath: clone.path))
+        #expect(FileManager.default.fileExists(atPath: trashedItem.path))
+    }
+
+    @Test func cloneRemovalSurfacesAMissingItem() throws {
+        let base = try makeTemporaryDirectory()
+        let missing = base.appendingPathComponent("Nope", isDirectory: true)
+
+        #expect(throws: (any Error).self) {
+            try SystemRepoCopyRemover().removeClone(at: missing)
         }
     }
 
