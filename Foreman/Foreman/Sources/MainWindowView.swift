@@ -50,6 +50,10 @@ struct MainWindowView: View {
                 }
             }
         }
+        // Tween row moves whenever the order changes — whatever the trigger
+        // (enable toggle moving a repo across sections, favorite floating it
+        // within one, or a rescan adding/removing repos).
+        .animation(.snappy, value: rowOrder)
         .overlay {
             if session.repos.isEmpty {
                 ContentUnavailableView {
@@ -67,6 +71,13 @@ struct MainWindowView: View {
             case .enabled: "Enabled"
             case .disabled: "Disabled"
         }
+    }
+
+    /// The flattened row-identity order across sections. Animating on this
+    /// lets the sidebar tween a row moving to another section or reordering
+    /// within one, without coupling the animation to any single trigger.
+    private var rowOrder: [RepoID] {
+        session.repoSections.flatMap { $0.repos.map(\.id) }
     }
 
     @ViewBuilder
