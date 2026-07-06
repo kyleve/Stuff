@@ -224,6 +224,40 @@ enum Strings {
         )
     }
 
+    // MARK: Manual-entry audit (read-back)
+
+    static var auditHeader: String {
+        String(localized: "audit.header", defaultValue: "Entry record", bundle: .module)
+    }
+
+    static var auditRecordedAt: String {
+        String(localized: "audit.recordedAt", defaultValue: "Recorded", bundle: .module)
+    }
+
+    static var auditNote: String {
+        String(localized: "audit.note", defaultValue: "Note", bundle: .module)
+    }
+
+    static var auditLocation: String {
+        String(localized: "audit.location", defaultValue: "Made at", bundle: .module)
+    }
+
+    static var auditLocationUnavailable: String {
+        String(
+            localized: "audit.location.unavailable",
+            defaultValue: "Not captured",
+            bundle: .module,
+        )
+    }
+
+    /// A "37.77490, -122.41940"-style coordinate label. No catalog entry is
+    /// needed; the number style is locale-driven, like `driftThresholdLabel`.
+    static func auditCoordinate(latitude: Double, longitude: Double) -> String {
+        let lat = latitude.formatted(.number.precision(.fractionLength(5)))
+        let lon = longitude.formatted(.number.precision(.fractionLength(5)))
+        return "\(lat), \(lon)"
+    }
+
     // MARK: Onboarding
 
     static var onboardingWelcomeTitle: String {
@@ -805,6 +839,26 @@ enum Strings {
 
     static var manualSaveErrorTitle: String {
         localized("manual.saveError.title")
+    }
+
+    static var manualNoteHeader: String {
+        String(localized: "manual.note.header", defaultValue: "Reason", bundle: .module)
+    }
+
+    static var manualNotePlaceholder: String {
+        String(
+            localized: "manual.note.placeholder",
+            defaultValue: "Add a note (optional)",
+            bundle: .module,
+        )
+    }
+
+    static var manualNoteFooter: String {
+        String(
+            localized: "manual.note.footer",
+            defaultValue: "Saved with this entry for auditing — explain why you made this change.",
+            bundle: .module,
+        )
     }
 
     static func manualRangeFooter(count: Int) -> String {

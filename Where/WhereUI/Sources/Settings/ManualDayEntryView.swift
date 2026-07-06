@@ -30,6 +30,7 @@ struct ManualDayEntryView: View {
     @State private var startDate = Date()
     @State private var endDate = Date()
     @State private var regionSelection = RegionSelectionState()
+    @State private var note = ""
     @State private var saveError = SaveErrorAlertState()
     @State private var isSaving = false
 
@@ -85,6 +86,20 @@ struct ManualDayEntryView: View {
                 Text(Strings.manualRegionsHeader)
             } footer: {
                 Text(Strings.manualRegionsFooter)
+            }
+
+            Section {
+                TextField(
+                    Strings.manualNotePlaceholder,
+                    text: $note,
+                    axis: .vertical,
+                )
+                .lineLimit(3, reservesSpace: true)
+                .disabled(isSaving)
+            } header: {
+                Text(Strings.manualNoteHeader)
+            } footer: {
+                Text(Strings.manualNoteFooter)
             }
         }
         .navigationTitle(Strings.manualTitle)
@@ -155,12 +170,14 @@ struct ManualDayEntryView: View {
                         try await report.setManualDay(
                             date: startDate,
                             regions: regionSelection.selectedRegions,
+                            note: note,
                         )
                     case .range:
                         try await report.setManualDays(
                             from: startDate,
                             through: endDate,
                             regions: regionSelection.selectedRegions,
+                            note: note,
                         )
                 }
                 dismiss()

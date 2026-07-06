@@ -13,6 +13,7 @@ struct DayRelabelView: View {
     let report: YearReportModel
 
     @State private var regionSelection: RegionSelectionState
+    @State private var note = ""
     @State private var saveError = SaveErrorAlertState()
     @State private var isSaving = false
 
@@ -48,6 +49,22 @@ struct DayRelabelView: View {
             }
 
             Section {
+                TextField(
+                    Strings.manualNotePlaceholder,
+                    text: $note,
+                    axis: .vertical,
+                )
+                .lineLimit(3, reservesSpace: true)
+                .disabled(isSaving)
+            } header: {
+                Text(Strings.manualNoteHeader)
+            } footer: {
+                Text(Strings.manualNoteFooter)
+            }
+
+            auditSection
+
+            Section {
                 Button(Strings.relabelReset, role: .destructive) { reset() }
                     .disabled(isSaving)
             } footer: {
@@ -74,8 +91,38 @@ struct DayRelabelView: View {
         }
     }
 
+    /// Read-only record of the last manual entry for this day (when it came from
+    /// an override): when it was made, its note, and where the device was at the
+    /// time — the audit trail retained for residency reviews.
+    @ViewBuilder
+    private var auditSection: some View {
+        if let audit = day.audit {
+            Section {
+                LabeledContent(Strings.auditRecordedAt, value: recordedAtText(audit.recordedAt))
+                if let note = audit.note {
+                    LabeledContent(Strings.auditNote, value: note)
+                }
+                LabeledContent(Strings.auditLocation, value: locationText(audit.location))
+            } header: {
+                Text(Strings.auditHeader)
+            }
+        }
+    }
+
     private var dateText: String {
         day.date.formatted(.dateTime.month(.abbreviated).day().year())
+    }
+
+    private func recordedAtText(_ date: Date) -> String {
+        date.formatted(.dateTime.month(.abbreviated).day().year().hour().minute())
+    }
+
+    private func locationText(_ location: CapturedLocation?) -> String {
+        guard let location else { return Strings.auditLocationUnavailable }
+        return Strings.auditCoordinate(
+            latitude: location.coordinate.latitude,
+            longitude: location.coordinate.longitude,
+        )
     }
 
     private func save() {
@@ -86,6 +133,7 @@ struct DayRelabelView: View {
                 try await report.overrideDay(
                     date: day.date,
                     regions: regionSelection.selectedRegions,
+                    note: note,
                 )
                 dismiss()
             } catch {
@@ -117,6 +165,28 @@ struct DayRelabelView: View {
         NavigationStack {
             DayRelabelView(
                 day: DayPresence(date: .now, regions: [.other]),
+                report: PreviewSupport.loadedYearReportModel(),
+            )
+        }
+    }
+
+    #Preview("With audit record") {
+        NavigationStack {
+            DayRelabelView(
+                day: DayPresence(
+                    date: .now,
+                    regions: [.california],
+                    isAuthoritative: true,
+                    audit: ManualEntryAudit(
+                        recordedAt: .now,
+                        note: "Corrected after reviewing my boarding pass.",
+                        location: CapturedLocation(
+                            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                            horizontalAccuracy: 12,
+                            timestamp: .now,
+                        ),
+                    ),
+                ),
                 report: PreviewSupport.loadedYearReportModel(),
             )
         }
