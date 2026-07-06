@@ -17,9 +17,26 @@ import Foundation
 final class ControlServer {
     private let socketURL: URL
     private let handler: ControlRequestHandler
-    private let queue = DispatchQueue(label: "com.stuff.foreman.control", qos: .utility)
+    /// Accepts run here, one at a time; each accepted connection is then served
+    /// on ``workQueue`` so a slow client can't stall the accept loop.
+    private let acceptQueue = DispatchQueue(
+        label: "com.stuff.foreman.control.accept",
+        qos: .utility,
+    )
+    /// Per-connection read/handle/write. Concurrent so one hung client doesn't
+    /// block the others (paired with a receive timeout below).
+    private let workQueue = DispatchQueue(
+        label: "com.stuff.foreman.control.work",
+        qos: .utility,
+        attributes: .concurrent,
+    )
     private var listenFD: Int32 = -1
     private var acceptSource: DispatchSourceRead?
+
+    /// How long a connection may take to deliver its one request line before
+    /// the read is abandoned (SO_RCVTIMEO). The only client writes it
+    /// immediately, so this just bounds a stalled/half-open peer.
+    private static let readTimeout = 15.0
 
     private static let logger = ForemanLog.channel(.app)
 
@@ -88,19 +105,15 @@ final class ControlServer {
         }
 
         listenFD = fd
-        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: queue)
+        let source = DispatchSource.makeReadSource(fileDescriptor: fd, queue: acceptQueue)
         source.setEventHandler { [weak self] in
+            guard let self else { return }
             let clientFD = accept(fd, nil, nil)
             guard clientFD >= 0 else { return }
-            var noSigpipe: Int32 = 1
-            setsockopt(
-                clientFD,
-                SOL_SOCKET,
-                SO_NOSIGPIPE,
-                &noSigpipe,
-                socklen_t(MemoryLayout<Int32>.size),
-            )
-            self?.serve(clientFD)
+            Self.configureClient(clientFD)
+            // Hand the connection off so the accept loop stays responsive even
+            // if this client is slow to send.
+            workQueue.async { [weak self] in self?.serve(clientFD) }
         }
         source.setCancelHandler {
             close(fd)
@@ -108,6 +121,30 @@ final class ControlServer {
         acceptSource = source
         source.resume()
         Self.logger.info("Control socket listening at \(path)")
+    }
+
+    /// Suppresses SIGPIPE on writes and bounds how long a read may block, so a
+    /// peer that connects but never finishes sending can't pin a work thread.
+    private nonisolated static func configureClient(_ clientFD: Int32) {
+        var noSigpipe: Int32 = 1
+        setsockopt(
+            clientFD,
+            SOL_SOCKET,
+            SO_NOSIGPIPE,
+            &noSigpipe,
+            socklen_t(MemoryLayout<Int32>.size),
+        )
+        var timeout = timeval(
+            tv_sec: Int(readTimeout),
+            tv_usec: 0,
+        )
+        setsockopt(
+            clientFD,
+            SOL_SOCKET,
+            SO_RCVTIMEO,
+            &timeout,
+            socklen_t(MemoryLayout<timeval>.size),
+        )
     }
 
     /// Stops listening and removes the socket file.
@@ -147,7 +184,7 @@ final class ControlServer {
             }
             let response = await handler.handle(request)
             let data = Self.encode(response)
-            queue.async {
+            workQueue.async {
                 Self.write(clientFD, data)
                 close(clientFD)
             }
