@@ -23,6 +23,7 @@ struct WhereSessionTrackingTests {
             locationSource: source,
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let session = WhereSession(services: services, preferences: preferences)

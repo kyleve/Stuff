@@ -125,6 +125,27 @@ public actor DataIssueScanner {
         return sorted
     }
 
+    /// Count of unresolved issues for `year`, for headless callers (the app-icon
+    /// badge, the issue-alert notification) that don't have the UI's
+    /// `RegionRanking` on hand. Derives `primaryRegions` from the year's own
+    /// totals — the same rule the Resolve tab uses — so the count matches what
+    /// the tab would show. Reads the report to rank regions; callers that already
+    /// hold a report should call `issues(...)` with `Region.primaryRegions(...)`
+    /// directly to avoid the extra read.
+    public func currentIssueCount(
+        year: Int,
+        driftThresholdMeters: Double,
+        force: Bool = false,
+    ) async throws -> Int {
+        let report = try await reportReader.yearReport(for: year)
+        return try await issues(
+            year: year,
+            primaryRegions: Region.primaryRegions(in: report.totals),
+            driftThresholdMeters: driftThresholdMeters,
+            force: force,
+        ).count
+    }
+
     /// Drop the cache so the next `issues(...)` recomputes regardless of throttle.
     public func invalidate() {
         cache = nil

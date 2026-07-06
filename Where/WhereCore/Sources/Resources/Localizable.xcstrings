@@ -23,6 +23,40 @@
         }
       }
     },
+    "dataIssues.notification.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld issue to resolve"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld issues to resolve"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "dataIssues.notification.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Issues to resolve"
+          }
+        }
+      }
+    },
     "region.california" : {
       "extractionState" : "manual",
       "localizations" : {

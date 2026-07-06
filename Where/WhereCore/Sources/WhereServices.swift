@@ -20,6 +20,10 @@ public struct WhereServices: Sendable {
     public let reminders: ReminderReconciler
     /// Daily summary recap intent + reconciliation.
     public let summary: DailySummaryReconciler
+    /// "Issues to resolve" notification intent + reconciliation. The
+    /// unresolved-issue count it tracks also feeds the app-icon badge via
+    /// `reminders`.
+    public let issueAlerts: DataIssueAlertReconciler
     /// Live GPS ingestion: monitoring, retry queue, authorization.
     public let ingestor: LocationIngestor
     /// User-sourced writes: manual days, backfills, clears, evidence.
@@ -46,20 +50,42 @@ public struct WhereServices: Sendable {
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling = UserNotificationReminderScheduler(),
         summaryScheduler: any DailySummaryScheduling = UserNotificationDailySummaryScheduler(),
+        issueAlertScheduler: any DataIssueAlertScheduling =
+            UserNotificationDataIssueAlertScheduler(),
         widgetRefresher: any WidgetTimelineRefreshing = WidgetCenterTimelineRefresher(),
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let reports = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
+        // Built before the reconcilers that consume it: the reminder reconciler
+        // folds its unresolved-issue count into the app-icon badge, and the
+        // issue-alert reconciler drives the "issues to resolve" notification off
+        // it. Subscribes to `store.changes()` and drops its cache on every commit,
+        // so a `force: false` read stays honest even when no session is alive to
+        // force a rescan (e.g. a headless background GPS ingest).
+        let resolution = DataIssueScanner(
+            reportReader: reports,
+            attributor: attributor,
+            calendar: aggregator.calendar,
+            now: now,
+            storeChanges: store.changes(),
+        )
         let reminders = ReminderReconciler(
             scheduler: reminderScheduler,
             reportReader: reports,
+            issueScanner: resolution,
             calendar: aggregator.calendar,
             now: now,
         )
         let summary = DailySummaryReconciler(
             scheduler: summaryScheduler,
             reportReader: reports,
+            calendar: aggregator.calendar,
+            now: now,
+        )
+        let issueAlerts = DataIssueAlertReconciler(
+            scheduler: issueAlertScheduler,
+            scanner: resolution,
             calendar: aggregator.calendar,
             now: now,
         )
@@ -90,6 +116,11 @@ public struct WhereServices: Sendable {
             outbox: locationOutbox,
             onPersisted: { outcome in
                 if let sample = outcome.liveSample {
+                    // Hot live-sample path: the reminder reconcile carries the
+                    // badge (including its issue count) and self-throttles once
+                    // today is covered. The issue-alert notification is less
+                    // latency-sensitive and refreshes on the drain/write paths
+                    // and every foreground, so it stays off this per-sample path.
                     await reminders.reconcileAfterIngest(changedDays: outcome.changedDays)
                     if outcome.needsFullWidgetRebuild {
                         await widgets.publish()
@@ -98,6 +129,7 @@ public struct WhereServices: Sendable {
                     }
                 } else if !outcome.changedDays.isEmpty {
                     await reminders.reconcile()
+                    await issueAlerts.reconcile()
                     if outcome.needsFullWidgetRebuild {
                         await widgets.publish()
                     }
@@ -108,23 +140,16 @@ public struct WhereServices: Sendable {
             store: store,
             aggregator: aggregator,
             reminders: reminders,
+            issueAlerts: issueAlerts,
+            issueScanner: resolution,
             widgets: widgets,
         )
         let backup = BackupCoordinator(store: store, widgets: widgets)
-        // Subscribes to `store.changes()` and drops its cache on every commit,
-        // so a `force: false` read stays honest even when no session is alive to
-        // force a rescan (e.g. a headless background GPS ingest).
-        let resolution = DataIssueScanner(
-            reportReader: reports,
-            attributor: attributor,
-            calendar: aggregator.calendar,
-            now: now,
-            storeChanges: store.changes(),
-        )
 
         self.reports = reports
         self.reminders = reminders
         self.summary = summary
+        self.issueAlerts = issueAlerts
         self.widgets = widgets
         self.ingestor = ingestor
         self.journal = journal

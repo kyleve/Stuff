@@ -42,6 +42,7 @@ struct WhereLaunchTests {
             locationSource: ScriptedLocationSource(authorizationStatus: status),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         return WhereModel(services: services, preferences: preferences)
@@ -59,6 +60,7 @@ struct WhereLaunchTests {
             .reconcileTracking,
             .reminders,
             .summary,
+            .issueAlerts,
             .widgetSnapshot,
         ].map { AnyHashable($0) })
     }

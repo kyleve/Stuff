@@ -75,6 +75,14 @@ public final class WherePreferences {
         }
     }
 
+    /// Whether the "you have issues to resolve" notification is enabled, and
+    /// whether the unresolved-issue count contributes to the app-icon badge.
+    /// Defaults to `true` so the nudge and badge are active out of the box.
+    public var issueAlertsEnabled: Bool {
+        get { store.object(forKey: Keys.issueAlertsEnabled.rawValue) as? Bool ?? true }
+        set { store.set(newValue, forKey: Keys.issueAlertsEnabled.rawValue) }
+    }
+
     /// GPS border-drift detection threshold in meters. Defaults to 10 km.
     public var driftThresholdMeters: Int {
         get {
@@ -107,6 +115,7 @@ public final class WherePreferences {
         case summaryEnabled = "where.summaryEnabled"
         case summaryHour = "where.summaryHour"
         case summaryMinute = "where.summaryMinute"
+        case issueAlertsEnabled = "where.issueAlertsEnabled"
         case driftThresholdMeters = "where.driftThresholdMeters"
     }
 }

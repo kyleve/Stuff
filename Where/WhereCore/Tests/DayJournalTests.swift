@@ -55,10 +55,23 @@ struct DayJournalTests {
             timeZone: WhereCoreTestSupport.pacific,
         )
         let reader = ReportReader(store: store, aggregator: aggregator, attributor: .shared)
+        let scanner = DataIssueScanner(
+            reportReader: reader,
+            attributor: .shared,
+            calendar: WhereCoreTestSupport.calendar(),
+            now: now,
+        )
         let reminderSpy = SpyReminderScheduler()
         let reminders = ReminderReconciler(
             scheduler: reminderSpy,
             reportReader: reader,
+            issueScanner: scanner,
+            calendar: WhereCoreTestSupport.calendar(),
+            now: now,
+        )
+        let issueAlerts = DataIssueAlertReconciler(
+            scheduler: NoopDataIssueAlertScheduler(),
+            scanner: scanner,
             calendar: WhereCoreTestSupport.calendar(),
             now: now,
         )
@@ -78,6 +91,8 @@ struct DayJournalTests {
             store: store,
             aggregator: aggregator,
             reminders: reminders,
+            issueAlerts: issueAlerts,
+            issueScanner: scanner,
             widgets: widgets,
         )
         return Harness(

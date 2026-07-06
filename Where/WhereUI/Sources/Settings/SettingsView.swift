@@ -57,6 +57,7 @@ struct SettingsView: View {
                 trackingSection
                 remindersSection
                 summarySection
+                issueAlertsSection
                 resolutionSection
                 appIconSection
                 manualEntrySection
@@ -244,6 +245,34 @@ struct SettingsView: View {
             return Strings.settingsSummaryDeniedFooter
         }
         return Strings.settingsSummaryFooter
+    }
+
+    private var issueAlertsSection: some View {
+        @Bindable var reminders = reminders
+        return Section {
+            Toggle(isOn: $reminders.issueAlertsEnabled) {
+                Label(Strings.settingsIssueAlertsToggle, systemImage: "checklist.checked")
+            }
+
+            if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
+                Button {
+                    openSystemSettings()
+                } label: {
+                    Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                }
+            }
+        } header: {
+            Text(Strings.settingsIssueAlertsHeader)
+        } footer: {
+            Text(issueAlertsFooter)
+        }
+    }
+
+    private var issueAlertsFooter: String {
+        if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
+            return Strings.settingsIssueAlertsDeniedFooter
+        }
+        return Strings.settingsIssueAlertsFooter
     }
 
     private var resolutionSection: some View {

@@ -24,10 +24,13 @@ public enum LaunchStepID: String {
     case syncAuth = "sync-auth"
     /// Start or stop GPS ingestion to match the user's intent + authorization.
     case reconcileTracking = "reconcile-tracking"
-    /// Push the logging-reminder schedule + backlog badge to the reconciler.
+    /// Push the logging-reminder schedule + badge (backlog + issue count) to the
+    /// reconciler.
     case reminders
     /// Push the daily-summary recap to the reconciler.
     case summary
+    /// Push the "issues to resolve" notification intent to its reconciler.
+    case issueAlerts = "issue-alerts"
     /// Republish the widget snapshot from whatever is already on disk.
     case widgetSnapshot = "widget-snapshot"
 
@@ -151,6 +154,9 @@ public enum WhereLaunch {
             LifecycleStep.work(LaunchStepID.summary) { _ in
                 await model.session?.applySummaryConfiguration()
             }
+            LifecycleStep.work(LaunchStepID.issueAlerts) { _ in
+                await model.session?.applyIssueAlertConfiguration()
+            }
             LifecycleStep.work(LaunchStepID.widgetSnapshot) { _ in
                 await model.session?.refreshWidgetSnapshot()
             }
@@ -224,9 +230,9 @@ public final class WhereBootstrap {
     }
 }
 
-/// Presents the app's local notifications (logging reminders, the daily summary)
-/// even while Where is foregrounded, so a nudge isn't silently swallowed when the
-/// user already has the app open.
+/// Presents the app's local notifications (logging reminders, the daily summary,
+/// the "issues to resolve" alert) even while Where is foregrounded, so a nudge
+/// isn't silently swallowed when the user already has the app open.
 ///
 /// Registered as the `UNUserNotificationCenter` delegate from `makeLauncher`'s
 /// `initializePrerequisites` rather than ad hoc in the app delegate, so launch

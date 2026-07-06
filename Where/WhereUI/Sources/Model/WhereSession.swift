@@ -90,6 +90,7 @@ public final class WhereSession {
     /// rather than on every configuration apply (which also runs per foreground).
     private var warnedRemindersUnauthorized = false
     private var warnedSummaryUnauthorized = false
+    private var warnedIssueAlertsUnauthorized = false
 
     /// Persisted user intent to track in the background. Effective tracking is
     /// this AND `.always` authorization; we default to `true` so that, once the
@@ -151,6 +152,7 @@ public final class WhereSession {
         await reconcileTracking()
         await applyReminderConfiguration()
         await applySummaryConfiguration()
+        await applyIssueAlertConfiguration()
         // Republish the widget snapshot from whatever is already on disk so a
         // cold launch with no writes this session doesn't leave the widget
         // blank or showing the previous day's "today".
@@ -166,6 +168,7 @@ public final class WhereSession {
         await reconcileTracking()
         await applyReminderConfiguration()
         await applySummaryConfiguration()
+        await applyIssueAlertConfiguration()
         // The calendar day may have rolled over while backgrounded; recompute
         // so the widget's "today" reflects the current day rather than stale
         // foreground state.
@@ -297,7 +300,15 @@ public final class WhereSession {
     /// (see `WhereLaunch.sequence`); also runs on every foreground.
     func applyReminderConfiguration() async {
         let enabled = preferences.remindersEnabled
-        await services.reminders.configure(enabled: enabled, time: preferences.reminderTime)
+        // The reminder reconciler also owns the app-icon badge, whose value folds
+        // in the unresolved-issue count — so it needs the issue-alert intent and
+        // the current drift threshold the scan runs at.
+        await services.reminders.configure(
+            enabled: enabled,
+            time: preferences.reminderTime,
+            issueAlertsEnabled: preferences.issueAlertsEnabled,
+            driftThresholdMeters: Double(preferences.driftThresholdMeters),
+        )
         let authorized = await services.reminders.isAuthorized()
         if enabled, !authorized {
             if !warnedRemindersUnauthorized {
@@ -324,6 +335,29 @@ public final class WhereSession {
             }
         } else {
             warnedSummaryUnauthorized = false
+        }
+    }
+
+    /// Push the persisted issue-alert intent to the issue-alert reconciler and
+    /// warn if enabled but unauthorized. Fires the alert at the evening reminder
+    /// time and scans at the current drift threshold. Reads `WherePreferences`
+    /// directly, mirroring `applyReminderConfiguration()`. A launch step (see
+    /// `WhereLaunch.sequence`); also runs on every foreground.
+    func applyIssueAlertConfiguration() async {
+        let enabled = preferences.issueAlertsEnabled
+        await services.issueAlerts.configure(
+            enabled: enabled,
+            time: preferences.reminderTime,
+            driftThresholdMeters: Double(preferences.driftThresholdMeters),
+        )
+        let authorized = await services.reminders.isAuthorized()
+        if enabled, !authorized {
+            if !warnedIssueAlertsUnauthorized {
+                Self.logger.warning("Issue alerts enabled but notifications not authorized")
+                warnedIssueAlertsUnauthorized = true
+            }
+        } else {
+            warnedIssueAlertsUnauthorized = false
         }
     }
 

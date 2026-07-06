@@ -624,6 +624,38 @@ enum Strings {
         )
     }
 
+    static var settingsIssueAlertsHeader: String {
+        String(
+            localized: "settings.issueAlerts.header",
+            defaultValue: "Issue alerts",
+            bundle: .module,
+        )
+    }
+
+    static var settingsIssueAlertsToggle: String {
+        String(
+            localized: "settings.issueAlerts.toggle",
+            defaultValue: "Issue alerts",
+            bundle: .module,
+        )
+    }
+
+    static var settingsIssueAlertsFooter: String {
+        String(
+            localized: "settings.issueAlerts.footer",
+            defaultValue: "Badge the app icon and send a reminder when there are data issues waiting in the Resolve tab.",
+            bundle: .module,
+        )
+    }
+
+    static var settingsIssueAlertsDeniedFooter: String {
+        String(
+            localized: "settings.issueAlerts.deniedFooter",
+            defaultValue: "Notifications are turned off for Where, so issue alerts can't appear. Turn them on in Settings.",
+            bundle: .module,
+        )
+    }
+
     static var settingsDataHeader: String {
         localized("settings.data.header")
     }
