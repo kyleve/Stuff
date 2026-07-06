@@ -1,33 +1,31 @@
 import CoreLocation
 import Foundation
+import MapKit
 import WhereCore
 
 /// The human-readable pieces of a reverse-geocoded coordinate, and the rule
 /// for turning them into a single "City, Country" label. Split out from the
 /// geocoder so the formatting is a pure, testable value (constructing real
-/// `CLPlacemark`s is impractical in unit tests).
+/// MapKit results is impractical in unit tests).
 struct PlaceComponents: Equatable {
-    var locality: String?
-    var area: String?
+    var city: String?
     var country: String?
 
-    /// A compact label: the most specific available place, qualified by
-    /// country. Prefers the city (`locality`), falling back to the state /
-    /// province (`area`); returns `nil` only when nothing is known.
+    /// A compact label: the city qualified by country. Falls back to whichever
+    /// single piece is known; returns `nil` only when neither is.
     var displayName: String? {
-        guard let primary = locality ?? area else { return country }
-        guard let country else { return primary }
-        return "\(primary), \(country)"
+        guard let city else { return country }
+        guard let country else { return city }
+        return "\(city), \(country)"
     }
 }
 
 extension PlaceComponents {
-    init(placemark: CLPlacemark) {
-        self.init(
-            locality: placemark.locality,
-            area: placemark.administrativeArea,
-            country: placemark.country,
-        )
+    /// iOS 26's MapKit geocoder folds the old `CLPlacemark` fields into
+    /// formatted strings; `cityName` and `regionName` (the country) are the two
+    /// pieces this compact teaser needs.
+    init(_ representations: MKAddressRepresentations) {
+        self.init(city: representations.cityName, country: representations.regionName)
     }
 }
 
@@ -75,14 +73,17 @@ actor LocationNamer {
         return name
     }
 
-    /// Creates a throwaway `CLGeocoder` per call (sidestepping its
-    /// one-request-at-a-time constraint) and maps the first placemark to a
-    /// label. Returns `nil` on any failure.
+    /// Reverse-geocodes `coordinate` with MapKit and maps the first result to a
+    /// label, returning `nil` on any failure. Runs on the main actor because
+    /// `MKReverseGeocodingRequest` vends its (non-`Sendable`) `MKMapItem`s
+    /// there; only the resulting `String` crosses back.
+    @MainActor
     private static func reverseGeocode(_ coordinate: Coordinate) async -> String? {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+        guard let request = MKReverseGeocodingRequest(location: location) else { return nil }
         guard
-            let placemark = try? await CLGeocoder().reverseGeocodeLocation(location).first
+            let representations = try? await request.mapItems.first?.addressRepresentations
         else { return nil }
-        return PlaceComponents(placemark: placemark).displayName
+        return PlaceComponents(representations).displayName
     }
 }
