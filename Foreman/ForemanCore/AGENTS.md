@@ -17,9 +17,11 @@ ForemanServices ── AppSettings
 ```
 
 The MCP-facing control surface (`ControlRequest`/`ControlResponse`,
-`ControlRequestHandler`, the `describe`/`adopt`/`removeCopy` intents, and
-`CopyProvenance`) is transport-agnostic and lives here; the app target owns the
-socket (see [the app AGENTS](../Foreman/AGENTS.md)). The TypeScript client in
+`ControlRequestHandler`, `ControlConnection`'s wire framing + dispatch, the
+`describe`/`adopt`/`removeCopy` intents, and `CopyProvenance`) is
+transport-agnostic and lives here so it's testable over a `socketpair`; the app
+target owns only the listening socket, accept loop, and threading (see [the app
+AGENTS](../Foreman/AGENTS.md)). The TypeScript client in
 [`foreman-mcp`](../foreman-mcp) mirrors the wire types.
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md), which owns the

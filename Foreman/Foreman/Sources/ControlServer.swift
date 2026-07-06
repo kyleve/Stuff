@@ -155,84 +155,25 @@ final class ControlServer {
         unlink(socketURL.path)
     }
 
-    /// Reads one request line off `clientFD` (already on the background
-    /// queue), handles it on the main actor, and writes the reply back off the
-    /// main actor. A malformed line still gets a `.failure` reply so the
-    /// client never hangs waiting.
+    /// Reads one request line off `clientFD` (already on a work-queue thread),
+    /// dispatches it on the main actor via ``ControlConnection``, and writes
+    /// the reply back off the main actor. Framing, decoding, and encoding live
+    /// in ``ControlConnection`` so they're testable without a real socket;
+    /// this method owns only the threading and the fd's lifetime.
     private nonisolated func serve(_ clientFD: Int32) {
-        guard let line = Self.readLine(clientFD), !line.isEmpty else {
+        guard let line = ControlConnection.readLine(fd: clientFD), !line.isEmpty else {
             close(clientFD)
             return
         }
-
-        let request: ControlRequest
-        do {
-            request = try JSONDecoder().decode(ControlRequest.self, from: line)
-        } catch {
-            Self.write(
-                clientFD,
-                Self.encode(.failure(message: "Malformed request: \(error.localizedDescription)")),
-            )
-            close(clientFD)
-            return
-        }
-
         Task { @MainActor [weak self] in
             guard let self else {
                 close(clientFD)
                 return
             }
-            let response = await handler.handle(request)
-            let data = Self.encode(response)
+            let data = await ControlConnection.respond(to: line, handler: handler)
             workQueue.async {
-                Self.write(clientFD, data)
+                ControlConnection.writeLine(fd: clientFD, data)
                 close(clientFD)
-            }
-        }
-    }
-
-    private nonisolated static func encode(_ response: ControlResponse) -> Data {
-        (try? JSONEncoder().encode(response)) ??
-            Data(#"{"ok":false,"error":"encoding failed"}"#.utf8)
-    }
-
-    /// Reads bytes up to (and consuming) a newline, returning the bytes before
-    /// it; `nil` on error. Requests are tiny, so byte-at-a-time is fine.
-    private nonisolated static func readLine(_ fd: Int32) -> Data? {
-        var data = Data()
-        var byte: UInt8 = 0
-        while true {
-            let count = read(fd, &byte, 1)
-            if count == 1 {
-                if byte == 0x0A { return data }
-                data.append(byte)
-                if data.count > 1_048_576 { return nil }
-            } else if count == 0 {
-                return data
-            } else if errno == EINTR {
-                continue
-            } else {
-                return nil
-            }
-        }
-    }
-
-    private nonisolated static func write(_ fd: Int32, _ payload: Data) {
-        var data = payload
-        data.append(0x0A)
-        data.withUnsafeBytes { raw in
-            guard var base = raw.bindMemory(to: UInt8.self).baseAddress else { return }
-            var remaining = raw.count
-            while remaining > 0 {
-                let written = Darwin.write(fd, base, remaining)
-                if written > 0 {
-                    base += written
-                    remaining -= written
-                } else if written < 0, errno == EINTR {
-                    continue
-                } else {
-                    return
-                }
             }
         }
     }

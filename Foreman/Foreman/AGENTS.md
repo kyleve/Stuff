@@ -21,10 +21,13 @@ formatting, global conventions) and ForemanCore's
   `applicationWillTerminate` — Foreman owns its worker processes and must
   never leave orphans.
 - **The control socket lives here, the protocol doesn't.** `ControlServer` is
-  the only socket-owning code (raw POSIX unix-domain socket, JSON-lines); it
-  decodes a line, calls `ControlRequestHandler` **on the main actor**, and
-  encodes the reply. Started in `applicationDidFinishLaunching` and torn down in
-  `applicationWillTerminate`, both via `ForemanSession`
+  the only socket-owning code (raw POSIX unix-domain socket): it accepts on a
+  serial queue, serves each connection on a concurrent queue (with `SO_RCVTIMEO`
+  so a stalled peer can't wedge it), and delegates all framing/decoding/encoding
+  to ForemanCore's `ControlConnection` (which dispatches through
+  `ControlRequestHandler` **on the main actor**). Started in
+  `applicationDidFinishLaunching` and torn down in `applicationWillTerminate`,
+  both via `ForemanSession`
   (`startControlServer()` / `stopControlServer()`). All request→intent mapping
   belongs in ForemanCore's `ControlRequestHandler`, not here. The Remove-copy UI
   action goes through `ForemanSession.removeCopy(_:)`, which surfaces failures on

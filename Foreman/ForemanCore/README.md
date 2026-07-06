@@ -171,6 +171,12 @@ target owns the socket itself (see [the app's control server](../Foreman/README.
 - **`ControlRequestHandler`** — maps a decoded `ControlRequest` to the matching
   `ForemanServices` intent on the main actor and wraps the outcome (or a
   `ControlError`) in a `ControlResponse`.
+- **`ControlConnection`** — the newline-delimited-JSON wire framing over a
+  connected file descriptor (`readLine`/`writeLine`) plus `respond(to:handler:)`,
+  which decodes a line, dispatches it through the handler, and returns the
+  encoded reply (a malformed line becomes an encoded `.failure`, never a throw).
+  Lives here so the byte-level behavior is unit-tested over a `socketpair`; the
+  app's `ControlServer` owns only the socket, accept loop, and threading.
 - **`ForemanServices` intents** — `describe()` returns the scan directory plus
   every repo's worker state and provenance; `adoptAndStartWorker(at:provenance:)`
   validates the path is a direct subdirectory of the scan directory (throwing a
