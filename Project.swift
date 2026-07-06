@@ -105,9 +105,12 @@ let project = Project(
             // auto-write the `CFBundleAlternateIcons` plist entries, so the asset
             // catalog itself is the source of truth for which alternate icons exist
             // (the `./icons` script just adds/removes sets — no names list to keep
-            // in sync here). The primary stays `AppIcon`.
+            // in sync here). The primary stays `AppIcon`. Where ships no custom
+            // global accent color (it tints per-region in SwiftUI), so clear the
+            // name actool otherwise looks for — an unset `AccentColor` warns.
             settings: .settings(base: [
                 "ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS": "YES",
+                "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
             ]),
         ),
         .target(
