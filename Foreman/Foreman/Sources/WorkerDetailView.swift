@@ -63,6 +63,21 @@ struct WorkerDetailView: View {
         .formStyle(.grouped)
         .navigationTitle(repo.name)
         .navigationSubtitle(repo.rootURL.path)
+        .toolbar {
+            ToolbarItem {
+                Button {
+                    repo.isFavorite.toggle()
+                } label: {
+                    Label(
+                        repo.isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                        systemImage: repo.isFavorite ? "star.fill" : "star",
+                    )
+                }
+                .help(repo.isFavorite
+                    ? "Remove this repo from favorites."
+                    : "Pin this repo to the top of its section.")
+            }
+        }
     }
 
     /// The transient actions the enable toggle can't express, shown only in

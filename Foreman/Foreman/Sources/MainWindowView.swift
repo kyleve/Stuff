@@ -39,9 +39,15 @@ struct MainWindowView: View {
 
     private var sidebar: some View {
         List(selection: $selection) {
-            ForEach(session.repos) { repo in
-                WorkerRowView(repo: repo)
-                    .tag(repo.id)
+            // Enabled repos on top, disabled below, favorites floated to the
+            // top of each section (ordering computed in ForemanCore).
+            ForEach(session.repoSections) { section in
+                Section(title(for: section.kind)) {
+                    ForEach(section.repos) { repo in
+                        WorkerRowView(repo: repo)
+                            .tag(repo.id)
+                    }
+                }
             }
         }
         .overlay {
@@ -54,6 +60,13 @@ struct MainWindowView: View {
             }
         }
         .navigationTitle("Foreman")
+    }
+
+    private func title(for kind: RepoSection.Kind) -> String {
+        switch kind {
+            case .enabled: "Enabled"
+            case .disabled: "Disabled"
+        }
     }
 
     @ViewBuilder
