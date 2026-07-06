@@ -197,7 +197,9 @@ launch works before any window exists) and drive it:
 ```swift
 // App delegate / launch site:
 let runner = LifecycleRunner(
-    reason: launchOptions?[.location] != nil ? .background(.location) : .userForeground,
+    // A `.background` launch state means iOS woke us headless (e.g. for a
+    // queued location event); an active/inactive launch is user-visible.
+    reason: application.applicationState == .background ? .background(.location) : .userForeground,
     initializePrerequisites: { deps.installLocationManager() }, // synchronous, must-exist-now wiring
     sequence: LifecycleSteps {
         LifecycleStep.work("open-store") { _ in try await deps.openStore() }

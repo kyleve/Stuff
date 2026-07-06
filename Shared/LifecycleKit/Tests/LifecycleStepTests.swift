@@ -63,18 +63,18 @@ struct LifecycleStepConfigurationTests {
     }
 
     @Test func workConditionGatesTheStep() async {
-        var flag = false
-        let step = LifecycleStep.work("a", condition: { flag }) { _ in }
+        let flag = MutableFlag()
+        let step = LifecycleStep.work("a", condition: { flag.isOn }) { _ in }
         #expect(await step.condition() == false)
-        flag = true
+        flag.isOn = true
         #expect(await step.condition() == true)
     }
 
     @Test func initConditionGatesTheStep() async {
-        var flag = false
-        let step = LifecycleStep(id: "a", condition: { flag }) { _ in }
+        let flag = MutableFlag()
+        let step = LifecycleStep(id: "a", condition: { flag.isOn }) { _ in }
         #expect(await step.condition() == false)
-        flag = true
+        flag.isOn = true
         #expect(await step.condition() == true)
     }
 
@@ -91,4 +91,14 @@ struct LifecycleStepConfigurationTests {
         let step = LifecycleStep.interactive("onboarding") { _ in Text("onboarding") }
         #expect(step.presentation != nil)
     }
+}
+
+/// A mutable reference the `@MainActor` condition closures can flip *after*
+/// they've been captured. `LifecycleStep.condition` is a `@MainActor` (and thus
+/// `Sendable`) closure, so capturing and later mutating a plain local `var`
+/// trips Swift 6's "mutated after capture by sendable closure"; reading through
+/// a reference doesn't.
+@MainActor
+private final class MutableFlag {
+    var isOn = false
 }

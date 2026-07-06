@@ -1,3 +1,4 @@
+import CoreLocation
 import LifecycleKit
 import UIKit
 import WhereCore
@@ -23,10 +24,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     private(set) var launcher: LifecycleRunner!
 
     func application(
-        _: UIApplication,
-        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil,
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil,
     ) -> Bool {
-        let reason = WhereLaunch.lifecycleReason(from: launchOptions)
+        // A `.background` launch state means iOS woke us headless (replacing the
+        // deprecated `launchOptions[.location]` check); authorization tells us
+        // whether that could have been the location wake we register for.
+        let reason = WhereLaunch.lifecycleReason(
+            from: application.applicationState,
+            locationAuthorization: CLLocationManager().authorizationStatus,
+        )
         // `initializePrerequisites` installs the CLLocationManager synchronously
         // (so a queued location event isn't lost) and registers the
         // foreground-notification presenter; the rest (store open, etc.) runs as

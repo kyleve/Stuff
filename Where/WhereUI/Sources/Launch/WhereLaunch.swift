@@ -1,3 +1,4 @@
+import CoreLocation
 import LifecycleKit
 import LogKit
 import SwiftUI
@@ -50,13 +51,32 @@ public enum LaunchStepID: String {
 public enum WhereLaunch {
     private static let logger = WhereLog.channel(.launch)
 
-    /// Maps UIKit launch options to the lifecycle reason the runner consumes.
-    /// A CoreLocation key means iOS relaunched the process headless to service
-    /// a location event; everything else is treated as a user foreground launch.
+    /// Maps the process's launch-time application state to the lifecycle reason
+    /// the runner consumes. An `.active`/`.inactive` launch is a user-visible
+    /// foreground launch; a `.background` launch state means iOS woke the
+    /// process headless.
+    ///
+    /// The only thing that wakes Where headless is a CoreLocation
+    /// significant-change / visit event, which requires *Always* authorization
+    /// — so a background launch is attributed to `.location` only when that
+    /// authorization is present, and to `.other` otherwise rather than claiming
+    /// a location wake the process couldn't have received. (The cause is
+    /// informational; both keep the launch on the background step path.)
+    ///
+    /// This replaces inspecting the `UIApplication.LaunchOptionsKey.location`
+    /// launch option, deprecated in iOS 26 in favor of handling the location
+    /// events through the `CLLocationManagerDelegate` after scene connection:
+    /// the `CLLocationManager` installed in `initializePrerequisites` still
+    /// delivers the buffered event, and the launch state alone tells us whether
+    /// anyone will see UI.
     public static func lifecycleReason(
-        from launchOptions: [UIApplication.LaunchOptionsKey: Any]?,
+        from applicationState: UIApplication.State,
+        locationAuthorization: CLAuthorizationStatus,
     ) -> LifecycleReason {
-        launchOptions?[.location] != nil ? .background(.location) : .userForeground
+        guard applicationState == .background else { return .userForeground }
+        return locationAuthorization == .authorizedAlways
+            ? .background(.location)
+            : .background(.other)
     }
 
     /// Build the runner for `model`, launching for `reason`.

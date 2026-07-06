@@ -69,7 +69,11 @@ struct RegionSummaryCard: View {
     /// glyph watermarked into the corner, the way a passport page is printed
     /// beneath its stamps.
     private var stampPaper: some View {
-        ZStack {
+        // Read the main-actor `style.tint` once here so the nonisolated
+        // `Canvas` renderer closure captures the `Sendable` `Color` rather than
+        // reaching back into main-actor state from a nonisolated context.
+        let tint = style.tint
+        return ZStack {
             Canvas { context, size in
                 let wobble: CGFloat = compact ? 2 : 3
                 let lineWidth: CGFloat = compact ? 2 : 3
@@ -90,7 +94,7 @@ struct RegionSummaryCard: View {
                         )
                         context.stroke(
                             Path(ellipseIn: rect),
-                            with: .color(style.tint.opacity(opacity)),
+                            with: .color(tint.opacity(opacity)),
                             lineWidth: lineWidth,
                         )
                     }

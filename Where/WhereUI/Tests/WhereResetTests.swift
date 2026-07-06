@@ -145,7 +145,7 @@ struct WhereResetTests {
         let preferences = makePreferences()
         let (model, source) = try makeModelWithSource(status: .always, preferences: preferences)
         model.completeOnboarding()
-        weak var weakOriginal = model.session
+        weak let weakOriginal = model.session
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
