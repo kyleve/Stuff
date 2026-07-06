@@ -10,13 +10,13 @@ struct DayRelabelView: View {
     @Environment(\.dismiss) private var dismiss
 
     let day: DayPresence
-    let report: ReportModel
+    let report: YearReportModel
 
     @State private var regionSelection: RegionSelectionState
     @State private var saveError = SaveErrorAlertState()
     @State private var isSaving = false
 
-    init(day: DayPresence, report: ReportModel, initialRegions: Set<Region>? = nil) {
+    init(day: DayPresence, report: YearReportModel, initialRegions: Set<Region>? = nil) {
         self.day = day
         self.report = report
         _regionSelection = State(
@@ -117,7 +117,7 @@ struct DayRelabelView: View {
         NavigationStack {
             DayRelabelView(
                 day: DayPresence(date: .now, regions: [.other]),
-                report: PreviewSupport.loadedReportModel(),
+                report: PreviewSupport.loadedYearReportModel(),
             )
         }
     }

@@ -6,7 +6,7 @@ import WhereCore
 /// and unions with whatever GPS recorded (see
 /// `DayJournal.addManualDay` / `addManualDays`).
 struct ManualDayEntryView: View {
-    let report: ReportModel
+    let report: YearReportModel
 
     @Environment(\.dismiss) private var dismiss
 
@@ -35,7 +35,7 @@ struct ManualDayEntryView: View {
 
     /// Open with the dates (and single-day vs range mode) preselected — used by
     /// the backfill flow so tapping a missing range lands on a populated form.
-    init(report: ReportModel, prefill: MissingDayRange? = nil) {
+    init(report: YearReportModel, prefill: MissingDayRange? = nil) {
         self.report = report
         guard let prefill else { return }
         _mode = State(initialValue: prefill.dayCount > 1 ? .range : .singleDay)
@@ -176,14 +176,14 @@ struct ManualDayEntryView: View {
 #if DEBUG
     #Preview("Default") {
         NavigationStack {
-            ManualDayEntryView(report: PreviewSupport.loadedReportModel())
+            ManualDayEntryView(report: PreviewSupport.loadedYearReportModel())
         }
     }
 
     #Preview("Prefill range") {
         NavigationStack {
             ManualDayEntryView(
-                report: PreviewSupport.missingDaysReportModel(),
+                report: PreviewSupport.missingDaysYearReportModel(),
                 prefill: MissingDayRange(
                     start: Date(timeIntervalSince1970: 0),
                     end: Date(timeIntervalSince1970: 86400 * 4),

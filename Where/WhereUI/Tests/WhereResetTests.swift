@@ -102,7 +102,7 @@ struct WhereResetTests {
         model.completeOnboarding()
         let session = try #require(model.session)
         // The scene's report model shares the coordinator's services (its store).
-        let report = ReportModel(services: services, preferences: preferences)
+        let report = YearReportModel(services: services, preferences: preferences)
         await session.start()
         #expect(session.isTracking) // .always authorization resumed GPS
 
@@ -184,7 +184,7 @@ struct WhereResetTests {
         #expect(launcher.phase.isReady)
 
         let session = try #require(model.session)
-        let report = ReportModel(services: services, preferences: preferences)
+        let report = YearReportModel(services: services, preferences: preferences)
         try await report.setManualDay(date: Date(), regions: [.california])
         await report.refresh()
         #expect(report.trackedDayCount == 1)
@@ -227,7 +227,7 @@ struct WhereResetTests {
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
-        let report = ReportModel(services: services, preferences: preferences)
+        let report = YearReportModel(services: services, preferences: preferences)
         try await report.setManualDay(date: Date(), regions: [.california])
         await report.refresh()
         #expect(report.trackedDayCount == 1)

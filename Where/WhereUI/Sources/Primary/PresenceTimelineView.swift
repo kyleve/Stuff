@@ -5,7 +5,7 @@ import WhereCore
 /// year — "California, Jan 1 – Feb 3", "New York, Feb 3 – Mar 10", and so on.
 /// Presented as a sheet from the Primary tab.
 struct PresenceTimelineView: View {
-    let report: ReportModel
+    let report: YearReportModel
 
     @Environment(\.dismiss) private var dismiss
 
@@ -27,7 +27,7 @@ struct PresenceTimelineView: View {
 /// When `scrollToMonth` is set, scrolls to the first stint overlapping that
 /// month on appear.
 struct PresenceTimelineList: View {
-    let report: ReportModel
+    let report: YearReportModel
 
     var scrollToMonth: Date?
 
@@ -123,6 +123,6 @@ private struct StintRow: View {
 
 #if DEBUG
     #Preview {
-        PresenceTimelineView(report: PreviewSupport.loadedReportModel())
+        PresenceTimelineView(report: PreviewSupport.loadedYearReportModel())
     }
 #endif

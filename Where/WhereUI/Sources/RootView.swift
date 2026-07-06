@@ -40,7 +40,7 @@ public struct RootView: View {
             failure: { LifecycleFailureView(failure: $0, retry: $1) },
         ) {
             // At `.ready` the session is always present; `MainTabs` owns the
-            // scene-scoped `ReportModel` and gets a fresh one whenever a reset
+            // scene-scoped `YearReportModel` and gets a fresh one whenever a reset
             // rebuilds the session. Keyed on the session's monotonic `id` (never
             // reused within the process) rather than its address, so a rebuilt
             // session can't collide with a freed one and skip the rebuild.

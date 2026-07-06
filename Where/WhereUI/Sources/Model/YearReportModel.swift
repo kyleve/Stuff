@@ -9,7 +9,7 @@ import WhereCore
 /// Resolve tab badge reads.
 ///
 /// Unlike `WhereSession` — the always-on coordinator that lives for the whole
-/// logged-in lifetime — a `ReportModel` is created by `MainTabs` only once the
+/// logged-in lifetime — a `YearReportModel` is created by `MainTabs` only once the
 /// real UI is on screen (the launch's `.ready` state) and torn down with it. It
 /// owns the store's data-change subscription, started on scene `.active`
 /// (`activate()`) and cancelled on background (`deactivate()`), so a headless
@@ -21,7 +21,7 @@ import WhereCore
 /// threading the coordinator through.
 @MainActor
 @Observable
-public final class ReportModel {
+public final class YearReportModel {
     /// Where the current year's data is in its load lifecycle. `failed` carries
     /// a user-presentable message.
     public enum LoadState: Equatable {
@@ -381,7 +381,7 @@ public final class ReportModel {
 }
 
 #if DEBUG
-    @_spi(Testing) extension ReportModel {
+    @_spi(Testing) extension YearReportModel {
         /// Inject a badge count for previews/tests without seeding raw samples.
         public func setDataIssueCount(_ count: Int) {
             dataIssueCount = count

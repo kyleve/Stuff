@@ -17,7 +17,7 @@ struct SettingsView: View {
     // tracking/permission + the DEBUG inspector; `model` (environment) drives
     // the reset sequence (which rebuilds the session from scratch). The reminder
     // and backup editing surfaces are view-scoped models owned here.
-    let report: ReportModel
+    let report: YearReportModel
     @State private var backup: BackupModel
     @State private var reminders: RemindersSettingsModel
 
@@ -38,7 +38,7 @@ struct SettingsView: View {
     @State private var showImportSuccess = false
     @State private var lastImportSummary: BackupCoordinator.ImportSummary?
 
-    init(report: ReportModel) {
+    init(report: YearReportModel) {
         self.report = report
         _backup = State(initialValue: BackupModel(services: report.services))
         _reminders = State(initialValue: RemindersSettingsModel(
@@ -467,7 +467,7 @@ struct SettingsView: View {
 
 #if DEBUG
     #Preview {
-        SettingsView(report: PreviewSupport.loadedReportModel())
+        SettingsView(report: PreviewSupport.loadedYearReportModel())
             .environment(PreviewSupport.loadedModel())
             .environment(PreviewSupport.loadedSession())
     }

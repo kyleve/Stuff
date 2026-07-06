@@ -2,9 +2,9 @@ import SwiftUI
 import WhereCore
 
 /// Toolbar control for choosing which calendar year the reports cover. Reads
-/// and drives the scene's `ReportModel`.
+/// and drives the scene's `YearReportModel`.
 struct YearSelector: View {
-    let report: ReportModel
+    let report: YearReportModel
 
     private var years: [Int] {
         let current = WhereModel.currentYear
@@ -38,6 +38,6 @@ struct YearSelector: View {
 
 #if DEBUG
     #Preview {
-        YearSelector(report: PreviewSupport.loadedReportModel())
+        YearSelector(report: PreviewSupport.loadedYearReportModel())
     }
 #endif

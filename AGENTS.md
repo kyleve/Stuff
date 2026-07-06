@@ -205,7 +205,7 @@ properties only when the values are genuinely independent, and let that be the
 exception you can justify, not the reflex. A good type makes the illegal states
 impossible to spell and the legal ones obvious.
 
-The Where app does this with `ReportModel.LoadState` (`idle` / `loading` /
+The Where app does this with `YearReportModel.LoadState` (`idle` / `loading` /
 `loaded` / `failed(String)`) rather than juggling `isLoading` + `error` +
 `data`, and `CalendarView` keeps one `Result<[CalendarMonth], Error>?` instead
 of separate `months` and `layoutError` properties — success and failure can't

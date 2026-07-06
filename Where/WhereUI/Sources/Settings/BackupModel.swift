@@ -75,7 +75,7 @@ public final class BackupModel {
     /// Import a backup file with the chosen merge/replace strategy. Returns the
     /// import summary on success, or `nil` on failure (with `backupError` set).
     /// The committed import pings the store-change signal, so the scene's
-    /// `ReportModel` re-pulls the report + badge count — no inline refresh here.
+    /// `YearReportModel` re-pulls the report + badge count — no inline refresh here.
     public func importBackup(
         from url: URL,
         strategy: BackupCoordinator.ImportStrategy,

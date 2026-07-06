@@ -35,11 +35,11 @@ public final class WhereModel {
     let preferences: WherePreferences
     private let now: @Sendable () -> Date
 
-    /// The year the scene's `ReportModel` opens on. Always the current year in
+    /// The year the scene's `YearReportModel` opens on. Always the current year in
     /// the app; a preview/test can pin it via the services init.
     let initialSelectedYear: Int
 
-    /// Preview/test seam: a report `MainTabs` seeds its `ReportModel` with, so a
+    /// Preview/test seam: a report `MainTabs` seeds its `YearReportModel` with, so a
     /// `#Preview` renders populated content without a live store. Nil in the app
     /// (the scene loads from the store once it appears).
     let initialReport: YearReport?

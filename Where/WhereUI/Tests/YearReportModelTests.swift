@@ -4,18 +4,18 @@ import WhereCore
 import WhereTesting
 @testable import WhereUI
 
-/// Covers `ReportModel`: the year report load (out-of-order year fetches, failed
+/// Covers `YearReportModel`: the year report load (out-of-order year fetches, failed
 /// manual saves), the missing-day computation the banner / backfill read, the
 /// Resolve badge count, and the store-change observer that keeps them honest.
 @MainActor
-struct ReportModelTests {
+struct YearReportModelTests {
     private func date(year: Int, month: Int, day: Int) -> Date {
         Calendar.current.date(
             from: DateComponents(year: year, month: month, day: day, hour: 12),
         )!
     }
 
-    /// Build dates in the same calendar `ReportModel` uses (gregorian, current
+    /// Build dates in the same calendar `YearReportModel` uses (gregorian, current
     /// time zone), so the day keys line up regardless of the host machine.
     private static var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
@@ -58,7 +58,7 @@ struct ReportModelTests {
             regions: [.california],
         )
 
-        let report = ReportModel(services: services, selectedYear: 2026)
+        let report = YearReportModel(services: services, selectedYear: 2026)
         await store.enableFirstSamplesGate()
 
         // Start the 2024 fetch; it suspends inside the gated `samples(in:)`.
@@ -89,7 +89,7 @@ struct ReportModelTests {
             reminderScheduler: NoopLoggingReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let report = ReportModel(services: services, selectedYear: 2026)
+        let report = YearReportModel(services: services, selectedYear: 2026)
 
         await #expect(throws: ManualSaveFailure.self) {
             try await report.setManualDay(
@@ -112,7 +112,7 @@ struct ReportModelTests {
             reminderScheduler: NoopLoggingReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let report = ReportModel(services: services, selectedYear: 2026)
+        let report = YearReportModel(services: services, selectedYear: 2026)
 
         await #expect(throws: ManualSaveFailure.self) {
             try await report.setManualDays(
@@ -128,7 +128,7 @@ struct ReportModelTests {
     @Test func missingDaysSurfacePastGapsAndExcludeToday() throws {
         let today = Self.day(2026, 1, 5)
         let present = [Self.day(2026, 1, 2), Self.day(2026, 1, 4)]
-        let report = try ReportModel(
+        let report = try YearReportModel(
             services: makeServices(),
             report: YearReport(
                 year: 2026,
@@ -151,7 +151,7 @@ struct ReportModelTests {
 
     @Test func missingDaysAreEmptyWhenViewingAPastYear() throws {
         let today = Self.day(2026, 6, 1)
-        let report = try ReportModel(
+        let report = try YearReportModel(
             services: makeServices(),
             report: YearReport(year: 2025, days: [], totals: [:]),
             selectedYear: 2025,
@@ -174,7 +174,7 @@ struct ReportModelTests {
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )
-        let report = ReportModel(services: services, selectedYear: 2026, now: { now })
+        let report = YearReportModel(services: services, selectedYear: 2026, now: { now })
 
         try await services.journal.addManualDay(
             date: date(year: 2026, month: 1, day: 1),
@@ -195,7 +195,7 @@ struct ReportModelTests {
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
-        let report = ReportModel(
+        let report = YearReportModel(
             services: services,
             selectedYear: 2026,
             preferences: preferences,
@@ -220,7 +220,7 @@ struct ReportModelTests {
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let preferences = WherePreferences(store: InMemoryKeyValueStore())
-        let report = ReportModel(
+        let report = YearReportModel(
             services: services,
             report: YearReport(year: 2026, days: [], totals: [:]),
             selectedYear: 2026,
@@ -249,7 +249,7 @@ struct ReportModelTests {
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )
-        let report = ReportModel(services: services, selectedYear: 2026, now: { now })
+        let report = YearReportModel(services: services, selectedYear: 2026, now: { now })
 
         // Observer only — no `refresh()` called here, so any state change must
         // arrive through the committed write's ping.
@@ -275,7 +275,7 @@ struct ReportModelTests {
     /// `for await` (a quiet store emits nothing on its own).
     @Test func deinitsWhileObservingDataChanges() throws {
         let store = try TestStore()
-        weak var weakReport: ReportModel?
+        weak var weakReport: YearReportModel?
         do {
             let services = WhereServices(
                 store: store,
@@ -283,7 +283,7 @@ struct ReportModelTests {
                 reminderScheduler: NoopLoggingReminderScheduler(),
                 widgetRefresher: NoopWidgetTimelineRefresher(),
             )
-            let report = ReportModel(services: services, selectedYear: 2026)
+            let report = YearReportModel(services: services, selectedYear: 2026)
             weakReport = report
             report.observeDataChanges()
             #expect(weakReport != nil)
@@ -310,7 +310,7 @@ struct ReportModelTests {
             regions: [.california],
         )
 
-        let report = ReportModel(services: services, selectedYear: 2026, now: { now })
+        let report = YearReportModel(services: services, selectedYear: 2026, now: { now })
         await report.activate()
         #expect(report.report?.days.count == 1)
         #expect(report.loadState == .loaded)
@@ -339,12 +339,12 @@ struct ReportModelTests {
             now: { now },
         )
 
-        let report = ReportModel(services: services, selectedYear: 2026, now: { now })
+        let report = YearReportModel(services: services, selectedYear: 2026, now: { now })
         await report.activate()
         #expect(report.report?.days.count == 0)
         report.deactivate()
 
-        let probe = ReportModel(services: services, selectedYear: 2026, now: { now })
+        let probe = YearReportModel(services: services, selectedYear: 2026, now: { now })
         await probe.activate()
 
         try await services.journal.addManualDay(
@@ -371,7 +371,7 @@ struct ReportModelTests {
             now: { now },
         )
 
-        let report = ReportModel(services: services, selectedYear: 2026, now: { now })
+        let report = YearReportModel(services: services, selectedYear: 2026, now: { now })
         await report.activate()
         #expect(report.report?.days.count == 0)
         report.deactivate()

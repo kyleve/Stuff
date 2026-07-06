@@ -8,7 +8,7 @@ import WhereCore
 /// `@State` by `ResolutionView`, so it's created when the Resolve tab is first
 /// shown and torn down with it.
 ///
-/// The tab-bar badge *count* lives on the scene-scoped `ReportModel` instead
+/// The tab-bar badge *count* lives on the scene-scoped `YearReportModel` instead
 /// (it must render before this tab is ever materialized); this model owns the
 /// list the screen shows. `ResolutionView` drives `load(year:primaryRegions:)`
 /// from a `.task(id:)` keyed on the report's `dataIssueScanInputs`, so the list
@@ -79,7 +79,7 @@ public final class ResolveModel {
         do {
             try await services.journal.dismissIssue(key: issue.id.storageKey)
             // Optimistically drop the row for instant feedback; the committed
-            // write pings the store-change signal, so the scene's `ReportModel`
+            // write pings the store-change signal, so the scene's `YearReportModel`
             // recomputes the badge count a beat later.
             dataIssues.removeAll { $0.id == issue.id }
         } catch {

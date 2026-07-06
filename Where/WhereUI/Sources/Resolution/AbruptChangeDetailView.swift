@@ -7,7 +7,7 @@ struct AbruptChangeDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     let issue: any DataIssue
-    let report: ReportModel
+    let report: YearReportModel
     let resolve: ResolveModel
 
     var body: some View {
@@ -97,7 +97,7 @@ struct AbruptChangeDetailView: View {
                         regions: [.newYork],
                     ),
                 ),
-                report: PreviewSupport.loadedReportModel(),
+                report: PreviewSupport.loadedYearReportModel(),
                 resolve: PreviewSupport.resolveModel(),
             )
         }

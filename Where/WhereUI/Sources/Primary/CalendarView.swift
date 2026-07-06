@@ -12,7 +12,7 @@ struct CalendarView: View {
     /// region. `nil` shows every region's dots.
     var focusedRegion: Region?
 
-    let report: ReportModel
+    let report: YearReportModel
 
     @Environment(\.dismiss) private var dismiss
 
@@ -318,18 +318,18 @@ private struct DayCell: View {
 
 #if DEBUG
     #Preview("Loaded") {
-        CalendarView(report: PreviewSupport.loadedReportModel())
+        CalendarView(report: PreviewSupport.loadedYearReportModel())
     }
 
     #Preview("Focused") {
-        CalendarView(focusedRegion: .california, report: PreviewSupport.loadedReportModel())
+        CalendarView(focusedRegion: .california, report: PreviewSupport.loadedYearReportModel())
     }
 
     #Preview("Empty") {
-        CalendarView(report: PreviewSupport.emptyReportModel())
+        CalendarView(report: PreviewSupport.emptyYearReportModel())
     }
 
     #Preview("Missing days") {
-        CalendarView(report: PreviewSupport.missingDaysReportModel())
+        CalendarView(report: PreviewSupport.missingDaysYearReportModel())
     }
 #endif

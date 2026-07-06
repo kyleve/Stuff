@@ -4,7 +4,7 @@ import WhereCore
 /// Elsewhere tab: every region outside your primary spots, shown as compact
 /// Liquid Glass cards for the selected year.
 struct SecondaryView: View {
-    let report: ReportModel
+    let report: YearReportModel
 
     /// Reverse-geocoded "where" teaser per region, loaded asynchronously so
     /// each card can show the place you turned up most. Empty in
@@ -110,10 +110,10 @@ struct SecondaryView: View {
 
 #if DEBUG
     #Preview("Loaded") {
-        SecondaryView(report: PreviewSupport.loadedReportModel())
+        SecondaryView(report: PreviewSupport.loadedYearReportModel())
     }
 
     #Preview("Empty") {
-        SecondaryView(report: PreviewSupport.emptyReportModel())
+        SecondaryView(report: PreviewSupport.emptyYearReportModel())
     }
 #endif

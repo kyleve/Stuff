@@ -2,16 +2,16 @@ import SwiftUI
 import WhereCore
 
 /// Lists data-quality issues for the selected year and routes each to its fix
-/// flow. The scene's `ReportModel` owns the badge *count*; this view owns the
+/// flow. The scene's `YearReportModel` owns the badge *count*; this view owns the
 /// list via a view-scoped `ResolveModel`, re-scanned from a `.task(id:)` keyed
 /// on the report's `dataIssueScanInputs` (so it refreshes on appear, on any
 /// committed write, on a year switch, and on a drift-threshold change — the same
 /// triggers that recompute the badge count).
 struct ResolutionView: View {
-    let report: ReportModel
+    let report: YearReportModel
     @State private var resolve: ResolveModel
 
-    init(report: ReportModel) {
+    init(report: YearReportModel) {
         self.report = report
         _resolve = State(initialValue: ResolveModel(
             services: report.services,
@@ -22,7 +22,7 @@ struct ResolutionView: View {
     #if DEBUG
         /// Preview/test seam: inject a `ResolveModel` seeded via
         /// `@_spi(Testing) setDataIssues` so the list renders without raw samples.
-        init(report: ReportModel, resolve: ResolveModel) {
+        init(report: YearReportModel, resolve: ResolveModel) {
             self.report = report
             _resolve = State(initialValue: resolve)
         }
@@ -109,7 +109,7 @@ struct ResolutionView: View {
 
 private struct IssueRow: View {
     let issue: any DataIssue
-    let report: ReportModel
+    let report: YearReportModel
     let resolve: ResolveModel
 
     var body: some View {
@@ -189,14 +189,14 @@ private struct IssueRow: View {
 #if DEBUG
     #Preview("Loaded") {
         ResolutionView(
-            report: PreviewSupport.loadedReportModel(),
+            report: PreviewSupport.loadedYearReportModel(),
             resolve: PreviewSupport.resolveModel(),
         )
     }
 
     #Preview("Empty") {
         ResolutionView(
-            report: PreviewSupport.loadedReportModel(),
+            report: PreviewSupport.loadedYearReportModel(),
             resolve: PreviewSupport.resolveModel(seededWithIssues: false),
         )
     }

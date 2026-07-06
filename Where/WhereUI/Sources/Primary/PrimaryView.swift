@@ -4,7 +4,7 @@ import WhereCore
 /// Home tab: the regions you spend the most days in for the selected year,
 /// shown as prominent Liquid Glass cards.
 struct PrimaryView: View {
-    let report: ReportModel
+    let report: YearReportModel
 
     @State private var showingTimeline = false
     @State private var showingCalendar = false
@@ -230,18 +230,18 @@ private struct PassportMasthead: View {
 
 #if DEBUG
     #Preview("Loaded") {
-        PrimaryView(report: PreviewSupport.loadedReportModel())
+        PrimaryView(report: PreviewSupport.loadedYearReportModel())
     }
 
     #Preview("Empty") {
-        PrimaryView(report: PreviewSupport.emptyReportModel())
+        PrimaryView(report: PreviewSupport.emptyYearReportModel())
     }
 
     #Preview("Missing days") {
-        PrimaryView(report: PreviewSupport.missingDaysReportModel())
+        PrimaryView(report: PreviewSupport.missingDaysYearReportModel())
     }
 
     #Preview("Elsewhere only") {
-        PrimaryView(report: PreviewSupport.elsewhereOnlyReportModel())
+        PrimaryView(report: PreviewSupport.elsewhereOnlyYearReportModel())
     }
 #endif

@@ -62,8 +62,8 @@
         /// A ready-to-render `WhereSession` coordinator over in-memory services,
         /// for the always-on views that read `@Environment(WhereSession.self)`
         /// (Settings, onboarding). It holds no report — that lives on
-        /// `ReportModel` now — so the report/year previews take a
-        /// `*ReportModel()` fixture instead.
+        /// `YearReportModel` now — so the report/year previews take a
+        /// `*YearReportModel()` fixture instead.
         @MainActor
         public static func loadedSession() -> WhereSession {
             WhereSession(services: previewServices())
@@ -75,15 +75,15 @@
         /// and in-memory services behind it. Synchronous, so it drops straight
         /// into `#Preview`.
         @MainActor
-        public static func loadedReportModel() -> ReportModel {
-            ReportModel(services: previewServices(), report: sampleReport(), selectedYear: year)
+        public static func loadedYearReportModel() -> YearReportModel {
+            YearReportModel(services: previewServices(), report: sampleReport(), selectedYear: year)
         }
 
         /// An empty report model (in-memory services, no data) for empty-state
         /// previews.
         @MainActor
-        public static func emptyReportModel() -> ReportModel {
-            ReportModel(
+        public static func emptyYearReportModel() -> YearReportModel {
+            YearReportModel(
                 services: previewServices(),
                 report: YearReport(year: year, days: [], totals: [:]),
                 selectedYear: year,
@@ -94,7 +94,7 @@
         /// but nothing ranks as "primary". Exercises the Primary tab's distinct
         /// "nothing in your headline spots" state.
         @MainActor
-        public static func elsewhereOnlyReportModel() -> ReportModel {
+        public static func elsewhereOnlyYearReportModel() -> YearReportModel {
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
             let startOfYear = calendar.date(from: DateComponents(year: year, month: 1, day: 1))!
@@ -104,7 +104,7 @@
                     regions: [.other],
                 )
             }
-            return ReportModel(
+            return YearReportModel(
                 services: previewServices(),
                 report: YearReport(year: year, days: days, totals: [.other: days.count]),
                 selectedYear: year,
@@ -115,7 +115,7 @@
         /// before a fixed "today", so missing-day detection has real gaps to
         /// render.
         @MainActor
-        public static func missingDaysReportModel() -> ReportModel {
+        public static func missingDaysYearReportModel() -> YearReportModel {
             var calendar = Calendar(identifier: .gregorian)
             calendar.timeZone = .current
             let startOfYear = calendar.date(from: DateComponents(year: year, month: 1, day: 1))!
@@ -129,7 +129,7 @@
                     regions: [.california],
                 )
             }
-            return ReportModel(
+            return YearReportModel(
                 services: previewServices(),
                 report: YearReport(year: year, days: days, totals: [.california: days.count]),
                 selectedYear: year,
@@ -174,7 +174,7 @@
 
         /// A ready-to-render app model with the sample report injected and
         /// in-memory services behind it (so its `session` is built up front and
-        /// `MainTabs` seeds its `ReportModel` with the sample report).
+        /// `MainTabs` seeds its `YearReportModel` with the sample report).
         /// Synchronous, so it drops straight into `#Preview`.
         @MainActor
         public static func loadedModel() -> WhereModel {

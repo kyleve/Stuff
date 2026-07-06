@@ -15,7 +15,7 @@ import WhereCore
 /// It deliberately holds **no presentation state**. Everything scoped to the
 /// visible UI lives in child observables the scene / views own:
 /// - the selected year's `YearReport`, ranking, missing days, day-write intents,
-///   and the Resolve badge count → scene-scoped ``ReportModel`` (owned by
+///   and the Resolve badge count → scene-scoped ``YearReportModel`` (owned by
 ///   `MainTabs`, created only once the real UI is on screen);
 /// - the Resolve issue list → view-scoped ``ResolveModel``;
 /// - the reminder/summary editing surface → view-scoped ``RemindersSettingsModel``;
@@ -27,13 +27,13 @@ import WhereCore
 /// via `@Environment(WhereSession.self)`; the `TabView` renders only at `.ready`
 /// and onboarding runs after `open-store`, so the session is always present
 /// wherever those views appear. It also vends `services` / `preferences` / `now`
-/// so `MainTabs` can build the scene's `ReportModel` (and the tabs their
+/// so `MainTabs` can build the scene's `YearReportModel` (and the tabs their
 /// view-scoped models) from the injected coordinator.
 @MainActor
 @Observable
 public final class WhereSession {
     /// A process-unique, monotonically increasing identity for this session.
-    /// `RootView` keys `MainTabs` (and thus the scene-scoped `ReportModel`) on
+    /// `RootView` keys `MainTabs` (and thus the scene-scoped `YearReportModel`) on
     /// it, so a reset that rebuilds the session forces a fresh scene. Unlike an
     /// address-derived `ObjectIdentifier`, a monotonic token is never reused
     /// within the process — a session freed and reallocated at the same address
@@ -62,11 +62,11 @@ public final class WhereSession {
     /// coordinator applies at launch/foreground. Owned by `WhereModel` and shared
     /// by reference so onboarding (model), the coordinator, and the view-scoped
     /// editing models all read/write the same store. Exposed so `MainTabs` can
-    /// thread it into the scene's `ReportModel`.
+    /// thread it into the scene's `YearReportModel`.
     let preferences: WherePreferences
 
     /// The coordinator's notion of "now". Not used by the coordinator itself; it
-    /// vends the injected clock to the scene's `ReportModel` (calendar /
+    /// vends the injected clock to the scene's `YearReportModel` (calendar /
     /// missing-day math) so previews/tests can pin a deterministic date.
     let now: @Sendable () -> Date
 
@@ -144,7 +144,7 @@ public final class WhereSession {
     /// This is the imperative equivalent of `WhereLaunch.sequence`'s coordinator
     /// work steps, kept for previews/tests that drive the coordinator directly
     /// without a `LifecycleRunner`. Report/data-issue loading is *not* here — the
-    /// scene's `ReportModel` owns that and starts it when the UI appears.
+    /// scene's `YearReportModel` owns that and starts it when the UI appears.
     public func start() async {
         await syncAuthorization()
         observeAuthorizationChanges()
@@ -159,7 +159,7 @@ public final class WhereSession {
 
     /// Refresh state that can change while the app is away: authorization +
     /// tracking, the reminder/summary schedules (notification permission edits),
-    /// and the widget snapshot (calendar-day rollover). The scene's `ReportModel`
+    /// and the widget snapshot (calendar-day rollover). The scene's `YearReportModel`
     /// separately re-pulls the report on `.active`.
     public func appBecameActive() async {
         await syncAuthorization()
@@ -331,7 +331,7 @@ public final class WhereSession {
     /// clean slate. A thin pass-through to `WhereServices.reset()`, which owns
     /// *what* gets cleared (GPS stop + store wipe + reminder/badge reconcile +
     /// empty widget snapshot); the coordinator only mirrors the outcome. The
-    /// scene's `ReportModel` is torn down and rebuilt by the relaunch, so no
+    /// scene's `YearReportModel` is torn down and rebuilt by the relaunch, so no
     /// report/issue state needs clearing here. The data half of the reset/erase
     /// teardown (see `WhereLaunch.resetSequence`); throws on persistence failure
     /// so the reset step parks the launcher in `.failed` rather than silently

@@ -9,7 +9,7 @@ import WhereCore
 /// labeled with the place it reverse-geocodes to.
 struct RegionDaysView: View {
     let region: Region
-    let report: ReportModel
+    let report: YearReportModel
 
     /// Raw per-day coordinates for this region, loaded asynchronously from the
     /// store. Drives the map pins and each row's representative point. Empty
@@ -201,7 +201,7 @@ private struct DayRow: View {
 #if DEBUG
     #Preview {
         NavigationStack {
-            RegionDaysView(region: .other, report: PreviewSupport.elsewhereOnlyReportModel())
+            RegionDaysView(region: .other, report: PreviewSupport.elsewhereOnlyYearReportModel())
         }
     }
 #endif
