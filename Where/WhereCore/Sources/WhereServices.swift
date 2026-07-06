@@ -28,6 +28,10 @@ public struct WhereServices: Sendable {
     public let backup: BackupCoordinator
     /// Data-quality issue detection for the Resolve tab.
     public let resolution: DataIssueScanner
+    /// On-device summary of the last 24 hours of tracked locations. Named
+    /// distinctly from `summary` (the daily notification recap) — this one is an
+    /// on-demand Foundation Models narrative.
+    public let recentActivity: RecentActivitySummarizer
     /// The persistence boundary, retained so `dataChangeUpdates()` can hand out
     /// the store's `changes()` stream — the single read-refresh signal every
     /// write origin (manual edit, live GPS, remote sync) funnels through.
@@ -48,6 +52,7 @@ public struct WhereServices: Sendable {
         summaryScheduler: any DailySummaryScheduling = UserNotificationDailySummaryScheduler(),
         widgetRefresher: any WidgetTimelineRefreshing = WidgetCenterTimelineRefresher(),
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
+        activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let reports = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
@@ -121,6 +126,12 @@ public struct WhereServices: Sendable {
             now: now,
             storeChanges: store.changes(),
         )
+        let recentActivity = RecentActivitySummarizer(
+            store: store,
+            attributor: attributor,
+            generator: activitySummaryGenerator,
+            now: now,
+        )
 
         self.reports = reports
         self.reminders = reminders
@@ -130,6 +141,7 @@ public struct WhereServices: Sendable {
         self.journal = journal
         self.backup = backup
         self.resolution = resolution
+        self.recentActivity = recentActivity
         self.store = store
         modelContainer = (store as? SwiftDataStore)?.inspectorContainer
     }
