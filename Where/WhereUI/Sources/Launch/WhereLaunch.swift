@@ -16,14 +16,13 @@ public enum LaunchStepID: String {
     /// First-run onboarding gate. Foreground-only, so a headless background
     /// relaunch skips it.
     case onboarding
-    /// Read location authorization into the session and start observing live
-    /// changes — both authorization updates and the store's data-change signal
-    /// (live GPS ingestion / remote sync the UI mirrors).
+    /// Read location authorization into the coordinator and start observing live
+    /// authorization changes. The report + data-issue scan (and their
+    /// store-change subscription) load with the scene now, not here — so a
+    /// headless background relaunch never drives a refresh no UI consumes.
     case syncAuth = "sync-auth"
     /// Start or stop GPS ingestion to match the user's intent + authorization.
     case reconcileTracking = "reconcile-tracking"
-    /// Load the selected year's report into the session.
-    case loadYear = "load-year"
     /// Push the logging-reminder schedule + backlog badge to the reconciler.
     case reminders
     /// Push the daily-summary recap to the reconciler.
@@ -122,13 +121,10 @@ public enum WhereLaunch {
             LifecycleStep.work(LaunchStepID.syncAuth) { _ in
                 await model.session?.syncAuthorization()
                 model.session?.observeAuthorizationChanges()
-                model.session?.observeDataChanges()
             }
             LifecycleStep.work(LaunchStepID.reconcileTracking) { _ in
                 await model.session?.reconcileTracking()
             }
-            LifecycleStep
-                .work(LaunchStepID.loadYear) { _ in await model.session?.refresh() }
             LifecycleStep.work(LaunchStepID.reminders) { _ in
                 await model.session?.applyReminderConfiguration()
             }

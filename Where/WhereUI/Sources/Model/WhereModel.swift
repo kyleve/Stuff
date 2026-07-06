@@ -34,7 +34,15 @@ public final class WhereModel {
     /// same store.
     let preferences: WherePreferences
     private let now: @Sendable () -> Date
-    private let initialSelectedYear: Int
+
+    /// The year the scene's `YearReportModel` opens on. Always the current year in
+    /// the app; a preview/test can pin it via the services init.
+    let initialSelectedYear: Int
+
+    /// Preview/test seam: a report `MainTabs` seeds its `YearReportModel` with, so a
+    /// `#Preview` renders populated content without a live store. Nil in the app
+    /// (the scene loads from the store once it appears).
+    let initialReport: YearReport?
 
     private static let logger = WhereLog.channel(.model)
 
@@ -65,6 +73,7 @@ public final class WhereModel {
         self.preferences = preferences
         self.now = now
         initialSelectedYear = WhereModel.currentYear
+        initialReport = nil
     }
 
     /// Preview/test seam: inject already-built services (and optionally a
@@ -83,10 +92,9 @@ public final class WhereModel {
         self.preferences = preferences
         self.now = now
         initialSelectedYear = selectedYear
+        initialReport = report
         session = WhereSession(
             services: services,
-            report: report,
-            selectedYear: selectedYear,
             preferences: preferences,
             now: now,
         )
@@ -118,7 +126,6 @@ public final class WhereModel {
         guard session == nil, let services else { return }
         session = WhereSession(
             services: services,
-            selectedYear: initialSelectedYear,
             preferences: preferences,
             now: now,
         )

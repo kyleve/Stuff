@@ -4,7 +4,7 @@ import WhereCore
 /// Elsewhere tab: every region outside your primary spots, shown as compact
 /// Liquid Glass cards for the selected year.
 struct SecondaryView: View {
-    @Environment(WhereSession.self) private var session
+    let report: YearReportModel
 
     /// Reverse-geocoded "where" teaser per region, loaded asynchronously so
     /// each card can show the place you turned up most. Empty in
@@ -17,20 +17,20 @@ struct SecondaryView: View {
                 .navigationTitle(Strings.secondaryTitle)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        YearSelector()
+                        YearSelector(report: report)
                     }
                 }
         }
-        .task(id: session.report) { await loadPlaceNames() }
+        .task(id: report.report) { await loadPlaceNames() }
     }
 
     /// Pick each secondary region's most-sampled spot and reverse-geocode it,
     /// so the cards gain a "Paris, France"-style teaser. One geocode per
     /// region; results are cached by `LocationNamer`.
     private func loadPlaceNames() async {
-        let coordinates = await session.representativeCoordinates()
+        let coordinates = await report.representativeCoordinates()
         var names: [Region: String] = [:]
-        for item in session.ranking.secondary {
+        for item in report.ranking.secondary {
             guard let coordinate = coordinates[item.region] else { continue }
             names[item.region] = await LocationNamer.shared.name(for: coordinate)
         }
@@ -43,18 +43,18 @@ struct SecondaryView: View {
 
     @ViewBuilder
     private var screen: some View {
-        switch session.loadState {
-            case .loading where session.report == nil:
+        switch report.loadState {
+            case .loading where report.report == nil:
                 ProgressView(Strings.secondaryLoading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case let .failed(message):
+            case let .failed(error):
                 ContentUnavailableView {
                     Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
                 } description: {
-                    Text(message)
+                    Text(error.message)
                 }
             case .idle, .loaded, .loading:
-                if session.ranking.secondary.isEmpty {
+                if report.ranking.secondary.isEmpty {
                     emptyState
                 } else {
                     content
@@ -65,24 +65,24 @@ struct SecondaryView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: UIConstants.Spacings.xLarge) {
-                Text(Strings.secondaryHeader(year: session.selectedYear))
+                Text(Strings.secondaryHeader(year: report.selectedYear))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 GlassEffectContainer(spacing: UIConstants.Spacings.large) {
                     VStack(spacing: UIConstants.Spacings.large) {
-                        ForEach(session.ranking.secondary) { item in
+                        ForEach(report.ranking.secondary) { item in
                             NavigationLink {
-                                RegionDaysView(region: item.region)
+                                RegionDaysView(region: item.region, report: report)
                             } label: {
                                 RegionSummaryCard(
                                     regionDays: item,
                                     caption: caption(for: item),
                                     places: placeNames[item.region],
                                     compact: true,
-                                    yearLength: session.daysInSelectedYear,
-                                    year: session.selectedYear,
+                                    yearLength: report.daysInSelectedYear,
+                                    year: report.selectedYear,
                                 )
                             }
                             .buttonStyle(.plain)
@@ -110,12 +110,10 @@ struct SecondaryView: View {
 
 #if DEBUG
     #Preview("Loaded") {
-        SecondaryView()
-            .environment(PreviewSupport.loadedSession())
+        SecondaryView(report: PreviewSupport.loadedYearReportModel())
     }
 
     #Preview("Empty") {
-        SecondaryView()
-            .environment(PreviewSupport.emptySession())
+        SecondaryView(report: PreviewSupport.emptyYearReportModel())
     }
 #endif

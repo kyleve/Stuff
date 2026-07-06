@@ -4,7 +4,7 @@ import WhereCore
 /// Home tab: the regions you spend the most days in for the selected year,
 /// shown as prominent Liquid Glass cards.
 struct PrimaryView: View {
-    @Environment(WhereSession.self) private var session
+    let report: YearReportModel
 
     @State private var showingTimeline = false
     @State private var showingCalendar = false
@@ -61,23 +61,20 @@ struct PrimaryView: View {
                     .accessibilityIdentifier("where_calendar_button")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    YearSelector()
+                    YearSelector(report: report)
                 }
             }
         }
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
         .sheet(isPresented: $showingTimeline) {
-            PresenceTimelineView()
-                .environment(session)
+            PresenceTimelineView(report: report)
         }
         .sheet(isPresented: $showingCalendar) {
-            CalendarView()
-                .environment(session)
+            CalendarView(report: report)
         }
         .sheet(item: $calendarFocus) { focus in
-            CalendarView(focusedRegion: focus.region)
-                .environment(session)
+            CalendarView(focusedRegion: focus.region, report: report)
         }
     }
 
@@ -98,22 +95,22 @@ struct PrimaryView: View {
 
     @ViewBuilder
     private var screen: some View {
-        switch session.loadState {
-            case .loading where session.report == nil:
+        switch report.loadState {
+            case .loading where report.report == nil:
                 ProgressView(Strings.primaryLoading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case let .failed(message):
+            case let .failed(error):
                 ContentUnavailableView {
                     Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
                 } description: {
-                    Text(message)
+                    Text(error.message)
                 }
             case .idle, .loaded, .loading:
-                if session.ranking.primary.isEmpty {
+                if report.ranking.primary.isEmpty {
                     // Distinguish "nothing tracked at all" from "tracked days
                     // exist, but only in non-headline regions" (e.g. all in
                     // `.other`) — otherwise the latter wrongly reads as empty.
-                    if session.trackedDayCount == 0 {
+                    if report.trackedDayCount == 0 {
                         emptyState
                     } else {
                         elsewhereOnlyState
@@ -128,15 +125,15 @@ struct PrimaryView: View {
         ScrollView {
             GlassEffectContainer(spacing: UIConstants.Spacings.xxLarge) {
                 VStack(spacing: UIConstants.Spacings.xxLarge) {
-                    ForEach(session.ranking.primary) { item in
+                    ForEach(report.ranking.primary) { item in
                         Button {
                             calendarFocus = CalendarFocus(region: item.region)
                         } label: {
                             RegionSummaryCard(
                                 regionDays: item,
                                 interactive: true,
-                                yearLength: session.daysInSelectedYear,
-                                year: session.selectedYear,
+                                yearLength: report.daysInSelectedYear,
+                                year: report.selectedYear,
                                 tilt: tilt,
                             )
                         }
@@ -154,7 +151,7 @@ struct PrimaryView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(Strings.primaryEmptyTitle(year: session.selectedYear), systemImage: "map")
+            Label(Strings.primaryEmptyTitle(year: report.selectedYear), systemImage: "map")
         } description: {
             Text(Strings.primaryEmptyDescription)
         }
@@ -164,7 +161,7 @@ struct PrimaryView: View {
         ContentUnavailableView {
             Label(Strings.primaryElsewhereOnlyTitle, systemImage: "globe.americas")
         } description: {
-            Text(Strings.primaryElsewhereOnlyDescription(count: session.trackedDayCount))
+            Text(Strings.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
         }
     }
 }
@@ -233,22 +230,18 @@ private struct PassportMasthead: View {
 
 #if DEBUG
     #Preview("Loaded") {
-        PrimaryView()
-            .environment(PreviewSupport.loadedSession())
+        PrimaryView(report: PreviewSupport.loadedYearReportModel())
     }
 
     #Preview("Empty") {
-        PrimaryView()
-            .environment(PreviewSupport.emptySession())
+        PrimaryView(report: PreviewSupport.emptyYearReportModel())
     }
 
     #Preview("Missing days") {
-        PrimaryView()
-            .environment(PreviewSupport.missingDaysSession())
+        PrimaryView(report: PreviewSupport.missingDaysYearReportModel())
     }
 
     #Preview("Elsewhere only") {
-        PrimaryView()
-            .environment(PreviewSupport.elsewhereOnlySession())
+        PrimaryView(report: PreviewSupport.elsewhereOnlyYearReportModel())
     }
 #endif

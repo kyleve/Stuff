@@ -4,10 +4,11 @@ import WhereCore
 /// Detail screen for an abrupt location change: explains the likely missing
 /// travel day and offers relabel paths for either adjacent day.
 struct AbruptChangeDetailView: View {
-    @Environment(WhereSession.self) private var session
     @Environment(\.dismiss) private var dismiss
 
     let issue: any DataIssue
+    let report: YearReportModel
+    let resolve: ResolveModel
 
     var body: some View {
         if let payload = travelDayPayload {
@@ -19,7 +20,11 @@ struct AbruptChangeDetailView: View {
                 Section(Strings.resolutionAbruptDetailEarlierHeader) {
                     daySummary(payload.earlier)
                     NavigationLink {
-                        DayRelabelView(day: payload.earlier, initialRegions: payload.suggested)
+                        DayRelabelView(
+                            day: payload.earlier,
+                            report: report,
+                            initialRegions: payload.suggested,
+                        )
                     } label: {
                         Text(Strings.resolutionAbruptDetailRelabelEarlier)
                     }
@@ -28,7 +33,11 @@ struct AbruptChangeDetailView: View {
                 Section(Strings.resolutionAbruptDetailLaterHeader) {
                     daySummary(payload.later)
                     NavigationLink {
-                        DayRelabelView(day: payload.later, initialRegions: payload.suggested)
+                        DayRelabelView(
+                            day: payload.later,
+                            report: report,
+                            initialRegions: payload.suggested,
+                        )
                     } label: {
                         Text(Strings.resolutionAbruptDetailRelabelLater)
                     }
@@ -37,7 +46,7 @@ struct AbruptChangeDetailView: View {
                 Section {
                     Button(Strings.resolutionAbruptDetailBothRight) {
                         Task {
-                            await session.dismiss(issue)
+                            await resolve.dismiss(issue)
                             dismiss()
                         }
                     }
@@ -88,8 +97,9 @@ struct AbruptChangeDetailView: View {
                         regions: [.newYork],
                     ),
                 ),
+                report: PreviewSupport.loadedYearReportModel(),
+                resolve: PreviewSupport.resolveModel(),
             )
         }
-        .environment(PreviewSupport.loadedSession())
     }
 #endif

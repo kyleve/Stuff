@@ -4,6 +4,10 @@ import WhereCore
 /// Thrown by `TestStore.setManualDay` when failure injection is enabled.
 struct ManualSaveFailure: Error, Equatable {}
 
+/// Thrown by `TestStore.samples(in:)` when failure injection is enabled, so a
+/// year-report load can be forced to fail.
+struct SampleReadFailure: Error, Equatable {}
+
 /// Test `WhereStore` that forwards to an in-memory `SwiftDataStore` but adds
 /// two hooks the view-model tests need:
 ///
@@ -23,6 +27,7 @@ actor TestStore: WhereStore {
     private var arrival: CheckedContinuation<Void, Never>?
 
     private var shouldFailManualDay = false
+    private var shouldFailSamples = false
 
     init() throws {
         backing = try SwiftDataStore.inMemory()
@@ -49,6 +54,12 @@ actor TestStore: WhereStore {
         shouldFailManualDay = true
     }
 
+    /// Makes `samples(in:)` throw, so a `refresh()`'s year-report load fails and
+    /// the model's `.failed` load state is exercisable.
+    func failSamples() {
+        shouldFailSamples = true
+    }
+
     // MARK: - WhereStore
 
     func perform<T: Sendable>(_ block: @Sendable () async throws -> T) async throws -> T {
@@ -64,6 +75,7 @@ actor TestStore: WhereStore {
     }
 
     func samples(in interval: DateInterval) async throws -> [LocationSample] {
+        if shouldFailSamples { throw SampleReadFailure() }
         if gateFirstSamplesCall, !firstSamplesSeen {
             firstSamplesSeen = true
             arrival?.resume()

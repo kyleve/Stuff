@@ -7,17 +7,18 @@ import WhereCore
 /// be removed. The raw GPS samples are left untouched (see
 /// `DayJournal.overrideDay`), so the fix is reversible.
 struct DayRelabelView: View {
-    @Environment(WhereSession.self) private var session
     @Environment(\.dismiss) private var dismiss
 
     let day: DayPresence
+    let report: YearReportModel
 
     @State private var regionSelection: RegionSelectionState
     @State private var saveError = SaveErrorAlertState()
     @State private var isSaving = false
 
-    init(day: DayPresence, initialRegions: Set<Region>? = nil) {
+    init(day: DayPresence, report: YearReportModel, initialRegions: Set<Region>? = nil) {
         self.day = day
+        self.report = report
         _regionSelection = State(
             initialValue: RegionSelectionState(selectedRegions: initialRegions ?? day.regions),
         )
@@ -82,7 +83,7 @@ struct DayRelabelView: View {
         saveError.message = nil
         Task {
             do {
-                try await session.overrideDay(
+                try await report.overrideDay(
                     date: day.date,
                     regions: regionSelection.selectedRegions,
                 )
@@ -100,7 +101,7 @@ struct DayRelabelView: View {
         saveError.message = nil
         Task {
             do {
-                try await session.clearManualDay(date: day.date)
+                try await report.clearManualDay(date: day.date)
                 dismiss()
             } catch {
                 // Keep the form up so the user can retry; nothing was cleared.
@@ -114,8 +115,10 @@ struct DayRelabelView: View {
 #if DEBUG
     #Preview("Other region") {
         NavigationStack {
-            DayRelabelView(day: DayPresence(date: .now, regions: [.other]))
-                .environment(PreviewSupport.loadedSession())
+            DayRelabelView(
+                day: DayPresence(date: .now, regions: [.other]),
+                report: PreviewSupport.loadedYearReportModel(),
+            )
         }
     }
 #endif

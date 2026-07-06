@@ -12,8 +12,15 @@ import WhereCore
 /// whole-database backup export/import, and the destructive "erase a year"
 /// action.
 struct SettingsView: View {
-    // Most settings live on the logged-in session; `model` is kept only to
-    // drive the reset sequence (which rebuilds the session from scratch).
+    // The scene's report model drives the year-scoped rows (clear-year, drift
+    // threshold); the always-on `WhereSession` coordinator (environment) drives
+    // tracking/permission + the DEBUG inspector; `model` (environment) drives
+    // the reset sequence (which rebuilds the session from scratch). The reminder
+    // and backup editing surfaces are view-scoped models owned here.
+    let report: YearReportModel
+    @State private var backup: BackupModel
+    @State private var reminders: RemindersSettingsModel
+
     @Environment(WhereModel.self) private var model
     @Environment(WhereSession.self) private var session
     @Environment(\.openURL) private var openURL
@@ -31,8 +38,19 @@ struct SettingsView: View {
     @State private var showImportSuccess = false
     @State private var lastImportSummary: BackupCoordinator.ImportSummary?
 
+    init(report: YearReportModel) {
+        self.report = report
+        _backup = State(initialValue: BackupModel(services: report.services))
+        _reminders = State(initialValue: RemindersSettingsModel(
+            services: report.services,
+            preferences: report.preferences,
+            now: report.now,
+        ))
+    }
+
     var body: some View {
         @Bindable var session = session
+        @Bindable var backup = backup
 
         NavigationStack {
             Form {
@@ -50,6 +68,10 @@ struct SettingsView: View {
                 #endif
             }
             .navigationTitle(Strings.settingsTitle)
+            // Notification permission can change in the Settings app while we're
+            // away; refresh it when the screen appears so the "open Settings"
+            // affordance is accurate.
+            .task { await reminders.refreshNotificationAuthorization() }
             .sheet(isPresented: $showAppIcon) {
                 AppIconView()
             }
@@ -94,8 +116,8 @@ struct SettingsView: View {
             }
             .alert(
                 Strings.settingsBackupErrorTitle,
-                isPresented: $session.isShowingBackupError,
-                presenting: session.backupError,
+                isPresented: $backup.isShowingBackupError,
+                presenting: backup.backupError,
             ) { _ in
                 Button(Strings.commonOK, role: .cancel) {}
             } message: { message in
@@ -153,20 +175,20 @@ struct SettingsView: View {
     }
 
     private var remindersSection: some View {
-        @Bindable var session = session
+        @Bindable var reminders = reminders
         return Section {
-            Toggle(isOn: $session.remindersEnabled) {
+            Toggle(isOn: $reminders.remindersEnabled) {
                 Label(Strings.settingsRemindersToggle, systemImage: "bell.badge")
             }
 
-            if session.remindersEnabled {
+            if reminders.remindersEnabled {
                 DatePicker(
                     Strings.settingsReminderTime,
-                    selection: $session.reminderTimeOfDay,
+                    selection: $reminders.reminderTimeOfDay,
                     displayedComponents: .hourAndMinute,
                 )
 
-                if !session.notificationsAuthorized {
+                if !reminders.notificationsAuthorized {
                     Button {
                         openSystemSettings()
                     } label: {
@@ -182,27 +204,27 @@ struct SettingsView: View {
     }
 
     private var remindersFooter: String {
-        if session.remindersEnabled, !session.notificationsAuthorized {
+        if reminders.remindersEnabled, !reminders.notificationsAuthorized {
             return Strings.settingsRemindersDeniedFooter
         }
         return Strings.settingsRemindersFooter
     }
 
     private var summarySection: some View {
-        @Bindable var session = session
+        @Bindable var reminders = reminders
         return Section {
-            Toggle(isOn: $session.summaryEnabled) {
+            Toggle(isOn: $reminders.summaryEnabled) {
                 Label(Strings.settingsSummaryToggle, systemImage: "chart.bar.doc.horizontal")
             }
 
-            if session.summaryEnabled {
+            if reminders.summaryEnabled {
                 DatePicker(
                     Strings.settingsSummaryTime,
-                    selection: $session.summaryTimeOfDay,
+                    selection: $reminders.summaryTimeOfDay,
                     displayedComponents: .hourAndMinute,
                 )
 
-                if !session.notificationsAuthorized {
+                if !reminders.notificationsAuthorized {
                     Button {
                         openSystemSettings()
                     } label: {
@@ -218,17 +240,17 @@ struct SettingsView: View {
     }
 
     private var summaryFooter: String {
-        if session.summaryEnabled, !session.notificationsAuthorized {
+        if reminders.summaryEnabled, !reminders.notificationsAuthorized {
             return Strings.settingsSummaryDeniedFooter
         }
         return Strings.settingsSummaryFooter
     }
 
     private var resolutionSection: some View {
-        @Bindable var session = session
+        @Bindable var report = report
 
         return Section {
-            Picker(Strings.settingsResolutionHeader, selection: $session.driftThreshold) {
+            Picker(Strings.settingsResolutionHeader, selection: $report.driftThreshold) {
                 ForEach(DriftThreshold.allCases, id: \.self) { threshold in
                     Text(Strings.driftThresholdLabel(kilometers: threshold.rawValue / 1000))
                         .tag(threshold)
@@ -256,7 +278,7 @@ struct SettingsView: View {
     private var manualEntrySection: some View {
         Section {
             NavigationLink {
-                ManualDayEntryView()
+                ManualDayEntryView(report: report)
             } label: {
                 Label(Strings.settingsManualLink, systemImage: "calendar.badge.plus")
             }
@@ -278,18 +300,18 @@ struct SettingsView: View {
             ) {
                 Label(Strings.settingsBackupExport, systemImage: "square.and.arrow.up")
             }
-            .disabled(session.backupState != .idle)
+            .disabled(backup.backupState != .idle)
 
             Button {
                 showImporter = true
             } label: {
-                if session.backupState == .importing {
+                if backup.backupState == .importing {
                     importProgressLabel
                 } else {
                     Label(Strings.settingsBackupImport, systemImage: "square.and.arrow.down")
                 }
             }
-            .disabled(session.backupState != .idle)
+            .disabled(backup.backupState != .idle)
         } header: {
             Text(Strings.settingsBackupHeader)
         } footer: {
@@ -298,20 +320,20 @@ struct SettingsView: View {
     }
 
     /// Determinate progress for an in-flight import, driven by
-    /// `session.backupProgress` as the backup coordinator writes each row.
+    /// `backup.backupProgress` as the backup coordinator writes each row.
     private var importProgressLabel: some View {
         VStack(alignment: .leading, spacing: 4) {
             Label(Strings.settingsBackupImporting, systemImage: "square.and.arrow.down")
-            ProgressView(value: session.backupProgress)
+            ProgressView(value: backup.backupProgress)
         }
     }
 
     /// Lazily-built backup for `ShareLink`. The closure runs only when the
-    /// share sheet resolves the item; a failed export sets `session.backupError`
+    /// share sheet resolves the item; a failed export sets `backup.backupError`
     /// (surfacing the alert) and throws to abort the share.
     private var backupArchiveFile: BackupArchiveFile {
-        BackupArchiveFile { [session] in
-            guard let url = await session.exportBackup() else {
+        BackupArchiveFile { [backup] in
+            guard let url = await backup.exportBackup() else {
                 throw CocoaError(.fileWriteUnknown)
             }
             return url
@@ -324,13 +346,13 @@ struct SettingsView: View {
                 pendingImportURL = url
                 showStrategyDialog = true
             case let .failure(error):
-                session.backupError = error.localizedDescription
+                backup.backupError = error.localizedDescription
         }
     }
 
     private func runImport(url: URL, strategy: BackupCoordinator.ImportStrategy) {
         Task {
-            if let summary = await session.importBackup(from: url, strategy: strategy) {
+            if let summary = await backup.importBackup(from: url, strategy: strategy) {
                 lastImportSummary = summary
                 showImportSuccess = true
             }
@@ -351,21 +373,21 @@ struct SettingsView: View {
                 titleVisibility: .visible,
             ) {
                 Button(eraseTitle, role: .destructive) {
-                    Task { await session.clearSelectedYear() }
+                    Task { await report.clearSelectedYear() }
                 }
                 Button(Strings.settingsDataCancel, role: .cancel) {}
             } message: {
-                Text(Strings.settingsDataConfirmMessage(year: session.selectedYear))
+                Text(Strings.settingsDataConfirmMessage(year: report.selectedYear))
             }
         } header: {
             Text(Strings.settingsDataHeader)
         } footer: {
-            Text(Strings.settingsDataFooter(year: session.selectedYear))
+            Text(Strings.settingsDataFooter(year: report.selectedYear))
         }
     }
 
     private var eraseTitle: String {
-        Strings.settingsDataErase(year: session.selectedYear)
+        Strings.settingsDataErase(year: report.selectedYear)
     }
 
     /// Whole-app teardown: wipes every year's data and returns to first-run
@@ -445,7 +467,7 @@ struct SettingsView: View {
 
 #if DEBUG
     #Preview {
-        SettingsView()
+        SettingsView(report: PreviewSupport.loadedYearReportModel())
             .environment(PreviewSupport.loadedModel())
             .environment(PreviewSupport.loadedSession())
     }

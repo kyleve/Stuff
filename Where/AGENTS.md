@@ -30,9 +30,12 @@ Where/
 - **`WhereCore`** is the domain layer: pure Swift + Foundation + SwiftData +
   CoreLocation; it must **not** import SwiftUI or UIKit. Bundled region
   polygons (`Resources/*.geojson`) ship here.
-- **`WhereUI`** is the SwiftUI layer: views plus `@Observable` view models
-  (`WhereModel` app-level, `WhereSession` logged-in over `WhereServices`). It
-  is **not** the domain model — see [Layering](#layering).
+- **`WhereUI`** is the SwiftUI layer: views plus `@Observable` view models —
+  the app-level `WhereModel`, the always-on `WhereSession` coordinator (no
+  presentation state), and its scope-tiered children (scene-scoped
+  `YearReportModel`, view-scoped `ResolveModel` / `BackupModel` /
+  `RemindersSettingsModel`). It is **not** the domain model — see
+  [Layering](#layering).
 
 ## Layering
 
@@ -42,12 +45,13 @@ must not grow business logic just because SwiftUI makes it easy.
 | Layer | Where | Owns |
 |-------|-------|------|
 | **Domain / services** | `WhereCore` (`WhereServices` collaborators) | Rules, detection, aggregation, persistence, side effects (reminders, widgets, backup). Unit-test here. |
-| **View model** | `WhereUI` (`WhereSession`, `WhereModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods. Orchestrates `WhereServices`; does not reimplement Core rules. |
-| **Views** | `WhereUI` (`*View`) | Layout, navigation, localized copy, bindings to session/model. Calls view-model methods; does not talk to the store, run detection, or own cache/throttle policy. |
+| **View model** | `WhereUI` (`WhereModel`, the `WhereSession` coordinator + scope-tiered `YearReportModel` / `ResolveModel` / `BackupModel` / `RemindersSettingsModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods. Orchestrates `WhereServices`; does not reimplement Core rules. |
+| **Views** | `WhereUI` (`*View`) | Layout, navigation, localized copy, bindings to the coordinator / scoped models. Calls view-model methods; does not talk to the store, run detection, or own cache/throttle policy. |
 
 When in doubt: if the behavior would still be correct without SwiftUI, it
-belongs in `WhereCore` (or, for logged-in orchestration that exists only to
-serve the UI, on `WhereSession` — still not in a `View`).
+belongs in `WhereCore` (or, for orchestration that exists only to serve the
+UI, on the `WhereSession` coordinator or a scoped model — still not in a
+`View`).
 
 Rules the code enforces and agents must preserve:
 
@@ -59,7 +63,8 @@ Rules the code enforces and agents must preserve:
 - **One read path.** Every committed write (manual edit, live GPS, CloudKit
   remote import) pings the single store-change signal (`WhereStore.changes()`),
   and readers refresh purely off it — write intents just commit, they don't
-  refresh inline. Launch is driven by
+  refresh inline. The scene's `YearReportModel` subscribes while it's active;
+  `DataIssueScanner` drops its cache on the same signal. Launch is driven by
   [`LifecycleKit`](../Shared/LifecycleKit) (see `WhereLaunch` in WhereUI).
 - **All logging goes through `WhereLog.channel(_:)`** with a typed
   `WhereLog.Category` case, never a raw string. Messages log as `.public`, so
@@ -91,9 +96,11 @@ literals in SwiftUI `Text` or `errorDescription`.
 
 - **Year bounds are half-open** (`[Jan 1 year, Jan 1 year+1)`); **day ranges
   are inclusive** (`Date.calendarDays(through:in:)`).
-- **Inject `Calendar`, don't reach for globals** — logged-in UI reads
-  `WhereSession.calendar`; layout types carry the calendar they were built
-  with. Prefer calendar APIs over hardcoding day/weekday counts.
+- **Inject `Calendar`, don't reach for globals** — the scene's
+  `YearReportModel` owns the calendar (Gregorian, current time zone) its
+  missing-day math uses; layout types carry the calendar they were built with.
+  Prefer calendar APIs over hardcoding day/weekday counts (`Calendar.dayCount`
+  derives 365/366 rather than assuming a length).
 - **Core layout APIs throw on failure**; views surface
   `ContentUnavailableView` + log, never `!`.
 - Layout constants live in `UIConstants`, shared date-range copy in
@@ -108,10 +115,12 @@ Every previewable component in `WhereUI` (any `View`, `Widget`, or
 wrapped in `#if DEBUG` at the bottom. Don't construct services, stores, or
 location sources inline — pull fixtures from
 [`PreviewSupport`](WhereUI/Sources/Preview/PreviewSupport.swift) (synchronous,
-in-memory, never touch disk/CloudKit/CoreLocation) and inject what the view
-reads from the environment (`WhereSession` for logged-in views, `WhereModel`
-for the app shell). Cover the states that matter — empty, loaded, and distinct
-edge states — not just the happy path.
+in-memory, never touch disk/CloudKit/CoreLocation). Pass scoped models
+explicitly (a `YearReportModel` via `report:`, a seeded `ResolveModel`) and
+inject ambient app state through the environment (`WhereModel` for the app
+shell, the `WhereSession` coordinator for logged-in views). Cover the states
+that matter — empty, loaded, and distinct edge states — not just the happy
+path.
 
 ## Adding things
 

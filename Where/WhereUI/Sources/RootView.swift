@@ -39,25 +39,19 @@ public struct RootView: View {
             splash: { LaunchSplashView() },
             failure: { LifecycleFailureView(failure: $0, retry: $1) },
         ) {
-            TabView {
-                Tab(Strings.tabPrimary, systemImage: "star.fill") {
-                    PrimaryView()
-                }
-
-                Tab(Strings.tabElsewhere, systemImage: "globe.americas.fill") {
-                    SecondaryView()
-                }
-
-                Tab(Strings.tabResolution, systemImage: "checklist") {
-                    ResolutionView()
-                }
-                .badge(model.session?.dataIssueCount ?? 0)
-
-                Tab(Strings.tabSettings, systemImage: "gearshape.fill") {
-                    SettingsView()
-                }
+            // At `.ready` the session is always present; `MainTabs` owns the
+            // scene-scoped `YearReportModel` and gets a fresh one whenever a reset
+            // rebuilds the session. Keyed on the session's monotonic `id` (never
+            // reused within the process) rather than its address, so a rebuilt
+            // session can't collide with a freed one and skip the rebuild.
+            if let session = model.session {
+                MainTabs(
+                    session: session,
+                    initialReport: model.initialReport,
+                    selectedYear: model.initialSelectedYear,
+                )
+                .id(session.id)
             }
-            .tabBarMinimizeBehavior(.onScrollDown)
         }
         .environment(model)
         // The logged-in session appears once `open-store` builds it. Injected

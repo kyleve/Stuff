@@ -57,7 +57,6 @@ struct WhereLaunchTests {
             .onboarding,
             .syncAuth,
             .reconcileTracking,
-            .loadYear,
             .reminders,
             .summary,
             .widgetSnapshot,

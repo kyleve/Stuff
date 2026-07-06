@@ -8,9 +8,8 @@ import WhereCore
 /// each tappable to correct a wrong attribution via `DayRelabelView` and
 /// labeled with the place it reverse-geocodes to.
 struct RegionDaysView: View {
-    @Environment(WhereSession.self) private var session
-
     let region: Region
+    let report: YearReportModel
 
     /// Raw per-day coordinates for this region, loaded asynchronously from the
     /// store. Drives the map pins and each row's representative point. Empty
@@ -19,7 +18,7 @@ struct RegionDaysView: View {
     @State private var coordinatesByDay: [Date: [Coordinate]] = [:]
 
     private var days: [DayPresence] {
-        session.days(in: region)
+        report.days(in: region)
     }
 
     var body: some View {
@@ -28,7 +27,7 @@ struct RegionDaysView: View {
             .navigationBarTitleDisplayMode(.inline)
             // Keyed on the report (not just the year) so the map reloads after a
             // relabel changes which days count for this region.
-            .task(id: session.report) { await loadLocations() }
+            .task(id: report.report) { await loadLocations() }
     }
 
     private func loadLocations() async {
@@ -36,7 +35,7 @@ struct RegionDaysView: View {
         // GPS coordinates are not, so a relabeled-away day could otherwise keep
         // a stale pin on the map. Restrict pins/points to days still in the list.
         let listedDates = Set(days.map(\.date))
-        let locations = await session.locations(in: region)
+        let locations = await report.locations(in: region)
             .filter { listedDates.contains($0.date) }
         guard !Task.isCancelled else { return }
         coordinatesByDay = Dictionary(
@@ -98,7 +97,7 @@ struct RegionDaysView: View {
             Section {
                 ForEach(days, id: \.date) { day in
                     NavigationLink {
-                        DayRelabelView(day: day)
+                        DayRelabelView(day: day, report: report)
                     } label: {
                         DayRow(day: day, coordinate: coordinatesByDay[day.date]?.first)
                     }
@@ -202,8 +201,7 @@ private struct DayRow: View {
 #if DEBUG
     #Preview {
         NavigationStack {
-            RegionDaysView(region: .other)
-                .environment(PreviewSupport.elsewhereOnlySession())
+            RegionDaysView(region: .other, report: PreviewSupport.elsewhereOnlyYearReportModel())
         }
     }
 #endif

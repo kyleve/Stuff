@@ -2,32 +2,66 @@ import SwiftUI
 import WhereCore
 
 /// Lists data-quality issues for the selected year and routes each to its fix
-/// flow. Badge count comes from `session.dataIssueCount`.
+/// flow. The scene's `YearReportModel` owns the badge *count*; this view owns the
+/// list via a view-scoped `ResolveModel`, re-scanned from a `.task(id:)` keyed
+/// on the report's `dataIssueScanInputs` (so it refreshes on appear, on any
+/// committed write, on a year switch, and on a drift-threshold change — the same
+/// triggers that recompute the badge count).
 struct ResolutionView: View {
-    @Environment(WhereSession.self) private var session
+    let report: YearReportModel
+    @State private var resolve: ResolveModel
+
+    init(report: YearReportModel) {
+        self.report = report
+        _resolve = State(initialValue: ResolveModel(
+            services: report.services,
+            preferences: report.preferences,
+        ))
+    }
+
+    #if DEBUG
+        /// Preview/test seam: inject a `ResolveModel` seeded via
+        /// `@_spi(Testing) setDataIssues` so the list renders without raw samples.
+        init(report: YearReportModel, resolve: ResolveModel) {
+            self.report = report
+            _resolve = State(initialValue: resolve)
+        }
+    #endif
 
     var body: some View {
         NavigationStack {
             screen
                 .navigationTitle(Strings.resolutionTitle)
                 .navigationBarTitleDisplayMode(.inline)
+                .task(id: report.dataIssueScanInputs) {
+                    await resolve.load(
+                        year: report.selectedYear,
+                        primaryRegions: report.ranking.primary.map(\.region),
+                    )
+                }
         }
     }
 
     @ViewBuilder
     private var screen: some View {
-        switch session.loadState {
-            case .loading where session.report == nil:
+        switch report.loadState {
+            case .loading where report.report == nil:
                 ProgressView(Strings.primaryLoading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case let .failed(message):
+            case let .failed(error):
                 ContentUnavailableView {
                     Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
                 } description: {
-                    Text(message)
+                    Text(error.message)
                 }
             case .idle, .loaded, .loading:
-                if session.dataIssues.isEmpty {
+                if !resolve.hasLoaded {
+                    // The report is loaded but this tab's own scan hasn't landed
+                    // yet; show a spinner rather than flash "all clear" under a
+                    // non-zero badge.
+                    ProgressView(Strings.primaryLoading)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if resolve.dataIssues.isEmpty {
                     ContentUnavailableView {
                         Label(Strings.resolutionEmptyTitle, systemImage: "checkmark.seal")
                     } description: {
@@ -46,7 +80,7 @@ struct ResolutionView: View {
                 if !issues.isEmpty {
                     Section {
                         ForEach(issues, id: \.id) { issue in
-                            IssueRow(issue: issue)
+                            IssueRow(issue: issue, report: report, resolve: resolve)
                         }
                     } header: {
                         Label(
@@ -61,7 +95,7 @@ struct ResolutionView: View {
     }
 
     private func issues(in category: DataIssueCategory) -> [any DataIssue] {
-        session.dataIssues.filter { $0.category == category }
+        resolve.dataIssues.filter { $0.category == category }
     }
 
     private func sectionIcon(_ category: DataIssueCategory) -> String {
@@ -74,9 +108,9 @@ struct ResolutionView: View {
 }
 
 private struct IssueRow: View {
-    @Environment(WhereSession.self) private var session
-
     let issue: any DataIssue
+    let report: YearReportModel
+    let resolve: ResolveModel
 
     var body: some View {
         NavigationLink {
@@ -96,7 +130,7 @@ private struct IssueRow: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if issue.isDismissible {
                 Button(role: .destructive) {
-                    Task { await session.dismiss(issue) }
+                    Task { await resolve.dismiss(issue) }
                 } label: {
                     Label(Strings.resolutionDismiss, systemImage: "xmark")
                 }
@@ -108,11 +142,11 @@ private struct IssueRow: View {
     private var destination: some View {
         switch issue.resolution {
             case let .backfill(range):
-                ManualDayEntryView(prefill: range)
+                ManualDayEntryView(report: report, prefill: range)
             case let .relabelDay(day, suggested, _):
-                DayRelabelView(day: day, initialRegions: suggested)
+                DayRelabelView(day: day, report: report, initialRegions: suggested)
             case .markTravelDay:
-                AbruptChangeDetailView(issue: issue)
+                AbruptChangeDetailView(issue: issue, report: report, resolve: resolve)
         }
     }
 
@@ -154,12 +188,16 @@ private struct IssueRow: View {
 
 #if DEBUG
     #Preview("Loaded") {
-        ResolutionView()
-            .environment(PreviewSupport.resolutionSession())
+        ResolutionView(
+            report: PreviewSupport.loadedYearReportModel(),
+            resolve: PreviewSupport.resolveModel(),
+        )
     }
 
     #Preview("Empty") {
-        ResolutionView()
-            .environment(PreviewSupport.loadedSession())
+        ResolutionView(
+            report: PreviewSupport.loadedYearReportModel(),
+            resolve: PreviewSupport.resolveModel(seededWithIssues: false),
+        )
     }
 #endif
