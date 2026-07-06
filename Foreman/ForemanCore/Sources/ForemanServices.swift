@@ -61,6 +61,51 @@ public final class ForemanServices {
         sleepInhibitor.isActive
     }
 
+    /// Whether Foreman is registered to launch at login. Backed by
+    /// `SMAppService` (the OS owns the real state), so this is a live read of
+    /// the login-item status. The setter registers/unregisters and, on
+    /// failure, logs *and* surfaces ``loginItemError`` while leaving the
+    /// observed value honest — a failed toggle stays off rather than falsely
+    /// on. A successful toggle clears the error.
+    public var startsAtLogin: Bool {
+        get { loginItem.isEnabled }
+        set {
+            do {
+                try loginItem.setEnabled(newValue)
+                loginItemError = nil
+            } catch {
+                Self.logger.error("Couldn't update the login item: \(error)")
+                loginItemError = newValue
+                    ? "Couldn't turn on “Launch at login”: \(error.localizedDescription)"
+                    : "Couldn't turn off “Launch at login”: \(error.localizedDescription)"
+            }
+        }
+    }
+
+    /// The login item is registered but macOS is waiting for the user to
+    /// approve it in System Settings before it will launch.
+    public var loginItemNeedsApproval: Bool {
+        loginItem.needsApproval
+    }
+
+    /// The most recent login-item failure, surfaced in the settings window's
+    /// General pane (not the main-window banner — the toggle lives here).
+    /// Cleared by the next successful toggle.
+    public private(set) var loginItemError: String?
+
+    /// Re-reads the login-item status from the OS; it can change outside the
+    /// app (System Settings › General › Login Items), so the UI refreshes it
+    /// when the settings window reappears.
+    public func refreshLoginItemStatus() {
+        loginItem.refresh()
+    }
+
+    /// Opens System Settings › General › Login Items so the user can approve a
+    /// pending login item.
+    public func openSystemSettingsLoginItems() {
+        loginItem.openSystemSettingsLoginItems()
+    }
+
     /// Where worker logs land: `~/Library/Logs/Foreman`.
     public static var defaultLogDirectory: URL {
         FileManager.default.homeDirectoryForCurrentUser
@@ -76,6 +121,7 @@ public final class ForemanServices {
     private let configStore: WorkerConfigStore
     private let logDirectory: URL
     private let sleepInhibitor: SleepInhibitor
+    private let loginItem: LoginItemController
     private let locator = CursorAgentLocator()
 
     public convenience init(configStore: WorkerConfigStore, logDirectory: URL) {
@@ -83,6 +129,7 @@ public final class ForemanServices {
             configStore: configStore,
             logDirectory: logDirectory,
             sleepInhibitor: SleepInhibitor(),
+            loginItem: LoginItemController(),
         )
     }
 
@@ -95,10 +142,12 @@ public final class ForemanServices {
         configStore: WorkerConfigStore,
         logDirectory: URL,
         sleepInhibitor: SleepInhibitor,
+        loginItem: LoginItemController,
     ) {
         self.configStore = configStore
         self.logDirectory = logDirectory
         self.sleepInhibitor = sleepInhibitor
+        self.loginItem = loginItem
         do {
             configuration = try configStore.load()
             configLoadFailure = nil

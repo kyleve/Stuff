@@ -148,7 +148,7 @@ struct MainWindowView: View {
             SettingsLink {
                 Label("Settings", systemImage: "gearshape")
             }
-            .help("Change the scan directory or the cursor-agent executable.")
+            .help("Open Foreman's settings.")
         }
         ToolbarItem {
             Button {

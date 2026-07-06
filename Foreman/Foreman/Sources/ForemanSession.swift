@@ -43,6 +43,24 @@ final class ForemanSession {
         services.isAnyWorkerLive
     }
 
+    /// Whether Foreman launches at login. `SettingsView` binds this two-way;
+    /// the setter registers/unregisters the login item in Core (which logs and
+    /// surfaces any failure on `loginItemError`).
+    var startsAtLogin: Bool {
+        get { services.startsAtLogin }
+        set { services.startsAtLogin = newValue }
+    }
+
+    /// The login item is registered but awaiting approval in System Settings.
+    var loginItemNeedsApproval: Bool {
+        services.loginItemNeedsApproval
+    }
+
+    /// The most recent login-item failure (shown in the General settings pane).
+    var loginItemError: String? {
+        services.loginItemError
+    }
+
     init(services: ForemanServices) {
         self.services = services
     }
@@ -68,5 +86,17 @@ final class ForemanSession {
     /// remain.
     func rescan() {
         services.rescan()
+    }
+
+    /// Re-reads the login-item status from the OS (it can change in System
+    /// Settings while Foreman runs).
+    func refreshLoginItemStatus() {
+        services.refreshLoginItemStatus()
+    }
+
+    /// Opens System Settings › General › Login Items (to approve a pending
+    /// login item).
+    func openSystemSettingsLoginItems() {
+        services.openSystemSettingsLoginItems()
     }
 }
