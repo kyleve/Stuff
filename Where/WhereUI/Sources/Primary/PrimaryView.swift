@@ -8,6 +8,7 @@ struct PrimaryView: View {
 
     @State private var showingTimeline = false
     @State private var showingCalendar = false
+    @State private var showingRecentActivity = false
     @State private var calendarFocus: CalendarFocus?
 
     /// Drives the passport's tilt-reactive holographic sheen. Started/stopped
@@ -40,6 +41,17 @@ struct PrimaryView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
+                        showingRecentActivity = true
+                    } label: {
+                        Label(
+                            Strings.primaryRecentActivity,
+                            systemImage: "sparkles",
+                        )
+                    }
+                    .accessibilityIdentifier("where_recent_activity_button")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
                         showingTimeline = true
                     } label: {
                         Label(
@@ -67,6 +79,9 @@ struct PrimaryView: View {
         }
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
+        .sheet(isPresented: $showingRecentActivity) {
+            RecentActivitySummaryView(report: report)
+        }
         .sheet(isPresented: $showingTimeline) {
             PresenceTimelineView(report: report)
         }

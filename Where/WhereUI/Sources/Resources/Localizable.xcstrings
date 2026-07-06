@@ -843,6 +843,17 @@
         }
       }
     },
+    "primary.recentActivity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent activity"
+          }
+        }
+      }
+    },
     "primary.timeline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -861,6 +872,138 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Where"
+          }
+        }
+      }
+    },
+    "recentActivity.empty.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No locations were recorded in the last 24 hours."
+          }
+        }
+      }
+    },
+    "recentActivity.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing tracked"
+          }
+        }
+      }
+    },
+    "recentActivity.failed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't summarize"
+          }
+        }
+      }
+    },
+    "recentActivity.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An on-device summary of where you've been in the last 24 hours. Your location never leaves your device."
+          }
+        }
+      }
+    },
+    "recentActivity.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summarizing…"
+          }
+        }
+      }
+    },
+    "recentActivity.refresh" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh"
+          }
+        }
+      }
+    },
+    "recentActivity.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last 24 hours"
+          }
+        }
+      }
+    },
+    "recentActivity.unavailable.appleIntelligenceNotEnabled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on Apple Intelligence in Settings to generate summaries."
+          }
+        }
+      }
+    },
+    "recentActivity.unavailable.deviceNotEligible" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device doesn't support on-device summaries."
+          }
+        }
+      }
+    },
+    "recentActivity.unavailable.modelNotReady" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The on-device model is still getting ready. Try again shortly."
+          }
+        }
+      }
+    },
+    "recentActivity.unavailable.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summaries unavailable"
+          }
+        }
+      }
+    },
+    "recentActivity.unavailable.unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On-device summaries aren't available right now."
           }
         }
       }
