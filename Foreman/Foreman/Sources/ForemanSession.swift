@@ -11,6 +11,11 @@ import Observation
 final class ForemanSession {
     let services: ForemanServices
 
+    /// The local control socket the `foreman-mcp` server talks to. Started
+    /// after launch, torn down on quit. `nil` until started (and if binding
+    /// fails, so a socket problem never blocks the app).
+    @ObservationIgnored private var controlServer: ControlServer?
+
     /// The discovered repositories, sorted by name — the observable source
     /// of truth the sidebar and detail bind to.
     var repos: [Repo] {
@@ -80,6 +85,48 @@ final class ForemanSession {
     /// Stops every worker; the app's quit path.
     func stopAllWorkers() {
         services.stopAll()
+    }
+
+    /// Starts listening on the MCP control socket. Called once after launch.
+    func startControlServer() {
+        guard controlServer == nil else { return }
+        let server = ControlServer(
+            socketURL: ForemanServices.controlSocketURL,
+            handler: ControlRequestHandler(services: services),
+        )
+        server.start()
+        controlServer = server
+    }
+
+    /// Stops the control socket and removes its file; part of the quit path.
+    func stopControlServer() {
+        controlServer?.stop()
+        controlServer = nil
+    }
+
+    /// Removes the copy at `repo` (stops its worker, then git-removes a
+    /// worktree or trashes a clone). UI intent for the Remove-copy action;
+    /// surfaces any failure on ``actionError`` rather than throwing into the
+    /// view.
+    func removeCopy(_ repo: Repo) async {
+        do {
+            try await services.removeCopy(at: repo.rootURL)
+        } catch {
+            actionError = error.localizedDescription
+        }
+    }
+
+    /// The most recent failure from a user-triggered action (currently
+    /// Remove-copy). Shown as an alert; cleared when dismissed.
+    private(set) var actionError: String?
+
+    /// Two-way binding for the action-error alert: reading tells the alert
+    /// whether to show, setting it `false` (dismiss) clears the message. Keeps
+    /// ``actionError`` the single source of truth rather than a view-owned
+    /// mirror.
+    var isShowingActionError: Bool {
+        get { actionError != nil }
+        set { if !newValue { actionError = nil } }
     }
 
     /// Re-lists the scan directory, preserving live workers for repos that

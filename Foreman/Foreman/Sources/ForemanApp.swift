@@ -30,6 +30,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func applicationDidFinishLaunching(_: Notification) {
         session.start()
+        // Listen for MCP control requests (spin up / list / remove copies).
+        session.startControlServer()
 
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         item.button?.target = self
@@ -50,6 +52,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     /// Stop-on-quit lifecycle: Foreman owns its worker processes, so quitting
     /// the app tears them all down rather than leaving orphans.
     func applicationWillTerminate(_: Notification) {
+        session.stopControlServer()
         session.stopAllWorkers()
     }
 
