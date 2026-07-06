@@ -145,6 +145,23 @@ async function run() {
   const removeReq = received.find((r) => r.command === "removeCopy");
   assert(removeReq && removeReq.path === copyPath, "removeCopy sent for the copy path");
 
+  // 4. Reject unsafe copy names before any git/adopt happens.
+  for (const badName of ["../evil", ".hidden", ""]) {
+    const before = received.length;
+    const bad = await client.callTool({
+      name: "spinup_repo_copy",
+      arguments: { mode: "worktree", sourceRepo: source, name: badName },
+    });
+    assert(bad.isError, `bad name ${JSON.stringify(badName)} is rejected`);
+    assert(
+      received.length === before,
+      `bad name ${JSON.stringify(badName)} sends no control request`,
+    );
+  }
+  assert(!existsSync(path.join(scanDir, "evil")), "no dir created for '../evil'");
+  assert(!existsSync(path.join(scanDir, ".hidden")), "no hidden dir created");
+  console.error("bad names rejected");
+
   await client.close();
   console.error("INTEGRATION OK");
 }

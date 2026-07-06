@@ -44,6 +44,21 @@ function fail(text: string): TextResult {
   return { content: [{ type: "text", text }], isError: true };
 }
 
+/// A caller-supplied copy name must be a single, visible directory segment: no
+/// path separators (which would escape the scan dir), no NUL, and no leading
+/// dot (`.`/`..` escape, and a hidden dir is skipped by Foreman's discovery so
+/// the copy could never be adopted). Defaults derived from the repo name are
+/// always safe, so only an explicit `name` is checked.
+function isValidCopyName(name: string): boolean {
+  return (
+    name.length > 0 &&
+    !name.startsWith(".") &&
+    !name.includes("/") &&
+    !name.includes("\\") &&
+    !name.includes("\0")
+  );
+}
+
 /// Turns arbitrary text into a safe single directory-name segment.
 function slug(input: string): string {
   return input
@@ -122,8 +137,10 @@ server.registerTool(
         `'${source}' isn't a git repository. Pass 'sourceRepo' as the absolute path of the repo you're working in.`,
       );
     }
-    if (name && name.includes("/")) {
-      return fail(`'name' must be a single directory name, not a path (got '${name}').`);
+    if (name !== undefined && !isValidCopyName(name)) {
+      return fail(
+        `'name' must be a single visible directory name — no '/', no leading dot, not '.'/'..' (got '${name}').`,
+      );
     }
 
     let sourceTop: string;
