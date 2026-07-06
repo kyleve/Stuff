@@ -2,60 +2,61 @@ import AppKit
 import ForemanCore
 import SwiftUI
 
+/// A pane in the settings sidebar: static identity/metadata plus its own
+/// content view, built from the session. Conformers are ordinary `View`s;
+/// `SettingsView` discovers their title/icon and builds them without a central
+/// enum or switch.
+private protocol SettingsPane: View {
+    /// Sidebar label and navigation title.
+    static var title: String { get }
+    /// Sidebar SF Symbol.
+    static var icon: String { get }
+
+    init(session: ForemanSession)
+}
+
+/// Type-erased sidebar entry: a pane's metadata plus a builder for its content.
+/// Keyed by the pane type's `ObjectIdentifier`, so the sidebar selection stays
+/// a typed token rather than a stringly value.
+private struct SettingsPaneItem: Identifiable {
+    let id: ObjectIdentifier
+    let title: String
+    let icon: String
+    let makeView: (ForemanSession) -> AnyView
+
+    init(_ pane: (some SettingsPane).Type) {
+        id = ObjectIdentifier(pane)
+        title = pane.title
+        icon = pane.icon
+        makeView = { AnyView(pane.init(session: $0)) }
+    }
+}
+
 /// Global settings, laid out like a modern macOS System Settings window: a
-/// `NavigationSplitView` sidebar selects one of three panes.
-///
-/// - **General** — launch Foreman at login.
-/// - **Repositories** — the directory scanned for git repositories.
-/// - **Agent** — which `cursor-agent` executable to run.
+/// `NavigationSplitView` sidebar over the registered ``SettingsPaneItem``s.
 ///
 /// Hosted by the `Settings` scene (app menu / Cmd-, / the toolbar's
-/// `SettingsLink`), so it follows settings-window conventions: edits apply on
-/// commit (Return / focus change / panel selection / a toggle flip) — no Save
-/// button. Values write through the observable Core (`AppSettings` for the
-/// paths, `LoginItemController` for the login item), which persists.
+/// `SettingsLink`), so it follows settings-window conventions: the toggle in
+/// General applies immediately, and the path panes commit through an explicit
+/// Save/Cancel sheet. Values write through the observable Core (`AppSettings`
+/// for the paths, `LoginItemController` for the login item), which persists.
 struct SettingsView: View {
-    /// The sidebar panes. `Identifiable` (via `id: \.self`) so the sidebar
-    /// `List` can iterate `allCases`.
-    private enum Pane: String, CaseIterable, Identifiable {
-        case general
-        case repositories
-        case agent
-
-        var id: Self {
-            self
-        }
-
-        var title: String {
-            switch self {
-                case .general: "General"
-                case .repositories: "Repositories"
-                case .agent: "Agent"
-            }
-        }
-
-        var symbol: String {
-            switch self {
-                case .general: "gearshape"
-                case .repositories: "folder"
-                case .agent: "terminal"
-            }
-        }
-    }
-
     let session: ForemanSession
 
-    @State private var selection: Pane? = .general
+    private let panes: [SettingsPaneItem] = [
+        SettingsPaneItem(GeneralSettingsPane.self),
+        SettingsPaneItem(RepositoriesSettingsPane.self),
+        SettingsPaneItem(AgentSettingsPane.self),
+    ]
+
+    @State private var selection: ObjectIdentifier?
 
     var body: some View {
         // The sidebar is always open: pin the visibility and drop the default
         // sidebar-toggle button so the panes can't be collapsed away.
         NavigationSplitView(columnVisibility: .constant(.all)) {
-            List(selection: $selection) {
-                ForEach(Pane.allCases) { pane in
-                    Label(pane.title, systemImage: pane.symbol)
-                        .tag(pane)
-                }
+            List(panes, selection: $selection) { pane in
+                Label(pane.title, systemImage: pane.icon)
             }
             .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 220)
             .toolbar(removing: .sidebarToggle)
@@ -63,28 +64,31 @@ struct SettingsView: View {
             detail
         }
         .frame(minWidth: 420, minHeight: 380)
+        .onAppear {
+            if selection == nil { selection = panes.first?.id }
+        }
     }
 
-    @ViewBuilder
-    private var detail: some View {
-        switch selection {
-            // No selection falls back to General — the sidebar always has a
-            // meaningful pane on screen.
-            case .general, .none:
-                GeneralSettingsView(session: session)
-            case .repositories:
-                RepositoriesSettingsView(session: session)
-            case .agent:
-                AgentSettingsView(session: session)
-        }
+    /// The selected pane's content, falling back to the first pane so the
+    /// detail always shows something meaningful.
+    private var detail: AnyView {
+        let pane = panes.first { $0.id == selection } ?? panes.first
+        return pane?.makeView(session) ?? AnyView(EmptyView())
     }
 }
 
 /// General preferences: whether Foreman launches at login.
-private struct GeneralSettingsView: View {
+private struct GeneralSettingsPane: SettingsPane {
+    static let title = "General"
+    static let icon = "gearshape"
+
     @Bindable var session: ForemanSession
 
     @State private var isWindowVisible = true
+
+    init(session: ForemanSession) {
+        _session = Bindable(session)
+    }
 
     var body: some View {
         Form {
@@ -119,7 +123,7 @@ private struct GeneralSettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .navigationTitle("General")
+        .navigationTitle(Self.title)
         // The OS owns the login-item state and the user can change it in
         // System Settings, so re-read it whenever this pane comes back on
         // screen. The Settings window keeps its hierarchy across opens.
@@ -134,10 +138,17 @@ private struct GeneralSettingsView: View {
 /// Repository discovery: where to scan for git repositories. The value is
 /// read-only here; editing happens in an explicit-commit sheet so switching
 /// panes can't drop a half-typed path.
-private struct RepositoriesSettingsView: View {
+private struct RepositoriesSettingsPane: SettingsPane {
+    static let title = "Repositories"
+    static let icon = "folder"
+
     let session: ForemanSession
 
     @State private var isEditing = false
+
+    init(session: ForemanSession) {
+        self.session = session
+    }
 
     var body: some View {
         Form {
@@ -152,7 +163,7 @@ private struct RepositoriesSettingsView: View {
                 .foregroundStyle(.secondary)
         }
         .formStyle(.grouped)
-        .navigationTitle("Repositories")
+        .navigationTitle(Self.title)
         .sheet(isPresented: $isEditing) {
             PathEditorSheet(
                 title: "Scan directory",
@@ -167,11 +178,18 @@ private struct RepositoriesSettingsView: View {
 }
 
 /// Agent settings: which `cursor-agent` executable to run. Read-only here;
-/// edited via an explicit-commit sheet (see `RepositoriesSettingsView`).
-private struct AgentSettingsView: View {
+/// edited via an explicit-commit sheet (see `RepositoriesSettingsPane`).
+private struct AgentSettingsPane: SettingsPane {
+    static let title = "Agent"
+    static let icon = "terminal"
+
     let session: ForemanSession
 
     @State private var isEditing = false
+
+    init(session: ForemanSession) {
+        self.session = session
+    }
 
     var body: some View {
         Form {
@@ -188,7 +206,7 @@ private struct AgentSettingsView: View {
             .foregroundStyle(.tertiary)
         }
         .formStyle(.grouped)
-        .navigationTitle("Agent")
+        .navigationTitle(Self.title)
         .sheet(isPresented: $isEditing) {
             PathEditorSheet(
                 title: "cursor-agent executable",
