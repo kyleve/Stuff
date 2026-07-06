@@ -79,7 +79,7 @@ struct SettingsView: View {
 
 /// General preferences: whether Foreman launches at login.
 private struct GeneralSettingsPane: SettingsPane {
-    static let title = "General"
+    static let title = String(localized: .settingsGeneralTitle)
     static let icon = "gearshape"
 
     @Bindable var session: ForemanSession
@@ -92,22 +92,20 @@ private struct GeneralSettingsPane: SettingsPane {
 
     var body: some View {
         Form {
-            Toggle("Launch Foreman at login", isOn: $session.startsAtLogin)
-            Text(
-                "Foreman lives in the menu bar. Turn this on to start it automatically when you log in — it will restore any enabled workers.",
-            )
-            .font(.caption)
-            .foregroundStyle(.secondary)
+            Toggle(.settingsGeneralLaunchToggle, isOn: $session.startsAtLogin)
+            Text(.settingsGeneralLaunchFooter)
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             // Registered but macOS is waiting for the user to approve it.
             if session.loginItemNeedsApproval {
                 LabeledContent {
-                    Button("Open Login Items…") {
+                    Button(.settingsGeneralOpenLoginItems) {
                         session.openSystemSettingsLoginItems()
                     }
                 } label: {
                     Label(
-                        "Approve Foreman in System Settings to finish enabling this.",
+                        .settingsGeneralApprovalNeeded,
                         systemImage: "exclamationmark.triangle.fill",
                     )
                     .foregroundStyle(.orange)
@@ -139,7 +137,7 @@ private struct GeneralSettingsPane: SettingsPane {
 /// read-only here; editing happens in an explicit-commit sheet so switching
 /// panes can't drop a half-typed path.
 private struct RepositoriesSettingsPane: SettingsPane {
-    static let title = "Repositories"
+    static let title = String(localized: .settingsRepositoriesTitle)
     static let icon = "folder"
 
     let session: ForemanSession
@@ -152,13 +150,14 @@ private struct RepositoriesSettingsPane: SettingsPane {
 
     var body: some View {
         Form {
-            LabeledContent("Scan directory") {
-                Text(session.settings.scanDirectory?.path ?? "~/Development (default)")
+            LabeledContent(.settingsRepositoriesScanDirectory) {
+                Text(session.settings.scanDirectory?
+                    .path ?? String(localized: .settingsRepositoriesDefault))
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
             }
-            Button("Change…") { isEditing = true }
-            Text("Foreman lists the git repositories directly inside this directory.")
+            Button(.settingsChange) { isEditing = true }
+            Text(.settingsRepositoriesFooter)
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -166,9 +165,9 @@ private struct RepositoriesSettingsPane: SettingsPane {
         .navigationTitle(Self.title)
         .sheet(isPresented: $isEditing) {
             PathEditorSheet(
-                title: "Scan directory",
-                prompt: "~/Development",
-                caption: "Leave empty to use the default (~/Development).",
+                title: String(localized: .settingsRepositoriesScanDirectory),
+                prompt: String(localized: .settingsRepositoriesPrompt),
+                caption: String(localized: .settingsRepositoriesCaption),
                 directoryPickerStart: session.settings.resolvedScanDirectory,
                 initialValue: session.settings.scanDirectory?.path ?? "",
                 onSave: { session.settings.scanDirectory = $0 },
@@ -180,7 +179,7 @@ private struct RepositoriesSettingsPane: SettingsPane {
 /// Agent settings: which `cursor-agent` executable to run. Read-only here;
 /// edited via an explicit-commit sheet (see `RepositoriesSettingsPane`).
 private struct AgentSettingsPane: SettingsPane {
-    static let title = "Agent"
+    static let title = String(localized: .settingsAgentTitle)
     static let icon = "terminal"
 
     let session: ForemanSession
@@ -193,15 +192,18 @@ private struct AgentSettingsPane: SettingsPane {
 
     var body: some View {
         Form {
+            // "cursor-agent" is the CLI executable name (a proper noun), so it
+            // stays a literal rather than a catalog entry.
             LabeledContent("cursor-agent") {
-                Text(session.settings.agentExecutable?.path ?? "Auto-detect")
+                Text(session.settings.agentExecutable?
+                    .path ?? String(localized: .settingsAgentAutoDetect))
                     .foregroundStyle(.secondary)
                     .textSelection(.enabled)
             }
-            Button("Change…") { isEditing = true }
-            Text(
-                "Leave empty to search: \(CursorAgentLocator.defaultSearchPaths.joined(separator: ", "))",
-            )
+            Button(.settingsChange) { isEditing = true }
+            Text(.settingsAgentSearchFooter(
+                paths: CursorAgentLocator.defaultSearchPaths.joined(separator: ", "),
+            ))
             .font(.caption2)
             .foregroundStyle(.tertiary)
         }
@@ -209,9 +211,9 @@ private struct AgentSettingsPane: SettingsPane {
         .navigationTitle(Self.title)
         .sheet(isPresented: $isEditing) {
             PathEditorSheet(
-                title: "cursor-agent executable",
-                prompt: "Auto-detect",
-                caption: "Leave empty to auto-detect from the known install locations.",
+                title: String(localized: .settingsAgentEditorTitle),
+                prompt: String(localized: .settingsAgentAutoDetect),
+                caption: String(localized: .settingsAgentCaption),
                 directoryPickerStart: nil,
                 initialValue: session.settings.agentExecutable?.path ?? "",
                 onSave: { session.settings.agentExecutable = $0 },
@@ -264,7 +266,7 @@ private struct PathEditorSheet: View {
                     .focused($isFocused)
                     .onSubmit { save() }
                 if directoryPickerStart != nil {
-                    Button("Choose…") { choose() }
+                    Button(.settingsChoose) { choose() }
                 }
             }
             Text(caption)
@@ -272,9 +274,9 @@ private struct PathEditorSheet: View {
                 .foregroundStyle(.secondary)
             HStack {
                 Spacer()
-                Button("Cancel", role: .cancel) { dismiss() }
+                Button(.commonCancel, role: .cancel) { dismiss() }
                     .keyboardShortcut(.cancelAction)
-                Button("Save") { save() }
+                Button(.commonSave) { save() }
                     .keyboardShortcut(.defaultAction)
             }
         }

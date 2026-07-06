@@ -190,11 +190,20 @@ public final class Worker {
                 case .exit:
                     // A clean self-exit (e.g. the CLI released the worker) is
                     // a stop, not a failure.
-                    status == 0 ? .stopped : .failed(reason: "Exited with code \(status)")
+                    status == 0
+                        ? .stopped
+                        :
+                        .failed(
+                            reason: String(localized: .workerExitedWithCode(code: Int(status))),
+                        )
                 case .uncaughtSignal:
-                    .failed(reason: "Terminated by signal \(status)")
+                    .failed(
+                        reason: String(localized: .workerTerminatedBySignal(signal: Int(status))),
+                    )
                 @unknown default:
-                    .failed(reason: "Terminated (unknown reason, status \(status))")
+                    .failed(
+                        reason: String(localized: .workerTerminatedUnknown(status: Int(status))),
+                    )
             }
         }
 

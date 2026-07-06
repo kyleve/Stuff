@@ -146,6 +146,18 @@ let argv = repo.options.arguments(workerDirectory: repo.rootURL)
 - **`ForemanLog`** — the logging facade over LogKit: `ForemanLog.channel(_:)`
   with a typed `Category`, subsystem `com.stuff.foreman`.
 
+## Localization
+
+User-facing strings — worker failure reasons (`Worker`), the scan/save/login
+errors and config-load fallback (`ForemanServices`), and
+`CursorAgentLocator.NotFoundError` — come from `Sources/Resources/Localizable.xcstrings`
+via Xcode 26's generated symbols (`String(localized: .workerExitedWithCode(code:))`,
+etc.). The catalog is a `.process`-ed resource, so `defaultLocalization` and the
+module bundle are wired automatically — no `bundle: .module`. Symbol generation
+runs under both the Tuist / `xcodebuild` flow and a plain `swift build` (the
+Swift 6.2 toolchain builds SwiftPM targets with the Swift Build engine, which
+generates the symbols), so the module compiles either way.
+
 ## Contracts & limitations
 
 - `WorkerOptions.arguments(workerDirectory:)` is the single place that knows

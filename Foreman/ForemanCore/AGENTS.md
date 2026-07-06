@@ -67,6 +67,26 @@ build system, formatting, and global conventions. Read that first.
   is the only place that spells flags). **`RepoID` everywhere** — never key
   by display name or raw path strings.
 
+## Localization
+
+User-facing strings (worker failure reasons in `Worker`, the scan/save/login
+errors and config-load fallback in `ForemanServices`,
+`CursorAgentLocator.NotFoundError`) resolve through Xcode 26 **generated
+symbols** against [`Sources/Resources/Localizable.xcstrings`](Sources/Resources/Localizable.xcstrings)
+(a processed resource in [`Package.swift`](../../Package.swift)) — used as
+`String(localized: .workerExitedWithCode(code: …))` etc. The symbol already
+carries the module bundle, so there is no `bundle: .module`. Add the key to the
+catalog first; interpolated strings use named placeholders (`%(code)lld`,
+`%(error)@`).
+
+- **The `en` catalog value is the source of truth** for tests that assert exact
+  reason/message text (e.g. `"Exited with code 3"`, `"Couldn't read saved
+  settings — using defaults."`) — keep them byte-for-byte when editing.
+- Symbol generation runs under both the Tuist / `xcodebuild` flow **and** a plain
+  `swift build` (the Swift 6.2 toolchain builds SwiftPM targets with the Swift
+  Build engine, which processes the catalog into
+  `GeneratedStringSymbols_Localizable.swift`), so the module compiles either way.
+
 ## Testing
 
 Swift Testing in [`Tests/`](Tests), hostless on macOS (`tuist test

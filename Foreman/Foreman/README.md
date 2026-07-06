@@ -79,6 +79,15 @@ small editor sheet that commits only on **Save** (Cancel or Escape discards).
   from the current scan directory are pruned; settings for other scan
   directories are kept and re-apply when you switch back.
 
+## Localization
+
+All of Foreman's on-screen copy lives in
+[`Resources/Localizable.xcstrings`](Resources/Localizable.xcstrings) and is
+referenced through Xcode 26's type-safe generated symbols (the
+`STRING_CATALOG_GENERATE_SYMBOLS` build setting) — the views hold no English
+literals, so retitling a button is a one-line catalog edit. The app name and
+the `cursor-agent` command stay as-is.
+
 ## Limitations
 
 - The sleep assertion blocks *idle* sleep only (like `caffeinate -i`); closing

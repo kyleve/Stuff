@@ -12,7 +12,7 @@ struct WorkerDetailView: View {
 
         Form {
             Section {
-                LabeledContent("Status") {
+                LabeledContent(.detailStatusLabel) {
                     HStack(spacing: 8) {
                         StatusDot(state: state)
                         Text(statusText(for: state))
@@ -20,25 +20,25 @@ struct WorkerDetailView: View {
                     }
                 }
                 if case let .running(pid, since) = state {
-                    LabeledContent("PID") {
+                    LabeledContent(.detailPidLabel) {
                         Text(String(pid)).textSelection(.enabled)
                     }
-                    LabeledContent("Uptime") {
+                    LabeledContent(.detailUptimeLabel) {
                         Text(since, style: .relative)
                     }
                 }
                 if case let .failed(reason) = state {
-                    LabeledContent("Failure") {
+                    LabeledContent(.detailFailureLabel) {
                         Text(reason).foregroundStyle(.red)
                     }
                 }
-                LabeledContent("Path") {
+                LabeledContent(.detailPathLabel) {
                     Text(repo.rootURL.path).textSelection(.enabled)
                 }
-                Toggle("Worker enabled", isOn: $repo.isEnabled)
+                Toggle(.workerEnabledToggle, isOn: $repo.isEnabled)
             }
 
-            Section("Command") {
+            Section(.detailCommandHeader) {
                 // What the next start will spawn (options apply at spawn).
                 Text(commandPreview)
                     .font(.system(.caption, design: .monospaced))
@@ -51,9 +51,9 @@ struct WorkerDetailView: View {
                 WorkerLogView(url: repo.worker.logFileURL)
             } header: {
                 HStack {
-                    Text("Log")
+                    Text(.detailLogHeader)
                     Spacer()
-                    Button("Open File") {
+                    Button(.detailLogOpenFile) {
                         NSWorkspace.shared.open(repo.worker.logFileURL)
                     }
                     .controlSize(.small)
@@ -69,13 +69,11 @@ struct WorkerDetailView: View {
                     repo.isFavorite.toggle()
                 } label: {
                     Label(
-                        repo.isFavorite ? "Remove from Favorites" : "Add to Favorites",
+                        repo.isFavorite ? .favoriteRemove : .favoriteAdd,
                         systemImage: repo.isFavorite ? "star.fill" : "star",
                     )
                 }
-                .help(repo.isFavorite
-                    ? "Remove this repo from favorites."
-                    : "Pin this repo to the top of its section.")
+                .help(repo.isFavorite ? .favoriteRemoveHelp : .favoriteAddHelp)
             }
         }
     }
@@ -88,30 +86,30 @@ struct WorkerDetailView: View {
         switch repo.worker.state {
             case .failed:
                 if repo.isEnabled {
-                    Button("Retry") {
+                    Button(.detailActionRetry) {
                         repo.retry()
                     }
                     .controlSize(.small)
-                    .help("Try starting the worker again.")
+                    .help(.detailActionRetryHelp)
                 }
             case .running:
-                Button("Restart") {
+                Button(.detailActionRestart) {
                     repo.restart()
                 }
                 .controlSize(.small)
-                .help("Stop the worker and start it again with the saved options.")
+                .help(.detailActionRestartHelp)
             case .stopped, .stopping:
                 EmptyView()
         }
     }
 
-    private func statusText(for state: Worker.State) -> String {
+    private func statusText(for state: Worker.State) -> LocalizedStringResource {
         switch state {
-            case .stopped: "Stopped"
-            case .running: "Running"
-            case .stopping(restartPending: true): "Restarting…"
-            case .stopping(restartPending: false): "Stopping…"
-            case .failed: "Failed"
+            case .stopped: .statusStopped
+            case .running: .statusRunning
+            case .stopping(restartPending: true): .statusRestarting
+            case .stopping(restartPending: false): .statusStopping
+            case .failed: .statusFailed
         }
     }
 

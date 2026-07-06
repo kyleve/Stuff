@@ -21,9 +21,9 @@ struct MainWindowView: View {
                     .id(repo.id)
             } else {
                 ContentUnavailableView(
-                    "Select a Repository",
+                    .detailEmptyTitle,
                     systemImage: "hammer",
-                    description: Text("Pick a repo to inspect and control its worker."),
+                    description: Text(.detailEmptyDescription),
                 )
             }
         }
@@ -66,12 +66,13 @@ struct MainWindowView: View {
         .overlay {
             if session.repos.isEmpty {
                 ContentUnavailableView {
-                    Label("No Git Repositories", systemImage: "folder.badge.questionmark")
+                    Label(.sidebarEmptyTitle, systemImage: "folder.badge.questionmark")
                 } description: {
                     Text(session.settings.resolvedScanDirectory.path)
                 }
             }
         }
+        // The app name is a proper noun, so it stays a literal.
         .navigationTitle("Foreman")
     }
 
@@ -85,10 +86,10 @@ struct MainWindowView: View {
         }
     }
 
-    private func title(for kind: RepoSection.Kind) -> String {
+    private func title(for kind: RepoSection.Kind) -> LocalizedStringResource {
         switch kind {
-            case .enabled: "Enabled"
-            case .disabled: "Disabled"
+            case .enabled: .sidebarSectionEnabled
+            case .disabled: .sidebarSectionDisabled
         }
     }
 
@@ -132,31 +133,31 @@ struct MainWindowView: View {
     private var toolbarContent: some ToolbarContent {
         if session.isInhibitingSleep {
             ToolbarItem {
-                Label("Preventing sleep", systemImage: "moon.zzz.fill")
-                    .help("The Mac won't idle-sleep while workers are running.")
+                Label(.toolbarPreventingSleep, systemImage: "moon.zzz.fill")
+                    .help(.toolbarPreventingSleepHelp)
             }
         }
         ToolbarItem {
             Button {
                 session.rescan()
             } label: {
-                Label("Rescan", systemImage: "arrow.clockwise")
+                Label(.toolbarRescan, systemImage: "arrow.clockwise")
             }
-            .help("Re-scan the development directory for repositories.")
+            .help(.toolbarRescanHelp)
         }
         ToolbarItem {
             SettingsLink {
-                Label("Settings", systemImage: "gearshape")
+                Label(.toolbarSettings, systemImage: "gearshape")
             }
-            .help("Open Foreman's settings.")
+            .help(.toolbarSettingsHelp)
         }
         ToolbarItem {
             Button {
                 NSApplication.shared.terminate(nil)
             } label: {
-                Label("Quit", systemImage: "power")
+                Label(.toolbarQuit, systemImage: "power")
             }
-            .help("Quit Foreman and stop all workers.")
+            .help(.toolbarQuitHelp)
         }
     }
 }
