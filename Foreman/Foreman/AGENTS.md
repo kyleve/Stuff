@@ -56,13 +56,20 @@ formatting, global conventions) and ForemanCore's
   sequence on `isAnyWorkerLive`. Don't migrate back to `MenuBarExtra`
   without re-verifying all of the above.
 - [`MainWindowView`](Sources/MainWindowView.swift) – the window content: a
-  `NavigationSplitView` whose sidebar renders `session.repoSections` — an
-  **Enabled** section on top and a **Disabled** section below, favorites
-  floated to the top of each (the ordering itself is computed in
-  `ForemanCore`'s `RepoSection`; the view only maps `Kind` → a section title) —
-  and the selected worker's detail on the right, plus the toolbar (sleep
-  badge, Rescan, a `SettingsLink`, Quit) and the issue banner. The detail
-  carries
+  `NavigationSplitView` whose sidebar renders `session.repoSections` as an
+  **Enabled** group on top and a **Disabled** group below, favorites floated
+  to the top of each (the ordering itself is computed in `ForemanCore`'s
+  `RepoSection`; the view only maps `Kind` → a group title). It flattens the
+  sections into a **single `ForEach` of `SidebarRow`s** (group headers +
+  repo rows sharing one identity space) rather than SwiftUI `Section`s **on
+  purpose**: a lone `ForEach` lets a repo *glide* across the group boundary
+  when it toggles enabled, where separate `Section` containers would animate a
+  cross-container remove/insert instead. `.animation(.snappy, value:)` keyed on
+  the flattened row identities tweens every reorder (toggle, favorite, rescan);
+  headers are `.selectionDisabled()`. Don't reintroduce `Section` without
+  re-checking the cross-group move animation. The right pane shows the selected
+  worker's detail, plus the toolbar (sleep badge, Rescan, a `SettingsLink`,
+  Quit) and the issue banner. The detail carries
   `.id(repo.id)` so per-repo `@State` (options draft, log tail) resets on
   selection change. `onAppear` covers the first-open scan; later opens
   rescan via the window delegate (no file watching).
