@@ -26,10 +26,13 @@ closed. Closing the window just hides it — the app keeps running until Quit.
 
 ## What's in the window
 
-- **Sidebar** — one row per discovered repo: status dot (gray stopped, yellow
-  stopping/restarting, green running, red failed — flipping a stopping worker
-  back on queues a restart for when the old process exits) and the worker's
-  on/off switch.
+- **Sidebar** — repos grouped into an **Enabled** section on top and a
+  **Disabled** one below, with favorites floated to the top of each; rows glide
+  between groups as you toggle or favorite them. Each row shows a status dot
+  (gray stopped, yellow stopping/restarting, green running, red failed —
+  flipping a stopping worker back on queues a restart for when the old process
+  exits), the worker's on/off switch, and a star on favorited repos.
+  Right-click a row to favorite or unfavorite it.
 - **Detail pane** (select a repo) — the worker's status, pid and live uptime,
   the failure reason when it died, the repo path, the exact `cursor-agent`
   command the next start will spawn, the options editor inline, and a live
@@ -37,7 +40,8 @@ closed. Closing the window just hides it — the app keeps running until Quit.
   every second while the window is visible, with an Open File button). The
   status row offers **Retry** when an enabled worker failed and **Restart**
   while it's running (a fresh process with the saved options); neither
-  changes the on/off switch.
+  changes the on/off switch. A toolbar star favorites the repo (mirrors the
+  sidebar's right-click toggle).
 - **Worker options** — mirrors the `cursor agent worker` CLI flags: display
   name, pool mode + pool name, `key=value` labels, idle release timeout, and
   verbose startup logs. Editable while the worker is stopped — options apply
