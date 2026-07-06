@@ -1,3 +1,4 @@
+import CoreLocation
 import LifecycleKit
 import Testing
 import UIKit
@@ -8,13 +9,39 @@ import WhereUI
 /// from `WhereApp` through `AppDelegate` into `RootView`.
 @MainActor
 struct WhereAppTests {
-    @Test func backgroundLaunchStateMapsToLocationRelaunch() {
-        #expect(WhereLaunch.lifecycleReason(from: .background) == .background(.location))
+    @Test func backgroundLaunchWithAlwaysAuthMapsToLocationRelaunch() {
+        #expect(
+            WhereLaunch.lifecycleReason(from: .background, locationAuthorization: .authorizedAlways)
+                == .background(.location),
+        )
+    }
+
+    @Test func backgroundLaunchWithoutAlwaysAuthIsNotAttributedToLocation() {
+        // Where can only be woken headless by an Always-authorized location
+        // event, so any other authorization is an honest `.other` background.
+        for status in [
+            CLAuthorizationStatus.authorizedWhenInUse,
+            .denied,
+            .restricted,
+            .notDetermined,
+        ] {
+            #expect(
+                WhereLaunch.lifecycleReason(from: .background, locationAuthorization: status)
+                    == .background(.other),
+            )
+        }
     }
 
     @Test func foregroundLaunchStatesMapToUserForeground() {
-        #expect(WhereLaunch.lifecycleReason(from: .active) == .userForeground)
-        #expect(WhereLaunch.lifecycleReason(from: .inactive) == .userForeground)
+        // A foreground launch is user-visible regardless of authorization.
+        #expect(
+            WhereLaunch.lifecycleReason(from: .active, locationAuthorization: .notDetermined)
+                == .userForeground,
+        )
+        #expect(
+            WhereLaunch.lifecycleReason(from: .inactive, locationAuthorization: .authorizedAlways)
+                == .userForeground,
+        )
     }
 
     @Test func appDelegateBuildsLauncherForRootView() {
@@ -24,12 +51,9 @@ struct WhereAppTests {
         // Mirrors `WhereApp.body`: `RootView(model: appDelegate.model, launcher:
         // appDelegate.launcher)`.
         _ = RootView(model: delegate.model, launcher: delegate.launcher)
-        // The reason now derives from the live launch-time application state
-        // (the mapping itself is covered above); assert the delegate wired it
-        // from that state rather than hardcoding a value.
-        #expect(
-            delegate.launcher.reason
-                == WhereLaunch.lifecycleReason(from: UIApplication.shared.applicationState),
-        )
+        // The hosted test app runs in the foreground, so the launch always maps
+        // to `.userForeground` (the background/authorization branches are
+        // covered by the pure-mapping tests above).
+        #expect(delegate.launcher.reason == .userForeground)
     }
 }
