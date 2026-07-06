@@ -57,16 +57,120 @@ final class LoginItemRecorder: LoginItemBackend {
 /// A stand-in error for login-item failure injection.
 struct LoginItemTestError: Error {}
 
+/// A ``RepoCopyRemoving`` double that records its calls and, by default,
+/// actually deletes the copy directory so a follow-up rescan behaves like a
+/// real removal — without shelling out to `git` or touching the user's Trash.
+/// Only touched on the main actor in practice.
+final class RecordingCopyRemover: RepoCopyRemoving, @unchecked Sendable {
+    struct WorktreeRemoval: Equatable {
+        let path: URL
+        let parentRepoPath: URL
+    }
+
+    private(set) var worktreeRemovals: [WorktreeRemoval] = []
+    private(set) var cloneRemovals: [URL] = []
+    /// When set, every removal throws it (before deleting), simulating a git
+    /// or Trash failure.
+    var failure: (any Error)?
+    /// Whether a successful removal also deletes the directory on disk.
+    var deletesDirectory = true
+
+    func removeWorktree(at path: URL, parentRepoPath: URL) throws {
+        worktreeRemovals.append(WorktreeRemoval(path: path, parentRepoPath: parentRepoPath))
+        if let failure { throw failure }
+        if deletesDirectory {
+            try? FileManager.default.removeItem(at: path)
+        }
+    }
+
+    func removeClone(at path: URL) throws {
+        cloneRemovals.append(path)
+        if let failure { throw failure }
+        if deletesDirectory {
+            try? FileManager.default.removeItem(at: path)
+        }
+    }
+}
+
+/// A stand-in error for copy-removal failure injection.
+struct CopyRemovalTestError: Error {}
+
+/// A `ForemanServices` wired for control-socket tests: a real scan directory
+/// with `.git`-bearing repos, a long-running stub `cursor-agent`, and a
+/// ``RecordingCopyRemover`` so removals are observable and hermetic.
+struct ControlServicesFixture {
+    let services: ForemanServices
+    let store: WorkerConfigStore
+    let base: URL
+    let scanDirectory: URL
+    let executable: URL
+    let remover: RecordingCopyRemover
+}
+
+/// Builds a ``ControlServicesFixture`` with `repoNames` created as
+/// `.git`-bearing directories under the scan directory. The returned services
+/// have not been `start()`ed yet.
+@MainActor
+func makeControlServicesFixture(repoNames: [String]) throws -> ControlServicesFixture {
+    let base = try makeTemporaryDirectory()
+    let scanDirectory = base.appendingPathComponent("Development", isDirectory: true)
+    try FileManager.default.createDirectory(at: scanDirectory, withIntermediateDirectories: true)
+    for name in repoNames {
+        try addGitDirectory(name, in: scanDirectory)
+    }
+    let executable = try makeStubExecutable(
+        in: base,
+        script: "#!/bin/sh\nwhile true; do sleep 0.1; done\n",
+    )
+    let store = WorkerConfigStore(directory: base.appendingPathComponent("config"))
+    try store.save(ForemanConfiguration(
+        scanDirectory: scanDirectory,
+        agentExecutable: executable,
+        repos: [:],
+    ))
+    let remover = RecordingCopyRemover()
+    let services = ForemanServices(
+        configStore: store,
+        logDirectory: base.appendingPathComponent("logs"),
+        sleepInhibitor: SleepInhibitor(backend: SleepAssertionRecorder()),
+        loginItem: LoginItemController(backend: LoginItemRecorder()),
+        copyRemover: remover,
+    )
+    return ControlServicesFixture(
+        services: services,
+        store: store,
+        base: base,
+        scanDirectory: scanDirectory,
+        executable: executable,
+        remover: remover,
+    )
+}
+
+/// Creates `<directory>/<name>/.git` (a directory `.git`, as a plain clone
+/// has), enough for discovery and adopt validation.
+func addGitDirectory(_ name: String, in directory: URL) throws {
+    try FileManager.default.createDirectory(
+        at: directory.appendingPathComponent("\(name)/.git", isDirectory: true),
+        withIntermediateDirectories: true,
+    )
+}
+
 /// Builds a live `Repo` over a fixed executable for tree-level tests:
 /// disabled, unfavorited, standard options, no-op persistence and
 /// state-change hooks.
 @MainActor
-func makeStubRepo(scanned: ScannedRepo, logDirectory: URL, executable: URL) -> Repo {
+func makeStubRepo(
+    scanned: ScannedRepo,
+    logDirectory: URL,
+    executable: URL,
+    provenance: CopyProvenance? = nil,
+) -> Repo {
     Repo(
         scanned: scanned,
         isEnabled: false,
         isFavorite: false,
         options: .standard,
+        provenance: provenance,
         worker: Worker(
             name: scanned.name,
             workerDirectory: scanned.rootURL,

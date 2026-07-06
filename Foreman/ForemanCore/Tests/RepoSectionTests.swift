@@ -14,6 +14,7 @@ struct RepoSectionTests {
             isEnabled: enabled,
             isFavorite: favorite,
             options: .standard,
+            provenance: nil,
             worker: Worker(
                 name: name,
                 workerDirectory: root,

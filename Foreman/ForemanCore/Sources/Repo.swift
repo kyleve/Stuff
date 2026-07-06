@@ -55,6 +55,18 @@ public final class Repo: Identifiable {
         }
     }
 
+    /// Set when this repo is a copy Foreman created (a worktree or clone of a
+    /// parent repo); `nil` for ordinary discovered repos. Recorded when the
+    /// copy is adopted via the control socket and used to badge the copy and
+    /// remove it correctly. Persisted like the other intent; reassigning the
+    /// current value is a no-op.
+    public var provenance: CopyProvenance? {
+        didSet {
+            guard oldValue != provenance else { return }
+            onPersistentChange(self)
+        }
+    }
+
     private static let logger = ForemanLog.channel(.repo)
 
     private let resolveExecutable: @MainActor () throws -> URL
@@ -67,18 +79,21 @@ public final class Repo: Identifiable {
     ///   - isFavorite: The saved favorite flag (pins the repo to the top of
     ///     its sidebar section).
     ///   - options: The saved worker options.
+    ///   - provenance: The saved copy provenance, or `nil` for an ordinary
+    ///     repo.
     ///   - worker: The repo's worker (the owning tree wires its
     ///     `onStateChange`).
     ///   - resolveExecutable: Locates the `cursor-agent` binary at start
     ///     time; a throw lands in the worker's `.failed` state.
     ///   - onPersistentChange: Invoked after every
-    ///     `isEnabled`/`isFavorite`/`options` change so the owning tree can
-    ///     write through and save.
+    ///     `isEnabled`/`isFavorite`/`options`/`provenance` change so the
+    ///     owning tree can write through and save.
     public init(
         scanned: ScannedRepo,
         isEnabled: Bool,
         isFavorite: Bool,
         options: WorkerOptions,
+        provenance: CopyProvenance?,
         worker: Worker,
         resolveExecutable: @escaping @MainActor () throws -> URL,
         onPersistentChange: @escaping @MainActor (Repo) -> Void,
@@ -90,6 +105,7 @@ public final class Repo: Identifiable {
         self.isEnabled = isEnabled
         self.isFavorite = isFavorite
         self.options = options
+        self.provenance = provenance
         self.resolveExecutable = resolveExecutable
         self.onPersistentChange = onPersistentChange
     }

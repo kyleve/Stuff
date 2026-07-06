@@ -13,16 +13,29 @@ public struct RepoConfiguration: Codable, Equatable, Sendable {
     public var isFavorite: Bool
     /// This repo's worker options.
     public var options: WorkerOptions
+    /// Set when this repo is a copy Foreman created (a worktree or clone);
+    /// `nil` for ordinary discovered repos. A copy's record is therefore
+    /// never "standard", so it survives (it isn't dropped as a no-op).
+    public var provenance: CopyProvenance?
 
-    public init(isEnabled: Bool, isFavorite: Bool, options: WorkerOptions) {
+    /// `provenance` defaults to `nil` — the obvious "not a copy" zero value,
+    /// which can't change the behavior of an ordinary repo, so omitting it at
+    /// a call site is safe.
+    public init(
+        isEnabled: Bool,
+        isFavorite: Bool,
+        options: WorkerOptions,
+        provenance: CopyProvenance? = nil,
+    ) {
         self.isEnabled = isEnabled
         self.isFavorite = isFavorite
         self.options = options
+        self.provenance = provenance
     }
 
     /// The record an uncustomized repo reads as: disabled, unfavorited,
-    /// standard options. A repo whose state equals this needs no persisted
-    /// entry — absence reads identically.
+    /// standard options, no provenance. A repo whose state equals this needs
+    /// no persisted entry — absence reads identically.
     public static let standard = RepoConfiguration(
         isEnabled: false,
         isFavorite: false,

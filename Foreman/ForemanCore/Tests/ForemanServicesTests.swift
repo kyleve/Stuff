@@ -396,4 +396,171 @@ struct ForemanServicesTests {
         #expect(fixture.sleep.ends == 1)
         #expect(!fixture.services.isInhibitingSleep)
     }
+
+    // MARK: - Control (MCP)
+
+    @Test func adoptRecordsProvenanceEnablesAndPersists() async throws {
+        let fixture = try makeControlServicesFixture(repoNames: ["Main"])
+        fixture.services.start()
+        try addGitDirectory("Copy", in: fixture.scanDirectory)
+        let copy = fixture.scanDirectory.appendingPathComponent("Copy", isDirectory: true)
+        let parentID = RepoID(rootURL: fixture.scanDirectory.appendingPathComponent("Main"))
+        let provenance = CopyProvenance(kind: .worktree, parentRepoID: parentID, branch: "task")
+
+        let status = try fixture.services.adoptAndStartWorker(at: copy, provenance: provenance)
+        #expect(status.name == "Copy")
+        #expect(status.enabled)
+        #expect(status.provenance?.kind == "worktree")
+
+        let repo = try #require(fixture.services.repos.first { $0.name == "Copy" })
+        #expect(repo.provenance == provenance)
+        #expect(repo.isEnabled)
+        try await waitUntil("copy worker running") { repo.worker.state.isLive }
+
+        let saved = try #require(try fixture.store.load().repos[RepoID(rootURL: copy)])
+        #expect(saved.provenance == provenance)
+        #expect(saved.isEnabled)
+
+        fixture.services.stopAll()
+        try await waitUntil("copy worker stops") { repo.worker.state == .stopped }
+    }
+
+    @Test func adoptRejectsAPathOutsideTheScanDirectory() throws {
+        let fixture = try makeControlServicesFixture(repoNames: [])
+        fixture.services.start()
+        let outside = fixture.base.appendingPathComponent("Outside", isDirectory: true)
+        try FileManager.default.createDirectory(
+            at: outside.appendingPathComponent(".git"),
+            withIntermediateDirectories: true,
+        )
+        #expect(throws: ControlError.self) {
+            try fixture.services.adoptAndStartWorker(
+                at: outside,
+                provenance: CopyProvenance(
+                    kind: .clone,
+                    parentRepoID: RepoID(rawValue: "/x"),
+                    branch: "b",
+                ),
+            )
+        }
+    }
+
+    @Test func adoptRejectsANonGitDirectory() throws {
+        let fixture = try makeControlServicesFixture(repoNames: [])
+        fixture.services.start()
+        let notGit = fixture.scanDirectory.appendingPathComponent("NotGit", isDirectory: true)
+        try FileManager.default.createDirectory(at: notGit, withIntermediateDirectories: true)
+        #expect(throws: ControlError.self) {
+            try fixture.services.adoptAndStartWorker(
+                at: notGit,
+                provenance: CopyProvenance(
+                    kind: .clone,
+                    parentRepoID: RepoID(rawValue: "/x"),
+                    branch: "b",
+                ),
+            )
+        }
+    }
+
+    @Test func describeIncludesProvenanceForAdoptedCopies() throws {
+        let fixture = try makeControlServicesFixture(repoNames: ["Main"])
+        fixture.services.start()
+        try addGitDirectory("Copy", in: fixture.scanDirectory)
+        let copy = fixture.scanDirectory.appendingPathComponent("Copy", isDirectory: true)
+        let parentID = RepoID(rootURL: fixture.scanDirectory.appendingPathComponent("Main"))
+        try fixture.services.adoptAndStartWorker(
+            at: copy,
+            provenance: CopyProvenance(kind: .clone, parentRepoID: parentID, branch: "b"),
+        )
+
+        let described = fixture.services.describe()
+        #expect(described.scanDirectory == fixture.scanDirectory.path)
+        let copyStatus = try #require(described.repos.first { $0.name == "Copy" })
+        #expect(copyStatus.provenance?.kind == "clone")
+        #expect(copyStatus.provenance?.parentRepoID == parentID.rawValue)
+        let mainStatus = try #require(described.repos.first { $0.name == "Main" })
+        #expect(mainStatus.provenance == nil)
+
+        fixture.services.stopAll()
+    }
+
+    @Test func removeCopyStopsTheWorkerRemovesTheCopyAndPrunes() async throws {
+        let fixture = try makeControlServicesFixture(repoNames: ["Main"])
+        fixture.services.start()
+        try addGitDirectory("Copy", in: fixture.scanDirectory)
+        let copy = fixture.scanDirectory.appendingPathComponent("Copy", isDirectory: true)
+        let parentID = RepoID(rootURL: fixture.scanDirectory.appendingPathComponent("Main"))
+        try fixture.services.adoptAndStartWorker(
+            at: copy,
+            provenance: CopyProvenance(kind: .worktree, parentRepoID: parentID, branch: "task"),
+        )
+        let repo = try #require(fixture.services.repos.first { $0.name == "Copy" })
+        try await waitUntil("copy worker running") { repo.worker.state.isLive }
+
+        try await fixture.services.removeCopy(at: copy)
+
+        #expect(fixture.remover.worktreeRemovals.count == 1)
+        #expect(fixture.remover.worktreeRemovals.first?.path.lastPathComponent == "Copy")
+        #expect(fixture.remover.worktreeRemovals.first?.parentRepoPath.lastPathComponent == "Main")
+        #expect(!fixture.services.repos.contains { $0.name == "Copy" })
+        #expect(try fixture.store.load().repos[RepoID(rootURL: copy)] == nil)
+    }
+
+    @Test func removeCopyOfACloneUsesTheCloneRemover() async throws {
+        let fixture = try makeControlServicesFixture(repoNames: ["Main"])
+        fixture.services.start()
+        try addGitDirectory("Clone", in: fixture.scanDirectory)
+        let clone = fixture.scanDirectory.appendingPathComponent("Clone", isDirectory: true)
+        let parentID = RepoID(rootURL: fixture.scanDirectory.appendingPathComponent("Main"))
+        try fixture.services.adoptAndStartWorker(
+            at: clone,
+            provenance: CopyProvenance(kind: .clone, parentRepoID: parentID, branch: "b"),
+        )
+        let repo = try #require(fixture.services.repos.first { $0.name == "Clone" })
+        try await waitUntil("clone worker running") { repo.worker.state.isLive }
+
+        try await fixture.services.removeCopy(at: clone)
+
+        #expect(fixture.remover.cloneRemovals.map(\.lastPathComponent) == ["Clone"])
+        #expect(fixture.remover.worktreeRemovals.isEmpty)
+        #expect(!fixture.services.repos.contains { $0.name == "Clone" })
+    }
+
+    @Test func removeCopyRejectsARepoWithoutProvenance() async throws {
+        let fixture = try makeControlServicesFixture(repoNames: ["Plain"])
+        fixture.services.start()
+        let plain = fixture.scanDirectory.appendingPathComponent("Plain", isDirectory: true)
+
+        await #expect(throws: ControlError.self) {
+            try await fixture.services.removeCopy(at: plain)
+        }
+        #expect(fixture.remover.worktreeRemovals.isEmpty)
+        #expect(fixture.remover.cloneRemovals.isEmpty)
+        #expect(fixture.services.repos.contains { $0.name == "Plain" })
+    }
+
+    @Test func removeCopySurfacesRemoverFailureAndKeepsTheRepo() async throws {
+        let fixture = try makeControlServicesFixture(repoNames: ["Main"])
+        fixture.services.start()
+        try addGitDirectory("Copy", in: fixture.scanDirectory)
+        let copy = fixture.scanDirectory.appendingPathComponent("Copy", isDirectory: true)
+        let parentID = RepoID(rootURL: fixture.scanDirectory.appendingPathComponent("Main"))
+        try fixture.services.adoptAndStartWorker(
+            at: copy,
+            provenance: CopyProvenance(kind: .worktree, parentRepoID: parentID, branch: "task"),
+        )
+        let repo = try #require(fixture.services.repos.first { $0.name == "Copy" })
+        try await waitUntil("copy worker running") { repo.worker.state.isLive }
+        fixture.remover.failure = CopyRemovalTestError()
+
+        await #expect(throws: ControlError.self) {
+            try await fixture.services.removeCopy(at: copy)
+        }
+        // The worker was still stopped, and the repo survives (removal failed,
+        // so it wasn't silently dropped).
+        #expect(fixture.services.repos.contains { $0.name == "Copy" })
+        try await waitUntil("worker stopped after failed removal") {
+            repo.worker.state == .stopped
+        }
+    }
 }

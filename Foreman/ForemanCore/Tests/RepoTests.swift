@@ -20,6 +20,7 @@ struct RepoTests {
                 isEnabled: false,
                 isFavorite: false,
                 options: .standard,
+                provenance: nil,
                 worker: Worker(
                     name: scanned.name,
                     workerDirectory: scanned.rootURL,

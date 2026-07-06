@@ -13,6 +13,90 @@
         }
       }
     },
+    "control.invalidProvenanceKind" : {
+      "comment" : "Control-socket error when an adopt request's copy kind isn't recognized. The placeholder is the bad kind string.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown copy kind “%(kind)@”."
+          }
+        }
+      }
+    },
+    "control.notACopy" : {
+      "comment" : "Control-socket error when asked to remove a path Foreman didn't create as a copy. The placeholder is the path.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%(path)@” isn't a copy Foreman created, so it won't be removed."
+          }
+        }
+      }
+    },
+    "control.notAGitRepo" : {
+      "comment" : "Control-socket error when an adopt path isn't a git working copy. The placeholder is the path.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%(path)@” isn't a git repository."
+          }
+        }
+      }
+    },
+    "control.notUnderScanDirectory" : {
+      "comment" : "Control-socket error when an adopt path isn't directly inside the scan directory. First placeholder is the path, second is the scan directory.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "“%(path)@” isn't directly inside Foreman's scan directory (%(scan)@)."
+          }
+        }
+      }
+    },
+    "control.removeFailed" : {
+      "comment" : "Control-socket error when removing a copy failed. The placeholder is the underlying error message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't remove the copy: %(error)@"
+          }
+        }
+      }
+    },
+    "control.repoNotFound" : {
+      "comment" : "Control-socket error when no repo exists at the given path after a rescan. The placeholder is the path.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foreman has no repository at “%(path)@”."
+          }
+        }
+      }
+    },
+    "control.workerDidNotStop" : {
+      "comment" : "Control-socket error when a copy's worker didn't stop in time to remove it safely.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The worker didn't stop in time to remove the copy."
+          }
+        }
+      }
+    },
     "cursorAgent.notFound" : {
       "comment" : "Error when the cursor-agent executable couldn't be located. The placeholder is a comma-separated list of paths that were checked.",
       "extractionState" : "manual",
