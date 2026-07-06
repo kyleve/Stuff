@@ -116,21 +116,15 @@ public final class YearReportModel {
 
     /// Unlogged days this year (Jan 1 through today), collapsed into ranges, for
     /// the warning banner and the backfill flow. Empty unless viewing the
-    /// current year, since past years can't gain "today" coverage.
+    /// current year, since past years can't gain "today" coverage. The
+    /// derivation lives on `YearReport`; this just supplies "now" + the calendar.
     public var missingDays: [MissingDayRange] {
-        guard let report, isViewingCurrentYear else { return [] }
-        let present = Set(report.days.map(\.date))
-        return MissingDays.missingRanges(
-            year: report.year,
-            through: MissingDays.backlogCutoff(asOf: now(), calendar: calendar),
-            present: present,
-            calendar: calendar,
-        )
+        report?.missingDayRanges(asOf: now(), calendar: calendar) ?? []
     }
 
     /// Total number of unlogged days behind `missingDays`.
     public var missingDayCount: Int {
-        missingDays.reduce(0) { $0 + $1.dayCount }
+        report?.missingDayCount(asOf: now(), calendar: calendar) ?? 0
     }
 
     /// The model's notion of "now", forwarded for calendar and missing-day math.
@@ -140,32 +134,13 @@ public final class YearReportModel {
 
     /// Start-of-day keys for days that still need logging in the loaded year.
     public var missingDayKeys: Set<Date> {
-        guard let report, isViewingCurrentYear else { return [] }
-        return Set(MissingDays.missingDayKeys(
-            year: report.year,
-            through: MissingDays.backlogCutoff(asOf: now(), calendar: calendar),
-            present: Set(report.days.map(\.date)),
-            calendar: calendar,
-        ))
-    }
-
-    private var isViewingCurrentYear: Bool {
-        selectedYear == calendar.component(.year, from: now())
+        report?.missingDayKeys(asOf: now(), calendar: calendar) ?? []
     }
 
     /// Number of calendar days in the selected year (365, or 366 in a leap
     /// year). Region cards scale their ambient progress bar against this.
     public var daysInSelectedYear: Int {
-        let calendar = Calendar.current
-        guard
-            let midYear = calendar.date(from: DateComponents(
-                year: selectedYear,
-                month: 6,
-                day: 15,
-            )),
-            let range = calendar.range(of: .day, in: .year, for: midYear)
-        else { return 365 }
-        return range.count
+        calendar.dayCount(ofYear: selectedYear)
     }
 
     /// Build a report model over an already-assembled service layer. `report` is

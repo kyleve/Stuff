@@ -21,7 +21,7 @@ struct RegionSummaryCard: View {
 
     /// Calendar days in the year being summarized; the ambient bar is drawn as
     /// a fraction of this. Callers pass the selected year's real length
-    /// (`WhereSession.daysInSelectedYear`); the default is only for previews.
+    /// (`YearReportModel.daysInSelectedYear`); the default is only for previews.
     var yearLength = 365
 
     /// The calendar year being summarized, inked onto the entry stamp. Callers
