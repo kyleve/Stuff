@@ -195,8 +195,7 @@ public final class YearReportModel {
     /// is set up at most once until `deactivate()`.
     public func activate() async {
         observeDataChanges()
-        await refresh()
-        await refreshDataIssueCount(force: false)
+        await refreshAll(forceDataIssueCount: false)
     }
 
     /// Stop observing committed writes. Called by `MainTabs` when the scene goes
@@ -220,8 +219,7 @@ public final class YearReportModel {
         dataChangeTask = Task { @MainActor [weak self] in
             for await _ in updates {
                 guard let self else { break }
-                await refresh()
-                await refreshDataIssueCount(force: true)
+                await refreshAll(forceDataIssueCount: true)
             }
         }
     }
@@ -233,8 +231,17 @@ public final class YearReportModel {
         // Drop the previous year's report so views fall back to their loading
         // state instead of rendering stale data under the new year's label.
         report = nil
+        await refreshAll(forceDataIssueCount: true)
+    }
+
+    /// Pull a fresh year report *and* recompute the Resolve badge count — the
+    /// common case after any committed write or a (re)activation. `refresh()`
+    /// and `refreshDataIssueCount(force:)` stay separately callable rather than
+    /// folded together, because the drift-threshold change recomputes only the
+    /// count (no report re-pull); this just names the pairing the shared sites use.
+    func refreshAll(forceDataIssueCount: Bool) async {
         await refresh()
-        await refreshDataIssueCount(force: true)
+        await refreshDataIssueCount(force: forceDataIssueCount)
     }
 
     /// Recompute the Resolve badge count for the selected year. Uses the cached
