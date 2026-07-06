@@ -475,6 +475,17 @@
         }
       }
     },
+    "manual.saving.status" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capturing location…"
+          }
+        }
+      }
+    },
     "manual.singleDay.footer" : {
       "extractionState" : "manual",
       "localizations" : {

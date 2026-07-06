@@ -101,7 +101,14 @@ struct ManualDayEntryView: View {
             } footer: {
                 Text(Strings.manualNoteFooter)
             }
+
+            if isSaving {
+                Section {
+                    SavingStatusRow(text: Strings.manualSavingStatus)
+                }
+            }
         }
+        .animation(.default, value: isSaving)
         .navigationTitle(Strings.manualTitle)
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: startDate) { _, newValue in
@@ -109,8 +116,12 @@ struct ManualDayEntryView: View {
         }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button(Strings.manualSave) { save() }
-                    .disabled(!canSave)
+                if isSaving {
+                    ProgressView()
+                } else {
+                    Button(Strings.manualSave) { save() }
+                        .disabled(!canSave)
+                }
             }
         }
         .alert(

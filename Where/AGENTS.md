@@ -138,6 +138,13 @@ shell, the `WhereSession` coordinator for logged-in views). Cover the states
 that matter — empty, loaded, and distinct edge states — not just the happy
 path.
 
+Animate transitions between distinct states in a way that fits the surface and
+its content — don't hard-cut. A view that swaps on a `LoadState` (or shows an
+in-flight status) should fade/move rather than snap (e.g. `.transition(.opacity)`
+on each `switch` arm plus `.animation(_:value:)`, or `.animation(_:value:)` on a
+form that reveals a saving row). See `RecentActivitySummaryView` and the
+manual-entry forms.
+
 ## Adding things
 
 - **New library target:** add to root [`Package.swift`](../Package.swift)

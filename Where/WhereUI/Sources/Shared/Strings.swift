@@ -864,6 +864,14 @@ enum Strings {
         )
     }
 
+    static var manualSavingStatus: String {
+        String(
+            localized: "manual.saving.status",
+            defaultValue: "Capturing location…",
+            bundle: .module,
+        )
+    }
+
     static func manualRangeFooter(count: Int) -> String {
         String(
             localized: "manual.range.footer",

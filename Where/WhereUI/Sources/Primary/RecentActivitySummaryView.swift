@@ -25,6 +25,7 @@ struct RecentActivitySummaryView: View {
     var body: some View {
         NavigationStack {
             content
+                .animation(.smooth, value: model.loadState)
                 .navigationTitle(Strings.recentActivityTitle)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -46,26 +47,33 @@ struct RecentActivitySummaryView: View {
         }
     }
 
+    /// Each state fades into the next (see `.animation` in `body`) rather than
+    /// hard-cutting — a crossfade suits swapping between a spinner, prose, and a
+    /// `ContentUnavailableView`.
     @ViewBuilder
     private var content: some View {
         switch model.loadState {
             case .idle, .loading:
                 ProgressView(Strings.recentActivityLoading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(.opacity)
             case let .loaded(text):
                 summary(text)
+                    .transition(.opacity)
             case .empty:
                 ContentUnavailableView {
                     Label(Strings.recentActivityEmptyTitle, systemImage: "location.slash")
                 } description: {
                     Text(Strings.recentActivityEmptyDescription)
                 }
+                .transition(.opacity)
             case let .unavailable(reason):
                 ContentUnavailableView {
                     Label(Strings.recentActivityUnavailableTitle, systemImage: "sparkles.slash")
                 } description: {
                     Text(Strings.recentActivityUnavailableMessage(reason))
                 }
+                .transition(.opacity)
             case let .failed(message):
                 ContentUnavailableView {
                     Label(
@@ -75,6 +83,7 @@ struct RecentActivitySummaryView: View {
                 } description: {
                     Text(message)
                 }
+                .transition(.opacity)
         }
     }
 

@@ -15,7 +15,15 @@ struct DayRelabelView: View {
     @State private var regionSelection: RegionSelectionState
     @State private var note = ""
     @State private var saveError = SaveErrorAlertState()
-    @State private var isSaving = false
+    @State private var pending: PendingWrite?
+
+    /// Which async write is in flight. Saving captures a one-shot GPS fix (see
+    /// `LocationSource.requestCurrentLocation()`) so it can take a moment and
+    /// warrants a visible status; resetting just clears the day and is quick.
+    private enum PendingWrite {
+        case saving
+        case resetting
+    }
 
     init(day: DayPresence, report: YearReportModel, initialRegions: Set<Region>? = nil) {
         self.day = day
@@ -26,7 +34,7 @@ struct DayRelabelView: View {
     }
 
     private var canSave: Bool {
-        !regionSelection.selectedRegions.isEmpty && !isSaving
+        !regionSelection.selectedRegions.isEmpty && pending == nil
             && regionSelection.selectedRegions != day.regions
     }
 
@@ -55,28 +63,39 @@ struct DayRelabelView: View {
                     axis: .vertical,
                 )
                 .lineLimit(3, reservesSpace: true)
-                .disabled(isSaving)
+                .disabled(pending != nil)
             } header: {
                 Text(Strings.manualNoteHeader)
             } footer: {
                 Text(Strings.manualNoteFooter)
             }
 
+            if pending == .saving {
+                Section {
+                    SavingStatusRow(text: Strings.manualSavingStatus)
+                }
+            }
+
             auditSection
 
             Section {
                 Button(Strings.relabelReset, role: .destructive) { reset() }
-                    .disabled(isSaving)
+                    .disabled(pending != nil)
             } footer: {
                 Text(Strings.relabelResetFooter)
             }
         }
+        .animation(.default, value: pending)
         .navigationTitle(Strings.relabelTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button(Strings.manualSave) { save() }
-                    .disabled(!canSave)
+                if pending == .saving {
+                    ProgressView()
+                } else {
+                    Button(Strings.manualSave) { save() }
+                        .disabled(!canSave)
+                }
             }
         }
         .alert(
@@ -126,7 +145,7 @@ struct DayRelabelView: View {
     }
 
     private func save() {
-        isSaving = true
+        pending = .saving
         saveError.message = nil
         Task {
             do {
@@ -139,13 +158,13 @@ struct DayRelabelView: View {
             } catch {
                 // Keep the form up so the user can retry; the save didn't land.
                 saveError.message = error.localizedDescription
-                isSaving = false
+                pending = nil
             }
         }
     }
 
     private func reset() {
-        isSaving = true
+        pending = .resetting
         saveError.message = nil
         Task {
             do {
@@ -154,7 +173,7 @@ struct DayRelabelView: View {
             } catch {
                 // Keep the form up so the user can retry; nothing was cleared.
                 saveError.message = error.localizedDescription
-                isSaving = false
+                pending = nil
             }
         }
     }
