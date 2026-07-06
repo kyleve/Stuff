@@ -23,7 +23,7 @@ public struct CursorAgentLocator: Sendable {
         }
 
         public var errorDescription: String? {
-            "cursor-agent was not found. Checked: \(searchedPaths.joined(separator: ", "))"
+            String(localized: .cursorAgentNotFound(paths: searchedPaths.joined(separator: ", ")))
         }
     }
 

@@ -76,8 +76,8 @@ public final class ForemanServices {
             } catch {
                 Self.logger.error("Couldn't update the login item: \(error)")
                 loginItemError = newValue
-                    ? "Couldn't turn on “Launch at login”: \(error.localizedDescription)"
-                    : "Couldn't turn off “Launch at login”: \(error.localizedDescription)"
+                    ? String(localized: .loginItemTurnOnFailed(error: error.localizedDescription))
+                    : String(localized: .loginItemTurnOffFailed(error: error.localizedDescription))
             }
         }
     }
@@ -154,7 +154,7 @@ public final class ForemanServices {
         } catch {
             Self.logger.error("Couldn't load configuration: \(error)")
             configuration = .initial
-            configLoadFailure = "Couldn't read saved settings — using defaults."
+            configLoadFailure = String(localized: .configLoadFailure)
         }
     }
 
@@ -199,8 +199,10 @@ public final class ForemanServices {
             }
         } catch {
             Self.logger.error("Repo scan failed: \(error)")
-            issueMessage =
-                "Couldn't scan \(directory.path): \(error.localizedDescription)"
+            issueMessage = String(localized: .scanFailed(
+                path: directory.path,
+                error: error.localizedDescription,
+            ))
         }
     }
 
@@ -211,7 +213,7 @@ public final class ForemanServices {
     /// retains a `Repo` beyond the root's life and starts it.
     private struct ServicesReleasedError: Error, LocalizedError {
         var errorDescription: String? {
-            "Foreman is shutting down."
+            String(localized: .servicesShuttingDown)
         }
     }
 
@@ -278,7 +280,7 @@ public final class ForemanServices {
             try configStore.save(configuration)
         } catch {
             Self.logger.error("Couldn't save configuration: \(error)")
-            issueMessage = "Couldn't save settings: \(error.localizedDescription)"
+            issueMessage = String(localized: .saveFailed(error: error.localizedDescription))
         }
     }
 }
