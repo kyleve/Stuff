@@ -411,6 +411,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// authoritative relabel: the row stays authoritative and the backfilled
     /// regions union in. Every other case replaces wholesale (authoritative
     /// overrides and additive-over-additive alike), preserving prior behavior.
+    ///
+    /// The incoming write's `audit` always wins: it reflects the most recent
+    /// manual action (its note, its capture-time GPS), so even when regions
+    /// can't be downgraded the audit trail tracks the latest edit.
     private static func resolved(incoming day: DayPresence, existing: SDManualDay) -> DayPresence {
         guard existing.isAuthoritative ?? false, !day.isAuthoritative else { return day }
         let existingRegions = Set((existing.regionRaws ?? []).compactMap { Region(rawValue: $0) })
@@ -418,6 +422,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             date: day.date,
             regions: existingRegions.union(day.regions),
             isAuthoritative: true,
+            audit: day.audit,
         )
     }
 
@@ -694,6 +699,18 @@ final class SDManualDay {
     /// pre-existing rows decode as additive (`false`).
     var isAuthoritative: Bool?
 
+    // Audit metadata for a user-made entry (`ManualEntryAudit`). All optional so
+    // the CloudKit mirror stays lightweight-migration-safe; rows written before
+    // audit existed (and GPS-derived days) decode with no audit. `auditRecordedAt`
+    // is the presence-of-audit discriminator — the location fields are populated
+    // together only when a fix was captured.
+    var note: String?
+    var auditRecordedAt: Date?
+    var auditLatitude: Double?
+    var auditLongitude: Double?
+    var auditAccuracy: Double?
+    var auditLocationTimestamp: Date?
+
     init() {}
 
     convenience init(value: DayPresence) {
@@ -705,6 +722,16 @@ final class SDManualDay {
         dateKey = value.date
         regionRaws = value.regions.map(\.rawValue).sorted()
         isAuthoritative = value.isAuthoritative
+        applyAudit(value.audit)
+    }
+
+    private func applyAudit(_ audit: ManualEntryAudit?) {
+        note = audit?.note
+        auditRecordedAt = audit?.recordedAt
+        auditLatitude = audit?.location?.coordinate.latitude
+        auditLongitude = audit?.location?.coordinate.longitude
+        auditAccuracy = audit?.location?.horizontalAccuracy
+        auditLocationTimestamp = audit?.location?.timestamp
     }
 
     func toValue() -> DayPresence? {
@@ -713,6 +740,29 @@ final class SDManualDay {
             date: dateKey,
             regions: Set((regionRaws ?? []).compactMap { Region(rawValue: $0) }),
             isAuthoritative: isAuthoritative ?? false,
+            audit: auditValue(),
+        )
+    }
+
+    private func auditValue() -> ManualEntryAudit? {
+        guard let auditRecordedAt else { return nil }
+        return ManualEntryAudit(
+            recordedAt: auditRecordedAt,
+            note: note,
+            location: capturedLocation(),
+        )
+    }
+
+    private func capturedLocation() -> CapturedLocation? {
+        guard let auditLatitude,
+              let auditLongitude,
+              let auditAccuracy,
+              let auditLocationTimestamp
+        else { return nil }
+        return CapturedLocation(
+            coordinate: Coordinate(latitude: auditLatitude, longitude: auditLongitude),
+            horizontalAccuracy: auditAccuracy,
+            timestamp: auditLocationTimestamp,
         )
     }
 }
