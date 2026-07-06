@@ -186,15 +186,20 @@ let project = Project(
                 "NSPrincipalClass": .string("NSApplication"),
             ]),
             sources: ["Foreman/Foreman/Sources/**"],
-            // No Resources folder: the menu bar icon is an SF Symbol and the
-            // app ships no asset catalog, so clear the names the asset-catalog
-            // compiler would otherwise look for.
+            // The only resource is the string catalog (see below); the menu bar
+            // icon is an SF Symbol and the app ships no asset catalog, so the
+            // asset-catalog name settings below stay cleared.
+            resources: ["Foreman/Foreman/Resources/**"],
             dependencies: [
                 .package(product: "ForemanCore"),
             ],
+            // `STRING_CATALOG_GENERATE_SYMBOLS` turns `Resources/Localizable.xcstrings`
+            // into type-safe `LocalizedStringResource` symbols the views reference
+            // (e.g. `Text(.toolbarRescan)`); there is no hand-written strings enum.
             settings: .settings(base: [
                 "ASSETCATALOG_COMPILER_APPICON_NAME": "",
                 "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
+                "STRING_CATALOG_GENERATE_SYMBOLS": "YES",
             ]),
         ),
         .target(

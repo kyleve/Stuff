@@ -33,6 +33,9 @@ let package = Package(
                 .target(name: "LogKit"),
             ],
             path: "Foreman/ForemanCore/Sources",
+            resources: [
+                .process("Resources"),
+            ],
         ),
         .target(
             name: "LifecycleKit",
