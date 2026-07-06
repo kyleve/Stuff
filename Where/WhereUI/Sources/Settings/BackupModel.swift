@@ -37,12 +37,6 @@ public final class BackupModel {
         set { if !newValue { backupError = nil } }
     }
 
-    /// Staging directory of the most recent export. The share sheet copies the
-    /// file it needs out of our temporary directory, and `ShareLink` gives us no
-    /// dismissal hook to clean up after, so the previous export is deleted lazily
-    /// when the next one starts (bounding us to one stale archive).
-    private var previousExportDirectory: URL?
-
     private let services: WhereServices
     private static let logger = WhereLog.channel(.session)
 
@@ -52,17 +46,13 @@ public final class BackupModel {
 
     /// Build a backup `.zip` of the entire database and return its URL for the
     /// share sheet, or `nil` if the export failed (in which case `backupError` is
-    /// set). The caller is responsible for the returned temporary file.
+    /// set). The `BackupCoordinator` owns the temporary file's lifecycle — it
+    /// reclaims the previous export's directory when the next export starts.
     public func exportBackup() async -> URL? {
-        if let previous = previousExportDirectory {
-            try? FileManager.default.removeItem(at: previous)
-            previousExportDirectory = nil
-        }
         backupState = .exporting
         defer { backupState = .idle }
         do {
             let url = try await services.backup.exportBackup()
-            previousExportDirectory = url.deletingLastPathComponent()
             Self.logger.info("Exported backup archive")
             return url
         } catch {

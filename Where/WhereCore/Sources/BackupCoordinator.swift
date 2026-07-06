@@ -1,4 +1,5 @@
 import Foundation
+import LogKit
 
 /// Owns backup export/import over the `BackupService` and the store, publishing
 /// the widget snapshot after an import lands new data.
@@ -41,6 +42,15 @@ public actor BackupCoordinator {
     private let store: any WhereStore
     private let backupService = BackupService()
     private let widgets: WidgetSnapshotPublisher
+    private static let logger = WhereLog.channel(.backupService)
+
+    /// Staging directory of the most recent export. Each archive lands in its
+    /// own temporary directory; the share sheet copies the file it needs out of
+    /// ours and gives no dismissal hook to clean up after, so we purge the
+    /// previous export lazily when the next one starts (bounding us to one stale
+    /// archive on disk). Actor-isolated, so it survives the UI that triggered
+    /// the export being torn down.
+    private var previousExportDirectory: URL?
 
     init(store: any WhereStore, widgets: WidgetSnapshotPublisher) {
         self.store = store
@@ -48,9 +58,12 @@ public actor BackupCoordinator {
     }
 
     /// Serialize the entire store (all four tables plus evidence blobs) to a
-    /// `.zip` in the temporary directory and return its URL. The caller owns the
-    /// file: share it, then delete it (or its parent directory).
+    /// `.zip` in a fresh temporary directory and return its URL, first purging
+    /// the previous export's directory. The caller shares the file; the next
+    /// export (or process exit) reclaims the disk.
     public func exportBackup() async throws -> URL {
+        purgePreviousExport()
+
         let samples = try await store.allSamples()
         let evidence = try await store.allEvidence()
         let manualDays = try await store.allManualDays()
@@ -62,7 +75,7 @@ public actor BackupCoordinator {
             }
         }
         let backupService = backupService
-        return try await Task.detached(priority: .utility) {
+        let url = try await Task.detached(priority: .utility) {
             try backupService.makeArchiveFile(
                 samples: samples,
                 evidence: evidence,
@@ -71,6 +84,24 @@ public actor BackupCoordinator {
                 blobs: blobs,
             )
         }.value
+        previousExportDirectory = url.deletingLastPathComponent()
+        return url
+    }
+
+    /// Delete the previous export's staging directory if we still have one. A
+    /// failure here is non-fatal — a leftover temp directory only wastes a
+    /// little disk — so it's logged rather than thrown, and never blocks the new
+    /// export.
+    private func purgePreviousExport() {
+        guard let previous = previousExportDirectory else { return }
+        previousExportDirectory = nil
+        do {
+            try FileManager.default.removeItem(at: previous)
+        } catch {
+            Self.logger.warning(
+                "Failed to remove previous backup export directory: \(error.localizedDescription)",
+            )
+        }
     }
 
     /// Read a backup `.zip` and write its contents back into the store inside a

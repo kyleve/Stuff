@@ -143,6 +143,23 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
     }
 
+    /// The coordinator owns the export staging directory's lifecycle: starting a
+    /// new export purges the previous one, so at most one archive sits on disk.
+    @Test func exportPurgesThePreviousExportDirectory() async throws {
+        let harness = try Self.makeHarness()
+        try await Self.seed(harness.store)
+
+        let first = try await harness.coordinator.exportBackup()
+        let firstDirectory = first.deletingLastPathComponent()
+        #expect(FileManager.default.fileExists(atPath: first.path))
+
+        let second = try await harness.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: second.deletingLastPathComponent()) }
+
+        #expect(!FileManager.default.fileExists(atPath: firstDirectory.path))
+        #expect(FileManager.default.fileExists(atPath: second.path))
+    }
+
     @Test func importReportsProgressUpToCompletion() async throws {
         let source = try Self.makeHarness()
         try await Self.seed(source.store)
