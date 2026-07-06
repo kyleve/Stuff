@@ -48,7 +48,9 @@ struct SettingsView: View {
     @State private var selection: Pane? = .general
 
     var body: some View {
-        NavigationSplitView {
+        // The sidebar is always open: pin the visibility and drop the default
+        // sidebar-toggle button so the panes can't be collapsed away.
+        NavigationSplitView(columnVisibility: .constant(.all)) {
             List(selection: $selection) {
                 ForEach(Pane.allCases) { pane in
                     Label(pane.title, systemImage: pane.symbol)
@@ -56,10 +58,11 @@ struct SettingsView: View {
                 }
             }
             .navigationSplitViewColumnWidth(min: 170, ideal: 190, max: 220)
+            .toolbar(removing: .sidebarToggle)
         } detail: {
             detail
         }
-        .frame(minWidth: 620, minHeight: 380)
+        .frame(minWidth: 420, minHeight: 380)
     }
 
     @ViewBuilder
