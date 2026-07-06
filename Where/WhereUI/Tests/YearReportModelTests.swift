@@ -52,10 +52,12 @@ struct YearReportModelTests {
         try await services.journal.addManualDay(
             date: date(year: 2024, month: 3, day: 1),
             regions: [.newYork],
+            audit: nil,
         )
         try await services.journal.addManualDay(
             date: date(year: 2026, month: 3, day: 1),
             regions: [.california],
+            audit: nil,
         )
 
         let report = YearReportModel(services: services, selectedYear: 2026)
@@ -201,6 +203,7 @@ struct YearReportModelTests {
         try await services.journal.addManualDay(
             date: date(year: 2026, month: 1, day: 1),
             regions: [.california],
+            audit: nil,
         )
         await report.refresh()
         await report.refreshDataIssueCount(force: true)
@@ -330,6 +333,7 @@ struct YearReportModelTests {
         try await services.journal.addManualDay(
             date: date(year: 2026, month: 1, day: 1),
             regions: [.california],
+            audit: nil,
         )
 
         let report = YearReportModel(services: services, selectedYear: 2026, now: { now })
@@ -372,6 +376,7 @@ struct YearReportModelTests {
         try await services.journal.addManualDay(
             date: date(year: 2026, month: 1, day: 1),
             regions: [.california],
+            audit: nil,
         )
         await waitUntil { probe.report?.days.count == 1 }
 
@@ -402,6 +407,7 @@ struct YearReportModelTests {
         try await services.journal.addManualDay(
             date: date(year: 2026, month: 1, day: 1),
             regions: [.california],
+            audit: nil,
         )
         #expect(report.report?.days.count == 0)
 

@@ -138,6 +138,7 @@ struct WhereServicesTests {
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
+            audit: nil,
         )
 
         let report = try await services.reports.yearReport(for: 2026)
@@ -153,8 +154,8 @@ struct WhereServicesTests {
     @Test func manualDayReplacesOnSecondCall() async throws {
         let (services, _, _) = try Self.makeServices()
         let date = WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00")
-        try await services.journal.addManualDay(date: date, regions: [.california])
-        try await services.journal.addManualDay(date: date, regions: [.newYork])
+        try await services.journal.addManualDay(date: date, regions: [.california], audit: nil)
+        try await services.journal.addManualDay(date: date, regions: [.newYork], audit: nil)
 
         let report = try await services.reports.yearReport(for: 2026)
         #expect(report.days.count == 1)
@@ -178,6 +179,7 @@ struct WhereServicesTests {
         try await services.journal.overrideDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
+            audit: nil,
         )
 
         let report = try await services.reports.yearReport(for: 2026)
@@ -193,6 +195,7 @@ struct WhereServicesTests {
         try await services.journal.overrideDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
+            audit: nil,
         )
 
         // The override is non-destructive: the GPS sample is still on disk, so
@@ -213,6 +216,7 @@ struct WhereServicesTests {
         try await services.journal.overrideDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
+            audit: nil,
         )
         try await services.journal
             .clearManualDay(date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"))
@@ -245,12 +249,14 @@ struct WhereServicesTests {
         try await services.journal.overrideDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.california],
+            audit: nil,
         )
         // A later range backfill (Canada) sweeps over the same corrected day.
         try await services.journal.addManualDays(
             from: WhereCoreTestSupport.iso("2026-07-01T00:00:00-07:00"),
             through: WhereCoreTestSupport.iso("2026-07-07T00:00:00-07:00"),
             regions: [.canada],
+            audit: nil,
         )
 
         let report = try await services.reports.yearReport(for: 2026)
@@ -271,6 +277,7 @@ struct WhereServicesTests {
             from: WhereCoreTestSupport.iso("2026-02-10T09:00:00-08:00"),
             through: WhereCoreTestSupport.iso("2026-02-14T20:00:00-08:00"),
             regions: [.newYork],
+            audit: nil,
         )
 
         let report = try await services.reports.yearReport(for: 2026)
@@ -286,6 +293,7 @@ struct WhereServicesTests {
             from: WhereCoreTestSupport.iso("2026-02-14T00:00:00-08:00"),
             through: WhereCoreTestSupport.iso("2026-02-10T00:00:00-08:00"),
             regions: [.california],
+            audit: nil,
         )
 
         let report = try await services.reports.yearReport(for: 2026)
@@ -299,6 +307,7 @@ struct WhereServicesTests {
             from: WhereCoreTestSupport.iso("2026-02-10T06:00:00-08:00"),
             through: WhereCoreTestSupport.iso("2026-02-10T23:00:00-08:00"),
             regions: [.california],
+            audit: nil,
         )
 
         let report = try await services.reports.yearReport(for: 2026)
@@ -548,6 +557,7 @@ struct WhereServicesTests {
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
+            audit: nil,
         )
     }
 
@@ -604,6 +614,7 @@ struct WhereServicesTests {
         try await destination.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-02-02T10:00:00-08:00"),
             regions: [.canada],
+            audit: nil,
         )
 
         _ = try await destination.backup.importBackup(from: url, strategy: .replace)
@@ -736,6 +747,7 @@ struct WhereServicesTests {
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-03-03T12:00:00-08:00"),
             regions: [.california],
+            audit: nil,
         )
 
         #expect(await spy.lastBadgeCount == 67)
@@ -750,6 +762,7 @@ struct WhereServicesTests {
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-01-01T12:00:00-08:00"),
             regions: [.california],
+            audit: nil,
         )
         // Backlog (Jan 1–4) minus the logged Jan 1 leaves 3.
         #expect(await spy.lastBadgeCount == 3)
@@ -769,6 +782,7 @@ struct WhereServicesTests {
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-01-01T12:00:00-08:00"),
             regions: [.california],
+            audit: nil,
         )
         // Backlog (Jan 1–4) minus the logged Jan 1 leaves 3.
         #expect(await spy.lastBadgeCount == 3)
@@ -819,18 +833,22 @@ struct WhereServicesTests {
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-01-01T12:00:00-08:00"),
             regions: [.california],
+            audit: nil,
         )
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-01-02T12:00:00-08:00"),
             regions: [.california],
+            audit: nil,
         )
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-01-03T12:00:00-08:00"),
             regions: [.california],
+            audit: nil,
         )
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-01-04T12:00:00-08:00"),
             regions: [.newYork],
+            audit: nil,
         )
 
         await services.summary.configure(enabled: true, time: .defaultMorning)
@@ -904,8 +922,8 @@ struct WhereServicesTests {
         #expect(first?.totals == [.california: 1])
 
         let day = WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00")
-        try await services.journal.addManualDay(date: day, regions: [.newYork])
-        try await services.journal.overrideDay(date: day, regions: [.california])
+        try await services.journal.addManualDay(date: day, regions: [.newYork], audit: nil)
+        try await services.journal.overrideDay(date: day, regions: [.california], audit: nil)
         try await services.journal.clearManualDay(date: day)
         try await services.journal.clearYear(2026)
         #expect(await refresher.publishCount == 5)

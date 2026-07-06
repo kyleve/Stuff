@@ -307,7 +307,7 @@ public final class YearReportModel {
     /// No inline refresh: the committed write pings the store-change signal, so
     /// `observeDataChanges()` re-pulls the report + badge count.
     public func setManualDay(date: Date, regions: Set<Region>) async throws {
-        try await services.journal.addManualDay(date: date, regions: regions)
+        try await services.journal.addManualDay(date: date, regions: regions, audit: nil)
     }
 
     /// Persist a manual day range. Throws on persistence failure (see
@@ -317,13 +317,18 @@ public final class YearReportModel {
         through end: Date,
         regions: Set<Region>,
     ) async throws {
-        try await services.journal.addManualDays(from: start, through: end, regions: regions)
+        try await services.journal.addManualDays(
+            from: start,
+            through: end,
+            regions: regions,
+            audit: nil,
+        )
     }
 
     /// Authoritatively set a day's regions, *replacing* whatever was attributed
     /// to it (the Elsewhere "fix this day" path). Throws on persistence failure.
     public func overrideDay(date: Date, regions: Set<Region>) async throws {
-        try await services.journal.overrideDay(date: date, regions: regions)
+        try await services.journal.overrideDay(date: date, regions: regions, audit: nil)
     }
 
     /// Undo a day's manual override/backfill, restoring the GPS-detected regions

@@ -129,6 +129,7 @@ struct DayJournalTests {
         try await h.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-03-03T12:00:00-08:00"),
             regions: [.newYork],
+            audit: nil,
         )
 
         let report = try await h.reader.yearReport(for: 2026)
@@ -144,6 +145,7 @@ struct DayJournalTests {
         try await h.journal.overrideDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
+            audit: nil,
         )
 
         let report = try await h.reader.yearReport(for: 2026)
@@ -158,6 +160,7 @@ struct DayJournalTests {
         try await h.journal.overrideDay(
             date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"),
             regions: [.newYork],
+            audit: nil,
         )
         try await h.journal
             .clearManualDay(date: WhereCoreTestSupport.iso("2026-07-04T15:00:00-07:00"))
@@ -172,6 +175,7 @@ struct DayJournalTests {
             from: WhereCoreTestSupport.iso("2026-02-10T09:00:00-08:00"),
             through: WhereCoreTestSupport.iso("2026-02-14T20:00:00-08:00"),
             regions: [.newYork],
+            audit: nil,
         )
 
         let report = try await h.reader.yearReport(for: 2026)
@@ -185,6 +189,7 @@ struct DayJournalTests {
             from: WhereCoreTestSupport.iso("2026-02-14T00:00:00-08:00"),
             through: WhereCoreTestSupport.iso("2026-02-10T00:00:00-08:00"),
             regions: [.california],
+            audit: nil,
         )
 
         #expect(try await h.reader.yearReport(for: 2026).days.isEmpty)
