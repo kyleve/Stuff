@@ -865,17 +865,6 @@
         }
       }
     },
-    "primary.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Where"
-          }
-        }
-      }
-    },
     "recentActivity.empty.description" : {
       "extractionState" : "manual",
       "localizations" : {

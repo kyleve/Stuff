@@ -61,11 +61,6 @@ enum Strings {
 
     // MARK: Primary
 
-    /// The Primary tab's masthead wordmark.
-    static var primaryTitle: String {
-        localized("primary.title")
-    }
-
     static var primaryTimeline: String {
         localized("primary.timeline")
     }

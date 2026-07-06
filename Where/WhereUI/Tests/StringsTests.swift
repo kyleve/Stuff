@@ -8,7 +8,6 @@ import WhereCore
 struct StringsTests {
     @Test func simpleKeysResolveToCatalogValues() {
         #expect(Strings.tabElsewhere == "Elsewhere")
-        #expect(Strings.primaryTitle == "Where")
         #expect(Strings.loadErrorTitle == "Couldn't load your year")
         #expect(Strings.commonOK == "OK")
         #expect(Strings.manualSaveErrorTitle == "Couldn't save that day")
