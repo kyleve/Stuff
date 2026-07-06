@@ -201,20 +201,46 @@ struct ForemanServicesTests {
         #expect(fixture.login.unregisterCount == 1)
     }
 
-    @Test func aFailedLoginItemToggleSurfacesTheIssueAndStaysHonest() throws {
+    @Test func aFailedLoginItemToggleSurfacesTheErrorAndStaysHonest() throws {
         let fixture = try makeFixture(
             repoNames: [],
             loginBackend: LoginItemRecorder(failure: LoginItemTestError()),
         )
         fixture.services.start()
-        #expect(fixture.services.issueMessage == nil)
+        #expect(fixture.services.loginItemError == nil)
 
         fixture.services.startsAtLogin = true
 
         // The registration failed, so the toggle stays off and the failure is
-        // observable rather than silently swallowed.
+        // observable on the login-item channel (not the tree-level banner)
+        // rather than silently swallowed.
         #expect(!fixture.services.startsAtLogin)
-        #expect(fixture.services.issueMessage?.contains("Start at Login") == true)
+        #expect(fixture.services.loginItemError != nil)
+        #expect(fixture.services.issueMessage == nil)
+    }
+
+    @Test func aSuccessfulToggleClearsAPriorLoginItemError() throws {
+        let recorder = LoginItemRecorder(failure: LoginItemTestError())
+        let fixture = try makeFixture(repoNames: [], loginBackend: recorder)
+
+        fixture.services.startsAtLogin = true
+        #expect(fixture.services.loginItemError != nil)
+
+        // Recover: the next toggle succeeds and the stale error clears.
+        recorder.failure = nil
+        fixture.services.startsAtLogin = true
+        #expect(fixture.services.startsAtLogin)
+        #expect(fixture.services.loginItemError == nil)
+    }
+
+    @Test func pendingApprovalReadsAsEnabledAndNeedsApproval() throws {
+        let fixture = try makeFixture(
+            repoNames: [],
+            loginBackend: LoginItemRecorder(status: .requiresApproval),
+        )
+
+        #expect(fixture.services.startsAtLogin)
+        #expect(fixture.services.loginItemNeedsApproval)
     }
 
     // MARK: - Rescan

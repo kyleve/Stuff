@@ -18,34 +18,39 @@ final class SleepAssertionRecorder: SleepAssertionBackend {
     }
 }
 
-/// A `LoginItemBackend` that records register/unregister calls in memory and
-/// can be told to fail, so login-item wiring is testable without touching the
-/// real `SMAppService`.
+/// A `LoginItemBackend` that records register/unregister/open calls in memory
+/// and can be told to fail, so login-item wiring is testable without touching
+/// the real `SMAppService`.
 @MainActor
 final class LoginItemRecorder: LoginItemBackend {
-    private(set) var isRegistered: Bool
+    private(set) var status: LoginItemStatus
     private(set) var registerCount = 0
     private(set) var unregisterCount = 0
+    private(set) var openCount = 0
 
     /// When set, both `register()` and `unregister()` throw it (and leave
-    /// `isRegistered` unchanged), simulating an `SMAppService` failure.
+    /// `status` unchanged), simulating an `SMAppService` failure.
     var failure: (any Error)?
 
-    init(isRegistered: Bool = false, failure: (any Error)? = nil) {
-        self.isRegistered = isRegistered
+    init(status: LoginItemStatus = .notRegistered, failure: (any Error)? = nil) {
+        self.status = status
         self.failure = failure
     }
 
     func register() throws {
         registerCount += 1
         if let failure { throw failure }
-        isRegistered = true
+        status = .enabled
     }
 
     func unregister() throws {
         unregisterCount += 1
         if let failure { throw failure }
-        isRegistered = false
+        status = .notRegistered
+    }
+
+    func openSystemSettingsLoginItems() {
+        openCount += 1
     }
 }
 

@@ -58,27 +58,46 @@ public final class ForemanServices {
     /// Whether Foreman is registered to launch at login. Backed by
     /// `SMAppService` (the OS owns the real state), so this is a live read of
     /// the login-item status. The setter registers/unregisters and, on
-    /// failure, logs *and* surfaces `issueMessage` while leaving the observed
-    /// value honest — a failed toggle stays off rather than falsely on.
+    /// failure, logs *and* surfaces ``loginItemError`` while leaving the
+    /// observed value honest — a failed toggle stays off rather than falsely
+    /// on. A successful toggle clears the error.
     public var startsAtLogin: Bool {
         get { loginItem.isEnabled }
         set {
             do {
                 try loginItem.setEnabled(newValue)
+                loginItemError = nil
             } catch {
                 Self.logger.error("Couldn't update the login item: \(error)")
-                issueMessage = newValue
-                    ? "Couldn't turn on Start at Login: \(error.localizedDescription)"
-                    : "Couldn't turn off Start at Login: \(error.localizedDescription)"
+                loginItemError = newValue
+                    ? "Couldn't turn on “Launch at login”: \(error.localizedDescription)"
+                    : "Couldn't turn off “Launch at login”: \(error.localizedDescription)"
             }
         }
     }
+
+    /// The login item is registered but macOS is waiting for the user to
+    /// approve it in System Settings before it will launch.
+    public var loginItemNeedsApproval: Bool {
+        loginItem.needsApproval
+    }
+
+    /// The most recent login-item failure, surfaced in the settings window's
+    /// General pane (not the main-window banner — the toggle lives here).
+    /// Cleared by the next successful toggle.
+    public private(set) var loginItemError: String?
 
     /// Re-reads the login-item status from the OS; it can change outside the
     /// app (System Settings › General › Login Items), so the UI refreshes it
     /// when the settings window reappears.
     public func refreshLoginItemStatus() {
         loginItem.refresh()
+    }
+
+    /// Opens System Settings › General › Login Items so the user can approve a
+    /// pending login item.
+    public func openSystemSettingsLoginItems() {
+        loginItem.openSystemSettingsLoginItems()
     }
 
     /// Where worker logs land: `~/Library/Logs/Foreman`.

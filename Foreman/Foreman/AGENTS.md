@@ -40,8 +40,10 @@ formatting, global conventions) and ForemanCore's
 - **Hiding the window does not cancel `.task`** — an ordered-out `NSWindow`
   keeps its SwiftUI hierarchy alive and loops keep ticking (verified
   empirically). Any periodic work in this window must gate on
-  `WindowVisibilityReader` (see `WorkerLogView`), and view drafts re-seed on
-  visibility (see `SettingsView`).
+  `WindowVisibilityReader` (see `WorkerLogView`), and the settings General
+  pane re-reads the login-item status on visibility (see `SettingsView`). The
+  settings path fields are edited in an explicit Save/Cancel sheet, so there
+  is no commit-on-blur to lose when switching panes.
 - The target is an `LSUIElement` with a hand-written Info.plist in
   [`Project.swift`](../../Project.swift) — don't switch to
   `.extendingDefault`, which injects `NSMainStoryboardFile` on macOS.

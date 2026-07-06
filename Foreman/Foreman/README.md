@@ -48,15 +48,17 @@ closed. Closing the window just hides it — the app keeps running until Quit.
 ## Settings
 
 The settings window is a macOS System-Settings-style sidebar with three panes.
-There's no Save button — changes apply as you make them (a field commits on
-Return / focus change / a folder pick; a toggle applies immediately).
+The *Launch at login* toggle applies immediately; the path settings open a
+small editor sheet that commits only on **Save** (Cancel or Escape discards).
 
 - **General** — *Launch Foreman at login*. Registers Foreman as a login item
   via `SMAppService`, so it starts (and restores your enabled workers) when
-  you log in.
+  you log in. If macOS needs you to approve the item first, the pane says so
+  and links straight to System Settings; a failed toggle shows its error here.
 - **Repositories** — the directory scanned for git repositories (empty =
-  `~/Development`), with a folder picker.
-- **Agent** — an explicit `cursor-agent` executable path (empty = auto-detect).
+  `~/Development`), edited via a sheet with a folder picker.
+- **Agent** — an explicit `cursor-agent` executable path (empty = auto-detect),
+  edited via a sheet.
 
 ## Lifecycle
 

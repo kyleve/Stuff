@@ -54,8 +54,11 @@ let argv = repo.options.arguments(workerDirectory: repo.rootURL)
   into the saved JSON, recomputes the sleep assertion on every worker
   transition, and surfaces tree-level problems (unreadable config, failed
   scan, failed save) on the observable `issueMessage`. `startsAtLogin` is a
-  two-way property over the login item (see `LoginItemController`);
-  `refreshLoginItemStatus()` re-reads it from the OS.
+  two-way property over the login item (see `LoginItemController`), with
+  `loginItemNeedsApproval` and a dedicated `loginItemError` (login failures
+  surface here, not on the shared `issueMessage`); `refreshLoginItemStatus()`
+  re-reads it from the OS and `openSystemSettingsLoginItems()` jumps to the
+  approval UI.
 - **`Repo` / `RepoID`** — one discovered repository as an `@Observable`
   object: identity (`name`, `rootURL`, typed `RepoID` = canonical absolute
   path), the persisted intent (`isEnabled`, `options` — mutations start/stop
@@ -112,10 +115,14 @@ let argv = repo.options.arguments(workerDirectory: repo.rootURL)
 - **`LoginItemController`** — reflects and toggles whether Foreman launches at
   login, wrapping `SMAppService.mainApp` (no helper bundle or entitlement
   needed for the main app). The OS owns the real state, so the observable
-  `isEnabled` is read from the service and `refresh()` re-reads it (the user
-  can change it in System Settings); `setEnabled(_:)` registers/unregisters
-  and re-syncs so a failed attempt never reads as falsely on. The real service
-  sits behind an `@_spi(Testing)` `LoginItemBackend` so tests inject a double.
+  `status` (a `LoginItemStatus`: `enabled` / `requiresApproval` /
+  `notRegistered`) is read from the service and `refresh()` re-reads it (the
+  user can change it in System Settings). `isEnabled` treats a pending
+  (`requiresApproval`) item as on — not off — with `needsApproval` flagging
+  that the user still has to confirm it (`openSystemSettingsLoginItems()`
+  jumps there). `setEnabled(_:)` registers/unregisters and re-syncs so a
+  failed attempt never reads as falsely on. The real service sits behind an
+  `@_spi(Testing)` `LoginItemBackend` so tests inject a double.
 - **`CursorAgentLocator`** — resolves the `cursor-agent` executable. GUI apps
   don't inherit the shell `PATH`, so it checks the CLI's known install
   locations (`~/.local/bin`, `/usr/local/bin`, `/opt/homebrew/bin`); an

@@ -94,6 +94,29 @@ private struct GeneralSettingsView: View {
             )
             .font(.caption)
             .foregroundStyle(.secondary)
+
+            // Registered but macOS is waiting for the user to approve it.
+            if session.loginItemNeedsApproval {
+                LabeledContent {
+                    Button("Open Login Items…") {
+                        session.openSystemSettingsLoginItems()
+                    }
+                } label: {
+                    Label(
+                        "Approve Foreman in System Settings to finish enabling this.",
+                        systemImage: "exclamationmark.triangle.fill",
+                    )
+                    .foregroundStyle(.orange)
+                }
+            }
+
+            // A failed register/unregister — shown here (not the main-window
+            // banner) because the toggle lives in this window.
+            if let error = session.loginItemError {
+                Label(error, systemImage: "xmark.octagon.fill")
+                    .font(.callout)
+                    .foregroundStyle(.red)
+            }
         }
         .formStyle(.grouped)
         .navigationTitle("General")
@@ -108,115 +131,155 @@ private struct GeneralSettingsView: View {
     }
 }
 
-/// Repository discovery: where to scan for git repositories.
+/// Repository discovery: where to scan for git repositories. The value is
+/// read-only here; editing happens in an explicit-commit sheet so switching
+/// panes can't drop a half-typed path.
 private struct RepositoriesSettingsView: View {
     let session: ForemanSession
 
-    @State private var scanDirectory: String
-    @State private var isWindowVisible = true
-    @FocusState private var isFocused: Bool
-
-    init(session: ForemanSession) {
-        self.session = session
-        _scanDirectory = State(initialValue: session.settings.scanDirectory?.path ?? "")
-    }
+    @State private var isEditing = false
 
     var body: some View {
         Form {
             LabeledContent("Scan directory") {
-                HStack(spacing: 4) {
-                    TextField(
-                        "Scan directory",
-                        text: $scanDirectory,
-                        prompt: Text("~/Development"),
-                    )
-                    .labelsHidden()
-                    .focused($isFocused)
-                    .onSubmit { apply() }
-                    Button("Choose…") { chooseScanDirectory() }
-                }
+                Text(session.settings.scanDirectory?.path ?? "~/Development (default)")
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
             }
+            Button("Change…") { isEditing = true }
             Text("Foreman lists the git repositories directly inside this directory.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
         .formStyle(.grouped)
         .navigationTitle("Repositories")
-        // Tabbing or clicking out of the field commits it, like Return does.
-        .onChange(of: isFocused) { _, focused in
-            if !focused { apply() }
-        }
-        .background(WindowVisibilityReader(isVisible: $isWindowVisible))
-        // The Settings window keeps its hierarchy across opens, so init-time
-        // drafts go stale; re-seed whenever the window comes back.
-        .onChange(of: isWindowVisible) { _, visible in
-            if visible { scanDirectory = session.settings.scanDirectory?.path ?? "" }
-        }
-    }
-
-    private func apply() {
-        session.settings.scanDirectory = parseURL(from: scanDirectory)
-    }
-
-    private func chooseScanDirectory() {
-        let panel = NSOpenPanel()
-        panel.canChooseDirectories = true
-        panel.canChooseFiles = false
-        panel.allowsMultipleSelection = false
-        panel.directoryURL = session.settings.resolvedScanDirectory
-        if panel.runModal() == .OK, let url = panel.url {
-            scanDirectory = url.path
-            apply()
+        .sheet(isPresented: $isEditing) {
+            PathEditorSheet(
+                title: "Scan directory",
+                prompt: "~/Development",
+                caption: "Leave empty to use the default (~/Development).",
+                directoryPickerStart: session.settings.resolvedScanDirectory,
+                initialValue: session.settings.scanDirectory?.path ?? "",
+                onSave: { session.settings.scanDirectory = $0 },
+            )
         }
     }
 }
 
-/// Agent settings: which `cursor-agent` executable to run.
+/// Agent settings: which `cursor-agent` executable to run. Read-only here;
+/// edited via an explicit-commit sheet (see `RepositoriesSettingsView`).
 private struct AgentSettingsView: View {
     let session: ForemanSession
 
-    @State private var agentExecutable: String
-    @State private var isWindowVisible = true
-    @FocusState private var isFocused: Bool
-
-    init(session: ForemanSession) {
-        self.session = session
-        _agentExecutable = State(initialValue: session.settings.agentExecutable?.path ?? "")
-    }
+    @State private var isEditing = false
 
     var body: some View {
         Form {
             LabeledContent("cursor-agent") {
-                VStack(alignment: .leading, spacing: 4) {
-                    TextField(
-                        "cursor-agent executable",
-                        text: $agentExecutable,
-                        prompt: Text("Auto-detect"),
-                    )
-                    .labelsHidden()
-                    .focused($isFocused)
-                    .onSubmit { apply() }
-                    Text(
-                        "Leave empty to search: \(CursorAgentLocator.defaultSearchPaths.joined(separator: ", "))",
-                    )
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                }
+                Text(session.settings.agentExecutable?.path ?? "Auto-detect")
+                    .foregroundStyle(.secondary)
+                    .textSelection(.enabled)
             }
+            Button("Change…") { isEditing = true }
+            Text(
+                "Leave empty to search: \(CursorAgentLocator.defaultSearchPaths.joined(separator: ", "))",
+            )
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
         }
         .formStyle(.grouped)
         .navigationTitle("Agent")
-        .onChange(of: isFocused) { _, focused in
-            if !focused { apply() }
-        }
-        .background(WindowVisibilityReader(isVisible: $isWindowVisible))
-        .onChange(of: isWindowVisible) { _, visible in
-            if visible { agentExecutable = session.settings.agentExecutable?.path ?? "" }
+        .sheet(isPresented: $isEditing) {
+            PathEditorSheet(
+                title: "cursor-agent executable",
+                prompt: "Auto-detect",
+                caption: "Leave empty to auto-detect from the known install locations.",
+                directoryPickerStart: nil,
+                initialValue: session.settings.agentExecutable?.path ?? "",
+                onSave: { session.settings.agentExecutable = $0 },
+            )
         }
     }
+}
 
-    private func apply() {
-        session.settings.agentExecutable = parseURL(from: agentExecutable)
+/// A modal editor for a single optional path setting. The draft only commits
+/// when the user taps Save (Cancel/Escape discards it), so there is no
+/// commit-on-blur and no way to lose a half-typed value by navigating away.
+/// Empty commits as `nil` (the setting's default).
+private struct PathEditorSheet: View {
+    let title: String
+    let prompt: String
+    let caption: String
+    /// When non-nil, shows a "Choose…" folder picker starting at this URL.
+    let directoryPickerStart: URL?
+    let initialValue: String
+    let onSave: (URL?) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var draft: String
+    @FocusState private var isFocused: Bool
+
+    init(
+        title: String,
+        prompt: String,
+        caption: String,
+        directoryPickerStart: URL?,
+        initialValue: String,
+        onSave: @escaping (URL?) -> Void,
+    ) {
+        self.title = title
+        self.prompt = prompt
+        self.caption = caption
+        self.directoryPickerStart = directoryPickerStart
+        self.initialValue = initialValue
+        self.onSave = onSave
+        _draft = State(initialValue: initialValue)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text(title)
+                .font(.headline)
+            HStack(spacing: 8) {
+                TextField(title, text: $draft, prompt: Text(prompt))
+                    .labelsHidden()
+                    .focused($isFocused)
+                    .onSubmit { save() }
+                if directoryPickerStart != nil {
+                    Button("Choose…") { choose() }
+                }
+            }
+            Text(caption)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Save") { save() }
+                    .keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(width: 460)
+        .onAppear { isFocused = true }
+    }
+
+    private func save() {
+        onSave(parseURL(from: draft))
+        dismiss()
+    }
+
+    private func choose() {
+        guard let directoryPickerStart else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = directoryPickerStart
+        if panel.runModal() == .OK, let url = panel.url {
+            draft = url.path
+        }
     }
 }
 
