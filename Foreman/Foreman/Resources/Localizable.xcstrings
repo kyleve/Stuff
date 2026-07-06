@@ -1,0 +1,930 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "common.cancel" : {
+      "comment" : "Button that dismisses an editor sheet without saving.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
+    },
+    "common.save" : {
+      "comment" : "Button that commits the current edits.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save"
+          }
+        }
+      }
+    },
+    "detail.action.restart" : {
+      "comment" : "Button in the worker detail status row that stops and restarts a running worker.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restart"
+          }
+        }
+      }
+    },
+    "detail.action.restart.help" : {
+      "comment" : "Tooltip for the Restart button in the worker detail.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop the worker and start it again with the saved options."
+          }
+        }
+      }
+    },
+    "detail.action.retry" : {
+      "comment" : "Button in the worker detail status row that retries a failed worker.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        }
+      }
+    },
+    "detail.action.retry.help" : {
+      "comment" : "Tooltip for the Retry button in the worker detail.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Try starting the worker again."
+          }
+        }
+      }
+    },
+    "detail.command.header" : {
+      "comment" : "Section header above the cursor-agent command the next start will spawn.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Command"
+          }
+        }
+      }
+    },
+    "detail.empty.description" : {
+      "comment" : "Description of the empty detail pane shown when no repo is selected.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick a repo to inspect and control its worker."
+          }
+        }
+      }
+    },
+    "detail.empty.title" : {
+      "comment" : "Title of the empty detail pane shown when no repo is selected.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a Repository"
+          }
+        }
+      }
+    },
+    "detail.failure.label" : {
+      "comment" : "Label for the row showing why a worker failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failure"
+          }
+        }
+      }
+    },
+    "detail.log.header" : {
+      "comment" : "Section header above the live worker log tail.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log"
+          }
+        }
+      }
+    },
+    "detail.log.openFile" : {
+      "comment" : "Button that opens the worker's log file in the default app.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open File"
+          }
+        }
+      }
+    },
+    "detail.path.label" : {
+      "comment" : "Label for the row showing the repository's path.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Path"
+          }
+        }
+      }
+    },
+    "detail.pid.label" : {
+      "comment" : "Label for the row showing the running worker's process id.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PID"
+          }
+        }
+      }
+    },
+    "detail.status.label" : {
+      "comment" : "Label for the row showing the worker's status.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
+    "detail.uptime.label" : {
+      "comment" : "Label for the row showing how long a worker has been running.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uptime"
+          }
+        }
+      }
+    },
+    "favorite.add" : {
+      "comment" : "Menu/toolbar action that pins a repo as a favorite.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to Favorites"
+          }
+        }
+      }
+    },
+    "favorite.add.help" : {
+      "comment" : "Tooltip for the favorite toolbar button when the repo is not a favorite.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pin this repo to the top of its section."
+          }
+        }
+      }
+    },
+    "favorite.remove" : {
+      "comment" : "Menu/toolbar action that unpins a favorited repo.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from Favorites"
+          }
+        }
+      }
+    },
+    "favorite.remove.help" : {
+      "comment" : "Tooltip for the favorite toolbar button when the repo is already a favorite.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove this repo from favorites."
+          }
+        }
+      }
+    },
+    "log.empty" : {
+      "comment" : "Shown in the log tail when the worker has no log file yet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No log yet — this worker hasn't started."
+          }
+        }
+      }
+    },
+    "log.readFailed" : {
+      "comment" : "Shown when the worker's log file couldn't be read. The placeholder is the underlying error message.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read the log: %(message)@"
+          }
+        }
+      }
+    },
+    "options.header" : {
+      "comment" : "Section header for the worker options editor.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Options"
+          }
+        }
+      }
+    },
+    "options.idleRelease.label" : {
+      "comment" : "Field label for the worker's idle-release timeout in seconds.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Idle release (seconds)"
+          }
+        }
+      }
+    },
+    "options.idleRelease.prompt" : {
+      "comment" : "Placeholder for the idle-release field; zero means the worker is never released.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "0 = never"
+          }
+        }
+      }
+    },
+    "options.label.key" : {
+      "comment" : "Placeholder for the key part of a worker key=value label.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "key"
+          }
+        }
+      }
+    },
+    "options.label.value" : {
+      "comment" : "Placeholder for the value part of a worker key=value label.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "value"
+          }
+        }
+      }
+    },
+    "options.labels.add.help" : {
+      "comment" : "Tooltip for the button that adds a worker key=value label.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a key=value label for this worker."
+          }
+        }
+      }
+    },
+    "options.labels.header" : {
+      "comment" : "Header for the worker labels sub-section.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Labels"
+          }
+        }
+      }
+    },
+    "options.locked.footer" : {
+      "comment" : "Footer explaining that options can only be edited while the worker is stopped.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stop the worker to edit — options apply when it starts. Restart respawns with the saved options."
+          }
+        }
+      }
+    },
+    "options.pool.toggle" : {
+      "comment" : "Toggle that runs the worker in pool mode (one agent at a time).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pool worker (one agent at a time)"
+          }
+        }
+      }
+    },
+    "options.poolName.label" : {
+      "comment" : "Field label for the worker's pool name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pool name"
+          }
+        }
+      }
+    },
+    "options.poolName.prompt" : {
+      "comment" : "Placeholder for the pool-name field (the default pool).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "default"
+          }
+        }
+      }
+    },
+    "options.resetDefaults" : {
+      "comment" : "Button that resets the worker options to their defaults.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset to Defaults"
+          }
+        }
+      }
+    },
+    "options.revert" : {
+      "comment" : "Button that discards unsaved worker option edits.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Revert"
+          }
+        }
+      }
+    },
+    "options.verbose.toggle" : {
+      "comment" : "Toggle for verbose worker startup logs.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Verbose startup logs"
+          }
+        }
+      }
+    },
+    "options.workerName.label" : {
+      "comment" : "Field label for the worker's display name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worker name"
+          }
+        }
+      }
+    },
+    "options.workerName.prompt" : {
+      "comment" : "Placeholder for the worker-name field (defaults to the host name).",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Host name"
+          }
+        }
+      }
+    },
+    "row.failed" : {
+      "comment" : "Caption under a repo row whose worker failed, pointing to the detail pane.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed — see detail"
+          }
+        }
+      }
+    },
+    "row.favorite.help" : {
+      "comment" : "Tooltip on the star shown for a favorited repo row.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorite"
+          }
+        }
+      }
+    },
+    "settings.agent.autoDetect" : {
+      "comment" : "Shown when no explicit cursor-agent path is set, and as the field placeholder.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auto-detect"
+          }
+        }
+      }
+    },
+    "settings.agent.caption" : {
+      "comment" : "Caption in the cursor-agent path editor sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave empty to auto-detect from the known install locations."
+          }
+        }
+      }
+    },
+    "settings.agent.editorTitle" : {
+      "comment" : "Title of the sheet for editing the cursor-agent executable path.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "cursor-agent executable"
+          }
+        }
+      }
+    },
+    "settings.agent.searchFooter" : {
+      "comment" : "Footer listing the paths searched for cursor-agent. The placeholder is a comma-separated path list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave empty to search: %(paths)@"
+          }
+        }
+      }
+    },
+    "settings.agent.title" : {
+      "comment" : "Sidebar title for the Agent settings pane.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent"
+          }
+        }
+      }
+    },
+    "settings.change" : {
+      "comment" : "Button that opens an editor sheet to change a path setting.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change…"
+          }
+        }
+      }
+    },
+    "settings.choose" : {
+      "comment" : "Button that opens a folder picker in a path editor sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose…"
+          }
+        }
+      }
+    },
+    "settings.general.approvalNeeded" : {
+      "comment" : "Shown when the login item is registered but awaiting approval in System Settings.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approve Foreman in System Settings to finish enabling this."
+          }
+        }
+      }
+    },
+    "settings.general.launchFooter" : {
+      "comment" : "Footer under the launch-at-login toggle.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foreman lives in the menu bar. Turn this on to start it automatically when you log in — it will restore any enabled workers."
+          }
+        }
+      }
+    },
+    "settings.general.launchToggle" : {
+      "comment" : "Toggle that registers Foreman to launch at login.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Launch Foreman at login"
+          }
+        }
+      }
+    },
+    "settings.general.openLoginItems" : {
+      "comment" : "Button that opens System Settings' Login Items pane.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Login Items…"
+          }
+        }
+      }
+    },
+    "settings.general.title" : {
+      "comment" : "Sidebar title for the General settings pane.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "General"
+          }
+        }
+      }
+    },
+    "settings.repositories.caption" : {
+      "comment" : "Caption in the scan-directory editor sheet.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leave empty to use the default (~/Development)."
+          }
+        }
+      }
+    },
+    "settings.repositories.default" : {
+      "comment" : "Shown for the scan directory when it falls back to the default location.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~/Development (default)"
+          }
+        }
+      }
+    },
+    "settings.repositories.footer" : {
+      "comment" : "Footer explaining what the scan directory is used for.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Foreman lists the git repositories directly inside this directory."
+          }
+        }
+      }
+    },
+    "settings.repositories.prompt" : {
+      "comment" : "Placeholder for the scan-directory field.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "~/Development"
+          }
+        }
+      }
+    },
+    "settings.repositories.scanDirectory" : {
+      "comment" : "Label and editor-sheet title for the repository scan directory.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan directory"
+          }
+        }
+      }
+    },
+    "settings.repositories.title" : {
+      "comment" : "Sidebar title for the Repositories settings pane.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Repositories"
+          }
+        }
+      }
+    },
+    "sidebar.empty.title" : {
+      "comment" : "Shown when no git repositories were found in the scan directory.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Git Repositories"
+          }
+        }
+      }
+    },
+    "sidebar.section.disabled" : {
+      "comment" : "Sidebar section header for repos whose worker is disabled.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Disabled"
+          }
+        }
+      }
+    },
+    "sidebar.section.enabled" : {
+      "comment" : "Sidebar section header for repos whose worker is enabled.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enabled"
+          }
+        }
+      }
+    },
+    "status.failed" : {
+      "comment" : "Worker status: the worker failed.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed"
+          }
+        }
+      }
+    },
+    "status.failed.reason" : {
+      "comment" : "Worker status tooltip with the failure reason. The placeholder is the reason text.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed: %(reason)@"
+          }
+        }
+      }
+    },
+    "status.restarting" : {
+      "comment" : "Worker status: stopping in order to restart.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Restarting…"
+          }
+        }
+      }
+    },
+    "status.running" : {
+      "comment" : "Worker status: the worker is running.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running"
+          }
+        }
+      }
+    },
+    "status.running.pid" : {
+      "comment" : "Worker status tooltip with the running process id. The placeholder is the pid.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running (pid %(pid)lld)"
+          }
+        }
+      }
+    },
+    "status.stopped" : {
+      "comment" : "Worker status: the worker is stopped.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stopped"
+          }
+        }
+      }
+    },
+    "status.stopping" : {
+      "comment" : "Worker status: the worker is stopping.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stopping…"
+          }
+        }
+      }
+    },
+    "toolbar.preventingSleep" : {
+      "comment" : "Toolbar badge shown while the sleep assertion is held.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Preventing sleep"
+          }
+        }
+      }
+    },
+    "toolbar.preventingSleep.help" : {
+      "comment" : "Tooltip for the preventing-sleep toolbar badge.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Mac won't idle-sleep while workers are running."
+          }
+        }
+      }
+    },
+    "toolbar.quit" : {
+      "comment" : "Toolbar button that quits Foreman.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit"
+          }
+        }
+      }
+    },
+    "toolbar.quit.help" : {
+      "comment" : "Tooltip for the Quit toolbar button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quit Foreman and stop all workers."
+          }
+        }
+      }
+    },
+    "toolbar.rescan" : {
+      "comment" : "Toolbar button that re-scans for repositories.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rescan"
+          }
+        }
+      }
+    },
+    "toolbar.rescan.help" : {
+      "comment" : "Tooltip for the Rescan toolbar button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Re-scan the development directory for repositories."
+          }
+        }
+      }
+    },
+    "toolbar.settings" : {
+      "comment" : "Toolbar button that opens Foreman's settings window.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        }
+      }
+    },
+    "toolbar.settings.help" : {
+      "comment" : "Tooltip for the Settings toolbar button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Foreman's settings."
+          }
+        }
+      }
+    },
+    "worker.enabled.toggle" : {
+      "comment" : "Toggle that enables or disables a repo's worker.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Worker enabled"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.1"
+}
