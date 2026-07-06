@@ -55,8 +55,6 @@ enum UIConstants {
         /// Point size of the oversized region glyph watermarked behind a card.
         static let stampWatermark: CGFloat = 150
         static let stampWatermarkCompact: CGFloat = 96
-        /// Point size of the Primary tab's gold-foil "Where" masthead.
-        static let mastheadFontSize: CGFloat = 52
         /// Height of the map header on the Elsewhere region drill-in.
         static let regionMapHeight: CGFloat = 220
         /// Upper bound for a picker-grid thumbnail edge; the actual size flexes
