@@ -289,6 +289,12 @@ let project = Project(
             sources: ["Shared/SwiftDataInspector/Tests/**"],
         ),
         unitTests(
+            name: "StorageKitTests",
+            bundleIdSuffix: "storagekit",
+            productDependency: "StorageKit",
+            sources: ["Shared/StorageKit/Tests/**"],
+        ),
+        unitTests(
             name: "WhereCoreTests",
             bundleIdSuffix: "wherecore",
             productDependency: "WhereCore",
@@ -366,6 +372,7 @@ let project = Project(
         testScheme(name: "LogKitTests"),
         testScheme(name: "LogViewerUITests"),
         testScheme(name: "SwiftDataInspectorTests"),
+        testScheme(name: "StorageKitTests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),

@@ -15,6 +15,7 @@ let package = Package(
         .library(name: "LogKit", targets: ["LogKit"]),
         .library(name: "LogViewerUI", targets: ["LogViewerUI"]),
         .library(name: "SwiftDataInspector", targets: ["SwiftDataInspector"]),
+        .library(name: "StorageKit", targets: ["StorageKit"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
         .library(name: "WhereTesting", targets: ["WhereTesting"]),
@@ -55,6 +56,10 @@ let package = Package(
         .target(
             name: "SwiftDataInspector",
             path: "Shared/SwiftDataInspector/Sources",
+        ),
+        .target(
+            name: "StorageKit",
+            path: "Shared/StorageKit/Sources",
         ),
         .target(
             name: "WhereCore",
