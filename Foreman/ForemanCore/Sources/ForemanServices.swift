@@ -298,13 +298,15 @@ public final class ForemanServices {
         }
 
         // A live cursor-agent holds the worktree open, so stop it and wait for
-        // the process to actually exit before touching the files.
-        if let repo, repo.worker.state.isLive {
-            repo.isEnabled = false
-            try await waitForWorkerToStop(repo, path: copy)
-        }
-
+        // the process to actually exit before touching the files. If any step
+        // then fails, put the worker back the way we found it — a copy that
+        // still exists shouldn't be left silently stopped/disabled.
+        let wasEnabled = repo?.isEnabled ?? false
         do {
+            if let repo, repo.worker.state.isLive {
+                repo.isEnabled = false
+                try await waitForWorkerToStop(repo, path: copy)
+            }
             switch provenance.kind {
                 case .worktree:
                     try copyRemover.removeWorktree(
@@ -315,7 +317,15 @@ public final class ForemanServices {
                     try copyRemover.removeClone(at: copy)
             }
         } catch {
+            if let repo, wasEnabled, !repo.isEnabled {
+                repo.isEnabled = true // restart the worker we stopped
+            }
             Self.logger.error("Couldn't remove copy at \(copy.path): \(error)")
+            // Preserve a precise ControlError (e.g. workerDidNotStop); wrap
+            // only opaque remover failures.
+            if let controlError = error as? ControlError {
+                throw controlError
+            }
             throw ControlError.removeFailed(reason: error.localizedDescription)
         }
 

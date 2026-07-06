@@ -556,11 +556,13 @@ struct ForemanServicesTests {
         await #expect(throws: ControlError.self) {
             try await fixture.services.removeCopy(at: copy)
         }
-        // The worker was still stopped, and the repo survives (removal failed,
-        // so it wasn't silently dropped).
+        // The removal failed, so the copy is restored to how we found it: the
+        // repo survives, stays enabled, and its worker is running again rather
+        // than being silently left stopped/disabled.
         #expect(fixture.services.repos.contains { $0.name == "Copy" })
-        try await waitUntil("worker stopped after failed removal") {
-            repo.worker.state == .stopped
+        #expect(repo.isEnabled)
+        try await waitUntil("worker running again after failed removal") {
+            repo.worker.state.isLive
         }
     }
 }
