@@ -22,7 +22,7 @@ struct ControlRequestHandlerTests {
             Issue.record("expected a describe response")
             return
         }
-        #expect(result.scanDirectory == fixture.scanDirectory.path)
+        #expect(result.scanDirectory == fixture.scanDirectory.standardizedFileURL.path)
         #expect(result.repos.map(\.name) == ["Main"])
         #expect(result.repos[0].provenance == nil)
     }

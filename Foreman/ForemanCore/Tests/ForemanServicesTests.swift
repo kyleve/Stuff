@@ -474,7 +474,7 @@ struct ForemanServicesTests {
         )
 
         let described = fixture.services.describe()
-        #expect(described.scanDirectory == fixture.scanDirectory.path)
+        #expect(described.scanDirectory == fixture.scanDirectory.standardizedFileURL.path)
         let copyStatus = try #require(described.repos.first { $0.name == "Copy" })
         #expect(copyStatus.provenance?.kind == "clone")
         #expect(copyStatus.provenance?.parentRepoID == parentID.rawValue)

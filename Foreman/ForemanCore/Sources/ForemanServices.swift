@@ -226,8 +226,11 @@ public final class ForemanServices {
     /// A snapshot of the scan directory and every known repo, for the MCP's
     /// `list_repos` and for placing new copies. Pure read of the live tree.
     public func describe() -> DescribeResultDTO {
+        // Report the standardized path: adoptAndStartWorker validates a copy's
+        // parent against the standardized scan directory, and the MCP builds
+        // the copy path from this value, so the two must match forms.
         DescribeResultDTO(
-            scanDirectory: settings.resolvedScanDirectory.path,
+            scanDirectory: settings.resolvedScanDirectory.standardizedFileURL.path,
             repos: discovery.repos.map { RepoStatusDTO(repo: $0) },
         )
     }
