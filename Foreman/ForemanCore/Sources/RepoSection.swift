@@ -5,7 +5,8 @@ import Foundation
 ///
 /// This is the pure ordering rule behind the "smarter" repo list. It lives in
 /// Core (not the view) so the sectioning and sort are unit-tested; the app
-/// target only renders a `Section` per element.
+/// target renders each section as a group header followed by its rows (a
+/// single flat list, so rows glide across the group boundary).
 ///
 /// The struct itself is not actor-isolated (so its `Identifiable` conformance
 /// stays nonisolated); only ``sections(from:)`` is `@MainActor`, since reading

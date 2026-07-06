@@ -174,6 +174,29 @@ struct ForemanServicesTests {
         #expect(try fixture.store.load().repos[repo.id] == nil)
     }
 
+    @Test func disablingAFavoritedRepoKeepsItsEntry() async throws {
+        let fixture = try makeFixture(repoNames: ["Thing"])
+        fixture.services.start()
+        let repo = try #require(fixture.services.repos.first)
+
+        repo.isFavorite = true
+        repo.isEnabled = true
+        try await waitUntil("worker reaches running") {
+            repo.worker.state.isLive
+        }
+
+        // Disabling clears the enabled flag but the favorite is separate state,
+        // so the record survives (not dropped as a no-op).
+        repo.isEnabled = false
+        let saved = try #require(try fixture.store.load().repos[repo.id])
+        #expect(!saved.isEnabled)
+        #expect(saved.isFavorite)
+
+        try await waitUntil("worker stops") {
+            repo.worker.state == .stopped
+        }
+    }
+
     @Test func savedFavoriteIsRestoredOnLaunch() throws {
         let fixture = try makeFixture(repoNames: ["Pinned"]) { configuration, scanDirectory in
             configuration.repos[

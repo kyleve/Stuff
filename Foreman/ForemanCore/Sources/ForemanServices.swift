@@ -192,10 +192,12 @@ public final class ForemanServices {
     }
 
     private func repoDidChange(_ repo: Repo) {
-        var record = configuration.configuration(for: repo.id)
-        record.isEnabled = repo.isEnabled
-        record.isFavorite = repo.isFavorite
-        record.options = repo.options
+        // The repo is the source of truth for its whole persisted record.
+        let record = RepoConfiguration(
+            isEnabled: repo.isEnabled,
+            isFavorite: repo.isFavorite,
+            options: repo.options,
+        )
         if record == .standard {
             // A fully default record reads identically to an absent entry;
             // dropping it keeps the file from accumulating no-op records.
