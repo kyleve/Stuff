@@ -51,13 +51,23 @@ public enum LaunchStepID: String {
 public enum WhereLaunch {
     private static let logger = WhereLog.channel(.launch)
 
-    /// Maps UIKit launch options to the lifecycle reason the runner consumes.
-    /// A CoreLocation key means iOS relaunched the process headless to service
-    /// a location event; everything else is treated as a user foreground launch.
+    /// Maps the process's launch-time application state to the lifecycle reason
+    /// the runner consumes. A `.background` launch state means iOS woke the
+    /// process headless — for Where that only happens to service a queued
+    /// CoreLocation event (significant-change / visit) — so it maps to
+    /// `.background(.location)`; an `.active`/`.inactive` launch is a
+    /// user-visible foreground launch.
+    ///
+    /// This replaces inspecting the `UIApplication.LaunchOptionsKey.location`
+    /// launch option, deprecated in iOS 26 in favor of handling the location
+    /// events through the `CLLocationManagerDelegate` after scene connection:
+    /// the `CLLocationManager` installed in `initializePrerequisites` still
+    /// delivers the buffered event, and the launch state alone tells us whether
+    /// anyone will see UI.
     public static func lifecycleReason(
-        from launchOptions: [UIApplication.LaunchOptionsKey: Any]?,
+        from applicationState: UIApplication.State,
     ) -> LifecycleReason {
-        launchOptions?[.location] != nil ? .background(.location) : .userForeground
+        applicationState == .background ? .background(.location) : .userForeground
     }
 
     /// Build the runner for `model`, launching for `reason`.

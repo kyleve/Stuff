@@ -8,14 +8,13 @@ import WhereUI
 /// from `WhereApp` through `AppDelegate` into `RootView`.
 @MainActor
 struct WhereAppTests {
-    @Test func lifecycleReasonMapsLocationLaunchOption() {
-        let options: [UIApplication.LaunchOptionsKey: Any] = [.location: true]
-        #expect(WhereLaunch.lifecycleReason(from: options) == .background(.location))
+    @Test func backgroundLaunchStateMapsToLocationRelaunch() {
+        #expect(WhereLaunch.lifecycleReason(from: .background) == .background(.location))
     }
 
-    @Test func lifecycleReasonDefaultsToUserForeground() {
-        #expect(WhereLaunch.lifecycleReason(from: nil) == .userForeground)
-        #expect(WhereLaunch.lifecycleReason(from: [:]) == .userForeground)
+    @Test func foregroundLaunchStatesMapToUserForeground() {
+        #expect(WhereLaunch.lifecycleReason(from: .active) == .userForeground)
+        #expect(WhereLaunch.lifecycleReason(from: .inactive) == .userForeground)
     }
 
     @Test func appDelegateBuildsLauncherForRootView() {
@@ -25,15 +24,12 @@ struct WhereAppTests {
         // Mirrors `WhereApp.body`: `RootView(model: appDelegate.model, launcher:
         // appDelegate.launcher)`.
         _ = RootView(model: delegate.model, launcher: delegate.launcher)
-        #expect(delegate.launcher.reason == .userForeground)
-    }
-
-    @Test func appDelegateMapsBackgroundLocationRelaunch() {
-        let delegate = AppDelegate()
-        let options: [UIApplication.LaunchOptionsKey: Any] = [.location: true]
-        _ = delegate.application(UIApplication.shared, didFinishLaunchingWithOptions: options)
-
-        #expect(delegate.launcher.reason == .background(.location))
-        _ = RootView(model: delegate.model, launcher: delegate.launcher)
+        // The reason now derives from the live launch-time application state
+        // (the mapping itself is covered above); assert the delegate wired it
+        // from that state rather than hardcoding a value.
+        #expect(
+            delegate.launcher.reason
+                == WhereLaunch.lifecycleReason(from: UIApplication.shared.applicationState),
+        )
     }
 }
