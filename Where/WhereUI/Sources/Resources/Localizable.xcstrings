@@ -766,17 +766,6 @@
         }
       }
     },
-    "primary.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Where"
-          }
-        }
-      }
-    },
     "regionMap.empty.description" : {
       "extractionState" : "manual",
       "localizations" : {
