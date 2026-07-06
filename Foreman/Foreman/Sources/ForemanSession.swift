@@ -37,6 +37,14 @@ final class ForemanSession {
         services.isAnyWorkerLive
     }
 
+    /// Whether Foreman launches at login. `SettingsView` binds this two-way;
+    /// the setter registers/unregisters the login item in Core (which logs and
+    /// surfaces any failure on `issueMessage`).
+    var startsAtLogin: Bool {
+        get { services.startsAtLogin }
+        set { services.startsAtLogin = newValue }
+    }
+
     init(services: ForemanServices) {
         self.services = services
     }
@@ -62,5 +70,11 @@ final class ForemanSession {
     /// remain.
     func rescan() {
         services.rescan()
+    }
+
+    /// Re-reads the login-item status from the OS (it can change in System
+    /// Settings while Foreman runs).
+    func refreshLoginItemStatus() {
+        services.refreshLoginItemStatus()
     }
 }

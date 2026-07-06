@@ -29,3 +29,8 @@
 
 
 ## P2s (Nice to have)
+- feat: Redesign the Settings window as a macOS System-Settings-style sidebar
+  (`NavigationSplitView`) with General / Repositories / Agent panes.
+- feat: Add "Launch Foreman at login" (`SMAppService` via `LoginItemController`)
+  to General settings; launching at login reuses the existing `start()` restore
+  of enabled workers.

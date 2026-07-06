@@ -18,6 +18,40 @@ final class SleepAssertionRecorder: SleepAssertionBackend {
     }
 }
 
+/// A `LoginItemBackend` that records register/unregister calls in memory and
+/// can be told to fail, so login-item wiring is testable without touching the
+/// real `SMAppService`.
+@MainActor
+final class LoginItemRecorder: LoginItemBackend {
+    private(set) var isRegistered: Bool
+    private(set) var registerCount = 0
+    private(set) var unregisterCount = 0
+
+    /// When set, both `register()` and `unregister()` throw it (and leave
+    /// `isRegistered` unchanged), simulating an `SMAppService` failure.
+    var failure: (any Error)?
+
+    init(isRegistered: Bool = false, failure: (any Error)? = nil) {
+        self.isRegistered = isRegistered
+        self.failure = failure
+    }
+
+    func register() throws {
+        registerCount += 1
+        if let failure { throw failure }
+        isRegistered = true
+    }
+
+    func unregister() throws {
+        unregisterCount += 1
+        if let failure { throw failure }
+        isRegistered = false
+    }
+}
+
+/// A stand-in error for login-item failure injection.
+struct LoginItemTestError: Error {}
+
 /// Builds a live `Repo` over a fixed executable for tree-level tests:
 /// disabled, standard options, no-op persistence and state-change hooks.
 @MainActor

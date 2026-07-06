@@ -11,7 +11,8 @@ and per-type detail.
 ForemanServices ── AppSettings
        ├────────── RepoDiscovery ── [Repo] ── Worker
        ├────────── WorkerConfigStore (ForemanConfiguration JSON)
-       └────────── SleepInhibitor
+       ├────────── SleepInhibitor
+       └────────── LoginItemController (SMAppService)
 ```
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md), which owns the
@@ -49,6 +50,13 @@ build system, formatting, and global conventions. Read that first.
   start.
 - **The sleep assertion tracks liveness, not toggles** — recomputed on every
   worker transition, held while any worker (draining included) is live.
+- **The login item is OS-owned, not persisted config.** `LoginItemController`
+  reads/writes `SMAppService.mainApp` (behind an `@_spi(Testing)` backend);
+  `ForemanServices.startsAtLogin` is a live read of that status, and its setter
+  surfaces failures on `issueMessage` while keeping the observed value honest.
+  Never mirror it into `ForemanConfiguration` — the system is the source of
+  truth. Launch-at-login just relaunches the app, which reuses the existing
+  `start()` restore of enabled workers.
 - **Absence vs failure.** Missing options read as `WorkerOptions.standard`
   and a missing config file is `.initial`; an unreadable/undecodable file
   throws. **CLI defaults are deferred to, not duplicated** — omit a flag

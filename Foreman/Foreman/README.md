@@ -43,14 +43,26 @@ closed. Closing the window just hides it — the app keeps running until Quit.
   verbose startup logs. Editable while the worker is stopped — options apply
   on the next start.
 - **Toolbar** — a "Preventing sleep" badge while the sleep assertion is held,
-  Rescan, Settings (opens the standard settings window: the scan directory
-  and an explicit `cursor-agent` path, empty = auto-detect, applied as
-  fields commit), and Quit.
+  Rescan, Settings (opens the settings window — see below), and Quit.
+
+## Settings
+
+The settings window is a macOS System-Settings-style sidebar with three panes.
+There's no Save button — changes apply as you make them (a field commits on
+Return / focus change / a folder pick; a toggle applies immediately).
+
+- **General** — *Launch Foreman at login*. Registers Foreman as a login item
+  via `SMAppService`, so it starts (and restores your enabled workers) when
+  you log in.
+- **Repositories** — the directory scanned for git repositories (empty =
+  `~/Development`), with a folder picker.
+- **Agent** — an explicit `cursor-agent` executable path (empty = auto-detect).
 
 ## Lifecycle
 
 - On launch, Foreman restores the saved configuration and restarts the workers
-  that were enabled last time.
+  that were enabled last time. With *Launch Foreman at login* on, this happens
+  automatically after you log in.
 - Quitting stops every worker (stop-on-quit: the app owns its processes and
   never leaves orphans).
 - The repo list refreshes every time the window is opened or focused, and on

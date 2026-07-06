@@ -11,14 +11,17 @@ struct ForemanServicesTests {
         let scanDirectory: URL
         let executable: URL
         let sleep: SleepAssertionRecorder
+        let login: LoginItemRecorder
     }
 
     /// A config-store + scan-directory sandbox. `repoNames` become git repos
     /// in the scan directory; `configure` edits the saved configuration
     /// (which already points `agentExecutable` at a long-running stub) and
-    /// receives the scan directory for building `RepoID`s.
+    /// receives the scan directory for building `RepoID`s. `loginBackend`
+    /// injects a login-item double (defaults to a fresh one that succeeds).
     private func makeFixture(
         repoNames: [String],
+        loginBackend: LoginItemRecorder? = nil,
         configure: (inout ForemanConfiguration, _ scanDirectory: URL) -> Void = { _, _ in },
     ) throws -> Fixture {
         let base = try makeTemporaryDirectory()
@@ -46,10 +49,12 @@ struct ForemanServicesTests {
         try store.save(configuration)
 
         let recorder = SleepAssertionRecorder()
+        let login = loginBackend ?? LoginItemRecorder()
         let services = ForemanServices(
             configStore: store,
             logDirectory: base.appendingPathComponent("logs"),
             sleepInhibitor: SleepInhibitor(backend: recorder),
+            loginItem: LoginItemController(backend: login),
         )
         return Fixture(
             services: services,
@@ -58,6 +63,7 @@ struct ForemanServicesTests {
             scanDirectory: scanDirectory,
             executable: executable,
             sleep: recorder,
+            login: login,
         )
     }
 
@@ -114,6 +120,7 @@ struct ForemanServicesTests {
             configStore: WorkerConfigStore(directory: configDirectory),
             logDirectory: base.appendingPathComponent("logs"),
             sleepInhibitor: SleepInhibitor(backend: SleepAssertionRecorder()),
+            loginItem: LoginItemController(backend: LoginItemRecorder()),
         )
         services.start()
 
@@ -177,6 +184,37 @@ struct ForemanServicesTests {
         fixture.services.settings.agentExecutable = otherAgent
         #expect(try fixture.store.load().agentExecutable == otherAgent)
         #expect(fixture.services.repos.map(\.name) == ["New"])
+    }
+
+    // MARK: - Launch at login
+
+    @Test func startsAtLoginWritesThroughToTheLoginItem() throws {
+        let fixture = try makeFixture(repoNames: [])
+        #expect(!fixture.services.startsAtLogin)
+
+        fixture.services.startsAtLogin = true
+        #expect(fixture.services.startsAtLogin)
+        #expect(fixture.login.registerCount == 1)
+
+        fixture.services.startsAtLogin = false
+        #expect(!fixture.services.startsAtLogin)
+        #expect(fixture.login.unregisterCount == 1)
+    }
+
+    @Test func aFailedLoginItemToggleSurfacesTheIssueAndStaysHonest() throws {
+        let fixture = try makeFixture(
+            repoNames: [],
+            loginBackend: LoginItemRecorder(failure: LoginItemTestError()),
+        )
+        fixture.services.start()
+        #expect(fixture.services.issueMessage == nil)
+
+        fixture.services.startsAtLogin = true
+
+        // The registration failed, so the toggle stays off and the failure is
+        // observable rather than silently swallowed.
+        #expect(!fixture.services.startsAtLogin)
+        #expect(fixture.services.issueMessage?.contains("Start at Login") == true)
     }
 
     // MARK: - Rescan
