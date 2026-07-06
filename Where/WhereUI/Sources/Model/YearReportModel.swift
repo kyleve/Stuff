@@ -22,13 +22,33 @@ import WhereCore
 @MainActor
 @Observable
 public final class YearReportModel {
-    /// Where the current year's data is in its load lifecycle. `failed` carries
-    /// a user-presentable message.
+    /// Where the current year's data is in its load lifecycle.
     public enum LoadState: Equatable {
         case idle
         case loading
         case loaded
-        case failed(String)
+        /// Carries a typed reason (see `LoadError`) rather than a bare message,
+        /// so a caller can branch on *what* failed and tests can match the case.
+        case failed(LoadError)
+    }
+
+    /// Why the selected year's data isn't available. Holds the underlying
+    /// failure's user-presentable `message` as a `String` (not `any Error`) so
+    /// `LoadState` stays `Equatable` for the refresh guards and tests, while
+    /// still naming which operation failed.
+    public enum LoadError: Error, Equatable {
+        /// Loading the year report failed.
+        case reportUnavailable(message: String)
+        /// Clearing the selected year failed.
+        case clearFailed(message: String)
+
+        /// The underlying failure's user-presentable description.
+        public var message: String {
+            switch self {
+                case let .reportUnavailable(message), let .clearFailed(message):
+                    message
+            }
+        }
     }
 
     /// Identity of the inputs a data-issue scan depends on; see
@@ -267,7 +287,7 @@ public final class YearReportModel {
             }
         } catch {
             guard requestedYear == selectedYear else { return }
-            loadState = .failed(error.localizedDescription)
+            loadState = .failed(.reportUnavailable(message: error.localizedDescription))
             Self.logger.warning(
                 "Failed to load year report for \(requestedYear): \(error.localizedDescription)",
             )
@@ -311,7 +331,7 @@ public final class YearReportModel {
             // `observeDataChanges()` re-pulls; no inline refresh needed.
             try await services.journal.clearYear(selectedYear)
         } catch {
-            loadState = .failed(error.localizedDescription)
+            loadState = .failed(.clearFailed(message: error.localizedDescription))
             Self.logger.warning(
                 "Failed to clear year \(selectedYear): \(error.localizedDescription)",
             )

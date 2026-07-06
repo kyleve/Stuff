@@ -57,11 +57,11 @@ struct CalendarView: View {
                     }
                 } else if report.loadState == .loading {
                     ProgressView(Strings.primaryLoading)
-                } else if case let .failed(message) = report.loadState {
+                } else if case let .failed(error) = report.loadState {
                     ContentUnavailableView {
                         Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
                     } description: {
-                        Text(message)
+                        Text(error.message)
                     }
                 } else {
                     ContentUnavailableView {

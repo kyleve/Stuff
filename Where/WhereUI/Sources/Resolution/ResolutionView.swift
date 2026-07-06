@@ -48,11 +48,11 @@ struct ResolutionView: View {
             case .loading where report.report == nil:
                 ProgressView(Strings.primaryLoading)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case let .failed(message):
+            case let .failed(error):
                 ContentUnavailableView {
                     Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
                 } description: {
-                    Text(message)
+                    Text(error.message)
                 }
             case .idle, .loaded, .loading:
                 if !resolve.hasLoaded {

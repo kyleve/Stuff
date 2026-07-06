@@ -123,6 +123,28 @@ struct YearReportModelTests {
         }
     }
 
+    /// A failed year-report load parks `loadState` at `.failed(.reportUnavailable)`
+    /// — the typed reason the error screens present — rather than a bare string.
+    @Test func failedReportLoadParksInReportUnavailable() async throws {
+        let store = try TestStore()
+        await store.failSamples()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        let report = YearReportModel(services: services, selectedYear: 2026)
+
+        await report.refresh()
+
+        guard case let .failed(.reportUnavailable(message)) = report.loadState else {
+            Issue.record("expected .failed(.reportUnavailable), got \(report.loadState)")
+            return
+        }
+        #expect(!message.isEmpty)
+    }
+
     // MARK: - Missing days
 
     @Test func missingDaysSurfacePastGapsAndExcludeToday() throws {
