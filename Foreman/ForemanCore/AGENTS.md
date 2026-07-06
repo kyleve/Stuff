@@ -41,8 +41,10 @@ build system, formatting, and global conventions. Read that first.
   observable `issueMessage`; per-repo failures live on each repo's worker.
 - [`Repo`](Sources/Repo.swift) – one repository in the tree: identity
   (`RepoID` = canonical absolute path, `name`, `rootURL`), the persisted
-  intent (`isEnabled`, `options` — both `didSet`-guarded and funneled to the
-  root), and its `Worker`. **The toggle is declarative**: `isEnabled` records
+  intent (`isEnabled`, `isFavorite`, `options` — all `didSet`-guarded and
+  funneled to the root), and its `Worker`. `isFavorite` is pure sidebar-
+  ordering metadata with **no** worker side effect (only persistence), unlike
+  `isEnabled`. **The toggle is declarative**: `isEnabled` records
   desired state, `worker.state` reports the actual one; a locate failure
   lands as `.failed` via `recordStartFailure` with the toggle still on, and
   switching a failed repo off acknowledges the failure (`Worker.stop()`
@@ -88,14 +90,27 @@ build system, formatting, and global conventions. Read that first.
   struct, not tuples. `arguments(workerDirectory:)` is the **only** place that
   spells CLI flags: worker-level flags before the `start` subcommand,
   `--verbose` after it.
-- [`ForemanConfiguration` / `WorkerConfigStore`](Sources/WorkerConfigStore.swift)
-  – the persisted state (scan directory, explicit agent executable,
-  enabled-repo set, per-repo options) and its JSON store. `load()`
-  distinguishes *missing* (first launch → `.initial`) from *corrupt* (throws);
-  don't collapse the two. `prune(discovered:under:)` drops entries for repos
-  gone from the scan directory but must keep entries *outside* it — they're
-  another scan directory's history (the prefix check appends "/" so a
-  sibling like `~/CodeArchive` doesn't match a `~/Code` scan directory).
+- [`RepoConfiguration` / `ForemanConfiguration` / `WorkerConfigStore`](Sources/WorkerConfigStore.swift)
+  – the persisted state and its JSON store. `RepoConfiguration` is the
+  **single per-repo record** (`isEnabled`, `isFavorite`, `options`) — one
+  struct rather than parallel maps keyed by `RepoID`, so the flags and options
+  can't drift apart; `ForemanConfiguration` holds `scanDirectory`,
+  `agentExecutable`, and `repos: [RepoID: RepoConfiguration]`. A repo whose
+  record equals `RepoConfiguration.standard` (disabled, unfavorited, standard
+  options) has no entry — absence reads identically, so the persistence funnel
+  drops it. `load()` distinguishes *missing* (first launch → `.initial`) from
+  *corrupt* (throws); don't collapse the two. `prune(discovered:under:)` drops
+  `repos` entries for repos gone from the scan directory but must keep entries
+  *outside* it — they're another scan directory's history (the prefix check
+  appends "/" so a sibling like `~/CodeArchive` doesn't match a `~/Code` scan
+  directory).
+- [`RepoSection`](Sources/RepoSection.swift) – the pure sidebar ordering rule:
+  `sections(from:)` splits the discovered repos into an `.enabled` section on
+  top and a `.disabled` section below, floating favorites to the top of each
+  (stable, so the name-sorted input order is otherwise preserved) and omitting
+  an empty section. Lives in Core (not the view) so the ordering is
+  unit-tested; the `Kind` carries no display text — section titles are the
+  view's concern.
 - [`LogTailReader`](Sources/LogTailReader.swift) – `tail(of:maxBytes:)` reads
   the end of a worker log file for display. `nil` means *no file yet* (a
   never-started worker — legitimate, not an error); other I/O failures
@@ -126,10 +141,10 @@ build system, formatting, and global conventions. Read that first.
   there; vanished repos are stopped and drained, not dropped mid-exit, and
   a reappearing directory resurrects its draining `Repo` so a single id
   can never have two live processes.
-- **Absence vs failure.** A repo with no customized options reads as
-  `WorkerOptions.standard` (expected absence); an unreadable or undecodable
-  config file throws (real failure). Keep that split — no `try?` or silent
-  resets.
+- **Absence vs failure.** A repo with no persisted entry reads as
+  `RepoConfiguration.standard` (disabled, unfavorited, `WorkerOptions.standard`
+  — expected absence); an unreadable or undecodable config file throws (real
+  failure). Keep that split — no `try?` or silent resets.
 - **CLI defaults are deferred to, not duplicated.** An empty pool name or zero
   idle timeout omits the flag so the CLI's own default applies; don't bake the
   CLI's default values into rendered argv.

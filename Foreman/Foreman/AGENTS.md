@@ -27,9 +27,10 @@ formatting, global conventions) and ForemanCore's
   [`Project.swift`](../../Project.swift) (don't switch it to
   `.extendingDefault`, which injects `NSMainStoryboardFile` on macOS).
 - [`ForemanSession`](Sources/ForemanSession.swift) – a deliberately thin
-  facade: owns the `ForemanServices` root, forwards the app-level intents
-  (`start`, `rescan`, `stopAllWorkers`), and re-exposes `repos`, `settings`,
-  `issueMessage`, and the liveness flags. There is no mirroring layer —
+  facade: owns the   `ForemanServices` root, forwards the app-level intents
+  (`start`, `rescan`, `stopAllWorkers`), and re-exposes `repos`,
+  `repoSections`, `settings`, `issueMessage`, and the liveness flags. There is
+  no mirroring layer —
   views bind the Core `Repo` objects directly (`$repo.isEnabled`,
   `repo.worker.state`), and toggle/options/settings semantics (declarative
   toggle, persistence funnel, retry/restart intents) live in ForemanCore;
@@ -55,15 +56,21 @@ formatting, global conventions) and ForemanCore's
   sequence on `isAnyWorkerLive`. Don't migrate back to `MenuBarExtra`
   without re-verifying all of the above.
 - [`MainWindowView`](Sources/MainWindowView.swift) – the window content: a
-  `NavigationSplitView` with repo rows in the sidebar and the selected
-  worker's detail on the right, plus the toolbar (sleep badge, Rescan, a
-  `SettingsLink`, Quit) and the issue banner. The detail carries
+  `NavigationSplitView` whose sidebar renders `session.repoSections` — an
+  **Enabled** section on top and a **Disabled** section below, favorites
+  floated to the top of each (the ordering itself is computed in
+  `ForemanCore`'s `RepoSection`; the view only maps `Kind` → a section title) —
+  and the selected worker's detail on the right, plus the toolbar (sleep
+  badge, Rescan, a `SettingsLink`, Quit) and the issue banner. The detail
+  carries
   `.id(repo.id)` so per-repo `@State` (options draft, log tail) resets on
   selection change. `onAppear` covers the first-open scan; later opens
   rescan via the window delegate (no file watching).
 - [`WorkerRowView`](Sources/WorkerRowView.swift) – sidebar row: status dot,
-  name (+ a red "failed" hint), toggle. Actions and details live in the
-  detail pane.
+  name (+ a red "failed" hint), a star glyph when favorited, and the enable
+  toggle. A right-click context menu toggles `repo.isFavorite` (the other
+  favorite affordance is the detail toolbar's star button). Actions and
+  details live in the detail pane.
 - [`WorkerDetailView`](Sources/WorkerDetailView.swift) – one worker's
   status/pid/uptime (uptime renders live via `Text(_, style: .relative)`),
   the exact command the next start will spawn, the inline options editor,
@@ -71,7 +78,8 @@ formatting, global conventions) and ForemanCore's
   controls: **Retry** for an enabled repo in `.failed`, **Restart** while
   `.running` — both call the `Repo` intents (no view-local process logic)
   and never touch the persisted toggle. Start/Stop as user actions stay the
-  enable toggle.
+  enable toggle. Its `.toolbar` also contributes a star button (merged into
+  the window toolbar for the selected repo) that toggles `repo.isFavorite`.
 - [`WorkerLogView`](Sources/WorkerLogView.swift) – tails the worker's log
   file via `LogTailReader`, polling once a second while visible. One `Tail`
   enum so "no file yet", content, and a read failure can't coexist; polls
