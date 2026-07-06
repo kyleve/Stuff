@@ -304,26 +304,58 @@ public final class YearReportModel {
     /// Persist a single manual day. Throws on persistence failure so the caller
     /// (the entry form) can keep itself open and show the error inline.
     ///
-    /// No inline refresh: the committed write pings the store-change signal, so
-    /// `observeDataChanges()` re-pulls the report + badge count.
-    public func setManualDay(date: Date, regions: Set<Region>) async throws {
-        try await services.journal.addManualDay(date: date, regions: regions)
+    /// Captures an audit trail (`note` + best-effort capture-time GPS) for the
+    /// entry. No inline refresh: the committed write pings the store-change
+    /// signal, so `observeDataChanges()` re-pulls the report + badge count.
+    public func setManualDay(date: Date, regions: Set<Region>, note: String? = nil) async throws {
+        let audit = await makeEntryAudit(note: note)
+        try await services.journal.addManualDay(date: date, regions: regions, audit: audit)
     }
 
     /// Persist a manual day range. Throws on persistence failure (see
-    /// `setManualDay(date:regions:)`).
+    /// `setManualDay(date:regions:note:)`). One audit stamps the whole range.
     public func setManualDays(
         from start: Date,
         through end: Date,
         regions: Set<Region>,
+        note: String? = nil,
     ) async throws {
-        try await services.journal.addManualDays(from: start, through: end, regions: regions)
+        let audit = await makeEntryAudit(note: note)
+        try await services.journal.addManualDays(
+            from: start,
+            through: end,
+            regions: regions,
+            audit: audit,
+        )
     }
 
     /// Authoritatively set a day's regions, *replacing* whatever was attributed
     /// to it (the Elsewhere "fix this day" path). Throws on persistence failure.
-    public func overrideDay(date: Date, regions: Set<Region>) async throws {
-        try await services.journal.overrideDay(date: date, regions: regions)
+    /// Captures an audit trail (`note` + best-effort capture-time GPS).
+    public func overrideDay(date: Date, regions: Set<Region>, note: String? = nil) async throws {
+        let audit = await makeEntryAudit(note: note)
+        try await services.journal.overrideDay(date: date, regions: regions, audit: audit)
+    }
+
+    /// Assemble the audit trail for a manual entry: stamp "now", normalize the
+    /// note (blank/whitespace becomes `nil`), and attach a best-effort one-shot
+    /// GPS fix for where the entry was made. A missing fix is recorded honestly
+    /// (`location == nil`) rather than blocking the entry.
+    private func makeEntryAudit(note: String?) async -> ManualEntryAudit {
+        let sample = await services.ingestor.currentLocation()
+        let location = sample.map { sample in
+            CapturedLocation(
+                coordinate: sample.coordinate,
+                horizontalAccuracy: sample.horizontalAccuracy,
+                timestamp: sample.timestamp,
+            )
+        }
+        let trimmed = note?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return ManualEntryAudit(
+            recordedAt: now(),
+            note: (trimmed?.isEmpty ?? true) ? nil : trimmed,
+            location: location,
+        )
     }
 
     /// Undo a day's manual override/backfill, restoring the GPS-detected regions

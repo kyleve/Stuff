@@ -40,6 +40,16 @@ public protocol LocationSource: AnyObject, Sendable {
     func start() async
     func stop() async
 
+    /// Best-effort one-shot GPS fix for "where is the device *right now*".
+    ///
+    /// Unlike the passive `sampleStream` (Visits + significant-change, which can
+    /// be minutes stale), this actively asks for a fresh fix — used to stamp a
+    /// manual entry's audit trail with where it was made. Returns `nil` rather
+    /// than throwing when a fix can't be obtained (permission not granted,
+    /// timeout, or a location error): the capture is audit metadata, so an
+    /// absent fix is recorded honestly instead of blocking the entry.
+    func requestCurrentLocation() async -> LocationSample?
+
     /// The current authorization status, read on demand.
     func currentAuthorization() async -> LocationAuthorizationStatus
 
@@ -72,6 +82,9 @@ public final class ScriptedLocationSource: LocationSource, @unchecked Sendable {
 
     private let lock = NSLock()
     private var _status: LocationAuthorizationStatus
+    /// What the next `requestCurrentLocation()` returns. Defaults to `nil` (no
+    /// fix available) so tests opt in to a captured location explicitly.
+    private var _nextRequestedLocation: LocationSample?
 
     /// - Parameters:
     ///   - permissionResult: what the next call to `requestPermission()`
@@ -93,6 +106,16 @@ public final class ScriptedLocationSource: LocationSource, @unchecked Sendable {
 
     public func start() async {}
     public func stop() async {}
+
+    public func requestCurrentLocation() async -> LocationSample? {
+        lock.withLock { _nextRequestedLocation }
+    }
+
+    /// Set the fix the next `requestCurrentLocation()` will return (or `nil` to
+    /// simulate no fix). Mirrors how `emit(_:)` scripts the passive stream.
+    public func setNextRequestedLocation(_ sample: LocationSample?) {
+        lock.withLock { _nextRequestedLocation = sample }
+    }
 
     public func currentAuthorization() async -> LocationAuthorizationStatus {
         lock.withLock { _status }

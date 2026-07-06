@@ -18,6 +18,7 @@ struct BackupModelTests {
         try await services.journal.addManualDay(
             date: date(year: 2026, month: 3, day: 1),
             regions: [.california],
+            audit: nil,
         )
         try await services.journal.addEvidence(
             Evidence(

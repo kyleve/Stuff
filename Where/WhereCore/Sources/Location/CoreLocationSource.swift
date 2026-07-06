@@ -50,6 +50,16 @@ public final class CoreLocationSource: NSObject, LocationSource {
     /// thus permanently strand — the first.
     private var pendingPermissionContinuations: [CheckedContinuation<Void, Error>] = []
 
+    /// Waiters for an in-flight `requestCurrentLocation()`. Overlapping callers
+    /// coalesce onto the next delivered fix (or the shared timeout / failure);
+    /// only the first triggers `requestLocation()`. Every waiter is resumed
+    /// together, so a second caller can't strand the first.
+    private var pendingLocationContinuations: [CheckedContinuation<LocationSample?, Never>] = []
+
+    /// How long to wait for a one-shot fix before giving up and recording no
+    /// captured location. Kept short so a manual entry's Save isn't held up.
+    private static let currentLocationTimeout: Duration = .seconds(10)
+
     override public init() {
         // The "create stream, capture its continuation" two-step is
         // the idiomatic Swift `AsyncStream` initializer pattern when
@@ -74,6 +84,42 @@ public final class CoreLocationSource: NSObject, LocationSource {
     public func stop() async {
         manager.stopMonitoringSignificantLocationChanges()
         manager.stopMonitoringVisits()
+    }
+
+    public func requestCurrentLocation() async -> LocationSample? {
+        // Best-effort: without a granted status `requestLocation()` just fails,
+        // so short-circuit to "no fix" rather than starting a doomed request.
+        switch manager.authorizationStatus {
+            case .authorizedAlways, .authorizedWhenInUse:
+                break
+            case .denied, .restricted, .notDetermined:
+                return nil
+            @unknown default:
+                return nil
+        }
+
+        return await withCheckedContinuation { continuation in
+            pendingLocationContinuations.append(continuation)
+            guard pendingLocationContinuations.count == 1 else { return }
+            manager.requestLocation()
+            // Bound the wait so a Save never hangs on a slow/absent fix.
+            Task { @MainActor [weak self] in
+                try? await Task.sleep(for: Self.currentLocationTimeout)
+                self?.resolvePendingLocation(nil)
+            }
+        }
+    }
+
+    /// Resume (and clear) every coalesced one-shot location waiter with the same
+    /// result. Cleared before resuming so a fix delivered after the timeout (or
+    /// vice-versa) is a no-op rather than a double-resume.
+    private func resolvePendingLocation(_ sample: LocationSample?) {
+        guard !pendingLocationContinuations.isEmpty else { return }
+        let waiters = pendingLocationContinuations
+        pendingLocationContinuations.removeAll()
+        for waiter in waiters {
+            waiter.resume(returning: sample)
+        }
     }
 
     public func currentAuthorization() async -> LocationAuthorizationStatus {
@@ -179,6 +225,7 @@ extension CoreLocationSource: CLLocationManagerDelegate {
         _: CLLocationManager,
         didUpdateLocations locations: [CLLocation],
     ) {
+        var latest: LocationSample?
         for location in locations {
             let sample = LocationSample(
                 timestamp: location.timestamp,
@@ -190,6 +237,26 @@ extension CoreLocationSource: CLLocationManagerDelegate {
                 source: .gpsSignificantChange,
             )
             sampleContinuation.yield(sample)
+            latest = sample
+        }
+        // A one-shot `requestCurrentLocation()` is delivered here too; satisfy
+        // any pending waiter with the freshest fix in this batch.
+        if let latest {
+            Task { @MainActor [weak self] in
+                self?.resolvePendingLocation(latest)
+            }
+        }
+    }
+
+    public nonisolated func locationManager(
+        _: CLLocationManager,
+        didFailWithError _: any Error,
+    ) {
+        // `requestLocation()` reports failures here. Resolve any one-shot waiter
+        // with "no fix" (best-effort audit capture) rather than leaving it to
+        // wait out the full timeout.
+        Task { @MainActor [weak self] in
+            self?.resolvePendingLocation(nil)
         }
     }
 

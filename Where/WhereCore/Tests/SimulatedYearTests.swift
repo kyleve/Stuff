@@ -118,7 +118,11 @@ struct SimulatedYearTests {
             month: 11,
             day: 13,
         )) ?? Date()
-        try await services.journal.addManualDay(date: date, regions: [.california, .newYork])
+        try await services.journal.addManualDay(
+            date: date,
+            regions: [.california, .newYork],
+            audit: nil,
+        )
 
         let after = try await services.reports.yearReport(for: SimulatedYear.year)
         #expect(after.days.count == before.days.count + 1)

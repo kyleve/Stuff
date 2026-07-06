@@ -13,8 +13,17 @@ struct DayRelabelView: View {
     let report: YearReportModel
 
     @State private var regionSelection: RegionSelectionState
+    @State private var note = ""
     @State private var saveError = SaveErrorAlertState()
-    @State private var isSaving = false
+    @State private var pending: PendingWrite?
+
+    /// Which async write is in flight. Saving captures a one-shot GPS fix (see
+    /// `LocationSource.requestCurrentLocation()`) so it can take a moment and
+    /// warrants a visible status; resetting just clears the day and is quick.
+    private enum PendingWrite {
+        case saving
+        case resetting
+    }
 
     init(day: DayPresence, report: YearReportModel, initialRegions: Set<Region>? = nil) {
         self.day = day
@@ -25,7 +34,7 @@ struct DayRelabelView: View {
     }
 
     private var canSave: Bool {
-        !regionSelection.selectedRegions.isEmpty && !isSaving
+        !regionSelection.selectedRegions.isEmpty && pending == nil
             && regionSelection.selectedRegions != day.regions
     }
 
@@ -48,18 +57,45 @@ struct DayRelabelView: View {
             }
 
             Section {
+                TextField(
+                    Strings.manualNotePlaceholder,
+                    text: $note,
+                    axis: .vertical,
+                )
+                .lineLimit(3, reservesSpace: true)
+                .disabled(pending != nil)
+            } header: {
+                Text(Strings.manualNoteHeader)
+            } footer: {
+                Text(Strings.manualNoteFooter)
+            }
+
+            if pending == .saving {
+                Section {
+                    SavingStatusRow(text: Strings.manualSavingStatus)
+                }
+            }
+
+            auditSection
+
+            Section {
                 Button(Strings.relabelReset, role: .destructive) { reset() }
-                    .disabled(isSaving)
+                    .disabled(pending != nil)
             } footer: {
                 Text(Strings.relabelResetFooter)
             }
         }
+        .animation(.default, value: pending)
         .navigationTitle(Strings.relabelTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button(Strings.manualSave) { save() }
-                    .disabled(!canSave)
+                if pending == .saving {
+                    ProgressView()
+                } else {
+                    Button(Strings.manualSave) { save() }
+                        .disabled(!canSave)
+                }
             }
         }
         .alert(
@@ -74,30 +110,61 @@ struct DayRelabelView: View {
         }
     }
 
+    /// Read-only record of the last manual entry for this day (when it came from
+    /// an override): when it was made, its note, and where the device was at the
+    /// time — the audit trail retained for residency reviews.
+    @ViewBuilder
+    private var auditSection: some View {
+        if let audit = day.audit {
+            Section {
+                LabeledContent(Strings.auditRecordedAt, value: recordedAtText(audit.recordedAt))
+                if let note = audit.note {
+                    LabeledContent(Strings.auditNote, value: note)
+                }
+                LabeledContent(Strings.auditLocation, value: locationText(audit.location))
+            } header: {
+                Text(Strings.auditHeader)
+            }
+        }
+    }
+
     private var dateText: String {
         day.date.formatted(.dateTime.month(.abbreviated).day().year())
     }
 
+    private func recordedAtText(_ date: Date) -> String {
+        date.formatted(.dateTime.month(.abbreviated).day().year().hour().minute())
+    }
+
+    private func locationText(_ location: CapturedLocation?) -> String {
+        guard let location else { return Strings.auditLocationUnavailable }
+        return Strings.auditCoordinate(
+            latitude: location.coordinate.latitude,
+            longitude: location.coordinate.longitude,
+        )
+    }
+
     private func save() {
-        isSaving = true
+        pending = .saving
         saveError.message = nil
         Task {
             do {
                 try await report.overrideDay(
                     date: day.date,
                     regions: regionSelection.selectedRegions,
+                    note: note,
                 )
                 dismiss()
             } catch {
                 // Keep the form up so the user can retry; the save didn't land.
                 saveError.message = error.localizedDescription
-                isSaving = false
+                pending = nil
             }
         }
     }
 
     private func reset() {
-        isSaving = true
+        pending = .resetting
         saveError.message = nil
         Task {
             do {
@@ -106,7 +173,7 @@ struct DayRelabelView: View {
             } catch {
                 // Keep the form up so the user can retry; nothing was cleared.
                 saveError.message = error.localizedDescription
-                isSaving = false
+                pending = nil
             }
         }
     }
@@ -117,6 +184,28 @@ struct DayRelabelView: View {
         NavigationStack {
             DayRelabelView(
                 day: DayPresence(date: .now, regions: [.other]),
+                report: PreviewSupport.loadedYearReportModel(),
+            )
+        }
+    }
+
+    #Preview("With audit record") {
+        NavigationStack {
+            DayRelabelView(
+                day: DayPresence(
+                    date: .now,
+                    regions: [.california],
+                    isAuthoritative: true,
+                    audit: ManualEntryAudit(
+                        recordedAt: .now,
+                        note: "Corrected after reviewing my boarding pass.",
+                        location: CapturedLocation(
+                            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                            horizontalAccuracy: 12,
+                            timestamp: .now,
+                        ),
+                    ),
+                ),
                 report: PreviewSupport.loadedYearReportModel(),
             )
         }

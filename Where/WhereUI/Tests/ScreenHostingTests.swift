@@ -103,6 +103,44 @@ struct ScreenHostingTests {
         }
     }
 
+    @Test func dayRelabelViewHostsWithAuditRecord() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let day = DayPresence(
+            date: .now,
+            regions: [.california],
+            isAuthoritative: true,
+            audit: ManualEntryAudit(
+                recordedAt: .now,
+                note: "Corrected after reviewing my boarding pass.",
+                location: CapturedLocation(
+                    coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                    horizontalAccuracy: 12,
+                    timestamp: .now,
+                ),
+            ),
+        )
+        let rootView = NavigationStack { DayRelabelView(day: day, report: report) }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func recentActivitySummaryViewHostsEachState() throws {
+        for state in [
+            RecentActivityModel.LoadState.loaded("You were in California, then New York."),
+            .empty,
+            .unavailable(.appleIntelligenceNotEnabled),
+            .failed("Something went wrong."),
+        ] {
+            let rootView = RecentActivitySummaryView(
+                model: PreviewSupport.recentActivityModel(state: state),
+            )
+            try show(UIHostingController(rootView: rootView)) { hosted in
+                #expect(hosted.view != nil)
+            }
+        }
+    }
+
     @Test func presenceTimelineViewHostsWithData() throws {
         let report = PreviewSupport.loadedYearReportModel()
         try show(UIHostingController(rootView: PresenceTimelineView(report: report))) { hosted in

@@ -65,6 +65,14 @@ enum Strings {
         localized("primary.timeline")
     }
 
+    static var primaryRecentActivity: String {
+        String(
+            localized: "primary.recentActivity",
+            defaultValue: "Recent activity",
+            bundle: .module,
+        )
+    }
+
     /// Accessibility hint on a Primary region card: tapping it opens that
     /// region's calendar, filtered to the days spent there.
     static var primaryCardCalendarHint: String {
@@ -217,6 +225,40 @@ enum Strings {
             defaultValue: "Removes any manual correction for this day and restores the regions detected from GPS. Your raw location data is untouched.",
             bundle: .module,
         )
+    }
+
+    // MARK: Manual-entry audit (read-back)
+
+    static var auditHeader: String {
+        String(localized: "audit.header", defaultValue: "Entry record", bundle: .module)
+    }
+
+    static var auditRecordedAt: String {
+        String(localized: "audit.recordedAt", defaultValue: "Recorded", bundle: .module)
+    }
+
+    static var auditNote: String {
+        String(localized: "audit.note", defaultValue: "Note", bundle: .module)
+    }
+
+    static var auditLocation: String {
+        String(localized: "audit.location", defaultValue: "Made at", bundle: .module)
+    }
+
+    static var auditLocationUnavailable: String {
+        String(
+            localized: "audit.location.unavailable",
+            defaultValue: "Not captured",
+            bundle: .module,
+        )
+    }
+
+    /// A "37.77490, -122.41940"-style coordinate label. No catalog entry is
+    /// needed; the number style is locale-driven, like `driftThresholdLabel`.
+    static func auditCoordinate(latitude: Double, longitude: Double) -> String {
+        let lat = latitude.formatted(.number.precision(.fractionLength(5)))
+        let lon = longitude.formatted(.number.precision(.fractionLength(5)))
+        return "\(lat), \(lon)"
     }
 
     // MARK: Onboarding
@@ -802,6 +844,34 @@ enum Strings {
         localized("manual.saveError.title")
     }
 
+    static var manualNoteHeader: String {
+        String(localized: "manual.note.header", defaultValue: "Reason", bundle: .module)
+    }
+
+    static var manualNotePlaceholder: String {
+        String(
+            localized: "manual.note.placeholder",
+            defaultValue: "Add a note (optional)",
+            bundle: .module,
+        )
+    }
+
+    static var manualNoteFooter: String {
+        String(
+            localized: "manual.note.footer",
+            defaultValue: "Saved with this entry for auditing — explain why you made this change.",
+            bundle: .module,
+        )
+    }
+
+    static var manualSavingStatus: String {
+        String(
+            localized: "manual.saving.status",
+            defaultValue: "Capturing location…",
+            bundle: .module,
+        )
+    }
+
     static func manualRangeFooter(count: Int) -> String {
         String(
             localized: "manual.range.footer",
@@ -1105,6 +1175,97 @@ enum Strings {
     static func driftThresholdLabel(kilometers: Int) -> String {
         Measurement(value: Double(kilometers), unit: UnitLength.kilometers)
             .formatted(.measurement(width: .abbreviated, usage: .asProvided))
+    }
+
+    // MARK: Recent activity (24h on-device summary)
+
+    static var recentActivityTitle: String {
+        String(localized: "recentActivity.title", defaultValue: "Last 24 hours", bundle: .module)
+    }
+
+    static var recentActivityFooter: String {
+        String(
+            localized: "recentActivity.footer",
+            defaultValue: "An on-device summary of where you've been in the last 24 hours. Your location never leaves your device.",
+            bundle: .module,
+        )
+    }
+
+    static var recentActivityLoading: String {
+        String(
+            localized: "recentActivity.loading",
+            defaultValue: "Summarizing…",
+            bundle: .module,
+        )
+    }
+
+    static var recentActivityRefresh: String {
+        String(localized: "recentActivity.refresh", defaultValue: "Refresh", bundle: .module)
+    }
+
+    static var recentActivityEmptyTitle: String {
+        String(
+            localized: "recentActivity.empty.title",
+            defaultValue: "Nothing tracked",
+            bundle: .module,
+        )
+    }
+
+    static var recentActivityEmptyDescription: String {
+        String(
+            localized: "recentActivity.empty.description",
+            defaultValue: "No locations were recorded in the last 24 hours.",
+            bundle: .module,
+        )
+    }
+
+    static var recentActivityFailedTitle: String {
+        String(
+            localized: "recentActivity.failed.title",
+            defaultValue: "Couldn't summarize",
+            bundle: .module,
+        )
+    }
+
+    static var recentActivityUnavailableTitle: String {
+        String(
+            localized: "recentActivity.unavailable.title",
+            defaultValue: "Summaries unavailable",
+            bundle: .module,
+        )
+    }
+
+    /// User-facing explanation for why the on-device model can't produce a
+    /// summary, keyed off the typed reason so the copy can guide the user.
+    static func recentActivityUnavailableMessage(
+        _ reason: ActivitySummaryUnavailableReason,
+    ) -> String {
+        switch reason {
+            case .deviceNotEligible:
+                String(
+                    localized: "recentActivity.unavailable.deviceNotEligible",
+                    defaultValue: "This device doesn't support on-device summaries.",
+                    bundle: .module,
+                )
+            case .appleIntelligenceNotEnabled:
+                String(
+                    localized: "recentActivity.unavailable.appleIntelligenceNotEnabled",
+                    defaultValue: "Turn on Apple Intelligence in Settings to generate summaries.",
+                    bundle: .module,
+                )
+            case .modelNotReady:
+                String(
+                    localized: "recentActivity.unavailable.modelNotReady",
+                    defaultValue: "The on-device model is still getting ready. Try again shortly.",
+                    bundle: .module,
+                )
+            case .unknown:
+                String(
+                    localized: "recentActivity.unavailable.unknown",
+                    defaultValue: "On-device summaries aren't available right now.",
+                    bundle: .module,
+                )
+        }
     }
 
     // MARK: Widgets

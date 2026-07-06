@@ -30,6 +30,7 @@ struct ManualDayEntryView: View {
     @State private var startDate = Date()
     @State private var endDate = Date()
     @State private var regionSelection = RegionSelectionState()
+    @State private var note = ""
     @State private var saveError = SaveErrorAlertState()
     @State private var isSaving = false
 
@@ -86,7 +87,28 @@ struct ManualDayEntryView: View {
             } footer: {
                 Text(Strings.manualRegionsFooter)
             }
+
+            Section {
+                TextField(
+                    Strings.manualNotePlaceholder,
+                    text: $note,
+                    axis: .vertical,
+                )
+                .lineLimit(3, reservesSpace: true)
+                .disabled(isSaving)
+            } header: {
+                Text(Strings.manualNoteHeader)
+            } footer: {
+                Text(Strings.manualNoteFooter)
+            }
+
+            if isSaving {
+                Section {
+                    SavingStatusRow(text: Strings.manualSavingStatus)
+                }
+            }
         }
+        .animation(.default, value: isSaving)
         .navigationTitle(Strings.manualTitle)
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: startDate) { _, newValue in
@@ -94,8 +116,12 @@ struct ManualDayEntryView: View {
         }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
-                Button(Strings.manualSave) { save() }
-                    .disabled(!canSave)
+                if isSaving {
+                    ProgressView()
+                } else {
+                    Button(Strings.manualSave) { save() }
+                        .disabled(!canSave)
+                }
             }
         }
         .alert(
@@ -155,12 +181,14 @@ struct ManualDayEntryView: View {
                         try await report.setManualDay(
                             date: startDate,
                             regions: regionSelection.selectedRegions,
+                            note: note,
                         )
                     case .range:
                         try await report.setManualDays(
                             from: startDate,
                             through: endDate,
                             regions: regionSelection.selectedRegions,
+                            note: note,
                         )
                 }
                 dismiss()
