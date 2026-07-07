@@ -12,15 +12,14 @@ extension Region {
     )
 
     /// Order `elements` by their day count, descending, breaking ties by
-    /// `declarationOrder`. The single home for the app's "most days first, stable
-    /// order" ranking — shared by the year ranking and Primary tab
-    /// (`RegionRanking`), the widgets, the calendar month footers
-    /// (`PresenceCalendar`), and the daily-summary notification — so the rule
-    /// can't quietly drift between them.
+    /// `declarationOrder`. The single home for the "most days first, stable
+    /// order" ranking, so every surface that ranks regions (year reports,
+    /// widgets, calendar footers, notifications) shares one rule that can't
+    /// quietly drift between them.
     ///
-    /// `Element` is whatever row the caller already has (a `RegionDays`, a
-    /// `RegionDayTally`, a `[Region: Int]` entry, …); supply the two accessors
-    /// and get the same collection back, sorted.
+    /// `Element` is whatever row the caller already has (a small day-count
+    /// struct, a `[Region: Int]` entry, …); supply the two accessors and get the
+    /// same collection back, sorted.
     public static func rankedByDayCount<Element>(
         _ elements: some Sequence<Element>,
         days: (Element) -> Int,

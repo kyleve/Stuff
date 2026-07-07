@@ -194,6 +194,21 @@ struct LogViewerModelTests {
         #expect(regionStore.snapshot().isEmpty)
     }
 
+    /// Guards against a retain cycle through the long-lived observation tasks:
+    /// they capture `[weak self]` and `deinit` cancels them, so dropping the last
+    /// strong reference deallocates the model even while the tasks are parked in
+    /// `for await` (quiet stores emit nothing on their own).
+    @Test
+    func deinitsWhileObservingStores() {
+        weak var weakModel: LogViewerModel?
+        do {
+            let model = LogViewerModel(stores: [LogStore(), LogStore()])
+            weakModel = model
+            #expect(weakModel != nil)
+        }
+        #expect(weakModel == nil)
+    }
+
     @Test
     func observeReflectsUpdatesFromEveryStore() async {
         let appStore = LogStore()
