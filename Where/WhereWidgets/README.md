@@ -43,8 +43,9 @@ app never wakes.
 
 `WhereWidgets` is a Tuist app-extension target in
 [`Project.swift`](../../Project.swift) (bundle ID `com.stuff.where.widgets`).
-It depends on **WhereCore**, **WhereUI**, and **LogKit**. The main **Where**
-app embeds the extension and shares the App Group entitlement.
+It depends on **WhereCore**, **WhereUI**, **RegionKit** (for the `Region` model
+its snapshot fixtures use), and **LogKit**. The main **Where** app embeds the
+extension and shares the App Group entitlement.
 
 ## Previews
 

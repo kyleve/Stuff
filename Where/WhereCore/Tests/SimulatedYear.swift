@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import WhereCore
 
 /// Scripts a year-long sequence of `LocationSample`s, manual day entries,

@@ -1,7 +1,7 @@
 # LogViewerUI – Module Shape
 
-LogViewerUI is an app-agnostic SwiftUI **log viewer** over a
-[`LogKit`](../LogKit) `LogStore`: hand it a `LogViewerConfiguration` (store,
+LogViewerUI is an app-agnostic SwiftUI **log viewer** over one or more
+[`LogKit`](../LogKit) `LogStore`s: hand it a `LogViewerConfiguration` (stores,
 title, category display names) and `LogViewer` renders entries newest-first
 with filtering, share, copy, and clear. See [`README.md`](README.md) for the
 narrative and API.
@@ -22,7 +22,11 @@ build system, formatting, and global conventions. Read that first.
 
 - **Read-only mirror.** Recording lives in `LogKit`; this module only
   consumes snapshots on the main actor (the one write is `clear()`, which
-  updates `entries` synchronously so the list empties immediately).
+  empties every configured store and updates `entries` synchronously so the
+  list clears immediately).
+- **Multiple stores merge by timestamp.** Each store is observed concurrently
+  and its latest snapshot kept per-store; `entries` is the re-merged, date-sorted
+  union, so several modules' buffers read as one chronological stream.
 - **Newest-first for display, oldest-first for export** — a shared/copied log
   reads chronologically.
 - **The level filter is driven by `LogLevel.allCases`**, so a new level in

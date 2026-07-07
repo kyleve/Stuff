@@ -1,5 +1,6 @@
 import LifecycleKit
 import LogViewerUI
+import RegionKit
 #if DEBUG
     import SwiftDataInspector
 #endif
@@ -424,14 +425,15 @@ struct SettingsView: View {
 
     #if DEBUG
         /// Developer-only tools, compiled out of release: the in-app log viewer
-        /// over the shared `WhereLog` buffer every logger writes to, plus — when
-        /// the live session can vend a SwiftData container — the generic
-        /// SwiftData inspector (previews and non-SwiftData fakes don't show it).
+        /// over both process buffers — `WhereLog` (the app/WhereCore facade) and
+        /// `RegionLog` (RegionKit) — merged chronologically, plus — when the live
+        /// session can vend a SwiftData container — the generic SwiftData
+        /// inspector (previews and non-SwiftData fakes don't show it).
         private var developerSection: some View {
             Section {
                 NavigationLink {
                     LogViewer(configuration: LogViewerConfiguration(
-                        store: WhereLog.store,
+                        stores: [WhereLog.store, RegionLog.store],
                         title: Strings.settingsDebugLogsTitle,
                     ))
                 } label: {

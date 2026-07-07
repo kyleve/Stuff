@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// Audit metadata attached to a user-made manual day entry (a backfill or an
 /// authoritative override), retained so a residency/day-count audit can later

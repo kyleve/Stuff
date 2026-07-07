@@ -1,6 +1,7 @@
 import CoreLocation
 import Foundation
 import MapKit
+import RegionKit
 import WhereCore
 
 /// The human-readable pieces of a reverse-geocoded coordinate, and the rule

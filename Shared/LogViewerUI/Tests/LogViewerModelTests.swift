@@ -140,4 +140,99 @@ struct LogViewerModelTests {
 
         #expect(model.entries.map(\.message) == ["live"])
     }
+
+    // MARK: - Multiple stores
+
+    @Test
+    func mergesMultipleStoresChronologically() {
+        let base = Date(timeIntervalSince1970: 1000)
+        let appStore = LogStore()
+        appStore.record(LogEntry(
+            date: base,
+            level: .info,
+            subsystem: "app",
+            category: "Session",
+            message: "app 1",
+        ))
+        appStore.record(LogEntry(
+            date: base.addingTimeInterval(2),
+            level: .info,
+            subsystem: "app",
+            category: "Session",
+            message: "app 2",
+        ))
+        let regionStore = LogStore()
+        regionStore.record(LogEntry(
+            date: base.addingTimeInterval(1),
+            level: .info,
+            subsystem: "region",
+            category: "RegionAttributor",
+            message: "region 1",
+        ))
+
+        let model = LogViewerModel(stores: [appStore, regionStore])
+        // Entries interleave by date (oldest-first); display reverses to newest-first.
+        #expect(model.entries.map(\.message) == ["app 1", "region 1", "app 2"])
+        #expect(model.filteredEntries.map(\.message) == ["app 2", "region 1", "app 1"])
+        // Categories from every store show up in the filter.
+        #expect(model.categories == ["RegionAttributor", "Session"])
+    }
+
+    @Test
+    func clearEmptiesEveryStore() {
+        let appStore = LogStore()
+        appStore.record(LogEntry(level: .info, subsystem: "app", category: "C", message: "a"))
+        let regionStore = LogStore()
+        regionStore.record(LogEntry(level: .info, subsystem: "region", category: "C", message: "b"))
+
+        let model = LogViewerModel(stores: [appStore, regionStore])
+        #expect(model.entries.count == 2)
+
+        model.clear()
+        #expect(model.isEmpty)
+        #expect(appStore.snapshot().isEmpty)
+        #expect(regionStore.snapshot().isEmpty)
+    }
+
+    /// Guards against a retain cycle through the long-lived observation tasks:
+    /// they capture `[weak self]` and `deinit` cancels them, so dropping the last
+    /// strong reference deallocates the model even while the tasks are parked in
+    /// `for await` (quiet stores emit nothing on their own).
+    @Test
+    func deinitsWhileObservingStores() {
+        weak var weakModel: LogViewerModel?
+        do {
+            let model = LogViewerModel(stores: [LogStore(), LogStore()])
+            weakModel = model
+            #expect(weakModel != nil)
+        }
+        #expect(weakModel == nil)
+    }
+
+    @Test
+    func observeReflectsUpdatesFromEveryStore() async {
+        let appStore = LogStore()
+        let regionStore = LogStore()
+        let model = LogViewerModel(stores: [appStore, regionStore])
+
+        appStore.record(LogEntry(
+            level: .info,
+            subsystem: "app",
+            category: "C",
+            message: "from app",
+        ))
+        regionStore.record(LogEntry(
+            level: .info,
+            subsystem: "region",
+            category: "C",
+            message: "from region",
+        ))
+
+        let deadline = Date(timeIntervalSinceNow: 1)
+        while model.entries.count < 2, Date() < deadline {
+            await Task.yield()
+        }
+
+        #expect(Set(model.entries.map(\.message)) == ["from app", "from region"])
+    }
 }

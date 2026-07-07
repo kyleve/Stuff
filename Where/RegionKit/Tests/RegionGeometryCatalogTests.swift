@@ -1,5 +1,5 @@
+@testable import RegionKit
 import Testing
-@testable import WhereCore
 
 struct RegionGeometryCatalogTests {
     // MARK: - Attribution

@@ -1,5 +1,5 @@
+@testable import RegionKit
 import Testing
-@testable import WhereCore
 
 struct GeoPolygonTests {
     /// A 1° × 1° square centered on (37.5, -122.5): lat 37–38, lng -123 to -122.

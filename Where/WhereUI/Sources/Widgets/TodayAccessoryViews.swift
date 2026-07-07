@@ -1,3 +1,4 @@
+import RegionKit
 import SwiftUI
 import WhereCore
 import WidgetKit

@@ -7,26 +7,33 @@ private let exportTimestampFormatter = Date.ISO8601FormatStyle(
 )
 
 private final class ObservationHandle: @unchecked Sendable {
-    private var task: Task<Void, Never>?
+    private var tasks: [Task<Void, Never>] = []
 
     func start(_ operation: @escaping @MainActor () async -> Void) {
-        task = Task { await operation() }
+        tasks.append(Task { await operation() })
     }
 
     func cancel() {
-        task?.cancel()
+        for task in tasks {
+            task.cancel()
+        }
     }
 }
 
-/// Drives ``LogViewer``: mirrors a ``LogStore`` into observable state and
-/// applies the active filters. Recording happens off the main actor in the
-/// store; this model only consumes snapshots on the main actor for display.
+/// Drives ``LogViewer``: mirrors one or more ``LogStore``s into observable
+/// state (merged chronologically) and applies the active filters. Recording
+/// happens off the main actor in the store(s); this model only consumes
+/// snapshots on the main actor for display.
 @MainActor
 @Observable
 final class LogViewerModel {
-    private let store: LogStore
+    private let stores: [LogStore]
     private let categoryDisplayName: @Sendable (String) -> String
     @ObservationIgnored private let observation = ObservationHandle()
+
+    /// The most recent snapshot from each store, kept in `stores` order so a
+    /// change to one store re-merges without re-reading the others.
+    @ObservationIgnored private var latestSnapshots: [[LogEntry]]
 
     private(set) var entries: [LogEntry]
 
@@ -47,27 +54,53 @@ final class LogViewerModel {
     }
 
     init(
+        stores: [LogStore],
+        categoryDisplayName: @escaping @Sendable (String) -> String = { $0 },
+    ) {
+        self.stores = stores
+        self.categoryDisplayName = categoryDisplayName
+        latestSnapshots = stores.map { $0.snapshot() }
+        entries = Self.merged(latestSnapshots)
+        // Observe each store on its own task. Each loop re-promotes `self` per
+        // iteration (`guard let self else { break }`), so between log lines the
+        // tasks hold only a weak reference: the model can deinit while parked in
+        // `for await`, and `deinit` then cancels every task. (An instance
+        // `observe()` call would instead keep `self` alive for the streams'
+        // whole lifetime — see `YearReportModel.observeDataChanges()`.)
+        for index in stores.indices {
+            let store = stores[index]
+            observation.start { [weak self] in
+                for await snapshot in store.changes() {
+                    guard let self else { break }
+                    apply(snapshot, at: index)
+                }
+            }
+        }
+    }
+
+    /// Convenience for the common single-buffer case.
+    convenience init(
         store: LogStore,
         categoryDisplayName: @escaping @Sendable (String) -> String = { $0 },
     ) {
-        self.store = store
-        self.categoryDisplayName = categoryDisplayName
-        entries = store.snapshot()
-        observation.start { [weak self] in
-            await self?.observe()
-        }
+        self.init(stores: [store], categoryDisplayName: categoryDisplayName)
     }
 
     deinit {
         observation.cancel()
     }
 
-    /// Observe the store until this task is cancelled.
-    func observe() async {
-        for await snapshot in store.changes() {
-            entries = snapshot
-            invalidateEntryCache()
-        }
+    private func apply(_ snapshot: [LogEntry], at index: Int) {
+        latestSnapshots[index] = snapshot
+        entries = Self.merged(latestSnapshots)
+        invalidateEntryCache()
+    }
+
+    /// Flatten every store's snapshot into one oldest-first list. Each store's
+    /// snapshot is already chronological; sorting by `date` interleaves them.
+    private static func merged(_ snapshots: [[LogEntry]]) -> [LogEntry] {
+        guard snapshots.count > 1 else { return snapshots.first ?? [] }
+        return snapshots.flatMap(\.self).sorted { $0.date < $1.date }
     }
 
     /// Distinct categories present in the buffer, sorted for a stable filter.
@@ -107,8 +140,11 @@ final class LogViewerModel {
     }
 
     func clear() {
-        store.clear()
-        entries = store.snapshot()
+        for store in stores {
+            store.clear()
+        }
+        latestSnapshots = stores.map { $0.snapshot() }
+        entries = Self.merged(latestSnapshots)
         invalidateEntryCache()
     }
 

@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// The pure read path over a `WhereStore`: turns persisted samples + manual
 /// days into the `YearReport` and location projections the UI, reminders, and

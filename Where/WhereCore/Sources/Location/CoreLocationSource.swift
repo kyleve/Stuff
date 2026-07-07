@@ -1,5 +1,6 @@
 import CoreLocation
 import Foundation
+import RegionKit
 
 /// `LocationSource` driven by `CLLocationManager` using the two low-power
 /// signals appropriate for "what state am I in today" tracking:

@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 public struct BorderDriftIssue: DataIssue, Hashable {
     public let day: DayPresence

@@ -1,5 +1,6 @@
 import Foundation
 import LogKit
+import RegionKit
 
 /// Owns the published widget snapshot and the policy for when to rebuild it.
 ///

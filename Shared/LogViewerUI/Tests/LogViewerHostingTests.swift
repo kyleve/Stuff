@@ -40,4 +40,33 @@ struct LogViewerHostingTests {
             try waitFor { isViewHosted(controller) }
         }
     }
+
+    @Test func viewerHostsWithMultipleStores() throws {
+        // Mirrors the Settings entry, which merges WhereLog + RegionLog buffers.
+        let appStore = LogStore()
+        appStore.record(LogEntry(
+            level: .info,
+            subsystem: "app",
+            category: "Session",
+            message: "hi",
+        ))
+        let regionStore = LogStore()
+        regionStore.record(LogEntry(
+            level: .error,
+            subsystem: "region",
+            category: "RegionAttributor",
+            message: "boom",
+        ))
+
+        let rootView = NavigationStack {
+            LogViewer(configuration: LogViewerConfiguration(
+                stores: [appStore, regionStore],
+                title: "Logs",
+            ))
+        }
+        let hosted = UIHostingController(rootView: rootView)
+        try show(hosted) { controller in
+            try waitFor { isViewHosted(controller) }
+        }
+    }
 }

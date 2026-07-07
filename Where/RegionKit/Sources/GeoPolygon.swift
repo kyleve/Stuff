@@ -8,7 +8,7 @@ import Foundation
 /// Public so the developer region-map viewer can frame its camera's
 /// latitude from the same min/max math (via `enclosing(_:)`); longitude
 /// is framed separately with `LongitudeSpan` because it can wrap the
-/// antimeridian. WhereCore stays UI-free, so the MapKit conversion
+/// antimeridian. RegionKit stays UI-free, so the MapKit conversion
 /// happens in the UI layer.
 public struct BoundingBox: Hashable, Sendable {
     public let minLatitude: Double

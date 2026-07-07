@@ -1,6 +1,7 @@
 import Foundation
 import LogKit
 import Observation
+import RegionKit
 import WhereCore
 
 /// View-scoped model for the Resolve tab: the full list of unresolved

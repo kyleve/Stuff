@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// Detects days carrying an `.other` attribution whose GPS coordinates actually
 /// sit just outside a primary region's border — likely GPS jitter near a
