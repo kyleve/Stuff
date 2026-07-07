@@ -66,6 +66,9 @@ let package = Package(
                 .target(name: "LogKit"),
             ],
             path: "Where/RegionKit/Sources",
+            resources: [
+                .process("Resources"),
+            ],
         ),
         .target(
             name: "WhereCore",

@@ -1,5 +1,6 @@
 import Foundation
 import LogKit
+import RegionKit
 import SwiftData
 
 /// CloudKit-synced `WhereStore` backed by SwiftData. The `@Model` types are

@@ -1,5 +1,6 @@
 import LogKit
 import MapKit
+import RegionKit
 import SwiftUI
 import WhereCore
 
@@ -148,7 +149,7 @@ public struct RegionMapView: View {
             // Keep the failure observable in both the UI (the `.failure`
             // state renders an error) and the logs, rather than silently
             // showing an empty map.
-            WhereLog.channel(.regionAttributor)
+            RegionLog.channel(.geometryCatalog)
                 .warning("Region map viewer failed to load \(kind.rawValue) geometry: \(error)")
             outlines = .failure(error)
         }

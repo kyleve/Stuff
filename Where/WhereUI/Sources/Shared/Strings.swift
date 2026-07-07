@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import WhereCore
 
 /// Localized, catalog-backed strings for WhereUI.

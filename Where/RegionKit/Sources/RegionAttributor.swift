@@ -29,7 +29,7 @@ public struct RegionAttributor: Sendable {
 
     /// The loaded polygons per region, exposed for the developer
     /// region-map viewer (`RegionGeometryCatalog`). Internal on purpose:
-    /// callers outside `WhereCore` consume drawable outlines via
+    /// callers outside `RegionKit` consume drawable outlines via
     /// `RegionGeometryCatalog.outlines(for:)`, never raw `RegionPolygons`.
     var loadedRegionPolygons: [RegionPolygons] {
         regionPolygons
@@ -65,7 +65,7 @@ public struct RegionAttributor: Sendable {
     /// `Logger` from `os` — used in `loadFromBundle` to surface
     /// missing/unparseable bundled resources as Console.app faults
     /// alongside the debug-build `assertionFailure`.
-    private static let logger = WhereLog.channel(.regionAttributor)
+    private static let logger = RegionLog.channel(.attributor)
 
     private static func loadFromBundle() -> RegionAttributor {
         // Every Census `NAME` any `.usStateFeature` region wants, so the

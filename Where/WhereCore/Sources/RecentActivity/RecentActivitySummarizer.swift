@@ -1,5 +1,6 @@
 import Foundation
 import LogKit
+import RegionKit
 
 /// One attributed reading in a recent-activity window: when the device was
 /// somewhere, which tracked region that coordinate fell in, and the raw

@@ -1,5 +1,5 @@
+@testable import RegionKit
 import Testing
-@testable import WhereCore
 
 struct LongitudeSpanTests {
     @Test func emptyIsNil() {

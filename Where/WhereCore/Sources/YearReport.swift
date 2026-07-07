@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// Aggregated presence for a whole year. Days are sorted ascending by date
 /// on init so callers (and the per-month rollup test helpers) can rely on a

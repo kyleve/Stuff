@@ -1,5 +1,5 @@
+import RegionKit
 import Testing
-import WhereCore
 
 struct RegionAttributorTests {
     let attributor = RegionAttributor.shared

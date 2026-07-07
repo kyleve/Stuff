@@ -1,3 +1,4 @@
+import RegionKit
 import WhereCore
 
 extension WidgetSnapshot {

@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// Reads the persisted year + dismissals, runs the pure detectors, and returns
 /// the sorted, not-yet-dismissed issues — throttling repeat scans of the same

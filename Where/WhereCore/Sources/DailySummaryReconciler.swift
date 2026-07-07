@@ -1,5 +1,6 @@
 import Foundation
 import LogKit
+import RegionKit
 
 /// Owns the daily summary recap intent and the reconciliation that recomputes
 /// the year-to-date recap text and pushes it to the summary scheduler.

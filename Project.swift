@@ -97,6 +97,7 @@ let project = Project(
             dependencies: [
                 .package(product: "LifecycleKit"),
                 .package(product: "LogKit"),
+                .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
                 .target(name: "WhereWidgets"),
@@ -130,6 +131,7 @@ let project = Project(
             entitlements: whereAppGroupEntitlements,
             dependencies: [
                 .package(product: "LogKit"),
+                .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
@@ -151,9 +153,10 @@ let project = Project(
             sources: ["Where/RegionViewer/Sources/**"],
             resources: ["Where/RegionViewer/Resources/**"],
             // No App Group entitlement — the viewer only reads bundled GeoJSON
-            // (embedded via the WhereCore dependency), never the app's store.
+            // (embedded via the RegionKit dependency), never the app's store.
             dependencies: [
                 .package(product: "LogKit"),
+                .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
@@ -256,13 +259,15 @@ let project = Project(
                 ]),
             ]),
             sources: ["Shared/StuffTestHost/Sources/**"],
-            // Hosted Swift Testing bundles run inside StuffTestHost, so WhereCore's
+            // Hosted Swift Testing bundles run inside StuffTestHost, so a package's
             // `Bundle.module` resolves against the host app's main bundle at runtime.
-            // Depending on WhereCore here makes Tuist embed `Stuff_WhereCore.bundle`
-            // (its GeoJSON region data) into the host, so code the tests touch — e.g.
-            // the lazy `RegionAttributor.shared` — finds its resources instead of
-            // trapping in the `Bundle.module` accessor.
+            // Depending on RegionKit and WhereCore here makes Tuist embed their
+            // resource bundles (`Stuff_RegionKit.bundle`, which holds the GeoJSON
+            // region data, and `Stuff_WhereCore.bundle`) into the host, so code the
+            // tests touch — e.g. the lazy `RegionAttributor.shared` — finds its
+            // resources instead of trapping in the `Bundle.module` accessor.
             dependencies: [
+                .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
             ],
         ),
@@ -297,17 +302,29 @@ let project = Project(
             sources: ["Shared/SwiftDataInspector/Tests/**"],
         ),
         unitTests(
+            name: "RegionKitTests",
+            bundleIdSuffix: "regionkit",
+            productDependency: "RegionKit",
+            sources: ["Where/RegionKit/Tests/**"],
+        ),
+        unitTests(
             name: "WhereCoreTests",
             bundleIdSuffix: "wherecore",
             productDependency: "WhereCore",
             sources: ["Where/WhereCore/Tests/**"],
+            extraPackageProducts: ["RegionKit"],
         ),
         unitTests(
             name: "WhereUITests",
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
-            extraPackageProducts: ["LifecycleKit", "LogViewerUI", "SwiftDataInspector"],
+            extraPackageProducts: [
+                "LifecycleKit",
+                "LogViewerUI",
+                "RegionKit",
+                "SwiftDataInspector",
+            ],
         ),
     ],
     // Tuist's autogeneration doesn't emit working standalone test actions for
@@ -347,6 +364,7 @@ let project = Project(
                 "LogKitTests",
                 "LogViewerUITests",
                 "SwiftDataInspectorTests",
+                "RegionKitTests",
                 "WhereCoreTests",
                 "WhereTests",
                 "WhereUITests",
@@ -357,6 +375,7 @@ let project = Project(
                 "LogKitTests",
                 "LogViewerUITests",
                 "SwiftDataInspectorTests",
+                "RegionKitTests",
                 "WhereCoreTests",
                 "WhereTests",
                 "WhereUITests",
@@ -374,6 +393,7 @@ let project = Project(
         testScheme(name: "LogKitTests"),
         testScheme(name: "LogViewerUITests"),
         testScheme(name: "SwiftDataInspectorTests"),
+        testScheme(name: "RegionKitTests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),

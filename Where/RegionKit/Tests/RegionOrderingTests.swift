@@ -1,7 +1,15 @@
+import RegionKit
 import Testing
-import WhereCore
 
 struct RegionOrderingTests {
+    /// A minimal ranking row, standing in for the app's real row types
+    /// (`RegionDayTally`, `RegionDays`, …) that live in higher layers — the
+    /// generic `rankedByDayCount` only needs a `region` and a `days` accessor.
+    private struct Tally {
+        let region: Region
+        let days: Int
+    }
+
     // MARK: - declarationOrder
 
     @Test func declarationOrderMatchesAllCasesIndices() {
@@ -16,9 +24,9 @@ struct RegionOrderingTests {
     @Test func rankedByDayCountOrdersByDaysDescending() {
         let ranked = Region.rankedByDayCount(
             [
-                RegionDayTally(region: .newYork, days: 3),
-                RegionDayTally(region: .california, days: 10),
-                RegionDayTally(region: .canada, days: 7),
+                Tally(region: .newYork, days: 3),
+                Tally(region: .california, days: 10),
+                Tally(region: .canada, days: 7),
             ],
             days: \.days,
             region: \.region,
@@ -32,10 +40,10 @@ struct RegionOrderingTests {
         // `other`.
         let ranked = Region.rankedByDayCount(
             [
-                RegionDayTally(region: .canada, days: 10),
-                RegionDayTally(region: .california, days: 10),
-                RegionDayTally(region: .other, days: 5),
-                RegionDayTally(region: .newYork, days: 5),
+                Tally(region: .canada, days: 10),
+                Tally(region: .california, days: 10),
+                Tally(region: .other, days: 5),
+                Tally(region: .newYork, days: 5),
             ],
             days: \.days,
             region: \.region,

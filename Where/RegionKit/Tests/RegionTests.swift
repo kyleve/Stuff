@@ -1,5 +1,5 @@
+import RegionKit
 import Testing
-import WhereCore
 
 struct RegionTests {
     // MARK: - localizedName
