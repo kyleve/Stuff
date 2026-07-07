@@ -26,8 +26,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   geometry are declared (see [README](README.md#adding-a-region)).
 - **`Region.allCases` order fixes attribution priority** — `RegionAttributor`
   checks regions in declaration order and the first polygon match wins (regions
-  are mutually exclusive at our resolution); it also drives
-  `Region.declarationOrder`, the app's ranking tiebreak.
+  are mutually exclusive at our resolution). (Day-count ranking of regions lives
+  in `WhereCore`'s `Region+Ordering`, not here.)
 - **Attribution loads once, lazily** (`RegionAttributor.shared`) and is UI-free:
   `BoundingBox` / `LongitudeSpan` expose the min/max math, but MapKit conversion
   lives in the UI layer.

@@ -15,8 +15,8 @@ into it for lookup. RegionKit depends only on [`LogKit`](../../Shared/LogKit).
 - **`Region`** — the tracked-region enum (`.california`, `.newYork`, `.canada`,
   `.europeanUnion`, `.other`), with a `localizedName` (from RegionKit's own
   string catalog) and a `geometrySource` describing where its polygons come
-  from. `Region+Ordering` provides the app's canonical "most days first, stable
-  tiebreak" ranking.
+  from. (Day-count *ranking* of regions lives in `WhereCore`, not here —
+  RegionKit stays about regions and geofencing.)
 - **`Coordinate`** — a plain WGS84 latitude/longitude value type (no
   CoreLocation), plus geometry primitives `GeoPolygon`, `BoundingBox`, and the
   antimeridian-aware `LongitudeSpan`.
