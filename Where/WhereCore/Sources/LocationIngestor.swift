@@ -192,6 +192,15 @@ public actor LocationIngestor {
         try await locationSource.requestPermission()
     }
 
+    /// Best-effort one-shot GPS fix for "where is the device right now", used to
+    /// stamp a manual entry's audit trail. Returns `nil` when no fix is
+    /// available (permission not granted, timeout); the caller records the entry
+    /// either way. Routed through the ingestor so the UI never touches the
+    /// `LocationSource` directly.
+    public func currentLocation() async -> LocationSample? {
+        await locationSource.requestCurrentLocation()
+    }
+
     /// The current location authorization status.
     public func authorizationStatus() async -> LocationAuthorizationStatus {
         await locationSource.currentAuthorization()

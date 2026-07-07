@@ -140,6 +140,40 @@ struct BackupServiceTests {
         let decoded = try decoder.decode(DayPresence.self, from: Data(json.utf8))
         #expect(decoded.isAuthoritative == false)
         #expect(decoded.regions == [.newYork])
+        // A manifest predating audit must decode with no audit, not fail.
+        #expect(decoded.audit == nil)
+    }
+
+    @Test func auditManualDaySurvivesArchiveRoundTrip() throws {
+        let service = BackupService()
+        let manualDays = [
+            DayPresence(
+                date: Date(timeIntervalSince1970: 1_700_000_000),
+                regions: [.california],
+                isAuthoritative: true,
+                audit: ManualEntryAudit(
+                    recordedAt: Date(timeIntervalSince1970: 1_700_050_000),
+                    note: "Reviewed my calendar.",
+                    location: CapturedLocation(
+                        coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                        horizontalAccuracy: 12,
+                        timestamp: Date(timeIntervalSince1970: 1_700_050_000),
+                    ),
+                ),
+            ),
+        ]
+        let url = try service.makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: manualDays,
+            blobs: [:],
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let result = try service.readArchive(at: url)
+        #expect(result.archive.manualDays == manualDays)
+        #expect(result.archive.manualDays.first?.audit == manualDays.first?.audit)
     }
 
     @Test func manifestRoundTripsThroughJSON() throws {

@@ -85,6 +85,61 @@
         }
       }
     },
+    "audit.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entry record"
+          }
+        }
+      }
+    },
+    "audit.location" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Made at"
+          }
+        }
+      }
+    },
+    "audit.location.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not captured"
+          }
+        }
+      }
+    },
+    "audit.note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Note"
+          }
+        }
+      }
+    },
+    "audit.recordedAt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recorded"
+          }
+        }
+      }
+    },
     "calendar.day.accessibility" : {
       "comment" : "Accessibility label for a calendar day, including the day of the week and the names of the regions that day.",
       "extractionState" : "extracted_with_value",
@@ -320,6 +375,39 @@
         }
       }
     },
+    "manual.note.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved with this entry for auditing — explain why you made this change."
+          }
+        }
+      }
+    },
+    "manual.note.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reason"
+          }
+        }
+      }
+    },
+    "manual.note.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add a note (optional)"
+          }
+        }
+      }
+    },
     "manual.range.footer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -383,6 +471,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Couldn't save that day"
+          }
+        }
+      }
+    },
+    "manual.saving.status" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capturing location…"
           }
         }
       }
@@ -755,6 +854,17 @@
         }
       }
     },
+    "primary.recentActivity" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent activity"
+          }
+        }
+      }
+    },
     "primary.timeline" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -762,6 +872,138 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Timeline"
+          }
+        }
+      }
+    },
+    "recentActivity.empty.description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No locations were recorded in the last 24 hours."
+          }
+        }
+      }
+    },
+    "recentActivity.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing tracked"
+          }
+        }
+      }
+    },
+    "recentActivity.failed.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't summarize"
+          }
+        }
+      }
+    },
+    "recentActivity.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An on-device summary of where you've been in the last 24 hours. Your location never leaves your device."
+          }
+        }
+      }
+    },
+    "recentActivity.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summarizing…"
+          }
+        }
+      }
+    },
+    "recentActivity.refresh" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refresh"
+          }
+        }
+      }
+    },
+    "recentActivity.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last 24 hours"
+          }
+        }
+      }
+    },
+    "recentActivity.unavailable.appleIntelligenceNotEnabled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on Apple Intelligence in Settings to generate summaries."
+          }
+        }
+      }
+    },
+    "recentActivity.unavailable.deviceNotEligible" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device doesn't support on-device summaries."
+          }
+        }
+      }
+    },
+    "recentActivity.unavailable.modelNotReady" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The on-device model is still getting ready. Try again shortly."
+          }
+        }
+      }
+    },
+    "recentActivity.unavailable.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summaries unavailable"
+          }
+        }
+      }
+    },
+    "recentActivity.unavailable.unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On-device summaries aren't available right now."
           }
         }
       }

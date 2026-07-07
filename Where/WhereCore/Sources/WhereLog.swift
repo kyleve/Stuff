@@ -31,6 +31,7 @@ public enum WhereLog {
         case locationOutbox = "LocationOutbox"
         case loggingReminderScheduler = "LoggingReminderScheduler"
         case model = "WhereModel"
+        case recentActivitySummarizer = "RecentActivitySummarizer"
         case regionAttributor = "RegionAttributor"
         case reminderReconciler = "ReminderReconciler"
         case session = "WhereSession"

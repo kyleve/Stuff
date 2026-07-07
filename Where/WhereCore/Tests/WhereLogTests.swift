@@ -23,7 +23,8 @@ func categoryRawValuesMatchTypeNames() {
     // so Console.app filters keep working after the migration.
     #expect(WhereLog.Category.swiftDataStore.rawValue == "SwiftDataStore")
     #expect(WhereLog.Category.widgetRefresher.rawValue == "WidgetRefresher")
-    #expect(WhereLog.Category.allCases.count == 19)
+    #expect(WhereLog.Category.recentActivitySummarizer.rawValue == "RecentActivitySummarizer")
+    #expect(WhereLog.Category.allCases.count == 20)
 }
 
 @Test

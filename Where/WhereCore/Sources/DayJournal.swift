@@ -68,9 +68,13 @@ public actor DayJournal {
         await widgets.publish()
     }
 
-    public func addManualDay(date: Date, regions: Set<Region>) async throws {
+    public func addManualDay(
+        date: Date,
+        regions: Set<Region>,
+        audit: ManualEntryAudit?,
+    ) async throws {
         let key = aggregator.calendar.startOfDay(for: date)
-        let presence = DayPresence(date: key, regions: regions)
+        let presence = DayPresence(date: key, regions: regions, audit: audit)
         try await store.perform { try await store.setManualDay(presence) }
         await issueScanner.invalidate()
         await reminders.reconcile()
@@ -86,9 +90,13 @@ public actor DayJournal {
     /// `addManualDay`, this does not union with GPS — it's the "correct a wrong
     /// attribution" path. The raw GPS samples are left untouched, so the fix is
     /// non-destructive and undone by `clearManualDay(date:)`.
-    public func overrideDay(date: Date, regions: Set<Region>) async throws {
+    public func overrideDay(
+        date: Date,
+        regions: Set<Region>,
+        audit: ManualEntryAudit?,
+    ) async throws {
         let key = aggregator.calendar.startOfDay(for: date)
-        let presence = DayPresence(date: key, regions: regions, isAuthoritative: true)
+        let presence = DayPresence(date: key, regions: regions, isAuthoritative: true, audit: audit)
         try await store.perform { try await store.setManualDay(presence) }
         await issueScanner.invalidate()
         await reminders.reconcile()
@@ -125,15 +133,20 @@ public actor DayJournal {
         from start: Date,
         through end: Date,
         regions: Set<Region>,
+        audit: ManualEntryAudit?,
     ) async throws {
         // `calendarDays` returns an immutable array, so the `@Sendable`
         // transaction body captures a `let` rather than a mutable cursor across
         // the concurrency boundary.
         let dayKeys = start.calendarDays(through: end, in: aggregator.calendar)
         guard !dayKeys.isEmpty else { return }
+        // One audit stamps every day in the range — it records the single act of
+        // entry, not a per-day fact.
         try await store.perform {
             for day in dayKeys {
-                try await store.setManualDay(DayPresence(date: day, regions: regions))
+                try await store.setManualDay(
+                    DayPresence(date: day, regions: regions, audit: audit),
+                )
             }
         }
         await issueScanner.invalidate()

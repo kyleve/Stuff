@@ -31,6 +31,7 @@ struct ResolveModelTests {
         try await services.journal.addManualDay(
             date: date(year: 2026, month: 1, day: 1),
             regions: [.california],
+            audit: nil,
         )
         await resolve.load(year: 2026, primaryRegions: [.california])
 
@@ -60,10 +61,12 @@ struct ResolveModelTests {
         try await services.journal.addManualDay(
             date: date(year: 2026, month: 3, day: 1),
             regions: [.california],
+            audit: nil,
         )
         try await services.journal.addManualDay(
             date: date(year: 2026, month: 3, day: 2),
             regions: [.newYork],
+            audit: nil,
         )
         await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
 
