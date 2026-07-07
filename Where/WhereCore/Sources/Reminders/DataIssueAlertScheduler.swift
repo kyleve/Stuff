@@ -29,23 +29,30 @@ public protocol DataIssueAlertScheduling: Sendable {
     func reconcile(enabled: Bool, time: ReminderTime, body: String) async
 }
 
-/// A `DataIssueAlertScheduling` that does nothing. For SwiftUI previews and
-/// view-model tests that need a controller without touching
-/// `UNUserNotificationCenter`. Reports unauthorized so the UI's "denied"
-/// affordances stay exercisable.
-public struct NoopDataIssueAlertScheduler: DataIssueAlertScheduling {
-    public init() {}
+#if DEBUG
+    /// A `DataIssueAlertScheduling` that does nothing, for view-model tests that
+    /// need a controller without touching `UNUserNotificationCenter`. Reports
+    /// unauthorized so the UI's "denied" affordances stay exercisable.
+    ///
+    /// `@_spi(Testing)` + `#if DEBUG` per the agents.md testing-hook convention:
+    /// it's test-only scaffolding that mustn't ship in release. Import it with
+    /// `@_spi(Testing) import WhereCore` (add `@testable` in WhereCore's own
+    /// tests) and inject it via `WhereServices(issueAlertScheduler:)`.
+    @_spi(Testing)
+    public struct NoopDataIssueAlertScheduler: DataIssueAlertScheduling {
+        public init() {}
 
-    public func requestAuthorization() async -> Bool {
-        false
+        public func requestAuthorization() async -> Bool {
+            false
+        }
+
+        public func isAuthorized() async -> Bool {
+            false
+        }
+
+        public func reconcile(enabled _: Bool, time _: ReminderTime, body _: String) async {}
     }
-
-    public func isAuthorized() async -> Bool {
-        false
-    }
-
-    public func reconcile(enabled _: Bool, time _: ReminderTime, body _: String) async {}
-}
+#endif
 
 /// Production `DataIssueAlertScheduling` backed by `UNUserNotificationCenter`.
 /// Schedules one repeating daily notification under a dedicated identifier, so
@@ -90,6 +97,12 @@ public final class UserNotificationDataIssueAlertScheduler: DataIssueAlertSchedu
         }
     }
 
+    /// Bring the owned pending request in line with the intent (see the protocol
+    /// requirement for the parameter contract): clear it when disabled or when
+    /// notifications aren't authorized; otherwise leave an already-correct
+    /// request untouched and only (re)build it when the fire time or body changed
+    /// — or a stray duplicate crept in — so a steady state doesn't churn the
+    /// schedule.
     public func reconcile(enabled: Bool, time: ReminderTime, body: String) async {
         guard enabled else {
             await removeAllOwned()

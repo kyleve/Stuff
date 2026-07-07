@@ -1,7 +1,7 @@
 import Foundation
 import LifecycleKit
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 import WhereTesting
 import WhereUI
 

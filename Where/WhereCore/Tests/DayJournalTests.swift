@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers the user-sourced writes (ingest, manual-day overlays, range
 /// backfills, clears, evidence) and the reminder reconcile + widget publish
