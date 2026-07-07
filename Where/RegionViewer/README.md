@@ -66,8 +66,8 @@ CI is unaffected — it runs on `macos-26` with the matching Xcode.
 `RegionViewerApp` is just a `@main App` with a
 `WindowGroup { NavigationStack { RegionMapView() } }`. It has **no**
 `WhereSession`, SwiftData store, or App Group — `RegionMapView` reads geometry
-from `WhereCore`'s public `RegionGeometryCatalog`, which only needs the bundled
-GeoJSON (embedded via the WhereCore dependency). The catalog decodes off the
+from `RegionKit`'s public `RegionGeometryCatalog`, which only needs the bundled
+GeoJSON (embedded via the RegionKit dependency). The catalog decodes off the
 main thread, so the heavy source parse never blocks the UI.
 
 ## Limitations
