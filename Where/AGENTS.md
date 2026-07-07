@@ -76,7 +76,11 @@ Rules the code enforces and agents must preserve:
   `WhereLog.Category` case, never a raw string. Messages log as `.public`, so
   keep PII out. `info` = success of an important operation, `warning` =
   degraded-but-handled, `error`/`fault` = outright failure; hot paths
-  (per-sample persist, widget throttle) stay quiet by design.
+  (per-sample persist, widget throttle) stay quiet by design. **RegionKit** logs
+  through its own `RegionLog` facade (subsystem `com.stuff.regionkit`, separate
+  store) since it can't see `WhereLog`; the DEBUG Settings log viewer is
+  configured with **both** buffers (`[WhereLog.store, RegionLog.store]`) so it
+  shows a single merged stream.
 - **Location comes through the `LocationSource` protocol** — production is
   `CoreLocationSource`; tests and previews use `ScriptedLocationSource`. Besides
   the passive `sampleStream`, it offers a best-effort one-shot

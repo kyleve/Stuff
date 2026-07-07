@@ -24,9 +24,13 @@ private final class ObservationHandle: @unchecked Sendable {
 @MainActor
 @Observable
 final class LogViewerModel {
-    private let store: LogStore
+    private let stores: [LogStore]
     private let categoryDisplayName: @Sendable (String) -> String
     @ObservationIgnored private let observation = ObservationHandle()
+
+    /// The most recent snapshot from each store, kept in `stores` order so a
+    /// change to one store re-merges without re-reading the others.
+    @ObservationIgnored private var latestSnapshots: [[LogEntry]]
 
     private(set) var entries: [LogEntry]
 
@@ -47,27 +51,56 @@ final class LogViewerModel {
     }
 
     init(
-        store: LogStore,
+        stores: [LogStore],
         categoryDisplayName: @escaping @Sendable (String) -> String = { $0 },
     ) {
-        self.store = store
+        self.stores = stores
         self.categoryDisplayName = categoryDisplayName
-        entries = store.snapshot()
+        latestSnapshots = stores.map { $0.snapshot() }
+        entries = Self.merged(latestSnapshots)
         observation.start { [weak self] in
             await self?.observe()
         }
+    }
+
+    /// Convenience for the common single-buffer case.
+    convenience init(
+        store: LogStore,
+        categoryDisplayName: @escaping @Sendable (String) -> String = { $0 },
+    ) {
+        self.init(stores: [store], categoryDisplayName: categoryDisplayName)
     }
 
     deinit {
         observation.cancel()
     }
 
-    /// Observe the store until this task is cancelled.
+    /// Observe every store concurrently until this task is cancelled, remerging
+    /// whenever one of them changes.
     func observe() async {
-        for await snapshot in store.changes() {
-            entries = snapshot
-            invalidateEntryCache()
+        await withTaskGroup(of: Void.self) { group in
+            for index in stores.indices {
+                let store = stores[index]
+                group.addTask { [weak self] in
+                    for await snapshot in store.changes() {
+                        await self?.apply(snapshot, at: index)
+                    }
+                }
+            }
         }
+    }
+
+    private func apply(_ snapshot: [LogEntry], at index: Int) {
+        latestSnapshots[index] = snapshot
+        entries = Self.merged(latestSnapshots)
+        invalidateEntryCache()
+    }
+
+    /// Flatten every store's snapshot into one oldest-first list. Each store's
+    /// snapshot is already chronological; sorting by `date` interleaves them.
+    private static func merged(_ snapshots: [[LogEntry]]) -> [LogEntry] {
+        guard snapshots.count > 1 else { return snapshots.first ?? [] }
+        return snapshots.flatMap(\.self).sorted { $0.date < $1.date }
     }
 
     /// Distinct categories present in the buffer, sorted for a stable filter.
@@ -107,8 +140,11 @@ final class LogViewerModel {
     }
 
     func clear() {
-        store.clear()
-        entries = store.snapshot()
+        for store in stores {
+            store.clear()
+        }
+        latestSnapshots = stores.map { $0.snapshot() }
+        entries = Self.merged(latestSnapshots)
         invalidateEntryCache()
     }
 
