@@ -147,6 +147,33 @@ final class CapturingSink: LogSink, Sendable {
     }
 }
 
+extension LogSession {
+    /// A deterministic session for store tests.
+    static func fixture(
+        id: UUID = UUID(),
+        startedAt: Date = Date(timeIntervalSinceReferenceDate: 0),
+    ) -> LogSession {
+        LogSession(
+            id: id,
+            startedAt: startedAt,
+            appVersion: "1.0",
+            buildNumber: "42",
+            osVersion: "TestOS 1.0",
+            deviceModel: "TestDevice1,1",
+        )
+    }
+}
+
+/// A freeform record with an explicit date, for deterministic store tests.
+func makeRecord(
+    _ text: String,
+    level: LogLevel = .info,
+    date: Date,
+    scopes: [ScopeID],
+) -> LogRecord {
+    LogRecord(date: date, event: Message(level: level, text), scopes: scopes)
+}
+
 /// Shared fixture events used across suites.
 struct AppLogs: LogEvent {
     var message: String {
