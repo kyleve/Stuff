@@ -13,8 +13,6 @@
 
 ## P1s (Should do)
 ## P2s (Nice to have)
-- perf: `LocalNotificationAlertHandler` requests notification authorization on every alert; cache the grant.
-
 # Completed issues
 
 ## P2s (Nice to have)
@@ -24,6 +22,7 @@
 - feat: `OpenSpansView(system:)` — the open-spans developer surface: longest-running first with ticking ages, lifetimes/budgets, and scope paths, over the new `Periscope.openSpans()` snapshot.
 - feat: Span exits are first-class in the tooling — an indexed `spanExitMode` column with `LogQuery.spanExitMode` ("everything that failed"), exit-mode chips on rows, an Exit row with the reason in event detail, a viewer filter, and NDJSON export of the mode.
 - feat: Derive-and-emit `callAsFunction` overloads — `log(PhotoLogs.self) { … }` and `album(for: id) { … }` now compile as single expressions (Swift resolves a value call's args + trailing closure as one application; type callees like SwiftUI Layouts get an implicit init-then-call split, value callees don't).
+- perf: `LocalNotificationAlertHandler` caches its authorization outcome (granted/denied; transient request failures retry) behind an `AlertNotificationCenter` seam modeled on Where's `NotificationReminderCenter`, so error storms don't do a daemon round-trip per alert.
 
 ## P1s (Should do)
 - fix: Check level floors before running redaction in `Periscope.record` — redaction code no longer executes (touching PII) for records the floor discards; floors apply to the record as emitted.
