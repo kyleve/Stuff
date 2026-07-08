@@ -450,38 +450,55 @@ enum Strings {
         )
     }
 
-    // MARK: Settings debug
+    // MARK: Developer tools
 
-    static var settingsDebugHeader: String {
-        localized("settings.debug.header")
+    static var developerTitle: String {
+        localized("developer.title")
     }
 
-    static var settingsDebugLogsLink: String {
-        localized("settings.debug.logsLink")
+    static var developerLogsLink: String {
+        localized("developer.logsLink")
     }
 
-    static var settingsDebugFooter: String {
-        localized("settings.debug.footer")
+    static var developerFooter: String {
+        localized("developer.footer")
     }
 
-    static var settingsDebugLogsTitle: String {
-        localized("settings.debug.logsTitle")
+    static var developerLogsTitle: String {
+        localized("developer.logsTitle")
     }
 
-    static var settingsDebugInspectorLink: String {
-        localized("settings.debug.inspectorLink")
+    static var developerInspectorLink: String {
+        localized("developer.inspectorLink")
     }
 
-    static var settingsDebugInspectorTitle: String {
-        localized("settings.debug.inspectorTitle")
+    static var developerInspectorTitle: String {
+        localized("developer.inspectorTitle")
     }
 
-    static var settingsDebugRegionMapLink: String {
-        String(
-            localized: "settings.debug.regionMapLink",
-            defaultValue: "Region map",
-            bundle: .module,
-        )
+    static var developerRegionMapLink: String {
+        localized("developer.regionMapLink")
+    }
+
+    /// Accessibility label for the floating, collapsed developer button.
+    static var developerButtonLabel: String {
+        localized("developer.button.label")
+    }
+
+    /// Accessibility label for the developer panel's close control.
+    static var developerClose: String {
+        localized("developer.close")
+    }
+
+    /// Accessibility label for growing the developer panel to full screen.
+    static var developerExpand: String {
+        localized("developer.expand")
+    }
+
+    /// Accessibility label for shrinking the developer panel back to a
+    /// floating window.
+    static var developerCollapse: String {
+        localized("developer.collapse")
     }
 
     // MARK: Region map (developer)

@@ -32,32 +32,43 @@ public struct RootView: View {
     }
 
     public var body: some View {
-        LifecycleContainer(
-            launcher,
-            transition: revealTransition,
-            animation: revealAnimation,
-            splash: { LaunchSplashView() },
-            failure: { LifecycleFailureView(failure: $0, retry: $1) },
-        ) {
-            // At `.ready` the session is always present; `MainTabs` owns the
-            // scene-scoped `YearReportModel` and gets a fresh one whenever a reset
-            // rebuilds the session. Keyed on the session's monotonic `id` (never
-            // reused within the process) rather than its address, so a rebuilt
-            // session can't collide with a freed one and skip the rebuild.
-            if let session = model.session {
-                MainTabs(
-                    session: session,
-                    initialReport: model.initialReport,
-                    selectedYear: model.initialSelectedYear,
-                )
-                .id(session.id)
+        ZStack {
+            LifecycleContainer(
+                launcher,
+                transition: revealTransition,
+                animation: revealAnimation,
+                splash: { LaunchSplashView() },
+                failure: { LifecycleFailureView(failure: $0, retry: $1) },
+            ) {
+                // At `.ready` the session is always present; `MainTabs` owns the
+                // scene-scoped `YearReportModel` and gets a fresh one whenever a reset
+                // rebuilds the session. Keyed on the session's monotonic `id` (never
+                // reused within the process) rather than its address, so a rebuilt
+                // session can't collide with a freed one and skip the rebuild.
+                if let session = model.session {
+                    MainTabs(
+                        session: session,
+                        initialReport: model.initialReport,
+                        selectedYear: model.initialSelectedYear,
+                    )
+                    .id(session.id)
+                }
             }
+
+            // The floating developer surface sits above every launch phase and
+            // tab so its tools are reachable from anywhere (even logged out). It's
+            // DEBUG-only and compiled out of release entirely.
+            #if DEBUG
+                DeveloperOverlay()
+            #endif
         }
         .environment(model)
         // The logged-in session appears once `open-store` builds it. Injected
         // as an optional `Observable`, so the `TabView`'s `@Environment(WhereSession.self)`
         // views resolve it (they only render at `.ready`, by which point it's
-        // present) and re-inject when a reset rebuilds it.
+        // present) and re-inject when a reset rebuilds it. The DEBUG developer
+        // overlay reads it optionally — it can appear before login, where the
+        // SwiftData inspector row simply hides.
         .environment(model.session)
         // Settings' "Erase all data & reset" runs the teardown through the
         // `LifecycleRunner` that `LifecycleContainer` publishes into the
