@@ -21,6 +21,7 @@ struct NDJSONExporterTests {
         StoredLogEvent(
             id: UUID(),
             date: date,
+            sequence: 0,
             level: .warning,
             eventName: "message",
             eventVersion: 1,
@@ -77,6 +78,7 @@ struct NDJSONExporterTests {
         let orphan = StoredLogEvent(
             id: UUID(),
             date: date(1),
+            sequence: 0,
             level: .info,
             eventName: "message",
             eventVersion: 1,

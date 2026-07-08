@@ -65,6 +65,18 @@ struct LogEventDetailView: View {
         }
         .navigationTitle(event.eventName)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                NavigationLink {
+                    LogTraceView(store: store, origin: event)
+                } label: {
+                    Label(
+                        "Trace",
+                        systemImage: "point.bottomleft.forward.to.point.topright.scurvepath",
+                    )
+                }
+            }
+        }
         .task {
             do {
                 attachments = try await .success(store.attachments(forEvent: event.id))

@@ -6,7 +6,7 @@ tracer that follows an error back through time and up the scope tree, a
 hookable debug toast for warnings and errors, and a "log view mode" that
 reveals the events behind any wrapped view.
 
-> **Status:** the viewer has landed; the tracer, toast, and log view mode
+> **Status:** the viewer and tracer have landed; the toast and log view mode
 > land incrementally.
 
 ## Installation
@@ -21,7 +21,14 @@ reveals the events behind any wrapped view.
 
 ## Public API
 
-Landing incrementally — see the sources for what exists today.
+- **`PeriscopeViewer(store:title:)`** — the latest-logs viewer: newest-first
+  list over a `PeriscopeStore`, searchable, filterable by level / event type
+  / scope subtree / session, paged, with per-event detail (payload JSON,
+  tags, attachments) and NDJSON export for bug reports. Push it inside an
+  existing `NavigationStack`.
+
+The tracer, debug toast, and log view mode land incrementally — see the
+sources for what exists today.
 
 ## Testing
 

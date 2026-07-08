@@ -8,6 +8,7 @@ struct StoredLogEventTests {
         return StoredLogEvent(
             id: UUID(),
             date: Date(timeIntervalSinceReferenceDate: 100),
+            sequence: 0,
             level: .notice,
             eventName: PhotoLogs.eventName,
             eventVersion: PhotoLogs.eventVersion,

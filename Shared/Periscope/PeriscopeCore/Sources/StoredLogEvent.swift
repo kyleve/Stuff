@@ -10,6 +10,9 @@ import Foundation
 public struct StoredLogEvent: Sendable, Identifiable, Hashable {
     public let id: UUID
     public let date: Date
+    /// Store-assigned monotonic insertion order — the tiebreak when two
+    /// events share a date, so merged query results sort stably.
+    public let sequence: Int
     public let level: LogLevel
     public let eventName: String
     public let eventVersion: Int
@@ -30,6 +33,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
     public init(
         id: UUID,
         date: Date,
+        sequence: Int,
         level: LogLevel,
         eventName: String,
         eventVersion: Int,
@@ -43,6 +47,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
     ) {
         self.id = id
         self.date = date
+        self.sequence = sequence
         self.level = level
         self.eventName = eventName
         self.eventVersion = eventVersion

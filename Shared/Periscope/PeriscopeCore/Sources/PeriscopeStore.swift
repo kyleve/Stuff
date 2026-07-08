@@ -391,6 +391,7 @@ public actor PeriscopeStore: LogSink {
         StoredLogEvent(
             id: row.eventID,
             date: row.date,
+            sequence: row.sequence,
             level: LogLevel(name: row.levelName, severity: row.severity),
             eventName: row.eventName,
             eventVersion: row.eventVersion,
