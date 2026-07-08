@@ -32,12 +32,16 @@ struct PeriscopeTests {
         log.info("hello")
         await system.flush()
 
-        let first = try #require(sink.deliveries.first)
-        guard case let .scopes(scopes) = first else {
-            Issue.record("Expected the scope definition to be delivered first")
-            return
-        }
-        #expect(scopes.contains(log.primaryScope))
+        let deliveries = sink.deliveries
+        let scopeIndex = try #require(deliveries.firstIndex { delivery in
+            guard case let .scopes(scopes) = delivery else { return false }
+            return scopes.contains(log.primaryScope)
+        })
+        let recordIndex = try #require(deliveries.firstIndex { delivery in
+            guard case let .records(records) = delivery else { return false }
+            return records.contains { $0.message == "hello" }
+        })
+        #expect(scopeIndex < recordIndex)
     }
 
     @Test func rootLoggerDefinesItsScopeInTheSystem() {

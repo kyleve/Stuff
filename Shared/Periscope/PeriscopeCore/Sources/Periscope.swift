@@ -111,6 +111,9 @@ public final class Periscope: LogRecorder, Sendable {
     public let configuration: Configuration
     private let state: OSAllocatedUnfairLock<State>
 
+    /// Backs `LogContextProviding` — see `instanceLog(for:)`.
+    let instanceScopes = InstanceScopeRegistry()
+
     public init(configuration: Configuration, sinks: [any LogSink]) {
         precondition(
             configuration.recentBufferCapacity > 0,
