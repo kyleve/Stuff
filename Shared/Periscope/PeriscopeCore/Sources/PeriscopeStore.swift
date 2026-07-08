@@ -85,7 +85,9 @@ public actor PeriscopeStore: LogSink {
     // MARK: Sessions
 
     /// Record `session` as this launch's resource metadata; every event
-    /// written afterwards references it.
+    /// written afterwards references it. Starting a session also declares
+    /// every earlier session dead: spans they left open (and whose policy
+    /// is `.endsWithProcess`) close as `.orphaned`.
     public func startSession(_ session: LogSession) throws {
         activeSession = session
         let row = SDLogSession(session: session)
@@ -97,6 +99,62 @@ public actor PeriscopeStore: LogSink {
             throw error
         }
         activeSessionRow = row
+        closeOrphanedSpans(startedSessionID: session.id)
+    }
+
+    /// Close spans that earlier sessions began but never ended. The begin
+    /// payload's ``SpanRelaunchPolicy`` decides: `.endsWithProcess` spans
+    /// get a synthetic ``SpanEnded`` (`.orphaned`, duration unknowable —
+    /// the process died at an unknown point); `.survivesRelaunch` spans
+    /// stay open. Runs degraded-but-handled: a sweep failure logs and
+    /// counts, it never fails the session start.
+    private func closeOrphanedSpans(startedSessionID: UUID) {
+        do {
+            let beganName = SpanBegan.eventName
+            let endedName = SpanEnded.eventName
+            let began = try modelContext.fetch(FetchDescriptor<SDLogEvent>(
+                predicate: #Predicate {
+                    $0.eventName == beganName && $0.sessionID != startedSessionID
+                },
+            ))
+            guard !began.isEmpty else { return }
+            let ended = try modelContext.fetch(FetchDescriptor<SDLogEvent>(
+                predicate: #Predicate { $0.eventName == endedName },
+            ))
+            let endedSpanIDs = Set(ended.compactMap(\.spanID))
+
+            var orphans: [LogRecord] = []
+            for row in began {
+                guard let spanID = row.spanID, !endedSpanIDs.contains(spanID) else { continue }
+                // A payload that no longer decodes can't prove it wanted to
+                // survive — closing it is the honest fallback.
+                let event = try? JSONDecoder().decode(SpanBegan.self, from: row.payload)
+                if event?.relaunchPolicy == .survivesRelaunch {
+                    continue
+                }
+                orphans.append(LogRecord(
+                    date: Date(),
+                    event: SpanEnded(
+                        spanID: SpanID(rawValue: spanID),
+                        name: event?.name ?? row.message,
+                        duration: nil,
+                        exit: .orphaned,
+                    ),
+                    scopes: row.orderedScopeIDs.map(ScopeID.init(rawValue:)),
+                    tags: Dictionary(
+                        row.tags.map { (LogTagKey($0.key), $0.value) },
+                        uniquingKeysWith: { first, _ in first },
+                    ),
+                ))
+            }
+            guard !orphans.isEmpty else { return }
+            try persist(orphans)
+            notifyChanged()
+        } catch {
+            recoverFromFailedWrite()
+            writeFailures += 1
+            Self.failureLogger.warning("Failed to close orphaned spans: \(error)")
+        }
     }
 
     /// Every recorded session, newest first.

@@ -67,12 +67,22 @@ struct LogTraceModelTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: SpanBegan(spanID: span, name: "save"),
+                event: SpanBegan(
+                    spanID: span,
+                    name: "save",
+                    lifetime: .indefinite,
+                    relaunchPolicy: .endsWithProcess,
+                ),
                 scopes: [root.id],
             ),
             LogRecord(
                 date: date(2),
-                event: SpanEnded(spanID: span, name: "save", duration: .seconds(1)),
+                event: SpanEnded(
+                    spanID: span,
+                    name: "save",
+                    duration: .seconds(1),
+                    exit: .success,
+                ),
                 scopes: [album.id],
             ),
         ])

@@ -208,13 +208,23 @@ struct PeriscopeStoreTests {
         await store.write([
             LogRecord(
                 date: date(1),
-                event: SpanBegan(spanID: span, name: "save"),
+                event: SpanBegan(
+                    spanID: span,
+                    name: "save",
+                    lifetime: .indefinite,
+                    relaunchPolicy: .endsWithProcess,
+                ),
                 scopes: [root.id],
             ),
             makeRecord("unrelated", date: date(2), scopes: [root.id]),
             LogRecord(
                 date: date(3),
-                event: SpanEnded(spanID: span, name: "save", duration: .seconds(2)),
+                event: SpanEnded(
+                    spanID: span,
+                    name: "save",
+                    duration: .seconds(2),
+                    exit: .success,
+                ),
                 scopes: [root.id],
             ),
         ])
@@ -227,6 +237,107 @@ struct PeriscopeStoreTests {
         let unrelated = try await store.events(matching: LogQuery())
             .first { $0.message == "unrelated" }
         #expect(unrelated?.spanID == nil)
+    }
+
+    // MARK: Orphaned spans
+
+    private func writeSpanBegan(
+        _ store: PeriscopeStore,
+        span: SpanID,
+        name: String,
+        relaunch: SpanRelaunchPolicy,
+        scope: LogScope,
+        tags: [LogTagKey: String] = [:],
+    ) async {
+        await store.write([
+            LogRecord(
+                date: date(1),
+                event: SpanBegan(
+                    spanID: span,
+                    name: name,
+                    lifetime: .indefinite,
+                    relaunchPolicy: relaunch,
+                ),
+                scopes: [scope.id],
+                tags: tags,
+            ),
+        ])
+    }
+
+    @Test func relaunchClosesOrphanedSpans() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let span = SpanID()
+        let key = LogTagKey("payment-id")
+        await writeSpanBegan(
+            store,
+            span: span,
+            name: "checkout",
+            relaunch: .endsWithProcess,
+            scope: root,
+            tags: [key: "pay_1"],
+        )
+
+        // A new session declares the earlier one dead.
+        try await store.startSession(.fixture(startedAt: date(100)))
+
+        let pair = try await store.events(inSpan: span)
+        #expect(pair.count == 2)
+        let orphanRow = try #require(pair.first { $0.eventName == SpanEnded.eventName })
+        let orphan = try orphanRow.decode(SpanEnded.self)
+        #expect(orphan.exit == .orphaned)
+        #expect(orphan.duration == nil)
+        #expect(orphan.name == "checkout")
+        #expect(orphanRow.scopes == [root.id])
+        #expect(orphanRow.tags == [key: "pay_1"])
+        #expect(orphanRow.level == .warning)
+    }
+
+    @Test func relaunchLeavesSurvivingSpansOpen() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let span = SpanID()
+        await writeSpanBegan(
+            store,
+            span: span,
+            name: "long-download",
+            relaunch: .survivesRelaunch,
+            scope: root,
+        )
+
+        try await store.startSession(.fixture(startedAt: date(100)))
+
+        let events = try await store.events(inSpan: span)
+        #expect(events.count == 1)
+        #expect(events.first?.eventName == SpanBegan.eventName)
+    }
+
+    @Test func relaunchIgnoresProperlyEndedSpans() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let span = SpanID()
+        await writeSpanBegan(
+            store,
+            span: span,
+            name: "save",
+            relaunch: .endsWithProcess,
+            scope: root,
+        )
+        await store.write([
+            LogRecord(
+                date: date(2),
+                event: SpanEnded(
+                    spanID: span,
+                    name: "save",
+                    duration: .seconds(1),
+                    exit: .success,
+                ),
+                scopes: [root.id],
+            ),
+        ])
+
+        try await store.startSession(.fixture(startedAt: date(100)))
+
+        let events = try await store.events(inSpan: span)
+        #expect(events.count == 2)
+        #expect(events.compactMap { try? $0.decode(SpanEnded.self) }.count == 1)
     }
 
     @Test func tagsPersistAndFilter() async throws {

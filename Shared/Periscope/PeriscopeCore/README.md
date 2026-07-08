@@ -79,8 +79,14 @@ Periscope.shared.startDefaultAmbientSources()
   `@TaskLocal`; `Log<E>.current` reads it anywhere in the async call tree.
   `LogContextProviding` gives classes a derived per-instance `.log`.
 - **Spans** — `log.measure(.token) { … }` (sync/async) emits paired
-  `SpanBegan`/`SpanEnded` events; `begin(for:)`/`end(for:)` for open-ended
-  spans. Durations use `ContinuousClock`; spans mirror to `OSSignposter`.
+  `SpanBegan`/`SpanEnded` events with the exit derived automatically
+  (return → `.success`, throw → `.failure`, `CancellationError` →
+  `.cancelled`); `begin(for:lifetime:relaunch:)`/`end(for:exit:)` for
+  open-ended spans. Every span provably ends: bounded spans expire past
+  their budget (watchdog, `.expired`), re-begins supersede the open span
+  (`.superseded`), and a relaunch closes `endsWithProcess` spans the dead
+  process left open (`.orphaned`, duration unknowable). Durations use
+  `ContinuousClock`; spans mirror to `OSSignposter`.
 - **Attachments** — `LogAttachment` (+ `.error`, `.json`, `.image`
   conveniences) rides along with any event; blobs persist externally and
   load on demand.

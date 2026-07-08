@@ -114,6 +114,11 @@ public final class Periscope: LogRecorder, Sendable {
         var inspectModeEnabled = false
         /// The active drain task; `nil` exactly when nothing is draining.
         var drainTask: Task<Void, Never>?
+        /// The span watchdog. Generation-tagged: respawning with an earlier
+        /// wake time invalidates the old task so it can't clobber state.
+        var watchdogTask: Task<Void, Never>?
+        var watchdogGeneration = 0
+        var watchdogWakeAt: ContinuousClock.Instant?
         /// The active auto-flush task; `nil` exactly when none is running.
         var autoFlushTask: Task<Void, Never>?
         /// A qualifying record arrived while an auto-flush was in flight;
@@ -331,21 +336,95 @@ public final class Periscope: LogRecorder, Sendable {
 
     // MARK: Open spans
 
-    public func openSpan(
-        key: SpanKey,
-        name: String,
-        start: ContinuousClock.Instant,
-    ) -> SpanID? {
-        state.withLock { state in
-            guard state.openSpans[key] == nil else { return nil }
-            let span = OpenSpan(id: SpanID(), name: name, start: start)
+    public func openSpan(key: SpanKey, span: OpenSpan) -> OpenSpan? {
+        let superseded = state.withLock { state in
+            let prior = state.openSpans.removeValue(forKey: key)
             state.openSpans[key] = span
-            return span.id
+            return prior
         }
+        scheduleWatchdogIfNeeded()
+        return superseded
     }
 
     public func closeSpan(key: SpanKey) -> OpenSpan? {
         state.withLock { $0.openSpans.removeValue(forKey: key) }
+    }
+
+    /// Close every bounded open span whose budget has elapsed as of `now`,
+    /// emitting its ``SpanEnded`` (`.expired`) with the begin-time context.
+    /// The watchdog calls this at deadlines; tests call it directly with
+    /// fabricated instants instead of sleeping.
+    @_spi(Testing) public func sweepOverdueSpans(now: ContinuousClock.Instant) {
+        let expired: [OpenSpan] = state.withLock { state in
+            var overdue: [OpenSpan] = []
+            for (key, span) in state.openSpans {
+                guard case let .bounded(budget) = span.lifetime,
+                      span.start + budget <= now
+                else { continue }
+                state.openSpans[key] = nil
+                overdue.append(span)
+            }
+            return overdue
+        }
+        for span in expired {
+            SpanSignposts.end(span.id)
+            guard case let .bounded(budget) = span.lifetime else { continue }
+            record(LogRecord(
+                date: Date(),
+                event: SpanEnded(
+                    spanID: span.id,
+                    name: span.name,
+                    duration: now - span.start,
+                    exit: .expired(budget: budget),
+                ),
+                scopes: span.scopes,
+                tags: span.tags,
+            ))
+        }
+    }
+
+    /// The earliest expiry among bounded open spans, if any.
+    private static func earliestDeadline(in state: State) -> ContinuousClock.Instant? {
+        state.openSpans.values.compactMap { span -> ContinuousClock.Instant? in
+            guard case let .bounded(budget) = span.lifetime else { return nil }
+            return span.start + budget
+        }.min()
+    }
+
+    /// Ensure a watchdog task will wake at (or before) the earliest bounded
+    /// deadline; respawn when a new span needs an earlier wake than the
+    /// current sleep.
+    private func scheduleWatchdogIfNeeded() {
+        state.withLock { state in
+            guard let next = Self.earliestDeadline(in: state) else { return }
+            if state.watchdogTask != nil, let wakeAt = state.watchdogWakeAt, wakeAt <= next {
+                return
+            }
+            state.watchdogTask?.cancel()
+            state.watchdogGeneration += 1
+            state.watchdogWakeAt = next
+            let generation = state.watchdogGeneration
+            state.watchdogTask = Task { await self.runWatchdog(generation: generation) }
+        }
+    }
+
+    private func runWatchdog(generation: Int) async {
+        while true {
+            let wakeAt: ContinuousClock.Instant? = state.withLock { state in
+                guard state.watchdogGeneration == generation else { return nil }
+                guard let next = Self.earliestDeadline(in: state) else {
+                    state.watchdogTask = nil
+                    state.watchdogWakeAt = nil
+                    return nil
+                }
+                state.watchdogWakeAt = next
+                return next
+            }
+            guard let wakeAt else { return }
+            try? await Task.sleep(until: wakeAt, clock: .continuous)
+            if Task.isCancelled { return }
+            sweepOverdueSpans(now: ContinuousClock().now)
+        }
     }
 
     // MARK: Live records

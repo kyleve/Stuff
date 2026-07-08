@@ -1,5 +1,5 @@
 import Foundation
-import PeriscopeCore
+@_spi(Testing) import PeriscopeCore
 import Testing
 
 struct PeriscopeTests {
@@ -346,6 +346,79 @@ struct PeriscopeTests {
         let delivered = await waitUntil { sink.records.count == 1 }
         #expect(delivered)
         #expect(sink.flushCount == 0)
+    }
+
+    // MARK: Span watchdog
+
+    @Test func sweepExpiresOnlyOverdueBoundedSpans() async throws {
+        let system = makeSystem()
+        let log = Log<AppLogs>(system: system)
+        let now = ContinuousClock().now
+
+        log.begin(for: "overdue", lifetime: .bounded(budget: .seconds(10)))
+        log.begin(for: "within-budget", lifetime: .bounded(budget: .seconds(120)))
+        log.begin(for: "open-ended", lifetime: .indefinite)
+
+        system.sweepOverdueSpans(now: now + .seconds(60))
+        await system.flush()
+
+        let expired = sink.records.compactMap { $0.event as? SpanEnded }
+        #expect(expired.count == 1)
+        let ended = try #require(expired.first)
+        #expect(ended.name == "overdue")
+        #expect(ended.exit.mode == .expired)
+        #expect(ended.exit.reason?.contains("budget") == true)
+        // `now` was captured just before the begin, so the measured age is
+        // a hair under the sweep offset — the meaningful bound is the
+        // budget it blew through.
+        let duration = try #require(ended.duration)
+        #expect(duration >= .seconds(10))
+    }
+
+    @Test func expiredSpansKeepTheirBeginContext() async throws {
+        let system = makeSystem()
+        let key = LogTagKey("payment-id")
+        let log = Log<AppLogs>(system: system)(for: "checkout").tagged(key, "pay_1")
+
+        log.begin(for: "pay_1", lifetime: .bounded(budget: .seconds(1)))
+        system.sweepOverdueSpans(now: ContinuousClock().now + .seconds(5))
+        await system.flush()
+
+        let expired = try #require(sink.records.first { record in
+            (record.event as? SpanEnded)?.exit.mode == .expired
+        })
+        #expect(expired.scopes == log.scopes.map(\.id))
+        #expect(expired.tags == [key: "pay_1"])
+    }
+
+    @Test func expiredSpansFreeTheirKeyForReuse() async {
+        let system = makeSystem()
+        let log = Log<AppLogs>(system: system)
+
+        log.begin(for: "flow", lifetime: .bounded(budget: .seconds(1)))
+        system.sweepOverdueSpans(now: ContinuousClock().now + .seconds(5))
+
+        // A fresh begin after expiry must not read as superseded.
+        log.begin(for: "flow", lifetime: .indefinite)
+        log.end(for: "flow", exit: .success)
+        await system.flush()
+
+        let ends = sink.records.compactMap { $0.event as? SpanEnded }
+        #expect(ends.map(\.exit.mode) == [.expired, .success])
+    }
+
+    @Test func theWatchdogExpiresSpansOnItsOwn() async {
+        let system = makeSystem()
+        let log = Log<AppLogs>(system: system)
+
+        log.begin(for: "quick", lifetime: .bounded(budget: .milliseconds(20)))
+
+        let expired = await waitUntil {
+            sink.records.contains { record in
+                (record.event as? SpanEnded)?.exit.mode == .expired
+            }
+        }
+        #expect(expired)
     }
 
     // MARK: Drop policy

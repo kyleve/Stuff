@@ -40,6 +40,12 @@ the build system, formatting, and global conventions. Read that first.
 - **Payloads persist as versioned JSON** (`eventName` + `eventVersion`), not
   per-event schemas — changing an event's shape must not require a SwiftData
   migration.
+- **Every span eventually ends.** `measure` closes on every path (including
+  throw/cancellation); bounded spans expire via the watchdog; re-begins
+  supersede rather than refuse; relaunch orphan-closes `endsWithProcess`
+  spans. Don't add a span path that can leave `openSpans` growing forever
+  (`survivesRelaunch` resume is the one staged exception — see
+  [`TODOs.md`](../TODOs.md)).
 
 ## Testing
 

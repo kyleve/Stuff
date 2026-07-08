@@ -32,12 +32,11 @@ final class RecordingRecorder: LogRecorder, Sendable {
         true
     }
 
-    func openSpan(key: SpanKey, name: String, start: ContinuousClock.Instant) -> SpanID? {
+    func openSpan(key: SpanKey, span: OpenSpan) -> OpenSpan? {
         state.withLock { state in
-            guard state.openSpans[key] == nil else { return nil }
-            let span = OpenSpan(id: SpanID(), name: name, start: start)
+            let prior = state.openSpans.removeValue(forKey: key)
             state.openSpans[key] = span
-            return span.id
+            return prior
         }
     }
 
