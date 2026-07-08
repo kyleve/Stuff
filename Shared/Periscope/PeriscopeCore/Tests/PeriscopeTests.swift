@@ -192,6 +192,18 @@ struct PeriscopeTests {
         #expect(!system.isInspectModeEnabled)
     }
 
+    @Test func inspectModeChangesYieldTheCurrentValueThenChangesOnly() async {
+        let system = makeSystem()
+        system.isInspectModeEnabled = true
+
+        var iterator = system.inspectModeChanges().makeAsyncIterator()
+        #expect(await iterator.next() == true)
+
+        system.isInspectModeEnabled = true // redundant — must not yield
+        system.isInspectModeEnabled = false
+        #expect(await iterator.next() == false)
+    }
+
     // MARK: Level floors
 
     @Test func globalFloorDiscardsRecordsBelowIt() async {

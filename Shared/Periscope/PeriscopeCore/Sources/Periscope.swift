@@ -117,6 +117,7 @@ public final class Periscope: LogRecorder, Sendable {
         var openSpans: [SpanKey: OpenSpan] = [:]
         var ambientSources: [any AmbientEventSource] = []
         var inspectModeEnabled = false
+        var inspectObservers: [UUID: AsyncStream<Bool>.Continuation] = [:]
         /// The active drain task; `nil` exactly when nothing is draining.
         var drainTask: Task<Void, Never>?
         /// The span watchdog. Generation-tagged: respawning with an earlier
@@ -337,12 +338,42 @@ public final class Periscope: LogRecorder, Sendable {
 
     /// The developer "log view mode" flag: when enabled, inspectable UI
     /// (PeriscopeTools' `logInspectable` modifier) reveals the events behind
-    /// each wrapped view. Toggle from a developer settings surface —
-    /// typically through PeriscopeTools' inspector, which mirrors this flag
-    /// observably for SwiftUI.
+    /// each wrapped view. This is the flag's source of truth — observable
+    /// mirrors (PeriscopeTools' inspector) follow it via
+    /// ``inspectModeChanges()``, so writing here or through a mirror
+    /// converges either way.
     public var isInspectModeEnabled: Bool {
         get { state.withLock(\.inspectModeEnabled) }
-        set { state.withLock { $0.inspectModeEnabled = newValue } }
+        set {
+            let observers: [AsyncStream<Bool>.Continuation]? = state.withLock { state in
+                guard state.inspectModeEnabled != newValue else { return nil }
+                state.inspectModeEnabled = newValue
+                return Array(state.inspectObservers.values)
+            }
+            guard let observers else { return }
+            for observer in observers {
+                observer.yield(newValue)
+            }
+        }
+    }
+
+    /// The inspect flag over time: the current value immediately, then one
+    /// per change (redundant writes don't re-yield). Only the latest value
+    /// buffers for a slow consumer. The observer is unregistered when the
+    /// stream's consumer cancels.
+    public func inspectModeChanges() -> AsyncStream<Bool> {
+        let id = UUID()
+        return AsyncStream(bufferingPolicy: .bufferingNewest(1)) { continuation in
+            state.withLock { state in
+                continuation.yield(state.inspectModeEnabled)
+                state.inspectObservers[id] = continuation
+            }
+            continuation.onTermination = { [weak self] _ in
+                self?.state.withLock { state in
+                    state.inspectObservers[id] = nil
+                }
+            }
+        }
     }
 
     // MARK: Open spans

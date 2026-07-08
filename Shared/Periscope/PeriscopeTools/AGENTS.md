@@ -24,8 +24,9 @@ the build system, formatting, and global conventions. Read that first.
   this module special-casing any app. Handlers must not log at or above the
   alerter threshold (they'd alert themselves in a loop).
 - **`Periscope.isInspectModeEnabled` is the inspect flag's source of
-  truth** — `PeriscopeInspector` is its observable SwiftUI mirror; writes go
-  through, never around it.
+  truth** — `PeriscopeInspector` is its observable SwiftUI mirror, synced
+  both ways: the inspector writes through, and direct system writes flow
+  back via `inspectModeChanges()`. Either side may write; they converge.
 - **Merged multi-query results sort by `(date, sequence)`** — the tracer and
   inspector combine several store queries, and the store's insertion
   sequence is the tiebreak that keeps same-millisecond events stable.
