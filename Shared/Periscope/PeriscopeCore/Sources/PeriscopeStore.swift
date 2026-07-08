@@ -469,37 +469,26 @@ public actor PeriscopeStore: LogSink {
         let tagPair = query.tag.map {
             SDLogTag.pairValue(key: $0.key.rawValue, value: $0.value)
         } ?? ""
+        let filtersExit = query.spanExitMode != nil
+        let exitMode: String? = query.spanExitMode?.rawValue
 
-        // Two predicate variants, because a ninth && condition pushes the
-        // #Predicate macro past the type-checker's budget ("unable to
-        // type-check in reasonable time"). The exit variant *replaces* the
-        // event-name condition rather than adding one: an exit filter only
-        // matches span-ended events, so a conflicting name filter provably
-        // matches nothing.
-        let predicate: Predicate<SDLogEvent>
-        if let exit = query.spanExitMode {
-            guard !filtersName || name == SpanEnded.eventName else { return [] }
-            let exitMode: String? = exit.rawValue
-            predicate = #Predicate<SDLogEvent> { event in
-                event.spanExitMode == exitMode
-                    && event.date >= start && event.date <= end
-                    && event.severity >= minSeverity
-                    && (!filtersSession || event.sessionID == session)
-                    && (!filtersSearch || event.message.localizedStandardContains(search))
-                    && (!filtersScope || event.scopes.contains { scopeIDs.contains($0.scopeID) })
-                    && (!filtersTag || event.tags.contains { $0.pair == tagPair })
-            }
-        } else {
-            predicate = #Predicate<SDLogEvent> { event in
-                event.date >= start && event.date <= end
-                    && event.severity >= minSeverity
-                    && (!filtersName || event.eventName == name)
-                    && (!filtersSession || event.sessionID == session)
-                    && (!filtersSearch || event.message.localizedStandardContains(search))
-                    && (!filtersScope || event.scopes.contains { scopeIDs.contains($0.scopeID) })
-                    && (!filtersTag || event.tags.contains { $0.pair == tagPair })
-            }
-        }
+        let predicate = Self.eventsPredicate(
+            start: start,
+            end: end,
+            minSeverity: minSeverity,
+            filtersName: filtersName,
+            name: name,
+            filtersSession: filtersSession,
+            session: session,
+            filtersExit: filtersExit,
+            exitMode: exitMode,
+            filtersSearch: filtersSearch,
+            search: search,
+            filtersScope: filtersScope,
+            scopeIDs: scopeIDs,
+            filtersTag: filtersTag,
+            tagPair: tagPair,
+        )
 
         var descriptor = Self.readDescriptor(
             predicate: predicate,
@@ -515,6 +504,179 @@ public actor PeriscopeStore: LogSink {
             descriptor.fetchOffset = offset
         }
         return try modelContext.fetch(descriptor).map(Self.eventValue)
+    }
+
+    /// The full filter predicate, hand-built in the shape `#Predicate`
+    /// would expand to — but as *statements*, one small `let` per
+    /// condition. A single macro expression with this many conditions is
+    /// one giant inference tree, and it exceeds the type-checker's budget
+    /// on slower machines (CI failed on what compiled locally); statement
+    /// form type-checks each condition independently in milliseconds and
+    /// scales linearly with future filters.
+    private static func eventsPredicate(
+        start: Date,
+        end: Date,
+        minSeverity: Int,
+        filtersName: Bool,
+        name: String,
+        filtersSession: Bool,
+        session: UUID,
+        filtersExit: Bool,
+        exitMode: String?,
+        filtersSearch: Bool,
+        search: String,
+        filtersScope: Bool,
+        scopeIDs: [UUID],
+        filtersTag: Bool,
+        tagPair: String,
+    ) -> Predicate<SDLogEvent> {
+        Predicate<SDLogEvent>({ event in
+            let afterStart = PredicateExpressions.build_Comparison(
+                lhs: PredicateExpressions.build_KeyPath(
+                    root: PredicateExpressions.build_Arg(event),
+                    keyPath: \.date,
+                ),
+                rhs: PredicateExpressions.build_Arg(start),
+                op: .greaterThanOrEqual,
+            )
+            let beforeEnd = PredicateExpressions.build_Comparison(
+                lhs: PredicateExpressions.build_KeyPath(
+                    root: PredicateExpressions.build_Arg(event),
+                    keyPath: \.date,
+                ),
+                rhs: PredicateExpressions.build_Arg(end),
+                op: .lessThanOrEqual,
+            )
+            let atOrAboveFloor = PredicateExpressions.build_Comparison(
+                lhs: PredicateExpressions.build_KeyPath(
+                    root: PredicateExpressions.build_Arg(event),
+                    keyPath: \.severity,
+                ),
+                rhs: PredicateExpressions.build_Arg(minSeverity),
+                op: .greaterThanOrEqual,
+            )
+            // Each optional filter keeps the `!filters || matches` shape
+            // the macro version used.
+            let matchesName = PredicateExpressions.build_Disjunction(
+                lhs: PredicateExpressions.build_Negation(
+                    PredicateExpressions.build_Arg(filtersName),
+                ),
+                rhs: PredicateExpressions.build_Equal(
+                    lhs: PredicateExpressions.build_KeyPath(
+                        root: PredicateExpressions.build_Arg(event),
+                        keyPath: \.eventName,
+                    ),
+                    rhs: PredicateExpressions.build_Arg(name),
+                ),
+            )
+            let matchesSession = PredicateExpressions.build_Disjunction(
+                lhs: PredicateExpressions.build_Negation(
+                    PredicateExpressions.build_Arg(filtersSession),
+                ),
+                rhs: PredicateExpressions.build_Equal(
+                    lhs: PredicateExpressions.build_KeyPath(
+                        root: PredicateExpressions.build_Arg(event),
+                        keyPath: \.sessionID,
+                    ),
+                    rhs: PredicateExpressions.build_Arg(session),
+                ),
+            )
+            let matchesExit = PredicateExpressions.build_Disjunction(
+                lhs: PredicateExpressions.build_Negation(
+                    PredicateExpressions.build_Arg(filtersExit),
+                ),
+                rhs: PredicateExpressions.build_Equal(
+                    lhs: PredicateExpressions.build_KeyPath(
+                        root: PredicateExpressions.build_Arg(event),
+                        keyPath: \.spanExitMode,
+                    ),
+                    rhs: PredicateExpressions.build_Arg(exitMode),
+                ),
+            )
+            let matchesSearch = PredicateExpressions.build_Disjunction(
+                lhs: PredicateExpressions.build_Negation(
+                    PredicateExpressions.build_Arg(filtersSearch),
+                ),
+                rhs: PredicateExpressions.build_localizedStandardContains(
+                    PredicateExpressions.build_KeyPath(
+                        root: PredicateExpressions.build_Arg(event),
+                        keyPath: \.message,
+                    ),
+                    PredicateExpressions.build_Arg(search),
+                ),
+            )
+            let matchesScope = PredicateExpressions.build_Disjunction(
+                lhs: PredicateExpressions.build_Negation(
+                    PredicateExpressions.build_Arg(filtersScope),
+                ),
+                rhs: PredicateExpressions.build_contains(
+                    PredicateExpressions.build_KeyPath(
+                        root: PredicateExpressions.build_Arg(event),
+                        keyPath: \.scopes,
+                    ),
+                ) { scope in
+                    PredicateExpressions.build_contains(
+                        PredicateExpressions.build_Arg(scopeIDs),
+                        PredicateExpressions.build_KeyPath(
+                            root: PredicateExpressions.build_Arg(scope),
+                            keyPath: \.scopeID,
+                        ),
+                    )
+                },
+            )
+            let matchesTag = PredicateExpressions.build_Disjunction(
+                lhs: PredicateExpressions.build_Negation(
+                    PredicateExpressions.build_Arg(filtersTag),
+                ),
+                rhs: PredicateExpressions.build_contains(
+                    PredicateExpressions.build_KeyPath(
+                        root: PredicateExpressions.build_Arg(event),
+                        keyPath: \.tags,
+                    ),
+                ) { tag in
+                    PredicateExpressions.build_Equal(
+                        lhs: PredicateExpressions.build_KeyPath(
+                            root: PredicateExpressions.build_Arg(tag),
+                            keyPath: \.pair,
+                        ),
+                        rhs: PredicateExpressions.build_Arg(tagPair),
+                    )
+                },
+            )
+
+            let dates = PredicateExpressions.build_Conjunction(
+                lhs: afterStart,
+                rhs: beforeEnd,
+            )
+            let base = PredicateExpressions.build_Conjunction(
+                lhs: dates,
+                rhs: atOrAboveFloor,
+            )
+            let named = PredicateExpressions.build_Conjunction(
+                lhs: base,
+                rhs: matchesName,
+            )
+            let sessioned = PredicateExpressions.build_Conjunction(
+                lhs: named,
+                rhs: matchesSession,
+            )
+            let exited = PredicateExpressions.build_Conjunction(
+                lhs: sessioned,
+                rhs: matchesExit,
+            )
+            let searched = PredicateExpressions.build_Conjunction(
+                lhs: exited,
+                rhs: matchesSearch,
+            )
+            let scoped = PredicateExpressions.build_Conjunction(
+                lhs: searched,
+                rhs: matchesScope,
+            )
+            return PredicateExpressions.build_Conjunction(
+                lhs: scoped,
+                rhs: matchesTag,
+            )
+        })
     }
 
     /// Both halves of a span (begin and end events sharing `span`), newest

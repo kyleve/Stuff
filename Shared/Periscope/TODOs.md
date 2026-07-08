@@ -16,6 +16,7 @@
 # Completed issues
 
 ## Second review pass
+- fix: `events(matching:)` builds its filter predicate as statements (hand-written `PredicateExpressions`, one `let` per condition) instead of one `#Predicate` macro expression — the macro's single inference tree exceeded the type-checker budget on CI's slower runners, and the statement form also removes the two-variant workaround so every filter (including span exit) combines in one predicate.
 - perf: The orphan sweep (app-launch path) fetches only the `spanID` column for its began/ended passes; full rows load exclusively for orphan candidates. (Finding 1.)
 - fix: Inspect-mode changes yield inside the state lock so racing setters can't strand `bufferingNewest(1)` subscribers on a stale value. (Finding 2.)
 - fix: Span pairs floor together — the begin-time floor decision (`OpenSpan.beganRecorded`) governs the whole lifecycle via `LogRecord.bypassesFloors`; no dangling halves across floor changes. (Finding 3.)
