@@ -17,18 +17,23 @@ public struct LogRecord: Sendable, Identifiable {
     /// The tags the emitting context had accumulated (see `Log.tagged`).
     public let tags: [LogTagKey: String]
 
+    /// Data attached at the call site (see `LogAttachment`).
+    public let attachments: [LogAttachment]
+
     public init(
         id: UUID = UUID(),
         date: Date,
         event: any LogEvent,
         scopes: [ScopeID],
         tags: [LogTagKey: String] = [:],
+        attachments: [LogAttachment] = [],
     ) {
         self.id = id
         self.date = date
         self.event = event
         self.scopes = scopes
         self.tags = tags
+        self.attachments = attachments
     }
 
     public var level: LogLevel {

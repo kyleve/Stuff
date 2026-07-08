@@ -34,6 +34,9 @@ final class SDLogEvent {
     var scopes: [SDLogScope]
     var tags: [SDLogTag]
 
+    @Relationship(deleteRule: .cascade, inverse: \SDLogAttachment.event)
+    var attachments: [SDLogAttachment]
+
     init(
         eventID: UUID,
         date: Date,
@@ -49,6 +52,7 @@ final class SDLogEvent {
         spanID: UUID?,
         scopes: [SDLogScope],
         tags: [SDLogTag],
+        attachments: [SDLogAttachment],
     ) {
         self.eventID = eventID
         self.date = date
@@ -64,6 +68,27 @@ final class SDLogEvent {
         self.spanID = spanID
         self.scopes = scopes
         self.tags = tags
+        self.attachments = attachments
+    }
+}
+
+/// One attachment blob, cascade-deleted with its event. The bytes use
+/// external storage so screenshots and payloads live beside the database.
+@Model
+final class SDLogAttachment {
+    var name: String
+    var contentType: String
+    /// Position within the event's attachments (relationships are
+    /// unordered).
+    var index: Int
+    @Attribute(.externalStorage) var data: Data
+    var event: SDLogEvent?
+
+    init(name: String, contentType: String, index: Int, data: Data) {
+        self.name = name
+        self.contentType = contentType
+        self.index = index
+        self.data = data
     }
 }
 
@@ -150,6 +175,12 @@ final class SDLogSession {
 
 enum PeriscopeSchema {
     static var models: [any PersistentModel.Type] {
-        [SDLogEvent.self, SDLogScope.self, SDLogSession.self, SDLogTag.self]
+        [
+            SDLogEvent.self,
+            SDLogScope.self,
+            SDLogSession.self,
+            SDLogTag.self,
+            SDLogAttachment.self,
+        ]
     }
 }

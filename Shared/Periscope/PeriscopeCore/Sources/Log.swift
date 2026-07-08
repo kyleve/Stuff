@@ -109,10 +109,20 @@ public struct Log<Event: LogEvent>: Sendable {
         emit(event())
     }
 
-    func emit(_ event: any LogEvent) {
-        recorder.record(
-            LogRecord(date: Date(), event: event, scopes: scopes.map(\.id), tags: tags),
-        )
+    /// Log a structured event with attached data — errors, payloads,
+    /// screenshots (see ``LogAttachment``).
+    public func callAsFunction(attachments: [LogAttachment], _ event: () -> Event) {
+        emit(event(), attachments: attachments)
+    }
+
+    func emit(_ event: any LogEvent, attachments: [LogAttachment] = []) {
+        recorder.record(LogRecord(
+            date: Date(),
+            event: event,
+            scopes: scopes.map(\.id),
+            tags: tags,
+            attachments: attachments,
+        ))
     }
 }
 
@@ -120,32 +130,36 @@ public struct Log<Event: LogEvent>: Sendable {
 /// regardless of its `Event` type — the generic constraint applies to custom
 /// structured events only.
 extension Log {
-    public func log(_ level: LogLevel, _ text: @autoclosure () -> String) {
+    public func log(
+        _ level: LogLevel,
+        _ text: @autoclosure () -> String,
+        attachments: [LogAttachment] = [],
+    ) {
         guard recorder.shouldRecord(level: level, scopes: scopes.map(\.id)) else { return }
-        emit(Message(level: level, text()))
+        emit(Message(level: level, text()), attachments: attachments)
     }
 
-    public func debug(_ text: @autoclosure () -> String) {
-        log(.debug, text())
+    public func debug(_ text: @autoclosure () -> String, attachments: [LogAttachment] = []) {
+        log(.debug, text(), attachments: attachments)
     }
 
-    public func info(_ text: @autoclosure () -> String) {
-        log(.info, text())
+    public func info(_ text: @autoclosure () -> String, attachments: [LogAttachment] = []) {
+        log(.info, text(), attachments: attachments)
     }
 
-    public func notice(_ text: @autoclosure () -> String) {
-        log(.notice, text())
+    public func notice(_ text: @autoclosure () -> String, attachments: [LogAttachment] = []) {
+        log(.notice, text(), attachments: attachments)
     }
 
-    public func warning(_ text: @autoclosure () -> String) {
-        log(.warning, text())
+    public func warning(_ text: @autoclosure () -> String, attachments: [LogAttachment] = []) {
+        log(.warning, text(), attachments: attachments)
     }
 
-    public func error(_ text: @autoclosure () -> String) {
-        log(.error, text())
+    public func error(_ text: @autoclosure () -> String, attachments: [LogAttachment] = []) {
+        log(.error, text(), attachments: attachments)
     }
 
-    public func fault(_ text: @autoclosure () -> String) {
-        log(.fault, text())
+    public func fault(_ text: @autoclosure () -> String, attachments: [LogAttachment] = []) {
+        log(.fault, text(), attachments: attachments)
     }
 }

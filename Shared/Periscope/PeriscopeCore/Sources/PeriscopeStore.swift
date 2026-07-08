@@ -172,6 +172,14 @@ public actor PeriscopeStore: LogSink {
             let tagRows = try record.tags.map { key, value in
                 try tagRow(for: LogTag(key: key, value: value))
             }
+            let attachmentRows = record.attachments.enumerated().map { index, attachment in
+                SDLogAttachment(
+                    name: attachment.name,
+                    contentType: attachment.contentType,
+                    index: index,
+                    data: attachment.data,
+                )
+            }
             let row = try SDLogEvent(
                 eventID: record.id,
                 date: record.date,
@@ -187,6 +195,7 @@ public actor PeriscopeStore: LogSink {
                 spanID: record.spanID?.rawValue,
                 scopes: scopeRows,
                 tags: tagRows,
+                attachments: attachmentRows,
             )
             modelContext.insert(row)
         }
@@ -357,11 +366,25 @@ public actor PeriscopeStore: LogSink {
 
     /// One persisted event by ID (for the tracer and inspectors).
     public func event(id: UUID) throws -> StoredLogEvent? {
+        try fetchEventRow(id: id).map(Self.eventValue)
+    }
+
+    /// An event's attachments with their bytes loaded, in attach order.
+    /// Queried events carry only ``LogAttachmentInfo`` so list fetches
+    /// never pull blobs.
+    public func attachments(forEvent id: UUID) throws -> [LogAttachment] {
+        guard let row = try fetchEventRow(id: id) else { return [] }
+        return row.attachments
+            .sorted { $0.index < $1.index }
+            .map { LogAttachment(name: $0.name, contentType: $0.contentType, data: $0.data) }
+    }
+
+    private func fetchEventRow(id: UUID) throws -> SDLogEvent? {
         var descriptor = FetchDescriptor<SDLogEvent>(
             predicate: #Predicate { $0.eventID == id },
         )
         descriptor.fetchLimit = 1
-        return try modelContext.fetch(descriptor).first.map(Self.eventValue)
+        return try modelContext.fetch(descriptor).first
     }
 
     private static func eventValue(_ row: SDLogEvent) -> StoredLogEvent {
@@ -379,6 +402,9 @@ public actor PeriscopeStore: LogSink {
                 uniquingKeysWith: { first, _ in first },
             ),
             spanID: row.spanID.map(SpanID.init(rawValue:)),
+            attachments: row.attachments
+                .sorted { $0.index < $1.index }
+                .map { LogAttachmentInfo(name: $0.name, contentType: $0.contentType) },
             sessionID: row.sessionID,
         )
     }

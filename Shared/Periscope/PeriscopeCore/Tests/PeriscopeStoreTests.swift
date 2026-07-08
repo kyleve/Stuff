@@ -172,6 +172,34 @@ struct PeriscopeStoreTests {
         #expect(stored.scopes == [photos.id, root.id])
     }
 
+    @Test func attachmentsPersistAndLoadOnDemand() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let first = LogAttachment(name: "a", contentType: "text/plain", data: Data([1]))
+        let second = LogAttachment(name: "b", contentType: "image/png", data: Data([2, 3]))
+        let record = LogRecord(
+            date: date(1),
+            event: Message(level: .error, "failed"),
+            scopes: [root.id],
+            attachments: [first, second],
+        )
+        await store.write([record, makeRecord("bare", date: date(2), scopes: [root.id])])
+
+        let stored = try #require(try await store.events(matching: LogQuery())
+            .first { $0.message == "failed" })
+        #expect(stored.attachments == [
+            LogAttachmentInfo(name: "a", contentType: "text/plain"),
+            LogAttachmentInfo(name: "b", contentType: "image/png"),
+        ])
+
+        let loaded = try await store.attachments(forEvent: record.id)
+        #expect(loaded == [first, second])
+
+        let bare = try #require(try await store.events(matching: LogQuery())
+            .first { $0.message == "bare" })
+        #expect(bare.attachments.isEmpty)
+        #expect(try await store.attachments(forEvent: UUID()).isEmpty)
+    }
+
     @Test func spanEventsResolveBySpanID() async throws {
         let (store, root, _, _) = try await makeStore()
         let span = SpanID()

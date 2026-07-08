@@ -79,6 +79,24 @@ struct LogTests {
         #expect(child.scopes.contains(ui.primaryScope))
     }
 
+    @Test func attachmentsRideAlongWithEvents() {
+        let log = Log<PhotoLogs>(recorder: recorder)
+        let attachment = LogAttachment(
+            name: "thumbnail",
+            contentType: "image/png",
+            data: Data([9]),
+        )
+
+        log(attachments: [attachment]) { PhotoLogs(photoID: "p1") }
+        log.error("boom", attachments: [attachment])
+        log.info("bare")
+
+        let records = recorder.records
+        #expect(records[0].attachments == [attachment])
+        #expect(records[1].attachments == [attachment])
+        #expect(records[2].attachments.isEmpty)
+    }
+
     @Test func taggedContextsStampEveryEvent() {
         let root = Log<AppLogs>(recorder: recorder)
         let tagged = root.tagged(LogTagKey("payment-id"), "pay_123")

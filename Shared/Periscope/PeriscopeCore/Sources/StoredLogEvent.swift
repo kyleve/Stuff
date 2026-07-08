@@ -22,6 +22,9 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
     public let tags: [LogTagKey: String]
     /// The span this event begins or ends, when it is a span event.
     public let spanID: SpanID?
+    /// Attachment metadata; bytes load via
+    /// `PeriscopeStore.attachments(forEvent:)`.
+    public let attachments: [LogAttachmentInfo]
     public let sessionID: UUID
 
     public init(
@@ -35,6 +38,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         scopes: [ScopeID],
         tags: [LogTagKey: String],
         spanID: SpanID?,
+        attachments: [LogAttachmentInfo],
         sessionID: UUID,
     ) {
         self.id = id
@@ -47,6 +51,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         self.scopes = scopes
         self.tags = tags
         self.spanID = spanID
+        self.attachments = attachments
         self.sessionID = sessionID
     }
 
