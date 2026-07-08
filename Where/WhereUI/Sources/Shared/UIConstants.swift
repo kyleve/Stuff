@@ -42,12 +42,19 @@ enum UIConstants {
 
     /// One-off element sizes that aren't part of the spacing scale.
     enum Size {
-        static let progressBarHeight: CGFloat = 6
+        static let progressBarHeight: CGFloat = 10
+        static let progressBarHeightCompact: CGFloat = 6
         static let timelineAccentWidth: CGFloat = 4
         static let timelineAccentHeight: CGFloat = 34
         static let calendarDot: CGFloat = 6
         static let calendarDayMinHeight: CGFloat = 44
-        static let heroNumberFontSize: CGFloat = 46
+        static let heroNumberFontSize: CGFloat = 40
+        /// Point size of the region name header on the big Primary cards. Fixed
+        /// (rather than a Dynamic Type text style) for precise control against
+        /// the entry stamp on the right: the longest common headline names
+        /// ("California" / "New York") still fit at this size, and any over-long
+        /// one tightens then scales down via `minimumScaleFactor`.
+        static let regionNameFontSize: CGFloat = 38
         static let statusIconWidth: CGFloat = 28
         /// Diameter of the region card's circular "entry stamp" impression.
         static let entryStamp: CGFloat = 88

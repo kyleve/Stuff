@@ -50,6 +50,10 @@ struct RegionSummaryCard: View {
         return min(1, Double(regionDays.days) / Double(yearLength))
     }
 
+    private var barHeight: CGFloat {
+        compact ? UIConstants.Size.progressBarHeightCompact : UIConstants.Size.progressBarHeight
+    }
+
     /// A circular rubber-stamp "entry" impression: the region glyph and year
     /// ringed by the region name, tilted as if pressed onto the page. The arc
     /// lettering is dropped on the small compact cards where it can't be read.
@@ -165,17 +169,24 @@ struct RegionSummaryCard: View {
             alignment: .leading,
             spacing: compact ? UIConstants.Spacings.regular : UIConstants.Spacings.xxLarge,
         ) {
-            HStack(spacing: UIConstants.Spacings.large) {
-                Text(style.emoji)
-                    .font(compact ? .title2 : .largeTitle)
-                    .accessibilityHidden(true)
-
+            HStack(alignment: .top, spacing: UIConstants.Spacings.large) {
                 VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
                     Text(regionDays.region.localizedName)
-                        .font(.system(compact ? .headline : .title3, design: .serif)
-                            .weight(.semibold))
-                        .textCase(.uppercase)
-                        .tracking(compact ? 1 : 1.5)
+                        .font(
+                            compact
+                                ? .system(.title3, design: .serif).weight(.semibold)
+                                : .system(
+                                    size: UIConstants.Size.regionNameFontSize,
+                                    weight: .semibold,
+                                    design: .serif,
+                                ),
+                        )
+                        .tracking(compact ? 0 : -0.5)
+                        .lineLimit(1)
+                        .allowsTightening(true)
+                        .minimumScaleFactor(0.7)
+                        .foregroundStyle(style.tint)
+                        .opacity(0.8)
                     if let caption {
                         Text(caption)
                             .font(.caption2.weight(.semibold))
@@ -210,21 +221,21 @@ struct RegionSummaryCard: View {
                     .contentTransition(.numericText())
                     .foregroundStyle(style.tint)
                 Text(Strings.dayUnit(regionDays.days))
-                    .font(.subheadline.weight(.medium))
+                    .font(compact ? .subheadline.weight(.medium) : .title3.weight(.medium))
                     .foregroundStyle(.secondary)
             }
 
             Capsule()
                 .fill(.quaternary)
-                .frame(height: UIConstants.Size.progressBarHeight)
+                .frame(height: barHeight)
                 .overlay(alignment: .leading) {
                     GeometryReader { proxy in
                         Capsule()
-                            .fill(style.tint.gradient)
+                            .fill(style.tint)
                             .frame(width: proxy.size.width * fraction)
                     }
                 }
-                .frame(height: UIConstants.Size.progressBarHeight)
+                .frame(height: barHeight)
                 .accessibilityHidden(true)
         }
         .padding(compact ? UIConstants.Padding.compactCard : UIConstants.Padding.card)
