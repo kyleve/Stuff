@@ -110,7 +110,7 @@ Log call sites never block: records append to a lock-guarded pending queue
 and a background drain task delivers ordered batches to each sink (scope
 definitions always precede the records referencing them). Error-and-above
 events trigger an automatic flush; queue overflow drops oldest and reports
-the gap. Event payloads persist as JSON keyed by `eventName` + `eventVersion`
+the gap (scope definitions and span began/ended pairs are exempt). Event payloads persist as JSON keyed by `eventName` + `eventVersion`
 so old rows outlive their Swift types — `StoredLogEvent.decode(_:)` recovers
 the type, and tooling degrades to raw JSON when it can't.
 

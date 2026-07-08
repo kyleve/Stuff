@@ -19,7 +19,8 @@ import os
 ///   trigger an automatic ``flush()`` so pre-crash context reaches disk.
 /// - **Drop policy** — the pending queue is bounded by
 ///   ``Configuration/pendingBufferCapacity``; on overflow the oldest records
-///   drop and a synthetic ``DroppedEvents`` record marks the gap.
+///   drop and a synthetic ``DroppedEvents`` record marks the gap. Scope
+///   definitions and span began/ended pairs are exempt — pairs never split.
 /// - **Redaction** — ``Configuration/redact`` transforms (or suppresses)
 ///   every record before it is buffered or delivered anywhere.
 ///
@@ -38,8 +39,8 @@ public final class Periscope: LogRecorder, Sendable {
         public var recentBufferCapacity: Int
 
         /// Maximum records queued for sink delivery; on overflow the oldest
-        /// drop (scope definitions never drop) and a ``DroppedEvents``
-        /// record reports the gap.
+        /// drop (scope definitions and span began/ended records never
+        /// drop) and a ``DroppedEvents`` record reports the gap.
         public var pendingBufferCapacity: Int
 
         /// Maximum records buffered per ``liveRecords()`` observer that
@@ -320,12 +321,20 @@ public final class Periscope: LogRecorder, Sendable {
         if pendingOverflow > 0 {
             var remainingToDrop = pendingOverflow
             state.pending.removeAll { item in
-                guard remainingToDrop > 0, case .record = item else { return false }
+                guard remainingToDrop > 0,
+                      case let .record(record) = item,
+                      !record.isProtectedFromDropping
+                else { return false }
                 remainingToDrop -= 1
                 return true
             }
-            state.pendingRecordCount -= pendingOverflow
-            state.droppedCount += pendingOverflow
+            // Protected records (span pairs, like scope definitions) never
+            // drop, so a queue saturated with them can exceed the bound —
+            // they're rare and small, and a split pair is worse than a
+            // briefly oversized queue.
+            let dropped = pendingOverflow - remainingToDrop
+            state.pendingRecordCount -= dropped
+            state.droppedCount += dropped
         }
     }
 

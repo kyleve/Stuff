@@ -17,6 +17,7 @@
 
 ## Second review pass
 - fix: `begin(for:)` registers the span and records its `SpanBegan` atomically (`LogRecorder.beginSpan`), so a racing supersede or `end(for:)` can never deliver a span's end before its began; the span-lifecycle fuzz now asserts strict began-then-ended pairs. The superseded close deliberately follows the *new* began (cause before effect).
+- fix: The overflow drop policy exempts span began/ended records (like scope definitions), so drop pressure can never split a recorded pair — no parentless ends, no spans stuck reading "open" until next launch's orphan sweep. `SpanOverdue` stays droppable; the span-lifecycle fuzz runs under a small queue to keep this covered.
 - fix: Budgeted `measure` sentinels serialize with the span's end through a per-measure gate, so a sentinel losing the race at the budget boundary can never record a `SpanOverdue` after the `SpanEnded`.
 - refactor: The six copies of scope-path walking (OSLogSink, the three tool models, OpenSpansView, NDJSONExporter) collapse into `LogScope.ancestry(of:resolve:)`; display joins with `" / "`, exports with `"/"` — now documented as deliberate.
 - fix: `showHosted` runs window animations at 100x and restores them, matching `WhereTesting.show`.

@@ -801,6 +801,36 @@ struct PeriscopeTests {
         }
     }
 
+    @Test func overflowNeverSplitsSpanPairs() async throws {
+        let gate = GateSink()
+        let system = Periscope(
+            configuration: Periscope.Configuration(pendingBufferCapacity: 3),
+            sinks: [gate, sink],
+        )
+        let log = Log<AppLogs>(system: system)
+
+        log.info("r0")
+        let drainBlocked = await waitUntil { gate.batchCount >= 1 }
+        try #require(drainBlocked)
+
+        // A complete span pair queues first; the freeform flood behind it
+        // overflows the queue. Only the freeform records may drop.
+        log.begin(for: "checkout", lifetime: .indefinite)
+        log.end(for: "checkout", exit: .success)
+        for index in 1 ... 4 {
+            log.info("r\(index)")
+        }
+        gate.open()
+        await system.flush()
+
+        let messages = sink.records.map(\.message)
+        #expect(messages.contains("▶ checkout"))
+        #expect(messages.contains { $0.hasPrefix("◀ checkout succeeded") })
+        #expect(messages.contains("3 log event(s) dropped before delivery"))
+        #expect(messages.contains("r4"))
+        #expect(!messages.contains("r1"))
+    }
+
     @Test(arguments: [0xBEA7_0001, 11, 4242, 555_555_555] as [UInt64])
     func spanLifecyclesSurviveSeededConcurrentInterleavings(seed: UInt64) async {
         enum FuzzOp: Sendable {
@@ -843,7 +873,13 @@ struct PeriscopeTests {
             scripts.append(script)
         }
 
-        let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
+        // A small pending queue adds drop pressure under load: drops only
+        // ever remove freeform records (oldest first, order preserved) —
+        // never a span half, which stays assertable below.
+        let system = Periscope(
+            configuration: Periscope.Configuration(pendingBufferCapacity: 16),
+            sinks: [sink],
+        )
         await withTaskGroup(of: Void.self) { group in
             for (task, script) in scripts.enumerated() {
                 group.addTask {
@@ -887,9 +923,9 @@ struct PeriscopeTests {
         await system.flush()
         #expect(system.openSpans().isEmpty)
 
-        // Floors only *remove*: each task's delivered freeform messages
-        // stay in emission order (strictly increasing suffixes, no
-        // duplicates), whatever the floor was doing around them.
+        // Floors and drops only *remove*: each task's delivered freeform
+        // messages stay in emission order (strictly increasing suffixes,
+        // no duplicates), whatever the floor or queue was doing.
         let messages = sink.records.map(\.message)
         for task in 0 ..< taskCount {
             let prefix = "t\(task)-"

@@ -150,6 +150,16 @@ public struct SpanOverdue: LogEvent {
 extension SpanOverdue: SpanCarrying {}
 
 extension LogRecord {
+    /// Whether the overflow drop policy must keep this record: span pairs
+    /// never split under drop pressure. Dropping a began strands its end
+    /// (nothing repairs a parentless `SpanEnded`); dropping an end leaves
+    /// the span reading as still open for the rest of the session (the
+    /// orphan sweep only runs at the next launch). `SpanOverdue` is a
+    /// disposable warning and drops like any other record.
+    var isProtectedFromDropping: Bool {
+        event is SpanBegan || event is SpanEnded
+    }
+
     /// The span this record belongs to, when its event is a span event.
     public var spanID: SpanID? {
         (event as? SpanCarrying)?.spanID
