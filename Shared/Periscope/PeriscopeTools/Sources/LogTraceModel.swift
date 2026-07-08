@@ -57,11 +57,17 @@ final class LogTraceModel {
                     collected[event.id] = event
                 }
             }
-            collected[origin.id] = nil
 
-            let ordered = collected.values.sorted { lhs, rhs in
-                (lhs.date, lhs.sequence) > (rhs.date, rhs.sequence)
-            }
+            // "Leading up to it" means strictly before: the date-bounded
+            // queries are inclusive, so same-millisecond events that landed
+            // *after* the origin (higher insertion sequence) — and the
+            // origin itself — are trimmed here, where the ordering key
+            // already lives.
+            let ordered = collected.values
+                .filter { ($0.date, $0.sequence) < (origin.date, origin.sequence) }
+                .sorted { lhs, rhs in
+                    (lhs.date, lhs.sequence) > (rhs.date, rhs.sequence)
+                }
             state = .loaded(Array(ordered.prefix(Self.limit)))
         } catch {
             state = .failed(String(describing: error))

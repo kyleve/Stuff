@@ -95,6 +95,23 @@ struct LogTraceModelTests {
         #expect(model.trail.contains { $0.spanID == span && $0.eventName == "span-began" })
     }
 
+    @Test func sameMillisecondEventsAfterTheOriginAreExcluded() async throws {
+        let (store, _, _, album) = try await makeSeededStore()
+        let sharedInstant = date(5)
+        await store.write([
+            makeRecord("before", date: sharedInstant, scopes: [album.id]),
+            makeRecord("origin", level: .error, date: sharedInstant, scopes: [album.id]),
+            makeRecord("after", date: sharedInstant, scopes: [album.id]),
+        ])
+        let origin = try #require(try await store.events(matching: LogQuery())
+            .first { $0.message == "origin" })
+
+        let model = LogTraceModel(store: store, origin: origin)
+        await model.load()
+
+        #expect(model.trail.map(\.message) == ["before"])
+    }
+
     @Test func traceExcludesTheOriginItself() async throws {
         let (store, _, _, album) = try await makeSeededStore()
         await store.write([makeRecord("origin", date: date(1), scopes: [album.id])])
