@@ -6,8 +6,8 @@ tracer that follows an error back through time and up the scope tree, a
 hookable debug toast for warnings and errors, and a "log view mode" that
 reveals the events behind any wrapped view.
 
-> **Status:** scaffolding. The API below lands incrementally; sections are
-> filled in as each piece ships.
+> **Status:** the viewer has landed; the tracer, toast, and log view mode
+> land incrementally.
 
 ## Installation
 
