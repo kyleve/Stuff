@@ -92,6 +92,10 @@ func showHosted<ViewController: UIViewController>(
     guard let rootVC = hostKeyWindow()?.rootViewController else {
         throw WhereTestingError("No root view controller in test host.")
     }
+    // Match WhereTesting.show: run window animations at 100x so tests
+    // never wait on real transition durations.
+    defer { rootVC.view.window?.layer.speed = 1 }
+    rootVC.view.window?.layer.speed = 100
     rootVC.addChild(viewController)
     viewController.view.frame = rootVC.view.bounds
     rootVC.view.addSubview(viewController.view)
