@@ -117,7 +117,9 @@ the type, and tooling degrades to raw JSON when it can't.
 ## Contracts & limitations
 
 - Messages mirror to OSLog as `.public` — keep PII out of messages, or scrub
-  via the redaction hook.
+  via the redaction hook. The hook may transform any record but cannot
+  suppress span began/ended records (a stripped copy records instead —
+  pairs never split); silence spans with level floors.
 - One database for every logging system in the process; scopes and types
   make it easy to split later.
 - `LogContextProviding` caches one small entry per logging instance, evicted

@@ -514,6 +514,33 @@ struct PeriscopeTests {
         #expect(sink.records.map(\.message) == ["fine"])
     }
 
+    @Test func redactionCannotSplitSpanPairs() async throws {
+        // The hook tries to suppress every span record. Suppression is
+        // transform-only for pairs: a stripped copy records instead —
+        // tags and attachments dropped, the exit reason blanked — so
+        // redaction can never strand half of a span.
+        let key = LogTagKey("payment-id")
+        let system = Periscope(
+            configuration: Periscope.Configuration(redact: { record in
+                record.spanID == nil ? record : nil
+            }),
+            sinks: [sink],
+        )
+        let log = Log<AppLogs>(system: system).tagged(key, "pay_1")
+
+        log.begin(for: "checkout", lifetime: .indefinite)
+        log.end(for: "checkout", exit: .failure("card 4242 declined"))
+        await system.flush()
+
+        let began = try #require(sink.records.first { $0.event is SpanBegan })
+        let ended = try #require(sink.records.first { $0.event is SpanEnded })
+        #expect(began.tags.isEmpty)
+        #expect(ended.tags.isEmpty)
+        #expect(ended.spanID == began.spanID)
+        #expect(ended.spanExit?.mode == .failure)
+        #expect(ended.spanExit?.reason == nil)
+    }
+
     // MARK: Flush policy
 
     @Test func recordsAtTheFlushThresholdTriggerAnAutomaticFlush() async {

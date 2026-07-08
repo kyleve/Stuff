@@ -22,7 +22,9 @@ import os
 ///   drop and a synthetic ``DroppedEvents`` record marks the gap. Scope
 ///   definitions and span began/ended pairs are exempt — pairs never split.
 /// - **Redaction** — ``Configuration/redact`` transforms (or suppresses)
-///   every record before it is buffered or delivered anywhere.
+///   every record before it is buffered or delivered anywhere. Span
+///   began/ended records are transform-only: suppression falls back to a
+///   stripped copy, so redaction can't split a pair.
 ///
 /// Most apps use ``shared`` (preconfigured with an ``OSLogSink``) and add
 /// their persistence sink at startup; tests build private systems.
@@ -62,6 +64,12 @@ public final class Periscope: LogRecorder, Sendable {
         /// to the record *as emitted* (redaction is content scrubbing, not
         /// routing), and redaction code never touches records the floor
         /// discards.
+        ///
+        /// Span began/ended records are *transform-only*: returning `nil`
+        /// for one records a stripped copy instead (tags and attachments
+        /// dropped, a `SpanEnded`'s freeform exit reason blanked) — a
+        /// suppressed half would strand its partner. Use level floors to
+        /// silence spans.
         public var redact: (@Sendable (LogRecord) -> LogRecord?)?
 
         public init(
@@ -254,13 +262,7 @@ public final class Periscope: LogRecorder, Sendable {
         if !original.bypassesFloors {
             guard shouldRecord(level: original.level, scopes: original.scopes) else { return }
         }
-        let record: LogRecord
-        if let redact = configuration.redact {
-            guard let redacted = redact(original) else { return }
-            record = redacted
-        } else {
-            record = original
-        }
+        guard let record = redacted(original) else { return }
         state.withLock { state in
             Self.buffer(record, into: &state, configuration: configuration)
         }
@@ -291,6 +293,18 @@ public final class Periscope: LogRecorder, Sendable {
         if record.level >= configuration.flushThreshold {
             scheduleAutoFlush()
         }
+    }
+
+    /// Apply the configured redaction hook. Span pair records are
+    /// *transform-only*: a hook may rewrite them, but `nil` (suppression)
+    /// falls back to a stripped copy — a suppressed half would strand its
+    /// partner (see `LogRecord.isProtectedFromDropping`), and level floors
+    /// are the supported way to silence spans.
+    private func redacted(_ record: LogRecord) -> LogRecord? {
+        guard let redact = configuration.redact else { return record }
+        if let transformed = redact(record) { return transformed }
+        guard record.isProtectedFromDropping else { return nil }
+        return record.strippedOfSensitivePayload()
     }
 
     /// Request an automatic flush, coalescing: one task flushes no matter
@@ -414,14 +428,10 @@ public final class Periscope: LogRecorder, Sendable {
 
     public func beginSpan(key: SpanKey, span: OpenSpan, began: LogRecord?) -> OpenSpan? {
         // Redact outside the lock, like `record(_:)` — the closure is user
-        // code and may itself log, which would deadlock under our lock. A
-        // suppressed began leaves the span registered silently, exactly as
-        // the record path would have dropped it.
-        let buffered: LogRecord? = if let began, let redact = configuration.redact {
-            redact(began)
-        } else {
-            began
-        }
+        // code and may itself log, which would deadlock under our lock.
+        // `redacted` never suppresses a protected began (transform-only),
+        // so a floor-admitted pair stays whole through redaction too.
+        let buffered = began.flatMap { redacted($0) }
         // One lock acquisition for registry + buffer: the span becomes
         // visible for closing only with its began already in the pipeline,
         // so no interleaving can record this span's end first.

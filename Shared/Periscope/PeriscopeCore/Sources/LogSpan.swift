@@ -160,6 +160,34 @@ extension LogRecord {
         event is SpanBegan || event is SpanEnded
     }
 
+    /// The pair-integrity fallback for a redaction hook that tries to
+    /// suppress a protected span record: the same event with its PII
+    /// carriers removed — tags and attachments dropped, a `SpanEnded`'s
+    /// freeform exit reason blanked. Identity, date, scopes, and the
+    /// floor bypass are preserved. (Span names are typed tokens by
+    /// convention, not user data.)
+    func strippedOfSensitivePayload() -> LogRecord {
+        var strippedEvent: any LogEvent = event
+        if let ended = event as? SpanEnded {
+            strippedEvent = SpanEnded(
+                spanID: ended.spanID,
+                name: ended.name,
+                duration: ended.duration,
+                exit: SpanExit(mode: ended.exit.mode, reason: nil),
+            )
+        }
+        var stripped = LogRecord(
+            id: id,
+            date: date,
+            event: strippedEvent,
+            scopes: scopes,
+            tags: [:],
+            attachments: [],
+        )
+        stripped.bypassesFloors = bypassesFloors
+        return stripped
+    }
+
     /// The span this record belongs to, when its event is a span event.
     public var spanID: SpanID? {
         (event as? SpanCarrying)?.spanID

@@ -50,9 +50,11 @@ the build system, formatting, and global conventions. Read that first.
   that can leave `openSpans` growing forever (`survivesRelaunch` resume is
   the one staged exception — see [`TODOs.md`](../TODOs.md)). Registration
   and the `SpanBegan` record land atomically (`LogRecorder.beginSpan`), so
-  a span is never closable before its began is in the pipeline, and the
+  a span is never closable before its began is in the pipeline; the
   overflow drop policy never splits a recorded pair
-  (`LogRecord.isProtectedFromDropping`) — keep both.
+  (`LogRecord.isProtectedFromDropping`); and redaction is transform-only
+  for pair records (suppression falls back to a stripped copy). Keep all
+  three.
 - **Span pairs floor together.** The floor decision is made once, at
   begin, and the whole lifecycle follows it (`OpenSpan.beganRecorded`,
   `LogRecord.bypassesFloors`): a recorded began always gets its end —
