@@ -23,6 +23,9 @@ the build system, formatting, and global conventions. Read that first.
 - **Emitting never blocks the caller.** Log calls append to a lock-guarded
   buffer synchronously; sinks (OSLog, SwiftData) drain asynchronously, and
   sink delivery order is emission order with scope definitions first.
+  Live streams see buffered order too: observer yields happen *under* the
+  state lock (yields only buffer) — yielding outside it would let racing
+  emitters invert live delivery, e.g. a span's end before its began.
 - **Scope IDs are deterministic** (hash of parent + name) — the same path is
   the same scope across processes and launches; `begin`/`end` span pairing
   and cross-layer links rely on this.

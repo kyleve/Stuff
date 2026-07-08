@@ -261,13 +261,32 @@ public final class Periscope: LogRecorder, Sendable {
         } else {
             record = original
         }
-        let observers = state.withLock { state in
-            Self.append(record, to: &state, configuration: configuration)
-            return Array(state.observers.values)
+        state.withLock { state in
+            Self.buffer(record, into: &state, configuration: configuration)
         }
-        for observer in observers {
+        scheduleFollowUp(for: record)
+    }
+
+    /// Append `record` to the buffers and yield it to live observers — the
+    /// in-lock half of delivery, shared by ``record(_:)`` and
+    /// ``beginSpan(key:span:began:)``. Yields happen *inside* the lock so
+    /// live streams see buffered order: yields only buffer (no consumer
+    /// runs under us), and out-of-lock yields from racing emitters could
+    /// invert — e.g. a span's end reaching an observer before its began.
+    private static func buffer(
+        _ record: LogRecord,
+        into state: inout State,
+        configuration: Configuration,
+    ) {
+        append(record, to: &state, configuration: configuration)
+        for observer in state.observers.values {
             observer.yield(record)
         }
+    }
+
+    /// The outside-lock tail of delivery: kick the drain, and auto-flush
+    /// for records at the flush threshold.
+    private func scheduleFollowUp(for record: LogRecord) {
         scheduleDrainIfNeeded()
         if record.level >= configuration.flushThreshold {
             scheduleAutoFlush()
@@ -406,22 +425,16 @@ public final class Periscope: LogRecorder, Sendable {
         // One lock acquisition for registry + buffer: the span becomes
         // visible for closing only with its began already in the pipeline,
         // so no interleaving can record this span's end first.
-        let (superseded, observers) = state.withLock {
-            state -> (OpenSpan?, [AsyncStream<LogRecord>.Continuation]) in
+        let superseded = state.withLock { state -> OpenSpan? in
             let prior = state.openSpans.removeValue(forKey: key)
             state.openSpans[key] = span
-            guard let buffered else { return (prior, []) }
-            Self.append(buffered, to: &state, configuration: configuration)
-            return (prior, Array(state.observers.values))
+            if let buffered {
+                Self.buffer(buffered, into: &state, configuration: configuration)
+            }
+            return prior
         }
         if let buffered {
-            for observer in observers {
-                observer.yield(buffered)
-            }
-            scheduleDrainIfNeeded()
-            if buffered.level >= configuration.flushThreshold {
-                scheduleAutoFlush()
-            }
+            scheduleFollowUp(for: buffered)
         }
         scheduleWatchdogIfNeeded()
         return superseded
@@ -635,18 +648,18 @@ public final class Periscope: LogRecorder, Sendable {
     }
 
     /// Surface a synthetic drop report in the recent buffer and live streams
-    /// (it never re-enters the pending queue).
+    /// (it never re-enters the pending queue). Yields in-lock, like
+    /// ``buffer(_:into:configuration:)``, so live order matches.
     private func announceDropReport(_ record: LogRecord) {
-        let observers = state.withLock { state in
+        state.withLock { state in
             state.recent.append(record)
             let overflow = state.recent.count - configuration.recentBufferCapacity
             if overflow > 0 {
                 state.recent.removeFirst(overflow)
             }
-            return Array(state.observers.values)
-        }
-        for observer in observers {
-            observer.yield(record)
+            for observer in state.observers.values {
+                observer.yield(record)
+            }
         }
     }
 

@@ -16,6 +16,7 @@
 # Completed issues
 
 ## Second review pass
+- fix: Live-stream yields moved inside the state lock (`Periscope.buffer`), so `liveRecords()` observers see buffered order — racing emitters could previously invert live delivery (e.g. a span's end before its began; sinks and `recentRecords()` were always ordered). The record/beginSpan delivery choreography now shares one helper so the paths can't drift, with tests covering begans through the `beginSpan` bypass.
 - fix: `begin(for:)` registers the span and records its `SpanBegan` atomically (`LogRecorder.beginSpan`), so a racing supersede or `end(for:)` can never deliver a span's end before its began; the span-lifecycle fuzz now asserts strict began-then-ended pairs. The superseded close deliberately follows the *new* began (cause before effect).
 - fix: The overflow drop policy exempts span began/ended records (like scope definitions), so drop pressure can never split a recorded pair — no parentless ends, no spans stuck reading "open" until next launch's orphan sweep. `SpanOverdue` stays droppable; the span-lifecycle fuzz runs under a small queue to keep this covered.
 - fix: Budgeted `measure` sentinels serialize with the span's end through a per-measure gate, so a sentinel losing the race at the budget boundary can never record a `SpanOverdue` after the `SpanEnded`.

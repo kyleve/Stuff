@@ -125,6 +125,46 @@ struct PeriscopeTests {
         #expect(await iterator.next()?.message == "6")
     }
 
+    @Test func beganRecordsReachLiveObserversAndTheRecentBuffer() async {
+        // begin(for:) buffers its began through beginSpan, bypassing
+        // record(_:) — the live-stream and recent-buffer side effects must
+        // not drift between the two paths.
+        let system = makeSystem()
+        let log = Log<AppLogs>(system: system)
+
+        var iterator = system.liveRecords().makeAsyncIterator()
+        log.begin(for: "checkout", lifetime: .indefinite)
+
+        let live = await iterator.next()
+        #expect(live?.event is SpanBegan)
+        #expect(system.recentRecords().contains { $0.event is SpanBegan })
+        log.end(for: "checkout", exit: .success)
+    }
+
+    @Test func liveObserversSeeSpanLifecyclesInBufferedOrder() async {
+        // A re-begin closes the prior span as superseded; the live stream
+        // must replay the exact buffered order — began, began, superseded
+        // end, end — never an end ahead of its began.
+        let system = makeSystem()
+        let log = Log<AppLogs>(system: system)
+
+        var iterator = system.liveRecords().makeAsyncIterator()
+        log.begin(for: "checkout", lifetime: .indefinite)
+        log.begin(for: "checkout", lifetime: .indefinite)
+        log.end(for: "checkout", exit: .success)
+
+        let first = await iterator.next()
+        let second = await iterator.next()
+        let third = await iterator.next()
+        let fourth = await iterator.next()
+        #expect(first?.event is SpanBegan)
+        #expect(second?.event is SpanBegan)
+        #expect((third?.spanExit)?.mode == .superseded)
+        #expect(third?.spanID == first?.spanID)
+        #expect((fourth?.spanExit)?.mode == .success)
+        #expect(fourth?.spanID == second?.spanID)
+    }
+
     @Test func flushIsSafeWhenNothingIsPending() async {
         let system = makeSystem()
         await system.flush()
