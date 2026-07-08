@@ -306,8 +306,12 @@ extension Log {
         let clock = ContinuousClock()
         let start = clock.now
         let recorded = beginMeasuredSpan(span, name: spanName)
-        let sentinel = (recorded ? budget : nil).map {
-            startOverdueSentinel(span: span, name: spanName, budget: $0)
+        var sentinel: Task<Void, Never>?
+        var overdueGate: OSAllocatedUnfairLock<Bool>?
+        if recorded, let budget {
+            let gate = OSAllocatedUnfairLock(initialState: false)
+            overdueGate = gate
+            sentinel = startOverdueSentinel(span: span, name: spanName, budget: budget, gate: gate)
         }
         defer { sentinel?.cancel() }
         do {
@@ -318,6 +322,7 @@ extension Log {
                 duration: clock.now - start,
                 exit: .success,
                 recorded: recorded,
+                overdueGate: overdueGate,
             )
             return result
         } catch {
@@ -327,6 +332,7 @@ extension Log {
                 duration: clock.now - start,
                 exit: Self.exit(for: error),
                 recorded: recorded,
+                overdueGate: overdueGate,
             )
             throw error
         }
@@ -342,8 +348,12 @@ extension Log {
         let clock = ContinuousClock()
         let start = clock.now
         let recorded = beginMeasuredSpan(span, name: spanName)
-        let sentinel = (recorded ? budget : nil).map {
-            startOverdueSentinel(span: span, name: spanName, budget: $0)
+        var sentinel: Task<Void, Never>?
+        var overdueGate: OSAllocatedUnfairLock<Bool>?
+        if recorded, let budget {
+            let gate = OSAllocatedUnfairLock(initialState: false)
+            overdueGate = gate
+            sentinel = startOverdueSentinel(span: span, name: spanName, budget: budget, gate: gate)
         }
         defer { sentinel?.cancel() }
         do {
@@ -354,6 +364,7 @@ extension Log {
                 duration: clock.now - start,
                 exit: .success,
                 recorded: recorded,
+                overdueGate: overdueGate,
             )
             return result
         } catch {
@@ -363,6 +374,7 @@ extension Log {
                 duration: clock.now - start,
                 exit: Self.exit(for: error),
                 recorded: recorded,
+                overdueGate: overdueGate,
             )
             throw error
         }
@@ -370,16 +382,22 @@ extension Log {
 
     /// One short-lived task per *budgeted* measure: sleep the budget and,
     /// if the closure hasn't finished (which cancels the sentinel), emit
-    /// the overdue warning.
+    /// the overdue warning. The emission is serialized with the span's end
+    /// through `gate`, so a sentinel that loses the race at the budget
+    /// boundary can never record an overdue *after* the span ended.
     private func startOverdueSentinel(
         span: SpanID,
         name: String,
         budget: Duration,
+        gate: OSAllocatedUnfairLock<Bool>,
     ) -> Task<Void, Never> {
         Task { [self] in
             try? await Task.sleep(for: budget)
             guard !Task.isCancelled else { return }
-            emit(SpanOverdue(spanID: span, name: name, budget: budget))
+            gate.withLock { ended in
+                guard !ended else { return }
+                emit(SpanOverdue(spanID: span, name: name, budget: budget))
+            }
         }
     }
 
@@ -408,13 +426,22 @@ extension Log {
         duration: Duration,
         exit: SpanExit,
         recorded: Bool,
+        overdueGate: OSAllocatedUnfairLock<Bool>?,
     ) {
         SpanSignposts.end(span)
         guard recorded else { return }
-        emit(
-            SpanEnded(spanID: span, name: name, duration: duration, exit: exit),
-            bypassingFloors: true,
-        )
+        let ended = SpanEnded(spanID: span, name: name, duration: duration, exit: exit)
+        if let overdueGate {
+            // MARK: - and-emit under the gate: after this, the sentinel stays
+
+            // silent — never an overdue following the end.
+            overdueGate.withLock { hasEnded in
+                hasEnded = true
+                emit(ended, bypassingFloors: true)
+            }
+        } else {
+            emit(ended, bypassingFloors: true)
+        }
     }
 
     private static func exit(for error: any Error) -> SpanExit {
