@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import Testing
 @testable import WhereCore
 

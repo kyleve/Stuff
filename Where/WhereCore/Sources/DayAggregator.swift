@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// Pure rules for turning `LocationSample`s and manual day entries into
 /// `DayPresence` values and `YearReport`s. No I/O.

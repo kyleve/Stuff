@@ -18,7 +18,7 @@ public enum Region: String, Codable, Sendable, Hashable, CaseIterable {
     case europeanUnion
     case other
 
-    /// User-facing name for this region, read from the `WhereCore`
+    /// User-facing name for this region, read from the `RegionKit`
     /// string catalog (`Resources/Localizable.xcstrings`).
     ///
     /// Uses `String(localized:)` with a literal key per case (rather

@@ -1,14 +1,15 @@
 # LogViewerUI
 
-A small, app-agnostic SwiftUI **log viewer** over a [`LogKit`](../LogKit)
-`LogStore`. Point it at a buffer and it renders captured entries newest-first
-with a level badge, category, timestamp, and message, plus live search,
-level/category filtering, share, copy, and clear — for *any* `LogStore`, with no
-per-app code.
+A small, app-agnostic SwiftUI **log viewer** over one or more [`LogKit`](../LogKit)
+`LogStore`s. Point it at a buffer (or several) and it renders captured entries
+newest-first with a level badge, category, timestamp, and message, plus live
+search, level/category filtering, share, copy, and clear — for *any* `LogStore`,
+with no per-app code. Multiple buffers are merged chronologically, so a host can
+surface several modules' logs (each with its own subsystem/category) in one view.
 
 It's built for **developer / DEBUG surfaces** (think a hidden "Logs" row in a
 Settings screen): it reads whatever the app's loggers wrote into the shared
-buffer this session.
+buffer(s) this session.
 
 LogViewerUI depends only on **SwiftUI + Observation + UIKit (pasteboard) +
 LogKit** — no app code.
@@ -61,6 +62,13 @@ screen.
 ```swift
 public struct LogViewerConfiguration: Sendable {
     public init(
+        stores: [LogStore],
+        title: String = "Logs",
+        categoryDisplayName: @escaping @Sendable (String) -> String = { $0 },
+    )
+
+    /// Convenience for the common single-buffer case.
+    public init(
         store: LogStore,
         title: String = "Logs",
         categoryDisplayName: @escaping @Sendable (String) -> String = { $0 },
@@ -68,32 +76,34 @@ public struct LogViewerConfiguration: Sendable {
 }
 ```
 
-- **`store`** — the `LogKit` buffer to read and observe.
+- **`stores`** — the `LogKit` buffer(s) to read and observe, merged
+  chronologically. The `store:` init is a convenience for the single-buffer case.
 - **`title`** — the viewer's navigation title.
 - **`categoryDisplayName`** — maps a raw `LogEntry.category` to a friendly name
   (e.g. an app's typed-category enum → a label). Defaults to identity.
 
 ## How it works
 
-`LogViewer` owns a `@MainActor @Observable LogViewerModel` that mirrors the store
-into `entries` and derives cached `filteredEntries` (newest-first, after
+`LogViewer` owns a `@MainActor @Observable LogViewerModel` that mirrors the
+store(s) into `entries` and derives cached `filteredEntries` (newest-first, after
 level/category/search). Observation starts in the model's `init` and iterates
-`LogStore.changes()` until the model is deallocated — so the list stays live
-without the view touching the lock-guarded store directly. Recording stays off
-the main actor in `LogKit`; this module only consumes snapshots on the main
-actor for display.
+each store's `LogStore.changes()` concurrently (in a task group) until the model
+is deallocated, remerging the per-store snapshots by timestamp on every change —
+so the list stays live without the view touching the lock-guarded stores
+directly. Recording stays off the main actor in `LogKit`; this module only
+consumes snapshots on the main actor for display.
 
 ## Example: adopting it in an app (Where)
 
-The Where app exposes it behind a DEBUG-only entry in Settings, pointed at the
-process-wide buffer its `WhereLog` facade writes to, mapping raw categories
-through its typed enum:
+The Where app exposes it behind a DEBUG-only entry in Settings, pointed at both
+process-wide buffers — `WhereLog` (the app/WhereCore facade) and `RegionLog`
+(RegionKit) — merged into one list:
 
 ```swift
 #if DEBUG
 NavigationLink {
     LogViewer(configuration: LogViewerConfiguration(
-        store: WhereLog.store,
+        stores: [WhereLog.store, RegionLog.store],
         title: Strings.settingsDebugLogsTitle,
     ))
 } label: {

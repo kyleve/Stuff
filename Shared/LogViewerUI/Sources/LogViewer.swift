@@ -16,7 +16,7 @@ public struct LogViewer: View {
     public init(configuration: LogViewerConfiguration) {
         self.configuration = configuration
         _model = State(initialValue: LogViewerModel(
-            store: configuration.store,
+            stores: configuration.stores,
             categoryDisplayName: configuration.categoryDisplayName,
         ))
     }

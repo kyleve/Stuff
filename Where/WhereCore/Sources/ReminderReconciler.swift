@@ -1,5 +1,6 @@
 import Foundation
 import LogKit
+import RegionKit
 
 /// Owns the daily "log before the day ends" reminder intent and the
 /// reconciliation that keeps the scheduled reminders + badge in sync with the

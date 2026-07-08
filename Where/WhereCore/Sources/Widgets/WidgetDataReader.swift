@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// Everything the Where widgets render, captured as one `Sendable` value:
 /// which regions the snapshot's day already counts for, plus the per-region

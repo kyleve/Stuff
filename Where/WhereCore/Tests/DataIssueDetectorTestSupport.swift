@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import WhereCore
 
 /// Shared fixtures for the per-detector test files (`MissingDaysDetectorTests`,

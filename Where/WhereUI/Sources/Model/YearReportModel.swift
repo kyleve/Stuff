@@ -1,6 +1,7 @@
 import Foundation
 import LogKit
 import Observation
+import RegionKit
 import WhereCore
 
 /// The scene-scoped presentation model for the selected year: the loaded

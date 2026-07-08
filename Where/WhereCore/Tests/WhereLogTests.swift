@@ -24,7 +24,7 @@ func categoryRawValuesMatchTypeNames() {
     #expect(WhereLog.Category.swiftDataStore.rawValue == "SwiftDataStore")
     #expect(WhereLog.Category.widgetRefresher.rawValue == "WidgetRefresher")
     #expect(WhereLog.Category.recentActivitySummarizer.rawValue == "RecentActivitySummarizer")
-    #expect(WhereLog.Category.allCases.count == 20)
+    #expect(WhereLog.Category.allCases.count == 19)
 }
 
 @Test

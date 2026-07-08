@@ -1,5 +1,6 @@
 #if DEBUG
     import Foundation
+    import RegionKit
     import WhereCore
 
     /// Preview/test fixtures for `WhereUI`. Provides a synchronous sample

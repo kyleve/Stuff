@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// Where each `LocationSample` came from. Recorded so reports can distinguish
 /// passive GPS data from user-asserted history.

@@ -1,5 +1,6 @@
 import Foundation
 import LogKit
+import RegionKit
 
 /// Owns the user-sourced writes into the store — sample ingestion, manual-day
 /// overlays, range backfills, year/all clears, evidence, and data-resolution

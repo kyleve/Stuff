@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import SwiftData
 
 /// The Where feature's service layer: a small `Sendable` container of the

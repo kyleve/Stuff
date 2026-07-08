@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 public enum PresenceCalendarError: Error, Equatable {
     case missingWeekdayRange

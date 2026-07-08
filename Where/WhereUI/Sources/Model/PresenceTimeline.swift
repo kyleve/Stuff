@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import WhereCore
 
 /// A maximal run of consecutive calendar days the user was present in one

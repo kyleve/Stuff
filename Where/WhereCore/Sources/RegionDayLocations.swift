@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// One recorded point inside a region: its coordinate plus the originating
 /// fix's horizontal accuracy in meters, so the UI can draw a GPS uncertainty

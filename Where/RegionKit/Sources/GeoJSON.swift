@@ -1,15 +1,14 @@
 import Foundation
 
 /// Thin `Decodable` views over the slice of the GeoJSON 1.0 spec that
-/// `WhereCore` actually consumes: a `FeatureCollection` of `Feature`s
+/// `RegionKit` actually consumes: a `FeatureCollection` of `Feature`s
 /// whose geometry is a `Polygon` or `MultiPolygon`. Anything else in
 /// the spec (`Point`, `LineString`, foreign members, etc.) is ignored
 /// at decode time.
 ///
 /// Kept separate from `RegionAttributor` so the attributor can stay
 /// focused on "coordinate -> Region" — it consumes GeoJSON, but GeoJSON
-/// itself is its own thing and could be lifted into a shared module
-/// later without dragging the attributor along.
+/// itself is its own concern.
 enum GeoJSON {
     /// Top-level GeoJSON document we load from `Resources/*.geojson`.
     struct FeatureCollection: Decodable {
@@ -70,7 +69,7 @@ enum GeoJSON {
         }
     }
 
-    /// One decoded feature reduced to what `WhereCore` consumes: its
+    /// One decoded feature reduced to what `RegionKit` consumes: its
     /// optional `NAME` plus the exterior-ring polygons it contributes.
     struct NamedPolygons {
         let name: String?

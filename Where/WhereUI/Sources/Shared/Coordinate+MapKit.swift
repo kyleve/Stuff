@@ -1,4 +1,5 @@
 import CoreLocation
+import RegionKit
 import WhereCore
 
 extension Coordinate {

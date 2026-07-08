@@ -32,7 +32,6 @@ public enum WhereLog {
         case loggingReminderScheduler = "LoggingReminderScheduler"
         case model = "WhereModel"
         case recentActivitySummarizer = "RecentActivitySummarizer"
-        case regionAttributor = "RegionAttributor"
         case reminderReconciler = "ReminderReconciler"
         case session = "WhereSession"
         case swiftDataStore = "SwiftDataStore"

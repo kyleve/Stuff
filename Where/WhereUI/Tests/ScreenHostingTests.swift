@@ -1,4 +1,5 @@
 import LogViewerUI
+import RegionKit
 import SwiftUI
 import Testing
 import WhereCore

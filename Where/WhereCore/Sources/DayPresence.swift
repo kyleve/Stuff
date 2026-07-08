@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// The set of regions the user was in on a particular calendar day.
 ///

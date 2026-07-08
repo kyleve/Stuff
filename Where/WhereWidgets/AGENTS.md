@@ -11,7 +11,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 - **Tuist app-extension target** ([`Project.swift`](../../Project.swift),
   bundle ID `com.stuff.where.widgets`), depending on **WhereCore**,
-  **WhereUI**, and **LogKit**.
+  **WhereUI**, **RegionKit**, and **LogKit**.
 - Must **not** import SwiftData, open the user's store, or duplicate
   aggregation logic — the app publishes; the extension only reads and renders.
 - No test bundle; behavior is covered from **WhereCore** and **WhereUI**.

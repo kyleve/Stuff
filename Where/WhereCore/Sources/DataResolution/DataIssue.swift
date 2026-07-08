@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 public enum DataIssueCategory: Sendable, Hashable, CaseIterable {
     case missingDays

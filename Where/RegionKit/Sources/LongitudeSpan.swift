@@ -10,7 +10,7 @@ import Foundation
 ///
 /// Used by the developer region-map viewer to frame its map camera.
 /// Latitude has no such wrap, so callers pair this with `BoundingBox` for
-/// the latitude extent; WhereCore stays UI-free, so the MapKit conversion
+/// the latitude extent; RegionKit stays UI-free, so the MapKit conversion
 /// happens in the UI layer.
 public struct LongitudeSpan: Hashable, Sendable {
     /// Center longitude of the arc, normalized to [−180°, 180°].

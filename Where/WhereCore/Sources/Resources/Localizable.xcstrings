@@ -57,61 +57,6 @@
         }
       }
     },
-    "region.california" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "California"
-          }
-        }
-      }
-    },
-    "region.canada" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Canada"
-          }
-        }
-      }
-    },
-    "region.europeanUnion" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "European Union"
-          }
-        }
-      }
-    },
-    "region.newYork" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "New York"
-          }
-        }
-      }
-    },
-    "region.other" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Other"
-          }
-        }
-      }
-    },
     "reminder.notification.body" : {
       "extractionState" : "manual",
       "localizations" : {

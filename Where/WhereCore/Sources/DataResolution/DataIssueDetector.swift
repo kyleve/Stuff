@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// Type-erased entry point so a heterogeneous detector list runs uniformly.
 public protocol DataIssueDetecting: Sendable {
