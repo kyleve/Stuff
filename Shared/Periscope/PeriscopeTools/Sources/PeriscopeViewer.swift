@@ -43,10 +43,14 @@ public struct PeriscopeViewer: View {
             // Keyed on the store's identity: swapping stores in place
             // cancels the old model's live stream and rebinds a fresh model
             // — `State(initialValue:)` alone would keep serving the first
-            // store forever.
+            // store forever. Export state is per-store too: a sheet or
+            // failure alert generated against the old store shouldn't
+            // survive the swap.
             .task(id: ObjectIdentifier(store)) {
                 if model.store !== store {
                     model = PeriscopeViewerModel(store: store)
+                    export = nil
+                    exportFailed = false
                 }
                 await model.run()
             }
