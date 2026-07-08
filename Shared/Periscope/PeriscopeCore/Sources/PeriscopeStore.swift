@@ -112,7 +112,8 @@ public actor PeriscopeStore: LogSink {
         do {
             let beganName = SpanBegan.eventName
             let endedName = SpanEnded.eventName
-            let began = try modelContext.fetch(FetchDescriptor<SDLogEvent>(
+            // The orphan records reuse each began row's tags, so prefetch.
+            let began = try modelContext.fetch(Self.readDescriptor(
                 predicate: #Predicate {
                     $0.eventName == beganName && $0.sessionID != startedSessionID
                 },
@@ -455,7 +456,7 @@ public actor PeriscopeStore: LogSink {
                 && (!filtersTag || event.tags.contains { $0.pair == tagPair })
         }
 
-        var descriptor = FetchDescriptor<SDLogEvent>(
+        var descriptor = Self.readDescriptor(
             predicate: predicate,
             sortBy: [
                 SortDescriptor(\.date, order: .reverse),
@@ -476,7 +477,7 @@ public actor PeriscopeStore: LogSink {
     /// predicate stays small.
     public func events(inSpan span: SpanID) throws -> [StoredLogEvent] {
         let id: UUID? = span.rawValue
-        let descriptor = FetchDescriptor<SDLogEvent>(
+        let descriptor = Self.readDescriptor(
             predicate: #Predicate { $0.spanID == id },
             sortBy: [
                 SortDescriptor(\.date, order: .reverse),
@@ -502,11 +503,23 @@ public actor PeriscopeStore: LogSink {
     }
 
     private func fetchEventRow(id: UUID) throws -> SDLogEvent? {
-        var descriptor = FetchDescriptor<SDLogEvent>(
-            predicate: #Predicate { $0.eventID == id },
-        )
+        var descriptor = Self.readDescriptor(predicate: #Predicate { $0.eventID == id })
         descriptor.fetchLimit = 1
         return try modelContext.fetch(descriptor).first
+    }
+
+    /// The descriptor for reads that map rows to values: `eventValue`
+    /// touches the `tags` and `attachments` relationships on every row, so
+    /// prefetch them — otherwise each row faults each relationship in its
+    /// own round trip (N+1). Attachment *blobs* still load lazily; only the
+    /// metadata rows prefetch.
+    private static func readDescriptor(
+        predicate: Predicate<SDLogEvent>? = nil,
+        sortBy: [SortDescriptor<SDLogEvent>] = [],
+    ) -> FetchDescriptor<SDLogEvent> {
+        var descriptor = FetchDescriptor<SDLogEvent>(predicate: predicate, sortBy: sortBy)
+        descriptor.relationshipKeyPathsForPrefetching = [\.tags, \.attachments]
+        return descriptor
     }
 
     private static func eventValue(_ row: SDLogEvent) -> StoredLogEvent {
