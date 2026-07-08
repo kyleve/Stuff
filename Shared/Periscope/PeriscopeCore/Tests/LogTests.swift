@@ -1,0 +1,107 @@
+import Foundation
+import PeriscopeCore
+import Testing
+
+struct LogTests {
+    let recorder = RecordingRecorder()
+
+    @Test func rootScopeIsNamedAfterTheEventType() {
+        let root = Log<AppLogs>(recorder: recorder)
+        #expect(root.primaryScope.name == "AppLogs")
+        #expect(root.primaryScope.parentID == nil)
+        #expect(recorder.definedScopes.contains(root.primaryScope))
+    }
+
+    @Test func derivingAnEventTypeCreatesATypedChildScope() {
+        let root = Log<AppLogs>(recorder: recorder)
+        let photos = root(PhotoLogs.self)
+        #expect(photos.primaryScope.name == "PhotoLogs")
+        #expect(photos.primaryScope.parentID == root.primaryScope.id)
+        #expect(recorder.definedScopes.contains(photos.primaryScope))
+    }
+
+    @Test func derivingForAnIdentifierCreatesAKeyedChildScope() {
+        let root = Log<AppLogs>(recorder: recorder)
+        let photos = root(PhotoLogs.self)
+        let album = photos(for: "album-1")
+        #expect(album.primaryScope.name == "album-1")
+        #expect(album.primaryScope.parentID == photos.primaryScope.id)
+    }
+
+    @Test func samePathDerivedTwiceIsTheSameScope() {
+        let a = Log<AppLogs>(recorder: recorder)(PhotoLogs.self)(for: "album-1")
+        let b = Log<AppLogs>(recorder: recorder)(PhotoLogs.self)(for: "album-1")
+        #expect(a.primaryScope == b.primaryScope)
+    }
+
+    @Test func emittingRecordsTheEventWithAllScopes() throws {
+        let root = Log<AppLogs>(recorder: recorder)
+        let photos = root(PhotoLogs.self)
+
+        photos { PhotoLogs(photoID: "p1") }
+
+        let record = try #require(recorder.records.first)
+        #expect(record.scopes == photos.scopes.map(\.id))
+        #expect(record.message == "photo p1")
+        #expect(record.level == .notice)
+    }
+
+    @Test func linkingMergesScopesKeepingLeftPrimary() {
+        let model = Log<PhotoLogs>(recorder: recorder)(for: "photo-9")
+        let ui = Log<AppLogs>(recorder: recorder)(for: "detail-screen")
+
+        let joined = model + ui
+
+        #expect(joined.primaryScope == model.primaryScope)
+        #expect(joined.scopes == model.scopes + ui.scopes)
+
+        joined { PhotoLogs(photoID: "p9") }
+        #expect(recorder.records.last?.scopes == (model.scopes + ui.scopes).map(\.id))
+    }
+
+    @Test func linkingCollapsesDuplicateScopes() {
+        let model = Log<PhotoLogs>(recorder: recorder)
+        let joined = model + model
+        #expect(joined.scopes == model.scopes)
+    }
+
+    @Test func linkedFormMatchesTheOperator() {
+        let model = Log<PhotoLogs>(recorder: recorder)
+        let ui = Log<AppLogs>(recorder: recorder)
+        #expect(model.linked(with: ui).scopes == (model + ui).scopes)
+    }
+
+    @Test func derivingFromALinkedLogKeepsLinkedScopes() {
+        let model = Log<PhotoLogs>(recorder: recorder)
+        let ui = Log<AppLogs>(recorder: recorder)
+        let child = (model + ui)(for: "photo-9")
+        #expect(child.primaryScope.parentID == model.primaryScope.id)
+        #expect(child.scopes.contains(ui.primaryScope))
+    }
+
+    @Test func freeformConveniencesEmitMessageEventsAtEachLevel() {
+        let log = Log<AppLogs>(recorder: recorder)
+
+        log.debug("d")
+        log.info("i")
+        log.notice("n")
+        log.warning("w")
+        log.error("e")
+        log.fault("f")
+        log.log(LogLevel(name: "audit", severity: 450), "a")
+
+        let records = recorder.records
+        #expect(records.count == 7)
+        #expect(records.allSatisfy { $0.eventName == Message.eventName })
+        #expect(records.map(\.message) == ["d", "i", "n", "w", "e", "f", "a"])
+        #expect(records.map(\.level) == [
+            .debug,
+            .info,
+            .notice,
+            .warning,
+            .error,
+            .fault,
+            LogLevel(name: "audit", severity: 450),
+        ])
+    }
+}
