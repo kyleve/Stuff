@@ -30,6 +30,7 @@ final class SDLogEvent {
     var orderedScopeIDs: [UUID]
     var sessionID: UUID
     var scopes: [SDLogScope]
+    var tags: [SDLogTag]
 
     init(
         eventID: UUID,
@@ -44,6 +45,7 @@ final class SDLogEvent {
         orderedScopeIDs: [UUID],
         sessionID: UUID,
         scopes: [SDLogScope],
+        tags: [SDLogTag],
     ) {
         self.eventID = eventID
         self.date = date
@@ -57,6 +59,34 @@ final class SDLogEvent {
         self.orderedScopeIDs = orderedScopeIDs
         self.sessionID = sessionID
         self.scopes = scopes
+        self.tags = tags
+    }
+}
+
+/// One row per distinct key/value tag pair, shared by every event carrying
+/// it — tag queries resolve through this relationship.
+@Model
+final class SDLogTag {
+    #Index<SDLogTag>([\.pair])
+
+    var key: String
+    var value: String
+    /// `key` and `value` joined with a separator — a single indexed column
+    /// so tag predicates stay one comparison.
+    var pair: String
+
+    @Relationship(inverse: \SDLogEvent.tags)
+    var events: [SDLogEvent]
+
+    init(key: String, value: String) {
+        self.key = key
+        self.value = value
+        pair = Self.pairValue(key: key, value: value)
+        events = []
+    }
+
+    static func pairValue(key: String, value: String) -> String {
+        "\(key)\u{1F}\(value)"
     }
 }
 
@@ -116,6 +146,6 @@ final class SDLogSession {
 
 enum PeriscopeSchema {
     static var models: [any PersistentModel.Type] {
-        [SDLogEvent.self, SDLogScope.self, SDLogSession.self]
+        [SDLogEvent.self, SDLogScope.self, SDLogSession.self, SDLogTag.self]
     }
 }

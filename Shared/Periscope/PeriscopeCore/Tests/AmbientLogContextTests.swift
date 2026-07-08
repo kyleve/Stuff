@@ -97,6 +97,35 @@ struct AmbientLogContextTests {
         #expect(sink.records.first?.scopes == log.scopes.map(\.id))
     }
 
+    @Test func ambientTagsStampEventsLoggedThroughCurrent() async {
+        let key = LogTagKey("payment-id")
+        let log = Log<AppLogs>(system: system).tagged(key, "pay_123")
+
+        await log.withContext {
+            Log<Message>.current.info("tagged")
+        }
+        await system.flush()
+
+        #expect(sink.records.first?.tags == [key: "pay_123"])
+    }
+
+    @Test func nestedContextTagsMergeWithTheInnerWinning() async {
+        let key = LogTagKey("payment-id")
+        let outer = Log<AppLogs>(system: system).tagged(key, "outer")
+        let inner = Log<PhotoLogs>(system: system)
+            .tagged(key, "inner")
+            .tagged(LogTagKey("extra"), "e")
+
+        await outer.withContext {
+            await inner.withContext {
+                Log<Message>.current.info("both")
+            }
+        }
+        await system.flush()
+
+        #expect(sink.records.first?.tags == [key: "inner", LogTagKey("extra"): "e"])
+    }
+
     @Test func contextEndsWhenWithContextReturns() async {
         let log = Log<AppLogs>(system: system)
         await log.withContext {}

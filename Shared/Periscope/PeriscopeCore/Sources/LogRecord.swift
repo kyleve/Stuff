@@ -14,11 +14,21 @@ public struct LogRecord: Sendable, Identifiable {
     /// when the emitting log was linked (`+`).
     public let scopes: [ScopeID]
 
-    public init(id: UUID = UUID(), date: Date, event: any LogEvent, scopes: [ScopeID]) {
+    /// The tags the emitting context had accumulated (see `Log.tagged`).
+    public let tags: [LogTagKey: String]
+
+    public init(
+        id: UUID = UUID(),
+        date: Date,
+        event: any LogEvent,
+        scopes: [ScopeID],
+        tags: [LogTagKey: String] = [:],
+    ) {
         self.id = id
         self.date = date
         self.event = event
         self.scopes = scopes
+        self.tags = tags
     }
 
     public var level: LogLevel {

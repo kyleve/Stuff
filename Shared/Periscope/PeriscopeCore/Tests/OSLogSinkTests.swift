@@ -32,6 +32,19 @@ struct OSLogSinkTests {
         #expect(atRoot == "hello")
     }
 
+    @Test func tagsAppendToTheMessageSortedByKey() async {
+        let root = LogScope.root(named: "app")
+        await sink.defineScopes([root])
+        let record = LogRecord(
+            date: Date(),
+            event: Message(level: .info, "hello"),
+            scopes: [root.id],
+            tags: [LogTagKey("b-key"): "2", LogTagKey("a-key"): "1"],
+        )
+
+        #expect(sink.formattedMessage(for: record) == "hello {a-key=1, b-key=2}")
+    }
+
     @Test func unknownScopesFallBackToAPlainRendering() {
         let unknown = LogScope.root(named: "never-defined")
         #expect(sink.categoryName(for: record(primary: unknown)) == "periscope")

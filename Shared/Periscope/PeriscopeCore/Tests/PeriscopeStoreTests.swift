@@ -135,7 +135,7 @@ struct PeriscopeStoreTests {
         ])
 
         var query = LogQuery()
-        query.scope = photos.id
+        query.scope = .exactly(photos.id)
         let events = try await store.events(matching: query)
         #expect(events.map(\.message) == ["at photos"])
     }
@@ -149,7 +149,7 @@ struct PeriscopeStoreTests {
         ])
 
         var query = LogQuery()
-        query.subtree = photos.id
+        query.scope = .subtree(photos.id)
         let events = try await store.events(matching: query)
         #expect(events.map(\.message) == ["at album", "at photos"])
     }
@@ -161,15 +161,44 @@ struct PeriscopeStoreTests {
         ])
 
         var byRoot = LogQuery()
-        byRoot.scope = root.id
+        byRoot.scope = .exactly(root.id)
         var byPhotos = LogQuery()
-        byPhotos.scope = photos.id
+        byPhotos.scope = .exactly(photos.id)
 
         #expect(try await store.events(matching: byRoot).count == 1)
         #expect(try await store.events(matching: byPhotos).count == 1)
 
         let stored = try #require(try await store.events(matching: LogQuery()).first)
         #expect(stored.scopes == [photos.id, root.id])
+    }
+
+    @Test func tagsPersistAndFilter() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let key = LogTagKey("payment-id")
+        await store.write([
+            LogRecord(
+                date: date(1),
+                event: Message(level: .info, "for pay_1"),
+                scopes: [root.id],
+                tags: [key: "pay_1"],
+            ),
+            LogRecord(
+                date: date(2),
+                event: Message(level: .info, "for pay_2"),
+                scopes: [root.id],
+                tags: [key: "pay_2"],
+            ),
+            makeRecord("untagged", date: date(3), scopes: [root.id]),
+        ])
+
+        var query = LogQuery()
+        query.tag = LogTag(key: key, value: "pay_1")
+        let events = try await store.events(matching: query)
+        #expect(events.map(\.message) == ["for pay_1"])
+        #expect(events.first?.tags == [key: "pay_1"])
+
+        let all = try await store.events(matching: LogQuery())
+        #expect(all.first { $0.message == "untagged" }?.tags == [:])
     }
 
     @Test func limitAndOffsetPageNewestFirst() async throws {

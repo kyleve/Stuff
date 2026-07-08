@@ -42,6 +42,7 @@ public actor PeriscopeStore: LogSink {
 
     private var activeSessionRow: SDLogSession?
     private var scopeRowCache: [UUID: SDLogScope] = [:]
+    private var tagRowCache: [LogTag: SDLogTag] = [:]
     private var changeObservers: [UUID: AsyncStream<Void>.Continuation] = [:]
     private var writeFailures = 0
     private var nextSequence: Int?
@@ -168,6 +169,9 @@ public actor PeriscopeStore: LogSink {
                 )
             }
             let scopeRows = try record.scopes.map { try scopeRow(for: $0.rawValue) }
+            let tagRows = try record.tags.map { key, value in
+                try tagRow(for: LogTag(key: key, value: value))
+            }
             let row = try SDLogEvent(
                 eventID: record.id,
                 date: record.date,
@@ -181,6 +185,7 @@ public actor PeriscopeStore: LogSink {
                 orderedScopeIDs: record.scopes.map(\.rawValue),
                 sessionID: session.sessionID,
                 scopes: scopeRows,
+                tags: tagRows,
             )
             modelContext.insert(row)
         }
@@ -243,6 +248,28 @@ public actor PeriscopeStore: LogSink {
         return try modelContext.fetch(descriptor).first
     }
 
+    // MARK: Tags
+
+    /// Fetch-or-create the shared row for a key/value tag pair.
+    private func tagRow(for tag: LogTag) throws -> SDLogTag {
+        if let cached = tagRowCache[tag] {
+            return cached
+        }
+        let pair = SDLogTag.pairValue(key: tag.key.rawValue, value: tag.value)
+        var descriptor = FetchDescriptor<SDLogTag>(
+            predicate: #Predicate { $0.pair == pair },
+        )
+        descriptor.fetchLimit = 1
+        if let existing = try modelContext.fetch(descriptor).first {
+            tagRowCache[tag] = existing
+            return existing
+        }
+        let row = SDLogTag(key: tag.key.rawValue, value: tag.value)
+        modelContext.insert(row)
+        tagRowCache[tag] = row
+        return row
+    }
+
     /// `subtree` plus every descendant, resolved against the stored
     /// hierarchy.
     private func subtreeIDs(of subtree: ScopeID) throws -> [UUID] {
@@ -276,9 +303,15 @@ public actor PeriscopeStore: LogSink {
         let filtersSearch = !(query.messageContains ?? "").isEmpty
         let search = query.messageContains ?? ""
         let filtersScope = query.scope != nil
-        let scope = query.scope?.rawValue ?? UUID()
-        let filtersSubtree = query.subtree != nil
-        let subtree = try query.subtree.map(subtreeIDs(of:)) ?? []
+        let scopeIDs: [UUID] = switch query.scope {
+            case let .exactly(id): [id.rawValue]
+            case let .subtree(id): try subtreeIDs(of: id)
+            case nil: []
+        }
+        let filtersTag = query.tag != nil
+        let tagPair = query.tag.map {
+            SDLogTag.pairValue(key: $0.key.rawValue, value: $0.value)
+        } ?? ""
 
         let predicate = #Predicate<SDLogEvent> { event in
             event.date >= start && event.date <= end
@@ -286,8 +319,8 @@ public actor PeriscopeStore: LogSink {
                 && (!filtersName || event.eventName == name)
                 && (!filtersSession || event.sessionID == session)
                 && (!filtersSearch || event.message.localizedStandardContains(search))
-                && (!filtersScope || event.scopes.contains { $0.scopeID == scope })
-                && (!filtersSubtree || event.scopes.contains { subtree.contains($0.scopeID) })
+                && (!filtersScope || event.scopes.contains { scopeIDs.contains($0.scopeID) })
+                && (!filtersTag || event.tags.contains { $0.pair == tagPair })
         }
 
         var descriptor = FetchDescriptor<SDLogEvent>(
@@ -325,6 +358,10 @@ public actor PeriscopeStore: LogSink {
             message: row.message,
             payload: row.payload,
             scopes: row.orderedScopeIDs.map(ScopeID.init(rawValue:)),
+            tags: Dictionary(
+                row.tags.map { (LogTagKey($0.key), $0.value) },
+                uniquingKeysWith: { first, _ in first },
+            ),
             sessionID: row.sessionID,
         )
     }

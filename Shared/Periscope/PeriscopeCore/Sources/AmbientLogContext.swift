@@ -7,6 +7,7 @@ import Foundation
 enum AmbientLogContext {
     struct Context {
         var scopes: [LogScope]
+        var tags: [LogTagKey: String]
         var recorder: any LogRecorder
     }
 
@@ -22,7 +23,7 @@ extension Log {
         guard let context = AmbientLogContext.current else {
             return Log()
         }
-        return Log(scopes: context.scopes, recorder: context.recorder)
+        return Log(scopes: context.scopes, tags: context.tags, recorder: context.recorder)
     }
 
     /// Runs `body` with this log's context ambient for the whole async call
@@ -45,15 +46,20 @@ extension Log {
         try AmbientLogContext.$current.withValue(ambientContext(), operation: body)
     }
 
-    /// This log's scopes, linked onto any already-ambient context (this
-    /// log's scopes stay primary; duplicates collapse).
+    /// This log's scopes and tags, linked onto any already-ambient context
+    /// (this log's scopes stay primary and its tags win key conflicts;
+    /// duplicate scopes collapse).
     private func ambientContext() -> AmbientLogContext.Context {
         var scopes = scopes
+        var tags = tags
         if let existing = AmbientLogContext.current {
             for scope in existing.scopes where !scopes.contains(scope) {
                 scopes.append(scope)
             }
+            for (key, value) in existing.tags where tags[key] == nil {
+                tags[key] = value
+            }
         }
-        return AmbientLogContext.Context(scopes: scopes, recorder: recorder)
+        return AmbientLogContext.Context(scopes: scopes, tags: tags, recorder: recorder)
     }
 }

@@ -18,6 +18,8 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
     public let payload: Data
     /// Every scope the event references, primary first, in emission order.
     public let scopes: [ScopeID]
+    /// The tags the event was stamped with.
+    public let tags: [LogTagKey: String]
     public let sessionID: UUID
 
     public init(
@@ -29,6 +31,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         message: String,
         payload: Data,
         scopes: [ScopeID],
+        tags: [LogTagKey: String],
         sessionID: UUID,
     ) {
         self.id = id
@@ -39,6 +42,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         self.message = message
         self.payload = payload
         self.scopes = scopes
+        self.tags = tags
         self.sessionID = sessionID
     }
 

@@ -25,6 +25,9 @@ public struct Log<Event: LogEvent>: Sendable {
     /// then any linked scopes.
     public let scopes: [LogScope]
 
+    /// The tags stamped on every event emitted here (see ``tagged(_:_:)``).
+    public let tags: [LogTagKey: String]
+
     let recorder: any LogRecorder
 
     /// The scope this logger derives children from.
@@ -34,12 +37,13 @@ public struct Log<Event: LogEvent>: Sendable {
 
     /// A root logger whose scope is named after `Event`.
     public init(recorder: any LogRecorder) {
-        self.init(scopes: [LogScope.root(named: Event.eventName)], recorder: recorder)
+        self.init(scopes: [LogScope.root(named: Event.eventName)], tags: [:], recorder: recorder)
     }
 
-    init(scopes: [LogScope], recorder: any LogRecorder) {
+    init(scopes: [LogScope], tags: [LogTagKey: String], recorder: any LogRecorder) {
         precondition(!scopes.isEmpty, "A Log must have at least one scope")
         self.scopes = scopes
+        self.tags = tags
         self.recorder = recorder
         recorder.defineScope(scopes[0])
     }
@@ -60,14 +64,15 @@ public struct Log<Event: LogEvent>: Sendable {
     private func deriving<Child: LogEvent>(childNamed name: String) -> Log<Child> {
         var scopes = scopes
         scopes[0] = primaryScope.child(named: name)
-        return Log<Child>(scopes: scopes, recorder: recorder)
+        return Log<Child>(scopes: scopes, tags: tags, recorder: recorder)
     }
 
     // MARK: Linking
 
     /// A logger whose events reference both sides' scopes — the "join"
     /// between two contexts, e.g. a model object's log and the UI's log.
-    /// Duplicate scopes collapse; the left side stays primary.
+    /// Duplicate scopes collapse and tags merge; the left side stays
+    /// primary and wins tag-key conflicts.
     public static func + (lhs: Log, rhs: Log<some LogEvent>) -> Log<Event> {
         lhs.linked(with: rhs)
     }
@@ -78,7 +83,23 @@ public struct Log<Event: LogEvent>: Sendable {
         for scope in other.scopes where !merged.contains(scope) {
             merged.append(scope)
         }
-        return Log(scopes: merged, recorder: recorder)
+        var tags = tags
+        for (key, value) in other.tags where tags[key] == nil {
+            tags[key] = value
+        }
+        return Log(scopes: merged, tags: tags, recorder: recorder)
+    }
+
+    // MARK: Tagging
+
+    /// A logger that stamps `key: value` on every event it emits, on top of
+    /// the tags already accumulated. Tags flow down derivations and links —
+    /// tag a flow's root once (say, the current payment's ID) and every
+    /// event under it carries the tag, wherever it sits in the tree.
+    public func tagged(_ key: LogTagKey, _ value: String) -> Log<Event> {
+        var tags = tags
+        tags[key] = value
+        return Log(scopes: scopes, tags: tags, recorder: recorder)
     }
 
     // MARK: Emitting
@@ -89,7 +110,9 @@ public struct Log<Event: LogEvent>: Sendable {
     }
 
     func emit(_ event: any LogEvent) {
-        recorder.record(LogRecord(date: Date(), event: event, scopes: scopes.map(\.id)))
+        recorder.record(
+            LogRecord(date: Date(), event: event, scopes: scopes.map(\.id), tags: tags),
+        )
     }
 }
 

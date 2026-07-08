@@ -47,11 +47,20 @@ public struct OSLogSink: LogSink {
     }
 
     /// The logged text: the primary scope path below the root (when any),
-    /// then the record's message.
+    /// then the record's message, then any tags (sorted by key).
     @_spi(Testing) public func formattedMessage(for record: LogRecord) -> String {
+        var message = record.message
         let path = primaryPath(for: record).dropFirst().map(\.name)
-        guard !path.isEmpty else { return record.message }
-        return "[\(path.joined(separator: "/"))] \(record.message)"
+        if !path.isEmpty {
+            message = "[\(path.joined(separator: "/"))] \(message)"
+        }
+        if !record.tags.isEmpty {
+            let tags = record.tags
+                .sorted { $0.key.rawValue < $1.key.rawValue }
+                .map { "\($0.key)=\($0.value)" }
+            message += " {\(tags.joined(separator: ", "))}"
+        }
+        return message
     }
 
     /// The primary scope's ancestor chain, root first. Empty when the

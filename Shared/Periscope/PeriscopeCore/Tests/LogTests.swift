@@ -79,6 +79,52 @@ struct LogTests {
         #expect(child.scopes.contains(ui.primaryScope))
     }
 
+    @Test func taggedContextsStampEveryEvent() {
+        let root = Log<AppLogs>(recorder: recorder)
+        let tagged = root.tagged(LogTagKey("payment-id"), "pay_123")
+
+        tagged.info("charged")
+        tagged { AppLogs() }
+
+        #expect(recorder.records.count == 2)
+        #expect(recorder.records.allSatisfy { $0.tags == [LogTagKey("payment-id"): "pay_123"] })
+
+        root.info("untagged")
+        #expect(recorder.records.last?.tags == [:])
+    }
+
+    @Test func tagsFlowDownDerivations() {
+        let root = Log<AppLogs>(recorder: recorder).tagged(LogTagKey("payment-id"), "pay_123")
+        let child = root(PhotoLogs.self)(for: "album-1")
+
+        child.info("deep")
+        #expect(recorder.records.last?.tags == [LogTagKey("payment-id"): "pay_123"])
+    }
+
+    @Test func laterTagsOverrideEarlierValuesForTheSameKey() {
+        let key = LogTagKey("payment-id")
+        let log = Log<AppLogs>(recorder: recorder).tagged(key, "old").tagged(key, "new")
+        #expect(log.tags == [key: "new"])
+    }
+
+    @Test func linkingMergesTagsWithTheLeftSideWinning() {
+        let key = LogTagKey("payment-id")
+        let model = Log<PhotoLogs>(recorder: recorder)
+            .tagged(key, "model-side")
+            .tagged(LogTagKey("model-only"), "m")
+        let ui = Log<AppLogs>(recorder: recorder)
+            .tagged(key, "ui-side")
+            .tagged(LogTagKey("ui-only"), "u")
+
+        let joined = model + ui
+
+        #expect(joined.tags == [
+            key: "model-side",
+            LogTagKey("model-only"): "m",
+            LogTagKey("ui-only"): "u",
+        ])
+    }
+
     @Test func freeformConveniencesEmitMessageEventsAtEachLevel() {
         let log = Log<AppLogs>(recorder: recorder)
 
