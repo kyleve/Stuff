@@ -18,7 +18,11 @@ the build system, formatting, and global conventions. Read that first.
 ## Invariants
 
 - **Stacked `logContext` modifiers link, not replace** — a child's context is
-  the union of every ancestor's scopes plus merged tags.
+  the union of every ancestor's scopes plus merged tags, nearest modifier
+  primary (`Log.linked(with:)` semantics; don't reimplement the merge here).
+- **`\.logContext` always yields a usable logger** — outside any modifier it
+  falls back to a root `Log<Message>` on `Periscope.shared`, mirroring
+  `Log.current`.
 
 ## Testing
 

@@ -90,6 +90,16 @@ public struct Log<Event: LogEvent>: Sendable {
         return Log(scopes: merged, tags: tags, recorder: recorder)
     }
 
+    // MARK: Retyping
+
+    /// This same context — scopes, tags, recorder — retyped to emit a
+    /// different event type. No child scope is derived (unlike calling with
+    /// an event type); adapters use this to carry a context across a typed
+    /// boundary, e.g. the SwiftUI environment's freeform accessor.
+    public func retyped<Other: LogEvent>(to _: Other.Type) -> Log<Other> {
+        Log<Other>(scopes: scopes, tags: tags, recorder: recorder)
+    }
+
     // MARK: Tagging
 
     /// A logger that stamps `key: value` on every event it emits, on top of

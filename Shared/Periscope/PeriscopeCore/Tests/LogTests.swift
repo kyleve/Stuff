@@ -79,6 +79,19 @@ struct LogTests {
         #expect(child.scopes.contains(ui.primaryScope))
     }
 
+    @Test func retypingKeepsTheContextWithoutDerivingAChild() {
+        let photos = Log<AppLogs>(recorder: recorder)(PhotoLogs.self)
+            .tagged(LogTagKey("payment-id"), "pay_1")
+
+        let retyped = photos.retyped(to: Message.self)
+
+        #expect(retyped.scopes == photos.scopes)
+        #expect(retyped.tags == photos.tags)
+
+        retyped.info("still in photos")
+        #expect(recorder.records.last?.scopes == photos.scopes.map(\.id))
+    }
+
     @Test func attachmentsRideAlongWithEvents() {
         let log = Log<PhotoLogs>(recorder: recorder)
         let attachment = LogAttachment(
