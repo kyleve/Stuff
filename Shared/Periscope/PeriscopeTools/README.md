@@ -66,6 +66,10 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
   or a `LogContextProviding` model) badges the view while the mode is on;
   tapping the badge presents every stored event in that context's scope
   subtrees, live-refreshing, each linking into detail and the tracer.
+- **`OpenSpansView(system:)`** — every span currently open via
+  `begin(for:)`, longest running first, with ticking ages, lifetimes, and
+  scope paths. Reads the system (open spans are live state, not store
+  history); push it from a developer menu.
 
 ## Testing
 

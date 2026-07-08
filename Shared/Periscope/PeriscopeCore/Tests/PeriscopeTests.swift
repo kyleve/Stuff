@@ -479,6 +479,22 @@ struct PeriscopeTests {
         #expect(ends.map(\.exit.mode) == [.expired, .success])
     }
 
+    @Test func openSpansSnapshotTracksLifecycleLongestRunningFirst() {
+        let system = makeSystem()
+        let log = Log<AppLogs>(system: system)
+        #expect(system.openSpans().isEmpty)
+
+        log.begin(for: "first", lifetime: .indefinite)
+        log.begin(for: "second", lifetime: .bounded(budget: .seconds(60)))
+        #expect(system.openSpans().map(\.name) == ["first", "second"])
+
+        log.end(for: "first", exit: .success)
+        #expect(system.openSpans().map(\.name) == ["second"])
+
+        system.sweepOverdueSpans(now: ContinuousClock().now + .seconds(120))
+        #expect(system.openSpans().isEmpty)
+    }
+
     @Test func theWatchdogExpiresSpansOnItsOwn() async {
         let system = makeSystem()
         let log = Log<AppLogs>(system: system)

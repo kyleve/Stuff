@@ -392,6 +392,14 @@ public final class Periscope: LogRecorder, Sendable {
         state.withLock { $0.openSpans.removeValue(forKey: key) }
     }
 
+    /// A snapshot of every span currently open via `begin(for:)`, longest
+    /// running first — the data behind "what's in flight right now"
+    /// developer surfaces.
+    public func openSpans() -> [OpenSpan] {
+        state.withLock { Array($0.openSpans.values) }
+            .sorted { $0.start < $1.start }
+    }
+
     /// Close every bounded open span whose budget has elapsed as of `now`,
     /// emitting its ``SpanEnded`` (`.expired`) with the begin-time context.
     /// The watchdog calls this at deadlines; tests call it directly with

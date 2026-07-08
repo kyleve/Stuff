@@ -13,7 +13,6 @@
 
 ## P1s (Should do)
 ## P2s (Nice to have)
-- feat: An "open spans" developer surface (viewer section listing currently-open spans with age and budget) — the data exists in `Periscope.openSpans`.
 - feat: Surface span exits in the viewer beyond the message text (badge tint by exit mode, filter by exit).
 - docs: `log(PhotoLogs.self) { event }` parses as one call and fails to compile; document the required two-step spelling near `callAsFunction`.
 - perf: `LocalNotificationAlertHandler` requests notification authorization on every alert; cache the grant.
@@ -24,6 +23,7 @@
 - fix: `NetworkPathAmbientSource.start` cancels the prior monitor when restarted (it used to keep running and logging forever); `AmbientEventSource.start` documents its called-exactly-once contract.
 - refactor: Tool views (`PeriscopeViewer`, `LogInspectorView`, `LogTraceView`, `LogEventDetailView`) rebuild their models when identity-relevant inputs change in place — `.task(id:)` keyed on store identity plus each view's inputs, verified by a store-swap hosting test against `changes()` observer counts.
 - fix: `PeriscopeInspector` now mirrors both ways — direct writes to `Periscope.isInspectModeEnabled` flow back through the new `inspectModeChanges()` stream, with no-change guards on both sides keeping the loop stable.
+- feat: `OpenSpansView(system:)` — the open-spans developer surface: longest-running first with ticking ages, lifetimes/budgets, and scope paths, over the new `Periscope.openSpans()` snapshot.
 
 ## P1s (Should do)
 - fix: Check level floors before running redaction in `Periscope.record` — redaction code no longer executes (touching PII) for records the floor discards; floors apply to the record as emitted.
