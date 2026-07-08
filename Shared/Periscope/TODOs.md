@@ -12,7 +12,6 @@
 - feat: Implement `SpanRelaunchPolicy.survivesRelaunch` resume mechanics. The policy is already recorded on `SpanBegan` payloads and the relaunch sweep honors it (surviving spans are left open, not orphan-closed), but nothing re-seeds them: `end(for:)` in the new process warns "without a matching begin". Needs an async bootstrap step at store/system startup that queries unmatched surviving `SpanBegan` events and re-opens them in `Periscope.openSpans` — plus wall-clock durations for resumed spans (`ContinuousClock` instants don't survive reboot; `SpanEnded.duration` is already optional for this) and accepting that signpost intervals can't resume.
 
 ## P1s (Should do)
-- fix: PeriscopeTools/PeriscopeUI don't compile for native macOS (`navigationBarTitleDisplayMode`, `.topBarTrailing`) even though `Package.swift` advertises `.macOS(.v26)` for all products. Nothing in CI builds them for macOS today, so this is a latent break for the first macOS consumer (`LogViewerUI` has the same issue as precedent). Either gate the iOS-only modifiers or stop advertising macOS for the UI modules.
 - fix: The tracer window (`LogQuery.end = origin.date`) is inclusive and sequence isn't in the predicate, so same-millisecond events *after* the origin appear in "leading up to it".
 - feat: Optional budget for `measure` spans (`log.measure(.saveEvent, budget: .seconds(1))`) — closure spans can't leak, but "this save should never take >1s" deserves the same overdue signal `begin` spans get.
 
@@ -29,6 +28,7 @@
 
 ## P1s (Should do)
 - fix: Check level floors before running redaction in `Periscope.record` — redaction code no longer executes (touching PII) for records the floor discards; floors apply to the record as emitted.
+- fix: PeriscopeTools/PeriscopeUI used iOS-only API while the package advertised `.macOS(.v26)`. Resolved from the other side: Foreman's removal made the package iOS-only, so macOS is no longer advertised anywhere. (Core's `#if canImport(UIKit)` gating stays — it's still correct per-SDK hygiene.)
 
 ## P0s (Must do)
 - fix: Roll back failed `PeriscopeStore` saves so one poisoned batch can't wedge every subsequent save; recovery drops row caches and refetches the session row by identity. (Code review finding 1.)
