@@ -18,8 +18,11 @@
     struct DeveloperOverlay: View {
         @State private var model = DeveloperOverlayModel()
         @State private var dragOffset: CGSize = .zero
+        /// The collapsed button's rendered size, measured rather than hardcoded so
+        /// the drag/anchor math tracks whatever ``DeveloperOverlayButton`` draws
+        /// (it scales with Dynamic Type).
+        @State private var buttonSize: CGSize = .zero
 
-        private let buttonDiameter: CGFloat = 52
         private let edgeInset: CGFloat = 16
         /// Extra bottom clearance so the resting button clears the floating tab
         /// bar when the app is logged in.
@@ -52,7 +55,8 @@
 
         private func collapsedButton(in proxy: GeometryProxy) -> some View {
             let anchor = anchorPoint(for: model.corner, in: proxy.size)
-            return DeveloperOverlayButton(diameter: buttonDiameter)
+            return DeveloperOverlayButton()
+                .onGeometryChange(for: CGSize.self) { $0.size } action: { buttonSize = $0 }
                 .position(x: anchor.x + dragOffset.width, y: anchor.y + dragOffset.height)
                 .gesture(dragGesture(in: proxy))
                 .onTapGesture { model.open() }
@@ -89,11 +93,12 @@
             for corner: DeveloperOverlayModel.Corner,
             in size: CGSize,
         ) -> CGPoint {
-            let radius = buttonDiameter / 2
-            let leadingX = edgeInset + radius
-            let trailingX = size.width - edgeInset - radius
-            let topY = edgeInset + radius
-            let bottomY = size.height - edgeInset - radius - bottomBarClearance
+            let halfWidth = buttonSize.width / 2
+            let halfHeight = buttonSize.height / 2
+            let leadingX = edgeInset + halfWidth
+            let trailingX = size.width - edgeInset - halfWidth
+            let topY = edgeInset + halfHeight
+            let bottomY = size.height - edgeInset - halfHeight - bottomBarClearance
             switch corner {
                 case .topLeading: return CGPoint(x: leadingX, y: topY)
                 case .topTrailing: return CGPoint(x: trailingX, y: topY)

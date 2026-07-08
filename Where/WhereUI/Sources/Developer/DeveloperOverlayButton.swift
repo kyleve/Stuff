@@ -7,8 +7,12 @@
     /// swapped later without touching the overlay's drag / presentation logic in
     /// ``DeveloperOverlay``. It's a solid disc with a white glyph, ring, and
     /// shadow so it stays legible over light, dark, and busy photo backgrounds.
+    ///
+    /// It sizes itself — the diameter scales with Dynamic Type via `@ScaledMetric`
+    /// — so the number lives here once rather than being duplicated at the call
+    /// site; the overlay measures the rendered size for its drag math.
     struct DeveloperOverlayButton: View {
-        var diameter: CGFloat = 52
+        @ScaledMetric(relativeTo: .title2) private var diameter: CGFloat = 52
 
         var body: some View {
             Image(systemName: "wrench.and.screwdriver.fill")
