@@ -1,4 +1,5 @@
 import Foundation
+import os
 @_spi(Testing) import PeriscopeCore
 import Testing
 
@@ -301,6 +302,27 @@ struct PeriscopeTests {
 
         #expect(sink.records.map(\.message) == ["[redacted]"])
         #expect(system.recentRecords().map(\.message) == ["[redacted]"])
+    }
+
+    @Test func redactionNeverRunsForFloorFilteredRecords() async {
+        let redactionCount = OSAllocatedUnfairLock(initialState: 0)
+        let system = Periscope(
+            configuration: Periscope.Configuration(redact: { record in
+                redactionCount.withLock { $0 += 1 }
+                return record
+            }),
+            sinks: [sink],
+        )
+        system.minimumLevel = .warning
+        let log = Log<AppLogs>(system: system)
+
+        log.debug("filtered freeform")
+        log { AppLogs() } // .info structured event — filtered in record()
+        log.warning("admitted")
+        await system.flush()
+
+        #expect(redactionCount.withLock { $0 } == 1)
+        #expect(sink.records.map(\.message) == ["admitted"])
     }
 
     @Test func redactionCanSuppressARecordEntirely() async {

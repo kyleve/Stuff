@@ -53,9 +53,14 @@ public final class Periscope: LogRecorder, Sendable {
         /// process dies.
         public var flushThreshold: LogLevel
 
-        /// Applied to every record before it is buffered or delivered.
-        /// Return a transformed record to scrub PII, or `nil` to suppress
-        /// the record entirely. `nil` hook means no redaction.
+        /// Applied to every admitted record before it is buffered or
+        /// delivered. Return a transformed record to scrub PII, or `nil`
+        /// to suppress the record entirely. `nil` hook means no redaction.
+        ///
+        /// Runs only for records that pass the level floors — floors apply
+        /// to the record *as emitted* (redaction is content scrubbing, not
+        /// routing), and redaction code never touches records the floor
+        /// discards.
         public var redact: (@Sendable (LogRecord) -> LogRecord?)?
 
         public init(
@@ -240,6 +245,9 @@ public final class Periscope: LogRecorder, Sendable {
     }
 
     public func record(_ original: LogRecord) {
+        // Floor first: redaction must not run (touching PII) for records
+        // the floor discards anyway. Floors apply to the record as emitted.
+        guard shouldRecord(level: original.level, scopes: original.scopes) else { return }
         let record: LogRecord
         if let redact = configuration.redact {
             guard let redacted = redact(original) else { return }
@@ -247,13 +255,10 @@ public final class Periscope: LogRecorder, Sendable {
         } else {
             record = original
         }
-        let observers: [AsyncStream<LogRecord>.Continuation]? = state.withLock { state in
-            guard Self.passesFloor(level: record.level, scopes: record.scopes, state: state)
-            else { return nil }
+        let observers = state.withLock { state in
             Self.append(record, to: &state, configuration: configuration)
             return Array(state.observers.values)
         }
-        guard let observers else { return }
         for observer in observers {
             observer.yield(record)
         }
