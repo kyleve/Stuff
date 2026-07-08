@@ -47,8 +47,7 @@ struct ResolutionView: View {
     private var screen: some View {
         switch report.loadState {
             case .loading where report.report == nil:
-                ProgressView(Strings.primaryLoading)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                AppIconLoadingView(caption: Strings.primaryLoading)
             case let .failed(error):
                 ContentUnavailableView {
                     Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
@@ -58,10 +57,9 @@ struct ResolutionView: View {
             case .idle, .loaded, .loading:
                 if !resolve.hasLoaded {
                     // The report is loaded but this tab's own scan hasn't landed
-                    // yet; show a spinner rather than flash "all clear" under a
-                    // non-zero badge.
-                    ProgressView(Strings.primaryLoading)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    // yet; show the loading state rather than flash "all clear"
+                    // under a non-zero badge.
+                    AppIconLoadingView(caption: Strings.primaryLoading)
                 } else if resolve.dataIssues.isEmpty {
                     ContentUnavailableView {
                         Label(Strings.resolutionEmptyTitle, systemImage: "checkmark.seal")

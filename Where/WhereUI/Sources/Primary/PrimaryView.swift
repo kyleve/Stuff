@@ -109,8 +109,7 @@ struct PrimaryView: View {
     private var screen: some View {
         switch report.loadState {
             case .loading where report.report == nil:
-                ProgressView(Strings.primaryLoading)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                AppIconLoadingView(caption: Strings.primaryLoading)
             case let .failed(error):
                 ContentUnavailableView {
                     Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")

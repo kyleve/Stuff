@@ -876,13 +876,46 @@
         }
       }
     },
-    "recentActivity.empty.description" : {
+    "recentActivity.empty.description.day" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "No locations were recorded in the last 24 hours."
+          }
+        }
+      }
+    },
+    "recentActivity.empty.description.month" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No locations were recorded in the past month."
+          }
+        }
+      }
+    },
+    "recentActivity.empty.description.week" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No locations were recorded in the past week."
+          }
+        }
+      }
+    },
+    "recentActivity.empty.description.yearToDate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No locations were recorded so far this year."
           }
         }
       }
@@ -909,13 +942,46 @@
         }
       }
     },
-    "recentActivity.footer" : {
+    "recentActivity.footer.day" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "An on-device summary of where you've been in the last 24 hours. Your location never leaves your device."
+          }
+        }
+      }
+    },
+    "recentActivity.footer.month" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An on-device summary of where you've been over the past month. Your location never leaves your device."
+          }
+        }
+      }
+    },
+    "recentActivity.footer.week" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An on-device summary of where you've been over the past week. Your location never leaves your device."
+          }
+        }
+      }
+    },
+    "recentActivity.footer.yearToDate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An on-device summary of where you've been so far this year. Your location never leaves your device."
           }
         }
       }
@@ -942,13 +1008,46 @@
         }
       }
     },
-    "recentActivity.title" : {
+    "recentActivity.title.day" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Last 24 hours"
+          }
+        }
+      }
+    },
+    "recentActivity.title.month" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Past month"
+          }
+        }
+      }
+    },
+    "recentActivity.title.week" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Past week"
+          }
+        }
+      }
+    },
+    "recentActivity.title.yearToDate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year so far"
           }
         }
       }
@@ -1004,6 +1103,61 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "On-device summaries aren't available right now."
+          }
+        }
+      }
+    },
+    "recentActivity.window.day" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "24 Hours"
+          }
+        }
+      }
+    },
+    "recentActivity.window.month" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Month"
+          }
+        }
+      }
+    },
+    "recentActivity.window.pickerLabel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summary range"
+          }
+        }
+      }
+    },
+    "recentActivity.window.week" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Week"
+          }
+        }
+      }
+    },
+    "recentActivity.window.yearToDate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year"
           }
         }
       }

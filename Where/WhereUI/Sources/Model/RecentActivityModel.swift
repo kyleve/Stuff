@@ -26,6 +26,10 @@ public final class RecentActivityModel {
 
     public private(set) var loadState: LoadState = .idle
 
+    /// The look-back window the summary covers. The sheet's segmented control
+    /// binds to this directly; changing it triggers a fresh `load()`.
+    public var window: RecentActivityWindow = .day
+
     private let services: WhereServices
     private static let logger = WhereLog.channel(.recentActivitySummarizer)
 
@@ -33,13 +37,13 @@ public final class RecentActivityModel {
         self.services = services
     }
 
-    /// Generate (or regenerate) the summary. Maps an unavailable model and a
-    /// generation failure to distinct states and logs both — never a silent
-    /// empty result that reads like success.
+    /// Generate (or regenerate) the summary for the selected `window`. Maps an
+    /// unavailable model and a generation failure to distinct states and logs
+    /// both — never a silent empty result that reads like success.
     public func load() async {
         loadState = .loading
         do {
-            switch try await services.recentActivity.summary() {
+            switch try await services.recentActivity.summary(for: window) {
                 case let .summary(text):
                     loadState = .loaded(text)
                 case .empty:

@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 
 /// A typed, `Hashable` identifier for an app-icon option.
 ///
@@ -77,6 +78,20 @@ enum AppIconCatalog {
         options.first { $0.alternateIconName == alternateIconName }
             ?? options.first { $0.isPrimary }
             ?? options.first
+    }
+
+    /// The preview-catalog image name of the currently selected icon, resolved
+    /// from the live `UIApplication.shared.alternateIconName` against the
+    /// manifest and falling back to the bundled "Classic" art. Shared by every
+    /// in-app surface that renders the selected icon (launch splash, the
+    /// recent-activity loading indicator) so they stay in lockstep.
+    @MainActor static func liveSelectedPreviewImageName() -> String {
+        let options = (try? load()) ?? []
+        let selected = selectedOption(
+            in: options,
+            current: UIApplication.shared.alternateIconName,
+        )
+        return selected?.previewImageName ?? "AppIconClassic"
     }
 
     private struct Manifest: Codable {

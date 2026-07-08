@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 /// The Where launch screen shown for the whole launch: the user's selected app
 /// icon, gently pulsing on a dark backdrop with a "radar ping" sonar sweep
@@ -42,7 +41,7 @@ struct LaunchSplashView: View {
     }
 
     var body: some View {
-        let imageName = injectedPreviewImageName ?? Self.liveSelectedPreviewImageName()
+        let imageName = injectedPreviewImageName ?? AppIconCatalog.liveSelectedPreviewImageName()
         ZStack {
             background
             RadarPingBackground(animated: !reduceMotion, tint: .accentColor)
@@ -119,18 +118,6 @@ struct LaunchSplashView: View {
                     pulsing = true
                 }
             }
-    }
-
-    /// Resolve the preview-catalog image name of the currently selected icon,
-    /// matching the live alternate icon against the manifest the same way the
-    /// picker does, and falling back to the bundled "Classic" art.
-    @MainActor private static func liveSelectedPreviewImageName() -> String {
-        let options = (try? AppIconCatalog.load()) ?? []
-        let selected = AppIconCatalog.selectedOption(
-            in: options,
-            current: UIApplication.shared.alternateIconName,
-        )
-        return selected?.previewImageName ?? "AppIconClassic"
     }
 }
 

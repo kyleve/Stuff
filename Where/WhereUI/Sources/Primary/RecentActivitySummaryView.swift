@@ -1,11 +1,12 @@
 import SwiftUI
 import WhereCore
 
-/// A sheet showing an on-device, AI-generated summary of the last 24 hours of
-/// tracked locations. Presented from the Primary tab. Renders each
-/// `RecentActivityModel.LoadState` distinctly — a real summary, an empty
-/// window, an unavailable model (with guidance), or a failure — and offers a
-/// refresh.
+/// A sheet showing an on-device, AI-generated summary of a selectable look-back
+/// window of tracked locations (24 hours, a week, a month, or the year so far).
+/// Presented from the Primary tab. A segmented control at the top picks the
+/// window; each `RecentActivityModel.LoadState` renders distinctly — a real
+/// summary (streamed in with a typewriter reveal), an empty window, an
+/// unavailable model (with guidance), or a failure — and a refresh regenerates.
 struct RecentActivitySummaryView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -25,8 +26,9 @@ struct RecentActivitySummaryView: View {
     var body: some View {
         NavigationStack {
             content
+                .safeAreaInset(edge: .top) { windowPicker }
                 .animation(.smooth, value: model.loadState)
-                .navigationTitle(Strings.recentActivityTitle)
+                .navigationTitle(Strings.recentActivityTitle(model.window))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -44,7 +46,30 @@ struct RecentActivitySummaryView: View {
                 .task {
                     if model.loadState == .idle { await model.load() }
                 }
+                // Regenerate for the newly picked window. The picker is disabled
+                // while loading (see `windowPicker`), so this can't fire a second
+                // load over an in-flight one.
+                .onChange(of: model.window) {
+                    Task { await model.load() }
+                }
         }
+    }
+
+    /// Segmented control for the summary window, pinned under the navigation
+    /// bar. Bound straight to the observable `window`; the `.onChange` above
+    /// turns a change into a reload. Disabled while a summary is generating so
+    /// selections can't race an in-flight load.
+    private var windowPicker: some View {
+        Picker(Strings.recentActivityWindowPickerLabel, selection: $model.window) {
+            ForEach(RecentActivityWindow.allCases, id: \.self) { window in
+                Text(Strings.recentActivityWindowLabel(window)).tag(window)
+            }
+        }
+        .pickerStyle(.segmented)
+        .disabled(model.loadState == .loading)
+        .padding(.horizontal)
+        .padding(.vertical, UIConstants.Spacings.medium)
+        .background(.bar)
     }
 
     /// Each state fades into the next (see `.animation` in `body`) rather than
@@ -54,8 +79,7 @@ struct RecentActivitySummaryView: View {
     private var content: some View {
         switch model.loadState {
             case .idle, .loading:
-                ProgressView(Strings.recentActivityLoading)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                AppIconLoadingView(caption: Strings.recentActivityLoading)
                     .transition(.opacity)
             case let .loaded(text):
                 summary(text)
@@ -64,7 +88,7 @@ struct RecentActivitySummaryView: View {
                 ContentUnavailableView {
                     Label(Strings.recentActivityEmptyTitle, systemImage: "location.slash")
                 } description: {
-                    Text(Strings.recentActivityEmptyDescription)
+                    Text(Strings.recentActivityEmptyDescription(model.window))
                 }
                 .transition(.opacity)
             case let .unavailable(reason):
@@ -90,10 +114,10 @@ struct RecentActivitySummaryView: View {
     private func summary(_ text: String) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: UIConstants.Spacings.medium) {
-                Text(text)
+                TypewriterText(text: text)
                     .font(.body)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text(Strings.recentActivityFooter)
+                Text(Strings.recentActivityFooter(model.window))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -111,6 +135,10 @@ struct RecentActivitySummaryView: View {
                 ),
             ),
         )
+    }
+
+    #Preview("Loading") {
+        RecentActivitySummaryView(model: PreviewSupport.recentActivityModel(state: .loading))
     }
 
     #Preview("Empty") {
