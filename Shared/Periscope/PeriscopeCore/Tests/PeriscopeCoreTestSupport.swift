@@ -26,6 +26,76 @@ final class RecordingRecorder: LogRecorder, Sendable {
     func record(_ record: LogRecord) {
         state.withLock { $0.records.append(record) }
     }
+
+    func shouldRecord(level _: LogLevel, scopes _: [ScopeID]) -> Bool {
+        true
+    }
+}
+
+/// Polls `predicate` until it holds or `timeout` elapses, returning whether
+/// it ever held — condition-based waiting, never a fixed sleep.
+func waitUntil(
+    timeout: Duration = .seconds(5),
+    _ predicate: @Sendable () -> Bool,
+) async -> Bool {
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: timeout)
+    while clock.now < deadline {
+        if predicate() { return true }
+        try? await Task.sleep(for: .milliseconds(2))
+    }
+    return predicate()
+}
+
+/// A `LogSink` whose `write` blocks until `open()` — used to hold the drain
+/// task mid-delivery so tests can deterministically overflow the pending
+/// queue.
+final class GateSink: LogSink, Sendable {
+    private struct State {
+        var isOpen = false
+        var waiters: [CheckedContinuation<Void, Never>] = []
+        var batchCount = 0
+    }
+
+    private let state = OSAllocatedUnfairLock(initialState: State())
+
+    /// Batches received so far (counted before blocking).
+    var batchCount: Int {
+        state.withLock(\.batchCount)
+    }
+
+    /// Release every blocked `write` and let future writes pass through.
+    func open() {
+        let waiters = state.withLock { state in
+            state.isOpen = true
+            let waiters = state.waiters
+            state.waiters = []
+            return waiters
+        }
+        for waiter in waiters {
+            waiter.resume()
+        }
+    }
+
+    func defineScopes(_: [LogScope]) async {}
+
+    func write(_: [LogRecord]) async {
+        state.withLock { $0.batchCount += 1 }
+        await withCheckedContinuation { continuation in
+            let resumeNow = state.withLock { state in
+                if state.isOpen {
+                    return true
+                }
+                state.waiters.append(continuation)
+                return false
+            }
+            if resumeNow {
+                continuation.resume()
+            }
+        }
+    }
+
+    func flush() async {}
 }
 
 /// An in-memory `LogSink` that captures deliveries in order for assertions.

@@ -13,4 +13,10 @@ public protocol LogRecorder: Sendable {
 
     /// Record one emitted event.
     func record(_ record: LogRecord)
+
+    /// Whether a record at `level` in `scopes` would be kept. `Log` checks
+    /// this before rendering freeform messages so filtered-out logging
+    /// skips string construction; recorders must still enforce their own
+    /// policy inside `record`.
+    func shouldRecord(level: LogLevel, scopes: [ScopeID]) -> Bool
 }

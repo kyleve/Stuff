@@ -98,6 +98,7 @@ public struct Log<Event: LogEvent>: Sendable {
 /// structured events only.
 extension Log {
     public func log(_ level: LogLevel, _ text: @autoclosure () -> String) {
+        guard recorder.shouldRecord(level: level, scopes: scopes.map(\.id)) else { return }
         emit(Message(level: level, text()))
     }
 
