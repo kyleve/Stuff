@@ -10,11 +10,20 @@ import SwiftUI
 /// Designed to be pushed inside an existing `NavigationStack`.
 public struct LogTraceView: View {
     private let store: PeriscopeStore
+    private let origin: StoredLogEvent
     @State private var model: LogTraceModel
 
     public init(store: PeriscopeStore, origin: StoredLogEvent) {
         self.store = store
+        self.origin = origin
         _model = State(initialValue: LogTraceModel(store: store, origin: origin))
+    }
+
+    /// The identity of this view's inputs — re-keying the task rebinds the
+    /// model when either changes in place.
+    private struct Inputs: Equatable {
+        let store: ObjectIdentifier
+        let origin: UUID
     }
 
     public var body: some View {
@@ -32,7 +41,10 @@ public struct LogTraceView: View {
         .listStyle(.plain)
         .navigationTitle("Trace")
         .navigationBarTitleDisplayMode(.inline)
-        .task {
+        .task(id: Inputs(store: ObjectIdentifier(store), origin: origin.id)) {
+            if model.store !== store || model.origin.id != origin.id {
+                model = LogTraceModel(store: store, origin: origin)
+            }
             await model.load()
         }
     }

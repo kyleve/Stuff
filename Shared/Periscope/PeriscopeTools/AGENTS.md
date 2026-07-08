@@ -29,6 +29,10 @@ the build system, formatting, and global conventions. Read that first.
 - **Merged multi-query results sort by `(date, sequence)`** — the tracer and
   inspector combine several store queries, and the store's insertion
   sequence is the tiebreak that keeps same-millisecond events stable.
+- **Tool views rebind on in-place input swaps** — each view's `.task(id:)`
+  is keyed on store identity plus its other inputs and rebuilds the model
+  when they change; a new identity-relevant input must join the key, or
+  the view silently keeps serving the old inputs.
 
 ## Testing
 

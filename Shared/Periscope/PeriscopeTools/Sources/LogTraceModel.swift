@@ -20,7 +20,8 @@ final class LogTraceModel {
     static let limit = 100
 
     let origin: StoredLogEvent
-    private let store: PeriscopeStore
+    /// Exposed so the hosting view can detect a store swap and rebuild.
+    let store: PeriscopeStore
 
     private(set) var state: LoadState = .loading
     private(set) var scopes: [ScopeID: LogScope] = [:]

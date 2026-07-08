@@ -229,6 +229,12 @@ public actor PeriscopeStore: LogSink {
         writeFailures
     }
 
+    /// Registered `changes()` observers — lets tests assert subscription
+    /// lifecycles (e.g. that a rebound viewer released its old stream).
+    @_spi(Testing) public var changeObserverCount: Int {
+        changeObservers.count
+    }
+
     #if DEBUG
         /// Test seam: the next staged write (`write`, `defineScopes`, or a
         /// deletion) fails with `error` just before its save would commit,

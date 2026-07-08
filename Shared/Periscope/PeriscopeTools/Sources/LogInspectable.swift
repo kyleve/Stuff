@@ -62,6 +62,13 @@ struct LogInspectorView: View {
         _model = State(initialValue: LogInspectorModel(store: store, inspectedScopes: scopes))
     }
 
+    /// The identity of this view's inputs — re-keying the task rebinds the
+    /// model when either changes in place.
+    private struct Inputs: Equatable {
+        let store: ObjectIdentifier
+        let scopes: [ScopeID]
+    }
+
     var body: some View {
         content
             .navigationTitle("Element Logs")
@@ -71,7 +78,10 @@ struct LogInspectorView: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .task {
+            .task(id: Inputs(store: ObjectIdentifier(store), scopes: scopes)) {
+                if model.store !== store || model.inspectedScopes != scopes {
+                    model = LogInspectorModel(store: store, inspectedScopes: scopes)
+                }
                 await model.run()
             }
     }

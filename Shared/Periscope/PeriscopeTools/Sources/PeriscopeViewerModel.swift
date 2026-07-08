@@ -23,7 +23,8 @@ final class PeriscopeViewerModel {
 
     static let pageSize = 200
 
-    private let store: PeriscopeStore
+    /// Exposed so the hosting view can detect a store swap and rebuild.
+    let store: PeriscopeStore
     @ObservationIgnored private var reloadTask: Task<Void, Never>?
     @ObservationIgnored private var generation = 0
 

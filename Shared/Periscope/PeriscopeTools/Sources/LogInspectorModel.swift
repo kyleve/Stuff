@@ -16,8 +16,9 @@ final class LogInspectorModel {
 
     static let limit = 200
 
-    private let store: PeriscopeStore
-    private let inspectedScopes: [ScopeID]
+    /// Exposed so the hosting view can detect input swaps and rebuild.
+    let store: PeriscopeStore
+    let inspectedScopes: [ScopeID]
 
     private(set) var state: LoadState = .loading
     private(set) var scopes: [ScopeID: LogScope] = [:]

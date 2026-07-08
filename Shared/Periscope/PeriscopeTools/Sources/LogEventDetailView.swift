@@ -77,13 +77,21 @@ struct LogEventDetailView: View {
                 }
             }
         }
-        .task {
+        .task(id: Inputs(store: ObjectIdentifier(store), event: event.id)) {
+            attachments = nil
             do {
                 attachments = try await .success(store.attachments(forEvent: event.id))
             } catch {
                 attachments = .failure(error)
             }
         }
+    }
+
+    /// The identity of this view's inputs — re-keying the task reloads the
+    /// attachments when either changes in place.
+    private struct Inputs: Equatable {
+        let store: ObjectIdentifier
+        let event: UUID
     }
 
     @ViewBuilder

@@ -40,7 +40,14 @@ public struct PeriscopeViewer: View {
             .alert("Export Failed", isPresented: $exportFailed) {
                 Button("OK", role: .cancel) {}
             }
-            .task {
+            // Keyed on the store's identity: swapping stores in place
+            // cancels the old model's live stream and rebinds a fresh model
+            // — `State(initialValue:)` alone would keep serving the first
+            // store forever.
+            .task(id: ObjectIdentifier(store)) {
+                if model.store !== store {
+                    model = PeriscopeViewerModel(store: store)
+                }
                 await model.run()
             }
     }
