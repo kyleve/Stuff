@@ -59,6 +59,7 @@ struct SettingsView: View {
                 summarySection
                 issueAlertsSection
                 resolutionSection
+                tabsSection
                 appIconSection
                 manualEntrySection
                 backupSection
@@ -287,6 +288,19 @@ struct SettingsView: View {
             }
         } footer: {
             Text(Strings.settingsResolutionFooter)
+        }
+    }
+
+    private var tabsSection: some View {
+        @Bindable var report = report
+        return Section {
+            Toggle(isOn: $report.hideEmptyTabs) {
+                Label(Strings.settingsTabsToggle, systemImage: "rectangle.bottomthird.inset.filled")
+            }
+        } header: {
+            Text(Strings.settingsTabsHeader)
+        } footer: {
+            Text(Strings.settingsTabsFooter)
         }
     }
 

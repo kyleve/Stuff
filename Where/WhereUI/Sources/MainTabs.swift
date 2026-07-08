@@ -44,11 +44,15 @@ struct MainTabs: View {
                 PrimaryView(report: report)
             }
 
-            // Elsewhere and Resolve appear only when they have something to show,
-            // but stay mounted while they're the current selection so resolving
-            // the last issue (or emptying Elsewhere) never yanks the user off the
-            // tab they're on — the tab drops out the next time they switch away.
-            if !report.ranking.secondary.isEmpty || selection == .elsewhere {
+            // With "hide empty tabs" on (the default), Elsewhere and Resolve
+            // appear only when they have something to show — but stay mounted
+            // while they're the current selection, so resolving the last issue
+            // (or emptying Elsewhere) never yanks the user off the tab they're on;
+            // the tab drops out the next time they switch away. With the setting
+            // off, both tabs are always present.
+            if !report.hideEmptyTabs || !report.ranking.secondary.isEmpty
+                || selection == .elsewhere
+            {
                 Tab(
                     Strings.tabElsewhere,
                     systemImage: "globe.americas.fill",
@@ -58,7 +62,7 @@ struct MainTabs: View {
                 }
             }
 
-            if report.dataIssueCount > 0 || selection == .resolution {
+            if !report.hideEmptyTabs || report.dataIssueCount > 0 || selection == .resolution {
                 Tab(Strings.tabResolution, systemImage: "checklist", value: TabID.resolution) {
                     ResolutionView(report: report)
                 }
