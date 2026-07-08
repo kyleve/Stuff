@@ -13,7 +13,9 @@ import SwiftData
 /// against `modelContext`, and every delivered batch commits in one save —
 /// `flush()` has nothing left to do. Sink failures can't propagate (the
 /// pipeline is fire-and-forget), so persistence errors log to OSLog and
-/// count in ``writeFailureCount`` rather than vanishing.
+/// count in ``writeFailureCount`` rather than vanishing — and the failed
+/// transaction rolls back so one poisoned batch can't wedge every save
+/// after it.
 ///
 /// Wire it in at startup:
 ///
@@ -40,12 +42,19 @@ public actor PeriscopeStore: LogSink {
         category: "PeriscopeStore",
     )
 
+    /// This launch's session identity — survives write recovery, so events
+    /// after a rollback still attribute to the same launch.
+    private var activeSession: LogSession?
     private var activeSessionRow: SDLogSession?
     private var scopeRowCache: [UUID: SDLogScope] = [:]
     private var tagRowCache: [LogTag: SDLogTag] = [:]
     private var changeObservers: [UUID: AsyncStream<Void>.Continuation] = [:]
     private var writeFailures = 0
     private var nextSequence: Int?
+
+    #if DEBUG
+        private var pendingWriteFailure: (any Error)?
+    #endif
 
     public static func makeContainer(storage: Storage) throws -> ModelContainer {
         let schema = Schema(PeriscopeSchema.models)
@@ -78,9 +87,15 @@ public actor PeriscopeStore: LogSink {
     /// Record `session` as this launch's resource metadata; every event
     /// written afterwards references it.
     public func startSession(_ session: LogSession) throws {
+        activeSession = session
         let row = SDLogSession(session: session)
         modelContext.insert(row)
-        try modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            recoverFromFailedWrite()
+            throw error
+        }
         activeSessionRow = row
     }
 
@@ -92,13 +107,27 @@ public actor PeriscopeStore: LogSink {
         return try modelContext.fetch(descriptor).map(\.toValue)
     }
 
-    /// The launch-attribution row, created from `LogSession.current()` when
-    /// the app never called ``startSession(_:)`` explicitly.
+    /// The launch-attribution row for ``activeSession`` (defaulting to
+    /// `LogSession.current()` when the app never called
+    /// ``startSession(_:)``). Refetches a committed row when the cached
+    /// reference was dropped by write recovery, so the session identity
+    /// never forks.
     private func ensureActiveSession() throws -> SDLogSession {
         if let activeSessionRow {
             return activeSessionRow
         }
-        let row = SDLogSession(session: .current())
+        let session = activeSession ?? .current()
+        activeSession = session
+        let id = session.id
+        var descriptor = FetchDescriptor<SDLogSession>(
+            predicate: #Predicate { $0.sessionID == id },
+        )
+        descriptor.fetchLimit = 1
+        if let existing = try modelContext.fetch(descriptor).first {
+            activeSessionRow = existing
+            return existing
+        }
+        let row = SDLogSession(session: session)
         modelContext.insert(row)
         activeSessionRow = row
         return row
@@ -111,8 +140,10 @@ public actor PeriscopeStore: LogSink {
             for scope in scopes {
                 try upsertScopeRow(scope)
             }
+            try throwInjectedFailureIfPending()
             try modelContext.save()
         } catch {
+            recoverFromFailedWrite()
             writeFailures += 1
             Self.failureLogger.error("Failed to persist \(scopes.count) scopes: \(error)")
         }
@@ -124,6 +155,7 @@ public actor PeriscopeStore: LogSink {
             try persist(records)
             notifyChanged()
         } catch {
+            recoverFromFailedWrite()
             writeFailures += 1
             Self.failureLogger.error("Failed to persist \(records.count) log events: \(error)")
         }
@@ -136,6 +168,37 @@ public actor PeriscopeStore: LogSink {
     /// Persistence failures observed so far (also logged to OSLog).
     @_spi(Testing) public var writeFailureCount: Int {
         writeFailures
+    }
+
+    #if DEBUG
+        /// Test seam: the next staged write (`write`, `defineScopes`, or a
+        /// deletion) fails with `error` just before its save would commit,
+        /// exercising the rollback/recovery path.
+        @_spi(Testing) public func injectNextWriteFailure(_ error: any Error) {
+            pendingWriteFailure = error
+        }
+    #endif
+
+    /// Discard the failed transaction so a poisoned batch can't wedge every
+    /// save after it, and drop state that may reference rolled-back rows:
+    /// the row caches, and the session-row reference (`ensureActiveSession`
+    /// refetches or reinserts the same session identity on the next write).
+    private func recoverFromFailedWrite() {
+        modelContext.rollback()
+        scopeRowCache.removeAll()
+        tagRowCache.removeAll()
+        activeSessionRow = nil
+    }
+
+    /// Throws the injected test failure, if any (DEBUG-only seam; a no-op
+    /// in release).
+    private func throwInjectedFailureIfPending() throws {
+        #if DEBUG
+            if let pendingWriteFailure {
+                self.pendingWriteFailure = nil
+                throw pendingWriteFailure
+            }
+        #endif
     }
 
     /// The next monotonic insertion sequence, resuming past the largest
@@ -199,6 +262,7 @@ public actor PeriscopeStore: LogSink {
             )
             modelContext.insert(row)
         }
+        try throwInjectedFailureIfPending()
         try modelContext.save()
     }
 
@@ -443,7 +507,15 @@ public actor PeriscopeStore: LogSink {
         for row in rows {
             modelContext.delete(row)
         }
-        try modelContext.save()
+        do {
+            try throwInjectedFailureIfPending()
+            try modelContext.save()
+        } catch {
+            // Roll the staged deletions back — otherwise the next unrelated
+            // save would silently commit them.
+            recoverFromFailedWrite()
+            throw error
+        }
         notifyChanged()
         return rows.count
     }

@@ -31,6 +31,10 @@ the build system, formatting, and global conventions. Read that first.
 - **Sink failures never propagate or vanish** — the store logs them to OSLog
   and counts them; the pipeline reports drops with a synthetic
   `DroppedEvents` record.
+- **A failed store save must roll back** (`recoverFromFailedWrite`):
+  the context is discarded, row caches drop, and the session row refetches
+  by identity — one poisoned batch must never wedge subsequent saves or
+  fork the session.
 - **Payloads persist as versioned JSON** (`eventName` + `eventVersion`), not
   per-event schemas — changing an event's shape must not require a SwiftData
   migration.

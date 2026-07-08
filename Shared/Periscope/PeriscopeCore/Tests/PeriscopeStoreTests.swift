@@ -2,6 +2,8 @@ import Foundation
 @_spi(Testing) import PeriscopeCore
 import Testing
 
+private struct InjectedSaveFailure: Error {}
+
 struct PeriscopeStoreTests {
     private func date(_ offset: TimeInterval) -> Date {
         Date(timeIntervalSinceReferenceDate: offset)
@@ -354,6 +356,107 @@ struct PeriscopeStoreTests {
         let found = try #require(try await store.event(id: record.id))
         #expect(found.message == "target")
         #expect(try await store.event(id: UUID()) == nil)
+    }
+
+    // MARK: Write-failure recovery
+
+    @Test func failedWritesRollBackSoLaterWritesSucceed() async throws {
+        let (store, root, _, _) = try await makeStore()
+
+        await store.injectNextWriteFailure(InjectedSaveFailure())
+        await store.write([makeRecord("poisoned", date: date(1), scopes: [root.id])])
+        #expect(await store.writeFailureCount == 1)
+
+        await store.write([makeRecord("healthy", date: date(2), scopes: [root.id])])
+
+        let events = try await store.events(matching: LogQuery())
+        #expect(events.map(\.message) == ["healthy"])
+        #expect(await store.writeFailureCount == 1)
+    }
+
+    @Test func recoveryDropsStaleRowCachesButKeepsScopesWorking() async throws {
+        let store = try await PeriscopeStore.inMemory(session: .fixture())
+        let scope = LogScope.root(named: "late")
+        let key = LogTagKey("payment-id")
+
+        // The failed batch stages a placeholder scope row and a tag row;
+        // both roll back with it.
+        await store.injectNextWriteFailure(InjectedSaveFailure())
+        await store.write([
+            LogRecord(
+                date: date(1),
+                event: Message(level: .info, "poisoned"),
+                scopes: [scope.id],
+                tags: [key: "pay_1"],
+            ),
+        ])
+        #expect(try await store.scope(for: scope.id) == nil)
+
+        await store.defineScopes([scope])
+        await store.write([
+            LogRecord(
+                date: date(2),
+                event: Message(level: .info, "healthy"),
+                scopes: [scope.id],
+                tags: [key: "pay_1"],
+            ),
+        ])
+
+        #expect(try await store.scope(for: scope.id) == scope)
+        var query = LogQuery()
+        query.tag = LogTag(key: key, value: "pay_1")
+        #expect(try await store.events(matching: query).map(\.message) == ["healthy"])
+    }
+
+    @Test func recoveryKeepsTheSessionIdentity() async throws {
+        let session = LogSession.fixture()
+        let store = try await PeriscopeStore.inMemory(session: session)
+        let root = LogScope.root(named: "app")
+        await store.defineScopes([root])
+
+        await store.injectNextWriteFailure(InjectedSaveFailure())
+        await store.write([makeRecord("poisoned", date: date(1), scopes: [root.id])])
+        await store.write([makeRecord("healthy", date: date(2), scopes: [root.id])])
+
+        let event = try #require(try await store.events(matching: LogQuery()).first)
+        #expect(event.sessionID == session.id)
+        #expect(try await store.sessions().count == 1)
+    }
+
+    @Test func failedScopeDefinitionsRecoverOnRetry() async throws {
+        let store = try await PeriscopeStore.inMemory(session: .fixture())
+        let scope = LogScope.root(named: "app")
+
+        await store.injectNextWriteFailure(InjectedSaveFailure())
+        await store.defineScopes([scope])
+        #expect(await store.writeFailureCount == 1)
+        #expect(try await store.scope(for: scope.id) == nil)
+
+        await store.defineScopes([scope])
+        #expect(try await store.scope(for: scope.id) == scope)
+        #expect(try await store.scopes().count == 1)
+    }
+
+    @Test func failedDeletionsRollBackInsteadOfLingering() async throws {
+        let (store, root, _, _) = try await makeStore()
+        await store.write([
+            makeRecord("old", date: date(1), scopes: [root.id]),
+            makeRecord("new", date: date(100), scopes: [root.id]),
+        ])
+
+        await store.injectNextWriteFailure(InjectedSaveFailure())
+        await #expect(throws: InjectedSaveFailure.self) {
+            try await store.pruneEvents(olderThan: date(50))
+        }
+        #expect(try await store.events(matching: LogQuery()).count == 2)
+
+        // The staged deletions must not ride along with the next commit.
+        await store.write([makeRecord("later", date: date(200), scopes: [root.id])])
+        #expect(try await store.events(matching: LogQuery()).count == 3)
+
+        let removed = try await store.pruneEvents(olderThan: date(50))
+        #expect(removed == 1)
+        #expect(try await store.events(matching: LogQuery()).map(\.message) == ["later", "new"])
     }
 
     @Test func endToEndThroughThePeriscopeSystem() async throws {
