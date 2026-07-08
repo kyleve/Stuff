@@ -47,6 +47,17 @@ struct LogInspectorModelTests {
         }
     }
 
+    @Test func runRefreshesLiveWhenTheStoreCommits() async throws {
+        let (store, _, photos, album) = try await makeSeededStore()
+        let model = LogInspectorModel(store: store, inspectedScopes: [photos.id])
+        let task = Task { await model.run() }
+        defer { task.cancel() }
+
+        await store.write([makeRecord("live", date: date(1), scopes: [album.id])])
+        let shown = await waitUntil { model.events.map(\.message) == ["live"] }
+        #expect(shown)
+    }
+
     @Test func scopePathsResolve() async throws {
         let (store, _, photos, album) = try await makeSeededStore()
         await store.write([makeRecord("deep", date: date(1), scopes: [album.id])])

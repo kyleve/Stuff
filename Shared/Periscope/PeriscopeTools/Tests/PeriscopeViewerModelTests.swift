@@ -124,6 +124,25 @@ struct PeriscopeViewerModelTests {
         #expect(model.availableLevels == LogLevel.standardLevels)
     }
 
+    @Test func runRefreshesLiveWhenTheStoreCommits() async throws {
+        let (store, root, _, _) = try await makeSeededStore()
+        let model = PeriscopeViewerModel(store: store)
+        let task = Task { await model.run() }
+        defer { task.cancel() }
+
+        // Race the initial load deliberately: a commit landing while (or
+        // right after) it runs must still end up displayed.
+        await store.write([makeRecord("live", date: date(1), scopes: [root.id])])
+        let shown = await waitUntil { model.events.map(\.message) == ["live"] }
+        #expect(shown)
+
+        await store.write([makeRecord("later", date: date(2), scopes: [root.id])])
+        let refreshed = await waitUntil {
+            model.events.map(\.message) == ["later", "live"]
+        }
+        #expect(refreshed)
+    }
+
     @Test func exportUsesTheActiveFiltersUnpaged() async throws {
         let (store, root, _, _) = try await makeSeededStore()
         await store.write([

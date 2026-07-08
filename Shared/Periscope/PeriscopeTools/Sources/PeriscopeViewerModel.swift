@@ -84,10 +84,14 @@ final class PeriscopeViewerModel {
     }
 
     /// Initial load plus live refresh — run from `.task` so leaving the
-    /// screen cancels the stream.
+    /// screen cancels the stream. The changes stream is acquired *before*
+    /// the initial load: a commit landing mid-load buffers in the stream
+    /// and triggers a refresh, instead of falling into the gap between
+    /// loading and subscribing.
     func run() async {
+        let changes = await store.changes()
         await load()
-        for await _ in await store.changes() {
+        for await _ in changes {
             guard !Task.isCancelled else { return }
             await load()
         }

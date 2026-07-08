@@ -33,10 +33,13 @@ final class LogInspectorModel {
     }
 
     /// Initial load plus live refresh — run from `.task` so dismissing the
-    /// sheet cancels the stream.
+    /// sheet cancels the stream. The changes stream is acquired *before*
+    /// the initial load so a commit landing mid-load can't fall into the
+    /// gap between loading and subscribing.
     func run() async {
+        let changes = await store.changes()
         await load()
-        for await _ in await store.changes() {
+        for await _ in changes {
             guard !Task.isCancelled else { return }
             await load()
         }
