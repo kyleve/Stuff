@@ -129,6 +129,12 @@
             .background(Color(.systemBackground))
             .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
             .shadow(color: .black.opacity(isFullScreen ? 0 : 0.3), radius: 20, y: 6)
+            // Full screen covers the app, so it becomes an accessibility modal:
+            // VoiceOver ignores everything behind it and stays trapped in the
+            // tools. The floating (PiP) panel stays non-modal — the app behind is
+            // still reachable — matching its visible, tap-through behavior.
+            .accessibilityElement(children: .contain)
+            .accessibilityAddTraits(isFullScreen ? .isModal : [])
             .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
             .transition(.scale(scale: 0.12, anchor: .bottomTrailing).combined(with: .opacity))
         }
