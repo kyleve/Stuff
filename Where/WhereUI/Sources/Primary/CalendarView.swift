@@ -48,7 +48,7 @@ struct CalendarView: View {
                             case let .failure(error):
                                 calendarLayoutError(error)
                             case nil:
-                                ProgressView(Strings.primaryLoading)
+                                AppIconLoadingView(caption: Strings.primaryLoading)
                         }
                     }
                     .task(id: calendarLoadID(report: yearReport)) {
@@ -57,7 +57,7 @@ struct CalendarView: View {
                         monthsLoad = result
                     }
                 } else if report.loadState == .loading {
-                    ProgressView(Strings.primaryLoading)
+                    AppIconLoadingView(caption: Strings.primaryLoading)
                 } else if case let .failed(error) = report.loadState {
                     ContentUnavailableView {
                         Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")

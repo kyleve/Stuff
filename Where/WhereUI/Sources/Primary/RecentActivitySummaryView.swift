@@ -79,7 +79,7 @@ struct RecentActivitySummaryView: View {
     private var content: some View {
         switch model.loadState {
             case .idle, .loading:
-                loadingState
+                AppIconLoadingView(caption: Strings.recentActivityLoading)
                     .transition(.opacity)
             case let .loaded(text):
                 summary(text)
@@ -109,20 +109,6 @@ struct RecentActivitySummaryView: View {
                 }
                 .transition(.opacity)
         }
-    }
-
-    /// The generating state: the user's selected app icon breathing gently (a
-    /// subtler take on the launch splash) over the "Summarizing…" caption.
-    private var loadingState: some View {
-        VStack(spacing: UIConstants.Spacings.xxLarge) {
-            AppIconActivityIndicator()
-            Text(Strings.recentActivityLoading)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(Strings.recentActivityLoading)
     }
 
     private func summary(_ text: String) -> some View {
