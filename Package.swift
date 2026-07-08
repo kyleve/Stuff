@@ -6,11 +6,9 @@ let package = Package(
     defaultLocalization: "en",
     platforms: [
         .iOS(.v26),
-        .macOS(.v26),
     ],
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
-        .library(name: "ForemanCore", targets: ["ForemanCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LogKit", targets: ["LogKit"]),
         .library(name: "LogViewerUI", targets: ["LogViewerUI"]),
@@ -30,16 +28,6 @@ let package = Package(
         .target(
             name: "StuffCore",
             path: "Shared/StuffCore/Sources",
-        ),
-        .target(
-            name: "ForemanCore",
-            dependencies: [
-                .target(name: "LogKit"),
-            ],
-            path: "Foreman/ForemanCore/Sources",
-            resources: [
-                .process("Resources"),
-            ],
         ),
         .target(
             name: "LifecycleKit",
