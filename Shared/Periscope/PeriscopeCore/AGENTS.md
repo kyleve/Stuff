@@ -40,12 +40,15 @@ the build system, formatting, and global conventions. Read that first.
 - **Payloads persist as versioned JSON** (`eventName` + `eventVersion`), not
   per-event schemas — changing an event's shape must not require a SwiftData
   migration.
-- **Every span eventually ends.** `measure` closes on every path (including
-  throw/cancellation); bounded spans expire via the watchdog; re-begins
-  supersede rather than refuse; relaunch orphan-closes `endsWithProcess`
-  spans. Don't add a span path that can leave `openSpans` growing forever
-  (`survivesRelaunch` resume is the one staged exception — see
-  [`TODOs.md`](../TODOs.md)).
+- **Every span eventually ends, and its began is delivered first.**
+  `measure` closes on every path (including throw/cancellation); bounded
+  spans expire via the watchdog; re-begins supersede rather than refuse;
+  relaunch orphan-closes `endsWithProcess` spans. Don't add a span path
+  that can leave `openSpans` growing forever (`survivesRelaunch` resume is
+  the one staged exception — see [`TODOs.md`](../TODOs.md)). Registration
+  and the `SpanBegan` record land atomically (`LogRecorder.beginSpan`), so
+  a span is never closable before its began is in the pipeline — keep it
+  that way.
 - **Span pairs floor together.** The floor decision is made once, at
   begin, and the whole lifecycle follows it (`OpenSpan.beganRecorded`,
   `LogRecord.bypassesFloors`): a recorded began always gets its end —

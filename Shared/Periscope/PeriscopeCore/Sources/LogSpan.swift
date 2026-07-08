@@ -486,7 +486,23 @@ extension Log {
             scopes: scopes.map(\.id),
             tags: tags,
         )
-        if let superseded = recorder.openSpan(key: key, span: span) {
+        var beganRecord: LogRecord?
+        if beganRecorded {
+            var record = LogRecord(
+                date: Date(),
+                event: began,
+                scopes: scopes.map(\.id),
+                tags: tags,
+            )
+            record.bypassesFloors = true
+            beganRecord = record
+        }
+        // Registration and the began land atomically (see
+        // `LogRecorder.beginSpan`), so a racing supersede or `end(for:)`
+        // can't record this span's end first. The superseded close follows
+        // the *new* began — cause before effect: the re-begin is what
+        // closed it.
+        if let superseded = recorder.beginSpan(key: key, span: span, began: beganRecord) {
             SpanSignposts.end(superseded.id)
             if superseded.beganRecorded {
                 var closing = LogRecord(
@@ -505,9 +521,6 @@ extension Log {
             }
         }
         SpanSignposts.begin(span.id, name: name)
-        if beganRecorded {
-            emit(began, bypassingFloors: true)
-        }
     }
 
     /// Close the span opened with ``begin(for:lifetime:relaunch:)`` for the

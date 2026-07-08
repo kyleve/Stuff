@@ -32,10 +32,13 @@ final class RecordingRecorder: LogRecorder, Sendable {
         true
     }
 
-    func openSpan(key: SpanKey, span: OpenSpan) -> OpenSpan? {
+    func beginSpan(key: SpanKey, span: OpenSpan, began: LogRecord?) -> OpenSpan? {
         state.withLock { state in
             let prior = state.openSpans.removeValue(forKey: key)
             state.openSpans[key] = span
+            if let began {
+                state.records.append(began)
+            }
             return prior
         }
     }

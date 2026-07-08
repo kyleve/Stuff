@@ -187,11 +187,13 @@ struct LogSpanTests {
         log.begin(for: "pay_1", lifetime: .indefinite)
         log.end(for: "pay_1", exit: .success)
 
+        // The second began precedes the superseded end: registration and
+        // began record atomically, and the close it causes follows it.
         let records = recorder.records
         #expect(records.count == 4)
         let firstBegan = try #require(records[0].event as? SpanBegan)
-        let superseded = try #require(records[1].event as? SpanEnded)
-        let secondBegan = try #require(records[2].event as? SpanBegan)
+        let secondBegan = try #require(records[1].event as? SpanBegan)
+        let superseded = try #require(records[2].event as? SpanEnded)
         let ended = try #require(records[3].event as? SpanEnded)
 
         #expect(superseded.spanID == firstBegan.spanID)

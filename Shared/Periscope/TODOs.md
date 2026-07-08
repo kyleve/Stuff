@@ -13,11 +13,10 @@
 
 ## P1s (Should do)
 ## P2s (Nice to have)
-- fix: A cross-task supersede can deliver a span's `SpanEnded` before its `SpanBegan`: `begin(for:)` registers the span in `openSpans` *before* emitting its began, so a racing `begin` on the same key can record the superseded end first. Both records always arrive (the span-lifecycle fuzz asserts pair completeness), but strict began-before-ended ordering would need the register-and-emit to be atomic.
-
 # Completed issues
 
 ## Second review pass
+- fix: `begin(for:)` registers the span and records its `SpanBegan` atomically (`LogRecorder.beginSpan`), so a racing supersede or `end(for:)` can never deliver a span's end before its began; the span-lifecycle fuzz now asserts strict began-then-ended pairs. The superseded close deliberately follows the *new* began (cause before effect).
 - fix: Budgeted `measure` sentinels serialize with the span's end through a per-measure gate, so a sentinel losing the race at the budget boundary can never record a `SpanOverdue` after the `SpanEnded`.
 - refactor: The six copies of scope-path walking (OSLogSink, the three tool models, OpenSpansView, NDJSONExporter) collapse into `LogScope.ancestry(of:resolve:)`; display joins with `" / "`, exports with `"/"` — now documented as deliberate.
 - fix: `showHosted` runs window animations at 100x and restores them, matching `WhereTesting.show`.

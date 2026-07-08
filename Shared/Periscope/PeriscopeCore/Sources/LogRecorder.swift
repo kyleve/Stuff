@@ -20,10 +20,16 @@ public protocol LogRecorder: Sendable {
     /// policy inside `record`.
     func shouldRecord(level: LogLevel, scopes: [ScopeID]) -> Bool
 
-    /// Track a span opened by `Log.begin(for:lifetime:relaunch:)`. When
-    /// `key` was already open, the prior span is returned (removed) so the
-    /// caller can close it as superseded.
-    func openSpan(key: SpanKey, span: OpenSpan) -> OpenSpan?
+    /// Track a span opened by `Log.begin(for:lifetime:relaunch:)`,
+    /// recording `began` (the span's `SpanBegan`; `nil` when the begin-time
+    /// floors hid the whole pair) *atomically* with the registration: a
+    /// span must never be visible for closing before its began is in the
+    /// pipeline, or a racing supersede or `end(for:)` could record the
+    /// span's end first. When `key` was already open, the prior span is
+    /// returned (removed) so the caller can close it as superseded — that
+    /// end trails the new began, which is fine: the prior span's own began
+    /// was recorded when *it* registered.
+    func beginSpan(key: SpanKey, span: OpenSpan, began: LogRecord?) -> OpenSpan?
 
     /// Stop tracking and return the open span for `key`, if any.
     func closeSpan(key: SpanKey) -> OpenSpan?

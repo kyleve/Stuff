@@ -901,11 +901,10 @@ struct PeriscopeTests {
         }
 
         // Span pairs never dangle across floor changes or supersession:
-        // every span the sink saw has exactly one began and one ended —
-        // a floored begin silences the whole pair instead. Order within a
-        // pair isn't asserted: a begin registers in openSpans before its
-        // own SpanBegan emit runs, so a racing supersede on the same key
-        // can deliver the end first (recorded in TODOs.md).
+        // every span the sink saw is exactly a began *then* its ended —
+        // a floored begin silences the whole pair instead, and
+        // registration + began land atomically (`beginSpan`) so no
+        // interleaving delivers an end first.
         var lifecycles: [SpanID: [LogRecord]] = [:]
         for record in sink.records {
             guard let span = record.spanID else { continue }
@@ -913,8 +912,8 @@ struct PeriscopeTests {
         }
         for (span, records) in lifecycles {
             #expect(records.count == 2, "span \(span) should be a began/ended pair")
-            #expect(records.count(where: { $0.event is SpanBegan }) == 1)
-            #expect(records.count(where: { $0.event is SpanEnded }) == 1)
+            #expect(records.first?.event is SpanBegan)
+            #expect(records.last?.event is SpanEnded)
         }
 
         // Scope definitions still precede every record that references them.

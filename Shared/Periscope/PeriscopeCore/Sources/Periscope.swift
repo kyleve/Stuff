@@ -384,11 +384,35 @@ public final class Periscope: LogRecorder, Sendable {
 
     // MARK: Open spans
 
-    public func openSpan(key: SpanKey, span: OpenSpan) -> OpenSpan? {
-        let superseded = state.withLock { state in
+    public func beginSpan(key: SpanKey, span: OpenSpan, began: LogRecord?) -> OpenSpan? {
+        // Redact outside the lock, like `record(_:)` — the closure is user
+        // code and may itself log, which would deadlock under our lock. A
+        // suppressed began leaves the span registered silently, exactly as
+        // the record path would have dropped it.
+        let buffered: LogRecord? = if let began, let redact = configuration.redact {
+            redact(began)
+        } else {
+            began
+        }
+        // One lock acquisition for registry + buffer: the span becomes
+        // visible for closing only with its began already in the pipeline,
+        // so no interleaving can record this span's end first.
+        let (superseded, observers) = state.withLock {
+            state -> (OpenSpan?, [AsyncStream<LogRecord>.Continuation]) in
             let prior = state.openSpans.removeValue(forKey: key)
             state.openSpans[key] = span
-            return prior
+            guard let buffered else { return (prior, []) }
+            Self.append(buffered, to: &state, configuration: configuration)
+            return (prior, Array(state.observers.values))
+        }
+        if let buffered {
+            for observer in observers {
+                observer.yield(buffered)
+            }
+            scheduleDrainIfNeeded()
+            if buffered.level >= configuration.flushThreshold {
+                scheduleAutoFlush()
+            }
         }
         scheduleWatchdogIfNeeded()
         return superseded
