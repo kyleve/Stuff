@@ -69,7 +69,7 @@
         // MARK: Collapsed button
 
         private func collapsedButton(in proxy: GeometryProxy) -> some View {
-            let anchor = anchorPoint(for: model.corner, in: proxy)
+            let anchor = anchorPoint(for: model.corner, in: proxy.size)
             return DeveloperOverlayButton()
                 .onGeometryChange(for: CGSize.self) { $0.size } action: { buttonSize = $0 }
                 .position(x: anchor.x + dragOffset.width, y: anchor.y + dragOffset.height)
@@ -86,7 +86,7 @@
                     dragOffset = value.translation
                 }
                 .onEnded { value in
-                    let anchor = anchorPoint(for: model.corner, in: proxy)
+                    let anchor = anchorPoint(for: model.corner, in: proxy.size)
                     let dropPoint = CGPoint(
                         x: anchor.x + value.translation.width,
                         y: anchor.y + value.translation.height,
@@ -102,21 +102,20 @@
                 }
         }
 
-        /// Resting center for the button in a given corner, kept inside the safe
-        /// area — plus the measured tab-bar height for the bottom corners so the
-        /// button clears the floating tab bar when logged in.
+        /// Resting center for the button in a given corner. `size` is already the
+        /// safe-area region (the `GeometryReader` respects the safe area), so the
+        /// only extra offset is the measured tab-bar height on the bottom corners
+        /// so the button clears the floating tab bar when logged in.
         private func anchorPoint(
             for corner: DeveloperOverlayModel.Corner,
-            in proxy: GeometryProxy,
+            in size: CGSize,
         ) -> CGPoint {
-            let size = proxy.size
-            let insets = proxy.safeAreaInsets
             let halfWidth = buttonSize.width / 2
             let halfHeight = buttonSize.height / 2
-            let leadingX = insets.leading + edgeInset + halfWidth
-            let trailingX = size.width - insets.trailing - edgeInset - halfWidth
-            let topY = insets.top + edgeInset + halfHeight
-            let bottomY = size.height - insets.bottom - tabBarInset - edgeInset - halfHeight
+            let leadingX = edgeInset + halfWidth
+            let trailingX = size.width - edgeInset - halfWidth
+            let topY = edgeInset + halfHeight
+            let bottomY = size.height - tabBarInset - edgeInset - halfHeight
             switch corner {
                 case .topLeading: return CGPoint(x: leadingX, y: topY)
                 case .topTrailing: return CGPoint(x: trailingX, y: topY)
