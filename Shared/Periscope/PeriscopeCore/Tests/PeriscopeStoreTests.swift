@@ -172,6 +172,33 @@ struct PeriscopeStoreTests {
         #expect(stored.scopes == [photos.id, root.id])
     }
 
+    @Test func spanEventsResolveBySpanID() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let span = SpanID()
+        await store.write([
+            LogRecord(
+                date: date(1),
+                event: SpanBegan(spanID: span, name: "save"),
+                scopes: [root.id],
+            ),
+            makeRecord("unrelated", date: date(2), scopes: [root.id]),
+            LogRecord(
+                date: date(3),
+                event: SpanEnded(spanID: span, name: "save", duration: .seconds(2)),
+                scopes: [root.id],
+            ),
+        ])
+
+        let pair = try await store.events(inSpan: span)
+        #expect(pair.count == 2)
+        #expect(pair.allSatisfy { $0.spanID == span })
+        #expect(try pair.first.map { try $0.decode(SpanEnded.self).duration } == .seconds(2))
+
+        let unrelated = try await store.events(matching: LogQuery())
+            .first { $0.message == "unrelated" }
+        #expect(unrelated?.spanID == nil)
+    }
+
     @Test func tagsPersistAndFilter() async throws {
         let (store, root, _, _) = try await makeStore()
         let key = LogTagKey("payment-id")

@@ -101,6 +101,7 @@ public final class Periscope: LogRecorder, Sendable {
         var observers: [UUID: AsyncStream<LogRecord>.Continuation] = [:]
         var globalFloor: LogLevel?
         var subtreeFloors: [ScopeID: LogLevel] = [:]
+        var openSpans: [SpanKey: OpenSpan] = [:]
         /// The active drain task; `nil` exactly when nothing is draining.
         var drainTask: Task<Void, Never>?
     }
@@ -262,6 +263,25 @@ public final class Periscope: LogRecorder, Sendable {
     /// Resolve a scope the system has seen.
     public func scope(for id: ScopeID) -> LogScope? {
         state.withLock { $0.scopes[id] }
+    }
+
+    // MARK: Open spans
+
+    public func openSpan(
+        key: SpanKey,
+        name: String,
+        start: ContinuousClock.Instant,
+    ) -> SpanID? {
+        state.withLock { state in
+            guard state.openSpans[key] == nil else { return nil }
+            let span = OpenSpan(id: SpanID(), name: name, start: start)
+            state.openSpans[key] = span
+            return span.id
+        }
+    }
+
+    public func closeSpan(key: SpanKey) -> OpenSpan? {
+        state.withLock { $0.openSpans.removeValue(forKey: key) }
     }
 
     // MARK: Live records

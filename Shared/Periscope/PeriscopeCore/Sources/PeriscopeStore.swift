@@ -184,6 +184,7 @@ public actor PeriscopeStore: LogSink {
                 payload: payload,
                 orderedScopeIDs: record.scopes.map(\.rawValue),
                 sessionID: session.sessionID,
+                spanID: record.spanID?.rawValue,
                 scopes: scopeRows,
                 tags: tagRows,
             )
@@ -339,6 +340,21 @@ public actor PeriscopeStore: LogSink {
         return try modelContext.fetch(descriptor).map(Self.eventValue)
     }
 
+    /// Both halves of a span (begin and end events sharing `span`), newest
+    /// first. Kept separate from ``events(matching:)`` so the hot general
+    /// predicate stays small.
+    public func events(inSpan span: SpanID) throws -> [StoredLogEvent] {
+        let id: UUID? = span.rawValue
+        let descriptor = FetchDescriptor<SDLogEvent>(
+            predicate: #Predicate { $0.spanID == id },
+            sortBy: [
+                SortDescriptor(\.date, order: .reverse),
+                SortDescriptor(\.sequence, order: .reverse),
+            ],
+        )
+        return try modelContext.fetch(descriptor).map(Self.eventValue)
+    }
+
     /// One persisted event by ID (for the tracer and inspectors).
     public func event(id: UUID) throws -> StoredLogEvent? {
         var descriptor = FetchDescriptor<SDLogEvent>(
@@ -362,6 +378,7 @@ public actor PeriscopeStore: LogSink {
                 row.tags.map { (LogTagKey($0.key), $0.value) },
                 uniquingKeysWith: { first, _ in first },
             ),
+            spanID: row.spanID.map(SpanID.init(rawValue:)),
             sessionID: row.sessionID,
         )
     }

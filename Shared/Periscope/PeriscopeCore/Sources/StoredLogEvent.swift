@@ -20,6 +20,8 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
     public let scopes: [ScopeID]
     /// The tags the event was stamped with.
     public let tags: [LogTagKey: String]
+    /// The span this event begins or ends, when it is a span event.
+    public let spanID: SpanID?
     public let sessionID: UUID
 
     public init(
@@ -32,6 +34,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         payload: Data,
         scopes: [ScopeID],
         tags: [LogTagKey: String],
+        spanID: SpanID?,
         sessionID: UUID,
     ) {
         self.id = id
@@ -43,6 +46,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         self.payload = payload
         self.scopes = scopes
         self.tags = tags
+        self.spanID = spanID
         self.sessionID = sessionID
     }
 

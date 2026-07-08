@@ -7,6 +7,7 @@ final class RecordingRecorder: LogRecorder, Sendable {
     private struct State {
         var scopes: [LogScope] = []
         var records: [LogRecord] = []
+        var openSpans: [SpanKey: OpenSpan] = [:]
     }
 
     private let state = OSAllocatedUnfairLock(initialState: State())
@@ -29,6 +30,19 @@ final class RecordingRecorder: LogRecorder, Sendable {
 
     func shouldRecord(level _: LogLevel, scopes _: [ScopeID]) -> Bool {
         true
+    }
+
+    func openSpan(key: SpanKey, name: String, start: ContinuousClock.Instant) -> SpanID? {
+        state.withLock { state in
+            guard state.openSpans[key] == nil else { return nil }
+            let span = OpenSpan(id: SpanID(), name: name, start: start)
+            state.openSpans[key] = span
+            return span.id
+        }
+    }
+
+    func closeSpan(key: SpanKey) -> OpenSpan? {
+        state.withLock { $0.openSpans.removeValue(forKey: key) }
     }
 }
 

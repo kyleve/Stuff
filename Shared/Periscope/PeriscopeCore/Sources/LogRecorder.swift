@@ -19,4 +19,11 @@ public protocol LogRecorder: Sendable {
     /// skips string construction; recorders must still enforce their own
     /// policy inside `record`.
     func shouldRecord(level: LogLevel, scopes: [ScopeID]) -> Bool
+
+    /// Track a span opened by `Log.begin(for:)`. Returns the new span's ID,
+    /// or `nil` when `key` is already open.
+    func openSpan(key: SpanKey, name: String, start: ContinuousClock.Instant) -> SpanID?
+
+    /// Stop tracking and return the open span for `key`, if any.
+    func closeSpan(key: SpanKey) -> OpenSpan?
 }

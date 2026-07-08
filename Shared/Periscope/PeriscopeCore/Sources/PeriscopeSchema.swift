@@ -12,7 +12,7 @@ import SwiftData
 /// JSON instead of requiring schema migrations.
 @Model
 final class SDLogEvent {
-    #Index<SDLogEvent>([\.date], [\.severity], [\.eventName], [\.sessionID])
+    #Index<SDLogEvent>([\.date], [\.severity], [\.eventName], [\.sessionID], [\.spanID])
 
     var eventID: UUID
     var date: Date
@@ -29,6 +29,8 @@ final class SDLogEvent {
     /// Every scope the event references, primary first, in emission order.
     var orderedScopeIDs: [UUID]
     var sessionID: UUID
+    /// Set on span begin/end events so a span's pair resolves in one fetch.
+    var spanID: UUID?
     var scopes: [SDLogScope]
     var tags: [SDLogTag]
 
@@ -44,6 +46,7 @@ final class SDLogEvent {
         payload: Data,
         orderedScopeIDs: [UUID],
         sessionID: UUID,
+        spanID: UUID?,
         scopes: [SDLogScope],
         tags: [SDLogTag],
     ) {
@@ -58,6 +61,7 @@ final class SDLogEvent {
         self.payload = payload
         self.orderedScopeIDs = orderedScopeIDs
         self.sessionID = sessionID
+        self.spanID = spanID
         self.scopes = scopes
         self.tags = tags
     }
