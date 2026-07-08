@@ -14,6 +14,12 @@ public struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var model: WhereModel
+    #if DEBUG
+        /// The logged-in tab bar's measured height, reported up from `MainTabs` and
+        /// handed to the sibling `DeveloperOverlay` so its button rests clear of the
+        /// tab bar. Zero when logged out (no tab bar in the tree).
+        @State private var developerTabBarInset: CGFloat = 0
+    #endif
     private let launcher: LifecycleRunner
 
     /// Inject the app-owned model + runner built at launch. The app uses this.
@@ -59,9 +65,12 @@ public struct RootView: View {
             // tab so its tools are reachable from anywhere (even logged out). It's
             // DEBUG-only and compiled out of release entirely.
             #if DEBUG
-                DeveloperOverlay()
+                DeveloperOverlay(tabBarInset: developerTabBarInset)
             #endif
         }
+        #if DEBUG
+        .onPreferenceChange(DeveloperTabBarInsetKey.self) { developerTabBarInset = $0 }
+        #endif
         .environment(model)
         // The logged-in session appears once `open-store` builds it. Injected
         // as an optional `Observable`, so the `TabView`'s `@Environment(WhereSession.self)`

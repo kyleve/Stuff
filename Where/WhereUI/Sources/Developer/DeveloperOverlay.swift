@@ -16,6 +16,11 @@
     ///
     /// Attached once at ``RootView`` and compiled out of release (`#if DEBUG`).
     struct DeveloperOverlay: View {
+        /// The logged-in tab bar's height, measured by `MainTabs` and threaded in
+        /// via `RootView`, so the resting button clears the floating tab bar
+        /// without hardcoding its height. Zero when logged out.
+        var tabBarInset: CGFloat = 0
+
         @State private var model = DeveloperOverlayModel()
         @State private var dragOffset: CGSize = .zero
         /// The collapsed button's rendered size, measured rather than hardcoded so
@@ -24,9 +29,6 @@
         @State private var buttonSize: CGSize = .zero
 
         private let edgeInset: CGFloat = 16
-        /// Extra bottom clearance so the resting button clears the floating tab
-        /// bar when the app is logged in.
-        private let bottomBarClearance: CGFloat = 64
         private let panelCornerRadius: CGFloat = 22
 
         var body: some View {
@@ -54,7 +56,7 @@
         // MARK: Collapsed button
 
         private func collapsedButton(in proxy: GeometryProxy) -> some View {
-            let anchor = anchorPoint(for: model.corner, in: proxy.size)
+            let anchor = anchorPoint(for: model.corner, in: proxy)
             return DeveloperOverlayButton()
                 .onGeometryChange(for: CGSize.self) { $0.size } action: { buttonSize = $0 }
                 .position(x: anchor.x + dragOffset.width, y: anchor.y + dragOffset.height)
@@ -71,7 +73,7 @@
                     dragOffset = value.translation
                 }
                 .onEnded { value in
-                    let anchor = anchorPoint(for: model.corner, in: proxy.size)
+                    let anchor = anchorPoint(for: model.corner, in: proxy)
                     let dropPoint = CGPoint(
                         x: anchor.x + value.translation.width,
                         y: anchor.y + value.translation.height,
@@ -88,17 +90,20 @@
         }
 
         /// Resting center for the button in a given corner, kept inside the safe
-        /// area (plus tab-bar clearance for the bottom corners).
+        /// area — plus the measured tab-bar height for the bottom corners so the
+        /// button clears the floating tab bar when logged in.
         private func anchorPoint(
             for corner: DeveloperOverlayModel.Corner,
-            in size: CGSize,
+            in proxy: GeometryProxy,
         ) -> CGPoint {
+            let size = proxy.size
+            let insets = proxy.safeAreaInsets
             let halfWidth = buttonSize.width / 2
             let halfHeight = buttonSize.height / 2
-            let leadingX = edgeInset + halfWidth
-            let trailingX = size.width - edgeInset - halfWidth
-            let topY = edgeInset + halfHeight
-            let bottomY = size.height - edgeInset - halfHeight - bottomBarClearance
+            let leadingX = insets.leading + edgeInset + halfWidth
+            let trailingX = size.width - insets.trailing - edgeInset - halfWidth
+            let topY = insets.top + edgeInset + halfHeight
+            let bottomY = size.height - insets.bottom - tabBarInset - edgeInset - halfHeight
             switch corner {
                 case .topLeading: return CGPoint(x: leadingX, y: topY)
                 case .topTrailing: return CGPoint(x: trailingX, y: topY)
