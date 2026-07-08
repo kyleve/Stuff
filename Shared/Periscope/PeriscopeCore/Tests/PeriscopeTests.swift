@@ -272,6 +272,50 @@ struct PeriscopeTests {
         #expect(sink.records.map(\.message) == ["boom"])
     }
 
+    @Test func errorStormsCoalesceIntoAFewFlushes() async throws {
+        // Hold the drain mid-delivery so the whole storm lands while the
+        // first auto-flush is still waiting — deterministic coalescing.
+        let gate = GateSink()
+        let system = Periscope(
+            configuration: Periscope.Configuration(),
+            sinks: [gate, sink],
+        )
+        let log = Log<AppLogs>(system: system)
+
+        log.error("e1")
+        let drainBlocked = await waitUntil { gate.batchCount >= 1 }
+        try #require(drainBlocked)
+
+        for index in 2 ... 50 {
+            log.error("e\(index)")
+        }
+        gate.open()
+
+        let delivered = await waitUntil { sink.records.count == 50 }
+        #expect(delivered)
+        let settled = await waitUntil { sink.flushCount >= 1 }
+        #expect(settled)
+
+        // One flush for the storm, at most one follow-up for records that
+        // landed mid-flush — never one per record.
+        #expect(sink.flushCount <= 2)
+    }
+
+    @Test func autoFlushRecoversAfterSettling() async {
+        let system = makeSystem()
+        let log = Log<AppLogs>(system: system)
+
+        log.error("first")
+        let first = await waitUntil { sink.flushCount >= 1 }
+        #expect(first)
+        let countAfterFirst = sink.flushCount
+
+        log.error("second")
+        let second = await waitUntil { sink.flushCount > countAfterFirst }
+        #expect(second)
+        #expect(sink.records.map(\.message) == ["first", "second"])
+    }
+
     @Test func recordsBelowTheFlushThresholdDoNotFlushSinks() async {
         let system = makeSystem()
         let log = Log<AppLogs>(system: system)

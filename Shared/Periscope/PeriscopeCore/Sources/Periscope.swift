@@ -106,6 +106,11 @@ public final class Periscope: LogRecorder, Sendable {
         var inspectModeEnabled = false
         /// The active drain task; `nil` exactly when nothing is draining.
         var drainTask: Task<Void, Never>?
+        /// The active auto-flush task; `nil` exactly when none is running.
+        var autoFlushTask: Task<Void, Never>?
+        /// A qualifying record arrived while an auto-flush was in flight;
+        /// one follow-up flush covers every such record.
+        var autoFlushPending = false
     }
 
     /// The scope Periscope's own synthetic events (drop reports) log under.
@@ -231,7 +236,36 @@ public final class Periscope: LogRecorder, Sendable {
         }
         scheduleDrainIfNeeded()
         if record.level >= configuration.flushThreshold {
-            Task { await self.flush() }
+            scheduleAutoFlush()
+        }
+    }
+
+    /// Request an automatic flush, coalescing: one task flushes no matter
+    /// how many qualifying records arrive (an error storm must not spawn a
+    /// task per record), and records landing mid-flush get exactly one
+    /// follow-up flush so their durability is still covered.
+    private func scheduleAutoFlush() {
+        state.withLock { state in
+            guard state.autoFlushTask == nil else {
+                state.autoFlushPending = true
+                return
+            }
+            state.autoFlushTask = Task { await self.runAutoFlush() }
+        }
+    }
+
+    private func runAutoFlush() async {
+        while true {
+            await flush()
+            let runAgain = state.withLock { state -> Bool in
+                if state.autoFlushPending {
+                    state.autoFlushPending = false
+                    return true
+                }
+                state.autoFlushTask = nil
+                return false
+            }
+            guard runAgain else { return }
         }
     }
 
