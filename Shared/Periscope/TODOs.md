@@ -13,7 +13,6 @@
 
 ## P1s (Should do)
 ## P2s (Nice to have)
-- fix: `NetworkPathAmbientSource.start` called twice silently replaces the boxed monitor without cancelling the old one; ambient sources in general have no stop/double-start story.
 - refactor: `PeriscopeViewer`/`LogInspectorView`/`LogTraceView` capture their model via `State(initialValue:)`; a parent that later passes a different store/origin keeps the stale model. Fine for dev tools — document or key the views.
 - fix: `PeriscopeInspector` syncs one-way after init; direct writes to `Periscope.isInspectModeEnabled` don't reflect back into the observable mirror.
 - feat: An "open spans" developer surface (viewer section listing currently-open spans with age and budget) — the data exists in `Periscope.openSpans`.
@@ -22,6 +21,9 @@
 - perf: `LocalNotificationAlertHandler` requests notification authorization on every alert; cache the grant.
 
 # Completed issues
+
+## P2s (Nice to have)
+- fix: `NetworkPathAmbientSource.start` cancels the prior monitor when restarted (it used to keep running and logging forever); `AmbientEventSource.start` documents its called-exactly-once contract.
 
 ## P1s (Should do)
 - fix: Check level floors before running redaction in `Periscope.record` — redaction code no longer executes (touching PII) for records the floor discards; floors apply to the record as emitted.

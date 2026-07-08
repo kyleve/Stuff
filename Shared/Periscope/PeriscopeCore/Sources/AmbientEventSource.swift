@@ -9,7 +9,10 @@ import Foundation
 /// shared ambient scope.
 public protocol AmbientEventSource: Sendable {
     /// Begin observing and log every observed change into `log`. Called
-    /// once, when the source is registered.
+    /// exactly once, when the source is registered — sources observe for
+    /// the process lifetime and are not required to tolerate repeated
+    /// starts (the notification-based built-ins would double their
+    /// observers).
     func start(log: Log<AmbientEvent>)
 }
 

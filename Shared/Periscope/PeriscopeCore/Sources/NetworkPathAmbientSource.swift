@@ -17,7 +17,14 @@ public struct NetworkPathAmbientSource: AmbientEventSource {
             log { AmbientEvent(kind: .network, value: Self.describe(path)) }
         }
         started.start(queue: DispatchQueue(label: "com.stuff.periscope.network-path"))
-        monitor.withLockUnchecked { $0 = started }
+        let previous = monitor.withLockUnchecked { boxed -> NWPathMonitor? in
+            let previous = boxed
+            boxed = started
+            return previous
+        }
+        // A repeated start replaces the monitor; without the cancel the old
+        // one would keep running (and logging) forever.
+        previous?.cancel()
     }
 
     private static func describe(_ path: NWPath) -> String {
