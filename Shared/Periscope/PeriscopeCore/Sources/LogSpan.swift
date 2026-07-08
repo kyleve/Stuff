@@ -177,12 +177,17 @@ public struct SpanKey: Hashable, Sendable {
 
 /// A span begun with `Log.begin(for:)` that hasn't ended yet. Carries the
 /// beginning context (scopes, tags) so system-initiated closes — expiry,
-/// supersession — attribute their `SpanEnded` like the begin was.
+/// supersession — attribute their `SpanEnded` like the begin was, plus the
+/// begin-time floor decision the whole pair follows.
 public struct OpenSpan: Sendable {
     public let id: SpanID
     public let name: String
     public let start: ContinuousClock.Instant
     public let lifetime: SpanLifetime
+    /// Whether the floors admitted the `SpanBegan` when the span opened —
+    /// its end (normal, expired, or superseded) is recorded iff this is
+    /// true, so pairs never dangle across floor changes.
+    public let beganRecorded: Bool
     public let scopes: [ScopeID]
     public let tags: [LogTagKey: String]
 
@@ -191,6 +196,7 @@ public struct OpenSpan: Sendable {
         name: String,
         start: ContinuousClock.Instant,
         lifetime: SpanLifetime,
+        beganRecorded: Bool,
         scopes: [ScopeID],
         tags: [LogTagKey: String],
     ) {
@@ -198,6 +204,7 @@ public struct OpenSpan: Sendable {
         self.name = name
         self.start = start
         self.lifetime = lifetime
+        self.beganRecorded = beganRecorded
         self.scopes = scopes
         self.tags = tags
     }
@@ -298,18 +305,20 @@ extension Log {
         let span = SpanID()
         let clock = ContinuousClock()
         let start = clock.now
-        SpanSignposts.begin(span, name: spanName)
-        emit(SpanBegan(
-            spanID: span,
-            name: spanName,
-            lifetime: .scoped,
-            relaunchPolicy: .endsWithProcess,
-        ))
-        let sentinel = budget.map { startOverdueSentinel(span: span, name: spanName, budget: $0) }
+        let recorded = beginMeasuredSpan(span, name: spanName)
+        let sentinel = (recorded ? budget : nil).map {
+            startOverdueSentinel(span: span, name: spanName, budget: $0)
+        }
         defer { sentinel?.cancel() }
         do {
             let result = try body()
-            endMeasuredSpan(span, name: spanName, duration: clock.now - start, exit: .success)
+            endMeasuredSpan(
+                span,
+                name: spanName,
+                duration: clock.now - start,
+                exit: .success,
+                recorded: recorded,
+            )
             return result
         } catch {
             endMeasuredSpan(
@@ -317,6 +326,7 @@ extension Log {
                 name: spanName,
                 duration: clock.now - start,
                 exit: Self.exit(for: error),
+                recorded: recorded,
             )
             throw error
         }
@@ -331,18 +341,20 @@ extension Log {
         let span = SpanID()
         let clock = ContinuousClock()
         let start = clock.now
-        SpanSignposts.begin(span, name: spanName)
-        emit(SpanBegan(
-            spanID: span,
-            name: spanName,
-            lifetime: .scoped,
-            relaunchPolicy: .endsWithProcess,
-        ))
-        let sentinel = budget.map { startOverdueSentinel(span: span, name: spanName, budget: $0) }
+        let recorded = beginMeasuredSpan(span, name: spanName)
+        let sentinel = (recorded ? budget : nil).map {
+            startOverdueSentinel(span: span, name: spanName, budget: $0)
+        }
         defer { sentinel?.cancel() }
         do {
             let result = try await body()
-            endMeasuredSpan(span, name: spanName, duration: clock.now - start, exit: .success)
+            endMeasuredSpan(
+                span,
+                name: spanName,
+                duration: clock.now - start,
+                exit: .success,
+                recorded: recorded,
+            )
             return result
         } catch {
             endMeasuredSpan(
@@ -350,6 +362,7 @@ extension Log {
                 name: spanName,
                 duration: clock.now - start,
                 exit: Self.exit(for: error),
+                recorded: recorded,
             )
             throw error
         }
@@ -370,14 +383,38 @@ extension Log {
         }
     }
 
+    /// Signposts the start and, when the floors admit it, records the
+    /// `SpanBegan`. Returns the floor decision the whole pair follows —
+    /// including the overdue sentinel, which stays silent for a span the
+    /// floors hid.
+    private func beginMeasuredSpan(_ span: SpanID, name: String) -> Bool {
+        let began = SpanBegan(
+            spanID: span,
+            name: name,
+            lifetime: .scoped,
+            relaunchPolicy: .endsWithProcess,
+        )
+        let recorded = recorder.shouldRecord(level: began.level, scopes: scopes.map(\.id))
+        SpanSignposts.begin(span, name: name)
+        if recorded {
+            emit(began, bypassingFloors: true)
+        }
+        return recorded
+    }
+
     private func endMeasuredSpan(
         _ span: SpanID,
         name: String,
         duration: Duration,
         exit: SpanExit,
+        recorded: Bool,
     ) {
         SpanSignposts.end(span)
-        emit(SpanEnded(spanID: span, name: name, duration: duration, exit: exit))
+        guard recorded else { return }
+        emit(
+            SpanEnded(spanID: span, name: name, duration: duration, exit: exit),
+            bypassingFloors: true,
+        )
     }
 
     private static func exit(for error: any Error) -> SpanExit {
@@ -401,35 +438,49 @@ extension Log {
     ) {
         let name = String(describing: id)
         let key = SpanKey(scope: primaryScope.id, identifier: name)
+        let began = SpanBegan(
+            spanID: SpanID(),
+            name: name,
+            lifetime: lifetime,
+            relaunchPolicy: relaunch,
+        )
+        // The floor decision is made once, here, for the whole pair: a
+        // recorded began always gets its end (even if floors rise
+        // mid-span), and a floored began silences the entire span —
+        // never a dangling half. Signposts are unaffected; they're a
+        // separate channel.
+        let beganRecorded = recorder.shouldRecord(level: began.level, scopes: scopes.map(\.id))
         let span = OpenSpan(
-            id: SpanID(),
+            id: began.spanID,
             name: name,
             start: ContinuousClock().now,
             lifetime: lifetime,
+            beganRecorded: beganRecorded,
             scopes: scopes.map(\.id),
             tags: tags,
         )
         if let superseded = recorder.openSpan(key: key, span: span) {
             SpanSignposts.end(superseded.id)
-            recorder.record(LogRecord(
-                date: Date(),
-                event: SpanEnded(
-                    spanID: superseded.id,
-                    name: superseded.name,
-                    duration: span.start - superseded.start,
-                    exit: .superseded,
-                ),
-                scopes: superseded.scopes,
-                tags: superseded.tags,
-            ))
+            if superseded.beganRecorded {
+                var closing = LogRecord(
+                    date: Date(),
+                    event: SpanEnded(
+                        spanID: superseded.id,
+                        name: superseded.name,
+                        duration: span.start - superseded.start,
+                        exit: .superseded,
+                    ),
+                    scopes: superseded.scopes,
+                    tags: superseded.tags,
+                )
+                closing.bypassesFloors = true
+                recorder.record(closing)
+            }
         }
         SpanSignposts.begin(span.id, name: name)
-        emit(SpanBegan(
-            spanID: span.id,
-            name: name,
-            lifetime: lifetime,
-            relaunchPolicy: relaunch,
-        ))
+        if beganRecorded {
+            emit(began, bypassingFloors: true)
+        }
     }
 
     /// Close the span opened with ``begin(for:lifetime:relaunch:)`` for the
@@ -444,11 +495,15 @@ extension Log {
             return
         }
         SpanSignposts.end(open.id)
-        emit(SpanEnded(
-            spanID: open.id,
-            name: open.name,
-            duration: ContinuousClock().now - open.start,
-            exit: exit,
-        ))
+        guard open.beganRecorded else { return }
+        emit(
+            SpanEnded(
+                spanID: open.id,
+                name: open.name,
+                duration: ContinuousClock().now - open.start,
+                exit: exit,
+            ),
+            bypassingFloors: true,
+        )
     }
 }

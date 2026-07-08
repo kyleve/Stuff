@@ -20,6 +20,12 @@ public struct LogRecord: Sendable, Identifiable {
     /// Data attached at the call site (see `LogAttachment`).
     public let attachments: [LogAttachment]
 
+    /// Skips the recorder's level floors on delivery. Span lifecycle
+    /// records set this: the floor decision is made once, at `begin`, and
+    /// the whole pair follows it — a recorded began must get its end even
+    /// if floors rose mid-span (see `Log.begin`).
+    var bypassesFloors = false
+
     public init(
         id: UUID = UUID(),
         date: Date,

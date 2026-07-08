@@ -247,8 +247,12 @@ public final class Periscope: LogRecorder, Sendable {
 
     public func record(_ original: LogRecord) {
         // Floor first: redaction must not run (touching PII) for records
-        // the floor discards anyway. Floors apply to the record as emitted.
-        guard shouldRecord(level: original.level, scopes: original.scopes) else { return }
+        // the floor discards anyway. Floors apply to the record as emitted;
+        // span lifecycle records carry their begin-time decision instead
+        // (see `LogRecord.bypassesFloors`).
+        if !original.bypassesFloors {
+            guard shouldRecord(level: original.level, scopes: original.scopes) else { return }
+        }
         let record: LogRecord
         if let redact = configuration.redact {
             guard let redacted = redact(original) else { return }
@@ -421,7 +425,8 @@ public final class Periscope: LogRecorder, Sendable {
         for span in expired {
             SpanSignposts.end(span.id)
             guard case let .bounded(budget) = span.lifetime else { continue }
-            record(LogRecord(
+            guard span.beganRecorded else { continue }
+            var closing = LogRecord(
                 date: Date(),
                 event: SpanEnded(
                     spanID: span.id,
@@ -431,7 +436,9 @@ public final class Periscope: LogRecorder, Sendable {
                 ),
                 scopes: span.scopes,
                 tags: span.tags,
-            ))
+            )
+            closing.bypassesFloors = true
+            record(closing)
         }
     }
 

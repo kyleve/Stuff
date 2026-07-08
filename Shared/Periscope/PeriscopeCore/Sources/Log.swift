@@ -152,14 +152,20 @@ public struct Log<Event: LogEvent>: Sendable {
         child.emit(event())
     }
 
-    func emit(_ event: any LogEvent, attachments: [LogAttachment] = []) {
-        recorder.record(LogRecord(
+    func emit(
+        _ event: any LogEvent,
+        attachments: [LogAttachment] = [],
+        bypassingFloors: Bool = false,
+    ) {
+        var record = LogRecord(
             date: Date(),
             event: event,
             scopes: scopes.map(\.id),
             tags: tags,
             attachments: attachments,
-        ))
+        )
+        record.bypassesFloors = bypassingFloors
+        recorder.record(record)
     }
 }
 

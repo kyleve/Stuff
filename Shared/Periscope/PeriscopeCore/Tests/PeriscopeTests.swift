@@ -305,6 +305,97 @@ struct PeriscopeTests {
         #expect(sink.records.map(\.message) == ["visible via the UI scope"])
     }
 
+    // MARK: Span pairs and floors
+
+    @Test func spanEndsBypassFloorsRaisedMidSpan() async {
+        let system = makeSystem()
+        let log = Log<AppLogs>(system: system)
+
+        log.begin(for: "pay_1", lifetime: .indefinite)
+        system.minimumLevel = .fault
+        log.end(for: "pay_1", exit: .success) // .info — would normally floor
+        await system.flush()
+
+        let ends = sink.records.compactMap { $0.event as? SpanEnded }
+        #expect(ends.map(\.exit.mode) == [.success])
+    }
+
+    @Test func flooredBeginsSilenceTheWholeSpan() async {
+        let system = makeSystem()
+        system.minimumLevel = .fault
+        let log = Log<AppLogs>(system: system)
+
+        log.begin(for: "hidden", lifetime: .indefinite)
+        system.minimumLevel = nil // even reopening the floors mid-span
+        log.end(for: "hidden", exit: .failure("boom"))
+        await system.flush()
+
+        // Neither half emitted — floors hid the span entirely, never a
+        // dangling end. (No "without a matching begin" warning either: the
+        // span was tracked, just silent.)
+        #expect(sink.records.isEmpty)
+    }
+
+    @Test func expiredEndsFollowTheirBeganAcrossFloorChanges() async {
+        let system = makeSystem()
+        let log = Log<AppLogs>(system: system)
+
+        log.begin(for: "recorded", lifetime: .bounded(budget: .seconds(1)))
+        system.minimumLevel = .fault
+        log.begin(for: "hidden", lifetime: .bounded(budget: .seconds(1)))
+
+        system.sweepOverdueSpans(now: ContinuousClock().now + .seconds(5))
+        await system.flush()
+
+        let ends = sink.records.compactMap { $0.event as? SpanEnded }
+        #expect(ends.map(\.name) == ["recorded"])
+        #expect(ends.first?.exit.mode == .expired)
+    }
+
+    @Test func supersededEndsFollowTheirBegan() async {
+        let system = makeSystem()
+        let log = Log<AppLogs>(system: system)
+
+        log.begin(for: "flow", lifetime: .indefinite)
+        system.minimumLevel = .fault
+        log.begin(for: "flow", lifetime: .indefinite) // supersedes silently-visible pair
+
+        await system.flush()
+
+        // The first span's began was recorded, so its superseded end is
+        // too; the second began is floored and its whole span stays silent.
+        let ends = sink.records.compactMap { $0.event as? SpanEnded }
+        #expect(ends.map(\.exit.mode) == [.superseded])
+        #expect(sink.records.compactMap { $0.event as? SpanBegan }.count == 1)
+    }
+
+    @Test func measureEndsBypassFloorsRaisedMidBody() async {
+        let system = makeSystem()
+        let log = Log<AppLogs>(system: system)
+
+        log.measure("save") {
+            system.minimumLevel = .fault
+        }
+        await system.flush()
+
+        let ends = sink.records.compactMap { $0.event as? SpanEnded }
+        #expect(ends.map(\.exit.mode) == [.success])
+    }
+
+    @Test func flooredMeasuresAreFullySilentIncludingOverdue() async {
+        let system = makeSystem()
+        system.minimumLevel = .fault
+        let log = Log<AppLogs>(system: system)
+
+        await log.measure("hidden", budget: .milliseconds(5)) {
+            // Outlast the budget so a non-suppressed sentinel would fire.
+            try? await Task.sleep(for: .milliseconds(30))
+        }
+        await system.flush()
+
+        #expect(sink.records.isEmpty)
+    }
+
     @Test func filteredFreeformLoggingSkipsMessageRendering() {
         let system = makeSystem()
         system.minimumLevel = .warning

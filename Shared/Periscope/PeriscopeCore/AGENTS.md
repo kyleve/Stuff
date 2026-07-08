@@ -46,6 +46,12 @@ the build system, formatting, and global conventions. Read that first.
   spans. Don't add a span path that can leave `openSpans` growing forever
   (`survivesRelaunch` resume is the one staged exception — see
   [`TODOs.md`](../TODOs.md)).
+- **Span pairs floor together.** The floor decision is made once, at
+  begin, and the whole lifecycle follows it (`OpenSpan.beganRecorded`,
+  `LogRecord.bypassesFloors`): a recorded began always gets its end —
+  normal, expired, or superseded — even if floors rise mid-span, and a
+  floored began silences the entire span (overdue sentinel included).
+  Never a dangling half.
 
 ## Testing
 
