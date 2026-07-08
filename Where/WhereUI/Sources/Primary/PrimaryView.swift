@@ -109,8 +109,7 @@ struct PrimaryView: View {
     private var screen: some View {
         switch report.loadState {
             case .loading where report.report == nil:
-                ProgressView(Strings.primaryLoading)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                loadingState
             case let .failed(error):
                 ContentUnavailableView {
                     Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
@@ -159,6 +158,21 @@ struct PrimaryView: View {
             .padding()
         }
         .accessibilityIdentifier("where_root_title")
+    }
+
+    /// First-load state: the user's selected app icon breathing gently (the
+    /// shared `AppIconActivityIndicator`, a subtler cousin of the launch splash)
+    /// over the "Charting your year…" caption, in place of a bare spinner.
+    private var loadingState: some View {
+        VStack(spacing: UIConstants.Spacings.xxLarge) {
+            AppIconActivityIndicator()
+            Text(Strings.primaryLoading)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(Strings.primaryLoading)
     }
 
     private var emptyState: some View {
