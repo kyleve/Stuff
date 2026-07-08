@@ -8,6 +8,13 @@ the narrative and API.
 This file complements the root [`AGENTS.md`](../../../AGENTS.md), which owns
 the build system, formatting, and global conventions. Read that first.
 
+## Layout
+
+`Sources/` groups one directory per tool — `Viewer/`, `Tracer/`, `Alerts/`,
+`InspectMode/`, `Spans/` — plus `Components/` for the display pieces they
+share (event rows, detail view, level/exit display extensions). Tests stay
+flat, named 1:1 with their source files.
+
 ## Scope & dependencies
 
 - **SwiftUI + PeriscopeCore + PeriscopeUI.** No app code — app-specific

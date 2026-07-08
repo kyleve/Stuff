@@ -8,6 +8,15 @@ pipeline, ambient event sources, and the SwiftData store. See
 This file complements the root [`AGENTS.md`](../../../AGENTS.md), which owns
 the build system, formatting, and global conventions. Read that first.
 
+## Layout
+
+`Sources/` groups by concern: `Events/` (the event vocabulary — levels,
+tags, attachments), `Loggers/` (`Log<Event>` and the scope tree),
+`Context/` (task-local and per-instance context derivation), `Spans/`
+(timing and exits), `Pipeline/` (the `Periscope` system, records, sinks),
+`Store/` (SwiftData persistence and queries), and `Ambient/` (environmental
+event sources). Tests stay flat, named 1:1 with their source files.
+
 ## Scope & dependencies
 
 - **Foundation + os + SwiftData + Network only** (plus the ObjectiveC
