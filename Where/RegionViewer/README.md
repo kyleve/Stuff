@@ -8,7 +8,7 @@ regions the app supports.
 
 ## What it shows
 
-The same screen as the in-app **Settings → Developer → Region map** entry:
+The same screen as the in-app **developer overlay → Region map** entry:
 
 - A segmented toggle between two geometries:
   - **Attribution** — the simplified polygons `RegionAttributor` actually loads

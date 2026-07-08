@@ -10,7 +10,7 @@ import WhereCore
 ///
 /// Self-contained on purpose — it reads geometry straight from
 /// `RegionGeometryCatalog` and holds no `@Environment(WhereSession.self)`,
-/// so the same view backs both the in-app Settings → Developer entry and
+/// so the same view backs both the in-app developer overlay entry and
 /// the standalone `RegionViewer` Mac Catalyst app (which has no session /
 /// dependency injection). The catalog decodes off the main thread, so the
 /// `.task` below never blocks the UI on the heavy `.source` parse.
@@ -25,7 +25,7 @@ public struct RegionMapView: View {
     @State private var cameraPosition: MapCameraPosition = .automatic
 
     /// Public so the standalone `RegionViewer` app (a separate module) can
-    /// present the same screen as the in-app Settings → Developer entry.
+    /// present the same screen as the in-app developer overlay entry.
     public init() {}
 
     public var body: some View {
