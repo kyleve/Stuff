@@ -1,5 +1,6 @@
 #if DEBUG
     import SwiftUI
+    import UIKit
 
     /// A global, DEBUG-only developer surface that floats above the entire app.
     ///
@@ -50,6 +51,18 @@
                     }
                 }
                 .animation(.snappy(duration: 0.3), value: model.presentation)
+            }
+            // Nudge VoiceOver to re-scan when the surface changes: crossing the
+            // full-screen boundary flips the modal (see `panel`), so post
+            // `.screenChanged` to move focus into/out of the modal; the lighter
+            // open/close of the non-modal floating panel only warrants
+            // `.layoutChanged`.
+            .onChange(of: model.presentation) { old, new in
+                let modalChanged = (old == .fullScreen) != (new == .fullScreen)
+                UIAccessibility.post(
+                    notification: modalChanged ? .screenChanged : .layoutChanged,
+                    argument: nil,
+                )
             }
         }
 
