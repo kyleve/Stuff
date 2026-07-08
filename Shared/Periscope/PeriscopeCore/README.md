@@ -112,8 +112,10 @@ the type, and tooling degrades to raw JSON when it can't.
   via the redaction hook.
 - One database for every logging system in the process; scopes and types
   make it easy to split later.
-- `LogContextProviding` caches one small entry per logging instance for the
-  process lifetime — meant for controllers/models, not per-request values.
+- `LogContextProviding` caches one small entry per logging instance, evicted
+  automatically when the instance deallocates (a tracker hangs off the
+  instance via the ObjC runtime). Instance numbers (`#1`, `#2`, …) are never
+  reused within a run, so persisted identities stay unambiguous.
 
 ## Testing
 

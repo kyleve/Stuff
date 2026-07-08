@@ -10,9 +10,11 @@ the build system, formatting, and global conventions. Read that first.
 
 ## Scope & dependencies
 
-- **Foundation + os + SwiftData + Network only.** No SwiftUI, no app code, no
-  LogKit. UIKit is allowed **only** inside `#if canImport(UIKit)` (ambient
-  sources, the image-attachment convenience).
+- **Foundation + os + SwiftData + Network only** (plus the ObjectiveC
+  runtime, solely for `LogContextProviding`'s deallocation trackers). No
+  SwiftUI, no app code, no LogKit. UIKit is allowed **only** inside
+  `#if canImport(UIKit)` (ambient sources, the image-attachment
+  convenience).
 - Layering: `PeriscopeUI` and `PeriscopeTools` depend on this module — never
   the reverse.
 

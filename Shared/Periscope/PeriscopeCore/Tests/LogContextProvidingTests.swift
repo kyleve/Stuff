@@ -1,5 +1,5 @@
 import Foundation
-import PeriscopeCore
+@testable import PeriscopeCore
 import Testing
 
 private final class FreeformController: LogContextProviding {
@@ -95,5 +95,65 @@ struct LogContextProvidingTests {
         #expect(system.scope(for: instance.id) == instance)
         let parentID = instance.parentID
         #expect(parentID.flatMap { system.scope(for: $0) } != nil)
+    }
+
+    // MARK: Instance lifecycle
+
+    /// Registers one instance's scopes and lets the instance die on return.
+    private func trackAndRelease(in registry: InstanceScopeRegistry) -> InstanceScopePair {
+        let controller = FreeformController(system: system)
+        return registry.scopes(for: controller)
+    }
+
+    @Test func entriesEvictWhenTheInstanceDeallocates() throws {
+        let registry = InstanceScopeRegistry()
+
+        let controller: FreeformController? = FreeformController(system: system)
+        _ = try registry.scopes(for: #require(controller))
+        #expect(registry.trackedInstanceCount == 1)
+
+        _ = consume controller
+        #expect(registry.trackedInstanceCount == 0)
+    }
+
+    @Test func instanceNumbersAreNeverReusedWithinARun() {
+        let registry = InstanceScopeRegistry()
+
+        let first = trackAndRelease(in: registry)
+        #expect(first.instance.name == "#1")
+        #expect(registry.trackedInstanceCount == 0)
+
+        // A later instance — whether or not the allocator recycles the
+        // address — must get a fresh identity, not the dead one's.
+        let second = FreeformController(system: system)
+        let pair = registry.scopes(for: second)
+        #expect(pair.instance.name == "#2")
+        #expect(pair.instance != first.instance)
+    }
+
+    @Test func aliveInstancesKeepTheirEntryAcrossRepeatedLookups() {
+        let registry = InstanceScopeRegistry()
+        let controller = FreeformController(system: system)
+
+        let first = registry.scopes(for: controller)
+        let second = registry.scopes(for: controller)
+
+        #expect(first.instance == second.instance)
+        #expect(registry.trackedInstanceCount == 1)
+    }
+
+    @Test func trackersFromDifferentRegistriesCoexistOnOneInstance() throws {
+        let firstRegistry = InstanceScopeRegistry()
+        let secondRegistry = InstanceScopeRegistry()
+
+        let controller: FreeformController? = FreeformController(system: system)
+        _ = try firstRegistry.scopes(for: #require(controller))
+        _ = try secondRegistry.scopes(for: #require(controller))
+        #expect(firstRegistry.trackedInstanceCount == 1)
+        #expect(secondRegistry.trackedInstanceCount == 1)
+
+        _ = consume controller
+        #expect(firstRegistry.trackedInstanceCount == 0)
+        #expect(secondRegistry.trackedInstanceCount == 0)
     }
 }
