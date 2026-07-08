@@ -103,6 +103,7 @@ public final class Periscope: LogRecorder, Sendable {
         var subtreeFloors: [ScopeID: LogLevel] = [:]
         var openSpans: [SpanKey: OpenSpan] = [:]
         var ambientSources: [any AmbientEventSource] = []
+        var inspectModeEnabled = false
         /// The active drain task; `nil` exactly when nothing is draining.
         var drainTask: Task<Void, Never>?
     }
@@ -270,6 +271,16 @@ public final class Periscope: LogRecorder, Sendable {
     /// `startAmbientSource(_:)`.
     func retainAmbientSource(_ source: some AmbientEventSource) {
         state.withLock { $0.ambientSources.append(source) }
+    }
+
+    /// The developer "log view mode" flag: when enabled, inspectable UI
+    /// (PeriscopeTools' `logInspectable` modifier) reveals the events behind
+    /// each wrapped view. Toggle from a developer settings surface —
+    /// typically through PeriscopeTools' inspector, which mirrors this flag
+    /// observably for SwiftUI.
+    public var isInspectModeEnabled: Bool {
+        get { state.withLock(\.inspectModeEnabled) }
+        set { state.withLock { $0.inspectModeEnabled = newValue } }
     }
 
     // MARK: Open spans

@@ -122,6 +122,15 @@ struct PeriscopeTests {
         #expect(sink.records.map(\.message) == (1 ... 100).map(String.init))
     }
 
+    @Test func inspectModeFlagRoundTrips() {
+        let system = makeSystem()
+        #expect(!system.isInspectModeEnabled)
+        system.isInspectModeEnabled = true
+        #expect(system.isInspectModeEnabled)
+        system.isInspectModeEnabled = false
+        #expect(!system.isInspectModeEnabled)
+    }
+
     // MARK: Level floors
 
     @Test func globalFloorDiscardsRecordsBelowIt() async {

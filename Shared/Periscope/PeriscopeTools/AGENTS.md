@@ -21,7 +21,14 @@ the build system, formatting, and global conventions. Read that first.
   live buffer; it never records events of its own (except through the normal
   logging API).
 - **The toast is hookable** — apps override the default handler rather than
-  this module special-casing any app.
+  this module special-casing any app. Handlers must not log at or above the
+  alerter threshold (they'd alert themselves in a loop).
+- **`Periscope.isInspectModeEnabled` is the inspect flag's source of
+  truth** — `PeriscopeInspector` is its observable SwiftUI mirror; writes go
+  through, never around it.
+- **Merged multi-query results sort by `(date, sequence)`** — the tracer and
+  inspector combine several store queries, and the store's insertion
+  sequence is the tiebreak that keeps same-millisecond events stable.
 
 ## Testing
 
