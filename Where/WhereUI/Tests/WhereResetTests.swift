@@ -1,7 +1,7 @@
 import Foundation
 import LifecycleKit
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 import WhereTesting
 import WhereUI
 
@@ -39,6 +39,7 @@ struct WhereResetTests {
             locationSource: ScriptedLocationSource(authorizationStatus: status),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
     }
@@ -65,6 +66,7 @@ struct WhereResetTests {
             locationSource: source,
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         return (WhereModel(services: services, preferences: preferences), source)

@@ -40,4 +40,22 @@ extension Region {
             return lhsOrder < rhsOrder
         }
     }
+
+    /// The "primary" regions for a year's `totals`: the top `count` regions by
+    /// day count, with `.other` excluded (it's a catch-all bucket, never a
+    /// headline place). The single definition of "primary", shared by the
+    /// Primary/Elsewhere split (`RegionRanking`) and the headless data-issue scan
+    /// that drives the badge and notification — so the count the badge shows
+    /// can't disagree with what the Resolve tab would compute.
+    public static func primaryRegions(in totals: [Region: Int], count: Int = 2) -> [Region] {
+        rankedByDayCount(
+            totals.filter { $0.value > 0 },
+            days: { $0.value },
+            region: { $0.key },
+        )
+        .map(\.key)
+        .filter { $0 != .other }
+        .prefix(max(0, count))
+        .map(\.self)
+    }
 }

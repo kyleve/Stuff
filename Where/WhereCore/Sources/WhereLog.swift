@@ -23,6 +23,8 @@ public enum WhereLog {
         case backupService = "BackupService"
         case dailySummaryReconciler = "DailySummaryReconciler"
         case dailySummaryScheduler = "DailySummaryScheduler"
+        case dataIssueAlertReconciler = "DataIssueAlertReconciler"
+        case dataIssueAlertScheduler = "DataIssueAlertScheduler"
         case dayJournal = "DayJournal"
         case launch = "WhereLaunch"
         case locationIngestor = "LocationIngestor"

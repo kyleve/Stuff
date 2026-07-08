@@ -653,7 +653,12 @@ struct WhereServicesTests {
         let spy = SpyReminderScheduler()
         let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
 
-        await services.reminders.configure(enabled: true, time: .defaultEvening)
+        await services.reminders.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
 
         #expect(await spy.authorizationRequests == 1)
         #expect(await spy.lastEnabled == true)
@@ -672,7 +677,12 @@ struct WhereServicesTests {
             scheduler: spy,
         )
 
-        await services.reminders.configure(enabled: false, time: .defaultEvening)
+        await services.reminders.configure(
+            enabled: false,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
 
         #expect(await spy.authorizationRequests == 0)
         #expect(await spy.lastEnabled == false)
@@ -684,7 +694,12 @@ struct WhereServicesTests {
         let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, source) = try Self.makeReminderServices(now: now, scheduler: spy)
-        await services.reminders.configure(enabled: true, time: .defaultEvening)
+        await services.reminders.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
 
         let today = Self.pacificCalendar.startOfDay(for: now)
         // Today is a forward nudge, not part of the backlog (Jan 1–4 = 4 days).
@@ -710,7 +725,12 @@ struct WhereServicesTests {
         let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, source) = try Self.makeReminderServices(now: now, scheduler: spy)
-        await services.reminders.configure(enabled: true, time: .defaultEvening)
+        await services.reminders.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
 
         await services.ingestor.start()
         source.emit(LocationSample(
@@ -740,7 +760,12 @@ struct WhereServicesTests {
         let now = WhereCoreTestSupport.iso("2026-03-10T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
-        await services.reminders.configure(enabled: true, time: .defaultEvening)
+        await services.reminders.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
 
         // Backlog is Jan 1 – Mar 9 (today, Mar 10, is excluded): 68 days of 2026.
         #expect(await spy.lastBadgeCount == 68)
@@ -758,7 +783,12 @@ struct WhereServicesTests {
         let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
-        await services.reminders.configure(enabled: true, time: .defaultEvening)
+        await services.reminders.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
 
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-01-01T12:00:00-08:00"),
@@ -778,7 +808,12 @@ struct WhereServicesTests {
         let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
         let spy = SpyReminderScheduler()
         let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
-        await services.reminders.configure(enabled: true, time: .defaultEvening)
+        await services.reminders.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
 
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-01-01T12:00:00-08:00"),
@@ -800,8 +835,18 @@ struct WhereServicesTests {
         let spy = SpyReminderScheduler()
         let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
 
-        await services.reminders.configure(enabled: true, time: .defaultEvening)
-        await services.reminders.configure(enabled: true, time: ReminderTime(hour: 7, minute: 30))
+        await services.reminders.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
+        await services.reminders.configure(
+            enabled: true,
+            time: ReminderTime(hour: 7, minute: 30),
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
 
         #expect(await spy.authorizationRequests == 2)
         #expect(await spy.reconcileCount == 2)
@@ -814,10 +859,20 @@ struct WhereServicesTests {
         let spy = SpyReminderScheduler()
         let (services, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
 
-        await services.reminders.configure(enabled: true, time: .defaultEvening)
+        await services.reminders.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
         #expect(await spy.lastBadgeCount == 4)
 
-        await services.reminders.configure(enabled: false, time: .defaultEvening)
+        await services.reminders.configure(
+            enabled: false,
+            time: .defaultEvening,
+            issueAlertsEnabled: false,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
         #expect(await spy.lastEnabled == false)
         #expect(await spy.lastBadgeCount == 0)
         #expect(await spy.lastScheduleDays.isEmpty)

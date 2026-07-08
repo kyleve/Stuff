@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 import WhereTesting
 import WhereUI
 
@@ -30,6 +30,7 @@ struct WhereSessionTests {
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: scheduler,
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         return WhereSession(services: services, preferences: preferences)
@@ -110,6 +111,7 @@ struct WhereSessionTests {
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: refresher,
             now: { now },
         )

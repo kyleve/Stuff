@@ -667,6 +667,62 @@ enum Strings {
         )
     }
 
+    static var settingsIssueAlertsHeader: String {
+        String(
+            localized: "settings.issueAlerts.header",
+            defaultValue: "Issue alerts",
+            bundle: .module,
+        )
+    }
+
+    static var settingsIssueAlertsToggle: String {
+        String(
+            localized: "settings.issueAlerts.toggle",
+            defaultValue: "Issue alerts",
+            bundle: .module,
+        )
+    }
+
+    static var settingsIssueAlertsFooter: String {
+        String(
+            localized: "settings.issueAlerts.footer",
+            defaultValue: "Badge the app icon and send a reminder when there are data issues waiting in the Resolve tab.",
+            bundle: .module,
+        )
+    }
+
+    static var settingsIssueAlertsDeniedFooter: String {
+        String(
+            localized: "settings.issueAlerts.deniedFooter",
+            defaultValue: "Notifications are turned off for Where, so issue alerts can't appear. Turn them on in Settings.",
+            bundle: .module,
+        )
+    }
+
+    static var settingsTabsHeader: String {
+        String(
+            localized: "settings.tabs.header",
+            defaultValue: "Tabs",
+            bundle: .module,
+        )
+    }
+
+    static var settingsTabsToggle: String {
+        String(
+            localized: "settings.tabs.toggle",
+            defaultValue: "Hide empty tabs",
+            bundle: .module,
+        )
+    }
+
+    static var settingsTabsFooter: String {
+        String(
+            localized: "settings.tabs.footer",
+            defaultValue: "Hide the Elsewhere and Resolve tabs while they have nothing to show. Turn this off to always keep them in the tab bar.",
+            bundle: .module,
+        )
+    }
+
     static var settingsDataHeader: String {
         localized("settings.data.header")
     }

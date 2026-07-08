@@ -58,7 +58,9 @@ struct SettingsView: View {
                 trackingSection
                 remindersSection
                 summarySection
+                issueAlertsSection
                 resolutionSection
+                tabsSection
                 appIconSection
                 manualEntrySection
                 backupSection
@@ -247,6 +249,34 @@ struct SettingsView: View {
         return Strings.settingsSummaryFooter
     }
 
+    private var issueAlertsSection: some View {
+        @Bindable var reminders = reminders
+        return Section {
+            Toggle(isOn: $reminders.issueAlertsEnabled) {
+                Label(Strings.settingsIssueAlertsToggle, systemImage: "checklist.checked")
+            }
+
+            if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
+                Button {
+                    openSystemSettings()
+                } label: {
+                    Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                }
+            }
+        } header: {
+            Text(Strings.settingsIssueAlertsHeader)
+        } footer: {
+            Text(issueAlertsFooter)
+        }
+    }
+
+    private var issueAlertsFooter: String {
+        if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
+            return Strings.settingsIssueAlertsDeniedFooter
+        }
+        return Strings.settingsIssueAlertsFooter
+    }
+
     private var resolutionSection: some View {
         @Bindable var report = report
 
@@ -259,6 +289,19 @@ struct SettingsView: View {
             }
         } footer: {
             Text(Strings.settingsResolutionFooter)
+        }
+    }
+
+    private var tabsSection: some View {
+        @Bindable var report = report
+        return Section {
+            Toggle(isOn: $report.hideEmptyTabs) {
+                Label(Strings.settingsTabsToggle, systemImage: "rectangle.bottomthird.inset.filled")
+            }
+        } header: {
+            Text(Strings.settingsTabsHeader)
+        } footer: {
+            Text(Strings.settingsTabsFooter)
         }
     }
 

@@ -39,8 +39,10 @@ public protocol LoggingReminderScheduling: Sendable {
     /// picture.
     ///
     /// - Parameters:
-    ///   - badgeCount: total unlogged days this year (the backlog). Shown as the
-    ///     app-icon badge when `enabled`, cleared to 0 otherwise.
+    ///   - badgeCount: the app-icon badge value the caller computed (unlogged-day
+    ///     backlog plus any decoupled data-issue count). Set verbatim whether or
+    ///     not `enabled`, so a caller that turns reminders off can still surface
+    ///     an issue count; pass 0 to clear.
     ///   - scheduleDays: upcoming days (today + a small buffer) that are still
     ///     unlogged and should each get a reminder at `reminderTime`. A day that
     ///     drops out of this set (because it got logged) has its pending and
@@ -141,8 +143,11 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         enabled: Bool,
     ) async {
         guard enabled else {
+            // Reminders are off, but the badge may still carry a decoupled
+            // data-issue count (see `ReminderReconciler`), so honor the requested
+            // count rather than forcing it to 0.
             await removeAllOwnedReminders()
-            await setBadge(0)
+            await setBadge(badgeCount)
             return
         }
 

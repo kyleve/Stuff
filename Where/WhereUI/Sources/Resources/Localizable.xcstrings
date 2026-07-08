@@ -2169,6 +2169,50 @@
         }
       }
     },
+    "settings.issueAlerts.deniedFooter" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications are turned off for Where, so issue alerts can't appear. Turn them on in Settings."
+          }
+        }
+      }
+    },
+    "settings.issueAlerts.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Badge the app icon and send a reminder when there are data issues waiting in the Resolve tab."
+          }
+        }
+      }
+    },
+    "settings.issueAlerts.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Issue alerts"
+          }
+        }
+      }
+    },
+    "settings.issueAlerts.toggle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Issue alerts"
+          }
+        }
+      }
+    },
     "settings.summary.deniedFooter" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2220,6 +2264,39 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Daily summary"
+          }
+        }
+      }
+    },
+    "settings.tabs.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide the Elsewhere and Resolve tabs while they have nothing to show. Turn this off to always keep them in the tab bar."
+          }
+        }
+      }
+    },
+    "settings.tabs.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tabs"
+          }
+        }
+      }
+    },
+    "settings.tabs.toggle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide empty tabs"
           }
         }
       }

@@ -105,6 +105,20 @@ public final class RemindersSettingsModel {
         }
     }
 
+    /// Whether the "you have issues to resolve" notification is enabled (and the
+    /// unresolved-issue count contributes to the app-icon badge). Persists across
+    /// launches; the setter persists the intent and reconciles both the alert and
+    /// the badge.
+    public var issueAlertsEnabled: Bool {
+        get { issueAlertsEnabledStorage }
+        set {
+            guard newValue != issueAlertsEnabledStorage else { return }
+            issueAlertsEnabledStorage = newValue
+            preferences.issueAlertsEnabled = newValue
+            Task { await applyIssueAlertConfiguration() }
+        }
+    }
+
     /// Whether the system has granted notification permission. Lets the Settings
     /// UI route the user to the system Settings app when they've enabled
     /// reminders/summary but denied permission. Refreshed on appear and after
@@ -120,6 +134,8 @@ public final class RemindersSettingsModel {
     /// reminder storage above.
     private var summaryEnabledStorage: Bool
     private var summaryTimeStorage: ReminderTime
+    /// Observed backing storage for the issue-alert toggle.
+    private var issueAlertsEnabledStorage: Bool
 
     private let services: WhereServices
     private let preferences: WherePreferences
@@ -142,6 +158,7 @@ public final class RemindersSettingsModel {
         reminderTimeStorage = preferences.reminderTime
         summaryEnabledStorage = preferences.summaryEnabled
         summaryTimeStorage = preferences.summaryTime
+        issueAlertsEnabledStorage = preferences.issueAlertsEnabled
     }
 
     /// Refresh whether the system has granted notification permission. Called
@@ -151,12 +168,37 @@ public final class RemindersSettingsModel {
     }
 
     private func applyReminderConfiguration() async {
-        await services.reminders.configure(enabled: remindersEnabled, time: reminderTime)
+        await services.reminders.configure(
+            enabled: remindersEnabled,
+            time: reminderTime,
+            issueAlertsEnabled: issueAlertsEnabled,
+            driftThresholdMeters: Double(preferences.driftThresholdMeters),
+        )
         await refreshNotificationAuthorization()
     }
 
     private func applySummaryConfiguration() async {
         await services.summary.configure(enabled: summaryEnabled, time: summaryTime)
+        await refreshNotificationAuthorization()
+    }
+
+    /// Reconcile both the issue-alert notification and the reminder reconciler:
+    /// the alert notification fires at the reminder time, and the badge (owned by
+    /// the reminder reconciler) folds in the issue count, so a toggle here has to
+    /// re-push the reminder config too.
+    private func applyIssueAlertConfiguration() async {
+        let driftThresholdMeters = Double(preferences.driftThresholdMeters)
+        await services.issueAlerts.configure(
+            enabled: issueAlertsEnabled,
+            time: reminderTime,
+            driftThresholdMeters: driftThresholdMeters,
+        )
+        await services.reminders.configure(
+            enabled: remindersEnabled,
+            time: reminderTime,
+            issueAlertsEnabled: issueAlertsEnabled,
+            driftThresholdMeters: driftThresholdMeters,
+        )
         await refreshNotificationAuthorization()
     }
 }

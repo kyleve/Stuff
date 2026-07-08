@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 import WhereTesting
 import WhereUI
 
@@ -22,6 +22,7 @@ struct RemindersSettingsModelTests {
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
     }
@@ -29,12 +30,14 @@ struct RemindersSettingsModelTests {
     private func makeServices(
         reminderScheduler: any LoggingReminderScheduling,
         summaryScheduler: any DailySummaryScheduling,
+        issueAlertScheduler: any DataIssueAlertScheduling = NoopDataIssueAlertScheduler(),
     ) throws -> WhereServices {
         try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
             reminderScheduler: reminderScheduler,
             summaryScheduler: summaryScheduler,
+            issueAlertScheduler: issueAlertScheduler,
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
     }
@@ -189,6 +192,65 @@ struct RemindersSettingsModelTests {
         #expect(await summarySpy.lastEnabled == true)
     }
 
+    // MARK: - Issue alerts
+
+    @Test func issueAlertsDefaultOnAndPersistAcrossModels() throws {
+        let preferences = makePreferences()
+        let model = try makeModel(preferences: preferences)
+
+        #expect(model.issueAlertsEnabled)
+
+        model.issueAlertsEnabled = false
+        #expect(!model.issueAlertsEnabled)
+
+        // A fresh model sharing the same preferences reads back the saved value.
+        let reloaded = try makeModel(preferences: preferences)
+        #expect(!reloaded.issueAlertsEnabled)
+    }
+
+    /// Enabling issue alerts prompts for authorization and reconciles the alert
+    /// on; it also re-reconciles the reminder reconciler because the badge folds
+    /// in the issue count.
+    @Test func enablingIssueAlertsReconcilesAlertAndBadge() async throws {
+        let preferences = makePreferences()
+        preferences.issueAlertsEnabled = false
+        let alertSpy = SpyDataIssueAlertScheduler()
+        let reminderSpy = SpyReminderScheduler()
+        let services = try makeServices(
+            reminderScheduler: reminderSpy,
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: alertSpy,
+        )
+        let model = RemindersSettingsModel(services: services, preferences: preferences)
+
+        model.issueAlertsEnabled = true
+
+        // Enabling requests authorization and reconciles the alert (the empty
+        // store has no issues yet, so the scheduler is reconciled *off* — the
+        // observable proof the intent reached it is the auth prompt + reconcile).
+        await waitUntil { await alertSpy.reconcileCount >= 1 }
+        #expect(await alertSpy.authorizationRequests >= 1)
+        // The reminder reconciler re-runs so the badge picks up the issue count.
+        await waitUntil { await reminderSpy.reconcileCount >= 1 }
+    }
+
+    @Test func disablingIssueAlertsReconcilesOffWithoutAuthorization() async throws {
+        let preferences = makePreferences()
+        let alertSpy = SpyDataIssueAlertScheduler()
+        let services = try makeServices(
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: alertSpy,
+        )
+        let model = RemindersSettingsModel(services: services, preferences: preferences)
+
+        model.issueAlertsEnabled = false
+
+        await waitUntil { await alertSpy.reconcileCount >= 1 }
+        #expect(await alertSpy.lastEnabled == false)
+        #expect(await alertSpy.authorizationRequests == 0)
+    }
+
     /// The setters reconcile off an unstructured `Task`, so poll the (actor) spy
     /// rather than assuming the reconcile has landed by the next line.
     private func waitUntil(
@@ -254,5 +316,26 @@ private actor SpyDailySummaryScheduler: DailySummaryScheduling {
         reconcileCount += 1
         lastEnabled = enabled
         lastTime = time
+    }
+}
+
+/// The issue-alert counterpart to `SpyReminderScheduler`.
+private actor SpyDataIssueAlertScheduler: DataIssueAlertScheduling {
+    private(set) var authorizationRequests = 0
+    private(set) var reconcileCount = 0
+    private(set) var lastEnabled: Bool?
+
+    func requestAuthorization() async -> Bool {
+        authorizationRequests += 1
+        return true
+    }
+
+    func isAuthorized() async -> Bool {
+        true
+    }
+
+    func reconcile(enabled: Bool, time _: ReminderTime, body _: String) async {
+        reconcileCount += 1
+        lastEnabled = enabled
     }
 }

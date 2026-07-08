@@ -14,6 +14,11 @@ public actor DayJournal {
     private let store: any WhereStore
     private let aggregator: DayAggregator
     private let reminders: ReminderReconciler
+    private let issueAlerts: DataIssueAlertReconciler
+    /// Shared scanner behind the badge/notification issue count. Dropped inline
+    /// after each committed write so the reconciles below recount from fresh
+    /// data rather than racing the scanner's async store-change invalidation.
+    private let issueScanner: DataIssueScanner
     private let widgets: WidgetSnapshotPublisher
 
     private static let logger = WhereLog.channel(.dayJournal)
@@ -22,11 +27,15 @@ public actor DayJournal {
         store: any WhereStore,
         aggregator: DayAggregator,
         reminders: ReminderReconciler,
+        issueAlerts: DataIssueAlertReconciler,
+        issueScanner: DataIssueScanner,
         widgets: WidgetSnapshotPublisher,
     ) {
         self.store = store
         self.aggregator = aggregator
         self.reminders = reminders
+        self.issueAlerts = issueAlerts
+        self.issueScanner = issueScanner
         self.widgets = widgets
     }
 
@@ -68,7 +77,9 @@ public actor DayJournal {
         let key = aggregator.calendar.startOfDay(for: date)
         let presence = DayPresence(date: key, regions: regions, audit: audit)
         try await store.perform { try await store.setManualDay(presence) }
+        await issueScanner.invalidate()
         await reminders.reconcile()
+        await issueAlerts.reconcile()
         await widgets.publish()
         Self.logger.info(
             "Added manual day \(Self.dayLogLabel(key, calendar: aggregator.calendar)) with \(regions.count) region(s)",
@@ -88,7 +99,9 @@ public actor DayJournal {
         let key = aggregator.calendar.startOfDay(for: date)
         let presence = DayPresence(date: key, regions: regions, isAuthoritative: true, audit: audit)
         try await store.perform { try await store.setManualDay(presence) }
+        await issueScanner.invalidate()
         await reminders.reconcile()
+        await issueAlerts.reconcile()
         await widgets.publish()
         Self.logger.info(
             "Overrode day \(Self.dayLogLabel(key, calendar: aggregator.calendar)) with \(regions.count) region(s)",
@@ -102,7 +115,9 @@ public actor DayJournal {
     public func clearManualDay(date: Date) async throws {
         let key = aggregator.calendar.startOfDay(for: date)
         try await store.perform { try await store.clearManualDay(key) }
+        await issueScanner.invalidate()
         await reminders.reconcile()
+        await issueAlerts.reconcile()
         await widgets.publish()
         Self.logger.info(
             "Cleared manual overlay for day \(Self.dayLogLabel(key, calendar: aggregator.calendar))",
@@ -135,7 +150,9 @@ public actor DayJournal {
                 )
             }
         }
+        await issueScanner.invalidate()
         await reminders.reconcile()
+        await issueAlerts.reconcile()
         await widgets.publish()
         Self.logger.info(
             "Backfilled \(dayKeys.count) manual day(s) with \(regions.count) region(s)",
@@ -147,7 +164,9 @@ public actor DayJournal {
     public func clearYear(_ year: Int) async throws {
         let interval = aggregator.yearInterval(year: year)
         try await store.perform { try await store.clear(in: interval) }
+        await issueScanner.invalidate()
         await reminders.reconcile()
+        await issueAlerts.reconcile()
         await widgets.publish()
         Self.logger.info("Cleared year \(year)")
     }
@@ -159,7 +178,9 @@ public actor DayJournal {
     /// store immediately rather than relying on a later launch step.
     public func eraseAllData() async throws {
         try await store.perform { try await store.clearAll() }
+        await issueScanner.invalidate()
         await reminders.reconcile()
+        await issueAlerts.reconcile()
         await widgets.publish()
         Self.logger.info("Erased all store data")
     }
@@ -183,10 +204,18 @@ public actor DayJournal {
 
     public func dismissIssue(key: String) async throws {
         try await store.perform { try await store.setIssueDismissed(true, key: key) }
+        // Dismissing removes the issue from the unresolved count, so the badge
+        // and the "issues to resolve" notification both have to recount.
+        await issueScanner.invalidate()
+        await reminders.reconcile()
+        await issueAlerts.reconcile()
     }
 
     public func restoreIssue(key: String) async throws {
         try await store.perform { try await store.setIssueDismissed(false, key: key) }
+        await issueScanner.invalidate()
+        await reminders.reconcile()
+        await issueAlerts.reconcile()
     }
 
     private static func dayLogLabel(_ day: Date, calendar: Calendar) -> String {

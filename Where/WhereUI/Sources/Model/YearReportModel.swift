@@ -114,6 +114,23 @@ public final class YearReportModel {
         }
     }
 
+    /// Observed mirror of `preferences.hideEmptyTabs` (see `driftThresholdStorage`
+    /// for why the plain-defaults preference is mirrored here). Drives whether
+    /// `MainTabs` hides the Elsewhere/Resolve tabs while they're empty.
+    private var hideEmptyTabsStorage: Bool
+
+    /// Whether `MainTabs` hides the Elsewhere and Resolve tabs while they have
+    /// nothing to show. The setter persists it; the observed mirror re-evaluates
+    /// the tab bar immediately. Purely presentational — no scan or report re-pull.
+    public var hideEmptyTabs: Bool {
+        get { hideEmptyTabsStorage }
+        set {
+            guard newValue != hideEmptyTabsStorage else { return }
+            hideEmptyTabsStorage = newValue
+            preferences.hideEmptyTabs = newValue
+        }
+    }
+
     /// The inputs that determine a data-issue scan's result: the selected year,
     /// the loaded report (any committed write re-pulls it; a year switch nils
     /// then reloads it), and the drift threshold. `ResolutionView` keys its scan
@@ -181,6 +198,7 @@ public final class YearReportModel {
         self.now = now
         driftThresholdStorage = DriftThreshold(rawValue: preferences.driftThresholdMeters)
             ?? .default
+        hideEmptyTabsStorage = preferences.hideEmptyTabs
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         self.calendar = calendar

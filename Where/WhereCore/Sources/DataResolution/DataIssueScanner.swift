@@ -126,6 +126,31 @@ public actor DataIssueScanner {
         return sorted
     }
 
+    /// Count of unresolved issues for `year`, for headless callers (the app-icon
+    /// badge, the issue-alert notification) that don't have the UI's
+    /// `RegionRanking` on hand. Derives `primaryRegions` through the shared
+    /// `Region.primaryRegions` helper — the *same* definition `RegionRanking`
+    /// builds the Primary/Elsewhere split from, so the "primary" rule lives in
+    /// one place and this count can't disagree with what the Resolve tab shows
+    /// (no ranking logic is duplicated here). This reads the report once to rank
+    /// regions and `issues(...)` reads it again on a cache miss, so callers that
+    /// already hold a report (the hot badge path in `ReminderReconciler`) should
+    /// call `issues(...)` with `Region.primaryRegions(...)` directly to avoid the
+    /// second read; this convenience is for the cold notification path.
+    public func currentIssueCount(
+        year: Int,
+        driftThresholdMeters: Double,
+        force: Bool = false,
+    ) async throws -> Int {
+        let report = try await reportReader.yearReport(for: year)
+        return try await issues(
+            year: year,
+            primaryRegions: Region.primaryRegions(in: report.totals),
+            driftThresholdMeters: driftThresholdMeters,
+            force: force,
+        ).count
+    }
+
     /// Drop the cache so the next `issues(...)` recomputes regardless of throttle.
     public func invalidate() {
         cache = nil

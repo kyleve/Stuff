@@ -10,7 +10,19 @@ import WhereCore
 /// The four tabs receive the report by explicit init injection (compile-checked
 /// wiring); the always-on `WhereSession` coordinator stays in the environment.
 struct MainTabs: View {
+    /// Identity for the tab-bar selection. The Elsewhere and Resolve tabs are
+    /// conditional (see `body`), so a stable value lets the selection survive a
+    /// tab appearing/disappearing and lets `body` keep a tab mounted while the
+    /// user is still on it.
+    private enum TabID: Hashable {
+        case primary
+        case elsewhere
+        case resolution
+        case settings
+    }
+
     @State private var report: YearReportModel
+    @State private var selection: TabID = .primary
     @Environment(\.scenePhase) private var scenePhase
 
     /// Build the scene's report model from the coordinator's service layer.
@@ -27,21 +39,37 @@ struct MainTabs: View {
     }
 
     var body: some View {
-        TabView {
-            Tab(Strings.tabPrimary, systemImage: "star.fill") {
+        TabView(selection: $selection) {
+            Tab(Strings.tabPrimary, systemImage: "star.fill", value: TabID.primary) {
                 PrimaryView(report: report)
             }
 
-            Tab(Strings.tabElsewhere, systemImage: "globe.americas.fill") {
-                SecondaryView(report: report)
+            // With "hide empty tabs" on (the default), Elsewhere and Resolve
+            // appear only when they have something to show — but stay mounted
+            // while they're the current selection, so resolving the last issue
+            // (or emptying Elsewhere) never yanks the user off the tab they're on;
+            // the tab drops out the next time they switch away. With the setting
+            // off, both tabs are always present.
+            if !report.hideEmptyTabs || !report.ranking.secondary.isEmpty
+                || selection == .elsewhere
+            {
+                Tab(
+                    Strings.tabElsewhere,
+                    systemImage: "globe.americas.fill",
+                    value: TabID.elsewhere,
+                ) {
+                    SecondaryView(report: report)
+                }
             }
 
-            Tab(Strings.tabResolution, systemImage: "checklist") {
-                ResolutionView(report: report)
+            if !report.hideEmptyTabs || report.dataIssueCount > 0 || selection == .resolution {
+                Tab(Strings.tabResolution, systemImage: "checklist", value: TabID.resolution) {
+                    ResolutionView(report: report)
+                }
+                .badge(report.dataIssueCount)
             }
-            .badge(report.dataIssueCount)
 
-            Tab(Strings.tabSettings, systemImage: "gearshape.fill") {
+            Tab(Strings.tabSettings, systemImage: "gearshape.fill", value: TabID.settings) {
                 SettingsView(report: report)
             }
         }

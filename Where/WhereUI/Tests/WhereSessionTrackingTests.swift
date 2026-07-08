@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 import WhereTesting
 import WhereUI
 
@@ -23,6 +23,7 @@ struct WhereSessionTrackingTests {
             locationSource: source,
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let session = WhereSession(services: services, preferences: preferences)

@@ -40,10 +40,10 @@ public struct RegionRanking: Hashable, Sendable {
     /// live), so it always falls into `secondary` when present.
     public init(report: YearReport, primaryCount: Int = RegionRanking.primaryCount) {
         let ranked = RegionRanking.ranked(report: report)
-        let primary = Array(
-            ranked.filter { $0.region != .other }.prefix(max(0, primaryCount)),
-        )
-        let primaryRegions = Set(primary.map(\.region))
+        // Shared with the headless data-issue scan (`Region.primaryRegions`) so
+        // the Resolve badge count can't disagree with the Primary/Elsewhere split.
+        let primaryRegions = Set(Region.primaryRegions(in: report.totals, count: primaryCount))
+        let primary = ranked.filter { primaryRegions.contains($0.region) }
         let secondary = ranked.filter { !primaryRegions.contains($0.region) }
         self.init(primary: primary, secondary: secondary)
     }
