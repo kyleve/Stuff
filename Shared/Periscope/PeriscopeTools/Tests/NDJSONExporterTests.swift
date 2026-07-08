@@ -17,6 +17,7 @@ struct NDJSONExporterTests {
         date: Date,
         payload: Data = Data(),
         tags: [LogTagKey: String] = [:],
+        spanExitMode: SpanExit.Mode? = nil,
     ) -> StoredLogEvent {
         StoredLogEvent(
             id: UUID(),
@@ -30,6 +31,7 @@ struct NDJSONExporterTests {
             scopes: [root.child(named: "photos").id],
             tags: tags,
             spanID: nil,
+            spanExitMode: spanExitMode,
             attachments: [],
             sessionID: sessionID,
         )
@@ -74,6 +76,17 @@ struct NDJSONExporterTests {
         #expect((object["payload"] as? [String: Any])?["photoID"] as? String == "p1")
     }
 
+    @Test func linesCarryTheSpanExitWhenPresent() throws {
+        let line = NDJSONExporter.line(
+            for: stored(message: "◀ save failed", date: date(1), spanExitMode: .failure),
+            scopes: scopes,
+        )
+        let object = try #require(
+            try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+        )
+        #expect(object["spanExit"] as? String == "failure")
+    }
+
     @Test func unknownScopesAndEmptyPayloadsExportCleanly() throws {
         let orphan = StoredLogEvent(
             id: UUID(),
@@ -87,6 +100,7 @@ struct NDJSONExporterTests {
             scopes: [LogScope.root(named: "never-defined").id],
             tags: [:],
             spanID: nil,
+            spanExitMode: nil,
             attachments: [],
             sessionID: sessionID,
         )

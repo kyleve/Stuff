@@ -121,6 +121,12 @@ public struct PeriscopeViewer: View {
                     Text(sessionLabel(session)).tag(UUID?.some(session.id))
                 }
             }
+            Picker("Span Exit", selection: $model.selectedSpanExitMode) {
+                Text("All Events").tag(SpanExit.Mode?.none)
+                ForEach(SpanExit.Mode.allCases, id: \.self) { mode in
+                    Text(mode.displayName).tag(SpanExit.Mode?.some(mode))
+                }
+            }
         } label: {
             Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
         }

@@ -4,7 +4,7 @@ import Foundation
 /// reason ("card declined", "user tapped cancel"). Richer payloads ride
 /// along as `LogAttachment`s on the surrounding events.
 public struct SpanExit: Hashable, Codable, Sendable {
-    public enum Mode: String, Codable, Sendable {
+    public enum Mode: String, CaseIterable, Codable, Sendable {
         /// The operation completed as intended.
         case success
         /// The operation failed. `measure` derives this from a thrown error.

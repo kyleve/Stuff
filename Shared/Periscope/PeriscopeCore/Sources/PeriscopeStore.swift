@@ -321,6 +321,7 @@ public actor PeriscopeStore: LogSink {
                 orderedScopeIDs: record.scopes.map(\.rawValue),
                 sessionID: session.sessionID,
                 spanID: record.spanID?.rawValue,
+                spanExitMode: record.spanExit?.mode.rawValue,
                 scopes: scopeRows,
                 tags: tagRows,
                 attachments: attachmentRows,
@@ -452,14 +453,35 @@ public actor PeriscopeStore: LogSink {
             SDLogTag.pairValue(key: $0.key.rawValue, value: $0.value)
         } ?? ""
 
-        let predicate = #Predicate<SDLogEvent> { event in
-            event.date >= start && event.date <= end
-                && event.severity >= minSeverity
-                && (!filtersName || event.eventName == name)
-                && (!filtersSession || event.sessionID == session)
-                && (!filtersSearch || event.message.localizedStandardContains(search))
-                && (!filtersScope || event.scopes.contains { scopeIDs.contains($0.scopeID) })
-                && (!filtersTag || event.tags.contains { $0.pair == tagPair })
+        // Two predicate variants, because a ninth && condition pushes the
+        // #Predicate macro past the type-checker's budget ("unable to
+        // type-check in reasonable time"). The exit variant *replaces* the
+        // event-name condition rather than adding one: an exit filter only
+        // matches span-ended events, so a conflicting name filter provably
+        // matches nothing.
+        let predicate: Predicate<SDLogEvent>
+        if let exit = query.spanExitMode {
+            guard !filtersName || name == SpanEnded.eventName else { return [] }
+            let exitMode: String? = exit.rawValue
+            predicate = #Predicate<SDLogEvent> { event in
+                event.spanExitMode == exitMode
+                    && event.date >= start && event.date <= end
+                    && event.severity >= minSeverity
+                    && (!filtersSession || event.sessionID == session)
+                    && (!filtersSearch || event.message.localizedStandardContains(search))
+                    && (!filtersScope || event.scopes.contains { scopeIDs.contains($0.scopeID) })
+                    && (!filtersTag || event.tags.contains { $0.pair == tagPair })
+            }
+        } else {
+            predicate = #Predicate<SDLogEvent> { event in
+                event.date >= start && event.date <= end
+                    && event.severity >= minSeverity
+                    && (!filtersName || event.eventName == name)
+                    && (!filtersSession || event.sessionID == session)
+                    && (!filtersSearch || event.message.localizedStandardContains(search))
+                    && (!filtersScope || event.scopes.contains { scopeIDs.contains($0.scopeID) })
+                    && (!filtersTag || event.tags.contains { $0.pair == tagPair })
+            }
         }
 
         var descriptor = Self.readDescriptor(
@@ -544,6 +566,7 @@ public actor PeriscopeStore: LogSink {
                 uniquingKeysWith: { first, _ in first },
             ),
             spanID: row.spanID.map(SpanID.init(rawValue:)),
+            spanExitMode: row.spanExitMode.flatMap(SpanExit.Mode.init(rawValue:)),
             attachments: row.attachments
                 .sorted { $0.index < $1.index }
                 .map { LogAttachmentInfo(name: $0.name, contentType: $0.contentType) },

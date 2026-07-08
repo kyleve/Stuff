@@ -29,6 +29,16 @@ struct LogEventDetailView: View {
                 if let span = event.spanID {
                     LabeledContent("Span", value: span.description)
                 }
+                if let exitMode = event.spanExitMode {
+                    LabeledContent("Exit") {
+                        HStack(spacing: 6) {
+                            SpanExitBadge(mode: exitMode)
+                            if let reason = exitReason {
+                                Text(reason)
+                            }
+                        }
+                    }
+                }
                 LabeledContent("Session", value: event.sessionID.uuidString)
             }
 
@@ -109,6 +119,13 @@ struct LogEventDetailView: View {
                     }
                 }
         }
+    }
+
+    /// The exit's freeform reason, from the payload (the mode is columnar,
+    /// the reason is not); `nil` when there is none or the payload no
+    /// longer decodes.
+    private var exitReason: String? {
+        (try? event.decode(SpanEnded.self))?.exit.reason
     }
 
     /// The stored payload, pretty-printed; `nil` when the event carried no

@@ -38,6 +38,9 @@ enum NDJSONExporter {
         if let span = event.spanID {
             object["span"] = span.rawValue.uuidString
         }
+        if let exitMode = event.spanExitMode {
+            object["spanExit"] = exitMode.rawValue
+        }
         if !event.payload.isEmpty,
            let payload = try? JSONSerialization.jsonObject(with: event.payload)
         {

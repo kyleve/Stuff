@@ -239,6 +239,43 @@ struct PeriscopeStoreTests {
         #expect(unrelated?.spanID == nil)
     }
 
+    @Test func spanExitModesPersistAndFilter() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let failedSpan = SpanID()
+        await store.write([
+            LogRecord(
+                date: date(1),
+                event: SpanEnded(
+                    spanID: failedSpan,
+                    name: "save",
+                    duration: .seconds(1),
+                    exit: .failure("card declined"),
+                ),
+                scopes: [root.id],
+            ),
+            LogRecord(
+                date: date(2),
+                event: SpanEnded(
+                    spanID: SpanID(),
+                    name: "sync",
+                    duration: .seconds(1),
+                    exit: .success,
+                ),
+                scopes: [root.id],
+            ),
+            makeRecord("not a span", date: date(3), scopes: [root.id]),
+        ])
+
+        var query = LogQuery()
+        query.spanExitMode = .failure
+        let failures = try await store.events(matching: query)
+        #expect(failures.map(\.spanID) == [failedSpan])
+        #expect(failures.first?.spanExitMode == .failure)
+
+        let all = try await store.events(matching: LogQuery())
+        #expect(all.first { $0.message == "not a span" }?.spanExitMode == nil)
+    }
+
     // MARK: Orphaned spans
 
     private func writeSpanBegan(

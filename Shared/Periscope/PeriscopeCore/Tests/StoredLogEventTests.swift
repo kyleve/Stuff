@@ -17,6 +17,7 @@ struct StoredLogEventTests {
             scopes: [scope.id],
             tags: [LogTagKey("payment-id"): "pay_123"],
             spanID: nil,
+            spanExitMode: nil,
             attachments: [],
             sessionID: UUID(),
         )

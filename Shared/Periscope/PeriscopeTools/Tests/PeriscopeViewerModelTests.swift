@@ -78,6 +78,30 @@ struct PeriscopeViewerModelTests {
         #expect(filtered)
     }
 
+    @Test func spanExitFilterRequeries() async throws {
+        let (store, root, _, _) = try await makeSeededStore()
+        await store.write([
+            LogRecord(
+                date: date(1),
+                event: SpanEnded(
+                    spanID: SpanID(),
+                    name: "save",
+                    duration: .seconds(1),
+                    exit: .failure("boom"),
+                ),
+                scopes: [root.id],
+            ),
+            makeRecord("noise", date: date(2), scopes: [root.id]),
+        ])
+
+        let model = PeriscopeViewerModel(store: store)
+        model.selectedSpanExitMode = .failure
+        let filtered = await waitUntil {
+            model.events.map(\.spanExitMode) == [.failure]
+        }
+        #expect(filtered)
+    }
+
     @Test func pagingLoadsMoreAndStopsAtTheEnd() async throws {
         let (store, root, _, _) = try await makeSeededStore()
         let total = PeriscopeViewerModel.pageSize + 5

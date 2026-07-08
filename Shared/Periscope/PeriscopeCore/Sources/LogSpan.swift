@@ -154,6 +154,12 @@ extension LogRecord {
     public var spanID: SpanID? {
         (event as? SpanCarrying)?.spanID
     }
+
+    /// How the span ended, when this record is a ``SpanEnded`` — the store
+    /// persists its mode as a queryable column.
+    public var spanExit: SpanExit? {
+        (event as? SpanEnded)?.exit
+    }
 }
 
 /// Identifies an open `begin(for:)` span: begin and end pair when they use

@@ -26,6 +26,9 @@ public struct LogQuery: Sendable {
     public var scope: ScopeFilter?
     /// Only events stamped with this exact key/value tag.
     public var tag: LogTag?
+    /// Only span-ended events with this exit mode — "everything that
+    /// failed", "everything that expired".
+    public var spanExitMode: SpanExit.Mode?
     /// Only events whose message matches this text
     /// (`localizedStandardContains`).
     public var messageContains: String?

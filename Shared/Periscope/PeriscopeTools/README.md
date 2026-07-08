@@ -45,8 +45,9 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
 
 - **`PeriscopeViewer(store:title:)`** — the latest-logs viewer: newest-first
   list over a `PeriscopeStore`, searchable, filterable by level / event type
-  / scope subtree / session, paged, with per-event detail (payload JSON,
-  tags, attachments) and NDJSON export for bug reports. Push it inside an
+  / scope subtree / session / span exit, paged, with exit-mode chips on
+  span rows, per-event detail (exit + reason, payload JSON, tags,
+  attachments), and NDJSON export for bug reports. Push it inside an
   existing `NavigationStack`.
 - **`LogTraceView(store:origin:)`** — the tracer: from one event (typically
   an error), shows the trail that led up to it — earlier events in the

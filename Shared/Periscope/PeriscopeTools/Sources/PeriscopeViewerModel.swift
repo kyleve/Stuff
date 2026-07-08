@@ -57,6 +57,12 @@ final class PeriscopeViewerModel {
         didSet { if selectedScope != oldValue { scheduleReload() } }
     }
 
+    /// `nil` shows everything; set restricts to span-ended events with
+    /// that exit ("everything that failed").
+    var selectedSpanExitMode: SpanExit.Mode? {
+        didSet { if selectedSpanExitMode != oldValue { scheduleReload() } }
+    }
+
     init(store: PeriscopeStore) {
         self.store = store
     }
@@ -166,6 +172,7 @@ final class PeriscopeViewerModel {
         query.eventName = selectedEventName
         query.sessionID = selectedSessionID
         query.scope = selectedScope.map(ScopeFilter.subtree)
+        query.spanExitMode = selectedSpanExitMode
         query.messageContains = searchText.isEmpty ? nil : searchText
         return query
     }

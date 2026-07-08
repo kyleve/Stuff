@@ -12,7 +12,14 @@ import SwiftData
 /// JSON instead of requiring schema migrations.
 @Model
 final class SDLogEvent {
-    #Index<SDLogEvent>([\.date], [\.severity], [\.eventName], [\.sessionID], [\.spanID])
+    #Index<SDLogEvent>(
+        [\.date],
+        [\.severity],
+        [\.eventName],
+        [\.sessionID],
+        [\.spanID],
+        [\.spanExitMode],
+    )
 
     var eventID: UUID
     var date: Date
@@ -31,6 +38,9 @@ final class SDLogEvent {
     var sessionID: UUID
     /// Set on span begin/end events so a span's pair resolves in one fetch.
     var spanID: UUID?
+    /// `SpanExit.Mode.rawValue` on span-ended events — queryable, so the
+    /// viewer can filter "everything that failed/expired/orphaned".
+    var spanExitMode: String?
     var scopes: [SDLogScope]
     var tags: [SDLogTag]
 
@@ -50,6 +60,7 @@ final class SDLogEvent {
         orderedScopeIDs: [UUID],
         sessionID: UUID,
         spanID: UUID?,
+        spanExitMode: String?,
         scopes: [SDLogScope],
         tags: [SDLogTag],
         attachments: [SDLogAttachment],
@@ -66,6 +77,7 @@ final class SDLogEvent {
         self.orderedScopeIDs = orderedScopeIDs
         self.sessionID = sessionID
         self.spanID = spanID
+        self.spanExitMode = spanExitMode
         self.scopes = scopes
         self.tags = tags
         self.attachments = attachments

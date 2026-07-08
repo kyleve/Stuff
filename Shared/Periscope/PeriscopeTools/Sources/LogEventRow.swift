@@ -11,6 +11,9 @@ struct LogEventRow: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
                 LogLevelBadge(level: event.level)
+                if let exitMode = event.spanExitMode {
+                    SpanExitBadge(mode: exitMode)
+                }
                 Text(event.eventName)
                     .font(.caption)
                     .foregroundStyle(.secondary)
