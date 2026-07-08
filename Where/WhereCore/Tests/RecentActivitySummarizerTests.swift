@@ -4,7 +4,7 @@ import Testing
 @testable import WhereCore
 
 /// Covers windowing (rolling and wider ranges), region attribution, the
-/// collapse-and-cap of readings into transitions, empty-window handling, and
+/// collapse-and-cap of readings into dwell segments, empty-window handling, and
 /// error propagation of `RecentActivitySummarizer` against a scripted generator
 /// (the on-device Foundation Models path is device-only and not unit-tested).
 struct RecentActivitySummarizerTests {
@@ -42,7 +42,7 @@ struct RecentActivitySummarizerTests {
     private static func makeSummarizer(
         store: SwiftDataStore,
         generator: StubGenerator,
-        transitionLimit: Int = RecentActivitySummarizer.defaultTransitionLimit,
+        segmentLimit: Int = RecentActivitySummarizer.defaultSegmentLimit,
     ) -> RecentActivitySummarizer {
         RecentActivitySummarizer(
             store: store,
@@ -50,7 +50,7 @@ struct RecentActivitySummarizerTests {
             generator: generator,
             calendar: .current,
             now: { now },
-            transitionLimit: transitionLimit,
+            segmentLimit: segmentLimit,
         )
     }
 
@@ -84,7 +84,7 @@ struct RecentActivitySummarizerTests {
         #expect(await generator.receivedInput == nil)
     }
 
-    @Test func summarizesOnlyStopsInsideThe24hWindow() async throws {
+    @Test func summarizesOnlyReadingsInsideThe24hWindow() async throws {
         let store = try SwiftDataStore.inMemory()
         // One reading an hour ago (in window) and one 30 hours ago (out of it).
         let inWindow = Self.californiaSample(at: Self.now.addingTimeInterval(-60 * 60))
@@ -98,9 +98,11 @@ struct RecentActivitySummarizerTests {
 
         #expect(try await summarizer.summary(for: .day) == .summary("You were in California."))
         let input = try #require(await generator.receivedInput)
-        #expect(input.stops.count == 1)
-        #expect(input.stops.first?.region == .california)
-        #expect(input.stops.first?.timestamp == inWindow.timestamp)
+        #expect(input.segments.count == 1)
+        #expect(input.segments.first?.region == .california)
+        // A lone reading is a zero-length segment at its own timestamp.
+        #expect(input.segments.first?.start == inWindow.timestamp)
+        #expect(input.segments.first?.end == inWindow.timestamp)
     }
 
     @Test func unavailableModelPropagatesTypedError() async throws {
@@ -133,10 +135,10 @@ struct RecentActivitySummarizerTests {
         }
     }
 
-    @Test func collapsesConsecutiveSameRegionReadingsToOneTransition() async throws {
+    @Test func collapsesConsecutiveSameRegionReadingsToOneSegment() async throws {
         let store = try SwiftDataStore.inMemory()
-        // Three readings in the same region within the window collapse to the
-        // first — the moment the person arrived, not every ping while parked.
+        // Three readings in the same region within the window collapse to one
+        // segment spanning the run's first to last reading (its dwell time).
         try await store.perform {
             try await store
                 .add(sample: Self.californiaSample(at: Self.now.addingTimeInterval(-3 * 3600)))
@@ -150,14 +152,15 @@ struct RecentActivitySummarizerTests {
 
         _ = try await summarizer.summary(for: .day)
         let input = try #require(await generator.receivedInput)
-        #expect(input.stops.count == 1)
-        #expect(input.stops.first?.timestamp == Self.now.addingTimeInterval(-3 * 3600))
+        #expect(input.segments.count == 1)
+        #expect(input.segments.first?.start == Self.now.addingTimeInterval(-3 * 3600))
+        #expect(input.segments.first?.end == Self.now.addingTimeInterval(-3600))
     }
 
-    @Test func capsTransitionsToTheMostRecentWithinTheLimit() async throws {
+    @Test func capsSegmentsToTheMostRecentWithinTheLimit() async throws {
         let store = try SwiftDataStore.inMemory()
         // Five alternating-region readings (so none collapse); a limit of 3
-        // keeps only the three most recent transitions.
+        // keeps only the three most recent segments.
         try await store.perform {
             try await store
                 .add(sample: Self.californiaSample(at: Self.now.addingTimeInterval(-5 * 3600)))
@@ -171,13 +174,13 @@ struct RecentActivitySummarizerTests {
                 .add(sample: Self.californiaSample(at: Self.now.addingTimeInterval(-3600)))
         }
         let generator = StubGenerator(.text("summary"))
-        let summarizer = Self.makeSummarizer(store: store, generator: generator, transitionLimit: 3)
+        let summarizer = Self.makeSummarizer(store: store, generator: generator, segmentLimit: 3)
 
         _ = try await summarizer.summary(for: .day)
         let input = try #require(await generator.receivedInput)
-        #expect(input.stops.count == 3)
-        #expect(input.stops.first?.timestamp == Self.now.addingTimeInterval(-3 * 3600))
-        #expect(input.stops.last?.timestamp == Self.now.addingTimeInterval(-3600))
+        #expect(input.segments.count == 3)
+        #expect(input.segments.first?.start == Self.now.addingTimeInterval(-3 * 3600))
+        #expect(input.segments.last?.start == Self.now.addingTimeInterval(-3600))
     }
 
     @Test func widerWindowIncludesReadingsOutsideThe24hWindow() async throws {

@@ -40,23 +40,32 @@ public struct FoundationModelSummaryGenerator: ActivitySummaryGenerating {
     /// and the covered period is described from the interval rather than a fixed
     /// "last 24 hours" so it stays honest across the selectable windows.
     private static func prompt(for input: RecentActivityInput) -> String {
-        let readings = input.stops
-            .map { stop in
-                let time = stop.timestamp.formatted(date: .abbreviated, time: .shortened)
+        let readings = input.segments
+            .map { segment in
                 let coordinate =
-                    "\(stop.coordinate.latitude.formatted(.number.precision(.fractionLength(4)))), " +
-                    "\(stop.coordinate.longitude.formatted(.number.precision(.fractionLength(4))))"
-                return "- \(time): \(stop.region.localizedName) (\(coordinate))"
+                    "\(segment.coordinate.latitude.formatted(.number.precision(.fractionLength(4)))), " +
+                    "\(segment.coordinate.longitude.formatted(.number.precision(.fractionLength(4))))"
+                return "- \(timeSpan(for: segment)): \(segment.region.localizedName) (\(coordinate))"
             }
             .joined(separator: "\n")
         let period = periodPhrase(for: input.interval)
 
         return """
-        These are the device's location readings from \(period), oldest first:
+        These are the regions the device was in from \(period), oldest first, \
+        each with the time span it covers:
         \(readings)
 
         Summarize where the person was over this period.
         """
+    }
+
+    /// A single reading renders as one time; a multi-reading stay renders as a
+    /// "start – end" span so the model can convey how long it lasted.
+    private static func timeSpan(for segment: RecentActivitySegment) -> String {
+        let start = segment.start.formatted(date: .abbreviated, time: .shortened)
+        guard segment.end > segment.start else { return start }
+        let end = segment.end.formatted(date: .abbreviated, time: .shortened)
+        return "\(start) – \(end)"
     }
 
     /// A compact "<start> to <end>" phrase for the covered interval. Not

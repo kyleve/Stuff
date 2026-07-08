@@ -158,7 +158,7 @@ public struct WhereServices: Sendable {
             generator: activitySummaryGenerator,
             calendar: aggregator.calendar,
             now: now,
-            transitionLimit: RecentActivitySummarizer.defaultTransitionLimit,
+            segmentLimit: RecentActivitySummarizer.defaultSegmentLimit,
         )
 
         self.reports = reports

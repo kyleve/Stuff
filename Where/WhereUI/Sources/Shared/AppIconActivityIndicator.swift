@@ -15,18 +15,19 @@ struct AppIconActivityIndicator: View {
     /// Edge length of the rendered icon.
     let size: CGFloat
 
-    /// Preview/test seam: when `nil`, the live selected icon is resolved from
-    /// `UIApplication.shared.alternateIconName` on the main actor (matching the
-    /// launch splash) so this shows whichever icon the user has chosen.
-    private let injectedPreviewImageName: String?
+    /// Resolved once at construction — the live selected icon (matching the
+    /// launch splash) or an injected name for previews/tests — so a re-render,
+    /// e.g. the pulse animation toggling state, never re-reads and decodes the
+    /// icon manifest.
+    private let imageName: String
 
+    @MainActor
     init(size: CGFloat = 88, previewImageName: String? = nil) {
         self.size = size
-        injectedPreviewImageName = previewImageName
+        imageName = previewImageName ?? AppIconCatalog.liveSelectedPreviewImageName()
     }
 
     var body: some View {
-        let imageName = injectedPreviewImageName ?? AppIconCatalog.liveSelectedPreviewImageName()
         let cornerRadius = size * AppIconImage.cornerRadiusRatio
         AppIconImage(name: imageName, size: size, bordered: false)
             .scaleEffect(pulsing ? 1.06 : 1)
