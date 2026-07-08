@@ -1909,8 +1909,56 @@
         }
       }
     },
-    "settings.debug.footer" : {
-      "comment" : "Footer for the developer settings section.",
+    "developer.button.label" : {
+      "comment" : "Accessibility label for the floating developer button.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developer tools"
+          }
+        }
+      }
+    },
+    "developer.close" : {
+      "comment" : "Accessibility label for closing the developer panel.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        }
+      }
+    },
+    "developer.collapse" : {
+      "comment" : "Accessibility label for shrinking the developer panel back to a floating window.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exit full screen"
+          }
+        }
+      }
+    },
+    "developer.expand" : {
+      "comment" : "Accessibility label for growing the developer panel to full screen.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter full screen"
+          }
+        }
+      }
+    },
+    "developer.footer" : {
+      "comment" : "Footer for the developer tools list.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -1921,19 +1969,7 @@
         }
       }
     },
-    "settings.debug.header" : {
-      "comment" : "Title of the settings screen's developer section.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Developer"
-          }
-        }
-      }
-    },
-    "settings.debug.inspectorLink" : {
+    "developer.inspectorLink" : {
       "comment" : "Label for the navigation link that opens the SwiftData inspector.",
       "extractionState" : "manual",
       "localizations" : {
@@ -1945,7 +1981,7 @@
         }
       }
     },
-    "settings.debug.inspectorTitle" : {
+    "developer.inspectorTitle" : {
       "comment" : "Navigation title for the SwiftData inspector screen.",
       "extractionState" : "manual",
       "localizations" : {
@@ -1957,7 +1993,7 @@
         }
       }
     },
-    "settings.debug.logsLink" : {
+    "developer.logsLink" : {
       "comment" : "Label for the button that opens the logs screen.",
       "extractionState" : "manual",
       "localizations" : {
@@ -1969,8 +2005,8 @@
         }
       }
     },
-    "settings.debug.logsTitle" : {
-      "comment" : "Title of the settings screen that shows the user's logs.",
+    "developer.logsTitle" : {
+      "comment" : "Title of the screen that shows the user's logs.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -1981,13 +2017,26 @@
         }
       }
     },
-    "settings.debug.regionMapLink" : {
+    "developer.regionMapLink" : {
+      "comment" : "Label for the navigation link that opens the region map.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Region map"
+          }
+        }
+      }
+    },
+    "developer.title" : {
+      "comment" : "Navigation title of the developer tools list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Developer"
           }
         }
       }

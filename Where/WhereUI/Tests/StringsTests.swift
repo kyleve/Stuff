@@ -93,17 +93,24 @@ struct StringsTests {
         )
     }
 
-    @Test func debugSettingsStringsResolveToCatalogValues() {
-        #expect(Strings.settingsDebugHeader == "Developer")
-        #expect(Strings.settingsDebugLogsLink == "Logs")
-        #expect(Strings.settingsDebugLogsTitle == "Logs")
-        #expect(Strings.settingsDebugInspectorLink == "SwiftData Inspector")
-        #expect(Strings.settingsDebugInspectorTitle == "SwiftData")
-        #expect(Strings.settingsDebugRegionMapLink == "Region map")
+    @Test func developerToolsStringsResolveToCatalogValues() {
+        #expect(Strings.developerTitle == "Developer")
+        #expect(Strings.developerLogsLink == "Logs")
+        #expect(Strings.developerLogsTitle == "Logs")
+        #expect(Strings.developerInspectorLink == "SwiftData Inspector")
+        #expect(Strings.developerInspectorTitle == "SwiftData")
+        #expect(Strings.developerRegionMapLink == "Region map")
         #expect(
-            Strings.settingsDebugFooter
+            Strings.developerFooter
                 == "On-device logs and data tools. Debug builds only.",
         )
+    }
+
+    @Test func developerOverlayChromeStringsResolveToCatalogValues() {
+        #expect(Strings.developerButtonLabel == "Developer tools")
+        #expect(Strings.developerClose == "Close")
+        #expect(Strings.developerExpand == "Enter full screen")
+        #expect(Strings.developerCollapse == "Exit full screen")
     }
 
     @Test func regionMapStringsResolveToCatalogValues() {

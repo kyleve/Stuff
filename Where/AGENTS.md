@@ -42,6 +42,12 @@ Where/
   `YearReportModel`, view-scoped `ResolveModel` / `BackupModel` /
   `RemindersSettingsModel`). It is **not** the domain model — see
   [Layering](#layering).
+- **Developer tools** live behind a DEBUG-only floating overlay, not in Settings.
+  `Developer/DeveloperOverlay` is attached once at `RootView` (above every launch
+  phase and tab, reachable even logged out): a draggable, corner-snapping
+  `DeveloperOverlayButton` that expands into a Picture-in-Picture panel and grows
+  to full screen, hosting `Developer/DeveloperToolsView` (Logs / SwiftData
+  inspector / region map). All of it is compiled out of release.
 
 ## Layering
 
@@ -78,7 +84,7 @@ Rules the code enforces and agents must preserve:
   degraded-but-handled, `error`/`fault` = outright failure; hot paths
   (per-sample persist, widget throttle) stay quiet by design. **RegionKit** logs
   through its own `RegionLog` facade (subsystem `com.stuff.regionkit`, separate
-  store) since it can't see `WhereLog`; the DEBUG Settings log viewer is
+  store) since it can't see `WhereLog`; the DEBUG developer log viewer is
   configured with **both** buffers (`[WhereLog.store, RegionLog.store]`) so it
   shows a single merged stream.
 - **Location comes through the `LocationSource` protocol** — production is

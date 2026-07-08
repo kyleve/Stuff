@@ -27,8 +27,8 @@ struct ScreenHostingTests {
     }
 
     @Test func settingsViewHosts() throws {
-        // Settings reads the app model (reset) and the logged-in session (tracking
-        // + inspector) from the environment, and takes the scene report explicitly.
+        // Settings reads the app model (reset) and the logged-in session
+        // (tracking) from the environment, and takes the scene report explicitly.
         let model = PreviewSupport.loadedModel()
         let session = PreviewSupport.loadedSession()
         let rootView = SettingsView(report: PreviewSupport.loadedYearReportModel())
@@ -181,10 +181,30 @@ struct ScreenHostingTests {
     }
 
     @Test func debugLogViewerHostsWithSharedStore() throws {
-        // The Settings debug entry pushes this viewer over WhereLog's buffer.
+        // The developer tools surface pushes this viewer over WhereLog's buffer.
         let rootView = NavigationStack {
             LogViewer(configuration: LogViewerConfiguration(store: WhereLog.store, title: "Logs"))
         }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func developerToolsViewHosts() throws {
+        // Reads the logged-in session from the environment for the SwiftData
+        // inspector row; owns its own navigation stack for the pushed viewers.
+        let rootView = DeveloperToolsView()
+            .environment(PreviewSupport.loadedSession())
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func developerOverlayHosts() throws {
+        // The floating overlay mounts (collapsed) with a session available for the
+        // tools it can expand into.
+        let rootView = DeveloperOverlay()
+            .environment(PreviewSupport.loadedSession())
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
