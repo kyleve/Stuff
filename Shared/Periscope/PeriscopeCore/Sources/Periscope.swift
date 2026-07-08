@@ -156,11 +156,17 @@ public final class Periscope: LogRecorder, Sendable {
     // MARK: Sinks
 
     /// Register a sink. All scopes defined so far are replayed to the
-    /// pipeline so the new sink can resolve every record it will see.
+    /// pipeline so the new sink can resolve every record it will see. The
+    /// replay is *prepended*: records already pending must not reach the
+    /// new sink ahead of the scopes they reference (existing sinks see the
+    /// definitions again — idempotence is part of the sink contract).
     public func add(sink: some LogSink) {
         state.withLock { state in
             state.sinks.append(sink)
-            state.pending.append(contentsOf: state.scopes.values.map(PendingItem.scope))
+            state.pending.insert(
+                contentsOf: state.scopes.values.map(PendingItem.scope),
+                at: 0,
+            )
         }
         scheduleDrainIfNeeded()
     }
@@ -435,6 +441,12 @@ public final class Periscope: LogRecorder, Sendable {
         state.withLock(\.recent)
     }
 
+    /// The number of currently registered ``liveRecords()`` observers —
+    /// lets tests assert subscription lifecycles deterministically.
+    @_spi(Testing) public var liveObserverCount: Int {
+        state.withLock { $0.observers.count }
+    }
+
     /// Every record emitted from now on, one at a time. The observer is
     /// unregistered automatically when the stream's consumer cancels.
     /// Buffering is bounded (``Configuration/liveBufferCapacity``): a
@@ -503,12 +515,17 @@ public final class Periscope: LogRecorder, Sendable {
                 }
                 return (items, state.sinks, dropReport)
             }
-            guard let (items, sinks, dropReport) = next else { return }
+            guard var (items, sinks, dropReport) = next else { return }
             if let dropReport {
                 announceDropReport(dropReport)
-                for sink in sinks {
-                    await sink.write([dropReport])
+                // The gap sits at the front of the record backlog, so the
+                // report slots before the surviving records — but after the
+                // leading scope run, so a just-added sink has its replay
+                // (including the system scope) before any record.
+                let leadingScopes = items.prefix { item in
+                    if case .scope = item { true } else { false }
                 }
+                items.insert(.record(dropReport), at: leadingScopes.count)
             }
             for chunk in Self.chunked(items) {
                 for sink in sinks {

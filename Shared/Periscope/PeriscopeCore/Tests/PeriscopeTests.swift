@@ -461,6 +461,139 @@ struct PeriscopeTests {
 
     // MARK: Drop policy
 
+    @Test func overflowNeverDropsScopeDefinitions() async throws {
+        let gate = GateSink()
+        let system = Periscope(
+            configuration: Periscope.Configuration(pendingBufferCapacity: 3),
+            sinks: [gate, sink],
+        )
+        let log = Log<AppLogs>(system: system)
+
+        log.info("r0")
+        let drainBlocked = await waitUntil { gate.batchCount >= 1 }
+        try #require(drainBlocked)
+
+        // Interleave fresh scope definitions with enough records to force
+        // the drop policy: records may drop, definitions must not.
+        var children: [LogScope] = []
+        for index in 1 ... 6 {
+            let child = log(for: "child-\(index)")
+            children.append(child.primaryScope)
+            child.info("r\(index)")
+        }
+        gate.open()
+        await system.flush()
+
+        for child in children {
+            #expect(sink.definedScopes.contains(child))
+        }
+        let messages = sink.records.map(\.message)
+        #expect(messages.contains("3 log event(s) dropped before delivery"))
+        #expect(messages.suffix(3) == ["r4", "r5", "r6"])
+        #expect(!messages.contains("r1"))
+    }
+
+    @Test(arguments: [0x5EED_0001, 2, 42, 987_654_321] as [UInt64])
+    func pipelineSurvivesSeededConcurrentInterleavings(seed: UInt64) async {
+        enum FuzzOp: Sendable {
+            case emit
+            case derive
+            case flush
+            case addSink(Int)
+        }
+
+        // Generate the whole interleaving script up front so a failing seed
+        // replays exactly.
+        var rng = SeededRandom(seed: seed)
+        let taskCount = 4
+        let opsPerTask = 60
+        let extraSinks = [CapturingSink(), CapturingSink()]
+        var scripts: [[FuzzOp]] = []
+        var unusedExtraSinks = Array(extraSinks.indices)
+        for task in 0 ..< taskCount {
+            var script: [FuzzOp] = []
+            for _ in 0 ..< opsPerTask {
+                switch Int.random(in: 0 ..< 100, using: &rng) {
+                    case ..<70:
+                        script.append(.emit)
+                    case ..<85:
+                        script.append(.derive)
+                    case ..<95:
+                        script.append(.flush)
+                    default:
+                        // Sinks register once each, from the first task only.
+                        if task == 0, !unusedExtraSinks.isEmpty {
+                            script.append(.addSink(unusedExtraSinks.removeFirst()))
+                        } else {
+                            script.append(.emit)
+                        }
+                }
+            }
+            scripts.append(script)
+        }
+
+        let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
+        let emittedByTask = await withTaskGroup(
+            of: (task: Int, emitted: Int).self,
+            returning: [Int: Int].self,
+        ) { group in
+            for (task, script) in scripts.enumerated() {
+                group.addTask {
+                    var log = Log<AppLogs>(system: system)(for: "task-\(task)")
+                    var emitted = 0
+                    var derived = 0
+                    for op in script {
+                        switch op {
+                            case .emit:
+                                log.info("t\(task)-\(emitted)")
+                                emitted += 1
+                            case .derive:
+                                derived += 1
+                                log = log(for: "d\(derived)")
+                            case .flush:
+                                await system.flush()
+                            case let .addSink(index):
+                                system.add(sink: extraSinks[index])
+                        }
+                    }
+                    return (task, emitted)
+                }
+            }
+            var counts: [Int: Int] = [:]
+            for await result in group {
+                counts[result.task] = result.emitted
+            }
+            return counts
+        }
+        await system.flush()
+
+        // Nothing lost, nothing duplicated, per-emitter order preserved.
+        let messages = sink.records.map(\.message)
+        let totalEmitted = emittedByTask.values.reduce(0, +)
+        #expect(messages.count == totalEmitted)
+        #expect(Set(messages).count == messages.count)
+        for (task, emitted) in emittedByTask {
+            let expected = (0 ..< emitted).map { "t\(task)-\($0)" }
+            #expect(messages.filter { $0.hasPrefix("t\(task)-") } == expected)
+        }
+
+        // Every sink — including late-added ones fed by the scope replay —
+        // saw each record's scopes defined before the record itself.
+        for candidate in [sink] + extraSinks {
+            var defined: Set<ScopeID> = []
+            for delivery in candidate.deliveries {
+                switch delivery {
+                    case let .scopes(scopes):
+                        defined.formUnion(scopes.map(\.id))
+                    case let .records(records):
+                        for record in records {
+                            #expect(record.scopes.allSatisfy(defined.contains))
+                        }
+                }
+            }
+        }
+    }
+
     @Test func overflowingThePendingQueueDropsOldestAndReportsTheGap() async throws {
         let gate = GateSink()
         let system = Periscope(

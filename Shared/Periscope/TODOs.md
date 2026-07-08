@@ -15,7 +15,6 @@
 - fix: Run redaction after the level-floor check in `Periscope.record` — today user redaction code executes (and touches PII) for records the floor is about to discard.
 - fix: PeriscopeTools/PeriscopeUI don't compile for native macOS (`navigationBarTitleDisplayMode`, `.topBarTrailing`) even though `Package.swift` advertises `.macOS(.v26)` for all products. Nothing in CI builds them for macOS today, so this is a latent break for the first macOS consumer (`LogViewerUI` has the same issue as precedent). Either gate the iOS-only modifiers or stop advertising macOS for the UI modules.
 - fix: The tracer window (`LogQuery.end = origin.date`) is inclusive and sequence isn't in the predicate, so same-millisecond events *after* the origin appear in "leading up to it".
-- test: Seeded fuzz/adversarial test for the pipeline state machine (concurrent emit + `add(sink:)` + flush + drop interleavings), per the repo convention for many-branch machinery.
 - feat: Optional budget for `measure` spans (`log.measure(.saveEvent, budget: .seconds(1))`) — closure spans can't leak, but "this save should never take >1s" deserves the same overdue signal `begin` spans get.
 
 ## P2s (Nice to have)
@@ -24,7 +23,6 @@
 - fix: `PeriscopeInspector` syncs one-way after init; direct writes to `Periscope.isInspectModeEnabled` don't reflect back into the observable mirror.
 - feat: An "open spans" developer surface (viewer section listing currently-open spans with age and budget) — the data exists in `Periscope.openSpans`.
 - feat: Surface span exits in the viewer beyond the message text (badge tint by exit mode, filter by exit).
-- test: `PeriscopeAlerterTests.startingTwiceDoesNotDuplicateAlerts` asserts after a single `Task.yield()`, so a duplicate could land just after the assertion passes — wait for a sentinel instead.
 - docs: `log(PhotoLogs.self) { event }` parses as one call and fails to compile; document the required two-step spelling near `callAsFunction`.
 - perf: `LocalNotificationAlertHandler` requests notification authorization on every alert; cache the grant.
 
@@ -39,3 +37,6 @@
 - feat: Span lifecycle — `SpanLifetime` (scoped/bounded/indefinite) with a watchdog that expires over-budget spans, `SpanExit` modes (success/failure/cancelled/superseded/expired/orphaned) with derived exits for `measure`, re-begin superseding instead of locking out, and relaunch orphan-closing per `SpanRelaunchPolicy`. (Code review finding 6.)
 - perf: Rewrite `Periscope.chunked(_:)` to accumulate runs in mutable buffers — the last-chunk-rewrite approach copied the accumulated chunk per item and went quadratic on large backlogs. (Code review finding 7.)
 - perf: Prefetch the `tags` and `attachments` relationships on `PeriscopeStore` event reads (`relationshipKeyPathsForPrefetching`) so value mapping doesn't fault each relationship per row (N+1). (Code review finding 8.)
+- test: Seeded fuzz/adversarial test for the pipeline (concurrent emit + derive + `add(sink:)` + flush interleavings from fixed seeds), asserting no loss/duplication, per-emitter order, and scopes-before-records on every sink.
+- test: Cover the drop policy's scope-definitions-never-drop promise by overflowing a gated queue with interleaved definitions and records.
+- test: Make the alerter lifecycle tests deterministic via `Periscope.liveObserverCount` (`@_spi(Testing)`) instead of racing duplicate deliveries against a `Task.yield()`.

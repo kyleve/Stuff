@@ -1,5 +1,5 @@
 import Foundation
-import PeriscopeCore
+@_spi(Testing) import PeriscopeCore
 @testable import PeriscopeTools
 import Testing
 
@@ -61,34 +61,32 @@ struct PeriscopeAlerterTests {
         let first = await waitUntil { handler.records.count == 1 }
         #expect(first)
 
+        // Once the observer is unregistered, an emission provably cannot
+        // reach the handler — no sentinel race.
         alerter.stop()
-        log.error("while stopped")
+        let unsubscribed = await waitUntil { system.liveObserverCount == 0 }
+        #expect(unsubscribed)
 
-        // A fresh alerter only sees records emitted after it starts, so once
-        // its sentinel arrives, the stopped alerter demonstrably never
-        // delivered "while stopped".
-        let restarted = PeriscopeAlerter(system: system, threshold: .warning, handler: handler)
-        restarted.start()
-        log.error("sentinel")
-        let sentinel = await waitUntil {
-            handler.records.contains { $0.message == "sentinel" }
-        }
-        #expect(sentinel)
-        #expect(!handler.records.contains { $0.message == "while stopped" })
+        log.error("while stopped")
+        #expect(handler.records.map(\.message) == ["first"])
     }
 
-    @Test func startingTwiceDoesNotDuplicateAlerts() async {
+    @Test func startingTwiceDoesNotDuplicateSubscriptions() async {
         let alerter = PeriscopeAlerter(system: system, threshold: .warning, handler: handler)
         alerter.start()
         alerter.start()
+
+        // One observer means one delivery stream — asserted directly
+        // instead of racing a duplicate delivery against the expectation.
+        #expect(system.liveObserverCount == 1)
+
         let log = Log<AppLogs>(system: system)
-
         log.error("once")
-        let delivered = await waitUntil { !handler.records.isEmpty }
+        log.error("sentinel")
+        let delivered = await waitUntil {
+            handler.records.contains { $0.message == "sentinel" }
+        }
         #expect(delivered)
-
-        // Give a duplicate delivery a chance to land before asserting.
-        await Task.yield()
-        #expect(handler.records.count == 1)
+        #expect(handler.records.map(\.message) == ["once", "sentinel"])
     }
 }
