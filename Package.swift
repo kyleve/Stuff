@@ -14,6 +14,9 @@ let package = Package(
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LogKit", targets: ["LogKit"]),
         .library(name: "LogViewerUI", targets: ["LogViewerUI"]),
+        .library(name: "PeriscopeCore", targets: ["PeriscopeCore"]),
+        .library(name: "PeriscopeUI", targets: ["PeriscopeUI"]),
+        .library(name: "PeriscopeTools", targets: ["PeriscopeTools"]),
         .library(name: "SwiftDataInspector", targets: ["SwiftDataInspector"]),
         .library(name: "RegionKit", targets: ["RegionKit"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
@@ -55,6 +58,25 @@ let package = Package(
                 .target(name: "LogKit"),
             ],
             path: "Shared/LogViewerUI/Sources",
+        ),
+        .target(
+            name: "PeriscopeCore",
+            path: "Shared/Periscope/PeriscopeCore/Sources",
+        ),
+        .target(
+            name: "PeriscopeUI",
+            dependencies: [
+                .target(name: "PeriscopeCore"),
+            ],
+            path: "Shared/Periscope/PeriscopeUI/Sources",
+        ),
+        .target(
+            name: "PeriscopeTools",
+            dependencies: [
+                .target(name: "PeriscopeCore"),
+                .target(name: "PeriscopeUI"),
+            ],
+            path: "Shared/Periscope/PeriscopeTools/Sources",
         ),
         .target(
             name: "SwiftDataInspector",
