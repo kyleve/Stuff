@@ -544,21 +544,38 @@ public final class Periscope: LogRecorder, Sendable {
     }
 
     /// Group consecutive pending items so order is preserved while sinks
-    /// still receive batches.
+    /// still receive batches. Accumulates runs in mutable buffers — O(n),
+    /// where rewriting the last chunk per item would copy it every
+    /// iteration and go quadratic on large backlogs.
     private static func chunked(_ items: [PendingItem]) -> [Chunk] {
         var chunks: [Chunk] = []
+        var scopeRun: [LogScope] = []
+        var recordRun: [LogRecord] = []
+
+        func closeScopeRun() {
+            guard !scopeRun.isEmpty else { return }
+            chunks.append(.scopes(scopeRun))
+            scopeRun.removeAll()
+        }
+
+        func closeRecordRun() {
+            guard !recordRun.isEmpty else { return }
+            chunks.append(.records(recordRun))
+            recordRun.removeAll()
+        }
+
         for item in items {
-            switch (chunks.last, item) {
-                case let (.scopes(scopes), .scope(scope)):
-                    chunks[chunks.count - 1] = .scopes(scopes + [scope])
-                case let (.records(records), .record(record)):
-                    chunks[chunks.count - 1] = .records(records + [record])
-                case let (_, .scope(scope)):
-                    chunks.append(.scopes([scope]))
-                case let (_, .record(record)):
-                    chunks.append(.records([record]))
+            switch item {
+                case let .scope(scope):
+                    closeRecordRun()
+                    scopeRun.append(scope)
+                case let .record(record):
+                    closeScopeRun()
+                    recordRun.append(record)
             }
         }
+        closeScopeRun()
+        closeRecordRun()
         return chunks
     }
 }

@@ -131,6 +131,44 @@ struct PeriscopeTests {
         #expect(sink.flushCount == 1)
     }
 
+    @Test func interleavedScopesAndRecordsDeliverGroupedInOrder() async throws {
+        // Hold the drain so an interleaved backlog accumulates, then verify
+        // the single stolen batch reaches the sink as ordered runs.
+        let gate = GateSink()
+        let system = Periscope(configuration: Periscope.Configuration(), sinks: [gate, sink])
+        let root = Log<AppLogs>(system: system)
+
+        root.info("r0")
+        let drainBlocked = await waitUntil { gate.batchCount >= 1 }
+        try #require(drainBlocked)
+
+        root.info("r1")
+        let photos = root(PhotoLogs.self) // defines a scope mid-stream
+        photos.info("r2")
+        let album = photos(for: "album-1") // and another
+        album.info("r3")
+        gate.open()
+        await system.flush()
+
+        let backlog = sink.deliveries.drop(while: { delivery in
+            guard case let .records(records) = delivery else { return true }
+            return records.first?.message == "r0"
+        })
+        let shape = backlog.map { delivery in
+            switch delivery {
+                case let .scopes(scopes): "scopes(\(scopes.map(\.name).joined(separator: ",")))"
+                case let .records(records): "records(\(records.map(\.message).joined(separator: ",")))"
+            }
+        }
+        #expect(shape == [
+            "records(r1)",
+            "scopes(PhotoLogs)",
+            "records(r2)",
+            "scopes(album-1)",
+            "records(r3)",
+        ])
+    }
+
     @Test func recordsEmittedDuringADrainStillArrive() async {
         let system = makeSystem()
         let log = Log<AppLogs>(system: system)
