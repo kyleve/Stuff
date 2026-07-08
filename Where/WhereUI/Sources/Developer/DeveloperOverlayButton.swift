@@ -5,8 +5,11 @@
     ///
     /// Kept as its own view (with no behavior of its own) so the look can be
     /// swapped later without touching the overlay's drag / presentation logic in
-    /// ``DeveloperOverlay``. It's a solid disc with a white glyph, ring, and
-    /// shadow so it stays legible over light, dark, and busy photo backgrounds.
+    /// ``DeveloperOverlay``. Deliberately understated: an outlined ring around a
+    /// wrench glyph, no filled background, so it stays out of the way over the
+    /// app. A faint shadow keeps the outline legible over light, dark, and busy
+    /// backgrounds, and `contentShape` keeps the whole disc tappable despite the
+    /// empty center.
     ///
     /// It sizes itself — the diameter scales with Dynamic Type via `@ScaledMetric`
     /// — so the number lives here once rather than being duplicated at the call
@@ -15,20 +18,20 @@
         @ScaledMetric(relativeTo: .title2) private var diameter: CGFloat = 52
 
         var body: some View {
-            Image(systemName: "wrench.and.screwdriver.fill")
-                .font(.system(size: diameter * 0.4, weight: .bold))
-                .foregroundStyle(.white)
+            Image(systemName: "wrench.and.screwdriver")
+                .font(.system(size: diameter * 0.4, weight: .semibold))
+                .foregroundStyle(.secondary)
                 .frame(width: diameter, height: diameter)
-                .background(Circle().fill(Color.indigo.gradient))
-                .overlay(Circle().strokeBorder(.white.opacity(0.85), lineWidth: 1.5))
-                .shadow(color: .black.opacity(0.28), radius: 6, y: 3)
+                .overlay(Circle().strokeBorder(.secondary.opacity(0.5), lineWidth: 1.5))
+                .contentShape(Circle())
+                .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
                 .accessibilityLabel(Strings.developerButtonLabel)
                 .accessibilityAddTraits(.isButton)
         }
     }
 
     #Preview {
-        // Over a gradient to confirm the disc reads on varied backgrounds.
+        // Over a gradient to confirm the outline reads on varied backgrounds.
         ZStack {
             LinearGradient(
                 colors: [.teal, .orange, .black],
