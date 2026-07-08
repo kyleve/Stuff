@@ -102,6 +102,28 @@ struct PeriscopeTests {
         #expect(await iterator.next()?.message == "two")
     }
 
+    @Test func slowLiveObserversKeepOnlyTheNewestRecords() async {
+        let system = Periscope(
+            configuration: Periscope.Configuration(liveBufferCapacity: 3),
+            sinks: [sink],
+        )
+        let log = Log<AppLogs>(system: system)
+
+        // Nothing consumes yet — the buffer must cap at the newest three.
+        var iterator = system.liveRecords().makeAsyncIterator()
+        for index in 1 ... 5 {
+            log.info("\(index)")
+        }
+
+        #expect(await iterator.next()?.message == "3")
+        #expect(await iterator.next()?.message == "4")
+        #expect(await iterator.next()?.message == "5")
+
+        // Once caught up, new records flow through normally.
+        log.info("6")
+        #expect(await iterator.next()?.message == "6")
+    }
+
     @Test func flushIsSafeWhenNothingIsPending() async {
         let system = makeSystem()
         await system.flush()

@@ -42,6 +42,12 @@ public final class Periscope: LogRecorder, Sendable {
         /// record reports the gap.
         public var pendingBufferCapacity: Int
 
+        /// Maximum records buffered per ``liveRecords()`` observer that
+        /// falls behind; the oldest buffered records drop first, so a slow
+        /// or stuck consumer sees the newest activity instead of growing
+        /// memory without bound.
+        public var liveBufferCapacity: Int
+
         /// Records at this level or above trigger an automatic ``flush()``,
         /// so the most important events don't sit in sink buffers when the
         /// process dies.
@@ -55,11 +61,13 @@ public final class Periscope: LogRecorder, Sendable {
         public init(
             recentBufferCapacity: Int = 500,
             pendingBufferCapacity: Int = 5000,
+            liveBufferCapacity: Int = 256,
             flushThreshold: LogLevel = .error,
             redact: (@Sendable (LogRecord) -> LogRecord?)? = nil,
         ) {
             self.recentBufferCapacity = recentBufferCapacity
             self.pendingBufferCapacity = pendingBufferCapacity
+            self.liveBufferCapacity = liveBufferCapacity
             self.flushThreshold = flushThreshold
             self.redact = redact
         }
@@ -130,6 +138,10 @@ public final class Periscope: LogRecorder, Sendable {
         precondition(
             configuration.pendingBufferCapacity > 0,
             "pendingBufferCapacity must be positive",
+        )
+        precondition(
+            configuration.liveBufferCapacity > 0,
+            "liveBufferCapacity must be positive",
         )
         self.configuration = configuration
         state = OSAllocatedUnfairLock(initialState: State(sinks: sinks))
@@ -346,9 +358,15 @@ public final class Periscope: LogRecorder, Sendable {
 
     /// Every record emitted from now on, one at a time. The observer is
     /// unregistered automatically when the stream's consumer cancels.
+    /// Buffering is bounded (``Configuration/liveBufferCapacity``): a
+    /// consumer that falls behind loses the *oldest* buffered records —
+    /// live surfaces want the newest activity, and the durable history is
+    /// the store's job.
     public func liveRecords() -> AsyncStream<LogRecord> {
         let id = UUID()
-        return AsyncStream { continuation in
+        return AsyncStream(
+            bufferingPolicy: .bufferingNewest(configuration.liveBufferCapacity),
+        ) { continuation in
             state.withLock { state in
                 state.observers[id] = continuation
             }
