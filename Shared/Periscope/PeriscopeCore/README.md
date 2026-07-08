@@ -51,6 +51,7 @@ let album = photos(for: album.id)          // child scope keyed by an entity
 
 album { PhotoLogs(photoID: photo.id) }     // structured event
 album.warning("thumbnail cache miss")      // freeform, any Log can
+photos(for: album.id) { PhotoLogs(photoID: photo.id) } // derive + emit in one call
 
 let joined = album + screenLog             // link model + UI contexts
 let tagged = joined.tagged(.paymentID, payment.id)  // stamps every event

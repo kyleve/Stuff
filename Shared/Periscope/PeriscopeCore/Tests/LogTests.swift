@@ -79,6 +79,26 @@ struct LogTests {
         #expect(child.scopes.contains(ui.primaryScope))
     }
 
+    @Test func typedDeriveAndEmitWorksAsOneExpression() throws {
+        let root = Log<AppLogs>(recorder: recorder)
+
+        root(PhotoLogs.self) { PhotoLogs(photoID: "p1") }
+
+        let record = try #require(recorder.records.first)
+        #expect(record.message == "photo p1")
+        #expect(record.scopes == root(PhotoLogs.self).scopes.map(\.id))
+    }
+
+    @Test func keyedDeriveAndEmitWorksAsOneExpression() throws {
+        let photos = Log<AppLogs>(recorder: recorder)(PhotoLogs.self)
+
+        photos(for: "album-1") { PhotoLogs(photoID: "p2") }
+
+        let record = try #require(recorder.records.first)
+        #expect(record.message == "photo p2")
+        #expect(record.scopes == photos(for: "album-1").scopes.map(\.id))
+    }
+
     @Test func retypingKeepsTheContextWithoutDerivingAChild() {
         let photos = Log<AppLogs>(recorder: recorder)(PhotoLogs.self)
             .tagged(LogTagKey("payment-id"), "pay_1")
