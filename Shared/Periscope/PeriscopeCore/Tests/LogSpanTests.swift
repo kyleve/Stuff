@@ -79,6 +79,57 @@ struct LogSpanTests {
         #expect(ended.exit == .success)
     }
 
+    @Test func budgetedMeasuresWarnWhileRunningPastTheBudget() async throws {
+        let log = Log<AppLogs>(recorder: recorder)
+
+        // The body waits for the overdue signal itself, so the test is
+        // condition-driven: the sentinel provably fired mid-execution.
+        await log.measure("slow-save", budget: .milliseconds(5)) {
+            _ = await waitUntil {
+                recorder.records.contains { $0.event is SpanOverdue }
+            }
+        }
+
+        let records = recorder.records
+        let began = try #require(records.first?.event as? SpanBegan)
+        let overdue = try #require(
+            records.compactMap { $0.event as? SpanOverdue }.first,
+        )
+        #expect(overdue.spanID == began.spanID)
+        #expect(overdue.name == "slow-save")
+        #expect(overdue.budget == .milliseconds(5))
+
+        let overdueRecord = try #require(records.first { $0.event is SpanOverdue })
+        #expect(overdueRecord.level == .warning)
+        #expect(overdueRecord.spanID == began.spanID)
+        #expect(overdueRecord.scopes == log.scopes.map(\.id))
+
+        // The span still ends normally with its derived exit.
+        let ended = try #require(records.last?.event as? SpanEnded)
+        #expect(ended.exit == .success)
+    }
+
+    @Test func budgetedMeasuresWithinBudgetStayQuiet() throws {
+        let log = Log<AppLogs>(recorder: recorder)
+
+        let result = log.measure("fast-save", budget: .seconds(60)) { 42 }
+        #expect(result == 42)
+
+        let records = recorder.records
+        #expect(records.count == 2)
+        #expect(!records.contains { $0.event is SpanOverdue })
+        let ended = try #require(records.last?.event as? SpanEnded)
+        #expect(ended.exit == .success)
+    }
+
+    @Test func overdueEventsRoundTripThroughCodable() throws {
+        let overdue = SpanOverdue(spanID: SpanID(), name: "save", budget: .seconds(1))
+        let data = try JSONEncoder().encode(overdue)
+        let decoded = try JSONDecoder().decode(SpanOverdue.self, from: data)
+        #expect(decoded.spanID == overdue.spanID)
+        #expect(decoded.budget == .seconds(1))
+    }
+
     @Test func typedSpanTokensResolveAgainstTheEventType() throws {
         let log = Log<DatabaseLogs>(recorder: recorder)
 

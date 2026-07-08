@@ -12,8 +12,6 @@
 - feat: Implement `SpanRelaunchPolicy.survivesRelaunch` resume mechanics. The policy is already recorded on `SpanBegan` payloads and the relaunch sweep honors it (surviving spans are left open, not orphan-closed), but nothing re-seeds them: `end(for:)` in the new process warns "without a matching begin". Needs an async bootstrap step at store/system startup that queries unmatched surviving `SpanBegan` events and re-opens them in `Periscope.openSpans` — plus wall-clock durations for resumed spans (`ContinuousClock` instants don't survive reboot; `SpanEnded.duration` is already optional for this) and accepting that signpost intervals can't resume.
 
 ## P1s (Should do)
-- feat: Optional budget for `measure` spans (`log.measure(.saveEvent, budget: .seconds(1))`) — closure spans can't leak, but "this save should never take >1s" deserves the same overdue signal `begin` spans get.
-
 ## P2s (Nice to have)
 - fix: `NetworkPathAmbientSource.start` called twice silently replaces the boxed monitor without cancelling the old one; ambient sources in general have no stop/double-start story.
 - refactor: `PeriscopeViewer`/`LogInspectorView`/`LogTraceView` capture their model via `State(initialValue:)`; a parent that later passes a different store/origin keeps the stale model. Fine for dev tools — document or key the views.
@@ -29,6 +27,7 @@
 - fix: Check level floors before running redaction in `Periscope.record` — redaction code no longer executes (touching PII) for records the floor discards; floors apply to the record as emitted.
 - fix: PeriscopeTools/PeriscopeUI used iOS-only API while the package advertised `.macOS(.v26)`. Resolved from the other side: Foreman's removal made the package iOS-only, so macOS is no longer advertised anywhere. (Core's `#if canImport(UIKit)` gating stays — it's still correct per-SDK hygiene.)
 - fix: The tracer trims its trail to events strictly `(date, sequence)`-before the origin, so same-millisecond events that landed after it (and a traced `SpanBegan`'s own end event) no longer appear under "leading up to it".
+- feat: Optional budget for `measure` spans — `log.measure(.saveEvent, budget: .seconds(1)) { … }` emits a `SpanOverdue` warning *while the closure hangs* (per-call sentinel task, cancelled on completion); the span still ends normally with its derived exit.
 
 ## P0s (Must do)
 - fix: Roll back failed `PeriscopeStore` saves so one poisoned batch can't wedge every subsequent save; recovery drops row caches and refetches the session row by identity. (Code review finding 1.)

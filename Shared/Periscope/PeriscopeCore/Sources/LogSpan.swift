@@ -122,6 +122,33 @@ protocol SpanCarrying {
 extension SpanBegan: SpanCarrying {}
 extension SpanEnded: SpanCarrying {}
 
+/// Emitted while a budgeted `measure` closure is still running past its
+/// budget — the mid-hang signal. Unlike a bounded span's `.expired` close,
+/// the span stays open and ends normally when (if) the closure returns.
+public struct SpanOverdue: LogEvent {
+    public static let eventName = "span-overdue"
+
+    public let spanID: SpanID
+    public let name: String
+    public let budget: Duration
+
+    public var level: LogLevel {
+        .warning
+    }
+
+    public var message: String {
+        "⏰ \(name) still running past its \(budget.formatted()) budget"
+    }
+
+    public init(spanID: SpanID, name: String, budget: Duration) {
+        self.spanID = spanID
+        self.name = name
+        self.budget = budget
+    }
+}
+
+extension SpanOverdue: SpanCarrying {}
+
 extension LogRecord {
     /// The span this record belongs to, when its event is a span event.
     public var spanID: SpanID? {
@@ -211,8 +238,58 @@ extension Log {
     /// (`log.measure(.saveEvent) { … }`).
     @discardableResult
     public func measure<R>(_ name: Event.SpanName, _ body: () throws -> R) rethrows -> R {
+        try timedSpan(named: String(describing: name), budget: nil, body)
+    }
+
+    /// A `measure` with an expectation: if `body` is still running after
+    /// `budget`, a ``SpanOverdue`` warning fires *while it hangs* — the
+    /// span itself still ends normally with its derived exit.
+    @discardableResult
+    public func measure<R>(
+        _ name: Event.SpanName,
+        budget: Duration,
+        _ body: () throws -> R,
+    ) rethrows -> R {
+        try timedSpan(named: String(describing: name), budget: budget, body)
+    }
+
+    /// The `async` form of `measure`; preserves the caller's isolation.
+    @discardableResult
+    public func measure<R>(
+        _ name: Event.SpanName,
+        isolation: isolated (any Actor)? = #isolation,
+        _ body: () async throws -> R,
+    ) async rethrows -> R {
+        try await timedSpan(
+            named: String(describing: name),
+            budget: nil,
+            isolation: isolation,
+            body,
+        )
+    }
+
+    /// The `async` form of the budgeted `measure`.
+    @discardableResult
+    public func measure<R>(
+        _ name: Event.SpanName,
+        budget: Duration,
+        isolation: isolated (any Actor)? = #isolation,
+        _ body: () async throws -> R,
+    ) async rethrows -> R {
+        try await timedSpan(
+            named: String(describing: name),
+            budget: budget,
+            isolation: isolation,
+            body,
+        )
+    }
+
+    private func timedSpan<R>(
+        named spanName: String,
+        budget: Duration?,
+        _ body: () throws -> R,
+    ) rethrows -> R {
         let span = SpanID()
-        let spanName = String(describing: name)
         let clock = ContinuousClock()
         let start = clock.now
         SpanSignposts.begin(span, name: spanName)
@@ -222,6 +299,8 @@ extension Log {
             lifetime: .scoped,
             relaunchPolicy: .endsWithProcess,
         ))
+        let sentinel = budget.map { startOverdueSentinel(span: span, name: spanName, budget: $0) }
+        defer { sentinel?.cancel() }
         do {
             let result = try body()
             endMeasuredSpan(span, name: spanName, duration: clock.now - start, exit: .success)
@@ -237,15 +316,13 @@ extension Log {
         }
     }
 
-    /// The `async` form of `measure`; preserves the caller's isolation.
-    @discardableResult
-    public func measure<R>(
-        _ name: Event.SpanName,
-        isolation _: isolated (any Actor)? = #isolation,
+    private func timedSpan<R>(
+        named spanName: String,
+        budget: Duration?,
+        isolation _: isolated (any Actor)?,
         _ body: () async throws -> R,
     ) async rethrows -> R {
         let span = SpanID()
-        let spanName = String(describing: name)
         let clock = ContinuousClock()
         let start = clock.now
         SpanSignposts.begin(span, name: spanName)
@@ -255,6 +332,8 @@ extension Log {
             lifetime: .scoped,
             relaunchPolicy: .endsWithProcess,
         ))
+        let sentinel = budget.map { startOverdueSentinel(span: span, name: spanName, budget: $0) }
+        defer { sentinel?.cancel() }
         do {
             let result = try await body()
             endMeasuredSpan(span, name: spanName, duration: clock.now - start, exit: .success)
@@ -267,6 +346,21 @@ extension Log {
                 exit: Self.exit(for: error),
             )
             throw error
+        }
+    }
+
+    /// One short-lived task per *budgeted* measure: sleep the budget and,
+    /// if the closure hasn't finished (which cancels the sentinel), emit
+    /// the overdue warning.
+    private func startOverdueSentinel(
+        span: SpanID,
+        name: String,
+        budget: Duration,
+    ) -> Task<Void, Never> {
+        Task { [self] in
+            try? await Task.sleep(for: budget)
+            guard !Task.isCancelled else { return }
+            emit(SpanOverdue(spanID: span, name: name, budget: budget))
         }
     }
 
