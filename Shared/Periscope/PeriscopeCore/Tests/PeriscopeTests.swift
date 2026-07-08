@@ -192,6 +192,36 @@ struct PeriscopeTests {
         #expect(!system.isInspectModeEnabled)
     }
 
+    @Test func inspectModeStreamsConvergeUnderConcurrentWriters() async {
+        let system = makeSystem()
+        var iterator = system.inspectModeChanges().makeAsyncIterator()
+        #expect(await iterator.next() == false)
+
+        // Hammer the flag from two tasks, then make one final authoritative
+        // write. In-lock yields mean the newest buffered value is always
+        // the flag's final state — an out-of-order yield would strand the
+        // subscriber on the losing value.
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                for _ in 0 ..< 200 {
+                    system.isInspectModeEnabled = true
+                }
+            }
+            group.addTask {
+                for _ in 0 ..< 200 {
+                    system.isInspectModeEnabled = false
+                }
+            }
+            await group.waitForAll()
+        }
+        system.isInspectModeEnabled = true
+
+        // Nothing consumed during the storm, so bufferingNewest(1) holds
+        // exactly one value: with in-lock yields it must be the final one.
+        #expect(await iterator.next() == true)
+        #expect(system.isInspectModeEnabled)
+    }
+
     @Test func inspectModeChangesYieldTheCurrentValueThenChangesOnly() async {
         let system = makeSystem()
         system.isInspectModeEnabled = true

@@ -345,14 +345,16 @@ public final class Periscope: LogRecorder, Sendable {
     public var isInspectModeEnabled: Bool {
         get { state.withLock(\.inspectModeEnabled) }
         set {
-            let observers: [AsyncStream<Bool>.Continuation]? = state.withLock { state in
-                guard state.inspectModeEnabled != newValue else { return nil }
+            // Yield *inside* the lock: yields only buffer (no consumer runs
+            // under us), and racing setters outside the lock could deliver
+            // out of order — with bufferingNewest(1) a subscriber would
+            // then hold the losing value forever.
+            state.withLock { state in
+                guard state.inspectModeEnabled != newValue else { return }
                 state.inspectModeEnabled = newValue
-                return Array(state.inspectObservers.values)
-            }
-            guard let observers else { return }
-            for observer in observers {
-                observer.yield(newValue)
+                for observer in state.inspectObservers.values {
+                    observer.yield(newValue)
+                }
             }
         }
     }
