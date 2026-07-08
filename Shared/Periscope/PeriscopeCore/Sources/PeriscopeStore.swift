@@ -112,21 +112,38 @@ public actor PeriscopeStore: LogSink {
         do {
             let beganName = SpanBegan.eventName
             let endedName = SpanEnded.eventName
-            // The orphan records reuse each began row's tags, so prefetch.
-            let began = try modelContext.fetch(Self.readDescriptor(
+
+            // This runs on the launch path with weeks of history behind it,
+            // so the began/ended passes fetch only the spanID column; full
+            // rows (payload for the policy, tags for attribution) load only
+            // for the few orphan candidates.
+            var beganDescriptor = FetchDescriptor<SDLogEvent>(
                 predicate: #Predicate {
                     $0.eventName == beganName && $0.sessionID != startedSessionID
                 },
-            ))
-            guard !began.isEmpty else { return }
-            let ended = try modelContext.fetch(FetchDescriptor<SDLogEvent>(
+            )
+            beganDescriptor.propertiesToFetch = [\.spanID]
+            let beganIDs = try modelContext.fetch(beganDescriptor).compactMap(\.spanID)
+            guard !beganIDs.isEmpty else { return }
+
+            var endedDescriptor = FetchDescriptor<SDLogEvent>(
                 predicate: #Predicate { $0.eventName == endedName },
+            )
+            endedDescriptor.propertiesToFetch = [\.spanID]
+            let endedSpanIDs = try Set(modelContext.fetch(endedDescriptor).compactMap(\.spanID))
+
+            let candidateIDs: [UUID?] = beganIDs.filter { !endedSpanIDs.contains($0) }
+            guard !candidateIDs.isEmpty else { return }
+
+            let began = try modelContext.fetch(Self.readDescriptor(
+                predicate: #Predicate {
+                    $0.eventName == beganName && candidateIDs.contains($0.spanID)
+                },
             ))
-            let endedSpanIDs = Set(ended.compactMap(\.spanID))
 
             var orphans: [LogRecord] = []
             for row in began {
-                guard let spanID = row.spanID, !endedSpanIDs.contains(spanID) else { continue }
+                guard let spanID = row.spanID else { continue }
                 // A payload that no longer decodes can't prove it wanted to
                 // survive — closing it is the honest fallback.
                 let event = try? JSONDecoder().decode(SpanBegan.self, from: row.payload)
