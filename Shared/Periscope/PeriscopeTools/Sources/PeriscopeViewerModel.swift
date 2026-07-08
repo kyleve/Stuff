@@ -157,13 +157,9 @@ final class PeriscopeViewerModel {
     }
 
     private func path(for scope: ScopeID) -> String {
-        var names: [String] = []
-        var next: ScopeID? = scope
-        while let id = next, let resolved = scopes[id] {
-            names.append(resolved.name)
-            next = resolved.parentID
-        }
-        return names.reversed().joined(separator: " / ")
+        LogScope.ancestry(of: scope) { scopes[$0] }
+            .map(\.name)
+            .joined(separator: " / ")
     }
 
     private var activeQuery: LogQuery {

@@ -71,12 +71,8 @@ final class LogInspectorModel {
 
     func scopePath(for event: StoredLogEvent) -> String {
         guard let primary = event.primaryScope else { return "" }
-        var names: [String] = []
-        var next: ScopeID? = primary
-        while let id = next, let scope = scopes[id] {
-            names.append(scope.name)
-            next = scope.parentID
-        }
-        return names.reversed().joined(separator: " / ")
+        return LogScope.ancestry(of: primary) { scopes[$0] }
+            .map(\.name)
+            .joined(separator: " / ")
     }
 }

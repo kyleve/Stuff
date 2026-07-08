@@ -77,13 +77,9 @@ final class LogTraceModel {
 
     func scopePath(for event: StoredLogEvent) -> String {
         guard let primary = event.primaryScope else { return "" }
-        var names: [String] = []
-        var next: ScopeID? = primary
-        while let id = next, let scope = scopes[id] {
-            names.append(scope.name)
-            next = scope.parentID
-        }
-        return names.reversed().joined(separator: " / ")
+        return LogScope.ancestry(of: primary) { scopes[$0] }
+            .map(\.name)
+            .joined(separator: " / ")
     }
 
     /// Subtree filters for each of the origin's scopes (events within the

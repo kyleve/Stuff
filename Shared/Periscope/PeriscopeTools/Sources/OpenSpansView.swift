@@ -41,13 +41,9 @@ public struct OpenSpansView: View {
 
     private func scopePath(for span: OpenSpan) -> String {
         guard let primary = span.scopes.first else { return "" }
-        var names: [String] = []
-        var next: ScopeID? = primary
-        while let id = next, let scope = system.scope(for: id) {
-            names.append(scope.name)
-            next = scope.parentID
-        }
-        return names.reversed().joined(separator: " / ")
+        return LogScope.ancestry(of: primary) { system.scope(for: $0) }
+            .map(\.name)
+            .joined(separator: " / ")
     }
 }
 

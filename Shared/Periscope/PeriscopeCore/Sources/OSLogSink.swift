@@ -68,13 +68,7 @@ public struct OSLogSink: LogSink {
     private func primaryPath(for record: LogRecord) -> [LogScope] {
         guard let primary = record.scopes.first else { return [] }
         return state.withLock { state in
-            var path: [LogScope] = []
-            var next: ScopeID? = primary
-            while let id = next, let scope = state.scopes[id] {
-                path.append(scope)
-                next = scope.parentID
-            }
-            return path.reversed()
+            LogScope.ancestry(of: primary) { state.scopes[$0] }
         }
     }
 

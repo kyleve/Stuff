@@ -21,4 +21,22 @@ public struct LogScope: Hashable, Codable, Sendable, Identifiable {
     public func child(named name: String) -> LogScope {
         LogScope(id: .derive(parent: id, name: name), name: name, parentID: id)
     }
+
+    /// The ancestor chain ending at `id`, root first, resolved through
+    /// `resolve` (a scope map, the system, or the store). The chain stops
+    /// at the first scope `resolve` can't supply, so an unknown `id`
+    /// yields an empty chain. The shared walk behind every scope-path
+    /// rendering — display joins with `" / "`, exports with `"/"`.
+    public static func ancestry(
+        of id: ScopeID,
+        resolve: (ScopeID) -> LogScope?,
+    ) -> [LogScope] {
+        var chain: [LogScope] = []
+        var next: ScopeID? = id
+        while let current = next, let scope = resolve(current) {
+            chain.append(scope)
+            next = scope.parentID
+        }
+        return chain.reversed()
+    }
 }

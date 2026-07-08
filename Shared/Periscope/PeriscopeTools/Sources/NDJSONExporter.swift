@@ -58,15 +58,12 @@ enum NDJSONExporter {
         return String(decoding: data, as: UTF8.self)
     }
 
-    /// The primary scope's path (root → leaf), e.g. `"app/photos/album-1"`.
+    /// The primary scope's path (root → leaf), e.g. `"app/photos/album-1"`
+    /// — exports join with `"/"` where display surfaces use `" / "`.
     static func scopePath(for event: StoredLogEvent, scopes: [ScopeID: LogScope]) -> String {
         guard let primary = event.primaryScope else { return "" }
-        var names: [String] = []
-        var next: ScopeID? = primary
-        while let id = next, let scope = scopes[id] {
-            names.append(scope.name)
-            next = scope.parentID
-        }
-        return names.reversed().joined(separator: "/")
+        return LogScope.ancestry(of: primary) { scopes[$0] }
+            .map(\.name)
+            .joined(separator: "/")
     }
 }
