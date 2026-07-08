@@ -33,9 +33,10 @@ public struct WhereServices: Sendable {
     public let backup: BackupCoordinator
     /// Data-quality issue detection for the Resolve tab.
     public let resolution: DataIssueScanner
-    /// On-device summary of the last 24 hours of tracked locations. Named
-    /// distinctly from `summary` (the daily notification recap) — this one is an
-    /// on-demand Foundation Models narrative.
+    /// On-device summary of a selectable look-back window of tracked locations
+    /// (see `RecentActivityWindow`). Named distinctly from `summary` (the daily
+    /// notification recap) — this one is an on-demand Foundation Models
+    /// narrative.
     public let recentActivity: RecentActivitySummarizer
     /// The persistence boundary, retained so `dataChangeUpdates()` can hand out
     /// the store's `changes()` stream — the single read-refresh signal every
@@ -155,7 +156,9 @@ public struct WhereServices: Sendable {
             store: store,
             attributor: attributor,
             generator: activitySummaryGenerator,
+            calendar: aggregator.calendar,
             now: now,
+            transitionLimit: RecentActivitySummarizer.defaultTransitionLimit,
         )
 
         self.reports = reports

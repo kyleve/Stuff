@@ -95,10 +95,16 @@ Rules the code enforces and agents must preserve:
   `SDManualDay`. An additive backfill can't downgrade an authoritative row's
   regions, but the newer audit always wins. `DayRelabelView` shows it read-only.
 - **`WhereServices.recentActivity`** is a standalone, on-demand
-  `RecentActivitySummarizer` that summarizes the last 24h of locations on device
-  via Foundation Models (behind the `ActivitySummaryGenerating` seam). It is
-  distinct from `WhereServices.summary` (the daily notification recap); model
-  unavailability surfaces as a typed reason, never a silent empty summary.
+  `RecentActivitySummarizer` that summarizes a selectable look-back window
+  (`RecentActivityWindow`: 24h / week / month / year-so-far) of locations on
+  device via Foundation Models (behind the `ActivitySummaryGenerating` seam). It
+  collapses consecutive same-region readings into transitions and caps them so a
+  long window's prompt still fits the model's context. It is distinct from
+  `WhereServices.summary` (the daily notification recap); model unavailability
+  surfaces as a typed reason, never a silent empty summary. The sheet
+  (`RecentActivitySummaryView`) streams the result in with a typewriter reveal
+  (`TypewriterText`) and shows `AppIconActivityIndicator` — a subtle cousin of
+  the launch splash's pulsing icon — while generating.
 
 ## Localization
 

@@ -108,4 +108,27 @@ struct RecentActivityModelTests {
             return
         }
     }
+
+    @Test func changingWindowRegeneratesForTheNewRange() async throws {
+        let store = try TestStore()
+        let services = makeServices(
+            store: store,
+            generator: StubGenerator(outcome: .text("You were around.")),
+        )
+        // A reading three days ago is outside `.day` but inside `.week`.
+        try await services.journal.ingest(LocationSample(
+            timestamp: Self.now.addingTimeInterval(-3 * 24 * 3600),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 5,
+            source: .gpsSignificantChange,
+        ))
+        let model = RecentActivityModel(services: services)
+
+        await model.load()
+        #expect(model.loadState == .empty)
+
+        model.window = .week
+        await model.load()
+        #expect(model.loadState == .loaded("You were around."))
+    }
 }

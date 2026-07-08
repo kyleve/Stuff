@@ -4,9 +4,9 @@ import LogKit
 
 /// On-device `ActivitySummaryGenerating` backed by Apple's Foundation Models.
 /// Runs entirely on device (no network, no data leaves the phone), which suits
-/// summarizing location history. Reports an `ActivitySummaryUnavailableError`
-/// when the system model can't run so the UI can guide the user rather than
-/// showing a generic failure.
+/// summarizing location history over the selected window. Reports an
+/// `ActivitySummaryUnavailableError` when the system model can't run so the UI
+/// can guide the user rather than showing a generic failure.
 public struct FoundationModelSummaryGenerator: ActivitySummaryGenerating {
     private static let logger = WhereLog.channel(.recentActivitySummarizer)
 
@@ -36,7 +36,9 @@ public struct FoundationModelSummaryGenerator: ActivitySummaryGenerating {
     """
 
     /// Render the structured window into a compact prompt the model can read.
-    /// Times use the current locale/time zone so the summary reads naturally.
+    /// Times use the current locale/time zone so the summary reads naturally,
+    /// and the covered period is described from the interval rather than a fixed
+    /// "last 24 hours" so it stays honest across the selectable windows.
     private static func prompt(for input: RecentActivityInput) -> String {
         let readings = input.stops
             .map { stop in
@@ -47,13 +49,23 @@ public struct FoundationModelSummaryGenerator: ActivitySummaryGenerating {
                 return "- \(time): \(stop.region.localizedName) (\(coordinate))"
             }
             .joined(separator: "\n")
+        let period = periodPhrase(for: input.interval)
 
         return """
-        These are the device's location readings over the last 24 hours, oldest first:
+        These are the device's location readings from \(period), oldest first:
         \(readings)
 
         Summarize where the person was over this period.
         """
+    }
+
+    /// A compact "<start> to <end>" phrase for the covered interval. Not
+    /// user-facing UI copy — it's part of the model prompt — so it stays inline
+    /// like the rest of the prompt rather than routing through a catalog.
+    private static func periodPhrase(for interval: DateInterval) -> String {
+        let start = interval.start.formatted(date: .abbreviated, time: .shortened)
+        let end = interval.end.formatted(date: .abbreviated, time: .shortened)
+        return "\(start) to \(end)"
     }
 
     private static func map(

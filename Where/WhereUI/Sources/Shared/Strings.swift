@@ -1236,16 +1236,104 @@ enum Strings {
 
     // MARK: Recent activity (24h on-device summary)
 
-    static var recentActivityTitle: String {
-        String(localized: "recentActivity.title", defaultValue: "Last 24 hours", bundle: .module)
+    /// The sheet title for the covered window (e.g. "Last 24 hours").
+    static func recentActivityTitle(_ window: RecentActivityWindow) -> String {
+        switch window {
+            case .day:
+                String(
+                    localized: "recentActivity.title.day",
+                    defaultValue: "Last 24 hours",
+                    bundle: .module,
+                )
+            case .week:
+                String(
+                    localized: "recentActivity.title.week",
+                    defaultValue: "Past week",
+                    bundle: .module,
+                )
+            case .month:
+                String(
+                    localized: "recentActivity.title.month",
+                    defaultValue: "Past month",
+                    bundle: .module,
+                )
+            case .yearToDate:
+                String(
+                    localized: "recentActivity.title.yearToDate",
+                    defaultValue: "Year so far",
+                    bundle: .module,
+                )
+        }
     }
 
-    static var recentActivityFooter: String {
+    /// Accessibility label for the window segmented control (the visible
+    /// segments carry the individual window names).
+    static var recentActivityWindowPickerLabel: String {
         String(
-            localized: "recentActivity.footer",
-            defaultValue: "An on-device summary of where you've been in the last 24 hours. Your location never leaves your device.",
+            localized: "recentActivity.window.pickerLabel",
+            defaultValue: "Summary range",
             bundle: .module,
         )
+    }
+
+    /// Short segmented-control label for a window (e.g. "24 Hours", "Week").
+    static func recentActivityWindowLabel(_ window: RecentActivityWindow) -> String {
+        switch window {
+            case .day:
+                String(
+                    localized: "recentActivity.window.day",
+                    defaultValue: "24 Hours",
+                    bundle: .module,
+                )
+            case .week:
+                String(
+                    localized: "recentActivity.window.week",
+                    defaultValue: "Week",
+                    bundle: .module,
+                )
+            case .month:
+                String(
+                    localized: "recentActivity.window.month",
+                    defaultValue: "Month",
+                    bundle: .module,
+                )
+            case .yearToDate:
+                String(
+                    localized: "recentActivity.window.yearToDate",
+                    defaultValue: "Year",
+                    bundle: .module,
+                )
+        }
+    }
+
+    /// Privacy-forward footer describing what the covered window summarizes.
+    static func recentActivityFooter(_ window: RecentActivityWindow) -> String {
+        switch window {
+            case .day:
+                String(
+                    localized: "recentActivity.footer.day",
+                    defaultValue: "An on-device summary of where you've been in the last 24 hours. Your location never leaves your device.",
+                    bundle: .module,
+                )
+            case .week:
+                String(
+                    localized: "recentActivity.footer.week",
+                    defaultValue: "An on-device summary of where you've been over the past week. Your location never leaves your device.",
+                    bundle: .module,
+                )
+            case .month:
+                String(
+                    localized: "recentActivity.footer.month",
+                    defaultValue: "An on-device summary of where you've been over the past month. Your location never leaves your device.",
+                    bundle: .module,
+                )
+            case .yearToDate:
+                String(
+                    localized: "recentActivity.footer.yearToDate",
+                    defaultValue: "An on-device summary of where you've been so far this year. Your location never leaves your device.",
+                    bundle: .module,
+                )
+        }
     }
 
     static var recentActivityLoading: String {
@@ -1268,12 +1356,34 @@ enum Strings {
         )
     }
 
-    static var recentActivityEmptyDescription: String {
-        String(
-            localized: "recentActivity.empty.description",
-            defaultValue: "No locations were recorded in the last 24 hours.",
-            bundle: .module,
-        )
+    /// Empty-state description naming the window that held no locations.
+    static func recentActivityEmptyDescription(_ window: RecentActivityWindow) -> String {
+        switch window {
+            case .day:
+                String(
+                    localized: "recentActivity.empty.description.day",
+                    defaultValue: "No locations were recorded in the last 24 hours.",
+                    bundle: .module,
+                )
+            case .week:
+                String(
+                    localized: "recentActivity.empty.description.week",
+                    defaultValue: "No locations were recorded in the past week.",
+                    bundle: .module,
+                )
+            case .month:
+                String(
+                    localized: "recentActivity.empty.description.month",
+                    defaultValue: "No locations were recorded in the past month.",
+                    bundle: .module,
+                )
+            case .yearToDate:
+                String(
+                    localized: "recentActivity.empty.description.yearToDate",
+                    defaultValue: "No locations were recorded so far this year.",
+                    bundle: .module,
+                )
+        }
     }
 
     static var recentActivityFailedTitle: String {
