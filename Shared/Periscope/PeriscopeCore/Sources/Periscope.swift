@@ -102,6 +102,7 @@ public final class Periscope: LogRecorder, Sendable {
         var globalFloor: LogLevel?
         var subtreeFloors: [ScopeID: LogLevel] = [:]
         var openSpans: [SpanKey: OpenSpan] = [:]
+        var ambientSources: [any AmbientEventSource] = []
         /// The active drain task; `nil` exactly when nothing is draining.
         var drainTask: Task<Void, Never>?
     }
@@ -263,6 +264,12 @@ public final class Periscope: LogRecorder, Sendable {
     /// Resolve a scope the system has seen.
     public func scope(for id: ScopeID) -> LogScope? {
         state.withLock { $0.scopes[id] }
+    }
+
+    /// Keep an ambient source alive for the process lifetime — see
+    /// `startAmbientSource(_:)`.
+    func retainAmbientSource(_ source: some AmbientEventSource) {
+        state.withLock { $0.ambientSources.append(source) }
     }
 
     // MARK: Open spans
