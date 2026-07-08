@@ -13,9 +13,16 @@
 
 ## P1s (Should do)
 ## P2s (Nice to have)
+- fix: A cross-task supersede can deliver a span's `SpanEnded` before its `SpanBegan`: `begin(for:)` registers the span in `openSpans` *before* emitting its began, so a racing `begin` on the same key can record the superseded end first. Both records always arrive (the span-lifecycle fuzz asserts pair completeness), but strict began-before-ended ordering would need the register-and-emit to be atomic.
+
 # Completed issues
 
 ## Second review pass
+- fix: Budgeted `measure` sentinels serialize with the span's end through a per-measure gate, so a sentinel losing the race at the budget boundary can never record a `SpanOverdue` after the `SpanEnded`.
+- refactor: The six copies of scope-path walking (OSLogSink, the three tool models, OpenSpansView, NDJSONExporter) collapse into `LogScope.ancestry(of:resolve:)`; display joins with `" / "`, exports with `"/"` — now documented as deliberate.
+- fix: `showHosted` runs window animations at 100x and restores them, matching `WhereTesting.show`.
+- fix: `PeriscopeViewer` clears its export sheet and failure alert when the store is swapped in place, alongside the model rebuild.
+- test: Span-lifecycle fuzz — seeded concurrent interleavings of emits, `begin`/`end` on shared keys (cross-task supersession), global floor flips, and flushes; asserts per-emitter delivery order under floors, no dangling span halves, an empty open-span registry after cleanup, and scopes-before-records.
 - fix: `events(matching:)` builds its filter predicate as statements (hand-written `PredicateExpressions`, one `let` per condition) instead of one `#Predicate` macro expression — the macro's single inference tree exceeded the type-checker budget on CI's slower runners, and the statement form also removes the two-variant workaround so every filter (including span exit) combines in one predicate.
 - perf: The orphan sweep (app-launch path) fetches only the `spanID` column for its began/ended passes; full rows load exclusively for orphan candidates. (Finding 1.)
 - fix: Inspect-mode changes yield inside the state lock so racing setters can't strand `bufferingNewest(1)` subscribers on a stale value. (Finding 2.)

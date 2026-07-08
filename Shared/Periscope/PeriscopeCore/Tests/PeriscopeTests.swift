@@ -801,6 +801,136 @@ struct PeriscopeTests {
         }
     }
 
+    @Test(arguments: [0xBEA7_0001, 11, 4242, 555_555_555] as [UInt64])
+    func spanLifecyclesSurviveSeededConcurrentInterleavings(seed: UInt64) async {
+        enum FuzzOp: Sendable {
+            case emit(levelIndex: Int)
+            case begin(key: Int)
+            case end(key: Int)
+            case setFloor(index: Int)
+            case flush
+        }
+
+        let levels = 4
+        let floors: [LogLevel?] = [nil, .info, .warning, .fault]
+        let keyCount = 3
+        let taskCount = 4
+        let opsPerTask = 60
+
+        // Generate the whole interleaving script up front so a failing seed
+        // replays exactly.
+        var rng = SeededRandom(seed: seed)
+        var scripts: [[FuzzOp]] = []
+        for _ in 0 ..< taskCount {
+            var script: [FuzzOp] = []
+            for _ in 0 ..< opsPerTask {
+                switch Int.random(in: 0 ..< 100, using: &rng) {
+                    case ..<40:
+                        script.append(.emit(levelIndex: Int.random(in: 0 ..< levels, using: &rng)))
+                    case ..<60:
+                        script.append(.begin(key: Int.random(in: 0 ..< keyCount, using: &rng)))
+                    case ..<75:
+                        script.append(.end(key: Int.random(in: 0 ..< keyCount, using: &rng)))
+                    case ..<92:
+                        script.append(.setFloor(index: Int.random(
+                            in: 0 ..< floors.count,
+                            using: &rng,
+                        )))
+                    default:
+                        script.append(.flush)
+                }
+            }
+            scripts.append(script)
+        }
+
+        let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
+        await withTaskGroup(of: Void.self) { group in
+            for (task, script) in scripts.enumerated() {
+                group.addTask {
+                    // Freeform emits go through a per-task child scope so
+                    // per-emitter order is checkable; span keys stay on the
+                    // shared root scope so begins collide — and supersede —
+                    // across tasks.
+                    let rootLog = Log<AppLogs>(system: system)
+                    let taskLog = rootLog(for: "task-\(task)")
+                    var emitted = 0
+                    for op in script {
+                        switch op {
+                            case let .emit(levelIndex):
+                                let text = "t\(task)-\(emitted)"
+                                switch levelIndex {
+                                    case 0: taskLog.debug(text)
+                                    case 1: taskLog.info(text)
+                                    case 2: taskLog.warning(text)
+                                    default: taskLog.error(text)
+                                }
+                                emitted += 1
+                            case let .begin(key):
+                                rootLog.begin(for: "k\(key)", lifetime: .indefinite)
+                            case let .end(key):
+                                rootLog.end(for: "k\(key)", exit: .success)
+                            case let .setFloor(index):
+                                system.minimumLevel = floors[index]
+                            case .flush:
+                                await system.flush()
+                        }
+                    }
+                }
+            }
+        }
+
+        // Close whatever the scripts left open, then drain.
+        let rootLog = Log<AppLogs>(system: system)
+        for key in 0 ..< keyCount {
+            rootLog.end(for: "k\(key)", exit: .success)
+        }
+        await system.flush()
+        #expect(system.openSpans().isEmpty)
+
+        // Floors only *remove*: each task's delivered freeform messages
+        // stay in emission order (strictly increasing suffixes, no
+        // duplicates), whatever the floor was doing around them.
+        let messages = sink.records.map(\.message)
+        for task in 0 ..< taskCount {
+            let prefix = "t\(task)-"
+            let delivered = messages
+                .filter { $0.hasPrefix(prefix) }
+                .compactMap { Int($0.dropFirst(prefix.count)) }
+            #expect(delivered == delivered.sorted())
+            #expect(Set(delivered).count == delivered.count)
+        }
+
+        // Span pairs never dangle across floor changes or supersession:
+        // every span the sink saw has exactly one began and one ended —
+        // a floored begin silences the whole pair instead. Order within a
+        // pair isn't asserted: a begin registers in openSpans before its
+        // own SpanBegan emit runs, so a racing supersede on the same key
+        // can deliver the end first (recorded in TODOs.md).
+        var lifecycles: [SpanID: [LogRecord]] = [:]
+        for record in sink.records {
+            guard let span = record.spanID else { continue }
+            lifecycles[span, default: []].append(record)
+        }
+        for (span, records) in lifecycles {
+            #expect(records.count == 2, "span \(span) should be a began/ended pair")
+            #expect(records.count(where: { $0.event is SpanBegan }) == 1)
+            #expect(records.count(where: { $0.event is SpanEnded }) == 1)
+        }
+
+        // Scope definitions still precede every record that references them.
+        var defined: Set<ScopeID> = []
+        for delivery in sink.deliveries {
+            switch delivery {
+                case let .scopes(scopes):
+                    defined.formUnion(scopes.map(\.id))
+                case let .records(records):
+                    for record in records {
+                        #expect(record.scopes.allSatisfy(defined.contains))
+                    }
+            }
+        }
+    }
+
     @Test func overflowingThePendingQueueDropsOldestAndReportsTheGap() async throws {
         let gate = GateSink()
         let system = Periscope(
