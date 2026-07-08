@@ -630,6 +630,42 @@ struct PeriscopeTests {
         #expect(expired)
     }
 
+    @Test func anEarlierDeadlineWakesTheWatchdogSooner() async {
+        let system = makeSystem()
+        let log = Log<AppLogs>(system: system)
+
+        // The watchdog is already asleep until the 30s deadline when the
+        // 20ms span opens — only a respawn with the earlier wake time can
+        // expire it within this test's budget.
+        log.begin(for: "slow", lifetime: .bounded(budget: .seconds(30)))
+        log.begin(for: "quick", lifetime: .bounded(budget: .milliseconds(20)))
+
+        let expired = await waitUntil {
+            sink.records.contains { record in
+                guard let ended = record.event as? SpanEnded else { return false }
+                return ended.name == "quick" && ended.exit.mode == .expired
+            }
+        }
+        #expect(expired)
+    }
+
+    @Test func theWatchdogDoesNotKeepDeadSystemsAlive() async {
+        weak var weakSystem: Periscope?
+        do {
+            let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
+            weakSystem = system
+            let log = Log<AppLogs>(system: system)
+            log.begin(for: "long", lifetime: .bounded(budget: .seconds(120)))
+            // Let the drain retire so its (short-lived) strong capture ends.
+            await system.flush()
+        }
+
+        // The watchdog sleeps until the 120s deadline; holding the system
+        // strongly through that sleep would fail this within the budget.
+        let released = await waitUntil { weakSystem == nil }
+        #expect(released)
+    }
+
     // MARK: Drop policy
 
     @Test func overflowNeverDropsScopeDefinitions() async throws {

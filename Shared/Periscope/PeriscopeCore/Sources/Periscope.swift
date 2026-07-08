@@ -463,26 +463,36 @@ public final class Periscope: LogRecorder, Sendable {
             state.watchdogGeneration += 1
             state.watchdogWakeAt = next
             let generation = state.watchdogGeneration
-            state.watchdogTask = Task { await self.runWatchdog(generation: generation) }
+            // Weak self throughout: the watchdog may sleep for minutes, and
+            // it must not keep a discarded system (test suites make many)
+            // alive until its next wake. Strong promotion is per-call only,
+            // never held across the sleep.
+            state.watchdogTask = Task { [weak self] in
+                while true {
+                    guard let wakeAt = self?.nextWatchdogWake(generation: generation) else {
+                        return
+                    }
+                    try? await Task.sleep(until: wakeAt, clock: .continuous)
+                    if Task.isCancelled { return }
+                    self?.sweepOverdueSpans(now: ContinuousClock().now)
+                }
+            }
         }
     }
 
-    private func runWatchdog(generation: Int) async {
-        while true {
-            let wakeAt: ContinuousClock.Instant? = state.withLock { state in
-                guard state.watchdogGeneration == generation else { return nil }
-                guard let next = Self.earliestDeadline(in: state) else {
-                    state.watchdogTask = nil
-                    state.watchdogWakeAt = nil
-                    return nil
-                }
-                state.watchdogWakeAt = next
-                return next
+    /// The watchdog's loop head: the next deadline to sleep until, or `nil`
+    /// when this generation is stale or nothing bounded remains open (in
+    /// which case the watchdog retires).
+    private func nextWatchdogWake(generation: Int) -> ContinuousClock.Instant? {
+        state.withLock { state in
+            guard state.watchdogGeneration == generation else { return nil }
+            guard let next = Self.earliestDeadline(in: state) else {
+                state.watchdogTask = nil
+                state.watchdogWakeAt = nil
+                return nil
             }
-            guard let wakeAt else { return }
-            try? await Task.sleep(until: wakeAt, clock: .continuous)
-            if Task.isCancelled { return }
-            sweepOverdueSpans(now: ContinuousClock().now)
+            state.watchdogWakeAt = next
+            return next
         }
     }
 

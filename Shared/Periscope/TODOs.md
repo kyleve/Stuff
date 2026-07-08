@@ -15,6 +15,12 @@
 ## P2s (Nice to have)
 # Completed issues
 
+## Second review pass
+- perf: The orphan sweep (app-launch path) fetches only the `spanID` column for its began/ended passes; full rows load exclusively for orphan candidates. (Finding 1.)
+- fix: Inspect-mode changes yield inside the state lock so racing setters can't strand `bufferingNewest(1)` subscribers on a stale value. (Finding 2.)
+- fix: Span pairs floor together — the begin-time floor decision (`OpenSpan.beganRecorded`) governs the whole lifecycle via `LogRecord.bypassesFloors`; no dangling halves across floor changes. (Finding 3.)
+- fix: The span watchdog holds the system weakly (strong promotion per call, never across sleeps), so discarded systems release immediately; adds the missing respawn-on-earlier-deadline test. (Finding 4.)
+
 ## P2s (Nice to have)
 - fix: `NetworkPathAmbientSource.start` cancels the prior monitor when restarted (it used to keep running and logging forever); `AmbientEventSource.start` documents its called-exactly-once contract.
 - refactor: Tool views (`PeriscopeViewer`, `LogInspectorView`, `LogTraceView`, `LogEventDetailView`) rebuild their models when identity-relevant inputs change in place — `.task(id:)` keyed on store identity plus each view's inputs, verified by a store-swap hosting test against `changes()` observer counts.
