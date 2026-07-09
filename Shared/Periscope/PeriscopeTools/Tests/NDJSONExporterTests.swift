@@ -37,6 +37,22 @@ struct NDJSONExporterTests {
         )
     }
 
+    @Test func unparseablePayloadsAreMarkedNotOmitted() throws {
+        // Persisted payloads are JSONEncoder output, so garbage bytes mean
+        // on-disk corruption — the export line must say a payload existed
+        // and didn't survive, not silently drop the key.
+        let line = NDJSONExporter.line(
+            for: stored(message: "hello", date: date(1), payload: Data([0xFF, 0x00])),
+            scopes: scopes,
+        )
+
+        let object = try #require(
+            try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+        )
+        #expect(object["payload"] == nil)
+        #expect(object["payloadError"] as? String == "unparseable (2 bytes)")
+    }
+
     @Test func exportsOneLinePerEventOldestFirst() {
         let export = NDJSONExporter.export(
             events: [

@@ -41,10 +41,15 @@ enum NDJSONExporter {
         if let exitMode = event.spanExitMode {
             object["spanExit"] = exitMode.rawValue
         }
-        if !event.payload.isEmpty,
-           let payload = try? JSONSerialization.jsonObject(with: event.payload)
-        {
-            object["payload"] = payload
+        if !event.payload.isEmpty {
+            if let payload = try? JSONSerialization.jsonObject(with: event.payload) {
+                object["payload"] = payload
+            } else {
+                // Persisted payloads are JSONEncoder output, so this means
+                // on-disk corruption — the export must say the payload
+                // existed and didn't survive, not silently omit the key.
+                object["payloadError"] = "unparseable (\(event.payload.count) bytes)"
+            }
         }
         guard let data = try? JSONSerialization.data(
             withJSONObject: object,
