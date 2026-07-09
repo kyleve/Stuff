@@ -83,8 +83,11 @@ Periscope.shared.startDefaultAmbientSources()
   `SpanBegan`/`SpanEnded` events with the exit derived automatically
   (return → `.success`, throw → `.failure`, `CancellationError` →
   `.cancelled`), and an optional `budget:` fires a `SpanOverdue` warning
-  while the closure hangs past it; `begin(for:lifetime:relaunch:)`/
-  `end(for:exit:)` for open-ended spans. Every span provably ends: bounded spans expire past
+  while the closure hangs past it. Names resolve against `Event.SpanName`
+  (defaults to `String`); declare a `SpanName` enum on the event type for
+  compiler-checked tokens — the recommended style for structured events.
+  Open-ended flows use `begin(for:lifetime:relaunch:)`/`end(for:exit:)`.
+  Every span provably ends: bounded spans expire past
   their budget (watchdog, `.expired`), re-begins supersede the open span
   (`.superseded`), and a relaunch closes `endsWithProcess` spans the dead
   process left open (`.orphaned`, duration unknowable). Durations use

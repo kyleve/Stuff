@@ -278,8 +278,10 @@ enum SpanSignposts {
 }
 
 /// Timing: measure closures, and open-ended begin/end spans keyed by
-/// identifier. Span names are typed tokens (`log.measure(.saveEvent)`), not
-/// raw strings.
+/// identifier. Span names resolve against `Event.SpanName`, which defaults
+/// to `String` — declare a `SpanName` enum on the event type for
+/// compiler-checked tokens (`log.measure(.saveEvent)`), the recommended
+/// style for structured events; freeform loggers measure ad hoc.
 extension Log {
     /// Times `body` between paired ``SpanBegan``/``SpanEnded`` events
     /// sharing one ``SpanID``. The exit is derived automatically: return →
