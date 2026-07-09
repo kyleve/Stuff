@@ -29,8 +29,16 @@ extension LogAttachment {
             "domain": bridged.domain,
             "code": String(bridged.code),
         ]
-        // Encoding [String: String] cannot fail.
-        let data = (try? JSONEncoder().encode(payload)) ?? Data()
+        // Encoding [String: String] cannot fail today; if a refactor ever
+        // makes it possible, debug builds should stop rather than persist
+        // an attachment that reads as a successful capture.
+        let data: Data
+        do {
+            data = try JSONEncoder().encode(payload)
+        } catch {
+            assertionFailure("Encoding the error payload failed: \(error)")
+            data = Data("{}".utf8)
+        }
         return LogAttachment(name: name, contentType: "application/json", data: data)
     }
 
