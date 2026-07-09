@@ -75,4 +75,6 @@ event sources). Tests stay flat, named 1:1 with their source files.
 
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
 (`PeriscopeCoreTests`). Use in-memory stores, fresh `Periscope` systems per
-test (never the shared singleton), and injected clocks.
+test (never the shared singleton), and injected clocks. Note that
+`Log<Event>()` defaults to `.shared` — a deliberate ergonomics exception to
+the no-Core-defaults rule — so tests must always pass `system:` explicitly.
