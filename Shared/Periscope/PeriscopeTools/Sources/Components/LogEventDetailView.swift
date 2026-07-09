@@ -33,7 +33,7 @@ struct LogEventDetailView: View {
                     LabeledContent("Exit") {
                         HStack(spacing: 6) {
                             SpanExitBadge(mode: exitMode)
-                            if let reason = exitReason {
+                            if let reason = event.exitReason {
                                 Text(reason)
                             }
                         }
@@ -59,7 +59,7 @@ struct LogEventDetailView: View {
                 }
             }
 
-            if let payload = prettyPayload {
+            if let payload = event.prettyPayload {
                 Section("Payload") {
                     Text(payload)
                         .font(.caption.monospaced())
@@ -120,19 +120,21 @@ struct LogEventDetailView: View {
                 }
         }
     }
+}
 
+extension StoredLogEvent {
     /// The exit's freeform reason, from the payload (the mode is columnar,
     /// the reason is not); `nil` when there is none or the payload no
     /// longer decodes.
-    private var exitReason: String? {
-        (try? event.decode(SpanEnded.self))?.exit.reason
+    var exitReason: String? {
+        (try? decode(SpanEnded.self))?.exit.reason
     }
 
     /// The stored payload, pretty-printed; `nil` when the event carried no
     /// structured fields or the payload isn't JSON.
-    private var prettyPayload: String? {
-        guard !event.payload.isEmpty,
-              let object = try? JSONSerialization.jsonObject(with: event.payload),
+    var prettyPayload: String? {
+        guard !payload.isEmpty,
+              let object = try? JSONSerialization.jsonObject(with: payload),
               let data = try? JSONSerialization.data(
                   withJSONObject: object,
                   options: [.prettyPrinted, .sortedKeys],
