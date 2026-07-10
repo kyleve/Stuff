@@ -1,5 +1,5 @@
 //
-//  XCTestCaseAdditions.swift
+//  BroadwayTesting.swift
 //  BroadwayTesting
 //
 
@@ -11,6 +11,23 @@ struct ShowError: Error, CustomStringConvertible {
     init(_ description: String) {
         self.description = description
     }
+}
+
+/// Returns the test host's key window, or the first window in the first scene.
+///
+/// Uses scene enumeration (rather than `UIApplication.shared.delegate?.window`)
+/// so `show` works inside the shared, scene-based `StuffTestHost`, whose window
+/// lives on its `UIWindowSceneDelegate`, not the app delegate.
+@MainActor
+public func hostKeyWindow() -> UIWindow? {
+    UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+        .flatMap(\.windows)
+        .first { $0.isKeyWindow }
+        ?? UIApplication.shared.connectedScenes
+        .compactMap { $0 as? UIWindowScene }
+        .flatMap(\.windows)
+        .first
 }
 
 /// Shows a view controller in the test host application's window for the
@@ -26,7 +43,7 @@ public func show<ViewController: UIViewController>(
     loadAndPlaceView: Bool = true,
     perform test: (ViewController) throws -> Void,
 ) throws {
-    guard let rootVC = UIApplication.shared.delegate?.window??.rootViewController else {
+    guard let rootVC = hostKeyWindow()?.rootViewController else {
         throw ShowError("No root view controller in test host.")
     }
 
