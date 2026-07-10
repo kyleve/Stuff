@@ -52,6 +52,35 @@ func unitTests(
     )
 }
 
+/// Like `unitTests`, but for the Broadway modules: links `BroadwayTesting`
+/// (not `WhereTesting`) so Broadway's hosted test bundles don't drag in the
+/// Where domain. Still runs inside the shared `StuffTestHost`.
+func broadwayUnitTests(
+    name: String,
+    bundleIdSuffix: String,
+    productDependency: String,
+    sources: ProjectDescription.SourceFilesList,
+    extraPackageProducts: [String] = [],
+) -> Target {
+    var dependencies: [TargetDependency] = [
+        .package(product: productDependency),
+        .package(product: "BroadwayTesting"),
+        .target(name: "StuffTestHost"),
+    ]
+    for product in extraPackageProducts {
+        dependencies.append(.package(product: product))
+    }
+    return .target(
+        name: name,
+        destinations: destinations,
+        product: .unitTests,
+        bundleId: "com.stuff.\(bundleIdSuffix).tests",
+        deploymentTargets: deployment,
+        sources: sources,
+        dependencies: dependencies,
+    )
+}
+
 /// A shared scheme that builds and tests a single unit-test bundle.
 func testScheme(name: String) -> Scheme {
     .scheme(
@@ -268,6 +297,49 @@ let project = Project(
                 "SwiftDataInspector",
             ],
         ),
+        .target(
+            name: "BroadwayCatalog",
+            destinations: destinations,
+            product: .app,
+            bundleId: "com.stuff.broadway.catalog",
+            deploymentTargets: deployment,
+            infoPlist: .extendingDefault(with: [
+                "UILaunchScreen": .dictionary([:]),
+                "UIApplicationSupportsIndirectInputEvents": .boolean(true),
+            ]),
+            sources: ["Shared/Broadway/BroadwayCatalog/Sources/**"],
+            resources: ["Shared/Broadway/BroadwayCatalog/Resources/**"],
+            dependencies: [
+                .package(product: "BroadwayUI"),
+            ],
+        ),
+        .target(
+            name: "BroadwayCatalogTests",
+            destinations: destinations,
+            product: .unitTests,
+            bundleId: "com.stuff.broadway.catalog.tests",
+            deploymentTargets: deployment,
+            sources: ["Shared/Broadway/BroadwayCatalog/Tests/**"],
+            dependencies: [
+                .target(name: "BroadwayCatalog"),
+                .package(product: "BroadwayTesting"),
+            ],
+        ),
+        broadwayUnitTests(
+            name: "BroadwayCoreTests",
+            bundleIdSuffix: "broadway.core",
+            productDependency: "BroadwayCore",
+            sources: ["Shared/Broadway/BroadwayCore/Tests/**"],
+        ),
+        broadwayUnitTests(
+            name: "BroadwayUITests",
+            bundleIdSuffix: "broadway.ui",
+            productDependency: "BroadwayUI",
+            sources: ["Shared/Broadway/BroadwayUI/Tests/**"],
+            extraPackageProducts: [
+                "BroadwayCore",
+            ],
+        ),
     ],
     // Tuist's autogeneration doesn't emit working standalone test actions for
     // these unit-test bundles (only the aggregate `Stuff-Workspace` scheme
@@ -303,6 +375,10 @@ let project = Project(
                 "WhereCoreTests",
                 "WhereTests",
                 "WhereUITests",
+                "BroadwayCatalog",
+                "BroadwayCoreTests",
+                "BroadwayUITests",
+                "BroadwayCatalogTests",
             ]),
             testAction: .targets([
                 "StuffCoreTests",
@@ -314,6 +390,9 @@ let project = Project(
                 "WhereCoreTests",
                 "WhereTests",
                 "WhereUITests",
+                "BroadwayCoreTests",
+                "BroadwayUITests",
+                "BroadwayCatalogTests",
             ]),
         ),
         testScheme(name: "StuffCoreTests"),
@@ -325,5 +404,8 @@ let project = Project(
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
+        testScheme(name: "BroadwayCoreTests"),
+        testScheme(name: "BroadwayUITests"),
+        testScheme(name: "BroadwayCatalogTests"),
     ],
 )
