@@ -1,12 +1,20 @@
-# BroadwayUI
+# BroadwayUI – Module Shape
 
-Reusable UI component library. Depends on BroadwayCore.
+UIKit + SwiftUI components that own and propagate a `BContext` down the view
+hierarchy — `BRootViewController` (root container + trait observation) and
+`BTraitOverridesViewController` (scoped overrides). Depends on **BroadwayCore**.
+See [`README.md`](README.md).
 
-## Key Types
+Complements the root [`AGENTS.md`](../../../AGENTS.md) and the group
+[`../AGENTS.md`](../AGENTS.md). Read those first.
 
-- **BRootViewController** — Root container view controller that propagates BContext and traits to its children.
+## Scope & invariants
 
-## Conventions
+- **Shared components only** — app-specific views belong in BroadwayCatalog.
+- **`BRootViewController` defers setup** until it enters a valid hierarchy
+  (`viewIsAppearing`); `context` is `nil` before then, and the controller
+  publishes the context to descendants through `traitOverrides.bContext`.
+- Public API is `public`.
 
-- Mark all public API as `public`.
-- UI components go in `Sources/`. This is the shared component library — app-specific views belong in BroadwayCatalog.
+Tests: `BroadwayUITests` in `StuffTestHost`, linking `BroadwayTesting`
+(`tuist test BroadwayUITests`).

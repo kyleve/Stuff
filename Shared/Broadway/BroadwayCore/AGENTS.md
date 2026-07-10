@@ -1,18 +1,20 @@
-# BroadwayCore
+# BroadwayCore – Module Shape
 
-Foundational utilities and shared logic. All other frameworks depend on this module.
+Foundation of the Broadway stack: the `BContext` environment (traits, themes,
+lazily-cached stylesheets) plus supporting value types (`AnyEquatable`,
+`CopyOnWrite`, `TypeIdentifier`, `EquatableIgnored`). Foundation + UIKit; no app
+or sibling-module imports. See [`README.md`](README.md).
 
-## Key Types
+Complements the root [`AGENTS.md`](../../../AGENTS.md) and the group
+[`../AGENTS.md`](../AGENTS.md). Read those first.
 
-- **BContext** — Root environment container with type-keyed themes, traits, and stylesheets.
-- **BThemes** / **BTraits** — Type-keyed containers for theme and trait values.
-- **BStylesheets** — Lazy cached stylesheet resolver.
-- **BAccessibility** — Accessibility snapshot and observer.
-- **AnyEquatable** — Type-erased Equatable wrapper.
-- **CopyOnWrite** — COW property wrapper.
-- **TypeIdentifier** — Lightweight type-keyed identifier.
+## Scope & invariants
 
-## Conventions
+- **Public API is `public`.** `BContext+UITraits.swift` bridges to
+  `UITraitDefinition` under `#if canImport(UIKit)`.
+- **`BContext` keeps its `BStylesheets` cache in sync.** Every `didSet` on
+  `baseTraits` / `traitOverrides` / `themes` refreshes it; `stylesheets` is
+  `@EquatableIgnored`, so it stays out of equality.
+- **`@_spi(CopyOnWrite)`** exposes copy-on-write internals for tests only.
 
-- Mark all public API as `public`.
-- `BContext+UITraits.swift` bridges to `UITraitDefinition` via `#if canImport(UIKit)`.
+Tests: `BroadwayCoreTests` in `StuffTestHost` (`tuist test BroadwayCoreTests`).

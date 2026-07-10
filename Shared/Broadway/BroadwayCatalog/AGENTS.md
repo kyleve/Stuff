@@ -1,13 +1,18 @@
-# BroadwayCatalog
+# BroadwayCatalog – Module Shape
 
-The catalog app — a living showcase of BroadwayUI components. Depends on BroadwayUI.
+The catalog **app** — a showcase of BroadwayUI components. Depends on
+**BroadwayUI**. Entry point `BroadwayApp.swift` (`@main`). See
+[`README.md`](README.md).
 
-## Structure
+Complements the root [`AGENTS.md`](../../../AGENTS.md) and the group
+[`../AGENTS.md`](../AGENTS.md). Read those first.
 
-- `Sources/` — App views and logic. Entry point is `BroadwayApp.swift` (`@main`).
-- `Resources/` — Asset catalogs, localization files, and other bundled resources.
+## Scope
 
-## Conventions
+- App-specific views live here, not in BroadwayUI. Resources bundle via the
+  `Resources/**` glob in [`Project.swift`](../../../Project.swift).
+- Declared as a Tuist `.app` target (`com.stuff.broadway.catalog`),
+  iPhone/iPad destinations.
 
-- App-specific views go here, not in BroadwayUI.
-- Resources are bundled via the `Resources/**` glob in `Project.swift`.
+Tests: `BroadwayCatalogTests` in `StuffTestHost`
+(`tuist test BroadwayCatalogTests`).
