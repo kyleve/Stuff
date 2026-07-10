@@ -90,7 +90,9 @@ public enum BContentSizeCategory: Equatable, Hashable, Comparable, Sendable {
 extension BContentSizeCategory: BTraitsValue {
     public static let defaultValue: BContentSizeCategory = .large
 
-    @MainActor public static func currentValue(from viewController: UIViewController) -> BContentSizeCategory {
+    @MainActor public static func currentValue(from viewController: UIViewController)
+        -> BContentSizeCategory
+    {
         .from(viewController.traitCollection.preferredContentSizeCategory)
     }
 

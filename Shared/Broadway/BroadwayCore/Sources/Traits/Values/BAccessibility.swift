@@ -155,7 +155,8 @@ extension BAccessibility: BTraitsValue {
 extension BAccessibility {
     /// A provider which returns the current accessibility settings on the device.
     ///
-    /// Instead of accessing `UIAccessibility.{...}` directly, utilize `BAccessibility.systemSettings`.
+    /// Instead of accessing `UIAccessibility.{...}` directly, utilize
+    /// `BAccessibility.systemSettings`.
     public protocol SettingsProvider: AnyObject, Sendable {
         // MARK: Assistive Technologies
 

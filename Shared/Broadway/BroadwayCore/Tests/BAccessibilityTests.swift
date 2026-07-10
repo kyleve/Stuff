@@ -252,9 +252,10 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var callCount = 0
 
-        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { _, _ in
-            callCount += 1
-        }
+        let observer = BAccessibility
+            .Observer(notificationCenter: center, settingsProvider: mock) { _, _ in
+                callCount += 1
+            }
         observer.start()
         observer.stop()
 
@@ -272,9 +273,10 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var callCount = 0
 
-        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { _, _ in
-            callCount += 1
-        }
+        let observer = BAccessibility
+            .Observer(notificationCenter: center, settingsProvider: mock) { _, _ in
+                callCount += 1
+            }
         observer.start()
 
         mock.isVoiceOverRunning = true
@@ -291,9 +293,10 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var received: (old: BAccessibility, new: BAccessibility)?
 
-        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { old, new in
-            received = (old, new)
-        }
+        let observer = BAccessibility
+            .Observer(notificationCenter: center, settingsProvider: mock) { old, new in
+                received = (old, new)
+            }
         observer.start()
 
         mock.isVoiceOverRunning = true
@@ -311,9 +314,10 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var callCount = 0
 
-        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { _, _ in
-            callCount += 1
-        }
+        let observer = BAccessibility
+            .Observer(notificationCenter: center, settingsProvider: mock) { _, _ in
+                callCount += 1
+            }
         observer.start()
 
         center.post(name: UIAccessibility.voiceOverStatusDidChangeNotification, object: nil)
@@ -329,9 +333,10 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var snapshots: [(old: BAccessibility, new: BAccessibility)] = []
 
-        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { old, new in
-            snapshots.append((old, new))
-        }
+        let observer = BAccessibility
+            .Observer(notificationCenter: center, settingsProvider: mock) { old, new in
+                snapshots.append((old, new))
+            }
         observer.start()
 
         mock.isVoiceOverRunning = true
@@ -358,9 +363,10 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var callCount = 0
 
-        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { _, _ in
-            callCount += 1
-        }
+        let observer = BAccessibility
+            .Observer(notificationCenter: center, settingsProvider: mock) { _, _ in
+                callCount += 1
+            }
         observer.start()
         observer.stop()
 
@@ -376,9 +382,10 @@ struct BAccessibilitySettingsProviderTests {
         let mock = MockSettingsProvider()
         var received: (old: BAccessibility, new: BAccessibility)?
 
-        let observer = BAccessibility.Observer(notificationCenter: center, settingsProvider: mock) { old, new in
-            received = (old, new)
-        }
+        let observer = BAccessibility
+            .Observer(notificationCenter: center, settingsProvider: mock) { old, new in
+                received = (old, new)
+            }
 
         mock.isVoiceOverRunning = true
         observer.start()

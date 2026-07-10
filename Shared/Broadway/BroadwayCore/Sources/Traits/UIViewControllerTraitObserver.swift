@@ -31,7 +31,10 @@ public final class UIViewControllerTraitObserver: BTraitsValueObserver {
     public func start() {
         guard registration == nil, let viewController else { return }
 
-        registration = viewController.registerForTraitChanges(uiTraits) { [weak self] (vc: UIViewController, _: UITraitCollection) in
+        registration = viewController.registerForTraitChanges(uiTraits) { [weak self] (
+            vc: UIViewController,
+            _: UITraitCollection,
+        ) in
             self?.onChange(vc)
         }
     }

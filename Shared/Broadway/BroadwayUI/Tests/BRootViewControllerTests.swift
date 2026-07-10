@@ -76,13 +76,17 @@ import UIKit
     @Test("Trait override container preserves inherited base traits and themes on screen")
     func traitOverridesPreserveInheritedContextAtLeaf() throws {
         try show(BRootViewController {
-            BTraitOverridesViewController(set: \.accessibility, to: BAccessibility(isVoiceOverRunning: true)) {
+            BTraitOverridesViewController(
+                set: \.accessibility,
+                to: BAccessibility(isVoiceOverRunning: true),
+            ) {
                 UIViewController()
             }
         }) { root in
             root.view.layoutIfNeeded()
             guard
-                let overridesVC = root.children.first as? BTraitOverridesViewController<UIViewController>,
+                let overridesVC = root.children
+                .first as? BTraitOverridesViewController<UIViewController>,
                 let leaf = overridesVC.content,
                 let rootContext = root.context
             else {
@@ -100,13 +104,17 @@ import UIKit
     @Test("Trait override container publishes full inherited context to traitOverrides")
     func traitOverridesPublishedContextPreservesBaseAndThemes() throws {
         try show(BRootViewController {
-            BTraitOverridesViewController(set: \.accessibility, to: BAccessibility(isVoiceOverRunning: true)) {
+            BTraitOverridesViewController(
+                set: \.accessibility,
+                to: BAccessibility(isVoiceOverRunning: true),
+            ) {
                 UIViewController()
             }
         }) { root in
             root.view.layoutIfNeeded()
             guard
-                let overridesVC = root.children.first as? BTraitOverridesViewController<UIViewController>,
+                let overridesVC = root.children
+                .first as? BTraitOverridesViewController<UIViewController>,
                 let rootContext = root.context
             else {
                 Issue.record("Expected override container and root context")

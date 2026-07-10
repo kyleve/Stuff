@@ -40,7 +40,9 @@ public struct BStylesheets: Equatable, @unchecked Sendable {
     /// - Throws: ``StylesheetError/cyclicDependency(path:)`` if creation triggers
     ///   a dependency cycle, or ``StylesheetError/creationFailed(type:underlying:)``
     ///   if the stylesheet's initializer throws.
-    public func get<Stylesheet: BStylesheet>(_: Stylesheet.Type) throws(StylesheetError) -> Stylesheet {
+    public func get<Stylesheet: BStylesheet>(_: Stylesheet
+        .Type) throws(StylesheetError) -> Stylesheet
+    {
         let key = Key(
             stylesheet: .init(Stylesheet.self),
             traits: traits,

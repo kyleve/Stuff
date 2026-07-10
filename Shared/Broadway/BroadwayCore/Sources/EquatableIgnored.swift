@@ -9,9 +9,11 @@ import Foundation
 
 /// A property wrapper that ignores the wrapped value when comparing for equality.
 ///
-/// Use `@EquatableIgnored` to mark properties that should not affect the result of `==` when the enclosing type conforms to `Equatable`.
+/// Use `@EquatableIgnored` to mark properties that should not affect the result of `==` when the
+/// enclosing type conforms to `Equatable`.
 ///
-/// The equality operator (`==`) for this wrapper always returns `true`, regardless of the underlying value.
+/// The equality operator (`==`) for this wrapper always returns `true`, regardless of the
+/// underlying value.
 ///
 /// ```swift
 /// struct Example: Equatable {
