@@ -400,3 +400,42 @@ struct BAccessibilitySettingsProviderTests {
         observer.stop()
     }
 }
+
+// MARK: - changes() Stream Tests
+
+@MainActor struct BAccessibilityChangesTests {
+    @Test("changes() emits a fresh snapshot when a provider value changes")
+    func emitsOnChange() async {
+        let center = NotificationCenter()
+        let mock = MockSettingsProvider()
+        var iterator = BAccessibility
+            .changes(notificationCenter: center, with: mock)
+            .makeAsyncIterator()
+
+        mock.isBoldTextEnabled = true
+        center.post(name: UIAccessibility.boldTextStatusDidChangeNotification, object: nil)
+
+        let snapshot = await iterator.next()
+        #expect(snapshot?.isBoldTextEnabled == true)
+    }
+
+    @Test("changes() does not emit when nothing changed")
+    func noEmitWithoutChange() async {
+        let center = NotificationCenter()
+        let mock = MockSettingsProvider()
+        var iterator = BAccessibility
+            .changes(notificationCenter: center, with: mock)
+            .makeAsyncIterator()
+
+        // A notification with no underlying change must not yield; force a real
+        // change afterward so the awaited value is the second post, proving the
+        // first was dropped.
+        center.post(name: UIAccessibility.boldTextStatusDidChangeNotification, object: nil)
+        mock.isReduceMotionEnabled = true
+        center.post(name: UIAccessibility.reduceMotionStatusDidChangeNotification, object: nil)
+
+        let snapshot = await iterator.next()
+        #expect(snapshot?.isReduceMotionEnabled == true)
+        #expect(snapshot?.isBoldTextEnabled == false)
+    }
+}
