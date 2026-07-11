@@ -291,6 +291,8 @@ let project = Project(
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
             extraPackageProducts: [
+                "BroadwayCore",
+                "BroadwayUI",
                 "LifecycleKit",
                 "LogViewerUI",
                 "RegionKit",

@@ -8,12 +8,14 @@ struct LocationStatusRow: View {
     let status: LocationAuthorizationStatus
     let isTracking: Bool
 
+    @Environment(\.whereStyle) private var whereStyle
+
     var body: some View {
-        HStack(spacing: UIConstants.Spacings.large) {
+        HStack(spacing: whereStyle.spacing.large) {
             Image(systemName: presentation.symbol)
                 .font(.title3)
                 .foregroundStyle(presentation.tint)
-                .frame(width: UIConstants.Size.statusIconWidth)
+                .frame(width: whereStyle.size.statusIconWidth)
                 .accessibilityHidden(true)
 
             Text(presentation.title)

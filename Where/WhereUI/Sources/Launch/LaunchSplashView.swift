@@ -22,6 +22,7 @@ import SwiftUI
 /// static frame, and the caption appears without a fade.
 struct LaunchSplashView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.whereStyle) private var whereStyle
     @State private var pulsing = false
     @State private var showCaption: Bool
 
@@ -51,7 +52,7 @@ struct LaunchSplashView: View {
                 VStack {
                     Spacer()
                     caption
-                        .padding(.bottom, UIConstants.Size.launchCaptionBottomInset)
+                        .padding(.bottom, whereStyle.size.launchCaptionBottomInset)
                 }
                 .transition(.opacity)
             }
@@ -76,7 +77,7 @@ struct LaunchSplashView: View {
     /// and pulsing icon already say "working", so this is just text, pinned
     /// light since the backdrop is always dark.
     private var caption: some View {
-        VStack(spacing: UIConstants.Spacings.small) {
+        VStack(spacing: whereStyle.spacing.small) {
             Text(Strings.migrationTitle)
                 .font(.headline)
             Text(Strings.migrationSubtitle)
@@ -85,7 +86,7 @@ struct LaunchSplashView: View {
         }
         .foregroundStyle(.white)
         .multilineTextAlignment(.center)
-        .padding(.horizontal, UIConstants.Spacings.xxxLarge)
+        .padding(.horizontal, whereStyle.spacing.xxxLarge)
     }
 
     /// A subtle vignette — a touch lighter at the center, falling to black — so
@@ -101,8 +102,8 @@ struct LaunchSplashView: View {
     }
 
     private func icon(named name: String) -> some View {
-        let cornerRadius = UIConstants.Size.launchIcon * AppIconImage.cornerRadiusRatio
-        return AppIconImage(name: name, size: UIConstants.Size.launchIcon, bordered: false)
+        let cornerRadius = whereStyle.size.launchIcon * AppIconImage.cornerRadiusRatio
+        return AppIconImage(name: name, size: whereStyle.size.launchIcon, bordered: false)
             .scaleEffect(pulsing ? 1.1 : 1)
             .background {
                 // A soft brand-tinted glow that breathes with the pulse.

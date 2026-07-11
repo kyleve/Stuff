@@ -16,6 +16,8 @@ struct PrimaryView: View {
     /// with the view's lifecycle; a no-op on hardware without device motion.
     @State private var tilt = TiltProvider()
 
+    @Environment(\.whereStyle) private var whereStyle
+
     /// Identifies which region's calendar to present as a sheet. `Region` isn't
     /// `Identifiable`, and `.sheet(item:)` needs identity.
     private struct CalendarFocus: Identifiable {
@@ -134,8 +136,8 @@ struct PrimaryView: View {
 
     private var content: some View {
         ScrollView {
-            GlassEffectContainer(spacing: UIConstants.Spacings.xxLarge) {
-                VStack(spacing: UIConstants.Spacings.xxLarge) {
+            GlassEffectContainer(spacing: whereStyle.spacing.xxLarge) {
+                VStack(spacing: whereStyle.spacing.xxLarge) {
                     ForEach(report.ranking.primary) { item in
                         Button {
                             calendarFocus = CalendarFocus(region: item.region)

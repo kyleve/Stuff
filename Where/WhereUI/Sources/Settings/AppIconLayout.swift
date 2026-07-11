@@ -2,7 +2,7 @@ import CoreGraphics
 
 /// Container-relative sizing for the app-icon picker grid and the full-screen
 /// preview. Both flex with the space they're given instead of using fixed point
-/// sizes, and every result is clamped to a maximum (see `UIConstants.Size`) so
+/// sizes, and every result is clamped to a maximum (see `WhereStylesheet.Size`) so
 /// icons never grow unbounded on large displays like iPad.
 enum AppIconLayout {
     /// Fewest grid columns, so phones keep the familiar two-up layout even when
@@ -20,12 +20,12 @@ enum AppIconLayout {
 
     /// Column count and per-thumbnail edge for the picker grid at `width`.
     static func gridMetrics(containerWidth width: CGFloat) -> AppIconGridMetrics {
-        let spacing = UIConstants.Spacings.xxLarge
+        let spacing = WhereStylesheet.default.spacing.xxLarge
         let available = max(width - spacing * 2, 0)
         let columnsThatFit = Int((available + spacing) / (idealGridIcon + spacing))
         let columnCount = max(minGridColumns, columnsThatFit)
         let columnWidth = (available - spacing * CGFloat(columnCount - 1)) / CGFloat(columnCount)
-        let iconSize = min(max(columnWidth, 0), UIConstants.Size.appIconGridMax)
+        let iconSize = min(max(columnWidth, 0), WhereStylesheet.default.size.appIconGridMax)
         return AppIconGridMetrics(columnCount: columnCount, iconSize: iconSize)
     }
 
@@ -34,7 +34,7 @@ enum AppIconLayout {
         let bounded = min(
             size.width * previewIconWidthFraction,
             size.height * previewIconHeightFraction,
-            UIConstants.Size.appIconPreviewLargeMax,
+            WhereStylesheet.default.size.appIconPreviewLargeMax,
         )
         return max(bounded, 0)
     }

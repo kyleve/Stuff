@@ -12,7 +12,7 @@ struct AppIconLayoutTests {
     @Test(arguments: stride(from: 200.0, through: 2000.0, by: 50.0).map { CGFloat($0) })
     func gridIconNeverExceedsTheMaximum(width: CGFloat) {
         let metrics = AppIconLayout.gridMetrics(containerWidth: width)
-        #expect(metrics.iconSize <= UIConstants.Size.appIconGridMax)
+        #expect(metrics.iconSize <= WhereStylesheet.default.size.appIconGridMax)
         #expect(metrics.columnCount >= 2)
     }
 
@@ -37,7 +37,7 @@ struct AppIconLayoutTests {
 
     @Test func previewIconClampsToTheMaximumOnHugeContainers() {
         let size = AppIconLayout.previewIconSize(containerSize: CGSize(width: 4000, height: 4000))
-        #expect(size == UIConstants.Size.appIconPreviewLargeMax)
+        #expect(size == WhereStylesheet.default.size.appIconPreviewLargeMax)
     }
 
     @Test func previewIconScalesDownForSmallContainers() {
@@ -57,6 +57,6 @@ struct AppIconLayoutTests {
     func previewIconStaysCappedAndPositive(side: CGFloat) {
         let size = AppIconLayout.previewIconSize(containerSize: CGSize(width: side, height: side))
         #expect(size > 0)
-        #expect(size <= UIConstants.Size.appIconPreviewLargeMax)
+        #expect(size <= WhereStylesheet.default.size.appIconPreviewLargeMax)
     }
 }

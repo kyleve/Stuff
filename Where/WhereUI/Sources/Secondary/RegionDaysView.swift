@@ -18,6 +18,8 @@ struct RegionDaysView: View {
     @State private var pins: [MapPin] = []
     @State private var coordinatesByDay: [Date: [Coordinate]] = [:]
 
+    @Environment(\.whereStyle) private var whereStyle
+
     private var days: [DayPresence] {
         report.days(in: region)
     }
@@ -77,7 +79,7 @@ struct RegionDaysView: View {
             }
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
-        .frame(height: UIConstants.Size.regionMapHeight)
+        .frame(height: whereStyle.size.regionMapHeight)
         .accessibilityLabel(Strings.secondaryRegionMapAccessibility)
     }
 
@@ -159,13 +161,15 @@ private struct DayRow: View {
 
     @State private var placeName: String?
 
+    @Environment(\.whereStyle) private var whereStyle
+
     var body: some View {
-        HStack(spacing: UIConstants.Spacings.large) {
+        HStack(spacing: whereStyle.spacing.large) {
             Image(systemName: "calendar")
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
+            VStack(alignment: .leading, spacing: whereStyle.spacing.xxSmall) {
                 Text(dateText)
                     .font(.headline)
                 if let placeName {
@@ -178,7 +182,7 @@ private struct DayRow: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, UIConstants.Spacings.xSmall)
+        .padding(.vertical, whereStyle.spacing.xSmall)
         .task(id: coordinate) {
             guard let coordinate else { return }
             placeName = await LocationNamer.shared.name(for: coordinate)

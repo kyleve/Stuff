@@ -143,7 +143,9 @@ literals in SwiftUI `Text` or `errorDescription`.
   derives 365/366 rather than assuming a length).
 - **Core layout APIs throw on failure**; views surface
   `ContentUnavailableView` + log, never `!`.
-- Layout constants live in `UIConstants`, shared date-range copy in
+- Layout tokens live in `WhereStylesheet` (a Broadway `BStylesheet`, read in
+  views via `@Environment(\.whereStyle)`; off the `View` tree — layout helpers,
+  tests — use `WhereStylesheet.default`), shared date-range copy in
   `DateRangeFormatting`; numbers and dates use `FormatStyle`, not string
   interpolation. Expensive layout computes once into state, not per `body`
   pass. Sharing uses `ShareLink` / `Transferable`.
