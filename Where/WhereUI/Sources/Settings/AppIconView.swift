@@ -24,8 +24,14 @@ struct AppIconView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
-                let grid = AppIconLayout.gridMetrics(containerWidth: proxy.size.width)
-                let previewIconSize = AppIconLayout.previewIconSize(containerSize: proxy.size)
+                let grid = AppIconLayout.gridMetrics(
+                    containerWidth: proxy.size.width,
+                    stylesheet: stylesheet,
+                )
+                let previewIconSize = AppIconLayout.previewIconSize(
+                    containerSize: proxy.size,
+                    stylesheet: stylesheet,
+                )
                 ZStack(alignment: .bottom) {
                     grids(metrics: grid)
 
