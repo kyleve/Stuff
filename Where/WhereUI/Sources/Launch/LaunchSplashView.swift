@@ -22,7 +22,7 @@ import SwiftUI
 /// static frame, and the caption appears without a fade.
 struct LaunchSplashView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
     @State private var pulsing = false
     @State private var showCaption: Bool
 
@@ -52,7 +52,7 @@ struct LaunchSplashView: View {
                 VStack {
                     Spacer()
                     caption
-                        .padding(.bottom, whereStyle.size.launchCaptionBottomInset)
+                        .padding(.bottom, stylesheet.size.launchCaptionBottomInset)
                 }
                 .transition(.opacity)
             }
@@ -77,7 +77,7 @@ struct LaunchSplashView: View {
     /// and pulsing icon already say "working", so this is just text, pinned
     /// light since the backdrop is always dark.
     private var caption: some View {
-        VStack(spacing: whereStyle.spacing.small) {
+        VStack(spacing: stylesheet.spacing.small) {
             Text(Strings.migrationTitle)
                 .font(.headline)
             Text(Strings.migrationSubtitle)
@@ -86,7 +86,7 @@ struct LaunchSplashView: View {
         }
         .foregroundStyle(.white)
         .multilineTextAlignment(.center)
-        .padding(.horizontal, whereStyle.spacing.xxxLarge)
+        .padding(.horizontal, stylesheet.spacing.xxxLarge)
     }
 
     /// A subtle vignette — a touch lighter at the center, falling to black — so
@@ -102,8 +102,8 @@ struct LaunchSplashView: View {
     }
 
     private func icon(named name: String) -> some View {
-        let cornerRadius = whereStyle.size.launchIcon * AppIconImage.cornerRadiusRatio
-        return AppIconImage(name: name, size: whereStyle.size.launchIcon, bordered: false)
+        let cornerRadius = stylesheet.size.launchIcon * AppIconImage.cornerRadiusRatio
+        return AppIconImage(name: name, size: stylesheet.size.launchIcon, bordered: false)
             .scaleEffect(pulsing ? 1.1 : 1)
             .background {
                 // A soft brand-tinted glow that breathes with the pulse.

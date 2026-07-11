@@ -111,13 +111,13 @@ private struct IssueRow: View {
     let report: YearReportModel
     let resolve: ResolveModel
 
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
         NavigationLink {
             destination
         } label: {
-            VStack(alignment: .leading, spacing: whereStyle.spacing.xxSmall) {
+            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                 Text(title)
                     .font(.headline)
                 if let subtitle {
@@ -126,7 +126,7 @@ private struct IssueRow: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.vertical, whereStyle.spacing.xSmall)
+            .padding(.vertical, stylesheet.spacing.xSmall)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if issue.isDismissible {

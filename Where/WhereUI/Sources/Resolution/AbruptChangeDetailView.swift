@@ -6,7 +6,7 @@ import WhereCore
 /// travel day and offers relabel paths for either adjacent day.
 struct AbruptChangeDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
 
     let issue: any DataIssue
     let report: YearReportModel
@@ -76,7 +76,7 @@ struct AbruptChangeDetailView: View {
     }
 
     private func daySummary(_ day: DayPresence) -> some View {
-        VStack(alignment: .leading, spacing: whereStyle.spacing.xxSmall) {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
             Text(day.date.formatted(.dateTime.month(.abbreviated).day().year()))
                 .font(.headline)
             Text(day.regions.map(\.localizedName).sorted().joined(separator: ", "))

@@ -7,10 +7,10 @@ import SwiftUI
 struct SavingStatusRow: View {
     let text: String
 
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        HStack(spacing: whereStyle.spacing.small) {
+        HStack(spacing: stylesheet.spacing.small) {
             ProgressView()
             Text(text)
                 .foregroundStyle(.secondary)

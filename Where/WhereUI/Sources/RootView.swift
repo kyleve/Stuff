@@ -110,7 +110,7 @@ public struct RootView: View {
             }
         }
         // Seed the Broadway context at the app root so descendants resolve
-        // `WhereStylesheet` (via `@Environment(\.whereStyle)`) against the live
+        // `WhereStylesheet` (via `@Environment(\.stylesheet)`) against the live
         // system traits and the app's themes.
         .broadwayRoot(themes: WhereThemes.current)
     }

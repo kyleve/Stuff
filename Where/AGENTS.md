@@ -144,7 +144,7 @@ literals in SwiftUI `Text` or `errorDescription`.
 - **Core layout APIs throw on failure**; views surface
   `ContentUnavailableView` + log, never `!`.
 - Layout tokens live in `WhereStylesheet` (a Broadway `BStylesheet`, read in
-  views via `@Environment(\.whereStyle)`; off the `View` tree — layout helpers,
+  views via `@Environment(\.stylesheet)`; off the `View` tree — layout helpers,
   tests — use `WhereStylesheet.default`). `RootView` seeds the Broadway context
   with `.broadwayRoot(themes: WhereThemes.current)`, so tokens can derive from
   live traits (e.g. bigger day-grid tap targets at accessibility Dynamic Type

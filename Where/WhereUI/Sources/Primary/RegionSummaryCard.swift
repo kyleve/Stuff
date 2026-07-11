@@ -33,7 +33,7 @@ struct RegionSummaryCard: View {
     /// static sheen.
     var tilt: TiltProvider?
 
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
 
     private var style: RegionStyle {
         regionDays.region.style
@@ -41,7 +41,7 @@ struct RegionSummaryCard: View {
 
     private var cardShape: RoundedRectangle {
         RoundedRectangle(
-            cornerRadius: compact ? whereStyle.cornerRadius.compactCard : whereStyle.cornerRadius
+            cornerRadius: compact ? stylesheet.cornerRadius.compactCard : stylesheet.cornerRadius
                 .card,
             style: .continuous,
         )
@@ -53,7 +53,7 @@ struct RegionSummaryCard: View {
     }
 
     private var barHeight: CGFloat {
-        compact ? whereStyle.size.progressBarHeightCompact : whereStyle.size.progressBarHeight
+        compact ? stylesheet.size.progressBarHeightCompact : stylesheet.size.progressBarHeight
     }
 
     /// A circular rubber-stamp "entry" impression: the region glyph and year
@@ -65,7 +65,7 @@ struct RegionSummaryCard: View {
             year: year,
             symbolName: style.symbolName,
             tint: style.tint,
-            size: compact ? whereStyle.size.entryStampCompact : whereStyle.size.entryStamp,
+            size: compact ? stylesheet.size.entryStampCompact : stylesheet.size.entryStamp,
             showsArcText: !compact,
         )
     }
@@ -122,15 +122,15 @@ struct RegionSummaryCard: View {
             Image(systemName: style.symbolName)
                 .font(.system(
                     size: compact
-                        ? whereStyle.size.stampWatermarkCompact
-                        : whereStyle.size.stampWatermark,
+                        ? stylesheet.size.stampWatermarkCompact
+                        : stylesheet.size.stampWatermark,
                 ))
                 .foregroundStyle(style.tint.opacity(0.08))
                 .rotationEffect(.degrees(-14))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .offset(
-                    x: compact ? whereStyle.spacing.large : whereStyle.spacing.xxxLarge,
-                    y: compact ? whereStyle.spacing.regular : whereStyle.spacing.large,
+                    x: compact ? stylesheet.spacing.large : stylesheet.spacing.xxxLarge,
+                    y: compact ? stylesheet.spacing.regular : stylesheet.spacing.large,
                 )
         }
         .clipShape(cardShape)
@@ -146,18 +146,18 @@ struct RegionSummaryCard: View {
             cardShape
                 .strokeBorder(style.tint.opacity(0.6), lineWidth: compact ? 2.5 : 3.5)
             cardShape
-                .inset(by: whereStyle.spacing.small)
+                .inset(by: stylesheet.spacing.small)
                 .strokeBorder(style.tint.opacity(0.35), lineWidth: 1)
             if !compact {
                 cardShape
-                    .inset(by: whereStyle.spacing.large)
+                    .inset(by: stylesheet.spacing.large)
                     .strokeBorder(
                         style.tint.opacity(0.45),
                         style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [0.01, 6]),
                     )
             }
             cardShape
-                .inset(by: compact ? whereStyle.spacing.large : whereStyle.spacing.xxLarge)
+                .inset(by: compact ? stylesheet.spacing.large : stylesheet.spacing.xxLarge)
                 .strokeBorder(
                     style.tint.opacity(0.4),
                     style: StrokeStyle(lineWidth: 1, dash: [5, 4]),
@@ -169,16 +169,16 @@ struct RegionSummaryCard: View {
     var body: some View {
         VStack(
             alignment: .leading,
-            spacing: compact ? whereStyle.spacing.regular : whereStyle.spacing.xxLarge,
+            spacing: compact ? stylesheet.spacing.regular : stylesheet.spacing.xxLarge,
         ) {
-            HStack(alignment: .top, spacing: whereStyle.spacing.large) {
-                VStack(alignment: .leading, spacing: whereStyle.spacing.xxSmall) {
+            HStack(alignment: .top, spacing: stylesheet.spacing.large) {
+                VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                     Text(regionDays.region.localizedName)
                         .font(
                             compact
                                 ? .system(.title3, design: .serif).weight(.semibold)
                                 : .system(
-                                    size: whereStyle.size.regionNameFontSize,
+                                    size: stylesheet.size.regionNameFontSize,
                                     weight: .semibold,
                                     design: .serif,
                                 ),
@@ -209,13 +209,13 @@ struct RegionSummaryCard: View {
                 entryStamp
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: whereStyle.spacing.small) {
+            HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
                 Text(regionDays.days, format: .number)
                     .font(
                         compact
                             ? .system(.title, design: .rounded, weight: .bold)
                             : .system(
-                                size: whereStyle.size.heroNumberFontSize,
+                                size: stylesheet.size.heroNumberFontSize,
                                 weight: .bold,
                                 design: .rounded,
                             ),
@@ -240,7 +240,7 @@ struct RegionSummaryCard: View {
                 .frame(height: barHeight)
                 .accessibilityHidden(true)
         }
-        .padding(compact ? whereStyle.padding.compactCard : whereStyle.padding.card)
+        .padding(compact ? stylesheet.padding.compactCard : stylesheet.padding.card)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { stampPaper }
         .glassEffect(
@@ -263,13 +263,13 @@ struct RegionSummaryCard: View {
         .shadow(
             color: style.tint.opacity(compact ? 0.55 : 0.75),
             radius: compact
-                ? whereStyle.shadow.cardGlowRadiusCompact
-                : whereStyle.shadow.cardGlowRadius,
+                ? stylesheet.shadow.cardGlowRadiusCompact
+                : stylesheet.shadow.cardGlowRadius,
         )
         .shadow(
             color: style.tint.opacity(compact ? 0.4 : 0.6),
-            radius: compact ? whereStyle.shadow.cardRadiusCompact : whereStyle.shadow.cardRadius,
-            y: compact ? whereStyle.shadow.cardOffsetYCompact : whereStyle.shadow.cardOffsetY,
+            radius: compact ? stylesheet.shadow.cardRadiusCompact : stylesheet.shadow.cardRadius,
+            y: compact ? stylesheet.shadow.cardOffsetYCompact : stylesheet.shadow.cardOffsetY,
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(

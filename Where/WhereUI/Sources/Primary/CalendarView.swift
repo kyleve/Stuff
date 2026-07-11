@@ -16,7 +16,7 @@ struct CalendarView: View {
     let report: YearReportModel
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
 
     @State private var timelineTarget: TimelineMonthTarget?
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
@@ -135,7 +135,7 @@ struct CalendarView: View {
     private func calendarContent(months: [CalendarMonth]) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: whereStyle.spacing.xxLarge) {
+                LazyVStack(spacing: stylesheet.spacing.xxLarge) {
                     ForEach(months) { month in
                         MonthGridView(month: month, focusedRegion: focusedRegion) { _ in
                             timelineTarget = TimelineMonthTarget(startOfMonth: month.startOfMonth)
@@ -168,20 +168,20 @@ private struct MonthGridView: View {
     var focusedRegion: Region?
     let onSelectDay: (CalendarDayCell) -> Void
 
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        VStack(alignment: .leading, spacing: whereStyle.spacing.medium) {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
             Text(month.startOfMonth.formatted(.dateTime.month(.wide)))
                 .font(.title.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             LazyVGrid(
                 columns: Array(
-                    repeating: GridItem(.flexible(), spacing: whereStyle.spacing.small),
+                    repeating: GridItem(.flexible(), spacing: stylesheet.spacing.small),
                     count: month.weekdayCount,
                 ),
-                spacing: whereStyle.spacing.small,
+                spacing: stylesheet.spacing.small,
             ) {
                 ForEach(month.weekdaySymbols, id: \.self) { symbol in
                     Text(symbol)
@@ -192,7 +192,7 @@ private struct MonthGridView: View {
 
                 ForEach(0 ..< month.leadingBlankCount, id: \.self) { _ in
                     Color.clear
-                        .frame(minHeight: whereStyle.size.calendarDayMinHeight)
+                        .frame(minHeight: stylesheet.size.calendarDayMinHeight)
                 }
 
                 ForEach(month.days) { day in
@@ -209,10 +209,10 @@ private struct MonthGridView: View {
                 MonthFooter(totals: month.regionTotals, focusedRegion: focusedRegion)
             }
         }
-        .padding(whereStyle.padding.compactCard)
+        .padding(stylesheet.padding.compactCard)
         .background {
             if month.isCurrentMonth {
-                RoundedRectangle(cornerRadius: whereStyle.cornerRadius.compactCard)
+                RoundedRectangle(cornerRadius: stylesheet.cornerRadius.compactCard)
                     .fill(Color.accentColor.opacity(0.08))
             }
         }
@@ -226,10 +226,10 @@ private struct MonthFooter: View {
     let totals: [RegionDayTally]
     var focusedRegion: Region?
 
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        VStack(spacing: whereStyle.spacing.xSmall) {
+        VStack(spacing: stylesheet.spacing.xSmall) {
             Divider()
             ForEach(totals) { tally in
                 row(for: tally)
@@ -239,12 +239,12 @@ private struct MonthFooter: View {
 
     private func row(for tally: RegionDayTally) -> some View {
         let isFocused = tally.region == focusedRegion
-        return HStack(spacing: whereStyle.spacing.small) {
+        return HStack(spacing: stylesheet.spacing.small) {
             Circle()
                 .fill(tally.region.style.tint)
                 .frame(
-                    width: whereStyle.size.calendarDot,
-                    height: whereStyle.size.calendarDot,
+                    width: stylesheet.size.calendarDot,
+                    height: stylesheet.size.calendarDot,
                 )
             Text(tally.region.localizedName)
                 .font(.subheadline)
@@ -270,10 +270,10 @@ private struct MonthFooter: View {
 private struct DayCell: View {
     let day: CalendarDayCell
 
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        VStack(spacing: whereStyle.spacing.xxSmall) {
+        VStack(spacing: stylesheet.spacing.xxSmall) {
             Text("\(day.dayOfMonth)")
                 .font(.callout)
                 .monospacedDigit()
@@ -289,19 +289,19 @@ private struct DayCell: View {
                     }
                 }
 
-            HStack(spacing: whereStyle.spacing.xxSmall) {
+            HStack(spacing: stylesheet.spacing.xxSmall) {
                 ForEach(day.regions, id: \.self) { region in
                     Circle()
                         .fill(region.style.tint)
                         .frame(
-                            width: whereStyle.size.calendarDot,
-                            height: whereStyle.size.calendarDot,
+                            width: stylesheet.size.calendarDot,
+                            height: stylesheet.size.calendarDot,
                         )
                 }
             }
-            .frame(height: whereStyle.size.calendarDot)
+            .frame(height: stylesheet.size.calendarDot)
         }
-        .frame(maxWidth: .infinity, minHeight: whereStyle.size.calendarDayMinHeight)
+        .frame(maxWidth: .infinity, minHeight: stylesheet.size.calendarDayMinHeight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(

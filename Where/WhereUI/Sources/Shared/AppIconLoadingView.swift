@@ -8,10 +8,10 @@ import SwiftUI
 struct AppIconLoadingView: View {
     let caption: String
 
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        VStack(spacing: whereStyle.spacing.xxLarge) {
+        VStack(spacing: stylesheet.spacing.xxLarge) {
             AppIconActivityIndicator()
             Text(caption)
                 .font(.callout)

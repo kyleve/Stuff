@@ -9,7 +9,7 @@ import WhereCore
 /// unavailable model (with guidance), or a failure — and a refresh regenerates.
 struct RecentActivitySummaryView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
 
     @State private var model: RecentActivityModel
 
@@ -69,7 +69,7 @@ struct RecentActivitySummaryView: View {
         .pickerStyle(.segmented)
         .disabled(model.loadState == .loading)
         .padding(.horizontal)
-        .padding(.vertical, whereStyle.spacing.medium)
+        .padding(.vertical, stylesheet.spacing.medium)
         .background(.bar)
     }
 
@@ -114,7 +114,7 @@ struct RecentActivitySummaryView: View {
 
     private func summary(_ text: String) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: whereStyle.spacing.medium) {
+            VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
                 TypewriterText(text: text)
                     .font(.body)
                     .frame(maxWidth: .infinity, alignment: .leading)

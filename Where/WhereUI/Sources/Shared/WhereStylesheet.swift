@@ -9,7 +9,7 @@ import SwiftUI
 /// slice derives from the ``BContext`` traits handed to `init(context:)` (e.g.
 /// larger tap targets at accessibility Dynamic Type sizes, a flatter card under
 /// Reduce Transparency). Views read the active tokens from the environment via
-/// `@Environment(\.whereStyle)` (seeded by `.broadwayRoot` at the app root);
+/// `@Environment(\.stylesheet)` (seeded by `.broadwayRoot` at the app root);
 /// callers off the `View` tree (layout helpers, tests) use ``default``.
 struct WhereStylesheet: BStylesheet {
     var spacing = Spacing()
@@ -143,7 +143,7 @@ extension EnvironmentValues {
     /// widgets) the default empty context yields ``WhereStylesheet/default``.
     /// A resolution failure is a programmer error (the initializer never throws),
     /// so it traps in debug and falls back to `default` in release.
-    var whereStyle: WhereStylesheet {
+    var stylesheet: WhereStylesheet {
         bContext.stylesheet(WhereStylesheet.self, fallback: .default)
     }
 }

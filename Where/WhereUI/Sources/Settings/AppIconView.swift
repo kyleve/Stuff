@@ -14,7 +14,7 @@ struct AppIconView: View {
     @State private var dragOffset: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
 
     @MainActor
     init(model: AppIconModel = AppIconModel()) {
@@ -63,20 +63,20 @@ struct AppIconView: View {
         ScrollView {
             LazyVGrid(
                 columns: gridColumns(count: metrics.columnCount),
-                spacing: whereStyle.spacing.xxxLarge,
+                spacing: stylesheet.spacing.xxxLarge,
             ) {
                 ForEach(model.options) { option in
                     cell(for: option, iconSize: metrics.iconSize)
                 }
             }
-            .padding(whereStyle.spacing.xxLarge)
+            .padding(stylesheet.spacing.xxLarge)
         }
         .scrollDisabled(preview != nil)
     }
 
     private func gridColumns(count: Int) -> [GridItem] {
         Array(
-            repeating: GridItem(.flexible(), spacing: whereStyle.spacing.xxLarge),
+            repeating: GridItem(.flexible(), spacing: stylesheet.spacing.xxLarge),
             count: count,
         )
     }
@@ -91,11 +91,11 @@ struct AppIconView: View {
         return Button {
             select(option)
         } label: {
-            VStack(spacing: whereStyle.spacing.large) {
+            VStack(spacing: stylesheet.spacing.large) {
                 AppIconImage(name: option.previewImageName, size: iconSize)
                     .opacity(isPreviewing ? 0.5 : 1)
 
-                HStack(spacing: whereStyle.spacing.small) {
+                HStack(spacing: stylesheet.spacing.small) {
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(Color.accentColor)
@@ -127,11 +127,11 @@ struct AppIconView: View {
     }
 
     private func previewPanel(for option: AppIconOption, iconSize: CGFloat) -> some View {
-        VStack(spacing: whereStyle.spacing.xLarge) {
+        VStack(spacing: stylesheet.spacing.xLarge) {
             Capsule()
                 .fill(.secondary.opacity(0.5))
                 .frame(width: 40, height: 5)
-                .padding(.top, whereStyle.spacing.medium)
+                .padding(.top, stylesheet.spacing.medium)
 
             Button {
                 toggleAppearance()
@@ -144,7 +144,7 @@ struct AppIconView: View {
                 .appIconAppearanceLight)
             .accessibilityHint(Strings.appIconAppearanceHint)
 
-            VStack(spacing: whereStyle.spacing.xSmall) {
+            VStack(spacing: stylesheet.spacing.xSmall) {
                 Text(option.displayName)
                     .font(.title3.weight(.semibold))
                 Text(Strings.appIconAppearanceHint)
@@ -163,13 +163,13 @@ struct AppIconView: View {
             .controlSize(.large)
             .disabled(model.isSelected(option) || !model.supportsAlternateIcons)
         }
-        .padding(.horizontal, whereStyle.spacing.xxxLarge)
-        .padding(.bottom, whereStyle.spacing.xxLarge)
+        .padding(.horizontal, stylesheet.spacing.xxxLarge)
+        .padding(.bottom, stylesheet.spacing.xxLarge)
         .frame(maxWidth: .infinity)
         .background {
             UnevenRoundedRectangle(
-                topLeadingRadius: whereStyle.cornerRadius.card,
-                topTrailingRadius: whereStyle.cornerRadius.card,
+                topLeadingRadius: stylesheet.cornerRadius.card,
+                topTrailingRadius: stylesheet.cornerRadius.card,
                 style: .continuous,
             )
             .fill(Color(.systemBackground))

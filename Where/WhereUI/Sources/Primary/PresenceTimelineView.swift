@@ -73,26 +73,26 @@ struct PresenceTimelineList: View {
 private struct StintRow: View {
     let stint: RegionStint
 
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
 
     private var style: RegionStyle {
         stint.region.style
     }
 
     var body: some View {
-        HStack(spacing: whereStyle.spacing.large) {
+        HStack(spacing: stylesheet.spacing.large) {
             Capsule()
                 .fill(style.tint.gradient)
                 .frame(
-                    width: whereStyle.size.timelineAccentWidth,
-                    height: whereStyle.size.timelineAccentHeight,
+                    width: stylesheet.size.timelineAccentWidth,
+                    height: stylesheet.size.timelineAccentHeight,
                 )
 
             Text(style.emoji)
                 .font(.title3)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: whereStyle.spacing.xxSmall) {
+            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                 Text(stint.region.localizedName)
                     .font(.headline)
                 Text(dateRange)
@@ -100,14 +100,14 @@ private struct StintRow: View {
                     .foregroundStyle(.secondary)
             }
 
-            Spacer(minLength: whereStyle.spacing.medium)
+            Spacer(minLength: stylesheet.spacing.medium)
 
             Text(Strings.dayCount(stint.dayCount))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
-        .padding(.vertical, whereStyle.spacing.xSmall)
+        .padding(.vertical, stylesheet.spacing.xSmall)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             Strings.timelineRowAccessibility(

@@ -16,14 +16,14 @@ public struct YearTotalsWidgetView: View {
         self.maxRows = maxRows
     }
 
-    @Environment(\.whereStyle) private var whereStyle
+    @Environment(\.stylesheet) private var stylesheet
 
     private var ranked: [RegionDays] {
         snapshot.rankedTotals(maxRows: maxRows)
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: whereStyle.spacing.small) {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
             Text(Strings.widgetYearTitle(year: snapshot.year))
                 .font(.caption2.weight(.semibold))
                 .textCase(.uppercase)
@@ -44,9 +44,9 @@ public struct YearTotalsWidgetView: View {
     }
 
     private var rows: some View {
-        VStack(alignment: .leading, spacing: whereStyle.spacing.xSmall) {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             ForEach(ranked) { entry in
-                HStack(spacing: whereStyle.spacing.small) {
+                HStack(spacing: stylesheet.spacing.small) {
                     Text(entry.region.style.emoji)
                         .font(.caption)
                         .accessibilityHidden(true)
@@ -54,7 +54,7 @@ public struct YearTotalsWidgetView: View {
                         .font(.caption.weight(.medium))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
-                    Spacer(minLength: whereStyle.spacing.small)
+                    Spacer(minLength: stylesheet.spacing.small)
                     Text(entry.days, format: .number)
                         .font(.system(.body, design: .rounded, weight: .bold))
                         .monospacedDigit()
@@ -72,7 +72,7 @@ public struct YearTotalsWidgetView: View {
     }
 
     private var emptyContent: some View {
-        VStack(alignment: .leading, spacing: whereStyle.spacing.xSmall) {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             Image(systemName: "calendar.badge.exclamationmark")
                 .font(.title3)
                 .foregroundStyle(.tertiary)
