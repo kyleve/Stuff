@@ -145,8 +145,11 @@ literals in SwiftUI `Text` or `errorDescription`.
   `ContentUnavailableView` + log, never `!`.
 - Layout tokens live in `WhereStylesheet` (a Broadway `BStylesheet`, read in
   views via `@Environment(\.whereStyle)`; off the `View` tree — layout helpers,
-  tests — use `WhereStylesheet.default`), shared date-range copy in
-  `DateRangeFormatting`; numbers and dates use `FormatStyle`, not string
+  tests — use `WhereStylesheet.default`). `RootView` seeds the Broadway context
+  with `.broadwayRoot(themes: WhereThemes.current)`, so tokens can derive from
+  live traits (e.g. bigger day-grid tap targets at accessibility Dynamic Type
+  sizes, a flatter card under Reduce Transparency). Shared date-range copy lives
+  in `DateRangeFormatting`; numbers and dates use `FormatStyle`, not string
   interpolation. Expensive layout computes once into state, not per `body`
   pass. Sharing uses `ShareLink` / `Transferable`.
 

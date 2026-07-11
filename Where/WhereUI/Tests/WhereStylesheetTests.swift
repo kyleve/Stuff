@@ -58,12 +58,28 @@ struct WhereStylesheetTests {
         #expect(style.size.launchCaptionBottomInset == 72)
     }
 
-    /// The stylesheet resolves through Broadway's cache and, for now, produces
-    /// the fixed defaults regardless of the context's traits.
+    /// With default/system traits the stylesheet resolves to the fixed defaults.
     @MainActor
     @Test func resolvesThroughBroadwayToTheDefaults() throws {
         let context = BContext(traits: .system)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved == .default)
+    }
+
+    @MainActor
+    @Test func growsDayGridTapTargetAtAccessibilitySizes() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.contentSizeCategory = .accessibilityLarge
+        let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.size.calendarDayMinHeight == 56)
+    }
+
+    @MainActor
+    @Test func flattensCardGlowUnderReduceTransparency() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.accessibility = BAccessibility(isReduceTransparencyEnabled: true)
+        let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.shadow.cardGlowRadius == 0)
+        #expect(resolved.shadow.cardGlowRadiusCompact == 0)
     }
 }

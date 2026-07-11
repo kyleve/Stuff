@@ -1,3 +1,4 @@
+import BroadwayUI
 import LifecycleKit
 import SwiftUI
 import WhereCore
@@ -108,6 +109,10 @@ public struct RootView: View {
                 await model.session?.appBecameActive()
             }
         }
+        // Seed the Broadway context at the app root so descendants resolve
+        // `WhereStylesheet` (via `@Environment(\.whereStyle)`) against the live
+        // system traits and the app's themes.
+        .broadwayRoot(themes: WhereThemes.current)
     }
 
     /// How the launch splash gives way to the app once the runner is `.ready`:

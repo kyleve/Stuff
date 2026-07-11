@@ -1,15 +1,16 @@
 import BroadwayCore
+import BroadwayUI
 import CoreGraphics
 import SwiftUI
 
 /// The Where app's design tokens, resolved as a Broadway ``BStylesheet``.
 ///
-/// The values currently mirror the former `UIConstants` verbatim; the type
-/// exists so that tokens can later derive from the ``BContext`` traits and
-/// themes handed to `init(context:)` (light/dark, Dynamic Type, accessibility)
-/// rather than staying fixed. Views read the active tokens from the
-/// environment via `@Environment(\.whereStyle)`; callers off the `View` tree
-/// (layout helpers, tests) use ``default``.
+/// Most tokens are the fixed geometry migrated from the former `UIConstants`; a
+/// slice derives from the ``BContext`` traits handed to `init(context:)` (e.g.
+/// larger tap targets at accessibility Dynamic Type sizes, a flatter card under
+/// Reduce Transparency). Views read the active tokens from the environment via
+/// `@Environment(\.whereStyle)` (seeded by `.broadwayRoot` at the app root);
+/// callers off the `View` tree (layout helpers, tests) use ``default``.
 struct WhereStylesheet: BStylesheet {
     var spacing = Spacing()
     var padding = Padding()
@@ -19,13 +20,27 @@ struct WhereStylesheet: BStylesheet {
 
     init() {}
 
-    init(context _: SlicingContext) throws {
-        // The values default to the fixed scale above. A later step reads
-        // `context.traits` / `context.themes` here to make tokens trait-aware.
+    init(context: SlicingContext) throws {
+        // Start from the fixed scale (property defaults), then adjust the slice
+        // of tokens that should react to the current traits. Everything else
+        // stays constant, so a default/system context reproduces `default`.
+        let traits = context.traits
+
+        // Grow day-grid tap targets at accessibility Dynamic Type sizes.
+        if traits.contentSizeCategory.isAccessibilitySize {
+            size.calendarDayMinHeight = 56
+        }
+
+        // Reduce Transparency flattens the cards: drop the decorative glow layer
+        // that reads as a translucent halo.
+        if traits.accessibility.isReduceTransparencyEnabled {
+            shadow.cardGlowRadius = 0
+            shadow.cardGlowRadiusCompact = 0
+        }
     }
 
-    /// The fixed token set: the environment fallback and the value used off the
-    /// `View` tree, where the Broadway context isn't reachable.
+    /// The fixed token set: the fallback used off the `View` tree (layout
+    /// helpers, tests) and when no Broadway root has seeded a context.
     static let `default` = WhereStylesheet()
 }
 
@@ -108,9 +123,27 @@ extension WhereStylesheet {
     }
 }
 
+// MARK: - Themes
+
+/// The Where app's Broadway themes, seeded at the root by `RootView` via
+/// `.broadwayRoot(themes:)`. Empty for now — `WhereStylesheet` derives from
+/// traits, not themes — and the home for app-level palette/typography themes as
+/// the design system grows.
+enum WhereThemes {
+    static var current: BThemes {
+        BThemes()
+    }
+}
+
+// MARK: - Environment
+
 extension EnvironmentValues {
-    // The active Where design tokens. This currently always resolves to
-    // ``WhereStylesheet/default``; a later step seeds it from the Broadway
-    // `BContext` so the tokens can react to traits and themes.
-    @Entry var whereStyle: WhereStylesheet = .default
+    /// The active Where design tokens, resolved from the Broadway `BContext`
+    /// seeded by `.broadwayRoot` at the app root. With no root present (previews,
+    /// widgets) the default empty context yields ``WhereStylesheet/default``.
+    /// A resolution failure is a programmer error (the initializer never throws),
+    /// so it traps in debug and falls back to `default` in release.
+    var whereStyle: WhereStylesheet {
+        bContext.stylesheet(WhereStylesheet.self, fallback: .default)
+    }
 }

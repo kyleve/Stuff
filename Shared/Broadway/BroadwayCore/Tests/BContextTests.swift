@@ -52,6 +52,14 @@ private struct CountingStylesheet: BStylesheet, Equatable {
     }
 }
 
+private struct TraitReadingStylesheet: BStylesheet {
+    var voiceOver: Bool
+
+    init(context: SlicingContext) {
+        voiceOver = context.traits.accessibility.isVoiceOverRunning
+    }
+}
+
 private struct CycleA: BStylesheet {
     init(context: SlicingContext) throws {
         _ = try context.stylesheets.get(CycleB.self)
@@ -163,6 +171,19 @@ struct BContextStylesheetTests {
         // Both are default TestStylesheets (no theme set), so equal by value,
         // but the key changed so it was re-created rather than cache-hit.
         #expect(before == after)
+    }
+
+    @Test("A stylesheet reads the current traits from its context")
+    func readsTraits() throws {
+        var context = makeContext()
+
+        let before = try context.stylesheets.get(TraitReadingStylesheet.self)
+        #expect(before.voiceOver == false)
+
+        context.baseTraits.accessibility = BAccessibility(isVoiceOverRunning: true)
+
+        let after = try context.stylesheets.get(TraitReadingStylesheet.self)
+        #expect(after.voiceOver == true)
     }
 
     // MARK: - Stylesheet Dependencies
