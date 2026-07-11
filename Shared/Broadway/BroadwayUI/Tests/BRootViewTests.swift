@@ -44,10 +44,10 @@ struct BRootViewHostingTests {
         )
 
         try show(host) { _ in
-            // Poll for the injected themes rather than snapshotting the first
-            // frame: the context bridges through UIKit traits, so it can land a
-            // render after the probe first appears.
-            try waitFor { box.value?.themes[Marker.self] == .b }
+            // `BRootView` injects the context through the pure-SwiftUI key, which
+            // propagates synchronously, so a one-shot capture reads it correctly.
+            try waitFor { box.value != nil }
+            #expect(box.value?.themes[Marker.self] == .b)
             #expect(box.value?.traits.accessibility == BAccessibility.current())
         }
     }
@@ -63,10 +63,6 @@ private struct ContextProbe: View {
     @Environment(\.bContext) private var context
 
     var body: some View {
-        // Capture on every render (not a one-shot `onAppear`) so a bridged
-        // context that arrives after first appearance is observed.
-        Color.clear.onChange(of: context, initial: true) { _, newValue in
-            box.value = newValue
-        }
+        Color.clear.onAppear { box.value = context }
     }
 }

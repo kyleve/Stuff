@@ -17,7 +17,10 @@ the view hierarchy.
   root it takes `themes`, letting an app seed palette/typography at the root.
 - **`BTraitOverridesViewController`** — scopes trait overrides to a subtree
   while preserving inherited base traits and themes.
-- **SwiftUI bridges** — `BContext+SwiftUI`, `BTraitOverrides+SwiftUI`, and
+- **SwiftUI bridges** — `BContext+SwiftUI` resolves `@Environment(\.bContext)`,
+  preferring a synchronous pure-SwiftUI value (set by `BRootView` /
+  `broadwayRoot` / `bTraitOverrides`) and falling back to the UIKit
+  trait-bridged value when none is set. Plus `BTraitOverrides+SwiftUI` and the
   `BMode` / `BContentSizeCategory` initializers from `ColorScheme` /
   `DynamicTypeSize` (`BTraitValues+SwiftUI`).
 

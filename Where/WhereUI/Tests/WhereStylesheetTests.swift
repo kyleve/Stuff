@@ -103,11 +103,12 @@ struct WhereStylesheetEnvironmentTests {
         )
 
         try show(host) { _ in
-            // Poll for the resolved value rather than snapshotting the first
-            // frame: the injected `\.bContext` bridges through UIKit traits, so
-            // it may land a render after the probe first appears. Once it does,
-            // the accessibility content size grows the day-grid tap target.
-            try waitFor { box.value?.size.calendarDayMinHeight == 56 }
+            // The injected `\.bContext` propagates synchronously through the
+            // pure-SwiftUI key, so a one-shot capture reads the resolved,
+            // trait-aware tokens: the accessibility content size grows the
+            // day-grid tap target.
+            try waitFor { box.value != nil }
+            #expect(box.value?.size.calendarDayMinHeight == 56)
         }
     }
 
@@ -132,10 +133,6 @@ private struct StylesheetProbe: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        // Capture on every render (not a one-shot `onAppear`) so a bridged
-        // `\.bContext` that arrives after first appearance is observed.
-        Color.clear.onChange(of: stylesheet, initial: true) { _, newValue in
-            box.value = newValue
-        }
+        Color.clear.onAppear { box.value = stylesheet }
     }
 }

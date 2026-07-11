@@ -20,6 +20,13 @@ Complements the root [`AGENTS.md`](../../../AGENTS.md) and the group
   `BAccessibility.changes()` into state; both rebuild the injected `BContext`.
   Context-building lives in `BRootContext.make(...)` so the trait mapping is
   testable without a host.
+- **`\.bContext` prefers a synchronous SwiftUI value.** `BContext+SwiftUI` reads
+  a pure-SwiftUI `EnvironmentKey` (set by `BRootView` / `broadwayRoot` /
+  `bTraitOverrides`) and only falls back to the UIKit trait-bridged value when
+  none is set — so SwiftUI-side context propagates without a `UITraitCollection`
+  round-trip (no first-frame lag). A SwiftUI-set context is *not* written back
+  to UIKit traits, so it doesn't reach nested UIKit views; seed
+  `BRootViewController` when the context must reach UIKit descendants.
 - Public API is `public`.
 
 Tests: `BroadwayUITests` in `StuffTestHost`, linking `BroadwayTesting`
