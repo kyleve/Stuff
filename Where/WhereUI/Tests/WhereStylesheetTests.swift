@@ -3,8 +3,6 @@ import BroadwayUI
 import CoreGraphics
 import SwiftUI
 import Testing
-import UIKit
-import WhereTesting
 @testable import WhereUI
 
 /// `WhereStylesheet` currently ships the fixed geometry migrated from the former
@@ -88,51 +86,27 @@ struct WhereStylesheetTests {
     }
 }
 
-/// End-to-end coverage of the WhereUI glue: `@Environment(\.stylesheet)` resolves
-/// against the `BContext` a Broadway root injects (as `RootView` does via
-/// `.broadwayRoot`), and falls back to `default` when no root is present.
+/// Covers the WhereUI glue — `EnvironmentValues.stylesheet` resolves a
+/// `WhereStylesheet` from the environment's `\.bContext` (trait-aware), and
+/// falls back to `default` when no context is set. Tested at the
+/// `EnvironmentValues` level (not through a hosted view): the accessor is a pure
+/// function of the environment, and SwiftUI's own `\.bContext` propagation is
+/// already covered in BroadwayUI (`BContextEnvironmentTests`, `BRootView` tests).
 @MainActor
 struct WhereStylesheetEnvironmentTests {
-    @Test func resolvesTraitAwareTokensFromTheInjectedContext() throws {
+    @Test func resolvesTraitAwareTokensFromTheContext() {
         var context = BContext(traits: .system)
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
 
-        let box = StylesheetBox()
-        let host = UIHostingController(
-            rootView: StylesheetProbe(box: box).environment(\.bContext, context),
-        )
+        var environment = EnvironmentValues()
+        environment.bContext = context
 
-        try show(host) { _ in
-            // The injected `\.bContext` propagates synchronously through the
-            // pure-SwiftUI key, so a one-shot capture reads the resolved,
-            // trait-aware tokens: the accessibility content size grows the
-            // day-grid tap target.
-            try waitFor { box.value != nil }
-            #expect(box.value?.size.calendarDayMinHeight == 56)
-        }
+        // The accessibility content size flows through `\.bContext` into
+        // `\.stylesheet`, growing the day-grid tap target.
+        #expect(environment.stylesheet.size.calendarDayMinHeight == 56)
     }
 
-    @Test func fallsBackToDefaultWithoutARoot() throws {
-        let box = StylesheetBox()
-        let host = UIHostingController(rootView: StylesheetProbe(box: box))
-
-        try show(host) { _ in
-            try waitFor { box.value != nil }
-            #expect(box.value == .default)
-        }
-    }
-}
-
-private final class StylesheetBox {
-    var value: WhereStylesheet?
-}
-
-private struct StylesheetProbe: View {
-    let box: StylesheetBox
-
-    @Environment(\.stylesheet) private var stylesheet
-
-    var body: some View {
-        Color.clear.onAppear { box.value = stylesheet }
+    @Test func fallsBackToDefaultWithoutAContext() {
+        #expect(EnvironmentValues().stylesheet == .default)
     }
 }
