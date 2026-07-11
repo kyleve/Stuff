@@ -1,6 +1,10 @@
 import BroadwayCore
+import BroadwayUI
 import CoreGraphics
+import SwiftUI
 import Testing
+import UIKit
+import WhereTesting
 @testable import WhereUI
 
 /// `WhereStylesheet` currently ships the fixed geometry migrated from the former
@@ -81,5 +85,52 @@ struct WhereStylesheetTests {
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.shadow.cardGlowRadius == 0)
         #expect(resolved.shadow.cardGlowRadiusCompact == 0)
+    }
+}
+
+/// End-to-end coverage of the WhereUI glue: `@Environment(\.stylesheet)` resolves
+/// against the `BContext` a Broadway root injects (as `RootView` does via
+/// `.broadwayRoot`), and falls back to `default` when no root is present.
+@MainActor
+struct WhereStylesheetEnvironmentTests {
+    @Test func resolvesTraitAwareTokensFromTheInjectedContext() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.contentSizeCategory = .accessibilityLarge
+
+        let box = StylesheetBox()
+        let host = UIHostingController(
+            rootView: StylesheetProbe(box: box).environment(\.bContext, context),
+        )
+
+        try show(host) { _ in
+            try waitFor { box.value != nil }
+            // The injected accessibility content size flows through `\.bContext`
+            // into `\.stylesheet` and grows the day-grid tap target.
+            #expect(box.value?.size.calendarDayMinHeight == 56)
+        }
+    }
+
+    @Test func fallsBackToDefaultWithoutARoot() throws {
+        let box = StylesheetBox()
+        let host = UIHostingController(rootView: StylesheetProbe(box: box))
+
+        try show(host) { _ in
+            try waitFor { box.value != nil }
+            #expect(box.value == .default)
+        }
+    }
+}
+
+private final class StylesheetBox {
+    var value: WhereStylesheet?
+}
+
+private struct StylesheetProbe: View {
+    let box: StylesheetBox
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        Color.clear.onAppear { box.value = stylesheet }
     }
 }

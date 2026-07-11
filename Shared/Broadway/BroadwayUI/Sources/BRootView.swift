@@ -68,7 +68,15 @@ enum BRootContext {
         accessibility: BAccessibility,
         themes: BThemes,
     ) -> BContext {
+        // `.system` is used for its public initializer; its trait *registrations*
+        // are inert here (only a `BTraitsObserver` consumes them, which the
+        // SwiftUI root doesn't use) — we set each value explicitly below.
         var traits = BTraits.system
+        // `mode` is seeded from the root's `@Environment(\.colorScheme)`. A
+        // descendant that forces a different scheme with
+        // `.environment(\.colorScheme, …)` does NOT re-seed this context, so its
+        // `mode` would diverge from what that subtree renders — use `.bMode(_:)`
+        // there instead when a token needs to follow a scoped scheme override.
         traits.mode = BMode(colorScheme)
         traits.contentSizeCategory = BContentSizeCategory(dynamicTypeSize)
         traits.accessibility = accessibility
