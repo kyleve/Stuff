@@ -19,10 +19,11 @@ the view hierarchy.
   while preserving inherited base traits and themes.
 - **SwiftUI bridges** — `BContext+SwiftUI` resolves `@Environment(\.bContext)`,
   preferring a synchronous pure-SwiftUI value (set by `BRootView` /
-  `broadwayRoot` / `bTraitOverrides`) and falling back to the UIKit
-  trait-bridged value when none is set. Plus `BTraitOverrides+SwiftUI` and the
-  `BMode` / `BContentSizeCategory` initializers from `ColorScheme` /
-  `DynamicTypeSize` (`BTraitValues+SwiftUI`).
+  `broadwayRoot` / `bTraitOverrides`, and mirrored into UIKit traits so it also
+  reaches nested UIKit) and falling back to the UIKit trait-bridged value when
+  none is set. Plus `BTraitOverrides+SwiftUI` and the `BMode` /
+  `BContentSizeCategory` initializers from `ColorScheme` / `DynamicTypeSize`
+  (`BTraitValues+SwiftUI`).
 
 ## Usage
 

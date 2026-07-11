@@ -14,9 +14,10 @@ import UIKit
 
 // MARK: - UIKit ↔ SwiftUI Bridging
 
-/// Bridges a ``BContext`` set on UIKit's trait system (e.g. by
-/// ``BRootViewController``) *into* SwiftUI. This is the fallback the
-/// `\.bContext` environment value reads when no SwiftUI ancestor has set one.
+/// Bridges ``BContext`` between SwiftUI and UIKit's trait system. The
+/// `\.bContext` accessor reads it as a fallback (so a UIKit-set context, e.g.
+/// from ``BRootViewController``, reaches SwiftUI) and mirrors SwiftUI writes
+/// into it (so a SwiftUI-set context reaches nested UIKit).
 struct BContextEnvironmentKey: UITraitBridgedEnvironmentKey {
     static var defaultValue: BContext {
         BContextTrait.defaultValue
@@ -45,17 +46,19 @@ extension EnvironmentValues {
     /// The Broadway environment container.
     ///
     /// A context set from SwiftUI (``BRootView`` / `broadwayRoot(themes:)` /
-    /// `bTraitOverrides`) takes precedence and propagates synchronously; with no
-    /// SwiftUI context set it falls back to the one bridged from the nearest
+    /// `bTraitOverrides`) is stored in a pure-SwiftUI key so SwiftUI reads it
+    /// synchronously (no `UITraitCollection` round-trip), and is *also* mirrored
+    /// into the UIKit trait system so it reaches nested UIKit views. With no
+    /// SwiftUI context set, it falls back to the value bridged from the nearest
     /// UIKit ancestor's `UITraitCollection` (e.g. a ``BRootViewController``).
-    ///
-    /// - Note: A SwiftUI-set context is intentionally *not* written back into
-    ///   the UIKit trait system, so it does not propagate into nested UIKit
-    ///   views. Seed the UIKit root (``BRootViewController``) when the context
-    ///   must reach UIKit descendants.
     public var bContext: BContext {
         get { self[SwiftUIBContextKey.self] ?? self[BContextEnvironmentKey.self] }
-        set { self[SwiftUIBContextKey.self] = newValue }
+        set {
+            // Store for synchronous SwiftUI reads, and mirror into the UIKit
+            // trait system so a SwiftUI-set context reaches nested UIKit views.
+            self[SwiftUIBContextKey.self] = newValue
+            self[BContextEnvironmentKey.self] = newValue
+        }
     }
 }
 
