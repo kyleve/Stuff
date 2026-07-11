@@ -86,26 +86,17 @@ struct WhereStylesheetTests {
     }
 }
 
-/// Covers the WhereUI glue — `EnvironmentValues.stylesheet` resolves a
-/// `WhereStylesheet` from the environment's `\.bContext` (trait-aware), and
-/// falls back to `default` when no context is set. Tested at the
-/// `EnvironmentValues` level (not through a hosted view): the accessor is a pure
-/// function of the environment, and SwiftUI's own `\.bContext` propagation is
-/// already covered in BroadwayUI (`BContextEnvironmentTests`, `BRootView` tests).
+/// Covers the WhereUI glue: `EnvironmentValues.stylesheet` resolves a
+/// `WhereStylesheet` from the environment's `\.bContext`, falling back to
+/// `default` when no context is set.
+///
+/// The trait-aware resolution itself is covered synchronously by
+/// `WhereStylesheetTests` (`growsDayGridTapTargetAtAccessibilitySizes` etc.,
+/// resolving directly off a `BContext`), and the `\.bContext` accessor by
+/// BroadwayUI's `BContextEnvironmentTests` — so this only asserts the WhereUI
+/// accessor wiring.
 @MainActor
 struct WhereStylesheetEnvironmentTests {
-    @Test func resolvesTraitAwareTokensFromTheContext() {
-        var context = BContext(traits: .system)
-        context.traitOverrides.contentSizeCategory = .accessibilityLarge
-
-        var environment = EnvironmentValues()
-        environment.bContext = context
-
-        // The accessibility content size flows through `\.bContext` into
-        // `\.stylesheet`, growing the day-grid tap target.
-        #expect(environment.stylesheet.size.calendarDayMinHeight == 56)
-    }
-
     @Test func fallsBackToDefaultWithoutAContext() {
         #expect(EnvironmentValues().stylesheet == .default)
     }
