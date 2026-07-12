@@ -122,6 +122,21 @@ struct WhereStylesheetEnvironmentTests {
             try waitFor { box.calendarDayMinHeight == 56 }
         }
     }
+
+    /// `whereBroadwayRoot()` — the app/widget entry point — seeds the same
+    /// trait-aware context. This is the WhereWidgets extension's only Broadway
+    /// root (it has no test bundle of its own), so pin it here.
+    @Test func whereBroadwayRootSeedsTraitAwareTokens() throws {
+        let box = StylesheetProbeBox()
+        let host = UIHostingController(
+            rootView: StylesheetProbe(box: box)
+                .bContentSizeCategory(.accessibilityLarge)
+                .whereBroadwayRoot(),
+        )
+        try show(host) { _ in
+            try waitFor { box.calendarDayMinHeight == 56 }
+        }
+    }
 }
 
 private final class StylesheetProbeBox {

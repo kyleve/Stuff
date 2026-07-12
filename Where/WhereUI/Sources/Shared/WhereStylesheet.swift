@@ -125,13 +125,34 @@ extension WhereStylesheet {
 
 // MARK: - Themes
 
-/// The Where app's Broadway themes, seeded at the root by `RootView` via
-/// `.broadwayRoot(themes:)`. Empty for now — `WhereStylesheet` derives from
-/// traits, not themes — and the home for app-level palette/typography themes as
-/// the design system grows.
+/// The Where app's Broadway themes, seeded at the root by `whereBroadwayRoot()`.
+/// Empty for now — `WhereStylesheet` derives from traits, not themes — and the
+/// home for app-level palette/typography themes as the design system grows.
 enum WhereThemes {
     static var current: BThemes {
         BThemes()
+    }
+}
+
+// MARK: - Root
+
+extension View {
+    /// Seeds the Where app's Broadway context — live system traits plus
+    /// ``WhereThemes`` — so descendants resolve `@Environment(\.stylesheet)`
+    /// against real traits rather than ``WhereStylesheet/default``.
+    ///
+    /// Applied once at the app root (`RootView`) and, crucially, by the widget
+    /// extension: `WhereWidgets` has no other Broadway root, so without this its
+    /// views would fall back to `default` and lose the trait-aware tokens (bigger
+    /// day-grid tap targets, flattened card glow under Reduce Transparency).
+    ///
+    /// Lives here (not called as `broadwayRoot` at each site) so callers only
+    /// need to import `WhereUI`: `WhereWidgets` must not link `BroadwayUI`
+    /// directly — it already gets it through `WhereUI` (a dynamic framework), and
+    /// a second copy would split Broadway's type-keyed environment metadata (see
+    /// the root `AGENTS.md` "Targets" note).
+    public func whereBroadwayRoot() -> some View {
+        broadwayRoot(themes: WhereThemes.current)
     }
 }
 
@@ -139,8 +160,8 @@ enum WhereThemes {
 
 extension EnvironmentValues {
     /// The active Where design tokens, resolved from the Broadway `BContext`
-    /// seeded by `.broadwayRoot` at the app root. With no root present (previews,
-    /// widgets) the default empty context yields ``WhereStylesheet/default``.
+    /// seeded by `whereBroadwayRoot()`. With no root present (e.g. isolated
+    /// previews) the default empty context yields ``WhereStylesheet/default``.
     /// A resolution failure is a programmer error (the initializer never throws),
     /// so it traps in debug and falls back to `default` in release.
     var stylesheet: WhereStylesheet {
