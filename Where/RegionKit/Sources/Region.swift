@@ -21,24 +21,23 @@ public enum Region: String, Codable, Sendable, Hashable, CaseIterable {
     /// User-facing name for this region, read from the `RegionKit`
     /// string catalog (`Resources/Localizable.xcstrings`).
     ///
-    /// Uses `String(localized:)` with a literal key per case (rather
-    /// than `NSLocalizedString` with a runtime-composed
-    /// `"region.\(rawValue)"`) so Xcode's string-catalog extraction
-    /// tooling can statically find every key. Adding a new region
-    /// case is intentionally a compile error here until you add a
-    /// matching string catalog entry.
+    /// Uses Xcode's generated `LocalizedStringResource` symbol per case
+    /// (rather than a runtime-composed `"region.\(rawValue)"` key) so the
+    /// compiler enforces that every case has a catalog entry: adding a new
+    /// region case is a compile error here until its manual key is added to
+    /// the catalog, which is what produces the symbol.
     public var localizedName: String {
         switch self {
             case .california:
-                String(localized: "region.california", bundle: .module)
+                String(localized: .regionCalifornia)
             case .newYork:
-                String(localized: "region.newYork", bundle: .module)
+                String(localized: .regionNewYork)
             case .canada:
-                String(localized: "region.canada", bundle: .module)
+                String(localized: .regionCanada)
             case .europeanUnion:
-                String(localized: "region.europeanUnion", bundle: .module)
+                String(localized: .regionEuropeanUnion)
             case .other:
-                String(localized: "region.other", bundle: .module)
+                String(localized: .regionOther)
         }
     }
 

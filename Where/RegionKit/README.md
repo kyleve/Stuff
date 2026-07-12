@@ -52,16 +52,19 @@ print(region.localizedName) // "California"
 Region polygons ship in `Sources/Resources/*.geojson`; see
 [`Sources/Resources/README.md`](Sources/Resources/README.md) for provenance and
 fidelity notes. Region names resolve through RegionKit's own
-`Localizable.xcstrings` (`Region.localizedName`, `bundle: .module`).
+`Localizable.xcstrings` — `Region.localizedName` reads Xcode's generated
+`LocalizedStringResource` symbols (`String(localized: .regionCalifornia)`), so
+no bundle argument is needed.
 
 ## Adding a region
 
 Add the `Region` case, then resolve the two compile errors it forces: a
-`region.<rawValue>` entry in `Sources/Resources/Localizable.xcstrings` (for
-`localizedName`) and a `Region.geometrySource` case — either
-`.usStateFeature(name:)` (a feature already in `us-states.geojson`, no new file)
-or `.bundledFile` with a new `<rawValue>.geojson` in `Sources/Resources/`. Add a
-`RegionAttributorTests` spot-check.
+`region.<rawValue>` entry in `Sources/Resources/Localizable.xcstrings` (added as
+a **manual** key, which generates the `.region<RawValue>` symbol `localizedName`
+switches on) and a `Region.geometrySource` case — either `.usStateFeature(name:)`
+(a feature already in `us-states.geojson`, no new file) or `.bundledFile` with a
+new `<rawValue>.geojson` in `Sources/Resources/`. Add a `RegionAttributorTests`
+spot-check.
 
 ## Testing
 
