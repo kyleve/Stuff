@@ -3,6 +3,8 @@ import BroadwayUI
 import CoreGraphics
 import SwiftUI
 import Testing
+import UIKit
+import WhereTesting
 @testable import WhereUI
 
 /// `WhereStylesheet` currently ships the fixed geometry migrated from the former
@@ -93,11 +95,48 @@ struct WhereStylesheetTests {
 /// The trait-aware resolution itself is covered synchronously by
 /// `WhereStylesheetTests` (`growsDayGridTapTargetAtAccessibilitySizes` etc.,
 /// resolving directly off a `BContext`), and the `\.bContext` accessor by
-/// BroadwayUI's `BContextEnvironmentTests` — so this only asserts the WhereUI
-/// accessor wiring.
+/// BroadwayUI's `BContextEnvironmentTests`.
 @MainActor
 struct WhereStylesheetEnvironmentTests {
     @Test func fallsBackToDefaultWithoutAContext() {
         #expect(EnvironmentValues().stylesheet == .default)
+    }
+
+    /// End-to-end, hosted: a Broadway root seeds a trait-overridden context and a
+    /// WhereUI view reading `@Environment(\.stylesheet)` (which resolves through
+    /// `\.bContext`) sees the accessibility-sized tokens.
+    ///
+    /// This crosses the WhereUI↔BroadwayUI module boundary at runtime, so it only
+    /// resolves when both modules share a single BroadwayUI copy — the reason
+    /// `BroadwayCore`/`BroadwayUI` are dynamic libraries. It reproduced the
+    /// duplicate-copy failure that only surfaced in the full multi-bundle test
+    /// host; guard against a regression.
+    @Test func resolvesTraitAwareTokensFromTheBroadwayRoot() throws {
+        let box = StylesheetProbeBox()
+        let host = UIHostingController(
+            rootView: StylesheetProbe(box: box)
+                .bContentSizeCategory(.accessibilityLarge)
+                .broadwayRoot(),
+        )
+        try show(host) { _ in
+            try waitFor { box.calendarDayMinHeight == 56 }
+        }
+    }
+}
+
+private final class StylesheetProbeBox {
+    var calendarDayMinHeight: CGFloat?
+}
+
+private struct StylesheetProbe: View {
+    let box: StylesheetProbeBox
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        Color.clear
+            .onChange(of: stylesheet.size.calendarDayMinHeight, initial: true) { _, newValue in
+                box.calendarDayMinHeight = newValue
+            }
     }
 }
