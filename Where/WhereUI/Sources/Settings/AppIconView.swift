@@ -14,6 +14,7 @@ struct AppIconView: View {
     @State private var dragOffset: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.stylesheet) private var stylesheet
 
     @MainActor
     init(model: AppIconModel = AppIconModel()) {
@@ -23,8 +24,14 @@ struct AppIconView: View {
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
-                let grid = AppIconLayout.gridMetrics(containerWidth: proxy.size.width)
-                let previewIconSize = AppIconLayout.previewIconSize(containerSize: proxy.size)
+                let grid = AppIconLayout.gridMetrics(
+                    containerWidth: proxy.size.width,
+                    stylesheet: stylesheet,
+                )
+                let previewIconSize = AppIconLayout.previewIconSize(
+                    containerSize: proxy.size,
+                    stylesheet: stylesheet,
+                )
                 ZStack(alignment: .bottom) {
                     grids(metrics: grid)
 
@@ -62,20 +69,20 @@ struct AppIconView: View {
         ScrollView {
             LazyVGrid(
                 columns: gridColumns(count: metrics.columnCount),
-                spacing: UIConstants.Spacings.xxxLarge,
+                spacing: stylesheet.spacing.xxxLarge,
             ) {
                 ForEach(model.options) { option in
                     cell(for: option, iconSize: metrics.iconSize)
                 }
             }
-            .padding(UIConstants.Spacings.xxLarge)
+            .padding(stylesheet.spacing.xxLarge)
         }
         .scrollDisabled(preview != nil)
     }
 
     private func gridColumns(count: Int) -> [GridItem] {
         Array(
-            repeating: GridItem(.flexible(), spacing: UIConstants.Spacings.xxLarge),
+            repeating: GridItem(.flexible(), spacing: stylesheet.spacing.xxLarge),
             count: count,
         )
     }
@@ -90,11 +97,11 @@ struct AppIconView: View {
         return Button {
             select(option)
         } label: {
-            VStack(spacing: UIConstants.Spacings.large) {
+            VStack(spacing: stylesheet.spacing.large) {
                 AppIconImage(name: option.previewImageName, size: iconSize)
                     .opacity(isPreviewing ? 0.5 : 1)
 
-                HStack(spacing: UIConstants.Spacings.small) {
+                HStack(spacing: stylesheet.spacing.small) {
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(Color.accentColor)
@@ -126,11 +133,11 @@ struct AppIconView: View {
     }
 
     private func previewPanel(for option: AppIconOption, iconSize: CGFloat) -> some View {
-        VStack(spacing: UIConstants.Spacings.xLarge) {
+        VStack(spacing: stylesheet.spacing.xLarge) {
             Capsule()
                 .fill(.secondary.opacity(0.5))
                 .frame(width: 40, height: 5)
-                .padding(.top, UIConstants.Spacings.medium)
+                .padding(.top, stylesheet.spacing.medium)
 
             Button {
                 toggleAppearance()
@@ -143,7 +150,7 @@ struct AppIconView: View {
                 .appIconAppearanceLight)
             .accessibilityHint(Strings.appIconAppearanceHint)
 
-            VStack(spacing: UIConstants.Spacings.xSmall) {
+            VStack(spacing: stylesheet.spacing.xSmall) {
                 Text(option.displayName)
                     .font(.title3.weight(.semibold))
                 Text(Strings.appIconAppearanceHint)
@@ -162,13 +169,13 @@ struct AppIconView: View {
             .controlSize(.large)
             .disabled(model.isSelected(option) || !model.supportsAlternateIcons)
         }
-        .padding(.horizontal, UIConstants.Spacings.xxxLarge)
-        .padding(.bottom, UIConstants.Spacings.xxLarge)
+        .padding(.horizontal, stylesheet.spacing.xxxLarge)
+        .padding(.bottom, stylesheet.spacing.xxLarge)
         .frame(maxWidth: .infinity)
         .background {
             UnevenRoundedRectangle(
-                topLeadingRadius: UIConstants.CornerRadius.card,
-                topTrailingRadius: UIConstants.CornerRadius.card,
+                topLeadingRadius: stylesheet.cornerRadius.card,
+                topTrailingRadius: stylesheet.cornerRadius.card,
                 style: .continuous,
             )
             .fill(Color(.systemBackground))

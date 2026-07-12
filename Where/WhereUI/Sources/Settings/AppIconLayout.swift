@@ -2,8 +2,9 @@ import CoreGraphics
 
 /// Container-relative sizing for the app-icon picker grid and the full-screen
 /// preview. Both flex with the space they're given instead of using fixed point
-/// sizes, and every result is clamped to a maximum (see `UIConstants.Size`) so
-/// icons never grow unbounded on large displays like iPad.
+/// sizes, and every result is clamped to a maximum from the active
+/// `WhereStylesheet` (passed in by the caller) so icons never grow unbounded on
+/// large displays like iPad.
 enum AppIconLayout {
     /// Fewest grid columns, so phones keep the familiar two-up layout even when
     /// a single column could technically be wider.
@@ -18,23 +19,31 @@ enum AppIconLayout {
     private static let previewIconWidthFraction: CGFloat = 0.5
     private static let previewIconHeightFraction: CGFloat = 0.3
 
-    /// Column count and per-thumbnail edge for the picker grid at `width`.
-    static func gridMetrics(containerWidth width: CGFloat) -> AppIconGridMetrics {
-        let spacing = UIConstants.Spacings.xxLarge
+    /// Column count and per-thumbnail edge for the picker grid at `width`, capped
+    /// by the given stylesheet's grid maximum.
+    static func gridMetrics(
+        containerWidth width: CGFloat,
+        stylesheet: WhereStylesheet,
+    ) -> AppIconGridMetrics {
+        let spacing = stylesheet.spacing.xxLarge
         let available = max(width - spacing * 2, 0)
         let columnsThatFit = Int((available + spacing) / (idealGridIcon + spacing))
         let columnCount = max(minGridColumns, columnsThatFit)
         let columnWidth = (available - spacing * CGFloat(columnCount - 1)) / CGFloat(columnCount)
-        let iconSize = min(max(columnWidth, 0), UIConstants.Size.appIconGridMax)
+        let iconSize = min(max(columnWidth, 0), stylesheet.size.appIconGridMax)
         return AppIconGridMetrics(columnCount: columnCount, iconSize: iconSize)
     }
 
-    /// Edge for the slide-up preview icon given the page `size` it appears over.
-    static func previewIconSize(containerSize size: CGSize) -> CGFloat {
+    /// Edge for the slide-up preview icon given the page `size` it appears over,
+    /// capped by the given stylesheet's preview maximum.
+    static func previewIconSize(
+        containerSize size: CGSize,
+        stylesheet: WhereStylesheet,
+    ) -> CGFloat {
         let bounded = min(
             size.width * previewIconWidthFraction,
             size.height * previewIconHeightFraction,
-            UIConstants.Size.appIconPreviewLargeMax,
+            stylesheet.size.appIconPreviewLargeMax,
         )
         return max(bounded, 0)
     }

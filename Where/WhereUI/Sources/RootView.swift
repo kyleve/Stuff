@@ -108,6 +108,10 @@ public struct RootView: View {
                 await model.session?.appBecameActive()
             }
         }
+        // Seed the Broadway context at the app root so descendants resolve
+        // `WhereStylesheet` (via `@Environment(\.stylesheet)`) against the live
+        // system traits and the app's themes.
+        .whereBroadwayRoot()
     }
 
     /// How the launch splash gives way to the app once the runner is `.ready`:

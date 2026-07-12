@@ -17,6 +17,7 @@ public struct OnboardingView: View {
     // `open-store` step has already built by the time this step runs.
     @Environment(WhereModel.self) private var model
     @Environment(WhereSession.self) private var session
+    @Environment(\.stylesheet) private var stylesheet
     private let bridge: LifecycleStepUIBridge
 
     @State private var page = 0
@@ -29,19 +30,19 @@ public struct OnboardingView: View {
     private let pages = OnboardingPage.all
 
     public var body: some View {
-        VStack(spacing: UIConstants.Spacings.xxxLarge) {
+        VStack(spacing: stylesheet.spacing.xxxLarge) {
             TabView(selection: $page) {
                 ForEach(pages.indices, id: \.self) { index in
                     pageView(pages[index])
                         .tag(index)
-                        .padding(.horizontal, UIConstants.Spacings.xxxLarge)
+                        .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .always))
 
             footer
-                .padding(.horizontal, UIConstants.Spacings.xxxLarge)
-                .padding(.bottom, UIConstants.Spacings.xxxLarge)
+                .padding(.horizontal, stylesheet.spacing.xxxLarge)
+                .padding(.bottom, stylesheet.spacing.xxxLarge)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
@@ -55,13 +56,13 @@ public struct OnboardingView: View {
     }
 
     private func pageView(_ page: OnboardingPage) -> some View {
-        VStack(spacing: UIConstants.Spacings.xxxLarge) {
+        VStack(spacing: stylesheet.spacing.xxxLarge) {
             Spacer(minLength: 0)
             Image(systemName: page.symbol)
                 .font(.system(size: 72))
                 .foregroundStyle(Color.accentColor)
                 .accessibilityHidden(true)
-            VStack(spacing: UIConstants.Spacings.large) {
+            VStack(spacing: stylesheet.spacing.large) {
                 Text(page.title)
                     .font(.largeTitle.bold())
                     .multilineTextAlignment(.center)
@@ -85,7 +86,7 @@ public struct OnboardingView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
         } else {
-            VStack(spacing: UIConstants.Spacings.large) {
+            VStack(spacing: stylesheet.spacing.large) {
                 Button {
                     // Request Always-location right here so the system prompt
                     // maps 1:1 to the tap; the launch's tracking-reconcile step

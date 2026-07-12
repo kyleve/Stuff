@@ -24,6 +24,8 @@ public struct RegionMapView: View {
     @State private var selectedTitle: String?
     @State private var cameraPosition: MapCameraPosition = .automatic
 
+    @Environment(\.stylesheet) private var stylesheet
+
     /// Public so the standalone `RegionViewer` app (a separate module) can
     /// present the same screen as the in-app developer overlay entry.
     public init() {}
@@ -107,16 +109,16 @@ public struct RegionMapView: View {
                 Text(Strings.regionMapKindFooter(kind))
             }
         }
-        .frame(height: UIConstants.Size.regionMapHeight)
+        .frame(height: stylesheet.size.regionMapHeight)
     }
 
     private func legendRow(_ group: LegendGroup) -> some View {
-        HStack(spacing: UIConstants.Spacings.large) {
+        HStack(spacing: stylesheet.spacing.large) {
             Circle()
                 .fill(color(forTitle: group.title, region: group.region))
                 .frame(
-                    width: UIConstants.Size.calendarDot * 2,
-                    height: UIConstants.Size.calendarDot * 2,
+                    width: stylesheet.size.calendarDot * 2,
+                    height: stylesheet.size.calendarDot * 2,
                 )
                 .accessibilityHidden(true)
             Text(group.title)

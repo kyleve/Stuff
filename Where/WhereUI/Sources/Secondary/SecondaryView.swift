@@ -12,6 +12,8 @@ struct SecondaryView: View {
     /// previews/tests (no raw samples) and until the lookups resolve.
     @State private var placeNames: [Region: String] = [:]
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
         NavigationStack {
             screen
@@ -65,14 +67,14 @@ struct SecondaryView: View {
 
     private var content: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: UIConstants.Spacings.xLarge) {
+            VStack(alignment: .leading, spacing: stylesheet.spacing.xLarge) {
                 Text(Strings.secondaryHeader(year: report.selectedYear))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                GlassEffectContainer(spacing: UIConstants.Spacings.large) {
-                    VStack(spacing: UIConstants.Spacings.large) {
+                GlassEffectContainer(spacing: stylesheet.spacing.large) {
+                    VStack(spacing: stylesheet.spacing.large) {
                         ForEach(report.ranking.secondary) { item in
                             NavigationLink {
                                 RegionDaysView(region: item.region, report: report)
