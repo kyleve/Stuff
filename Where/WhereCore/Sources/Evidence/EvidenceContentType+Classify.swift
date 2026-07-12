@@ -42,12 +42,34 @@ extension EvidenceContentType {
         if matches([0xFF, 0xD8, 0xFF]) { return .image } // JPEG
         if matches([0x89, 0x50, 0x4E, 0x47]) { return .image } // PNG
         if matches([0x47, 0x49, 0x46, 0x38]) { return .image } // "GIF8"
-        // HEIC/HEIF and other ISO base-media files: "ftyp" box at offset 4.
-        if matches([0x66, 0x74, 0x79, 0x70], at: 4) { return .image }
+        // ISO base-media files carry an "ftyp" box at offset 4 followed by a
+        // 4-byte major brand at offset 8. Match only *image* brands (HEIC/HEIF
+        // family, AVIF) so an MP4/MOV video — also ISO-BMFF — isn't misread as
+        // an image and then fail to decode.
+        if matches([0x66, 0x74, 0x79, 0x70], at: 4),
+           isoImageBrands.contains(where: { matches($0, at: 8) })
+        {
+            return .image
+        }
         // WEBP: "RIFF"????"WEBP".
         if matches([0x52, 0x49, 0x46, 0x46]), matches([0x57, 0x45, 0x42, 0x50], at: 8) {
             return .image
         }
         return nil
     }
+
+    /// ISO base-media major brands that denote a still image (HEIF/HEIC family
+    /// and AVIF), as ASCII bytes. Excludes video brands like "isom"/"mp42".
+    private static let isoImageBrands: [[UInt8]] = [
+        Array("heic".utf8),
+        Array("heix".utf8),
+        Array("heim".utf8),
+        Array("heis".utf8),
+        Array("hevc".utf8),
+        Array("hevx".utf8),
+        Array("heif".utf8),
+        Array("mif1".utf8),
+        Array("msf1".utf8),
+        Array("avif".utf8),
+    ]
 }
