@@ -231,6 +231,17 @@
           }
         }
       }
+    },
+    "snippet.logTodayHere" : {
+      "comment" : "Button in the day-count snippet that logs today for the shown region.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Log today here"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

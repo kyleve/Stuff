@@ -1,6 +1,8 @@
 import AppIntents
 import Foundation
+import SwiftUI
 import WhereCore
+import WhereUI
 
 /// "Where am I today?" — the regions today already counts for. Prefers the
 /// app-published widget snapshot (no store read) and falls back to the year
@@ -14,15 +16,14 @@ public struct TodayRegionsIntent: AppIntent {
 
     public init() {}
 
-    public func perform() async throws
-        -> some IntentResult & ReturnsValue<[RegionEntity]> & ProvidesDialog
-    {
+    @MainActor
+    public func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let services = try WhereServices.forIntents()
         let regions = try await WhereIntentReader(services: services).todayRegions()
         let ordered = orderedRegions(regions)
         return .result(
-            value: ordered.map(RegionEntity.init),
             dialog: IntentDialog("\(IntentStrings.today(regions: ordered))"),
+            view: RegionsSnippetView.today(regions: ordered).whereBroadwayRoot(),
         )
     }
 }

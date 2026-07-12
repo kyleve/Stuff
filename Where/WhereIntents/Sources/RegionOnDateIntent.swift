@@ -1,10 +1,12 @@
 import AppIntents
 import Foundation
 import RegionKit
+import SwiftUI
 import WhereCore
+import WhereUI
 
-/// "What region was I in on June 3?" — returns the regions a given calendar day
-/// counts for, as both entities (for Shortcuts) and a spoken dialog.
+/// "What region was I in on June 3?" — the regions a given calendar day counts
+/// for, as a spoken dialog plus a snippet card.
 public struct RegionOnDateIntent: AppIntent {
     public static let title: LocalizedStringResource = "Find Regions on a Date"
 
@@ -21,15 +23,14 @@ public struct RegionOnDateIntent: AppIntent {
         self.date = date
     }
 
-    public func perform() async throws
-        -> some IntentResult & ReturnsValue<[RegionEntity]> & ProvidesDialog
-    {
+    @MainActor
+    public func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let services = try WhereServices.forIntents()
         let regions = try await WhereIntentReader(services: services).regions(on: date)
         let ordered = orderedRegions(regions)
         return .result(
-            value: ordered.map(RegionEntity.init),
             dialog: IntentDialog("\(IntentStrings.regionsOnDate(date, regions: ordered))"),
+            view: RegionsSnippetView.onDate(date, regions: ordered).whereBroadwayRoot(),
         )
     }
 }

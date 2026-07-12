@@ -32,11 +32,14 @@ public struct DaysInRegionIntent: AppIntent {
         let resolvedYear = year ?? Calendar.current.component(.year, from: Date())
         let count = try await WhereIntentReader(services: services)
             .dayCount(in: region.region, year: resolvedYear)
+        // The value + dialog answer voice-only Siri; the interactive snippet
+        // renders the card and its "Log today here" button on screen.
         return .result(
             value: count,
             dialog: IntentDialog(
                 "\(IntentStrings.daysInRegion(region: region.region, days: count, year: resolvedYear))",
             ),
+            snippetIntent: DaysInRegionSnippetIntent(region: region, year: resolvedYear),
         )
     }
 }

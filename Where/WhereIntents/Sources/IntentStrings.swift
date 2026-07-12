@@ -172,6 +172,14 @@ enum IntentStrings {
         )
     }
 
+    // MARK: Snippet controls
+
+    /// Title of the day-count snippet's action button, which logs today for the
+    /// shown region.
+    static var logTodayHere: String {
+        String(localized: "snippet.logTodayHere", defaultValue: "Log today here", bundle: .module)
+    }
+
     // MARK: Helpers
 
     /// Region names joined in a localized list, in `Region.allCases` order so
