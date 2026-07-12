@@ -168,6 +168,13 @@ struct WhereStylesheetTests {
         #expect(regionMap.uncertaintyStrokeWidth == 1)
     }
 
+    @Test func typographyFaces() {
+        let typography = style.typography
+        #expect(typography.onboardingIcon == .system(size: 72))
+        #expect(typography.widgetHeroRegion == .system(.headline, design: .serif).weight(.semibold))
+        #expect(typography.widgetTotalNumber == .system(.body, design: .rounded, weight: .bold))
+    }
+
     @Test func motionAnimations() {
         let motion = style.motion
         #expect(motion.reveal == .easeIn(duration: 0.18))

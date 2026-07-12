@@ -21,6 +21,7 @@ struct WhereStylesheet: BStylesheet {
     var regionMap = RegionMapStyle.standard
     var palette = Palette.standard
     var motion = Motion.standard
+    var typography = Typography.standard
 
     init() {}
 
@@ -459,6 +460,31 @@ extension WhereStylesheet {
             labelSpacing: 2,
             trailingMinSpacing: 8,
             rowVerticalPadding: 4,
+        )
+    }
+}
+
+// MARK: - Typography
+
+extension WhereStylesheet {
+    /// The app's bespoke display faces — the few fonts that aren't one of Apple's
+    /// semantic Dynamic Type text styles. Everyday text keeps using the semantic
+    /// styles directly (they already scale and adapt); this is where a future
+    /// typography theme would reskin the distinctive faces. (The region card's
+    /// custom fonts live on ``CardStyle``; `EntryStamp`'s size-relative fonts stay
+    /// intrinsic to it.)
+    struct Typography: Equatable {
+        /// The oversized SF Symbol at the top of each onboarding page.
+        var onboardingIcon: Font
+        /// The serif region name on the Today widget's single-region hero.
+        var widgetHeroRegion: Font
+        /// The rounded, bold day-count number on the Year Totals widget.
+        var widgetTotalNumber: Font
+
+        static let standard = Typography(
+            onboardingIcon: .system(size: 72),
+            widgetHeroRegion: .system(.headline, design: .serif).weight(.semibold),
+            widgetTotalNumber: .system(.body, design: .rounded, weight: .bold),
         )
     }
 }

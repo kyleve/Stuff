@@ -62,7 +62,7 @@ public struct OnboardingView: View {
         VStack(spacing: stylesheet.spacing.xxxLarge) {
             Spacer(minLength: 0)
             Image(systemName: page.symbol)
-                .font(.system(size: 72))
+                .font(stylesheet.typography.onboardingIcon)
                 .foregroundStyle(Color.accentColor)
                 .accessibilityHidden(true)
             VStack(spacing: stylesheet.spacing.large) {

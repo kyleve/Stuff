@@ -59,7 +59,7 @@ public struct TodayWidgetView: View {
                 .font(.largeTitle)
                 .accessibilityHidden(true)
             Text(region.localizedName)
-                .font(.system(.headline, design: .serif).weight(.semibold))
+                .font(stylesheet.typography.widgetHeroRegion)
                 .textCase(.uppercase)
                 .tracking(1)
                 .foregroundStyle(region.style.tint)
