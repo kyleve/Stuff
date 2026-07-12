@@ -32,29 +32,68 @@ struct WhereStylesheetTests {
         #expect(style.cornerRadius.card == 28)
     }
 
-    @Test func cardShadowGeometry() {
-        #expect(style.shadow.cardRadius == 34)
-        #expect(style.shadow.cardRadiusCompact == 17)
-        #expect(style.shadow.cardGlowRadius == 12)
-        #expect(style.shadow.cardGlowRadiusCompact == 6)
-        #expect(style.shadow.cardOffsetY == 18)
-        #expect(style.shadow.cardOffsetYCompact == 9)
+    @Test func regularCardStyle() {
+        let card = style.card.regular
+        #expect(card.cornerRadius == 28)
+        #expect(card.padding == 22)
+        #expect(card.contentSpacing == 16)
+        #expect(card.progressBarHeight == 10)
+        #expect(card.entryStampSize == 88)
+        #expect(card.showsArcText)
+        #expect(card.regionNameFont == .system(size: 38, weight: .semibold, design: .serif))
+        #expect(card.regionNameTracking == -0.5)
+        #expect(card.watermarkFontSize == 150)
+        #expect(card.watermarkOffset == CGSize(width: 20, height: 12))
+        #expect(card.holographicIntensity == 1)
+        #expect(card.frameOuterLineWidth == 3.5)
+        #expect(card.showsPerforationRing)
+        #expect(card.innerFrameInset == 16)
+        #expect(card.rosette == .init(
+            wobble: 3,
+            lineWidth: 3,
+            primaryRingSpacing: 18,
+            secondaryRingSpacing: 15,
+        ))
+        #expect(card.glow == .init(opacity: 0.75, radius: 12))
+        #expect(card.lift == .init(opacity: 0.6, radius: 34, offsetY: 18))
+    }
+
+    @Test func compactCardStyle() {
+        let card = style.card.compact
+        #expect(card.cornerRadius == 22)
+        #expect(card.padding == 16)
+        #expect(card.contentSpacing == 10)
+        #expect(card.progressBarHeight == 6)
+        #expect(card.entryStampSize == 52)
+        #expect(!card.showsArcText)
+        #expect(card.regionNameTracking == 0)
+        #expect(card.watermarkFontSize == 96)
+        #expect(card.watermarkOffset == CGSize(width: 12, height: 10))
+        #expect(card.holographicIntensity == 0.5)
+        #expect(card.frameOuterLineWidth == 2.5)
+        #expect(!card.showsPerforationRing)
+        #expect(card.innerFrameInset == 12)
+        #expect(card.rosette == .init(
+            wobble: 2,
+            lineWidth: 2,
+            primaryRingSpacing: 13,
+            secondaryRingSpacing: 11,
+        ))
+        #expect(card.glow == .init(opacity: 0.55, radius: 6))
+        #expect(card.lift == .init(opacity: 0.4, radius: 17, offsetY: 9))
+    }
+
+    @Test func cardVariantSubscriptSelectsTheMatchingSpec() {
+        #expect(style.card[.regular] == style.card.regular)
+        #expect(style.card[.compact] == style.card.compact)
     }
 
     @Test func elementSizes() {
-        #expect(style.size.progressBarHeight == 10)
-        #expect(style.size.progressBarHeightCompact == 6)
         #expect(style.size.timelineAccentWidth == 4)
         #expect(style.size.timelineAccentHeight == 34)
         #expect(style.size.calendarDot == 6)
         #expect(style.size.calendarDayMinHeight == 44)
-        #expect(style.size.heroNumberFontSize == 40)
-        #expect(style.size.regionNameFontSize == 38)
         #expect(style.size.statusIconWidth == 28)
-        #expect(style.size.entryStamp == 88)
-        #expect(style.size.entryStampCompact == 52)
-        #expect(style.size.stampWatermark == 150)
-        #expect(style.size.stampWatermarkCompact == 96)
         #expect(style.size.regionMapHeight == 220)
         #expect(style.size.appIconGridMax == 180)
         #expect(style.size.appIconPreviewLargeMax == 280)
@@ -83,8 +122,8 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.accessibility = BAccessibility(isReduceTransparencyEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
-        #expect(resolved.shadow.cardGlowRadius == 0)
-        #expect(resolved.shadow.cardGlowRadiusCompact == 0)
+        #expect(resolved.card.regular.glow.radius == 0)
+        #expect(resolved.card.compact.glow.radius == 0)
     }
 }
 

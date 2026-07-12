@@ -83,7 +83,7 @@ struct SecondaryView: View {
                                     regionDays: item,
                                     caption: caption(for: item),
                                     places: placeNames[item.region],
-                                    compact: true,
+                                    variant: .compact,
                                     yearLength: report.daysInSelectedYear,
                                     year: report.selectedYear,
                                 )

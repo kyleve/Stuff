@@ -15,8 +15,8 @@ struct WhereStylesheet: BStylesheet {
     var spacing = Spacing()
     var padding = Padding()
     var cornerRadius = CornerRadius()
-    var shadow = Shadow()
     var size = Size()
+    var card = CardStyles.standard
 
     init() {}
 
@@ -31,11 +31,11 @@ struct WhereStylesheet: BStylesheet {
             size.calendarDayMinHeight = 56
         }
 
-        // Reduce Transparency flattens the cards: drop the decorative glow layer
-        // that reads as a translucent halo.
+        // Reduce Transparency flattens the cards: drop the decorative rim-glow
+        // layer (the translucent halo) on both card variants.
         if traits.accessibility.isReduceTransparencyEnabled {
-            shadow.cardGlowRadius = 0
-            shadow.cardGlowRadiusCompact = 0
+            card.regular.glow.radius = 0
+            card.compact.glow.radius = 0
         }
     }
 
@@ -70,40 +70,15 @@ extension WhereStylesheet {
         var card: CGFloat = 28
     }
 
-    /// Tinted drop-shadow geometry for the region cards, giving them a bold,
-    /// color-saturated lift off the page. Two layers stack: a tight rim glow
-    /// (`cardGlowRadius`) and a broad lift (`cardRadius`).
-    struct Shadow: Equatable {
-        var cardRadius: CGFloat = 34
-        var cardRadiusCompact: CGFloat = 17
-        var cardGlowRadius: CGFloat = 12
-        var cardGlowRadiusCompact: CGFloat = 6
-        var cardOffsetY: CGFloat = 18
-        var cardOffsetYCompact: CGFloat = 9
-    }
-
-    /// One-off element sizes that aren't part of the spacing scale.
+    /// One-off element sizes that aren't part of the spacing scale. Card-specific
+    /// geometry (stamp, watermark, progress bar, shadows, fonts) lives on
+    /// ``CardStyle`` instead.
     struct Size: Equatable {
-        var progressBarHeight: CGFloat = 10
-        var progressBarHeightCompact: CGFloat = 6
         var timelineAccentWidth: CGFloat = 4
         var timelineAccentHeight: CGFloat = 34
         var calendarDot: CGFloat = 6
         var calendarDayMinHeight: CGFloat = 44
-        var heroNumberFontSize: CGFloat = 40
-        /// Point size of the region name header on the big Primary cards. Fixed
-        /// (rather than a Dynamic Type text style) for precise control against
-        /// the entry stamp on the right: the longest common headline names
-        /// ("California" / "New York") still fit at this size, and any over-long
-        /// one tightens then scales down via `minimumScaleFactor`.
-        var regionNameFontSize: CGFloat = 38
         var statusIconWidth: CGFloat = 28
-        /// Diameter of the region card's circular "entry stamp" impression.
-        var entryStamp: CGFloat = 88
-        var entryStampCompact: CGFloat = 52
-        /// Point size of the oversized region glyph watermarked behind a card.
-        var stampWatermark: CGFloat = 150
-        var stampWatermarkCompact: CGFloat = 96
         /// Height of the map header on the Elsewhere region drill-in.
         var regionMapHeight: CGFloat = 220
         /// Upper bound for a picker-grid thumbnail edge; the actual size flexes
@@ -120,6 +95,148 @@ extension WhereStylesheet {
         /// (the "updating your data" line shown during a slow store open), kept
         /// clear of the home indicator.
         var launchCaptionBottomInset: CGFloat = 72
+    }
+}
+
+// MARK: - Card
+
+extension WhereStylesheet {
+    /// The complete visual spec for a `RegionSummaryCard`. Bundling every value
+    /// the card's appearance depends on into one type — with a `.regular` variant
+    /// (the big Primary cards) and a `.compact` variant (the Elsewhere list) —
+    /// lets the view read a single resolved `CardStyle` instead of branching on a
+    /// `compact` flag across ~30 tokens. Non-varying generic spacing (the inner
+    /// header/number stacks) still comes from ``Spacing``.
+    struct CardStyle: Equatable {
+        /// Which card the stylesheet vends: the Primary tab uses `.regular`, the
+        /// Elsewhere tab `.compact`.
+        enum Variant {
+            case regular
+            case compact
+        }
+
+        var cornerRadius: CGFloat
+        var padding: CGFloat
+        /// Spacing between the card's stacked rows (header, hero number, bar).
+        var contentSpacing: CGFloat
+        var progressBarHeight: CGFloat
+        /// Diameter of the circular "entry stamp" impression.
+        var entryStampSize: CGFloat
+        /// Whether the entry stamp draws its curved region-name arc — dropped on
+        /// the small compact stamp where it can't be read.
+        var showsArcText: Bool
+        var regionNameFont: Font
+        var regionNameTracking: CGFloat
+        var heroNumberFont: Font
+        var dayUnitFont: Font
+        /// Point size of the oversized region glyph watermarked behind the card.
+        var watermarkFontSize: CGFloat
+        /// Offset of that watermark toward the bottom-trailing corner.
+        var watermarkOffset: CGSize
+        /// Holographic sheen strength (the Primary cards catch more light).
+        var holographicIntensity: Double
+        /// Line width of the heavy outer frame stroke.
+        var frameOuterLineWidth: CGFloat
+        /// Whether the dashed perforation ring is drawn (Primary cards only).
+        var showsPerforationRing: Bool
+        /// Inset of the innermost dashed frame line.
+        var innerFrameInset: CGFloat
+        var rosette: Rosette
+        /// The tight rim glow; its `radius` drops to 0 under Reduce Transparency.
+        var glow: Shadow
+        /// The broad lift shadow beneath the card.
+        var lift: Shadow
+
+        /// The concentric "security print" rings printed behind the stamp.
+        struct Rosette: Equatable {
+            var wobble: CGFloat
+            var lineWidth: CGFloat
+            var primaryRingSpacing: CGFloat
+            var secondaryRingSpacing: CGFloat
+        }
+
+        /// A region-tinted drop shadow: the view supplies the region tint, this
+        /// supplies the geometry and how strongly to tint it.
+        struct Shadow: Equatable {
+            var opacity: Double
+            var radius: CGFloat
+            var offsetY: CGFloat = 0
+        }
+    }
+
+    /// The `.regular` / `.compact` card specs the stylesheet vends; a view picks
+    /// one with `stylesheet.card[variant]`.
+    struct CardStyles: Equatable {
+        var regular: CardStyle
+        var compact: CardStyle
+
+        subscript(_ variant: CardStyle.Variant) -> CardStyle {
+            switch variant {
+                case .regular: regular
+                case .compact: compact
+            }
+        }
+
+        /// The fixed card geometry, migrated from the former split
+        /// `Shadow`/`Size` tokens and the card's inline `compact ? … : …` values.
+        static let standard = CardStyles(
+            regular: CardStyle(
+                cornerRadius: 28,
+                padding: 22,
+                contentSpacing: 16,
+                progressBarHeight: 10,
+                entryStampSize: 88,
+                showsArcText: true,
+                // Fixed point size (not a Dynamic Type text style) for precise
+                // control against the entry stamp: the longest common headline
+                // names ("California" / "New York") fit, and any over-long one
+                // tightens then scales via `minimumScaleFactor`.
+                regionNameFont: .system(size: 38, weight: .semibold, design: .serif),
+                regionNameTracking: -0.5,
+                heroNumberFont: .system(size: 40, weight: .bold, design: .rounded),
+                dayUnitFont: .title3.weight(.medium),
+                watermarkFontSize: 150,
+                watermarkOffset: CGSize(width: 20, height: 12),
+                holographicIntensity: 1,
+                frameOuterLineWidth: 3.5,
+                showsPerforationRing: true,
+                innerFrameInset: 16,
+                rosette: CardStyle.Rosette(
+                    wobble: 3,
+                    lineWidth: 3,
+                    primaryRingSpacing: 18,
+                    secondaryRingSpacing: 15,
+                ),
+                glow: CardStyle.Shadow(opacity: 0.75, radius: 12),
+                lift: CardStyle.Shadow(opacity: 0.6, radius: 34, offsetY: 18),
+            ),
+            compact: CardStyle(
+                cornerRadius: 22,
+                padding: 16,
+                contentSpacing: 10,
+                progressBarHeight: 6,
+                entryStampSize: 52,
+                showsArcText: false,
+                regionNameFont: .system(.title3, design: .serif).weight(.semibold),
+                regionNameTracking: 0,
+                heroNumberFont: .system(.title, design: .rounded, weight: .bold),
+                dayUnitFont: .subheadline.weight(.medium),
+                watermarkFontSize: 96,
+                watermarkOffset: CGSize(width: 12, height: 10),
+                holographicIntensity: 0.5,
+                frameOuterLineWidth: 2.5,
+                showsPerforationRing: false,
+                innerFrameInset: 12,
+                rosette: CardStyle.Rosette(
+                    wobble: 2,
+                    lineWidth: 2,
+                    primaryRingSpacing: 13,
+                    secondaryRingSpacing: 11,
+                ),
+                glow: CardStyle.Shadow(opacity: 0.55, radius: 6),
+                lift: CardStyle.Shadow(opacity: 0.4, radius: 17, offsetY: 9),
+            ),
+        )
     }
 }
 
