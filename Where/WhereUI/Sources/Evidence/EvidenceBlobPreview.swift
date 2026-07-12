@@ -45,13 +45,13 @@ struct EvidenceBlobPreview: View {
     @ViewBuilder
     private var textPreview: some View {
         if let text = String(data: data, encoding: .utf8) {
-            ScrollView {
-                Text(text)
-                    .font(.callout.monospaced())
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
-            }
-            .frame(minHeight: 240)
+            // No inner ScrollView: the detail view already scrolls, and nesting
+            // a same-axis scroll view fights that gesture. Let the text flow in
+            // the outer scroll instead.
+            Text(text)
+                .font(.callout.monospaced())
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .textSelection(.enabled)
         } else {
             failedToDecode
         }

@@ -158,21 +158,28 @@ struct AddEvidenceView: View {
 
     /// Read a security-scoped file URL into memory and attach it. Access is
     /// scoped for the read only — the bytes are copied into the store, so the
-    /// original file is never referenced again.
+    /// original file is never referenced again. The read runs off the main actor
+    /// so a large file doesn't block the UI; the cheap metadata is read up front
+    /// while the scope is active.
     private func readFile(at url: URL) {
         let didAccess = url.startAccessingSecurityScopedResource()
-        defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
-        do {
-            let data = try Data(contentsOf: url)
-            let typeIdentifier = (try? url.resourceValues(forKeys: [.contentTypeKey]))?
-                .contentType?.identifier
-            model.setAttachment(PickedAttachment(
-                data: data,
-                typeIdentifier: typeIdentifier,
-                filename: url.lastPathComponent,
-            ))
-        } catch {
-            model.reportAttachmentError(error.localizedDescription)
+        let typeIdentifier = (try? url.resourceValues(forKeys: [.contentTypeKey]))?
+            .contentType?.identifier
+        let filename = url.lastPathComponent
+        Task {
+            defer { if didAccess { url.stopAccessingSecurityScopedResource() } }
+            do {
+                let data = try await Task.detached(priority: .userInitiated) {
+                    try Data(contentsOf: url)
+                }.value
+                model.setAttachment(PickedAttachment(
+                    data: data,
+                    typeIdentifier: typeIdentifier,
+                    filename: filename,
+                ))
+            } catch {
+                model.reportAttachmentError(error.localizedDescription)
+            }
         }
     }
 

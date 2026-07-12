@@ -39,7 +39,6 @@ final class ShareEvidenceModel {
     var note: String = ""
 
     private let items: [NSExtensionItem]
-    private let now: @Sendable () -> Date
     /// Storage the extension opens; injectable so a future test can point it at
     /// an in-memory store instead of the shared container.
     private let storage: SwiftDataStore.Storage
@@ -48,11 +47,10 @@ final class ShareEvidenceModel {
     init(
         items: [NSExtensionItem],
         storage: SwiftDataStore.Storage = .localOnly,
-        now: @escaping @Sendable () -> Date = { Date() },
+        now: @Sendable () -> Date = { Date() },
     ) {
         self.items = items
         self.storage = storage
-        self.now = now
         capturedAt = now()
     }
 

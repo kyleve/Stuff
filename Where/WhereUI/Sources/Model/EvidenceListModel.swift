@@ -33,8 +33,17 @@ public final class EvidenceListModel {
     /// Load (or reload) the evidence captured in `year`. Maps an empty result to
     /// `.empty` and a failure to `.failed(_)` + a logged warning, keeping the
     /// two honestly distinct.
+    ///
+    /// A reload while content is already shown (compose sheet closed, evidence
+    /// synced in) keeps the current list on screen instead of flashing the
+    /// loading view; the spinner only shows on the first load or after a failure.
     public func load(for year: Int) async {
-        loadState = .loading
+        switch loadState {
+            case .loaded, .empty:
+                break
+            case .idle, .loading, .failed:
+                loadState = .loading
+        }
         do {
             let evidence = try await services.evidence.list(for: year)
             loadState = evidence.isEmpty ? .empty : .loaded(evidence)
