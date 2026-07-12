@@ -25,10 +25,6 @@ struct WhereStylesheetTests {
         #expect(style.spacing.xxxLarge == 20)
     }
 
-    @Test func cornerRadiusTokens() {
-        #expect(style.cornerRadius.card == 28)
-    }
-
     @Test func regularCardStyle() {
         let card = style.card.regular
         #expect(card.cornerRadius == 28)
@@ -108,13 +104,38 @@ struct WhereStylesheetTests {
         #expect(month.unfocusedRowOpacity == 0.55)
     }
 
+    @Test func appIconStyle() {
+        let appIcon = style.appIcon
+        #expect(appIcon.gridMax == 180)
+        #expect(appIcon.previewMax == 280)
+        #expect(appIcon.gridSpacing == 20)
+        #expect(appIcon.columnSpacing == 16)
+        #expect(appIcon.gridPadding == 16)
+        #expect(appIcon.cellSpacing == 12)
+        #expect(appIcon.cellLabelSpacing == 6)
+        #expect(appIcon.backgroundedCellOpacity == 0.5)
+        #expect(appIcon.scrim == Color.black.opacity(0.25))
+
+        let panel = appIcon.panel
+        #expect(panel.spacing == 14)
+        #expect(panel.textSpacing == 4)
+        #expect(panel.horizontalPadding == 20)
+        #expect(panel.bottomPadding == 16)
+        #expect(panel.cornerRadius == 28)
+        #expect(panel.background == Color(.systemBackground))
+        #expect(panel.shadowColor == Color.black.opacity(0.18))
+        #expect(panel.shadowRadius == 18)
+        #expect(panel.shadowOffsetY == -4)
+        #expect(panel.grabberSize == CGSize(width: 40, height: 5))
+        #expect(panel.grabberOpacity == 0.5)
+        #expect(panel.grabberTopPadding == 8)
+    }
+
     @Test func elementSizes() {
         #expect(style.size.timelineAccentWidth == 4)
         #expect(style.size.timelineAccentHeight == 34)
         #expect(style.size.statusIconWidth == 28)
         #expect(style.size.regionMapHeight == 220)
-        #expect(style.size.appIconGridMax == 180)
-        #expect(style.size.appIconPreviewLargeMax == 280)
         #expect(style.size.launchIcon == 120)
         #expect(style.size.launchCaptionBottomInset == 72)
     }

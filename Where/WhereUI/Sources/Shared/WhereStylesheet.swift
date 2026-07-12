@@ -13,10 +13,10 @@ import SwiftUI
 /// callers off the `View` tree (layout helpers, tests) use ``default``.
 struct WhereStylesheet: BStylesheet {
     var spacing = Spacing()
-    var cornerRadius = CornerRadius()
     var size = Size()
     var card = CardStyles.standard
     var calendar = CalendarStyle.standard
+    var appIcon = AppIconStyle.standard
 
     init() {}
 
@@ -58,28 +58,15 @@ extension WhereStylesheet {
         var xxxLarge: CGFloat = 20
     }
 
-    /// Corner radii for Liquid Glass surfaces not owned by a component style.
-    struct CornerRadius: Equatable {
-        var card: CGFloat = 28
-    }
-
     /// One-off element sizes that aren't part of the spacing scale. Component
-    /// geometry (the region card's stamp/shadows, the calendar's day grid/dots)
-    /// lives on ``CardStyle`` / ``CalendarStyle`` instead.
+    /// geometry (the region card's stamp/shadows, the calendar's day grid/dots,
+    /// the app-icon picker) lives on the component style groups instead.
     struct Size: Equatable {
         var timelineAccentWidth: CGFloat = 4
         var timelineAccentHeight: CGFloat = 34
         var statusIconWidth: CGFloat = 28
         /// Height of the map header on the Elsewhere region drill-in.
         var regionMapHeight: CGFloat = 220
-        /// Upper bound for a picker-grid thumbnail edge; the actual size flexes
-        /// with the container width (see `AppIconLayout`) so icons grow to fill
-        /// the space but never exceed this on large displays like iPad.
-        var appIconGridMax: CGFloat = 180
-        /// Upper bound for the large app-icon preview edge; the actual size
-        /// flexes with the container (see `AppIconLayout`). The small preview is
-        /// derived from the large one, so it needs no separate cap.
-        var appIconPreviewLargeMax: CGFloat = 280
         /// Edge of the selected app icon shown as the hero on the launch splash.
         var launchIcon: CGFloat = 120
         /// Inset from the bottom edge for the launch splash's status caption
@@ -300,6 +287,79 @@ extension WhereStylesheet {
             todayNumberColor: .white,
             unresolvedDayMarker: Color.red.opacity(0.15),
             unresolvedNumberColor: .red,
+        )
+    }
+}
+
+// MARK: - App Icon
+
+extension WhereStylesheet {
+    /// Style for the app-icon picker (`AppIconView` + `AppIconLayout`): the grid,
+    /// its cells, and the slide-up preview panel (`panel`).
+    struct AppIconStyle: Equatable {
+        /// Upper bound for a grid thumbnail edge — the size flexes with width.
+        var gridMax: CGFloat
+        /// Upper bound for the large preview icon edge.
+        var previewMax: CGFloat
+        /// Spacing between grid rows.
+        var gridSpacing: CGFloat
+        /// Gap between grid columns (also used to lay the columns out).
+        var columnSpacing: CGFloat
+        /// Padding around the grid.
+        var gridPadding: CGFloat
+        /// Spacing inside a cell (icon over its label).
+        var cellSpacing: CGFloat
+        /// Spacing within a cell's label (checkmark ↔ name).
+        var cellLabelSpacing: CGFloat
+        /// Opacity of a cell's icon while its own preview panel is up.
+        var backgroundedCellOpacity: Double
+        /// The dimming scrim behind the preview panel.
+        var scrim: Color
+        var panel: PanelStyle
+
+        /// The slide-up preview panel.
+        struct PanelStyle: Equatable {
+            /// Spacing between the panel's stacked elements.
+            var spacing: CGFloat
+            /// Spacing within the name/hint text stack.
+            var textSpacing: CGFloat
+            var horizontalPadding: CGFloat
+            var bottomPadding: CGFloat
+            var cornerRadius: CGFloat
+            var background: Color
+            var shadowColor: Color
+            var shadowRadius: CGFloat
+            var shadowOffsetY: CGFloat
+            /// The drag-handle grabber's size, opacity, and top inset.
+            var grabberSize: CGSize
+            var grabberOpacity: Double
+            var grabberTopPadding: CGFloat
+        }
+
+        static let standard = AppIconStyle(
+            gridMax: 180,
+            previewMax: 280,
+            gridSpacing: 20,
+            columnSpacing: 16,
+            gridPadding: 16,
+            cellSpacing: 12,
+            cellLabelSpacing: 6,
+            backgroundedCellOpacity: 0.5,
+            scrim: Color.black.opacity(0.25),
+            panel: PanelStyle(
+                spacing: 14,
+                textSpacing: 4,
+                horizontalPadding: 20,
+                bottomPadding: 16,
+                cornerRadius: 28,
+                background: Color(.systemBackground),
+                shadowColor: Color.black.opacity(0.18),
+                shadowRadius: 18,
+                shadowOffsetY: -4,
+                grabberSize: CGSize(width: 40, height: 5),
+                grabberOpacity: 0.5,
+                grabberTopPadding: 8,
+            ),
         )
     }
 }
