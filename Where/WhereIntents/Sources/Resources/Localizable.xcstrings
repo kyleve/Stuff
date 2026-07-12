@@ -1,7 +1,173 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-
+    "dialog.daysInRegion.none" : {
+      "comment" : "Spoken result when a region has no logged days this year. %1$@ region name, %2$@ year.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have no days logged in %1$@ so far in %2$@."
+          }
+        }
+      }
+    },
+    "dialog.daysInRegion.one" : {
+      "comment" : "Spoken result for exactly one day in a region. %1$@ region name, %2$@ year.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have 1 day in %1$@ so far in %2$@."
+          }
+        }
+      }
+    },
+    "dialog.daysInRegion.other" : {
+      "comment" : "Spoken result for a day count in a region. %1$lld count, %2$@ region name, %3$@ year.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You have %1$lld days in %2$@ so far in %3$@."
+          }
+        }
+      }
+    },
+    "dialog.regionOnDate.none" : {
+      "comment" : "Spoken result when a date has nothing logged. %1$@ formatted date.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing is logged for %1$@."
+          }
+        }
+      }
+    },
+    "dialog.regionOnDate.some" : {
+      "comment" : "Spoken result naming the regions a date counted for. %1$@ date, %2$@ region list.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On %1$@ you were in %2$@."
+          }
+        }
+      }
+    },
+    "dialog.recentActivity.empty" : {
+      "comment" : "Spoken result when a window has no tracked activity. %1$@ window phrase.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing was tracked in %1$@."
+          }
+        }
+      }
+    },
+    "dialog.recentActivity.unavailable.appleIntelligenceNotEnabled" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on Apple Intelligence in Settings to summarize where you've been."
+          }
+        }
+      }
+    },
+    "dialog.recentActivity.unavailable.deviceNotEligible" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device doesn't support on-device summaries."
+          }
+        }
+      }
+    },
+    "dialog.recentActivity.unavailable.modelNotReady" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The on-device model is still getting ready. Try again shortly."
+          }
+        }
+      }
+    },
+    "dialog.recentActivity.unavailable.unknown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "On-device summaries aren't available right now."
+          }
+        }
+      }
+    },
+    "dialog.today.none" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing is logged for today yet."
+          }
+        }
+      }
+    },
+    "dialog.today.some" : {
+      "comment" : "Spoken result naming today's regions. %1$@ region list.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today you've been in %1$@."
+          }
+        }
+      }
+    },
+    "dialog.window.day" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the last 24 hours"
+          }
+        }
+      }
+    },
+    "dialog.window.month" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the past month"
+          }
+        }
+      }
+    },
+    "dialog.window.week" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the past week"
+          }
+        }
+      }
+    },
+    "dialog.window.yearToDate" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "the year so far"
+          }
+        }
+      }
+    }
   },
   "version" : "1.0"
 }
