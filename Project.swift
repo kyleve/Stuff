@@ -232,13 +232,15 @@ let project = Project(
             sources: ["Shared/StuffTestHost/Sources/**"],
             // Hosted Swift Testing bundles run inside StuffTestHost, so a package's
             // `Bundle.module` resolves against the host app's main bundle at runtime.
-            // Depending on WhereCore embeds its resource bundle (`Stuff_WhereCore.bundle`)
-            // — and, because WhereCore depends on RegionKit, the GeoJSON
-            // `Stuff_RegionKit.bundle` along with it — into the host, so code the tests
-            // touch (e.g. the lazy `RegionAttributor.shared`) finds its resources
-            // instead of trapping in the `Bundle.module` accessor. RegionKit needs no
-            // separate host entry: WhereCore carries it in (verified by running the full
-            // scheme without it).
+            // WhereCore is load-bearing here: depending on it embeds
+            // `Stuff_WhereCore.bundle` (its SwiftData schema/resources) and — because
+            // WhereCore depends on RegionKit — the GeoJSON `Stuff_RegionKit.bundle`
+            // into the host, so code the tests touch (e.g. `RegionAttributor.shared`,
+            // the live SwiftData store) finds its resources instead of trapping in the
+            // `Bundle.module` accessor. Verified load-bearing: dropping it fails
+            // WhereUITests' StringsTests + SwiftDataInspectorWiringTests. RegionKit
+            // itself needs no separate entry — WhereCore carries it in (also verified
+            // by running the full scheme without a direct RegionKit dep).
             dependencies: [
                 .package(product: "WhereCore"),
             ],
@@ -286,26 +288,24 @@ let project = Project(
             sources: ["Where/WhereCore/Tests/**"],
             extraPackageProducts: ["RegionKit"],
         ),
+        // WhereUITests deliberately lists no `extraPackageProducts`. WhereUI is a
+        // dynamic framework that statically embeds its own dependencies, so any
+        // product *also* linked here would land a second copy in this bundle;
+        // with several .xctest bundles loaded into one StuffTestHost that
+        // duplicates the module's type metadata, and any type-keyed lookup
+        // crossing the WhereUI boundary (SwiftUI `EnvironmentKey`s,
+        // `UITraitBridgedEnvironmentKey` bridging, the type-keyed
+        // BTraits/BThemes/BStylesheets containers) then silently resolves against
+        // the wrong copy — the writer stores under one copy's key type, the
+        // reader looks it up under another's. Everything the tests need
+        // (BroadwayCore/BroadwayUI, LifecycleKit, LogViewerUI, SwiftDataInspector,
+        // RegionKit + its GeoJSON bundle) is reached transitively through WhereUI.
+        // See the root AGENTS.md "Targets" note.
         unitTests(
             name: "WhereUITests",
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
-            // WhereUI is a dynamic framework that statically embeds its own
-            // dependencies, so any product *also* listed here lands a second copy
-            // in this test bundle. With several .xctest bundles loaded into one
-            // StuffTestHost, that duplicates the module's type metadata and any
-            // type-keyed lookup crossing the WhereUI boundary (SwiftUI
-            // `EnvironmentKey`s, `UITraitBridgedEnvironmentKey` bridging, the
-            // type-keyed BTraits/BThemes/BStylesheets containers) silently
-            // resolves against the wrong copy — the writer stores under one copy's
-            // key type, the reader looks up under another's. So everything WhereUI
-            // already embeds — BroadwayCore/BroadwayUI, LifecycleKit, LogViewerUI,
-            // SwiftDataInspector — is reached transitively through WhereUI rather
-            // than relisted here; see the root AGENTS.md "Targets" note. Nothing
-            // extra is needed: WhereUI transitively provides everything, including
-            // RegionKit and its GeoJSON `Stuff_RegionKit.bundle`.
-            extraPackageProducts: [],
         ),
         .target(
             name: "BroadwayCatalog",
