@@ -10,6 +10,7 @@ struct PrimaryView: View {
     @State private var showingTimeline = false
     @State private var showingCalendar = false
     @State private var showingRecentActivity = false
+    @State private var showingEvidence = false
     @State private var calendarFocus: CalendarFocus?
 
     /// Drives the region cards' tilt-reactive holographic sheen. Started/stopped
@@ -72,6 +73,17 @@ struct PrimaryView: View {
                         .accessibilityIdentifier("where_calendar_button")
                     }
                     ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showingEvidence = true
+                        } label: {
+                            Label(
+                                Strings.primaryEvidence,
+                                systemImage: "paperclip",
+                            )
+                        }
+                        .accessibilityIdentifier("where_evidence_button")
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
                         YearSelector(report: report)
                     }
                 }
@@ -86,6 +98,9 @@ struct PrimaryView: View {
         }
         .sheet(isPresented: $showingCalendar) {
             CalendarView(report: report)
+        }
+        .sheet(isPresented: $showingEvidence) {
+            EvidenceListView(report: report)
         }
         .sheet(item: $calendarFocus) { focus in
             CalendarView(focusedRegion: focus.region, report: report)

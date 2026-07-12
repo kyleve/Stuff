@@ -1,3 +1,4 @@
+import Foundation
 import RegionKit
 import Testing
 import WhereCore
@@ -91,6 +92,41 @@ struct StringsTests {
                 ==
                 "Imported 3 location samples, 2 pieces of evidence, 5 manual days, and 4 dismissed issues.",
         )
+    }
+
+    @Test func evidenceStringsResolveToCatalogValues() {
+        #expect(Strings.primaryEvidence == "Evidence")
+        #expect(Strings.evidenceEmptyTitle == "No evidence yet")
+        #expect(Strings.evidenceAdd == "Add evidence")
+        #expect(Strings.evidenceListTitle(year: 2026) == "Evidence · 2026")
+        #expect(Strings.commonCancel == "Cancel")
+    }
+
+    @Test func evidenceKindDisplayNamesResolve() {
+        #expect(Strings.evidenceKind(.planeTicket) == "Plane ticket")
+        #expect(Strings.evidenceKind(.boardingPass) == "Boarding pass")
+        #expect(Strings.evidenceKind(.email) == "Email")
+        #expect(Strings.evidenceKind(.other("Ferry ticket")) == "Ferry ticket")
+        #expect(Strings.evidenceKind(.other(nil)) == "Other")
+    }
+
+    @Test func calendarDayAccessibilityAppendsEvidenceCue() throws {
+        let date = try #require(Calendar(identifier: .gregorian)
+            .date(from: DateComponents(year: 2026, month: 3, day: 4)))
+        let withEvidence = Strings.calendarDayAccessibility(
+            date: date,
+            regions: [.california],
+            needsAttention: false,
+            hasEvidence: true,
+        )
+        let without = Strings.calendarDayAccessibility(
+            date: date,
+            regions: [.california],
+            needsAttention: false,
+            hasEvidence: false,
+        )
+        #expect(withEvidence.hasSuffix("has evidence"))
+        #expect(!without.hasSuffix("has evidence"))
     }
 
     @Test func developerToolsStringsResolveToCatalogValues() {

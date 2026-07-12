@@ -27,6 +27,7 @@ struct CalendarView: View {
     private struct CalendarLoadID: Equatable {
         let report: YearReport
         let missingDayKeys: Set<Date>
+        let evidenceDayKeys: Set<Date>
         let referenceDay: Date
         let focusedRegion: Region?
     }
@@ -105,6 +106,7 @@ struct CalendarView: View {
         CalendarLoadID(
             report: yearReport,
             missingDayKeys: report.missingDayKeys,
+            evidenceDayKeys: report.evidenceDayKeys,
             referenceDay: report.calendar.startOfDay(for: report.referenceDate),
             focusedRegion: focusedRegion,
         )
@@ -116,6 +118,7 @@ struct CalendarView: View {
                 calendar: report.calendar,
                 referenceDate: report.referenceDate,
                 missingDates: report.missingDayKeys,
+                evidenceDays: report.evidenceDayKeys,
                 focusedRegion: focusedRegion,
             )
         }
@@ -300,6 +303,22 @@ private struct DayCell: View {
                             .fill(calendar.unresolvedDayMarker)
                     }
                 }
+                // A day carrying an attachment gets a small paperclip badge in
+                // the top-trailing corner, on a filled disc so it stays legible
+                // over the accent "today" fill and the region dots below.
+                .overlay(alignment: .topTrailing) {
+                    if day.hasEvidence {
+                        Image(systemName: "paperclip")
+                            .font(.system(size: calendar.evidenceBadge.iconSize, weight: .bold))
+                            .foregroundStyle(Color.accentColor)
+                            .padding(calendar.evidenceBadge.padding)
+                            .background(Circle().fill(Color(.systemBackground)))
+                            .offset(
+                                x: calendar.evidenceBadge.offset.width,
+                                y: calendar.evidenceBadge.offset.height,
+                            )
+                    }
+                }
 
             HStack(spacing: calendar.dayContentSpacing) {
                 ForEach(day.regions, id: \.self) { region in
@@ -321,6 +340,7 @@ private struct DayCell: View {
                 date: day.date,
                 regions: day.regions,
                 needsAttention: day.needsAttention,
+                hasEvidence: day.hasEvidence,
             ),
         )
     }

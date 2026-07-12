@@ -19,9 +19,10 @@ private let projectSettings: Settings? = developmentTeam.isEmpty
     ? nil
     : .settings(base: ["DEVELOPMENT_TEAM": .string(developmentTeam)])
 
-/// App Group shared by the Where app and its widget extension so both
-/// processes see the same on-disk SwiftData store (see
-/// `SwiftDataStore.appGroupIdentifier`, which must match).
+/// App Group shared by the Where app, its widget extension, and its share
+/// extension so every process sees the same on-disk SwiftData store (see
+/// `SwiftDataStore.appGroupIdentifier`, which must match) and the widget
+/// snapshot JSON.
 let whereAppGroupEntitlements: Entitlements = .dictionary([
     "com.apple.security.application-groups": .array([.string("group.com.stuff.where")]),
 ])
@@ -126,6 +127,7 @@ let project = Project(
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
                 .target(name: "WhereWidgets"),
+                .target(name: "WhereShareExtension"),
             ],
             // Compile every `*.appiconset` in `AppIcon.xcassets` into the build and
             // auto-write the `CFBundleAlternateIcons` plist entries, so the asset
@@ -157,6 +159,41 @@ let project = Project(
             dependencies: [
                 .package(product: "LogKit"),
                 .package(product: "RegionKit"),
+                .package(product: "WhereCore"),
+                .package(product: "WhereUI"),
+            ],
+        ),
+        .target(
+            name: "WhereShareExtension",
+            destinations: destinations,
+            product: .appExtension,
+            bundleId: "com.stuff.where.share",
+            deploymentTargets: deployment,
+            infoPlist: .extendingDefault(with: [
+                "CFBundleDisplayName": .string("Where"),
+                "NSExtension": .dictionary([
+                    "NSExtensionPointIdentifier": .string("com.apple.share-services"),
+                    "NSExtensionPrincipalClass": .string(
+                        "$(PRODUCT_MODULE_NAME).ShareViewController",
+                    ),
+                    // Offer the share action for the content Where can back a
+                    // day-count claim with: images, files (PDFs, `.pkpass`
+                    // tickets, `.eml` emails), plain text, and web URLs.
+                    "NSExtensionAttributes": .dictionary([
+                        "NSExtensionActivationRule": .dictionary([
+                            "NSExtensionActivationSupportsImageWithMaxCount": .integer(20),
+                            "NSExtensionActivationSupportsFileWithMaxCount": .integer(20),
+                            "NSExtensionActivationSupportsText": .boolean(true),
+                            "NSExtensionActivationSupportsWebURLWithMaxCount": .integer(20),
+                        ]),
+                    ]),
+                ]),
+            ]),
+            sources: ["Where/WhereShareExtension/Sources/**"],
+            resources: ["Where/WhereShareExtension/Resources/**"],
+            entitlements: whereAppGroupEntitlements,
+            dependencies: [
+                .package(product: "LogKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
