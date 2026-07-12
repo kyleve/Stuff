@@ -13,14 +13,11 @@ public struct LifecycleFailureView: View {
 
     public var body: some View {
         ContentUnavailableView {
-            Label(
-                String(localized: "failure.launch.title", bundle: .module),
-                systemImage: "exclamationmark.triangle",
-            )
+            Label(.failureLaunchTitle, systemImage: "exclamationmark.triangle")
         } description: {
             Text(failure.error.localizedDescription)
         } actions: {
-            Button(String(localized: "failure.launch.retry", bundle: .module), action: retry)
+            Button(.failureLaunchRetry, action: retry)
                 .buttonStyle(.borderedProminent)
         }
     }
