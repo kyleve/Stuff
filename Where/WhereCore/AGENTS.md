@@ -24,7 +24,9 @@ internal shape.
 - Library target in [`Package.swift`](../../Package.swift)
   (`Where/WhereCore/Sources`); depended on by `WhereUI` and the `WhereWidgets`
   extension. User-visible error strings ship in its own
-  `Sources/Resources/Localizable.xcstrings` (`bundle: .module`).
+  `Sources/Resources/Localizable.xcstrings` and resolve through Xcode's
+  generated symbols (`String(localized: .backupErrorManifestMissing)`) — no
+  `bundle: .module`.
 
 ## Shape & invariants
 

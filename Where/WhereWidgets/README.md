@@ -33,11 +33,11 @@ app never wakes.
 
 ## Localization
 
-- **In-widget copy** — resolved from [`WhereUI`](../WhereUI/)'s
-  `Localizable.xcstrings` (`Strings.widgetTodayTitle`, etc.).
+- **In-widget copy** — rendered by the shared [`WhereUI`](../WhereUI/) content
+  views, which resolve their own generated String Catalog symbols.
 - **Widget gallery name/description** — resolved from this extension's
   [`Resources/Localizable.xcstrings`](Resources/Localizable.xcstrings) via
-  `WidgetStrings` (`bundle: .module`).
+  Xcode's generated symbols (`String(localized: .widgetGalleryTodayName)`).
 
 ## Installation
 

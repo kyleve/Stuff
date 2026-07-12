@@ -14,7 +14,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   and **LogKit**. Embedded by the **Where** app; shares the
   `group.com.stuff.where` App Group entitlement.
 - Presentation reuses WhereUI's public `EvidenceKind.symbolName`/`displayName`;
-  only extension chrome lives in this target's `ShareStrings` + catalog.
+  only extension chrome lives in this target's own catalog, referenced through
+  Xcode's generated symbols (`String(localized: .shareTitle)`, `Text(.shareFormNoteHeader)`).
 - No test bundle; the write path is covered from **WhereCore** store tests and
   the **WhereUI** compose model.
 

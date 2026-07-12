@@ -115,26 +115,40 @@ Rules the code enforces and agents must preserve:
 
 ## Localization
 
-All user-facing copy resolves through module string catalogs — no literals in
-views or thrown errors.
+All user-facing copy resolves through module String Catalogs via Xcode's
+generated `LocalizedStringResource` symbols — no string literals in views or
+thrown errors, and no raw keys or `bundle:` arguments in code. Symbol generation
+is on for every catalog (`STRING_CATALOG_GENERATE_SYMBOLS`, set project-wide for
+the app and extensions in [`Project.swift`](../Project.swift); automatic for the
+SwiftPM library targets), so a manual key `some.key` produces a `.someKey`
+symbol and a removed or misspelled key is a compile error.
 
-- **WhereUI:** funnel every string through `Strings.swift` (keys in the module
-  `Localizable.xcstrings`, `bundle: .module`). Counts use catalog plural
-  variations; years use a grouping-free number style ("2026", not "2,026").
-- **WhereCore:** user-visible errors use static
-  `String(localized:bundle: .module)` keys in its own catalog.
-- **RegionKit:** region names (`Region.localizedName`) use static
-  `String(localized:bundle: .module)` keys in RegionKit's own catalog.
+- **Add the key first.** Add it to the module's `Localizable.xcstrings` as a
+  **manual** key (the topmost `+`) — that is what generates the symbol — then
+  reference the symbol, never a raw string key.
+- **Reference symbols directly** at the call site: `Text(.tabPrimary)`,
+  `String(localized: .commonOk)`, `Label(.evidenceAdd, systemImage:)`. Pass the
+  bare symbol where SwiftUI takes a `LocalizedStringResource` (`Text`, `Label`,
+  `Button`); use `String(localized: .symbol)` where a `String` is needed
+  (notification bodies, `errorDescription`, interpolated accessibility labels).
+- **WhereUI:** strings that need composition or a `switch` — pluralization,
+  grouping-free years ("2026", not "2,026"), region-name lists, enum-driven
+  copy, composed accessibility labels — go through
+  [`WhereFormat`](WhereUI/Sources/Shared/WhereFormat.swift), which builds them
+  from the generated symbols. Everything else is a symbol referenced inline.
+- **WhereCore / RegionKit:** user-visible errors and region names
+  (`Region.localizedName`) switch over the generated symbols
+  (`String(localized: .regionCalifornia)`) — no `bundle: .module`.
 - **DEBUG-only UI** still gets catalog entries — don't bypass localization
   because a surface is dev-only.
-- **WhereWidgets:** gallery name/description live in the extension's own
-  catalog; in-widget copy reuses WhereUI `Strings`.
-- **WhereShareExtension:** compose-sheet chrome lives in the extension's own
-  catalog (`ShareStrings`); evidence kind names reuse WhereUI's public
-  `EvidenceKind` presentation helpers.
+- **WhereWidgets:** gallery name/description use the extension's own generated
+  symbols; in-widget copy comes from the shared WhereUI content views.
+- **WhereShareExtension:** compose-sheet chrome uses the extension's own
+  generated symbols; evidence kind names reuse WhereUI's public `EvidenceKind`
+  presentation helpers.
 
-Add the key to the catalog first, then reference it — never ship English
-literals in SwiftUI `Text` or `errorDescription`.
+Add the manual key to the catalog first, then reference its symbol — never ship
+English literals in SwiftUI `Text` or `errorDescription`.
 
 ## Dates & presentation
 
