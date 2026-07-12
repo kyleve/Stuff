@@ -31,6 +31,15 @@ public struct ReportReader: Sendable {
         )
     }
 
+    /// The manual-day records (backfills and authoritative overrides) the user
+    /// asserted for `year`, so the "logged days" management screen can list,
+    /// edit, and delete them. Unlike `yearReport`, these are the raw user
+    /// entries — the `isAuthoritative` flag and `audit` trail are preserved
+    /// rather than merged away.
+    public func manualDays(inYear year: Int) async throws -> [DayPresence] {
+        try await store.manualDays(in: aggregator.yearInterval(year: year))
+    }
+
     /// The raw coordinates recorded inside `region` during `year`, grouped by
     /// day, so the Elsewhere drill-in can map and name where you actually were.
     /// Manual overlays don't contribute coordinates (see `DayAggregator`).

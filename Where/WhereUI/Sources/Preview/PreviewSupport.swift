@@ -184,6 +184,53 @@
             return model
         }
 
+        // MARK: - Logged days (manual entries sheet)
+
+        /// A believable set of manual day entries across the sample year — a mix
+        /// of additive backfills and an authoritative override with an audit
+        /// note — for the logged-days list previews/tests.
+        public static func sampleManualDays() -> [DayPresence] {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+            func day(_ month: Int, _ dayOfMonth: Int) -> Date {
+                calendar.date(from: DateComponents(year: year, month: month, day: dayOfMonth))!
+            }
+            return [
+                DayPresence(date: day(1, 6), regions: [.california]),
+                DayPresence(
+                    date: day(3, 14),
+                    regions: [.newYork],
+                    audit: ManualEntryAudit(
+                        recordedAt: day(3, 15),
+                        note: "Backfilled a trip the GPS missed.",
+                        location: nil,
+                    ),
+                ),
+                DayPresence(
+                    date: day(6, 2),
+                    regions: [.canada],
+                    isAuthoritative: true,
+                    audit: ManualEntryAudit(
+                        recordedAt: day(6, 3),
+                        note: "Corrected after reviewing my boarding pass.",
+                        location: CapturedLocation(
+                            coordinate: Coordinate(latitude: 49.2827, longitude: -123.1207),
+                            horizontalAccuracy: 15,
+                            timestamp: day(6, 2),
+                        ),
+                    ),
+                ),
+            ]
+        }
+
+        /// A logged-days list model forced into a chosen state (no store read).
+        @MainActor
+        public static func loggedDaysModel(state: LoggedDaysModel.LoadState) -> LoggedDaysModel {
+            let model = LoggedDaysModel(services: previewServices())
+            model.previewLoad(state)
+            return model
+        }
+
         // MARK: - Evidence (evidence list / detail / compose)
 
         /// A believable set of evidence records spread across the sample year,
