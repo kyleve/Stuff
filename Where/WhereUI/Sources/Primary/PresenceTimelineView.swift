@@ -75,24 +75,28 @@ private struct StintRow: View {
 
     @Environment(\.stylesheet) private var stylesheet
 
+    private var timeline: WhereStylesheet.TimelineStyle {
+        stylesheet.timeline
+    }
+
     private var style: RegionStyle {
         stint.region.style
     }
 
     var body: some View {
-        HStack(spacing: stylesheet.spacing.large) {
+        HStack(spacing: timeline.rowSpacing) {
             Capsule()
                 .fill(style.tint.gradient)
                 .frame(
-                    width: stylesheet.size.timelineAccentWidth,
-                    height: stylesheet.size.timelineAccentHeight,
+                    width: timeline.accentWidth,
+                    height: timeline.accentHeight,
                 )
 
             Text(style.emoji)
                 .font(.title3)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
+            VStack(alignment: .leading, spacing: timeline.labelSpacing) {
                 Text(stint.region.localizedName)
                     .font(.headline)
                 Text(dateRange)
@@ -100,14 +104,14 @@ private struct StintRow: View {
                     .foregroundStyle(.secondary)
             }
 
-            Spacer(minLength: stylesheet.spacing.medium)
+            Spacer(minLength: timeline.trailingMinSpacing)
 
             Text(Strings.dayCount(stint.dayCount))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
         }
-        .padding(.vertical, stylesheet.spacing.xSmall)
+        .padding(.vertical, timeline.rowVerticalPadding)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
             Strings.timelineRowAccessibility(

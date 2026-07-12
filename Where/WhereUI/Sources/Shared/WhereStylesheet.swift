@@ -17,6 +17,7 @@ struct WhereStylesheet: BStylesheet {
     var card = CardStyles.standard
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
+    var timeline = TimelineStyle.standard
 
     init() {}
 
@@ -62,8 +63,6 @@ extension WhereStylesheet {
     /// geometry (the region card's stamp/shadows, the calendar's day grid/dots,
     /// the app-icon picker) lives on the component style groups instead.
     struct Size: Equatable {
-        var timelineAccentWidth: CGFloat = 4
-        var timelineAccentHeight: CGFloat = 34
         var statusIconWidth: CGFloat = 28
         /// Height of the map header on the Elsewhere region drill-in.
         var regionMapHeight: CGFloat = 220
@@ -360,6 +359,35 @@ extension WhereStylesheet {
                 grabberOpacity: 0.5,
                 grabberTopPadding: 8,
             ),
+        )
+    }
+}
+
+// MARK: - Timeline
+
+extension WhereStylesheet {
+    /// Style for the presence timeline's stint rows (`PresenceTimelineList`): the
+    /// leading region-tinted accent bar and the row's internal spacing.
+    struct TimelineStyle: Equatable {
+        /// Spacing between a row's elements (accent, emoji, labels, count).
+        var rowSpacing: CGFloat
+        /// The leading accent bar's dimensions.
+        var accentWidth: CGFloat
+        var accentHeight: CGFloat
+        /// Spacing within a row's name/date label stack.
+        var labelSpacing: CGFloat
+        /// Minimum spacing before the trailing day count.
+        var trailingMinSpacing: CGFloat
+        /// Vertical padding around a row.
+        var rowVerticalPadding: CGFloat
+
+        static let standard = TimelineStyle(
+            rowSpacing: 12,
+            accentWidth: 4,
+            accentHeight: 34,
+            labelSpacing: 2,
+            trailingMinSpacing: 8,
+            rowVerticalPadding: 4,
         )
     }
 }

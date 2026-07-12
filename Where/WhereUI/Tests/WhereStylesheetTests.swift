@@ -131,9 +131,17 @@ struct WhereStylesheetTests {
         #expect(panel.grabberTopPadding == 8)
     }
 
+    @Test func timelineStyle() {
+        let timeline = style.timeline
+        #expect(timeline.rowSpacing == 12)
+        #expect(timeline.accentWidth == 4)
+        #expect(timeline.accentHeight == 34)
+        #expect(timeline.labelSpacing == 2)
+        #expect(timeline.trailingMinSpacing == 8)
+        #expect(timeline.rowVerticalPadding == 4)
+    }
+
     @Test func elementSizes() {
-        #expect(style.size.timelineAccentWidth == 4)
-        #expect(style.size.timelineAccentHeight == 34)
         #expect(style.size.statusIconWidth == 28)
         #expect(style.size.regionMapHeight == 220)
         #expect(style.size.launchIcon == 120)
