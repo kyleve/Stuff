@@ -86,6 +86,7 @@ struct RegionSummaryCard: View {
         // values rather than reaching back into main-actor state.
         let tint = style.tint
         let rosette = card.rosette
+        let rosetteFill = stylesheet.card.rosetteFill
         return ZStack {
             Canvas { context, size in
                 func drawRosette(center: CGPoint, spacing: CGFloat, opacity: Double) {
@@ -115,18 +116,18 @@ struct RegionSummaryCard: View {
                 drawRosette(
                     center: CGPoint(x: size.width * 0.8, y: size.height * 0.5),
                     spacing: rosette.primaryRingSpacing,
-                    opacity: 0.12,
+                    opacity: rosetteFill.primary,
                 )
                 drawRosette(
                     center: CGPoint(x: size.width * 0.12, y: size.height * 0.22),
                     spacing: rosette.secondaryRingSpacing,
-                    opacity: 0.08,
+                    opacity: rosetteFill.secondary,
                 )
             }
 
             Image(systemName: style.symbolName)
                 .font(.system(size: card.watermarkFontSize))
-                .foregroundStyle(style.tint.opacity(0.08))
+                .foregroundStyle(style.tint.opacity(stylesheet.card.watermarkOpacity))
                 .rotationEffect(.degrees(-14))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                 .offset(x: card.watermarkOffset.width, y: card.watermarkOffset.height)
@@ -140,25 +141,33 @@ struct RegionSummaryCard: View {
     /// line, a ring of perforation dots (Primary cards only), and a dashed inner
     /// line — like the engraved, perforated edge of a passport page.
     private var stampFrame: some View {
-        ZStack {
+        let frame = stylesheet.card.frame
+        return ZStack {
             cardShape
-                .strokeBorder(style.tint.opacity(0.6), lineWidth: card.frameOuterLineWidth)
+                .strokeBorder(
+                    style.tint.opacity(frame.outerOpacity),
+                    lineWidth: card.frameOuterLineWidth,
+                )
             cardShape
                 .inset(by: stylesheet.spacing.small)
-                .strokeBorder(style.tint.opacity(0.35), lineWidth: 1)
+                .strokeBorder(style.tint.opacity(frame.thinOpacity), lineWidth: frame.thinWidth)
             if card.showsPerforationRing {
                 cardShape
                     .inset(by: stylesheet.spacing.large)
                     .strokeBorder(
-                        style.tint.opacity(0.45),
-                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [0.01, 6]),
+                        style.tint.opacity(frame.perforationOpacity),
+                        style: StrokeStyle(
+                            lineWidth: frame.perforationWidth,
+                            lineCap: .round,
+                            dash: frame.perforationDash,
+                        ),
                     )
             }
             cardShape
                 .inset(by: card.innerFrameInset)
                 .strokeBorder(
-                    style.tint.opacity(0.4),
-                    style: StrokeStyle(lineWidth: 1, dash: [5, 4]),
+                    style.tint.opacity(frame.innerOpacity),
+                    style: StrokeStyle(lineWidth: frame.innerWidth, dash: frame.innerDash),
                 )
         }
         .allowsHitTesting(false)
@@ -175,7 +184,7 @@ struct RegionSummaryCard: View {
                         .allowsTightening(true)
                         .minimumScaleFactor(0.7)
                         .foregroundStyle(style.tint)
-                        .opacity(0.8)
+                        .opacity(stylesheet.card.nameOpacity)
                     if let caption {
                         Text(caption)
                             .font(.caption2.weight(.semibold))
@@ -223,7 +232,8 @@ struct RegionSummaryCard: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { stampPaper }
         .glassEffect(
-            .regular.tint(style.tint.opacity(0.18)).interactive(interactive),
+            .regular.tint(style.tint.opacity(stylesheet.card.glassTintOpacity))
+                .interactive(interactive),
             in: cardShape,
         )
         .holographicSheen(

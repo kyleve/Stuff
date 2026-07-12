@@ -81,6 +81,25 @@ struct WhereStylesheetTests {
         #expect(style.card[.compact] == style.card.compact)
     }
 
+    @Test func sharedCardStyle() {
+        let card = style.card
+        #expect(card.watermarkOpacity == 0.08)
+        #expect(card.glassTintOpacity == 0.18)
+        #expect(card.nameOpacity == 0.8)
+        #expect(card.rosetteFill == .init(primary: 0.12, secondary: 0.08))
+        #expect(card.frame == .init(
+            outerOpacity: 0.6,
+            thinOpacity: 0.35,
+            thinWidth: 1,
+            perforationOpacity: 0.45,
+            perforationWidth: 2.5,
+            perforationDash: [0.01, 6],
+            innerOpacity: 0.4,
+            innerWidth: 1,
+            innerDash: [5, 4],
+        ))
+    }
+
     @Test func calendarStyle() {
         let calendar = style.calendar
         #expect(calendar.monthSpacing == 16)

@@ -147,6 +147,38 @@ extension WhereStylesheet {
     struct CardStyles: Equatable {
         var regular: CardStyle
         var compact: CardStyle
+        /// Opacity of the region tint applied to the watermark glyph.
+        var watermarkOpacity: Double
+        /// Opacity of the region tint mixed into the Liquid Glass surface.
+        var glassTintOpacity: Double
+        /// Opacity of the region-name header.
+        var nameOpacity: Double
+        /// The layered stamp frame's strokes (shared across both variants).
+        var frame: Frame
+        /// Fill opacities of the two security-print rosettes.
+        var rosetteFill: RosetteFill
+
+        /// The passport-style frame drawn over the card: a heavy outer line, a
+        /// thin line, an optional perforation ring (see
+        /// ``CardStyle/showsPerforationRing``), and a dashed inner line. Each
+        /// opacity applies over the region tint.
+        struct Frame: Equatable {
+            var outerOpacity: Double
+            var thinOpacity: Double
+            var thinWidth: CGFloat
+            var perforationOpacity: Double
+            var perforationWidth: CGFloat
+            var perforationDash: [CGFloat]
+            var innerOpacity: Double
+            var innerWidth: CGFloat
+            var innerDash: [CGFloat]
+        }
+
+        /// Fill opacity of the bold and faint security-print rosettes.
+        struct RosetteFill: Equatable {
+            var primary: Double
+            var secondary: Double
+        }
 
         subscript(_ variant: CardStyle.Variant) -> CardStyle {
             switch variant {
@@ -214,6 +246,21 @@ extension WhereStylesheet {
                 glow: CardStyle.Shadow(opacity: 0.55, radius: 6),
                 lift: CardStyle.Shadow(opacity: 0.4, radius: 17, offsetY: 9),
             ),
+            watermarkOpacity: 0.08,
+            glassTintOpacity: 0.18,
+            nameOpacity: 0.8,
+            frame: Frame(
+                outerOpacity: 0.6,
+                thinOpacity: 0.35,
+                thinWidth: 1,
+                perforationOpacity: 0.45,
+                perforationWidth: 2.5,
+                perforationDash: [0.01, 6],
+                innerOpacity: 0.4,
+                innerWidth: 1,
+                innerDash: [5, 4],
+            ),
+            rosetteFill: RosetteFill(primary: 0.12, secondary: 0.08),
         )
     }
 }
