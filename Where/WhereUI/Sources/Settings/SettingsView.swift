@@ -4,9 +4,10 @@ import UIKit
 import UniformTypeIdentifiers
 import WhereCore
 
-/// Settings tab: location permission + tracking, retroactive manual entry,
-/// whole-database backup export/import, and the destructive "erase a year"
-/// action.
+/// Settings tab: location permission + tracking, notification reminders and
+/// summaries, the report year, whole-database backup export/import, and the
+/// destructive "erase a year" action. (Logging or overriding a day moved to the
+/// Primary tab's "Logged days" toolbar item.)
 struct SettingsView: View {
     // The scene's report model drives the year-scoped rows (clear-year, drift
     // threshold); the always-on `WhereSession` coordinator (environment) drives
@@ -56,8 +57,8 @@ struct SettingsView: View {
                 issueAlertsSection
                 resolutionSection
                 tabsSection
+                yearSection
                 appIconSection
-                manualEntrySection
                 backupSection
                 dataSection
                 resetSection
@@ -311,17 +312,19 @@ struct SettingsView: View {
         }
     }
 
-    private var manualEntrySection: some View {
+    /// The report year moved here off the Primary/Elsewhere toolbars — it's set
+    /// rarely, so it lives in Settings rather than taking a permanent toolbar
+    /// slot. Reuses `YearSelector`, which reads/drives the shared scene model, so
+    /// changing it here updates every tab (and the erase-year row below).
+    private var yearSection: some View {
         Section {
-            NavigationLink {
-                ManualDayEntryView(report: report)
-            } label: {
-                Label(Strings.settingsManualLink, systemImage: "calendar.badge.plus")
+            LabeledContent(Strings.settingsYearLabel) {
+                YearSelector(report: report)
             }
         } header: {
-            Text(Strings.settingsManualHeader)
+            Text(Strings.settingsYearHeader)
         } footer: {
-            Text(Strings.settingsManualFooter)
+            Text(Strings.settingsYearFooter)
         }
     }
 

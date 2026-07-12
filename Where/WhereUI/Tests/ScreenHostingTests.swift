@@ -163,6 +163,22 @@ struct ScreenHostingTests {
         }
     }
 
+    @Test func loggedDaysViewHostsEachState() throws {
+        for state in [
+            LoggedDaysModel.LoadState.loaded(PreviewSupport.sampleManualDays()),
+            .empty,
+            .failed("iCloud is unavailable."),
+        ] {
+            let rootView = LoggedDaysView(
+                report: PreviewSupport.loadedYearReportModel(),
+                model: PreviewSupport.loggedDaysModel(state: state),
+            )
+            try show(UIHostingController(rootView: rootView)) { hosted in
+                #expect(hosted.view != nil)
+            }
+        }
+    }
+
     @Test func manualDayEntryViewHostsDefault() throws {
         let report = PreviewSupport.loadedYearReportModel()
         let rootView = NavigationStack { ManualDayEntryView(report: report) }

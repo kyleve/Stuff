@@ -424,16 +424,20 @@ enum Strings {
         localized("settings.status.restricted")
     }
 
-    static var settingsManualHeader: String {
-        localized("settings.manual.header")
+    static var settingsYearLabel: String {
+        String(localized: "settings.year.label", defaultValue: "Year", bundle: .module)
     }
 
-    static var settingsManualLink: String {
-        localized("settings.manual.link")
+    static var settingsYearHeader: String {
+        String(localized: "settings.year.header", defaultValue: "Report year", bundle: .module)
     }
 
-    static var settingsManualFooter: String {
-        localized("settings.manual.footer")
+    static var settingsYearFooter: String {
+        String(
+            localized: "settings.year.footer",
+            defaultValue: "Choose which year your reports, calendar, and logged days cover.",
+            bundle: .module,
+        )
     }
 
     // MARK: Settings app icon
@@ -1031,6 +1035,69 @@ enum Strings {
         return String(
             localized: "calendar.day.accessibility",
             defaultValue: "\(day), \(names)",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Logged days
+
+    /// Toolbar label + accessibility for the Primary tab's "logged days" button
+    /// that opens the manual-entry management sheet.
+    static var primaryLoggedDays: String {
+        String(localized: "primary.loggedDays", defaultValue: "Logged days", bundle: .module)
+    }
+
+    static func loggedDaysTitle(year: Int) -> String {
+        String(
+            localized: "loggedDays.title",
+            defaultValue: "Logged Days · \(yearText(year))",
+            bundle: .module,
+        )
+    }
+
+    /// Toolbar "+" label for logging a new day by hand.
+    static var loggedDaysAdd: String {
+        String(localized: "loggedDays.add", defaultValue: "Log a day", bundle: .module)
+    }
+
+    static var loggedDaysEmptyTitle: String {
+        String(localized: "loggedDays.empty.title", defaultValue: "No logged days", bundle: .module)
+    }
+
+    static var loggedDaysEmptyDescription: String {
+        String(
+            localized: "loggedDays.empty.description",
+            defaultValue: "Backfill a trip the GPS missed, or correct a day by hand — your manual entries for this year show up here.",
+            bundle: .module,
+        )
+    }
+
+    static var loggedDaysFailedTitle: String {
+        String(
+            localized: "loggedDays.failed.title",
+            defaultValue: "Couldn't load logged days",
+            bundle: .module,
+        )
+    }
+
+    /// Row tag for an additive backfill (unions with GPS).
+    static var loggedDaysKindLogged: String {
+        String(localized: "loggedDays.kind.logged", defaultValue: "Logged", bundle: .module)
+    }
+
+    /// Row tag for an authoritative override (replaces GPS).
+    static var loggedDaysKindOverridden: String {
+        String(
+            localized: "loggedDays.kind.overridden",
+            defaultValue: "Overridden",
+            bundle: .module,
+        )
+    }
+
+    static var loggedDaysDeleteErrorTitle: String {
+        String(
+            localized: "loggedDays.deleteError.title",
+            defaultValue: "Couldn't delete entry",
             bundle: .module,
         )
     }

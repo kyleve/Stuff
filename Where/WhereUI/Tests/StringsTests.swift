@@ -102,6 +102,16 @@ struct StringsTests {
         #expect(Strings.commonCancel == "Cancel")
     }
 
+    @Test func loggedDaysStringsResolveToCatalogValues() {
+        #expect(Strings.primaryLoggedDays == "Logged days")
+        #expect(Strings.loggedDaysTitle(year: 2026) == "Logged Days · 2026")
+        #expect(Strings.loggedDaysAdd == "Log a day")
+        #expect(Strings.loggedDaysEmptyTitle == "No logged days")
+        #expect(Strings.loggedDaysKindLogged == "Logged")
+        #expect(Strings.loggedDaysKindOverridden == "Overridden")
+        #expect(Strings.settingsYearLabel == "Year")
+    }
+
     @Test func evidenceKindDisplayNamesResolve() {
         #expect(Strings.evidenceKind(.planeTicket) == "Plane ticket")
         #expect(Strings.evidenceKind(.boardingPass) == "Boarding pass")

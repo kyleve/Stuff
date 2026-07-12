@@ -18,11 +18,6 @@ struct SecondaryView: View {
         NavigationStack {
             screen
                 .navigationTitle(Strings.secondaryTitle)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        YearSelector(report: report)
-                    }
-                }
         }
         .task(id: report.report) { await loadPlaceNames() }
     }
