@@ -86,7 +86,7 @@ public actor DailySummaryReconciler {
         .prefix(regionLimit)
 
         guard !ranked.isEmpty else {
-            return String(localized: "summary.notification.body.empty", bundle: .module)
+            return String(localized: .summaryNotificationBodyEmpty)
         }
 
         return ranked
@@ -95,19 +95,10 @@ public actor DailySummaryReconciler {
     }
 
     private static func summaryFragment(region: Region, days: Int) -> String {
-        let count = String(
-            localized: "summary.notification.dayCount",
-            defaultValue: "\(days) days",
-            bundle: .module,
-        )
-        return String(
-            format: String(
-                localized: "summary.notification.regionDays",
-                defaultValue: "%1$@ in %2$@",
-                bundle: .module,
-            ),
-            count,
-            region.localizedName,
-        )
+        // Two type-safe symbols composed in place: the plural day count
+        // (".summaryNotificationDayCount") rendered into the "<count> in <region>"
+        // shape (".summaryNotificationRegionDays"), replacing the old String(format:).
+        let dayCount = String(localized: .summaryNotificationDayCount(days))
+        return String(localized: .summaryNotificationRegionDays(dayCount, region.localizedName))
     }
 }
