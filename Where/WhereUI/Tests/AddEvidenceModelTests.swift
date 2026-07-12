@@ -26,7 +26,10 @@ struct AddEvidenceModelTests {
     private static let pdfBytes = Data("%PDF-1.7".utf8)
 
     @Test func buildEvidenceClassifiesAttachmentAndTrimsNote() throws {
-        let model = try AddEvidenceModel(services: makeServices(), now: { Self.fixedDate })
+        // Read the main-actor constant here, then hand the `@Sendable` `now`
+        // closure a captured local so it doesn't touch actor-isolated state.
+        let fixedDate = Self.fixedDate
+        let model = try AddEvidenceModel(services: makeServices(), now: { fixedDate })
         model.kind = .planeTicket
         model.note = "  boarding pass  "
         model.setAttachment(PickedAttachment(
@@ -64,7 +67,8 @@ struct AddEvidenceModelTests {
 
     @Test func savePersistsEvidenceAndBlobRetrievableByReader() async throws {
         let services = try makeServices()
-        let model = AddEvidenceModel(services: services, now: { Self.fixedDate })
+        let fixedDate = Self.fixedDate
+        let model = AddEvidenceModel(services: services, now: { fixedDate })
         model.kind = .document
         model.setAttachment(PickedAttachment(
             data: Self.pdfBytes,
