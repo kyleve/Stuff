@@ -120,7 +120,8 @@ struct BAccessibilityTests {
 
 // MARK: - Mock SettingsProvider
 
-private final class MockSettingsProvider: BAccessibility.SettingsProvider, @unchecked Sendable {
+@MainActor
+private final class MockSettingsProvider: BAccessibility.SettingsProvider {
     var isVoiceOverRunning = false
     var isSwitchControlRunning = false
     var isAssistiveTouchRunning = false
@@ -145,7 +146,7 @@ private final class MockSettingsProvider: BAccessibility.SettingsProvider, @unch
 
 // MARK: - SettingsProvider Tests
 
-struct BAccessibilitySettingsProviderTests {
+@MainActor struct BAccessibilitySettingsProviderTests {
     @Test("init(with:) reads all values from the provider")
     func initFromProvider() {
         let mock = MockSettingsProvider()
