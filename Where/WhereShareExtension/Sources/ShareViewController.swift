@@ -10,6 +10,9 @@ import WhereCore
 final class ShareViewController: UIViewController {
     private static let logger = WhereLog.channel(.shareExtension)
 
+    /// The embedded SwiftUI host, re-framed to fill our bounds each layout pass.
+    private var host: UIHostingController<ShareEvidenceView>?
+
     override func viewDidLoad() {
         super.viewDidLoad()
 
@@ -25,16 +28,18 @@ final class ShareViewController: UIViewController {
         embed(UIHostingController(rootView: root))
     }
 
+    /// Full-bleed single child: set its frame directly in `viewWillLayoutSubviews`
+    /// rather than pinning edge constraints (see the root AGENTS.md convention).
+    override func viewWillLayoutSubviews() {
+        super.viewWillLayoutSubviews()
+        host?.view.frame = view.bounds
+    }
+
     private func embed(_ host: UIHostingController<ShareEvidenceView>) {
+        self.host = host
         addChild(host)
-        host.view.translatesAutoresizingMaskIntoConstraints = false
+        host.view.frame = view.bounds
         view.addSubview(host.view)
-        NSLayoutConstraint.activate([
-            host.view.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            host.view.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            host.view.topAnchor.constraint(equalTo: view.topAnchor),
-            host.view.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-        ])
         host.didMove(toParent: self)
     }
 

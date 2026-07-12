@@ -144,6 +144,12 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   mapping an optional error to the `Bool` an `.alert` wants), expose a computed
   `get`/`set` on the `@Observable` model and bind to that, keeping the
   underlying value the single source of truth.
+- **Host child view controllers with direct frame math, not Auto Layout.** When
+  a `UIViewController` embeds a child (e.g. a `UIHostingController` bridging
+  SwiftUI in an app extension), add it and set `child.view.frame = view.bounds`
+  in `viewWillLayoutSubviews()` rather than pinning four edge constraints. For a
+  full-bleed single child it's simpler, cheaper, and keeps the layout in one
+  obvious place (see `WhereShareExtension`'s `ShareViewController`).
 - **Core behavior belongs in the model/controller layer, not in views.**
   Persistence, domain rules, detection, and side effects live in the feature's
   core module (for Where: `WhereCore` collaborators on `WhereServices`). UI
