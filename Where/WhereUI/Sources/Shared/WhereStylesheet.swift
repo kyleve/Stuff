@@ -18,6 +18,7 @@ struct WhereStylesheet: BStylesheet {
     var calendar = CalendarStyle.standard
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
+    var regionMap = RegionMapStyle.standard
 
     init() {}
 
@@ -64,8 +65,6 @@ extension WhereStylesheet {
     /// the app-icon picker) lives on the component style groups instead.
     struct Size: Equatable {
         var statusIconWidth: CGFloat = 28
-        /// Height of the map header on the Elsewhere region drill-in.
-        var regionMapHeight: CGFloat = 220
         /// Edge of the selected app icon shown as the hero on the launch splash.
         var launchIcon: CGFloat = 120
         /// Inset from the bottom edge for the launch splash's status caption
@@ -359,6 +358,29 @@ extension WhereStylesheet {
                 grabberOpacity: 0.5,
                 grabberTopPadding: 8,
             ),
+        )
+    }
+}
+
+// MARK: - Region Map
+
+extension WhereStylesheet {
+    /// Style for the region drill-in map (`RegionDaysView`): the header height
+    /// and the translucent GPS-uncertainty circle drawn under each pin.
+    struct RegionMapStyle: Equatable {
+        /// Height of the map header.
+        var height: CGFloat
+        /// Fill opacity of a pin's uncertainty circle (over the region tint).
+        var uncertaintyFillOpacity: Double
+        /// Stroke opacity and width of that circle.
+        var uncertaintyStrokeOpacity: Double
+        var uncertaintyStrokeWidth: CGFloat
+
+        static let standard = RegionMapStyle(
+            height: 220,
+            uncertaintyFillOpacity: 0.15,
+            uncertaintyStrokeOpacity: 0.6,
+            uncertaintyStrokeWidth: 1,
         )
     }
 }

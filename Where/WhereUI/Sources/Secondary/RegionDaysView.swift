@@ -20,6 +20,10 @@ struct RegionDaysView: View {
 
     @Environment(\.stylesheet) private var stylesheet
 
+    private var regionMap: WhereStylesheet.RegionMapStyle {
+        stylesheet.regionMap
+    }
+
     private var days: [DayPresence] {
         report.days(in: region)
     }
@@ -71,15 +75,19 @@ struct RegionDaysView: View {
             ForEach(pins) { pin in
                 if let radius = drawnUncertaintyRadius(for: pin) {
                     MapCircle(center: pin.coordinate, radius: radius)
-                        .foregroundStyle(region.style.tint.opacity(0.15))
-                        .stroke(region.style.tint.opacity(0.6), lineWidth: 1)
+                        .foregroundStyle(region.style.tint
+                            .opacity(regionMap.uncertaintyFillOpacity))
+                        .stroke(
+                            region.style.tint.opacity(regionMap.uncertaintyStrokeOpacity),
+                            lineWidth: regionMap.uncertaintyStrokeWidth,
+                        )
                 }
                 Marker("", coordinate: pin.coordinate)
                     .tint(region.style.tint)
             }
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
-        .frame(height: stylesheet.size.regionMapHeight)
+        .frame(height: regionMap.height)
         .accessibilityLabel(Strings.secondaryRegionMapAccessibility)
     }
 

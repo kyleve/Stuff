@@ -141,9 +141,16 @@ struct WhereStylesheetTests {
         #expect(timeline.rowVerticalPadding == 4)
     }
 
+    @Test func regionMapStyle() {
+        let regionMap = style.regionMap
+        #expect(regionMap.height == 220)
+        #expect(regionMap.uncertaintyFillOpacity == 0.15)
+        #expect(regionMap.uncertaintyStrokeOpacity == 0.6)
+        #expect(regionMap.uncertaintyStrokeWidth == 1)
+    }
+
     @Test func elementSizes() {
         #expect(style.size.statusIconWidth == 28)
-        #expect(style.size.regionMapHeight == 220)
         #expect(style.size.launchIcon == 120)
         #expect(style.size.launchCaptionBottomInset == 72)
     }

@@ -109,7 +109,7 @@ public struct RegionMapView: View {
                 Text(Strings.regionMapKindFooter(kind))
             }
         }
-        .frame(height: stylesheet.size.regionMapHeight)
+        .frame(height: stylesheet.regionMap.height)
     }
 
     private func legendRow(_ group: LegendGroup) -> some View {
