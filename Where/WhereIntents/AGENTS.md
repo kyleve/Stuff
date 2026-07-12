@@ -37,9 +37,16 @@ layering, localization, and the WhereUI duplicate-metadata rule).
   interactive `DaysInRegionSnippetIntent.perform()` only re-reads and re-renders;
   its `Button(intent:)` runs a separate action intent (`LogDayIntent`) that
   mutates, then the snippet reloads. Never mutate inside a `SnippetIntent`.
-- **`Region` mapping is centralized** on `RegionAppEnum`/`RegionEntity`
-  (`rawValue`-keyed); display names come from `Region.localizedName`, never a
-  duplicated catalog entry.
+- **`Region` is exposed as `RegionEntity`, not an `AppEnum`.** App Intents
+  requires an `AppEnum`'s `caseDisplayRepresentations` (and any
+  `typeDisplayRepresentation`) to be compile-time-constant literals; an entity's
+  per-instance `displayRepresentation` is runtime, so it reads
+  `Region.localizedName` and RegionKit stays the single source of a region's
+  spelling. `RegionEntity`/`RegionEntityQuery` are `rawValue`-keyed.
+- **App Intents static metadata is literal; dialog copy is catalog-backed.**
+  Titles, parameter titles, and type/case display names are `LocalizedStringResource`
+  literals (the framework extracts/localizes them and requires constants).
+  Runtime `IntentDialog` copy goes through `IntentStrings` (`bundle: .module`).
 
 ## Testing
 

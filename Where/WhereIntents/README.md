@@ -49,19 +49,30 @@ search for a region name surfaces Where and its day-count query.
 
 ## Shared types
 
-- `RegionAppEnum` — the region parameter for the intents (a menu Siri resolves
-  by name), mapped to `RegionKit.Region`.
-- `RegionEntity` (+ `RegionEntityQuery`) — the Spotlight-indexable entity and
-  the reload-safe parameter of the interactive snippet.
+- `RegionEntity` (+ `RegionEntityQuery`) — the region parameter every intent
+  operates on, the Spotlight-indexable entity, and the reload-safe parameter of
+  the interactive snippet. It's an `AppEntity` (not an `AppEnum`) so its
+  per-instance `displayRepresentation` can read `Region.localizedName` at
+  runtime — App Intents requires an `AppEnum`'s `caseDisplayRepresentations` to
+  be compile-time-constant literals, which would force restating RegionKit's
+  region names here.
 - `ActivityWindowAppEnum` — mirrors `RecentActivityWindow` (24h / week / month /
-  year so far).
+  year so far). An enum is fine here because these display names have no
+  RegionKit-owned source.
 
 ## Localization
 
-Intent titles, parameter titles, dialog templates, and shortcut phrases resolve
-through this module's [`Resources/Localizable.xcstrings`](Sources/Resources/Localizable.xcstrings)
-(`IntentStrings`, `bundle: .module`). Region names come from `RegionKit`'s
-`Region.localizedName`; window names from this catalog.
+- **Static App Intents metadata** — intent titles, parameter titles, and the
+  enum/entity type & case display names — are `LocalizedStringResource` string
+  literals. App Intents extracts and localizes these through the app's own App
+  Intents string table; the framework requires them to be compile-time
+  constants, so they can't be routed through this module's `Bundle.module`
+  catalog.
+- **Runtime dialog copy** (the spoken/`IntentDialog` results) resolves through
+  this module's [`Resources/Localizable.xcstrings`](Sources/Resources/Localizable.xcstrings)
+  (`IntentStrings`, `bundle: .module`), interpolating dynamic values.
+- **Region names** always come from `RegionKit`'s `Region.localizedName` — never
+  restated here.
 
 ## Installation
 
