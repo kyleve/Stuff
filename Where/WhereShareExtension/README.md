@@ -39,9 +39,9 @@ The extension opens the store and writes through
 `SwiftDataStore.perform { … }` rather than going through
 `WhereServices`/`DayJournal`. Those assemble a live GPS ingestor, notification
 reconcilers, and widget publishing — machinery with no place in a short-lived
-share process. The commit pings persistent history, so the app reconciles
-badges/widgets and (in production) mirrors the new row to CloudKit the next time
-it opens.
+share process. The commit pings persistent history, so the app — observing
+`.NSPersistentStoreRemoteChange` on its shared store — reconciles badges/widgets
+when it's next active and (in production) mirrors the new row to CloudKit.
 
 The extension opens `.localOnly` storage on purpose: it must not initialize
 CloudKit (it holds only the App Group entitlement, not iCloud), and the app's
@@ -60,6 +60,9 @@ entitlement so both processes open the same SwiftData store.
 - **No test bundle.** The build-and-write path is exercised indirectly by
   **WhereCore** store tests and the **WhereUI** compose model; the loader and
   view controller are thin glue over system APIs.
-- **No live in-app refresh in DEBUG.** A running debug app (`.localOnly`, no
-  remote-change observer) picks up an extension write on its next launch/fetch,
-  not instantly.
+- **In-app refresh is on the next foreground, not mid-scroll.** The app observes
+  `.NSPersistentStoreRemoteChange` for its on-disk store (both `.localOnly` debug
+  and `.cloudKit` release builds), so an extension write refreshes badges/lists
+  when the app is next active — no relaunch needed. It won't repaint while the
+  app is suspended behind the share sheet; Core Data delivers the change when the
+  app resumes.
