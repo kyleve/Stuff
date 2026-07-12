@@ -1,7 +1,6 @@
 import Foundation
 import LogKit
 import Observation
-import UniformTypeIdentifiers
 import WhereCore
 
 /// View-scoped model for the share-extension compose sheet. Pulls the shared
@@ -82,7 +81,7 @@ final class ShareEvidenceModel {
     func loadAttachments() async {
         attachments = await SharedItemLoader.loadAttachments(from: items)
         if let first = attachments.first {
-            kind = Self.defaultKind(for: first)
+            kind = EvidenceKind.suggested(forTypeIdentifier: first.typeIdentifier)
         }
         phase = .composing
     }
@@ -119,61 +118,28 @@ final class ShareEvidenceModel {
         let blob: Data?
     }
 
-    /// Assemble the evidence records from the current field state: one per
-    /// attachment (each classified from its own bytes), or a single
-    /// metadata-only record when nothing was shared. `internal` so a test can
-    /// assert the mapping without going through persistence.
+    /// Assemble the evidence records from the current field state via the shared
+    /// `Evidence.composed` factory: one per attachment (each classified from its
+    /// own bytes), or a single metadata-only record when nothing was shared.
+    /// `internal` so a test can assert the mapping without going through
+    /// persistence.
     func buildPendingEvidence() -> [PendingEvidence] {
-        let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        let note: String? = trimmedNote.isEmpty ? nil : trimmedNote
-        let kind = resolvedKind()
         guard !attachments.isEmpty else {
-            return [PendingEvidence(
-                evidence: Evidence(
-                    kind: kind,
-                    capturedAt: capturedAt,
-                    region: nil,
-                    note: note,
-                    contentType: .other(nil),
-                ),
-                blob: nil,
-            )]
+            return [PendingEvidence(evidence: composed(attachment: nil), blob: nil)]
         }
         return attachments.map { attachment in
-            let contentType = EvidenceContentType.classify(
-                data: attachment.data,
-                typeIdentifier: attachment.typeIdentifier,
-            )
-            return PendingEvidence(
-                evidence: Evidence(
-                    kind: kind,
-                    capturedAt: capturedAt,
-                    region: nil,
-                    note: note,
-                    contentType: contentType,
-                ),
-                blob: attachment.data,
-            )
+            PendingEvidence(evidence: composed(attachment: attachment), blob: attachment.data)
         }
     }
 
-    /// Fold the free-text `otherLabel` into the kind when `.other` is selected;
-    /// every other kind carries no label.
-    private func resolvedKind() -> EvidenceKind {
-        guard case .other = kind else { return kind }
-        let trimmed = otherLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        return .other(trimmed.isEmpty ? nil : trimmed)
-    }
-
-    /// A reasonable starting kind from the attachment's declared type, so the
-    /// user usually doesn't have to change the picker (a photo defaults to
-    /// `.photo`, a Wallet pass to `.boardingPass`, everything else `.document`).
-    private static func defaultKind(for attachment: SharedAttachment) -> EvidenceKind {
-        guard let identifier = attachment.typeIdentifier,
-              let type = UTType(identifier)
-        else { return .document }
-        if type.identifier == "com.apple.pkpass" { return .boardingPass }
-        if type.conforms(to: .image) { return .photo }
-        return .document
+    private func composed(attachment: SharedAttachment?) -> Evidence {
+        Evidence.composed(
+            kind: kind,
+            otherLabel: otherLabel,
+            capturedAt: capturedAt,
+            note: note,
+            attachmentData: attachment?.data,
+            attachmentTypeIdentifier: attachment?.typeIdentifier,
+        )
     }
 }

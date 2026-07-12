@@ -114,27 +114,17 @@ public final class AddEvidenceModel {
         }
     }
 
-    /// Assemble the `Evidence` value from the current field state. `internal`
-    /// so tests can assert the mapping without going through persistence.
+    /// Assemble the `Evidence` value from the current field state via the shared
+    /// `Evidence.composed` factory. `internal` so tests can assert the mapping
+    /// without going through persistence.
     func buildEvidence() -> Evidence {
-        let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        let contentType: EvidenceContentType = attachment
-            .map { EvidenceContentType.classify(data: $0.data, typeIdentifier: $0.typeIdentifier) }
-            ?? .other(nil)
-        return Evidence(
-            kind: resolvedKind(),
+        Evidence.composed(
+            kind: kind,
+            otherLabel: otherLabel,
             capturedAt: capturedAt,
-            region: nil,
-            note: trimmedNote.isEmpty ? nil : trimmedNote,
-            contentType: contentType,
+            note: note,
+            attachmentData: attachment?.data,
+            attachmentTypeIdentifier: attachment?.typeIdentifier,
         )
-    }
-
-    /// Fold the free-text `otherLabel` into the kind when `.other` is selected;
-    /// every other kind carries no label.
-    private func resolvedKind() -> EvidenceKind {
-        guard case .other = kind else { return kind }
-        let trimmed = otherLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-        return .other(trimmed.isEmpty ? nil : trimmed)
     }
 }
