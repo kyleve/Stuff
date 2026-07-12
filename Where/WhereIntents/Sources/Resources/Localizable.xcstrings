@@ -1,6 +1,17 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "audit.note.siri" : {
+      "comment" : "Note stored on a manual day entry made through an intent.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logged with Siri"
+          }
+        }
+      }
+    },
     "dialog.daysInRegion.none" : {
       "comment" : "Spoken result when a region has no logged days this year. %1$@ region name, %2$@ year.",
       "localizations" : {
@@ -30,6 +41,59 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "You have %1$lld days in %2$@ so far in %3$@."
+          }
+        }
+      }
+    },
+    "dialog.logged.chooseRegions" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tell me which regions to log."
+          }
+        }
+      }
+    },
+    "dialog.logged.day" : {
+      "comment" : "Confirmation after logging a day. %1$@ region list, %2$@ date.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logged %1$@ for %2$@."
+          }
+        }
+      }
+    },
+    "dialog.logged.emptyRange" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "That date range doesn't include any days."
+          }
+        }
+      }
+    },
+    "dialog.logged.trip.one" : {
+      "comment" : "Confirmation after backfilling exactly one day. %1$@ region list.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logged %1$@ for 1 day."
+          }
+        }
+      }
+    },
+    "dialog.logged.trip.other" : {
+      "comment" : "Confirmation after backfilling a trip. %1$@ region list, %2$lld day count.",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logged %1$@ for %2$lld days."
           }
         }
       }

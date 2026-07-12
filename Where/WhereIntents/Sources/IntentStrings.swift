@@ -122,6 +122,56 @@ enum IntentStrings {
         }
     }
 
+    // MARK: Logging (action intents)
+
+    /// The note stamped on a manual entry made from an intent. Persisted with
+    /// the `ManualEntryAudit`, so a later residency audit shows how the day was
+    /// recorded.
+    static var manualEntryNote: String {
+        String(localized: "audit.note.siri", defaultValue: "Logged with Siri", bundle: .module)
+    }
+
+    static func loggedDay(date: Date, regions: [Region]) -> String {
+        let dateText = date.formatted(.dateTime.month(.wide).day().year())
+        return String(
+            localized: "dialog.logged.day",
+            defaultValue: "Logged \(regionList(regions)) for \(dateText).",
+            bundle: .module,
+        )
+    }
+
+    static func loggedTrip(dayCount: Int, regions: [Region]) -> String {
+        let list = regionList(regions)
+        if dayCount == 1 {
+            return String(
+                localized: "dialog.logged.trip.one",
+                defaultValue: "Logged \(list) for 1 day.",
+                bundle: .module,
+            )
+        }
+        return String(
+            localized: "dialog.logged.trip.other",
+            defaultValue: "Logged \(list) for \(dayCount) days.",
+            bundle: .module,
+        )
+    }
+
+    static func chooseRegions() -> String {
+        String(
+            localized: "dialog.logged.chooseRegions",
+            defaultValue: "Tell me which regions to log.",
+            bundle: .module,
+        )
+    }
+
+    static func emptyTripRange() -> String {
+        String(
+            localized: "dialog.logged.emptyRange",
+            defaultValue: "That date range doesn't include any days.",
+            bundle: .module,
+        )
+    }
+
     // MARK: Helpers
 
     /// Region names joined in a localized list, in `Region.allCases` order so
