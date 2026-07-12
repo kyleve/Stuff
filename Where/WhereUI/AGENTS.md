@@ -87,6 +87,30 @@ the full-motion values.
 themes. It is the seam a future app-wide or seasonal palette/typography theme
 would plug into.
 
+### What not to do
+
+- **Don't borrow another component's style.** A component must never read a value
+  off another component's group to dodge defining its own — e.g. `TimelineStyle`
+  does not reach into `CardStyle` for a corner radius. If a component needs a
+  value, it gets its own property (or its own style struct); the cost of adding
+  a struct is the point, not something to route around. Only genuinely
+  cross-cutting values belong on the shared scales (`Spacing`, `Size`, `Palette`,
+  `Typography`, `Motion`) — and a token there should read as shared, not as one
+  component quietly depending on another's geometry.
+- **Don't hardcode appearance in a view**, and don't collect unrelated constants
+  into a flat grab-bag (the old `UIConstants` smell). A new geometry / font /
+  color / motion value lands on the owning component group or a shared scale.
+- **Don't branch a variant through the body.** Model the axis as a `Variant` enum
+  plus a `subscript` and read one resolved spec (see [Using
+  tokens](#using-tokens)) — don't scatter `compact ? … : …` or thread a `Bool`
+  down the view.
+- **Don't bake trait-derived values into the defaults.** `.standard` / property
+  defaults hold the fixed set; apply the reactive slice only in `init(context:)`,
+  so a default/system context still reproduces `WhereStylesheet.default`.
+- **Don't put per-region or adaptive-system colors in the sheet.** Per-region
+  tints stay in `RegionStyle`; adaptive system roles (`.secondary`) and
+  `.accentColor` stay inline.
+
 ## Testing
 
 `WhereStylesheetTests` pins every token's default value and the trait-aware
