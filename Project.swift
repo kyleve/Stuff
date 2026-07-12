@@ -19,9 +19,10 @@ private let projectSettings: Settings? = developmentTeam.isEmpty
     ? nil
     : .settings(base: ["DEVELOPMENT_TEAM": .string(developmentTeam)])
 
-/// App Group shared by the Where app and its widget extension so both
-/// processes see the same on-disk SwiftData store (see
-/// `SwiftDataStore.appGroupIdentifier`, which must match).
+/// App Group shared by the Where app, its widget extension, and its share
+/// extension so every process sees the same on-disk SwiftData store (see
+/// `SwiftDataStore.appGroupIdentifier`, which must match) and the widget
+/// snapshot JSON.
 let whereAppGroupEntitlements: Entitlements = .dictionary([
     "com.apple.security.application-groups": .array([.string("group.com.stuff.where")]),
 ])

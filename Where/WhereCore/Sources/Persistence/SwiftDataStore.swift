@@ -82,6 +82,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
+    /// App Group the on-disk store lives in, shared by the Where app, its
+    /// widget extension, and the share extension so every process opens the
+    /// *same* SwiftData store. Must match the `com.apple.security.application-groups`
+    /// entitlement each of those targets declares (see `Project.swift`).
+    public static let appGroupIdentifier = "group.com.stuff.where"
+
     public static func makeContainer(storage: Storage) throws -> ModelContainer {
         // A plain `Schema` of the live models. SwiftData runs implicit
         // lightweight migration when the on-disk store predates an additive
@@ -94,6 +100,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDManualDay.self,
             SDDismissedIssue.self,
         ])
+        // On-disk storage lives in the App Group container so the share
+        // extension (and any other sibling process) writes into the same store
+        // the app reads. An in-memory store has no container — leave it default.
+        let groupContainer: ModelConfiguration.GroupContainer = switch storage {
+            case .inMemory: .none
+            case .localOnly, .cloudKit: .identifier(appGroupIdentifier)
+        }
         // CloudKit mode backs the container with `NSPersistentCloudKitContainer`,
         // which enables persistent-history tracking and posts
         // `.NSPersistentStoreRemoteChange` on remote import — no extra knobs
@@ -102,6 +115,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let config = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,
+            groupContainer: groupContainer,
             cloudKitDatabase: storage == .cloudKit ? .automatic : .none,
         )
         return try ModelContainer(for: schema, configurations: [config])
