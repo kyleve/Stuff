@@ -149,6 +149,13 @@ struct WhereStylesheetTests {
         #expect(regionMap.uncertaintyStrokeWidth == 1)
     }
 
+    @Test func motionAnimations() {
+        let motion = style.motion
+        #expect(motion.reveal == .easeIn(duration: 0.18))
+        #expect(motion.reducedReveal == .easeInOut(duration: 0.2))
+        #expect(motion.captionFade == .easeOut(duration: 0.3))
+    }
+
     @Test func paletteColors() {
         let palette = style.palette
         #expect(palette.primary.backgroundTop == Color(red: 0.07, green: 0.08, blue: 0.13))

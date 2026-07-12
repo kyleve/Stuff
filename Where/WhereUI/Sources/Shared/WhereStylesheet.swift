@@ -20,6 +20,7 @@ struct WhereStylesheet: BStylesheet {
     var timeline = TimelineStyle.standard
     var regionMap = RegionMapStyle.standard
     var palette = Palette.standard
+    var motion = Motion.standard
 
     init() {}
 
@@ -411,6 +412,29 @@ extension WhereStylesheet {
             labelSpacing: 2,
             trailingMinSpacing: 8,
             rowVerticalPadding: 4,
+        )
+    }
+}
+
+// MARK: - Motion
+
+extension WhereStylesheet {
+    /// App-level animation tokens. Views still decide *when* to apply them and
+    /// honor Reduce Motion — they pick `reducedReveal` (a flatter crossfade) over
+    /// `reveal`, and skip `captionFade` entirely — so these carry the "full
+    /// motion" values.
+    struct Motion: Equatable {
+        /// The launch splash → app reveal.
+        var reveal: Animation
+        /// The Reduce-Motion fallback for the reveal.
+        var reducedReveal: Animation
+        /// One-shot fade for incidental appearance (e.g. the launch caption).
+        var captionFade: Animation
+
+        static let standard = Motion(
+            reveal: .easeIn(duration: 0.18),
+            reducedReveal: .easeInOut(duration: 0.2),
+            captionFade: .easeOut(duration: 0.3),
         )
     }
 }

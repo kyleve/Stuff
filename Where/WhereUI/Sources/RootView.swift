@@ -13,6 +13,7 @@ import WhereCore
 public struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.stylesheet) private var stylesheet
     @State private var model: WhereModel
     #if DEBUG
         /// The logged-in tab bar's measured height, reported up from `MainTabs` and
@@ -129,7 +130,7 @@ public struct RootView: View {
     }
 
     private var revealAnimation: Animation {
-        reduceMotion ? .easeInOut(duration: 0.2) : .easeIn(duration: 0.18)
+        reduceMotion ? stylesheet.motion.reducedReveal : stylesheet.motion.reveal
     }
 }
 

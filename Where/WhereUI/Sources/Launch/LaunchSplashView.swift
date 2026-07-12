@@ -72,7 +72,7 @@ struct LaunchSplashView: View {
             if reduceMotion {
                 showCaption = true
             } else {
-                withAnimation(.easeOut(duration: 0.3)) { showCaption = true }
+                withAnimation(stylesheet.motion.captionFade) { showCaption = true }
             }
         }
     }
