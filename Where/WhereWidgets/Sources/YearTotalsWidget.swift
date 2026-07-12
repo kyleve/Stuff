@@ -18,8 +18,8 @@ struct YearTotalsWidget: Widget {
                 // no other Broadway root).
                 .whereBroadwayRoot()
         }
-        .configurationDisplayName(WidgetStrings.yearTotalsGalleryName)
-        .description(WidgetStrings.yearTotalsGalleryDescription)
+        .configurationDisplayName(String(localized: .widgetGalleryYearTotalsName))
+        .description(String(localized: .widgetGalleryYearTotalsDescription))
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
     }
 }

@@ -18,8 +18,8 @@ struct TodayWidget: Widget {
                 // no other Broadway root).
                 .whereBroadwayRoot()
         }
-        .configurationDisplayName(WidgetStrings.todayGalleryName)
-        .description(WidgetStrings.todayGalleryDescription)
+        .configurationDisplayName(String(localized: .widgetGalleryTodayName))
+        .description(String(localized: .widgetGalleryTodayDescription))
         .supportedFamilies([.systemSmall, .accessoryInline, .accessoryCircular])
     }
 }
