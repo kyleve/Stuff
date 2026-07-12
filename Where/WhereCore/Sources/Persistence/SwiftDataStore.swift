@@ -151,7 +151,22 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// app/UI layer.
     public static func make(storage: Storage = .default) throws -> SwiftDataStore {
         let container = try makeContainer(storage: storage)
-        logger.info("Opened SwiftData store (mode: \(storage))")
+        if storage == .inMemory {
+            logger.info("Opened SwiftData store (mode: \(storage))")
+        } else {
+            // Log the resolved on-disk path and whether the App Group container
+            // is actually reachable at runtime. If the App Group capability isn't
+            // provisioned for the signing in use, `containerURL(...)` is nil and
+            // SwiftData falls back to the per-process sandbox — which reads as
+            // "my old data is still here / the store didn't move" rather than an
+            // error. Logging both makes that diagnosable instead of a guess.
+            let groupResolved = FileManager.default
+                .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) != nil
+            let url = container.configurations.first?.url.path(percentEncoded: false) ?? "unknown"
+            logger.info(
+                "Opened SwiftData store (mode: \(storage), appGroupResolved: \(groupResolved), url: \(url))",
+            )
+        }
         let store = SwiftDataStore(modelContainer: container)
         // On-disk stores live in a shared App Group container, so another process
         // (the share extension) — or, for CloudKit, a sync from another device —
