@@ -109,17 +109,15 @@ public struct RegionMapView: View {
                 Text(Strings.regionMapKindFooter(kind))
             }
         }
-        .frame(height: stylesheet.size.regionMapHeight)
+        .frame(height: stylesheet.regionMap.height)
     }
 
     private func legendRow(_ group: LegendGroup) -> some View {
         HStack(spacing: stylesheet.spacing.large) {
             Circle()
                 .fill(color(forTitle: group.title, region: group.region))
-                .frame(
-                    width: stylesheet.size.calendarDot * 2,
-                    height: stylesheet.size.calendarDot * 2,
-                )
+                // Developer legend swatch — a fixed dev-tool size, not a themed token.
+                .frame(width: 12, height: 12)
                 .accessibilityHidden(true)
             Text(group.title)
             Spacer()

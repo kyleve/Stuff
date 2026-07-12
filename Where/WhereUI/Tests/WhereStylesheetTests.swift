@@ -25,39 +25,179 @@ struct WhereStylesheetTests {
         #expect(style.spacing.xxxLarge == 20)
     }
 
-    @Test func cardPaddingAndCornerRadii() {
-        #expect(style.padding.compactCard == 16)
-        #expect(style.padding.card == 22)
-        #expect(style.cornerRadius.compactCard == 22)
-        #expect(style.cornerRadius.card == 28)
+    @Test func regularCardStyle() {
+        let card = style.card.regular
+        #expect(card.cornerRadius == 28)
+        #expect(card.padding == 22)
+        #expect(card.contentSpacing == 16)
+        #expect(card.progressBarHeight == 10)
+        #expect(card.entryStampSize == 88)
+        #expect(card.showsArcText)
+        #expect(card.regionNameFont == .system(size: 38, weight: .semibold, design: .serif))
+        #expect(card.regionNameTracking == -0.5)
+        #expect(card.watermarkFontSize == 150)
+        #expect(card.watermarkOffset == CGSize(width: 20, height: 12))
+        #expect(card.holographicIntensity == 1)
+        #expect(card.frameOuterLineWidth == 3.5)
+        #expect(card.showsPerforationRing)
+        #expect(card.innerFrameInset == 16)
+        #expect(card.rosette == .init(
+            wobble: 3,
+            lineWidth: 3,
+            primaryRingSpacing: 18,
+            secondaryRingSpacing: 15,
+        ))
+        #expect(card.glow == .init(opacity: 0.75, radius: 12))
+        #expect(card.lift == .init(opacity: 0.6, radius: 34, offsetY: 18))
     }
 
-    @Test func cardShadowGeometry() {
-        #expect(style.shadow.cardRadius == 34)
-        #expect(style.shadow.cardRadiusCompact == 17)
-        #expect(style.shadow.cardGlowRadius == 12)
-        #expect(style.shadow.cardGlowRadiusCompact == 6)
-        #expect(style.shadow.cardOffsetY == 18)
-        #expect(style.shadow.cardOffsetYCompact == 9)
+    @Test func compactCardStyle() {
+        let card = style.card.compact
+        #expect(card.cornerRadius == 22)
+        #expect(card.padding == 16)
+        #expect(card.contentSpacing == 10)
+        #expect(card.progressBarHeight == 6)
+        #expect(card.entryStampSize == 52)
+        #expect(!card.showsArcText)
+        #expect(card.regionNameTracking == 0)
+        #expect(card.watermarkFontSize == 96)
+        #expect(card.watermarkOffset == CGSize(width: 12, height: 10))
+        #expect(card.holographicIntensity == 0.5)
+        #expect(card.frameOuterLineWidth == 2.5)
+        #expect(!card.showsPerforationRing)
+        #expect(card.innerFrameInset == 12)
+        #expect(card.rosette == .init(
+            wobble: 2,
+            lineWidth: 2,
+            primaryRingSpacing: 13,
+            secondaryRingSpacing: 11,
+        ))
+        #expect(card.glow == .init(opacity: 0.55, radius: 6))
+        #expect(card.lift == .init(opacity: 0.4, radius: 17, offsetY: 9))
+    }
+
+    @Test func cardVariantSubscriptSelectsTheMatchingSpec() {
+        #expect(style.card[.regular] == style.card.regular)
+        #expect(style.card[.compact] == style.card.compact)
+    }
+
+    @Test func sharedCardStyle() {
+        let card = style.card
+        #expect(card.watermarkOpacity == 0.08)
+        #expect(card.glassTintOpacity == 0.18)
+        #expect(card.nameOpacity == 0.8)
+        #expect(card.rosetteFill == .init(primary: 0.12, secondary: 0.08))
+        #expect(card.frame == .init(
+            outerOpacity: 0.6,
+            thinOpacity: 0.35,
+            thinWidth: 1,
+            perforationOpacity: 0.45,
+            perforationWidth: 2.5,
+            perforationDash: [0.01, 6],
+            innerOpacity: 0.4,
+            innerWidth: 1,
+            innerDash: [5, 4],
+        ))
+    }
+
+    @Test func calendarStyle() {
+        let calendar = style.calendar
+        #expect(calendar.monthSpacing == 16)
+        #expect(calendar.dayMinHeight == 44)
+        #expect(calendar.dotSize == 6)
+        #expect(calendar.dayContentSpacing == 2)
+        #expect(calendar.dayNumberSize == 26)
+        #expect(calendar.todayMarker == .accentColor)
+        #expect(calendar.todayNumberColor == .white)
+        #expect(calendar.unresolvedDayMarker == Color.red.opacity(0.15))
+        #expect(calendar.unresolvedNumberColor == .red)
+
+        let month = calendar.month
+        #expect(month.sectionSpacing == 8)
+        #expect(month.gridSpacing == 6)
+        #expect(month.padding == 16)
+        #expect(month.cornerRadius == 22)
+        #expect(month.currentMonthHighlight == Color.accentColor.opacity(0.08))
+        #expect(month.footerSpacing == 4)
+        #expect(month.footerRowSpacing == 6)
+        #expect(month.unfocusedRowOpacity == 0.55)
+    }
+
+    @Test func appIconStyle() {
+        let appIcon = style.appIcon
+        #expect(appIcon.gridMax == 180)
+        #expect(appIcon.previewMax == 280)
+        #expect(appIcon.gridSpacing == 20)
+        #expect(appIcon.columnSpacing == 16)
+        #expect(appIcon.gridPadding == 16)
+        #expect(appIcon.cellSpacing == 12)
+        #expect(appIcon.cellLabelSpacing == 6)
+        #expect(appIcon.backgroundedCellOpacity == 0.5)
+        #expect(appIcon.scrim == Color.black.opacity(0.25))
+
+        let panel = appIcon.panel
+        #expect(panel.spacing == 14)
+        #expect(panel.textSpacing == 4)
+        #expect(panel.horizontalPadding == 20)
+        #expect(panel.bottomPadding == 16)
+        #expect(panel.cornerRadius == 28)
+        #expect(panel.background == Color(.systemBackground))
+        #expect(panel.shadowColor == Color.black.opacity(0.18))
+        #expect(panel.shadowRadius == 18)
+        #expect(panel.shadowOffsetY == -4)
+        #expect(panel.grabberSize == CGSize(width: 40, height: 5))
+        #expect(panel.grabberOpacity == 0.5)
+        #expect(panel.grabberTopPadding == 8)
+    }
+
+    @Test func timelineStyle() {
+        let timeline = style.timeline
+        #expect(timeline.rowSpacing == 12)
+        #expect(timeline.accentWidth == 4)
+        #expect(timeline.accentHeight == 34)
+        #expect(timeline.labelSpacing == 2)
+        #expect(timeline.trailingMinSpacing == 8)
+        #expect(timeline.rowVerticalPadding == 4)
+    }
+
+    @Test func regionMapStyle() {
+        let regionMap = style.regionMap
+        #expect(regionMap.height == 220)
+        #expect(regionMap.uncertaintyFillOpacity == 0.15)
+        #expect(regionMap.uncertaintyStrokeOpacity == 0.6)
+        #expect(regionMap.uncertaintyStrokeWidth == 1)
+    }
+
+    @Test func typographyFaces() {
+        let typography = style.typography
+        #expect(typography.onboardingIcon == .system(size: 72))
+        #expect(typography.widgetHeroRegion == .system(.headline, design: .serif).weight(.semibold))
+        #expect(typography.widgetTotalNumber == .system(.body, design: .rounded, weight: .bold))
+    }
+
+    @Test func motionAnimations() {
+        let motion = style.motion
+        #expect(motion.reveal == .easeIn(duration: 0.18))
+        #expect(motion.reducedReveal == .easeInOut(duration: 0.2))
+        #expect(motion.captionFade == .easeOut(duration: 0.3))
+    }
+
+    @Test func paletteColors() {
+        let palette = style.palette
+        #expect(palette.primary.backgroundTop == Color(red: 0.07, green: 0.08, blue: 0.13))
+        #expect(palette.primary.backgroundBottom == Color(red: 0.02, green: 0.02, blue: 0.05))
+        #expect(palette.splash.background == .black)
+        #expect(palette.splash.vignetteCenter == Color(white: 0.16))
+        #expect(palette.splash.vignetteEdge == .black)
+        #expect(palette.splash.iconGlow == .accentColor)
+        #expect(palette.splash.caption == .white)
+        #expect(palette.splash.captionSecondary == Color.white.opacity(0.7))
+        #expect(palette.onboarding.backgroundTop == Color(.systemBackground))
+        #expect(palette.onboarding.backgroundBottom == Color.accentColor.opacity(0.12))
     }
 
     @Test func elementSizes() {
-        #expect(style.size.progressBarHeight == 10)
-        #expect(style.size.progressBarHeightCompact == 6)
-        #expect(style.size.timelineAccentWidth == 4)
-        #expect(style.size.timelineAccentHeight == 34)
-        #expect(style.size.calendarDot == 6)
-        #expect(style.size.calendarDayMinHeight == 44)
-        #expect(style.size.heroNumberFontSize == 40)
-        #expect(style.size.regionNameFontSize == 38)
         #expect(style.size.statusIconWidth == 28)
-        #expect(style.size.entryStamp == 88)
-        #expect(style.size.entryStampCompact == 52)
-        #expect(style.size.stampWatermark == 150)
-        #expect(style.size.stampWatermarkCompact == 96)
-        #expect(style.size.regionMapHeight == 220)
-        #expect(style.size.appIconGridMax == 180)
-        #expect(style.size.appIconPreviewLargeMax == 280)
         #expect(style.size.launchIcon == 120)
         #expect(style.size.launchCaptionBottomInset == 72)
     }
@@ -75,7 +215,7 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
-        #expect(resolved.size.calendarDayMinHeight == 56)
+        #expect(resolved.calendar.dayMinHeight == 56)
     }
 
     @MainActor
@@ -83,8 +223,8 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.accessibility = BAccessibility(isReduceTransparencyEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
-        #expect(resolved.shadow.cardGlowRadius == 0)
-        #expect(resolved.shadow.cardGlowRadiusCompact == 0)
+        #expect(resolved.card.regular.glow.radius == 0)
+        #expect(resolved.card.compact.glow.radius == 0)
     }
 }
 
@@ -150,7 +290,7 @@ private struct StylesheetProbe: View {
 
     var body: some View {
         Color.clear
-            .onChange(of: stylesheet.size.calendarDayMinHeight, initial: true) { _, newValue in
+            .onChange(of: stylesheet.calendar.dayMinHeight, initial: true) { _, newValue in
                 box.calendarDayMinHeight = newValue
             }
     }

@@ -135,7 +135,7 @@ struct CalendarView: View {
     private func calendarContent(months: [CalendarMonth]) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: stylesheet.spacing.xxLarge) {
+                LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
                     ForEach(months) { month in
                         MonthGridView(month: month, focusedRegion: focusedRegion) { _ in
                             timelineTarget = TimelineMonthTarget(startOfMonth: month.startOfMonth)
@@ -170,18 +170,22 @@ private struct MonthGridView: View {
 
     @Environment(\.stylesheet) private var stylesheet
 
+    private var calendar: WhereStylesheet.CalendarStyle {
+        stylesheet.calendar
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
+        VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
             Text(month.startOfMonth.formatted(.dateTime.month(.wide)))
                 .font(.title.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             LazyVGrid(
                 columns: Array(
-                    repeating: GridItem(.flexible(), spacing: stylesheet.spacing.small),
+                    repeating: GridItem(.flexible(), spacing: calendar.month.gridSpacing),
                     count: month.weekdayCount,
                 ),
-                spacing: stylesheet.spacing.small,
+                spacing: calendar.month.gridSpacing,
             ) {
                 ForEach(month.weekdaySymbols, id: \.self) { symbol in
                     Text(symbol)
@@ -192,7 +196,7 @@ private struct MonthGridView: View {
 
                 ForEach(0 ..< month.leadingBlankCount, id: \.self) { _ in
                     Color.clear
-                        .frame(minHeight: stylesheet.size.calendarDayMinHeight)
+                        .frame(minHeight: calendar.dayMinHeight)
                 }
 
                 ForEach(month.days) { day in
@@ -209,11 +213,11 @@ private struct MonthGridView: View {
                 MonthFooter(totals: month.regionTotals, focusedRegion: focusedRegion)
             }
         }
-        .padding(stylesheet.padding.compactCard)
+        .padding(calendar.month.padding)
         .background {
             if month.isCurrentMonth {
-                RoundedRectangle(cornerRadius: stylesheet.cornerRadius.compactCard)
-                    .fill(Color.accentColor.opacity(0.08))
+                RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
+                    .fill(calendar.month.currentMonthHighlight)
             }
         }
     }
@@ -228,8 +232,12 @@ private struct MonthFooter: View {
 
     @Environment(\.stylesheet) private var stylesheet
 
+    private var calendar: WhereStylesheet.CalendarStyle {
+        stylesheet.calendar
+    }
+
     var body: some View {
-        VStack(spacing: stylesheet.spacing.xSmall) {
+        VStack(spacing: calendar.month.footerSpacing) {
             Divider()
             ForEach(totals) { tally in
                 row(for: tally)
@@ -239,12 +247,12 @@ private struct MonthFooter: View {
 
     private func row(for tally: RegionDayTally) -> some View {
         let isFocused = tally.region == focusedRegion
-        return HStack(spacing: stylesheet.spacing.small) {
+        return HStack(spacing: calendar.month.footerRowSpacing) {
             Circle()
                 .fill(tally.region.style.tint)
                 .frame(
-                    width: stylesheet.size.calendarDot,
-                    height: stylesheet.size.calendarDot,
+                    width: calendar.dotSize,
+                    height: calendar.dotSize,
                 )
             Text(tally.region.localizedName)
                 .font(.subheadline)
@@ -255,7 +263,7 @@ private struct MonthFooter: View {
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
         }
-        .opacity(focusedRegion == nil || isFocused ? 1 : 0.55)
+        .opacity(focusedRegion == nil || isFocused ? 1 : calendar.month.unfocusedRowOpacity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             Strings.regionDaysAccessibility(
@@ -272,36 +280,40 @@ private struct DayCell: View {
 
     @Environment(\.stylesheet) private var stylesheet
 
+    private var calendar: WhereStylesheet.CalendarStyle {
+        stylesheet.calendar
+    }
+
     var body: some View {
-        VStack(spacing: stylesheet.spacing.xxSmall) {
+        VStack(spacing: calendar.dayContentSpacing) {
             Text("\(day.dayOfMonth)")
                 .font(.callout)
                 .monospacedDigit()
                 .foregroundStyle(dayNumberColor)
-                .frame(width: 26, height: 26)
+                .frame(width: calendar.dayNumberSize, height: calendar.dayNumberSize)
                 .background {
                     if day.isToday {
                         Circle()
-                            .fill(Color.accentColor)
+                            .fill(calendar.todayMarker)
                     } else if day.needsAttention {
                         Circle()
-                            .fill(Color.red.opacity(0.15))
+                            .fill(calendar.unresolvedDayMarker)
                     }
                 }
 
-            HStack(spacing: stylesheet.spacing.xxSmall) {
+            HStack(spacing: calendar.dayContentSpacing) {
                 ForEach(day.regions, id: \.self) { region in
                     Circle()
                         .fill(region.style.tint)
                         .frame(
-                            width: stylesheet.size.calendarDot,
-                            height: stylesheet.size.calendarDot,
+                            width: calendar.dotSize,
+                            height: calendar.dotSize,
                         )
                 }
             }
-            .frame(height: stylesheet.size.calendarDot)
+            .frame(height: calendar.dotSize)
         }
-        .frame(maxWidth: .infinity, minHeight: stylesheet.size.calendarDayMinHeight)
+        .frame(maxWidth: .infinity, minHeight: calendar.dayMinHeight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
@@ -315,9 +327,9 @@ private struct DayCell: View {
 
     private var dayNumberColor: Color {
         if day.isToday {
-            .white
+            calendar.todayNumberColor
         } else if day.needsAttention {
-            .red
+            calendar.unresolvedNumberColor
         } else {
             .primary
         }

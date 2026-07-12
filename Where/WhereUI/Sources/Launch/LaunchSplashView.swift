@@ -26,6 +26,10 @@ struct LaunchSplashView: View {
     @State private var pulsing = false
     @State private var showCaption: Bool
 
+    private var splash: WhereStylesheet.Palette.Splash {
+        stylesheet.palette.splash
+    }
+
     /// How long the splash must linger before the "taking a moment" caption
     /// fades in, so a fast launch never flashes it.
     private static let captionDelay = Duration.milliseconds(500)
@@ -45,7 +49,7 @@ struct LaunchSplashView: View {
         let imageName = injectedPreviewImageName ?? AppIconCatalog.liveSelectedPreviewImageName()
         ZStack {
             background
-            RadarPingBackground(animated: !reduceMotion, tint: .accentColor)
+            RadarPingBackground(animated: !reduceMotion, tint: splash.iconGlow)
             icon(named: imageName)
 
             if showCaption {
@@ -58,7 +62,7 @@ struct LaunchSplashView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
+        .background(splash.background)
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(showCaption ? Strings.migrationTitle : Strings.launchAccessibilityLabel)
@@ -68,7 +72,7 @@ struct LaunchSplashView: View {
             if reduceMotion {
                 showCaption = true
             } else {
-                withAnimation(.easeOut(duration: 0.3)) { showCaption = true }
+                withAnimation(stylesheet.motion.captionFade) { showCaption = true }
             }
         }
     }
@@ -82,9 +86,9 @@ struct LaunchSplashView: View {
                 .font(.headline)
             Text(Strings.migrationSubtitle)
                 .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(splash.captionSecondary)
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(splash.caption)
         .multilineTextAlignment(.center)
         .padding(.horizontal, stylesheet.spacing.xxxLarge)
     }
@@ -93,7 +97,7 @@ struct LaunchSplashView: View {
     /// the icon and rings have some depth instead of floating on flat black.
     private var background: some View {
         RadialGradient(
-            colors: [Color(white: 0.16), .black],
+            colors: [splash.vignetteCenter, splash.vignetteEdge],
             center: .center,
             startRadius: 0,
             endRadius: 520,
@@ -108,7 +112,7 @@ struct LaunchSplashView: View {
             .background {
                 // A soft brand-tinted glow that breathes with the pulse.
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.accentColor)
+                    .fill(splash.iconGlow)
                     .blur(radius: 44)
                     .opacity(pulsing ? 0.55 : 0.3)
                     .scaleEffect(pulsing ? 1.3 : 0.85)

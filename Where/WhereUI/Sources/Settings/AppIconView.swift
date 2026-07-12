@@ -21,16 +21,20 @@ struct AppIconView: View {
         _model = State(initialValue: model)
     }
 
+    private var appIcon: WhereStylesheet.AppIconStyle {
+        stylesheet.appIcon
+    }
+
     var body: some View {
         NavigationStack {
             GeometryReader { proxy in
                 let grid = AppIconLayout.gridMetrics(
                     containerWidth: proxy.size.width,
-                    stylesheet: stylesheet,
+                    style: appIcon,
                 )
                 let previewIconSize = AppIconLayout.previewIconSize(
                     containerSize: proxy.size,
-                    stylesheet: stylesheet,
+                    style: appIcon,
                 )
                 ZStack(alignment: .bottom) {
                     grids(metrics: grid)
@@ -69,20 +73,20 @@ struct AppIconView: View {
         ScrollView {
             LazyVGrid(
                 columns: gridColumns(count: metrics.columnCount),
-                spacing: stylesheet.spacing.xxxLarge,
+                spacing: appIcon.gridSpacing,
             ) {
                 ForEach(model.options) { option in
                     cell(for: option, iconSize: metrics.iconSize)
                 }
             }
-            .padding(stylesheet.spacing.xxLarge)
+            .padding(appIcon.gridPadding)
         }
         .scrollDisabled(preview != nil)
     }
 
     private func gridColumns(count: Int) -> [GridItem] {
         Array(
-            repeating: GridItem(.flexible(), spacing: stylesheet.spacing.xxLarge),
+            repeating: GridItem(.flexible(), spacing: appIcon.columnSpacing),
             count: count,
         )
     }
@@ -97,11 +101,11 @@ struct AppIconView: View {
         return Button {
             select(option)
         } label: {
-            VStack(spacing: stylesheet.spacing.large) {
+            VStack(spacing: appIcon.cellSpacing) {
                 AppIconImage(name: option.previewImageName, size: iconSize)
-                    .opacity(isPreviewing ? 0.5 : 1)
+                    .opacity(isPreviewing ? appIcon.backgroundedCellOpacity : 1)
 
-                HStack(spacing: stylesheet.spacing.small) {
+                HStack(spacing: appIcon.cellLabelSpacing) {
                     if isSelected {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundStyle(Color.accentColor)
@@ -123,7 +127,7 @@ struct AppIconView: View {
 
     private var scrim: some View {
         Rectangle()
-            .fill(.black.opacity(0.25))
+            .fill(appIcon.scrim)
             .ignoresSafeArea()
             .transition(.opacity)
             .onTapGesture { dismissPreview() }
@@ -133,11 +137,14 @@ struct AppIconView: View {
     }
 
     private func previewPanel(for option: AppIconOption, iconSize: CGFloat) -> some View {
-        VStack(spacing: stylesheet.spacing.xLarge) {
+        VStack(spacing: appIcon.panel.spacing) {
             Capsule()
-                .fill(.secondary.opacity(0.5))
-                .frame(width: 40, height: 5)
-                .padding(.top, stylesheet.spacing.medium)
+                .fill(.secondary.opacity(appIcon.panel.grabberOpacity))
+                .frame(
+                    width: appIcon.panel.grabberSize.width,
+                    height: appIcon.panel.grabberSize.height,
+                )
+                .padding(.top, appIcon.panel.grabberTopPadding)
 
             Button {
                 toggleAppearance()
@@ -150,7 +157,7 @@ struct AppIconView: View {
                 .appIconAppearanceLight)
             .accessibilityHint(Strings.appIconAppearanceHint)
 
-            VStack(spacing: stylesheet.spacing.xSmall) {
+            VStack(spacing: appIcon.panel.textSpacing) {
                 Text(option.displayName)
                     .font(.title3.weight(.semibold))
                 Text(Strings.appIconAppearanceHint)
@@ -169,17 +176,21 @@ struct AppIconView: View {
             .controlSize(.large)
             .disabled(model.isSelected(option) || !model.supportsAlternateIcons)
         }
-        .padding(.horizontal, stylesheet.spacing.xxxLarge)
-        .padding(.bottom, stylesheet.spacing.xxLarge)
+        .padding(.horizontal, appIcon.panel.horizontalPadding)
+        .padding(.bottom, appIcon.panel.bottomPadding)
         .frame(maxWidth: .infinity)
         .background {
             UnevenRoundedRectangle(
-                topLeadingRadius: stylesheet.cornerRadius.card,
-                topTrailingRadius: stylesheet.cornerRadius.card,
+                topLeadingRadius: appIcon.panel.cornerRadius,
+                topTrailingRadius: appIcon.panel.cornerRadius,
                 style: .continuous,
             )
-            .fill(Color(.systemBackground))
-            .shadow(color: .black.opacity(0.18), radius: 18, y: -4)
+            .fill(appIcon.panel.background)
+            .shadow(
+                color: appIcon.panel.shadowColor,
+                radius: appIcon.panel.shadowRadius,
+                y: appIcon.panel.shadowOffsetY,
+            )
             .ignoresSafeArea(edges: .bottom)
         }
         .environment(\.colorScheme, previewMode)

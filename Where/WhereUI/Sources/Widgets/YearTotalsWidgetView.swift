@@ -56,7 +56,7 @@ public struct YearTotalsWidgetView: View {
                         .minimumScaleFactor(0.7)
                     Spacer(minLength: stylesheet.spacing.small)
                     Text(entry.days, format: .number)
-                        .font(.system(.body, design: .rounded, weight: .bold))
+                        .font(stylesheet.typography.widgetTotalNumber)
                         .monospacedDigit()
                         .foregroundStyle(entry.region.style.tint)
                 }
