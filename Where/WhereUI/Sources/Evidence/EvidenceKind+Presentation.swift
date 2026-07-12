@@ -24,6 +24,21 @@ extension EvidenceKind {
 
     /// Localized, user-facing name (the `.other` label when one was supplied).
     public var displayName: String {
-        Strings.evidenceKind(self)
+        switch self {
+            case .planeTicket: String(localized: .evidenceKindPlaneTicket)
+            case .boardingPass: String(localized: .evidenceKindBoardingPass)
+            case .hotelReceipt: String(localized: .evidenceKindHotelReceipt)
+            case .carRental: String(localized: .evidenceKindCarRental)
+            case .rideshare: String(localized: .evidenceKindRideshare)
+            case .photo: String(localized: .evidenceKindPhoto)
+            case .document: String(localized: .evidenceKindDocument)
+            case .email: String(localized: .evidenceKindEmail)
+            case let .other(label):
+                if let label, !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    label
+                } else {
+                    String(localized: .evidenceKindOther)
+                }
+        }
     }
 }

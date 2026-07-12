@@ -39,7 +39,7 @@ struct EvidenceBlobPreview: View {
                 .scaledToFit()
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: stylesheet.evidence.previewCornerRadius))
-                .accessibilityLabel(Strings.primaryEvidence)
+                .accessibilityLabel(String(localized: .primaryEvidence))
         } else {
             failedToDecode
         }
@@ -62,17 +62,17 @@ struct EvidenceBlobPreview: View {
 
     private var unavailable: some View {
         ContentUnavailableView {
-            Label(Strings.evidenceNoPreviewTitle, systemImage: "doc.questionmark")
+            Label(.evidenceDetailNoPreviewTitle, systemImage: "doc.questionmark")
         } description: {
-            Text(Strings.evidenceNoPreviewDescription)
+            Text(.evidenceDetailNoPreviewDescription)
         }
     }
 
     private var failedToDecode: some View {
         ContentUnavailableView {
-            Label(Strings.evidenceNoPreviewTitle, systemImage: "doc.questionmark")
+            Label(.evidenceDetailNoPreviewTitle, systemImage: "doc.questionmark")
         } description: {
-            Text(Strings.evidencePreviewFailed)
+            Text(.evidenceDetailPreviewFailed)
         }
     }
 }

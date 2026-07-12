@@ -83,7 +83,7 @@ public struct OnboardingView: View {
             Button {
                 withAnimation { page += 1 }
             } label: {
-                Text(Strings.onboardingContinue)
+                Text(.onboardingContinue)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -101,13 +101,13 @@ public struct OnboardingView: View {
                         completeAndContinue()
                     }
                 } label: {
-                    Text(Strings.onboardingEnableLocation)
+                    Text(.onboardingEnableLocation)
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
-                Button(Strings.onboardingNotNow) {
+                Button(.onboardingNotNow) {
                     guard !isFinishing else { return }
                     isFinishing = true
                     completeAndContinue()
@@ -139,20 +139,20 @@ struct OnboardingPage: Identifiable {
         OnboardingPage(
             id: "welcome",
             symbol: "globe.americas.fill",
-            title: Strings.onboardingWelcomeTitle,
-            description: Strings.onboardingWelcomeDescription,
+            title: String(localized: .onboardingWelcomeTitle),
+            description: String(localized: .onboardingWelcomeDescription),
         ),
         OnboardingPage(
             id: "automatic",
             symbol: "location.fill.viewfinder",
-            title: Strings.onboardingAutomaticTitle,
-            description: Strings.onboardingAutomaticDescription,
+            title: String(localized: .onboardingAutomaticTitle),
+            description: String(localized: .onboardingAutomaticDescription),
         ),
         OnboardingPage(
             id: "privacy",
             symbol: "lock.shield.fill",
-            title: Strings.onboardingPrivacyTitle,
-            description: Strings.onboardingPrivacyDescription,
+            title: String(localized: .onboardingPrivacyTitle),
+            description: String(localized: .onboardingPrivacyDescription),
         ),
     ]
 }

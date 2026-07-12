@@ -50,7 +50,7 @@ struct CalendarView: View {
                             case let .failure(error):
                                 calendarLayoutError(error)
                             case nil:
-                                AppIconLoadingView(caption: Strings.primaryLoading)
+                                AppIconLoadingView(caption: String(localized: .primaryLoading))
                         }
                     }
                     .task(id: calendarLoadID(report: yearReport)) {
@@ -59,18 +59,18 @@ struct CalendarView: View {
                         monthsLoad = result
                     }
                 } else if report.loadState == .loading {
-                    AppIconLoadingView(caption: Strings.primaryLoading)
+                    AppIconLoadingView(caption: String(localized: .primaryLoading))
                 } else if case let .failed(error) = report.loadState {
                     ContentUnavailableView {
-                        Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                        Label(.commonLoadErrorTitle, systemImage: "exclamationmark.icloud")
                     } description: {
                         Text(error.message)
                     }
                 } else {
                     ContentUnavailableView {
-                        Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                        Label(.commonLoadErrorTitle, systemImage: "exclamationmark.icloud")
                     } description: {
-                        Text(Strings.calendarUnavailableDescription)
+                        Text(.calendarUnavailableDescription)
                     }
                     .onAppear {
                         Self.logger.warning(
@@ -83,12 +83,13 @@ struct CalendarView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(Strings.commonDone) { dismiss() }
+                    Button(.commonDone) { dismiss() }
                 }
             }
             .navigationDestination(item: $timelineTarget) { target in
                 PresenceTimelineList(report: report, scrollToMonth: target.startOfMonth)
-                    .navigationTitle(Strings.timelineTitle(year: report.selectedYear))
+                    .navigationTitle(String(localized: .timelineTitle(WhereFormat
+                            .year(report.selectedYear))))
                     .navigationBarTitleDisplayMode(.inline)
             }
         }
@@ -96,9 +97,12 @@ struct CalendarView: View {
 
     private var navigationTitle: String {
         if let focusedRegion {
-            Strings.calendarRegionTitle(region: focusedRegion, year: report.selectedYear)
+            String(localized: .calendarRegionTitle(
+                focusedRegion.localizedName,
+                WhereFormat.year(report.selectedYear),
+            ))
         } else {
-            Strings.calendarTitle(year: report.selectedYear)
+            String(localized: .calendarTitle(WhereFormat.year(report.selectedYear)))
         }
     }
 
@@ -126,9 +130,9 @@ struct CalendarView: View {
 
     private func calendarLayoutError(_ error: Error) -> some View {
         ContentUnavailableView {
-            Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+            Label(.commonLoadErrorTitle, systemImage: "exclamationmark.icloud")
         } description: {
-            Text(Strings.calendarUnavailableDescription)
+            Text(.calendarUnavailableDescription)
         }
         .onAppear {
             Self.logger.warning("Calendar layout failed: \(error)")
@@ -261,7 +265,7 @@ private struct MonthFooter: View {
                 .font(.subheadline)
                 .fontWeight(isFocused ? .semibold : .regular)
             Spacer(minLength: 0)
-            Text(Strings.dayCount(tally.days))
+            Text(WhereFormat.dayCount(tally.days))
                 .font(.subheadline)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -269,7 +273,7 @@ private struct MonthFooter: View {
         .opacity(focusedRegion == nil || isFocused ? 1 : calendar.month.unfocusedRowOpacity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            Strings.regionDaysAccessibility(
+            WhereFormat.regionDaysAccessibility(
                 region: tally.region.localizedName,
                 days: tally.days,
             ),
@@ -336,7 +340,7 @@ private struct DayCell: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            Strings.calendarDayAccessibility(
+            WhereFormat.calendarDayAccessibility(
                 date: day.date,
                 regions: day.regions,
                 needsAttention: day.needsAttention,

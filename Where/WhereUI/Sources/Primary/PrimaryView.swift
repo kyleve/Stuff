@@ -44,7 +44,7 @@ struct PrimaryView: View {
                             showingRecentActivity = true
                         } label: {
                             Label(
-                                Strings.primaryRecentActivity,
+                                .primaryRecentActivity,
                                 systemImage: "sparkles",
                             )
                         }
@@ -55,7 +55,7 @@ struct PrimaryView: View {
                             showingTimeline = true
                         } label: {
                             Label(
-                                Strings.primaryTimeline,
+                                .primaryTimeline,
                                 systemImage: "calendar.day.timeline.left",
                             )
                         }
@@ -66,7 +66,7 @@ struct PrimaryView: View {
                             showingCalendar = true
                         } label: {
                             Label(
-                                Strings.primaryCalendar,
+                                .primaryCalendar,
                                 systemImage: "calendar",
                             )
                         }
@@ -77,7 +77,7 @@ struct PrimaryView: View {
                             showingEvidence = true
                         } label: {
                             Label(
-                                Strings.primaryEvidence,
+                                .primaryEvidence,
                                 systemImage: "paperclip",
                             )
                         }
@@ -126,10 +126,10 @@ struct PrimaryView: View {
     private var screen: some View {
         switch report.loadState {
             case .loading where report.report == nil:
-                AppIconLoadingView(caption: Strings.primaryLoading)
+                AppIconLoadingView(caption: String(localized: .primaryLoading))
             case let .failed(error):
                 ContentUnavailableView {
-                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                    Label(.commonLoadErrorTitle, systemImage: "exclamationmark.icloud")
                 } description: {
                     Text(error.message)
                 }
@@ -168,7 +168,7 @@ struct PrimaryView: View {
                         // Plain so the card's interactive Liquid Glass owns the
                         // press feel rather than the button adding its own.
                         .buttonStyle(.plain)
-                        .accessibilityHint(Strings.primaryCardCalendarHint)
+                        .accessibilityHint(String(localized: .primaryCardCalendarHint))
                     }
                 }
             }
@@ -179,17 +179,17 @@ struct PrimaryView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(Strings.primaryEmptyTitle(year: report.selectedYear), systemImage: "map")
+            Label(.primaryEmptyTitle(WhereFormat.year(report.selectedYear)), systemImage: "map")
         } description: {
-            Text(Strings.primaryEmptyDescription)
+            Text(.primaryEmptyDescription)
         }
     }
 
     private var elsewhereOnlyState: some View {
         ContentUnavailableView {
-            Label(Strings.primaryElsewhereOnlyTitle, systemImage: "globe.americas")
+            Label(.primaryElsewhereOnlyTitle, systemImage: "globe.americas")
         } description: {
-            Text(Strings.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
+            Text(.primaryElsewhereOnlyDescription(report.trackedDayCount))
         }
     }
 }

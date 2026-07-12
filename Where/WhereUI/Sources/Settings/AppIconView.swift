@@ -48,11 +48,11 @@ struct AppIconView: View {
                             .transition(.move(edge: .bottom))
                     }
                 }
-                .navigationTitle(Strings.appIconTitle)
+                .navigationTitle(String(localized: .appIconTitle))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.commonDone) { dismiss() }
+                        Button(.commonDone) { dismiss() }
                     }
                 }
             }
@@ -62,8 +62,8 @@ struct AppIconView: View {
         }
         .sensoryFeedback(.selection, trigger: appearanceToggles)
         .sensoryFeedback(.success, trigger: model.selectedID)
-        .alert(Strings.appIconErrorTitle, isPresented: $model.isShowingError) {
-            Button(Strings.commonOK, role: .cancel) {}
+        .alert(String(localized: .appIconErrorTitle), isPresented: $model.isShowingError) {
+            Button(.commonOk, role: .cancel) {}
         } message: {
             Text(model.applyError ?? "")
         }
@@ -121,7 +121,7 @@ struct AppIconView: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(option.displayName)
-        .accessibilityValue(isSelected ? Strings.appIconCurrent : "")
+        .accessibilityValue(isSelected ? String(localized: .appIconCurrent) : "")
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
@@ -132,7 +132,7 @@ struct AppIconView: View {
             .transition(.opacity)
             .onTapGesture { dismissPreview() }
             .accessibilityAddTraits(.isButton)
-            .accessibilityLabel(Strings.commonDone)
+            .accessibilityLabel(String(localized: .commonDone))
             .accessibilityAction { dismissPreview() }
     }
 
@@ -153,14 +153,14 @@ struct AppIconView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(option.displayName)
-            .accessibilityValue(previewMode == .dark ? Strings.appIconAppearanceDark : Strings
-                .appIconAppearanceLight)
-            .accessibilityHint(Strings.appIconAppearanceHint)
+            .accessibilityValue(previewMode == .dark ? String(localized: .appIconAppearanceDark) :
+                String(localized: .appIconAppearanceLight))
+            .accessibilityHint(String(localized: .appIconAppearanceHint))
 
             VStack(spacing: appIcon.panel.textSpacing) {
                 Text(option.displayName)
                     .font(.title3.weight(.semibold))
-                Text(Strings.appIconAppearanceHint)
+                Text(.appIconAppearanceHint)
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -169,7 +169,7 @@ struct AppIconView: View {
             Button {
                 apply(option)
             } label: {
-                Text(Strings.appIconSet)
+                Text(.appIconSet)
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)

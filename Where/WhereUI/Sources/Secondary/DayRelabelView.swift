@@ -44,7 +44,7 @@ struct DayRelabelView: View {
 
         Form {
             Section {
-                LabeledContent(Strings.relabelTitle, value: dateText)
+                LabeledContent(String(localized: .relabelTitle), value: dateText)
             }
 
             Section {
@@ -52,58 +52,58 @@ struct DayRelabelView: View {
                     RegionToggleRow(item: item)
                 }
             } header: {
-                Text(Strings.relabelRegionsHeader)
+                Text(.relabelRegionsHeader)
             } footer: {
-                Text(Strings.relabelRegionsFooter)
+                Text(.relabelRegionsFooter)
             }
 
             Section {
                 TextField(
-                    Strings.manualNotePlaceholder,
+                    String(localized: .manualNotePlaceholder),
                     text: $note,
                     axis: .vertical,
                 )
                 .lineLimit(3, reservesSpace: true)
                 .disabled(pending != nil)
             } header: {
-                Text(Strings.manualNoteHeader)
+                Text(.manualNoteHeader)
             } footer: {
-                Text(Strings.manualNoteFooter)
+                Text(.manualNoteFooter)
             }
 
             if pending == .saving {
                 Section {
-                    SavingStatusRow(text: Strings.manualSavingStatus)
+                    SavingStatusRow(text: String(localized: .manualSavingStatus))
                 }
             }
 
             auditSection
 
             Section {
-                Button(Strings.relabelReset, role: .destructive) { reset() }
+                Button(.relabelReset, role: .destructive) { reset() }
                     .disabled(pending != nil)
             } footer: {
-                Text(Strings.relabelResetFooter)
+                Text(.relabelResetFooter)
             }
         }
         .animation(.default, value: pending)
-        .navigationTitle(Strings.relabelTitle)
+        .navigationTitle(String(localized: .relabelTitle))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 if pending == .saving {
                     ProgressView()
                 } else {
-                    Button(Strings.manualSave) { save() }
+                    Button(.manualSave) { save() }
                         .disabled(!canSave)
                 }
             }
         }
         .alert(
-            Strings.manualSaveErrorTitle,
+            String(localized: .manualSaveErrorTitle),
             isPresented: $saveError.isPresented,
         ) {
-            Button(Strings.commonOK, role: .cancel) {}
+            Button(.commonOk, role: .cancel) {}
         } message: {
             if let saveError = saveError.message {
                 Text(saveError)
@@ -118,13 +118,19 @@ struct DayRelabelView: View {
     private var auditSection: some View {
         if let audit = day.audit {
             Section {
-                LabeledContent(Strings.auditRecordedAt, value: recordedAtText(audit.recordedAt))
+                LabeledContent(
+                    String(localized: .auditRecordedAt),
+                    value: recordedAtText(audit.recordedAt),
+                )
                 if let note = audit.note {
-                    LabeledContent(Strings.auditNote, value: note)
+                    LabeledContent(String(localized: .auditNote), value: note)
                 }
-                LabeledContent(Strings.auditLocation, value: locationText(audit.location))
+                LabeledContent(
+                    String(localized: .auditLocation),
+                    value: locationText(audit.location),
+                )
             } header: {
-                Text(Strings.auditHeader)
+                Text(.auditHeader)
             }
         }
     }
@@ -138,8 +144,8 @@ struct DayRelabelView: View {
     }
 
     private func locationText(_ location: CapturedLocation?) -> String {
-        guard let location else { return Strings.auditLocationUnavailable }
-        return Strings.auditCoordinate(
+        guard let location else { return String(localized: .auditLocationUnavailable) }
+        return WhereFormat.coordinate(
             latitude: location.coordinate.latitude,
             longitude: location.coordinate.longitude,
         )

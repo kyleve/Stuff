@@ -32,7 +32,7 @@ struct ResolutionView: View {
     var body: some View {
         NavigationStack {
             screen
-                .navigationTitle(Strings.resolutionTitle)
+                .navigationTitle(String(localized: .resolutionTitle))
                 .navigationBarTitleDisplayMode(.inline)
                 .task(id: report.dataIssueScanInputs) {
                     await resolve.load(
@@ -47,10 +47,10 @@ struct ResolutionView: View {
     private var screen: some View {
         switch report.loadState {
             case .loading where report.report == nil:
-                AppIconLoadingView(caption: Strings.primaryLoading)
+                AppIconLoadingView(caption: String(localized: .primaryLoading))
             case let .failed(error):
                 ContentUnavailableView {
-                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                    Label(.commonLoadErrorTitle, systemImage: "exclamationmark.icloud")
                 } description: {
                     Text(error.message)
                 }
@@ -59,12 +59,12 @@ struct ResolutionView: View {
                     // The report is loaded but this tab's own scan hasn't landed
                     // yet; show the loading state rather than flash "all clear"
                     // under a non-zero badge.
-                    AppIconLoadingView(caption: Strings.primaryLoading)
+                    AppIconLoadingView(caption: String(localized: .primaryLoading))
                 } else if resolve.dataIssues.isEmpty {
                     ContentUnavailableView {
-                        Label(Strings.resolutionEmptyTitle, systemImage: "checkmark.seal")
+                        Label(.resolutionEmptyTitle, systemImage: "checkmark.seal")
                     } description: {
-                        Text(Strings.resolutionEmptyDescription)
+                        Text(.resolutionEmptyDescription)
                     }
                 } else {
                     issueList
@@ -83,7 +83,7 @@ struct ResolutionView: View {
                         }
                     } header: {
                         Label(
-                            Strings.resolutionSectionHeader(category),
+                            WhereFormat.resolutionSectionHeader(category),
                             systemImage: sectionIcon(category),
                         )
                     }
@@ -133,7 +133,7 @@ private struct IssueRow: View {
                 Button(role: .destructive) {
                     Task { await resolve.dismiss(issue) }
                 } label: {
-                    Label(Strings.resolutionDismiss, systemImage: "xmark")
+                    Label(.resolutionDismiss, systemImage: "xmark")
                 }
             }
         }
@@ -158,7 +158,7 @@ private struct IssueRow: View {
             case let .relabelDay(day, _, _):
                 day.date.formatted(.dateTime.month(.abbreviated).day().year())
             case let .markTravelDay(earlier, later, _):
-                Strings.resolutionAbruptRowTitle(
+                WhereFormat.resolutionAbruptRowTitle(
                     earlier: earlier.regions,
                     later: later.regions,
                 )
@@ -168,7 +168,7 @@ private struct IssueRow: View {
     private var subtitle: String? {
         switch issue.resolution {
             case let .backfill(range):
-                Strings.dayCount(range.dayCount)
+                WhereFormat.dayCount(range.dayCount)
             case let .relabelDay(_, suggested, meters):
                 Self.relabelSubtitle(suggested: suggested, meters: meters)
             case let .markTravelDay(_, later, _):
@@ -181,7 +181,7 @@ private struct IssueRow: View {
             let regionName = suggested.first?.localizedName ?? ""
             let distance = Measurement(value: meters, unit: UnitLength.meters)
                 .formatted(.measurement(width: .abbreviated, usage: .road))
-            return Strings.driftRowSubtitle(region: regionName, distance: distance)
+            return WhereFormat.driftRowSubtitle(region: regionName, distance: distance)
         }
         return suggested.map(\.localizedName).sorted().joined(separator: ", ")
     }

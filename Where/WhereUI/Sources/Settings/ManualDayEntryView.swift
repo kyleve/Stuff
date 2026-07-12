@@ -20,8 +20,8 @@ struct ManualDayEntryView: View {
 
         var title: String {
             switch self {
-                case .singleDay: Strings.manualModeSingleDay
-                case .range: Strings.manualModeRange
+                case .singleDay: String(localized: .manualModeSingleDay)
+                case .range: String(localized: .manualModeRange)
             }
         }
     }
@@ -65,7 +65,7 @@ struct ManualDayEntryView: View {
 
         Form {
             Section {
-                Picker(Strings.manualEntryPickerLabel, selection: $mode) {
+                Picker(String(localized: .manualEntryPickerLabel), selection: $mode) {
                     ForEach(EntryMode.allCases) { mode in
                         Text(mode.title).tag(mode)
                     }
@@ -83,33 +83,33 @@ struct ManualDayEntryView: View {
                     RegionToggleRow(item: item)
                 }
             } header: {
-                Text(Strings.manualRegionsHeader)
+                Text(.manualRegionsHeader)
             } footer: {
-                Text(Strings.manualRegionsFooter)
+                Text(.manualRegionsFooter)
             }
 
             Section {
                 TextField(
-                    Strings.manualNotePlaceholder,
+                    String(localized: .manualNotePlaceholder),
                     text: $note,
                     axis: .vertical,
                 )
                 .lineLimit(3, reservesSpace: true)
                 .disabled(isSaving)
             } header: {
-                Text(Strings.manualNoteHeader)
+                Text(.manualNoteHeader)
             } footer: {
-                Text(Strings.manualNoteFooter)
+                Text(.manualNoteFooter)
             }
 
             if isSaving {
                 Section {
-                    SavingStatusRow(text: Strings.manualSavingStatus)
+                    SavingStatusRow(text: String(localized: .manualSavingStatus))
                 }
             }
         }
         .animation(.default, value: isSaving)
-        .navigationTitle(Strings.manualTitle)
+        .navigationTitle(String(localized: .manualTitle))
         .navigationBarTitleDisplayMode(.inline)
         .onChange(of: startDate) { _, newValue in
             if endDate < newValue { endDate = newValue }
@@ -119,16 +119,16 @@ struct ManualDayEntryView: View {
                 if isSaving {
                     ProgressView()
                 } else {
-                    Button(Strings.manualSave) { save() }
+                    Button(.manualSave) { save() }
                         .disabled(!canSave)
                 }
             }
         }
         .alert(
-            Strings.manualSaveErrorTitle,
+            String(localized: .manualSaveErrorTitle),
             isPresented: $saveError.isPresented,
         ) {
-            Button(Strings.commonOK, role: .cancel) {}
+            Button(.commonOk, role: .cancel) {}
         } message: {
             if let saveError = saveError.message {
                 Text(saveError)
@@ -141,20 +141,20 @@ struct ManualDayEntryView: View {
         switch mode {
             case .singleDay:
                 DatePicker(
-                    Strings.manualDay,
+                    String(localized: .manualDay),
                     selection: $startDate,
                     in: ...Date(),
                     displayedComponents: .date,
                 )
             case .range:
                 DatePicker(
-                    Strings.manualFrom,
+                    String(localized: .manualFrom),
                     selection: $startDate,
                     in: ...Date(),
                     displayedComponents: .date,
                 )
                 DatePicker(
-                    Strings.manualThrough,
+                    String(localized: .manualThrough),
                     selection: $endDate,
                     in: startDate ... Date(),
                     displayedComponents: .date,
@@ -165,9 +165,9 @@ struct ManualDayEntryView: View {
     private var dateFooter: String {
         switch mode {
             case .singleDay:
-                Strings.manualSingleDayFooter
+                String(localized: .manualSingleDayFooter)
             case .range:
-                Strings.manualRangeFooter(count: dayCount)
+                String(localized: .manualRangeFooter(dayCount))
         }
     }
 

@@ -39,7 +39,7 @@ struct LocationStatusRow: View {
             return Presentation(
                 symbol: "location.fill",
                 tint: .green,
-                title: Strings.settingsStatusTracking,
+                title: String(localized: .settingsStatusTracking),
             )
         }
         switch status {
@@ -47,31 +47,31 @@ struct LocationStatusRow: View {
                 return Presentation(
                     symbol: "location.fill",
                     tint: .green,
-                    title: Strings.settingsStatusAlwaysPaused,
+                    title: String(localized: .settingsStatusAlwaysPaused),
                 )
             case .whenInUse:
                 return Presentation(
                     symbol: "location",
                     tint: .orange,
-                    title: Strings.settingsStatusWhenInUse,
+                    title: String(localized: .settingsStatusWhenInUse),
                 )
             case .notDetermined:
                 return Presentation(
                     symbol: "location.slash",
                     tint: .secondary,
-                    title: Strings.settingsStatusNotDetermined,
+                    title: String(localized: .settingsStatusNotDetermined),
                 )
             case .denied:
                 return Presentation(
                     symbol: "location.slash.fill",
                     tint: .red,
-                    title: Strings.settingsStatusDenied,
+                    title: String(localized: .settingsStatusDenied),
                 )
             case .restricted:
                 return Presentation(
                     symbol: "lock.fill",
                     tint: .red,
-                    title: Strings.settingsStatusRestricted,
+                    title: String(localized: .settingsStatusRestricted),
                 )
         }
     }

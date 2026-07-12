@@ -17,7 +17,7 @@ struct SecondaryView: View {
     var body: some View {
         NavigationStack {
             screen
-                .navigationTitle(Strings.secondaryTitle)
+                .navigationTitle(String(localized: .secondaryTitle))
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         YearSelector(report: report)
@@ -48,11 +48,11 @@ struct SecondaryView: View {
     private var screen: some View {
         switch report.loadState {
             case .loading where report.report == nil:
-                ProgressView(Strings.secondaryLoading)
+                ProgressView(String(localized: .secondaryLoading))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .failed(error):
                 ContentUnavailableView {
-                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                    Label(.commonLoadErrorTitle, systemImage: "exclamationmark.icloud")
                 } description: {
                     Text(error.message)
                 }
@@ -68,7 +68,7 @@ struct SecondaryView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: stylesheet.spacing.xLarge) {
-                Text(Strings.secondaryHeader(year: report.selectedYear))
+                Text(.secondaryHeader(WhereFormat.year(report.selectedYear)))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -99,15 +99,15 @@ struct SecondaryView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(Strings.secondaryEmptyTitle, systemImage: "globe.americas")
+            Label(.secondaryEmptyTitle, systemImage: "globe.americas")
         } description: {
-            Text(Strings.secondaryEmptyDescription)
+            Text(.secondaryEmptyDescription)
         }
     }
 
     /// Light whimsy for the briefest stays.
     private func caption(for item: RegionDays) -> String? {
-        item.days <= 3 ? Strings.secondaryCaptionPassingThrough : nil
+        item.days <= 3 ? String(localized: .secondaryCaptionPassingThrough) : nil
     }
 }
 

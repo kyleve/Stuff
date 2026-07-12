@@ -56,9 +56,9 @@ struct RegionDaysView: View {
     private var content: some View {
         if days.isEmpty {
             ContentUnavailableView {
-                Label(Strings.secondaryRegionEmptyTitle, systemImage: "checkmark.circle")
+                Label(.secondaryRegionEmptyTitle, systemImage: "checkmark.circle")
             } description: {
-                Text(Strings.secondaryRegionEmptyDescription)
+                Text(.secondaryRegionEmptyDescription)
             }
         } else {
             VStack(spacing: 0) {
@@ -88,7 +88,7 @@ struct RegionDaysView: View {
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
         .frame(height: regionMap.height)
-        .accessibilityLabel(Strings.secondaryRegionMapAccessibility)
+        .accessibilityLabel(String(localized: .secondaryRegionMapAccessibility))
     }
 
     /// Radius in meters to draw for a pin's GPS uncertainty, or `nil` when the
@@ -114,7 +114,7 @@ struct RegionDaysView: View {
                     }
                 }
             } footer: {
-                Text(Strings.secondaryRegionFooter)
+                Text(.secondaryRegionFooter)
             }
         }
         .accessibilityIdentifier("where_region_days_list")
@@ -185,7 +185,7 @@ private struct DayRow: View {
                         .font(.subheadline)
                         .foregroundStyle(.primary)
                 }
-                Text(Strings.secondaryRegionCurrent(regions: regionsText))
+                Text(.secondaryRegionCurrent(regionsText))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

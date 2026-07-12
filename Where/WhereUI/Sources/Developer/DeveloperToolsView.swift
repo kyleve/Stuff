@@ -27,10 +27,10 @@
                         NavigationLink {
                             LogViewer(configuration: LogViewerConfiguration(
                                 stores: [WhereLog.store, RegionLog.store],
-                                title: Strings.developerLogsTitle,
+                                title: String(localized: .developerLogsTitle),
                             ))
                         } label: {
-                            Label(Strings.developerLogsLink, systemImage: "ladybug")
+                            Label(.developerLogsLink, systemImage: "ladybug")
                         }
 
                         if let configuration = session?.swiftDataInspectorConfiguration {
@@ -38,7 +38,7 @@
                                 SwiftDataInspectorView(configuration: configuration)
                             } label: {
                                 Label(
-                                    Strings.developerInspectorLink,
+                                    .developerInspectorLink,
                                     systemImage: "cylinder.split.1x2",
                                 )
                             }
@@ -47,13 +47,13 @@
                         NavigationLink {
                             RegionMapView()
                         } label: {
-                            Label(Strings.developerRegionMapLink, systemImage: "map")
+                            Label(.developerRegionMapLink, systemImage: "map")
                         }
                     } footer: {
-                        Text(Strings.developerFooter)
+                        Text(.developerFooter)
                     }
                 }
-                .navigationTitle(Strings.developerTitle)
+                .navigationTitle(String(localized: .developerTitle))
                 .navigationBarTitleDisplayMode(.inline)
             }
         }

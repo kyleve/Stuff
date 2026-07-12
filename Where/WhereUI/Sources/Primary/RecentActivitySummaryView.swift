@@ -29,17 +29,17 @@ struct RecentActivitySummaryView: View {
             content
                 .safeAreaInset(edge: .top) { windowPicker }
                 .animation(.smooth, value: model.loadState)
-                .navigationTitle(Strings.recentActivityTitle(model.window))
+                .navigationTitle(WhereFormat.recentActivityTitle(model.window))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.commonDone) { dismiss() }
+                        Button(.commonDone) { dismiss() }
                     }
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
                             Task { await model.load() }
                         } label: {
-                            Label(Strings.recentActivityRefresh, systemImage: "arrow.clockwise")
+                            Label(.recentActivityRefresh, systemImage: "arrow.clockwise")
                         }
                         .disabled(model.loadState == .loading)
                     }
@@ -61,9 +61,9 @@ struct RecentActivitySummaryView: View {
     /// turns a change into a reload. Disabled while a summary is generating so
     /// selections can't race an in-flight load.
     private var windowPicker: some View {
-        Picker(Strings.recentActivityWindowPickerLabel, selection: $model.window) {
+        Picker(String(localized: .recentActivityWindowPickerLabel), selection: $model.window) {
             ForEach(RecentActivityWindow.allCases, id: \.self) { window in
-                Text(Strings.recentActivityWindowLabel(window)).tag(window)
+                Text(WhereFormat.recentActivityWindowLabel(window)).tag(window)
             }
         }
         .pickerStyle(.segmented)
@@ -80,29 +80,29 @@ struct RecentActivitySummaryView: View {
     private var content: some View {
         switch model.loadState {
             case .idle, .loading:
-                AppIconLoadingView(caption: Strings.recentActivityLoading)
+                AppIconLoadingView(caption: String(localized: .recentActivityLoading))
                     .transition(.opacity)
             case let .loaded(text):
                 summary(text)
                     .transition(.opacity)
             case .empty:
                 ContentUnavailableView {
-                    Label(Strings.recentActivityEmptyTitle, systemImage: "location.slash")
+                    Label(.recentActivityEmptyTitle, systemImage: "location.slash")
                 } description: {
-                    Text(Strings.recentActivityEmptyDescription(model.window))
+                    Text(WhereFormat.recentActivityEmptyDescription(model.window))
                 }
                 .transition(.opacity)
             case let .unavailable(reason):
                 ContentUnavailableView {
-                    Label(Strings.recentActivityUnavailableTitle, systemImage: "sparkles.slash")
+                    Label(.recentActivityUnavailableTitle, systemImage: "sparkles.slash")
                 } description: {
-                    Text(Strings.recentActivityUnavailableMessage(reason))
+                    Text(WhereFormat.recentActivityUnavailableMessage(reason))
                 }
                 .transition(.opacity)
             case let .failed(message):
                 ContentUnavailableView {
                     Label(
-                        Strings.recentActivityFailedTitle,
+                        .recentActivityFailedTitle,
                         systemImage: "exclamationmark.triangle",
                     )
                 } description: {
@@ -118,7 +118,7 @@ struct RecentActivitySummaryView: View {
                 TypewriterText(text: text)
                     .font(.body)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text(Strings.recentActivityFooter(model.window))
+                Text(WhereFormat.recentActivityFooter(model.window))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

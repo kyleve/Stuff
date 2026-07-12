@@ -40,7 +40,7 @@ struct MainTabs: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            Tab(Strings.tabPrimary, systemImage: "star.fill", value: TabID.primary) {
+            Tab(String(localized: .tabPrimary), systemImage: "star.fill", value: TabID.primary) {
                 PrimaryView(report: report)
                     .reportingDeveloperTabBarInset()
             }
@@ -55,7 +55,7 @@ struct MainTabs: View {
                 || selection == .elsewhere
             {
                 Tab(
-                    Strings.tabElsewhere,
+                    String(localized: .tabElsewhere),
                     systemImage: "globe.americas.fill",
                     value: TabID.elsewhere,
                 ) {
@@ -65,14 +65,22 @@ struct MainTabs: View {
             }
 
             if !report.hideEmptyTabs || report.dataIssueCount > 0 || selection == .resolution {
-                Tab(Strings.tabResolution, systemImage: "checklist", value: TabID.resolution) {
+                Tab(
+                    String(localized: .tabResolution),
+                    systemImage: "checklist",
+                    value: TabID.resolution,
+                ) {
                     ResolutionView(report: report)
                         .reportingDeveloperTabBarInset()
                 }
                 .badge(report.dataIssueCount)
             }
 
-            Tab(Strings.tabSettings, systemImage: "gearshape.fill", value: TabID.settings) {
+            Tab(
+                String(localized: .tabSettings),
+                systemImage: "gearshape.fill",
+                value: TabID.settings,
+            ) {
                 SettingsView(report: report)
                     .reportingDeveloperTabBarInset()
             }

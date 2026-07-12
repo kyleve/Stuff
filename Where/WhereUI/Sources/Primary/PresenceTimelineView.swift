@@ -12,11 +12,12 @@ struct PresenceTimelineView: View {
     var body: some View {
         NavigationStack {
             PresenceTimelineList(report: report)
-                .navigationTitle(Strings.timelineTitle(year: report.selectedYear))
+                .navigationTitle(String(localized: .timelineTitle(WhereFormat
+                        .year(report.selectedYear))))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.timelineDone) { dismiss() }
+                        Button(.timelineDone) { dismiss() }
                     }
                 }
         }
@@ -39,9 +40,9 @@ struct PresenceTimelineList: View {
     var body: some View {
         if stints.isEmpty {
             ContentUnavailableView {
-                Label(Strings.timelineEmptyTitle, systemImage: "calendar.day.timeline.left")
+                Label(.timelineEmptyTitle, systemImage: "calendar.day.timeline.left")
             } description: {
-                Text(Strings.timelineEmptyDescription)
+                Text(.timelineEmptyDescription)
             }
         } else {
             ScrollViewReader { proxy in
@@ -106,7 +107,7 @@ private struct StintRow: View {
 
             Spacer(minLength: timeline.trailingMinSpacing)
 
-            Text(Strings.dayCount(stint.dayCount))
+            Text(WhereFormat.dayCount(stint.dayCount))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -114,7 +115,7 @@ private struct StintRow: View {
         .padding(.vertical, timeline.rowVerticalPadding)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            Strings.timelineRowAccessibility(
+            WhereFormat.timelineRowAccessibility(
                 region: stint.region.localizedName,
                 range: dateRange,
                 days: stint.dayCount,

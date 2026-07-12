@@ -182,7 +182,7 @@
                     Image(systemName: "xmark.circle.fill")
                         .symbolRenderingMode(.hierarchical)
                 }
-                .accessibilityLabel(Strings.developerClose)
+                .accessibilityLabel(String(localized: .developerClose))
 
                 Spacer()
 
@@ -191,8 +191,8 @@
                         ? "arrow.down.right.and.arrow.up.left"
                         : "arrow.up.left.and.arrow.down.right")
                 }
-                .accessibilityLabel(isFullScreen ? Strings.developerCollapse : Strings
-                    .developerExpand)
+                .accessibilityLabel(isFullScreen ? String(localized: .developerCollapse) :
+                    String(localized: .developerExpand))
             }
             .font(.title3)
             .buttonStyle(.plain)

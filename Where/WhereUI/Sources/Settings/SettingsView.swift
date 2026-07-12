@@ -62,7 +62,7 @@ struct SettingsView: View {
                 dataSection
                 resetSection
             }
-            .navigationTitle(Strings.settingsTitle)
+            .navigationTitle(String(localized: .settingsTitle))
             // Notification permission can change in the Settings app while we're
             // away; refresh it when the screen appears so the "open Settings"
             // affordance is accurate.
@@ -70,11 +70,14 @@ struct SettingsView: View {
             .sheet(isPresented: $showAppIcon) {
                 AppIconView()
             }
-            .alert(Strings.settingsPermissionAlertTitle, isPresented: $session.permissionDenied) {
-                Button(Strings.settingsPermissionAlertOpenSettings) { openSystemSettings() }
-                Button(Strings.settingsPermissionAlertNotNow, role: .cancel) {}
+            .alert(
+                String(localized: .settingsPermissionAlertTitle),
+                isPresented: $session.permissionDenied,
+            ) {
+                Button(.settingsPermissionAlertOpenSettings) { openSystemSettings() }
+                Button(.settingsPermissionAlertNotNow, role: .cancel) {}
             } message: {
-                Text(Strings.settingsPermissionAlertMessage)
+                Text(.settingsPermissionAlertMessage)
             }
             .fileImporter(
                 isPresented: $showImporter,
@@ -82,39 +85,39 @@ struct SettingsView: View {
                 onCompletion: handleImportSelection,
             )
             .confirmationDialog(
-                Strings.settingsBackupImportStrategyTitle,
+                String(localized: .settingsBackupImportStrategyTitle),
                 isPresented: $showStrategyDialog,
                 titleVisibility: .visible,
                 presenting: pendingImportURL,
             ) { url in
-                Button(Strings.settingsBackupMerge) { runImport(url: url, strategy: .merge) }
-                Button(Strings.settingsBackupReplace, role: .destructive) {
+                Button(.settingsBackupMerge) { runImport(url: url, strategy: .merge) }
+                Button(.settingsBackupReplace, role: .destructive) {
                     runImport(url: url, strategy: .replace)
                 }
-                Button(Strings.settingsDataCancel, role: .cancel) { pendingImportURL = nil }
+                Button(.settingsDataCancel, role: .cancel) { pendingImportURL = nil }
             } message: { _ in
-                Text(Strings.settingsBackupImportStrategyMessage)
+                Text(.settingsBackupImportStrategyMessage)
             }
             .alert(
-                Strings.settingsBackupImportedTitle,
+                String(localized: .settingsBackupImportedTitle),
                 isPresented: $showImportSuccess,
                 presenting: lastImportSummary,
             ) { _ in
-                Button(Strings.commonOK, role: .cancel) {}
+                Button(.commonOk, role: .cancel) {}
             } message: { summary in
-                Text(Strings.settingsBackupImportedMessage(
-                    samples: summary.sampleCount,
-                    evidence: summary.evidenceCount,
-                    manualDays: summary.manualDayCount,
-                    dismissedIssues: summary.dismissedIssueCount,
+                Text(.settingsBackupImportedMessage(
+                    summary.sampleCount,
+                    summary.evidenceCount,
+                    summary.manualDayCount,
+                    summary.dismissedIssueCount,
                 ))
             }
             .alert(
-                Strings.settingsBackupErrorTitle,
+                String(localized: .settingsBackupErrorTitle),
                 isPresented: $backup.isShowingBackupError,
                 presenting: backup.backupError,
             ) { _ in
-                Button(Strings.commonOK, role: .cancel) {}
+                Button(.commonOk, role: .cancel) {}
             } message: { message in
                 Text(message)
             }
@@ -127,14 +130,14 @@ struct SettingsView: View {
             LocationStatusRow(status: session.authorizationStatus, isTracking: session.isTracking)
 
             Toggle(isOn: $session.trackingEnabled) {
-                Label(Strings.settingsLocationToggle, systemImage: "location.fill")
+                Label(.settingsLocationToggle, systemImage: "location.fill")
             }
 
             if showGrantButton {
                 Button {
                     Task { await session.requestPermission() }
                 } label: {
-                    Label(Strings.settingsLocationGrant, systemImage: "location.magnifyingglass")
+                    Label(.settingsLocationGrant, systemImage: "location.magnifyingglass")
                 }
             }
 
@@ -142,13 +145,13 @@ struct SettingsView: View {
                 Button {
                     openSystemSettings()
                 } label: {
-                    Label(Strings.settingsPermissionAlertOpenSettings, systemImage: "gear")
+                    Label(.settingsPermissionAlertOpenSettings, systemImage: "gear")
                 }
             }
         } header: {
-            Text(Strings.settingsLocationHeader)
+            Text(.settingsLocationHeader)
         } footer: {
-            Text(Strings.settingsLocationFooter)
+            Text(.settingsLocationFooter)
         }
     }
 
@@ -173,12 +176,12 @@ struct SettingsView: View {
         @Bindable var reminders = reminders
         return Section {
             Toggle(isOn: $reminders.remindersEnabled) {
-                Label(Strings.settingsRemindersToggle, systemImage: "bell.badge")
+                Label(.settingsRemindersToggle, systemImage: "bell.badge")
             }
 
             if reminders.remindersEnabled {
                 DatePicker(
-                    Strings.settingsReminderTime,
+                    String(localized: .settingsRemindersTime),
                     selection: $reminders.reminderTimeOfDay,
                     displayedComponents: .hourAndMinute,
                 )
@@ -187,12 +190,12 @@ struct SettingsView: View {
                     Button {
                         openSystemSettings()
                     } label: {
-                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                        Label(.settingsRemindersOpenSettings, systemImage: "bell.slash")
                     }
                 }
             }
         } header: {
-            Text(Strings.settingsRemindersHeader)
+            Text(.settingsRemindersHeader)
         } footer: {
             Text(remindersFooter)
         }
@@ -200,21 +203,21 @@ struct SettingsView: View {
 
     private var remindersFooter: String {
         if reminders.remindersEnabled, !reminders.notificationsAuthorized {
-            return Strings.settingsRemindersDeniedFooter
+            return String(localized: .settingsRemindersDeniedFooter)
         }
-        return Strings.settingsRemindersFooter
+        return String(localized: .settingsRemindersFooter)
     }
 
     private var summarySection: some View {
         @Bindable var reminders = reminders
         return Section {
             Toggle(isOn: $reminders.summaryEnabled) {
-                Label(Strings.settingsSummaryToggle, systemImage: "chart.bar.doc.horizontal")
+                Label(.settingsSummaryToggle, systemImage: "chart.bar.doc.horizontal")
             }
 
             if reminders.summaryEnabled {
                 DatePicker(
-                    Strings.settingsSummaryTime,
+                    String(localized: .settingsSummaryTime),
                     selection: $reminders.summaryTimeOfDay,
                     displayedComponents: .hourAndMinute,
                 )
@@ -223,12 +226,12 @@ struct SettingsView: View {
                     Button {
                         openSystemSettings()
                     } label: {
-                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                        Label(.settingsRemindersOpenSettings, systemImage: "bell.slash")
                     }
                 }
             }
         } header: {
-            Text(Strings.settingsSummaryHeader)
+            Text(.settingsSummaryHeader)
         } footer: {
             Text(summaryFooter)
         }
@@ -236,27 +239,27 @@ struct SettingsView: View {
 
     private var summaryFooter: String {
         if reminders.summaryEnabled, !reminders.notificationsAuthorized {
-            return Strings.settingsSummaryDeniedFooter
+            return String(localized: .settingsSummaryDeniedFooter)
         }
-        return Strings.settingsSummaryFooter
+        return String(localized: .settingsSummaryFooter)
     }
 
     private var issueAlertsSection: some View {
         @Bindable var reminders = reminders
         return Section {
             Toggle(isOn: $reminders.issueAlertsEnabled) {
-                Label(Strings.settingsIssueAlertsToggle, systemImage: "checklist.checked")
+                Label(.settingsIssueAlertsToggle, systemImage: "checklist.checked")
             }
 
             if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
                 Button {
                     openSystemSettings()
                 } label: {
-                    Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                    Label(.settingsRemindersOpenSettings, systemImage: "bell.slash")
                 }
             }
         } header: {
-            Text(Strings.settingsIssueAlertsHeader)
+            Text(.settingsIssueAlertsHeader)
         } footer: {
             Text(issueAlertsFooter)
         }
@@ -264,23 +267,26 @@ struct SettingsView: View {
 
     private var issueAlertsFooter: String {
         if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
-            return Strings.settingsIssueAlertsDeniedFooter
+            return String(localized: .settingsIssueAlertsDeniedFooter)
         }
-        return Strings.settingsIssueAlertsFooter
+        return String(localized: .settingsIssueAlertsFooter)
     }
 
     private var resolutionSection: some View {
         @Bindable var report = report
 
         return Section {
-            Picker(Strings.settingsResolutionHeader, selection: $report.driftThreshold) {
+            Picker(
+                String(localized: .settingsResolutionHeader),
+                selection: $report.driftThreshold,
+            ) {
                 ForEach(DriftThreshold.allCases, id: \.self) { threshold in
-                    Text(Strings.driftThresholdLabel(kilometers: threshold.rawValue / 1000))
+                    Text(WhereFormat.driftThreshold(kilometers: threshold.rawValue / 1000))
                         .tag(threshold)
                 }
             }
         } footer: {
-            Text(Strings.settingsResolutionFooter)
+            Text(.settingsResolutionFooter)
         }
     }
 
@@ -288,12 +294,12 @@ struct SettingsView: View {
         @Bindable var report = report
         return Section {
             Toggle(isOn: $report.hideEmptyTabs) {
-                Label(Strings.settingsTabsToggle, systemImage: "rectangle.bottomthird.inset.filled")
+                Label(.settingsTabsToggle, systemImage: "rectangle.bottomthird.inset.filled")
             }
         } header: {
-            Text(Strings.settingsTabsHeader)
+            Text(.settingsTabsHeader)
         } footer: {
-            Text(Strings.settingsTabsFooter)
+            Text(.settingsTabsFooter)
         }
     }
 
@@ -302,12 +308,12 @@ struct SettingsView: View {
             Button {
                 showAppIcon = true
             } label: {
-                Label(Strings.settingsAppIconLink, systemImage: "app.badge")
+                Label(.settingsAppIconLink, systemImage: "app.badge")
             }
         } header: {
-            Text(Strings.settingsAppIconHeader)
+            Text(.settingsAppIconHeader)
         } footer: {
-            Text(Strings.settingsAppIconFooter)
+            Text(.settingsAppIconFooter)
         }
     }
 
@@ -316,12 +322,12 @@ struct SettingsView: View {
             NavigationLink {
                 ManualDayEntryView(report: report)
             } label: {
-                Label(Strings.settingsManualLink, systemImage: "calendar.badge.plus")
+                Label(.settingsManualLink, systemImage: "calendar.badge.plus")
             }
         } header: {
-            Text(Strings.settingsManualHeader)
+            Text(.settingsManualHeader)
         } footer: {
-            Text(Strings.settingsManualFooter)
+            Text(.settingsManualFooter)
         }
     }
 
@@ -332,9 +338,9 @@ struct SettingsView: View {
             // progress), so no custom `UIActivityViewController` is needed.
             ShareLink(
                 item: backupArchiveFile,
-                preview: SharePreview(Strings.settingsBackupShareTitle),
+                preview: SharePreview(String(localized: .settingsBackupShareTitle)),
             ) {
-                Label(Strings.settingsBackupExport, systemImage: "square.and.arrow.up")
+                Label(.settingsBackupExport, systemImage: "square.and.arrow.up")
             }
             .disabled(backup.backupState != .idle)
 
@@ -344,14 +350,14 @@ struct SettingsView: View {
                 if backup.backupState == .importing {
                     importProgressLabel
                 } else {
-                    Label(Strings.settingsBackupImport, systemImage: "square.and.arrow.down")
+                    Label(.settingsBackupImport, systemImage: "square.and.arrow.down")
                 }
             }
             .disabled(backup.backupState != .idle)
         } header: {
-            Text(Strings.settingsBackupHeader)
+            Text(.settingsBackupHeader)
         } footer: {
-            Text(Strings.settingsBackupFooter)
+            Text(.settingsBackupFooter)
         }
     }
 
@@ -359,7 +365,7 @@ struct SettingsView: View {
     /// `backup.backupProgress` as the backup coordinator writes each row.
     private var importProgressLabel: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label(Strings.settingsBackupImporting, systemImage: "square.and.arrow.down")
+            Label(.settingsBackupImporting, systemImage: "square.and.arrow.down")
             ProgressView(value: backup.backupProgress)
         }
     }
@@ -411,19 +417,19 @@ struct SettingsView: View {
                 Button(eraseTitle, role: .destructive) {
                     Task { await report.clearSelectedYear() }
                 }
-                Button(Strings.settingsDataCancel, role: .cancel) {}
+                Button(.settingsDataCancel, role: .cancel) {}
             } message: {
-                Text(Strings.settingsDataConfirmMessage(year: report.selectedYear))
+                Text(.settingsDataConfirmMessage(WhereFormat.year(report.selectedYear)))
             }
         } header: {
-            Text(Strings.settingsDataHeader)
+            Text(.settingsDataHeader)
         } footer: {
-            Text(Strings.settingsDataFooter(year: report.selectedYear))
+            Text(.settingsDataFooter(WhereFormat.year(report.selectedYear)))
         }
     }
 
     private var eraseTitle: String {
-        Strings.settingsDataErase(year: report.selectedYear)
+        String(localized: .settingsDataErase(WhereFormat.year(report.selectedYear)))
     }
 
     /// Whole-app teardown: wipes every year's data and returns to first-run
@@ -435,22 +441,22 @@ struct SettingsView: View {
             Button(role: .destructive) {
                 showResetConfirmation = true
             } label: {
-                Label(Strings.settingsResetErase, systemImage: "arrow.counterclockwise")
+                Label(.settingsResetErase, systemImage: "arrow.counterclockwise")
             }
             .confirmationDialog(
-                Strings.settingsResetErase,
+                String(localized: .settingsResetErase),
                 isPresented: $showResetConfirmation,
                 titleVisibility: .visible,
             ) {
-                Button(Strings.settingsResetConfirm, role: .destructive) {
+                Button(.settingsResetConfirm, role: .destructive) {
                     requestReset()
                 }
-                Button(Strings.settingsDataCancel, role: .cancel) {}
+                Button(.settingsDataCancel, role: .cancel) {}
             } message: {
-                Text(Strings.settingsResetMessage)
+                Text(.settingsResetMessage)
             }
         } footer: {
-            Text(Strings.settingsResetFooter)
+            Text(.settingsResetFooter)
         }
     }
 

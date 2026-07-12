@@ -51,7 +51,7 @@ struct EvidenceDetailView: View {
             }
             if let note = evidence.note, !note.isEmpty {
                 VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
-                    Text(Strings.evidenceDetailNoteHeader)
+                    Text(.evidenceDetailNoteHeader)
                         .font(.subheadline.weight(.semibold))
                     Text(note)
                 }
@@ -75,7 +75,7 @@ struct EvidenceDetailView: View {
                 }
             case let .failed(message):
                 ContentUnavailableView {
-                    Label(Strings.evidenceFailedTitle, systemImage: "exclamationmark.icloud")
+                    Label(.evidenceFailedTitle, systemImage: "exclamationmark.icloud")
                 } description: {
                     Text(message)
                 }
@@ -84,9 +84,9 @@ struct EvidenceDetailView: View {
 
     private var noAttachment: some View {
         ContentUnavailableView {
-            Label(Strings.evidenceNoAttachment, systemImage: "doc")
+            Label(.evidenceDetailNoAttachment, systemImage: "doc")
         } description: {
-            Text(Strings.evidenceNoPreviewDescription)
+            Text(.evidenceDetailNoPreviewDescription)
         }
     }
 }

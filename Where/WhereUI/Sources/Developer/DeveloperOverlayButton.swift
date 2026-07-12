@@ -25,7 +25,7 @@
                 .overlay(Circle().strokeBorder(.secondary.opacity(0.5), lineWidth: 1.5))
                 .contentShape(Circle())
                 .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
-                .accessibilityLabel(Strings.developerButtonLabel)
+                .accessibilityLabel(String(localized: .developerButtonLabel))
                 .accessibilityAddTraits(.isButton)
         }
     }
