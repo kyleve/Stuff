@@ -15,12 +15,14 @@ public struct TodayWidgetView: View {
         self.snapshot = snapshot
     }
 
+    @Environment(\.stylesheet) private var stylesheet
+
     private var regions: [Region] {
         snapshot.orderedDayRegions
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: UIConstants.Spacings.small) {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
             HStack(alignment: .firstTextBaseline) {
                 Text(Strings.widgetTodayTitle)
                     .font(.caption2.weight(.semibold))
@@ -52,12 +54,12 @@ public struct TodayWidgetView: View {
     /// The common case — one region so far today — gets the full passport
     /// treatment: big emoji, serif uppercase name in the region's tint.
     private func heroRegion(_ region: Region) -> some View {
-        VStack(alignment: .leading, spacing: UIConstants.Spacings.xSmall) {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             Text(region.style.emoji)
                 .font(.largeTitle)
                 .accessibilityHidden(true)
             Text(region.localizedName)
-                .font(.system(.headline, design: .serif).weight(.semibold))
+                .font(stylesheet.typography.widgetHeroRegion)
                 .textCase(.uppercase)
                 .tracking(1)
                 .foregroundStyle(region.style.tint)
@@ -68,9 +70,9 @@ public struct TodayWidgetView: View {
 
     /// A multi-region day (e.g. a CA→NY flight) lists each region compactly.
     private var regionList: some View {
-        VStack(alignment: .leading, spacing: UIConstants.Spacings.xSmall) {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             ForEach(regions, id: \.self) { region in
-                HStack(spacing: UIConstants.Spacings.small) {
+                HStack(spacing: stylesheet.spacing.small) {
                     Text(region.style.emoji)
                         .font(.caption)
                         .accessibilityHidden(true)
@@ -85,7 +87,7 @@ public struct TodayWidgetView: View {
     }
 
     private var emptyContent: some View {
-        VStack(alignment: .leading, spacing: UIConstants.Spacings.xSmall) {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             Image(systemName: "location.slash")
                 .font(.title3)
                 .foregroundStyle(.tertiary)

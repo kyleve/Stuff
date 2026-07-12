@@ -119,13 +119,15 @@ struct EvidenceListView: View {
 private struct EvidenceRow: View {
     let evidence: Evidence
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
-        HStack(spacing: UIConstants.Spacings.large) {
+        HStack(spacing: stylesheet.spacing.large) {
             Image(systemName: evidence.kind.symbolName)
                 .font(.title3)
                 .foregroundStyle(.tint)
-                .frame(width: UIConstants.Size.statusIconWidth)
-            VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
+                .frame(width: stylesheet.size.statusIconWidth)
+            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                 Text(evidence.kind.displayName)
                     .font(.headline)
                 Text(evidence.capturedAt.formatted(date: .abbreviated, time: .shortened))
@@ -139,7 +141,7 @@ private struct EvidenceRow: View {
                 }
             }
         }
-        .padding(.vertical, UIConstants.Spacings.xxSmall)
+        .padding(.vertical, stylesheet.spacing.xxSmall)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             Strings.evidenceRowAccessibility(kind: evidence.kind, date: evidence.capturedAt),

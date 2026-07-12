@@ -62,7 +62,7 @@ public struct BStylesheets: Equatable, @unchecked Sendable {
             _creating.wrappedValue._unsafeUnderlyingValue.append(id)
             defer { _creating.wrappedValue._unsafeUnderlyingValue.removeLast() }
 
-            let context = SlicingContext(themes: themes, stylesheets: self)
+            let context = SlicingContext(traits: traits, themes: themes, stylesheets: self)
 
             do {
                 let new = try Stylesheet(context: context)

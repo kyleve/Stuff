@@ -8,11 +8,14 @@ traits, themes, and a lazily-populated stylesheet cache.
 
 - **`BContext`** — root environment container (`baseTraits` + `traitOverrides`
   → `traits`, plus `themes` and a cached `BStylesheets`). `Equatable` +
-  `Sendable`.
+  `Sendable`. `stylesheet(_:fallback:)` resolves a stylesheet inline (no `try`),
+  trapping in debug and returning the fallback in release on a programmer error.
 - **`BTraits` / `BThemes`** — type-keyed containers for trait and theme values;
   `BTraits.Overrides` layers scoped overrides over base traits.
 - **`BStylesheets`** — lazy, cached stylesheet resolver scoped to traits+themes.
-- **`BAccessibility`** — accessibility snapshot (`.current()`) + observation.
+- **`BAccessibility`** — accessibility snapshot (`.current()`) + observation: a
+  `UIViewController`-based `BTraitsValue` observer, plus a view-controller-free
+  `.changes()` `AsyncStream` a SwiftUI root can consume from a `.task`.
 - **Utilities** — `AnyEquatable` (type-erased `Equatable`), `CopyOnWrite`
   (`@_spi(CopyOnWrite)` copy-on-write wrapper), `EquatableIgnored`,
   `TypeIdentifier`, `StylesheetError`.

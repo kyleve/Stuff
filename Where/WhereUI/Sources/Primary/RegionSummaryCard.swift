@@ -11,7 +11,11 @@ struct RegionSummaryCard: View {
     /// shown beneath the caption. Used on the Elsewhere cards; `nil` on
     /// Primary, which intentionally stays a pure passport stamp.
     var places: String?
-    var compact = false
+
+    /// Which card spec to render — the big `.regular` Primary card or the
+    /// `.compact` Elsewhere one. The caller (tab) picks; the view reads the one
+    /// resolved ``WhereStylesheet/CardStyle`` and never branches on it again.
+    var variant: WhereStylesheet.CardStyle.Variant = .regular
 
     /// When `true`, the card's Liquid Glass reacts to touch with the system's
     /// interactive press (scale + illumination), so a tappable card feels
@@ -33,16 +37,20 @@ struct RegionSummaryCard: View {
     /// static sheen.
     var tilt: TiltProvider?
 
+    @Environment(\.stylesheet) private var stylesheet
+
+    /// The resolved spec for this card's variant, read once so the rest of the
+    /// view is a straight-line render with no `compact` branching.
+    private var card: WhereStylesheet.CardStyle {
+        stylesheet.card[variant]
+    }
+
     private var style: RegionStyle {
         regionDays.region.style
     }
 
     private var cardShape: RoundedRectangle {
-        RoundedRectangle(
-            cornerRadius: compact ? UIConstants.CornerRadius.compactCard : UIConstants
-                .CornerRadius.card,
-            style: .continuous,
-        )
+        RoundedRectangle(cornerRadius: card.cornerRadius, style: .continuous)
     }
 
     private var fraction: Double {
@@ -51,7 +59,7 @@ struct RegionSummaryCard: View {
     }
 
     private var barHeight: CGFloat {
-        compact ? UIConstants.Size.progressBarHeightCompact : UIConstants.Size.progressBarHeight
+        card.progressBarHeight
     }
 
     /// A circular rubber-stamp "entry" impression: the region glyph and year
@@ -63,8 +71,8 @@ struct RegionSummaryCard: View {
             year: year,
             symbolName: style.symbolName,
             tint: style.tint,
-            size: compact ? UIConstants.Size.entryStampCompact : UIConstants.Size.entryStamp,
-            showsArcText: !compact,
+            size: card.entryStampSize,
+            showsArcText: card.showsArcText,
         )
     }
 
@@ -73,21 +81,21 @@ struct RegionSummaryCard: View {
     /// glyph watermarked into the corner, the way a passport page is printed
     /// beneath its stamps.
     private var stampPaper: some View {
-        // Read the main-actor `style.tint` once here so the nonisolated
-        // `Canvas` renderer closure captures the `Sendable` `Color` rather than
-        // reaching back into main-actor state from a nonisolated context.
+        // Read the main-actor `style.tint` and the value-type `rosette` spec once
+        // here so the nonisolated `Canvas` renderer closure captures `Sendable`
+        // values rather than reaching back into main-actor state.
         let tint = style.tint
+        let rosette = card.rosette
+        let rosetteFill = stylesheet.card.rosetteFill
         return ZStack {
             Canvas { context, size in
-                let wobble: CGFloat = compact ? 2 : 3
-                let lineWidth: CGFloat = compact ? 2 : 3
-                func rosette(center: CGPoint, spacing: CGFloat, opacity: Double) {
+                func drawRosette(center: CGPoint, spacing: CGFloat, opacity: Double) {
                     let ringCount = Int(max(size.width, size.height) / spacing)
                     for ring in 1 ... max(1, ringCount) {
                         let angle = Double(ring) * 0.55
                         let ringCenter = CGPoint(
-                            x: center.x + CGFloat(cos(angle)) * wobble,
-                            y: center.y + CGFloat(sin(angle)) * wobble,
+                            x: center.x + CGFloat(cos(angle)) * rosette.wobble,
+                            y: center.y + CGFloat(sin(angle)) * rosette.wobble,
                         )
                         let radius = CGFloat(ring) * spacing
                         let rect = CGRect(
@@ -99,37 +107,30 @@ struct RegionSummaryCard: View {
                         context.stroke(
                             Path(ellipseIn: rect),
                             with: .color(tint.opacity(opacity)),
-                            lineWidth: lineWidth,
+                            lineWidth: rosette.lineWidth,
                         )
                     }
                 }
                 // A bold rosette behind the stamp, plus a smaller, fainter one
                 // in the opposite corner for denser, layered security print.
-                rosette(
+                drawRosette(
                     center: CGPoint(x: size.width * 0.8, y: size.height * 0.5),
-                    spacing: compact ? 13 : 18,
-                    opacity: 0.12,
+                    spacing: rosette.primaryRingSpacing,
+                    opacity: rosetteFill.primary,
                 )
-                rosette(
+                drawRosette(
                     center: CGPoint(x: size.width * 0.12, y: size.height * 0.22),
-                    spacing: compact ? 11 : 15,
-                    opacity: 0.08,
+                    spacing: rosette.secondaryRingSpacing,
+                    opacity: rosetteFill.secondary,
                 )
             }
 
             Image(systemName: style.symbolName)
-                .font(.system(
-                    size: compact
-                        ? UIConstants.Size.stampWatermarkCompact
-                        : UIConstants.Size.stampWatermark,
-                ))
-                .foregroundStyle(style.tint.opacity(0.08))
+                .font(.system(size: card.watermarkFontSize))
+                .foregroundStyle(style.tint.opacity(stylesheet.card.watermarkOpacity))
                 .rotationEffect(.degrees(-14))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .offset(
-                    x: compact ? UIConstants.Spacings.large : UIConstants.Spacings.xxxLarge,
-                    y: compact ? UIConstants.Spacings.regular : UIConstants.Spacings.large,
-                )
+                .offset(x: card.watermarkOffset.width, y: card.watermarkOffset.height)
         }
         .clipShape(cardShape)
         .allowsHitTesting(false)
@@ -140,53 +141,50 @@ struct RegionSummaryCard: View {
     /// line, a ring of perforation dots (Primary cards only), and a dashed inner
     /// line — like the engraved, perforated edge of a passport page.
     private var stampFrame: some View {
-        ZStack {
+        let frame = stylesheet.card.frame
+        return ZStack {
             cardShape
-                .strokeBorder(style.tint.opacity(0.6), lineWidth: compact ? 2.5 : 3.5)
+                .strokeBorder(
+                    style.tint.opacity(frame.outerOpacity),
+                    lineWidth: card.frameOuterLineWidth,
+                )
             cardShape
-                .inset(by: UIConstants.Spacings.small)
-                .strokeBorder(style.tint.opacity(0.35), lineWidth: 1)
-            if !compact {
+                .inset(by: stylesheet.spacing.small)
+                .strokeBorder(style.tint.opacity(frame.thinOpacity), lineWidth: frame.thinWidth)
+            if card.showsPerforationRing {
                 cardShape
-                    .inset(by: UIConstants.Spacings.large)
+                    .inset(by: stylesheet.spacing.large)
                     .strokeBorder(
-                        style.tint.opacity(0.45),
-                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round, dash: [0.01, 6]),
+                        style.tint.opacity(frame.perforationOpacity),
+                        style: StrokeStyle(
+                            lineWidth: frame.perforationWidth,
+                            lineCap: .round,
+                            dash: frame.perforationDash,
+                        ),
                     )
             }
             cardShape
-                .inset(by: compact ? UIConstants.Spacings.large : UIConstants.Spacings.xxLarge)
+                .inset(by: card.innerFrameInset)
                 .strokeBorder(
-                    style.tint.opacity(0.4),
-                    style: StrokeStyle(lineWidth: 1, dash: [5, 4]),
+                    style.tint.opacity(frame.innerOpacity),
+                    style: StrokeStyle(lineWidth: frame.innerWidth, dash: frame.innerDash),
                 )
         }
         .allowsHitTesting(false)
     }
 
     var body: some View {
-        VStack(
-            alignment: .leading,
-            spacing: compact ? UIConstants.Spacings.regular : UIConstants.Spacings.xxLarge,
-        ) {
-            HStack(alignment: .top, spacing: UIConstants.Spacings.large) {
-                VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
+        VStack(alignment: .leading, spacing: card.contentSpacing) {
+            HStack(alignment: .top, spacing: stylesheet.spacing.large) {
+                VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                     Text(regionDays.region.localizedName)
-                        .font(
-                            compact
-                                ? .system(.title3, design: .serif).weight(.semibold)
-                                : .system(
-                                    size: UIConstants.Size.regionNameFontSize,
-                                    weight: .semibold,
-                                    design: .serif,
-                                ),
-                        )
-                        .tracking(compact ? 0 : -0.5)
+                        .font(card.regionNameFont)
+                        .tracking(card.regionNameTracking)
                         .lineLimit(1)
                         .allowsTightening(true)
                         .minimumScaleFactor(0.7)
                         .foregroundStyle(style.tint)
-                        .opacity(0.8)
+                        .opacity(stylesheet.card.nameOpacity)
                     if let caption {
                         Text(caption)
                             .font(.caption2.weight(.semibold))
@@ -207,21 +205,13 @@ struct RegionSummaryCard: View {
                 entryStamp
             }
 
-            HStack(alignment: .firstTextBaseline, spacing: UIConstants.Spacings.small) {
+            HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
                 Text(regionDays.days, format: .number)
-                    .font(
-                        compact
-                            ? .system(.title, design: .rounded, weight: .bold)
-                            : .system(
-                                size: UIConstants.Size.heroNumberFontSize,
-                                weight: .bold,
-                                design: .rounded,
-                            ),
-                    )
+                    .font(card.heroNumberFont)
                     .contentTransition(.numericText())
                     .foregroundStyle(style.tint)
                 Text(Strings.dayUnit(regionDays.days))
-                    .font(compact ? .subheadline.weight(.medium) : .title3.weight(.medium))
+                    .font(card.dayUnitFont)
                     .foregroundStyle(.secondary)
             }
 
@@ -238,11 +228,12 @@ struct RegionSummaryCard: View {
                 .frame(height: barHeight)
                 .accessibilityHidden(true)
         }
-        .padding(compact ? UIConstants.Padding.compactCard : UIConstants.Padding.card)
+        .padding(card.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { stampPaper }
         .glassEffect(
-            .regular.tint(style.tint.opacity(0.18)).interactive(interactive),
+            .regular.tint(style.tint.opacity(stylesheet.card.glassTintOpacity))
+                .interactive(interactive),
             in: cardShape,
         )
         .holographicSheen(
@@ -250,7 +241,7 @@ struct RegionSummaryCard: View {
             pitch: tilt?.pitch ?? 0,
             in: cardShape,
             tint: .white,
-            intensity: compact ? 0.5 : 1,
+            intensity: card.holographicIntensity,
         )
         .overlay { stampFrame }
         .clipShape(cardShape)
@@ -259,15 +250,13 @@ struct RegionSummaryCard: View {
         // (e.g. the bottom-right) when the card is wrapped in a Button/link.
         .contentShape(cardShape)
         .shadow(
-            color: style.tint.opacity(compact ? 0.55 : 0.75),
-            radius: compact
-                ? UIConstants.Shadow.cardGlowRadiusCompact
-                : UIConstants.Shadow.cardGlowRadius,
+            color: style.tint.opacity(card.glow.opacity),
+            radius: card.glow.radius,
         )
         .shadow(
-            color: style.tint.opacity(compact ? 0.4 : 0.6),
-            radius: compact ? UIConstants.Shadow.cardRadiusCompact : UIConstants.Shadow.cardRadius,
-            y: compact ? UIConstants.Shadow.cardOffsetYCompact : UIConstants.Shadow.cardOffsetY,
+            color: style.tint.opacity(card.lift.opacity),
+            radius: card.lift.radius,
+            y: card.lift.offsetY,
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
@@ -370,7 +359,7 @@ private struct ArcText: View {
             )
             RegionSummaryCard(
                 regionDays: RegionDays(region: .europeanUnion, days: 22),
-                compact: true,
+                variant: .compact,
                 year: 2026,
             )
         }

@@ -6,6 +6,7 @@ import WhereCore
 /// `EvidenceDetailModel` (they live separately from the metadata). Pushed from
 /// the evidence list.
 struct EvidenceDetailView: View {
+    @Environment(\.stylesheet) private var stylesheet
     @State private var model: EvidenceDetailModel
 
     init(evidence: Evidence, report: YearReportModel) {
@@ -24,7 +25,7 @@ struct EvidenceDetailView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: UIConstants.Spacings.xxLarge) {
+            VStack(alignment: .leading, spacing: stylesheet.spacing.xxLarge) {
                 header
                 preview
             }
@@ -39,7 +40,7 @@ struct EvidenceDetailView: View {
 
     private var header: some View {
         let evidence = model.evidence
-        return VStack(alignment: .leading, spacing: UIConstants.Spacings.medium) {
+        return VStack(alignment: .leading, spacing: stylesheet.spacing.medium) {
             Label(evidence.kind.displayName, systemImage: evidence.kind.symbolName)
                 .font(.title3.weight(.semibold))
             Text(evidence.capturedAt.formatted(date: .complete, time: .shortened))
@@ -49,12 +50,12 @@ struct EvidenceDetailView: View {
                     .foregroundStyle(.secondary)
             }
             if let note = evidence.note, !note.isEmpty {
-                VStack(alignment: .leading, spacing: UIConstants.Spacings.xSmall) {
+                VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
                     Text(Strings.evidenceDetailNoteHeader)
                         .font(.subheadline.weight(.semibold))
                     Text(note)
                 }
-                .padding(.top, UIConstants.Spacings.xSmall)
+                .padding(.top, stylesheet.spacing.xSmall)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -9,6 +9,7 @@ import WhereCore
 /// on save. Presented from the evidence list's "+".
 struct AddEvidenceView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.stylesheet) private var stylesheet
 
     @State private var model: AddEvidenceModel
     @State private var showingFileImporter = false
@@ -110,7 +111,7 @@ struct AddEvidenceView: View {
             )
             .lineLimit(1)
             .truncationMode(.middle)
-            Spacer(minLength: UIConstants.Spacings.medium)
+            Spacer(minLength: stylesheet.spacing.medium)
             Text(attachment.data.count.formatted(.byteCount(style: .file)))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

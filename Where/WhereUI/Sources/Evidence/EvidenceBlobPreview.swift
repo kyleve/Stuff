@@ -11,6 +11,8 @@ struct EvidenceBlobPreview: View {
     let data: Data
     let contentType: EvidenceContentType
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
         // Exhaustive over `EvidenceContentType` (no `default`): a new content
         // type is a compile error here, not a silent fall-through to "raw".
@@ -18,7 +20,7 @@ struct EvidenceBlobPreview: View {
             case .pdf:
                 PDFDocumentView(data: data)
                     .frame(minHeight: 420)
-                    .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.compactCard))
+                    .clipShape(RoundedRectangle(cornerRadius: stylesheet.card.compact.cornerRadius))
             case .image:
                 imagePreview
             case .plainText:
@@ -35,7 +37,7 @@ struct EvidenceBlobPreview: View {
                 .resizable()
                 .scaledToFit()
                 .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: UIConstants.CornerRadius.compactCard))
+                .clipShape(RoundedRectangle(cornerRadius: stylesheet.card.compact.cornerRadius))
                 .accessibilityLabel(Strings.primaryEvidence)
         } else {
             failedToDecode

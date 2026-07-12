@@ -12,6 +12,11 @@ struct YearTotalsWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: Self.kind, provider: WhereWidgetProvider()) { entry in
             YearTotalsWidgetContent(entry: entry)
+                // Seed the Broadway context so the shared WhereUI content views
+                // resolve trait-aware `@Environment(\.stylesheet)` tokens instead
+                // of falling back to `WhereStylesheet.default` (the extension has
+                // no other Broadway root).
+                .whereBroadwayRoot()
         }
         .configurationDisplayName(WidgetStrings.yearTotalsGalleryName)
         .description(WidgetStrings.yearTotalsGalleryDescription)

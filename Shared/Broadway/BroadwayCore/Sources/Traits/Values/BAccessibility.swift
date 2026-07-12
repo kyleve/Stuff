@@ -209,6 +209,38 @@ extension BAccessibility {
 }
 
 extension BAccessibility {
+    /// A view-controller-free stream of accessibility snapshots: it yields a
+    /// fresh ``BAccessibility`` whenever any observed system setting changes.
+    ///
+    /// This is the SwiftUI-facing counterpart to the ``BTraitsValue`` observer
+    /// (which needs a `UIViewController` via ``makeObserver(with:onChange:)``):
+    /// a SwiftUI root has no view controller to hand over, so it consumes this
+    /// stream from a `.task` and lets task cancellation tear the observer down.
+    /// The underlying ``Observer`` starts when the stream is created and stops
+    /// when it terminates.
+    @MainActor
+    public static func changes(
+        notificationCenter: NotificationCenter = .default,
+        with provider: any SettingsProvider = BAccessibility.systemSettings,
+    ) -> AsyncStream<BAccessibility> {
+        AsyncStream { continuation in
+            let observer = Observer(
+                notificationCenter: notificationCenter,
+                settingsProvider: provider,
+            ) { _, new in
+                continuation.yield(new)
+            }
+            observer.start()
+            continuation.onTermination = { _ in
+                Task { @MainActor in
+                    observer.stop()
+                }
+            }
+        }
+    }
+}
+
+extension BAccessibility {
     /// Manages `NotificationCenter` registrations for system accessibility
     /// changes and reports diffs via a callback.
     /// Call ``start()`` and ``stop()`` to control the observation lifecycle.

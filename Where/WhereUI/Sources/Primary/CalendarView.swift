@@ -16,6 +16,7 @@ struct CalendarView: View {
     let report: YearReportModel
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.stylesheet) private var stylesheet
 
     @State private var timelineTarget: TimelineMonthTarget?
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
@@ -137,7 +138,7 @@ struct CalendarView: View {
     private func calendarContent(months: [CalendarMonth]) -> some View {
         ScrollViewReader { proxy in
             ScrollView {
-                LazyVStack(spacing: UIConstants.Spacings.xxLarge) {
+                LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
                     ForEach(months) { month in
                         MonthGridView(month: month, focusedRegion: focusedRegion) { _ in
                             timelineTarget = TimelineMonthTarget(startOfMonth: month.startOfMonth)
@@ -170,18 +171,24 @@ private struct MonthGridView: View {
     var focusedRegion: Region?
     let onSelectDay: (CalendarDayCell) -> Void
 
+    @Environment(\.stylesheet) private var stylesheet
+
+    private var calendar: WhereStylesheet.CalendarStyle {
+        stylesheet.calendar
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: UIConstants.Spacings.medium) {
+        VStack(alignment: .leading, spacing: calendar.month.sectionSpacing) {
             Text(month.startOfMonth.formatted(.dateTime.month(.wide)))
                 .font(.title.weight(.semibold))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             LazyVGrid(
                 columns: Array(
-                    repeating: GridItem(.flexible(), spacing: UIConstants.Spacings.small),
+                    repeating: GridItem(.flexible(), spacing: calendar.month.gridSpacing),
                     count: month.weekdayCount,
                 ),
-                spacing: UIConstants.Spacings.small,
+                spacing: calendar.month.gridSpacing,
             ) {
                 ForEach(month.weekdaySymbols, id: \.self) { symbol in
                     Text(symbol)
@@ -192,7 +199,7 @@ private struct MonthGridView: View {
 
                 ForEach(0 ..< month.leadingBlankCount, id: \.self) { _ in
                     Color.clear
-                        .frame(minHeight: UIConstants.Size.calendarDayMinHeight)
+                        .frame(minHeight: calendar.dayMinHeight)
                 }
 
                 ForEach(month.days) { day in
@@ -209,11 +216,11 @@ private struct MonthGridView: View {
                 MonthFooter(totals: month.regionTotals, focusedRegion: focusedRegion)
             }
         }
-        .padding(UIConstants.Padding.compactCard)
+        .padding(calendar.month.padding)
         .background {
             if month.isCurrentMonth {
-                RoundedRectangle(cornerRadius: UIConstants.CornerRadius.compactCard)
-                    .fill(Color.accentColor.opacity(0.08))
+                RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
+                    .fill(calendar.month.currentMonthHighlight)
             }
         }
     }
@@ -226,8 +233,14 @@ private struct MonthFooter: View {
     let totals: [RegionDayTally]
     var focusedRegion: Region?
 
+    @Environment(\.stylesheet) private var stylesheet
+
+    private var calendar: WhereStylesheet.CalendarStyle {
+        stylesheet.calendar
+    }
+
     var body: some View {
-        VStack(spacing: UIConstants.Spacings.xSmall) {
+        VStack(spacing: calendar.month.footerSpacing) {
             Divider()
             ForEach(totals) { tally in
                 row(for: tally)
@@ -237,12 +250,12 @@ private struct MonthFooter: View {
 
     private func row(for tally: RegionDayTally) -> some View {
         let isFocused = tally.region == focusedRegion
-        return HStack(spacing: UIConstants.Spacings.small) {
+        return HStack(spacing: calendar.month.footerRowSpacing) {
             Circle()
                 .fill(tally.region.style.tint)
                 .frame(
-                    width: UIConstants.Size.calendarDot,
-                    height: UIConstants.Size.calendarDot,
+                    width: calendar.dotSize,
+                    height: calendar.dotSize,
                 )
             Text(tally.region.localizedName)
                 .font(.subheadline)
@@ -253,7 +266,7 @@ private struct MonthFooter: View {
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
         }
-        .opacity(focusedRegion == nil || isFocused ? 1 : 0.55)
+        .opacity(focusedRegion == nil || isFocused ? 1 : calendar.month.unfocusedRowOpacity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
             Strings.regionDaysAccessibility(
@@ -268,20 +281,26 @@ private struct MonthFooter: View {
 private struct DayCell: View {
     let day: CalendarDayCell
 
+    @Environment(\.stylesheet) private var stylesheet
+
+    private var calendar: WhereStylesheet.CalendarStyle {
+        stylesheet.calendar
+    }
+
     var body: some View {
-        VStack(spacing: UIConstants.Spacings.xxSmall) {
+        VStack(spacing: calendar.dayContentSpacing) {
             Text("\(day.dayOfMonth)")
                 .font(.callout)
                 .monospacedDigit()
                 .foregroundStyle(dayNumberColor)
-                .frame(width: 26, height: 26)
+                .frame(width: calendar.dayNumberSize, height: calendar.dayNumberSize)
                 .background {
                     if day.isToday {
                         Circle()
-                            .fill(Color.accentColor)
+                            .fill(calendar.todayMarker)
                     } else if day.needsAttention {
                         Circle()
-                            .fill(Color.red.opacity(0.15))
+                            .fill(calendar.unresolvedDayMarker)
                     }
                 }
                 // A day carrying an attachment gets a small paperclip badge in
@@ -298,19 +317,19 @@ private struct DayCell: View {
                     }
                 }
 
-            HStack(spacing: UIConstants.Spacings.xxSmall) {
+            HStack(spacing: calendar.dayContentSpacing) {
                 ForEach(day.regions, id: \.self) { region in
                     Circle()
                         .fill(region.style.tint)
                         .frame(
-                            width: UIConstants.Size.calendarDot,
-                            height: UIConstants.Size.calendarDot,
+                            width: calendar.dotSize,
+                            height: calendar.dotSize,
                         )
                 }
             }
-            .frame(height: UIConstants.Size.calendarDot)
+            .frame(height: calendar.dotSize)
         }
-        .frame(maxWidth: .infinity, minHeight: UIConstants.Size.calendarDayMinHeight)
+        .frame(maxWidth: .infinity, minHeight: calendar.dayMinHeight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
@@ -325,9 +344,9 @@ private struct DayCell: View {
 
     private var dayNumberColor: Color {
         if day.isToday {
-            .white
+            calendar.todayNumberColor
         } else if day.needsAttention {
-            .red
+            calendar.unresolvedNumberColor
         } else {
             .primary
         }

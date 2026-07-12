@@ -52,6 +52,25 @@ private struct CountingStylesheet: BStylesheet, Equatable {
     }
 }
 
+/// Counts its own creations, like `CountingStylesheet`, but with a separate
+/// counter so the serialized cache-sharing tests don't race the parallel
+/// `CountingStylesheet` tests that share global mutable state.
+private struct CacheCountingStylesheet: BStylesheet {
+    static var initCount = 0
+
+    init(context _: SlicingContext) {
+        Self.initCount += 1
+    }
+}
+
+private struct TraitReadingStylesheet: BStylesheet {
+    var voiceOver: Bool
+
+    init(context: SlicingContext) {
+        voiceOver = context.traits.accessibility.isVoiceOverRunning
+    }
+}
+
 private struct CycleA: BStylesheet {
     init(context: SlicingContext) throws {
         _ = try context.stylesheets.get(CycleB.self)
@@ -163,6 +182,19 @@ struct BContextStylesheetTests {
         // Both are default TestStylesheets (no theme set), so equal by value,
         // but the key changed so it was re-created rather than cache-hit.
         #expect(before == after)
+    }
+
+    @Test("A stylesheet reads the current traits from its context")
+    func readsTraits() throws {
+        var context = makeContext()
+
+        let before = try context.stylesheets.get(TraitReadingStylesheet.self)
+        #expect(before.voiceOver == false)
+
+        context.baseTraits.accessibility = BAccessibility(isVoiceOverRunning: true)
+
+        let after = try context.stylesheets.get(TraitReadingStylesheet.self)
+        #expect(after.voiceOver == true)
     }
 
     // MARK: - Stylesheet Dependencies
@@ -350,5 +382,43 @@ struct BContextTests {
         let context = BContext(traits: base, overrides: overrides)
 
         #expect(context.traits.accessibility == BAccessibility(isVoiceOverRunning: true))
+    }
+}
+
+// MARK: - Stylesheet Cache Sharing
+
+/// The stylesheet cache is a copy-on-write box that `get` writes in place via
+/// `_unsafeUnderlyingValue`. Because value copies share that box, a stylesheet is
+/// created once per (type, traits, themes) key and reused across repeated access
+/// and across copies of a `BContext` — the memoization holds until a
+/// trait/theme change swaps in a fresh cache. Serialized because the tests share
+/// `CacheCountingStylesheet.initCount`.
+@Suite(.serialized)
+struct BStylesheetCacheSharingTests {
+    @Test("Repeated access on one context creates the stylesheet only once")
+    func repeatedAccessCreatesOnce() throws {
+        CacheCountingStylesheet.initCount = 0
+        let context = BContext()
+
+        _ = try context.stylesheets.get(CacheCountingStylesheet.self)
+        _ = try context.stylesheets.get(CacheCountingStylesheet.self)
+
+        #expect(CacheCountingStylesheet.initCount == 1)
+    }
+
+    @Test("A cached stylesheet is reused across value copies of a context")
+    func reusedAcrossContextCopies() throws {
+        CacheCountingStylesheet.initCount = 0
+        let original = BContext()
+
+        _ = try original.stylesheets.get(CacheCountingStylesheet.self)
+        #expect(CacheCountingStylesheet.initCount == 1)
+
+        // Copying the context copies the copy-on-write box *reference*, so the
+        // copy shares the populated cache and doesn't re-create the stylesheet.
+        let copy = original
+        _ = try copy.stylesheets.get(CacheCountingStylesheet.self)
+
+        #expect(CacheCountingStylesheet.initCount == 1)
     }
 }

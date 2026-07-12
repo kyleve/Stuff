@@ -13,6 +13,7 @@ import WhereCore
 public struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.stylesheet) private var stylesheet
     @State private var model: WhereModel
     #if DEBUG
         /// The logged-in tab bar's measured height, reported up from `MainTabs` and
@@ -108,6 +109,10 @@ public struct RootView: View {
                 await model.session?.appBecameActive()
             }
         }
+        // Seed the Broadway context at the app root so descendants resolve
+        // `WhereStylesheet` (via `@Environment(\.stylesheet)`) against the live
+        // system traits and the app's themes.
+        .whereBroadwayRoot()
     }
 
     /// How the launch splash gives way to the app once the runner is `.ready`:
@@ -125,7 +130,7 @@ public struct RootView: View {
     }
 
     private var revealAnimation: Animation {
-        reduceMotion ? .easeInOut(duration: 0.2) : .easeIn(duration: 0.18)
+        reduceMotion ? stylesheet.motion.reducedReveal : stylesheet.motion.reveal
     }
 }
 
