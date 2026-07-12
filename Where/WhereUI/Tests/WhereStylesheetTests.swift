@@ -25,10 +25,7 @@ struct WhereStylesheetTests {
         #expect(style.spacing.xxxLarge == 20)
     }
 
-    @Test func cardPaddingAndCornerRadii() {
-        #expect(style.padding.compactCard == 16)
-        #expect(style.padding.card == 22)
-        #expect(style.cornerRadius.compactCard == 22)
+    @Test func cornerRadiusTokens() {
         #expect(style.cornerRadius.card == 28)
     }
 
@@ -88,11 +85,32 @@ struct WhereStylesheetTests {
         #expect(style.card[.compact] == style.card.compact)
     }
 
+    @Test func calendarStyle() {
+        let calendar = style.calendar
+        #expect(calendar.monthSpacing == 16)
+        #expect(calendar.dayMinHeight == 44)
+        #expect(calendar.dotSize == 6)
+        #expect(calendar.dayContentSpacing == 2)
+        #expect(calendar.dayNumberSize == 26)
+        #expect(calendar.todayMarker == .accentColor)
+        #expect(calendar.todayNumberColor == .white)
+        #expect(calendar.unresolvedDayMarker == Color.red.opacity(0.15))
+        #expect(calendar.unresolvedNumberColor == .red)
+
+        let month = calendar.month
+        #expect(month.sectionSpacing == 8)
+        #expect(month.gridSpacing == 6)
+        #expect(month.padding == 16)
+        #expect(month.cornerRadius == 22)
+        #expect(month.currentMonthHighlight == Color.accentColor.opacity(0.08))
+        #expect(month.footerSpacing == 4)
+        #expect(month.footerRowSpacing == 6)
+        #expect(month.unfocusedRowOpacity == 0.55)
+    }
+
     @Test func elementSizes() {
         #expect(style.size.timelineAccentWidth == 4)
         #expect(style.size.timelineAccentHeight == 34)
-        #expect(style.size.calendarDot == 6)
-        #expect(style.size.calendarDayMinHeight == 44)
         #expect(style.size.statusIconWidth == 28)
         #expect(style.size.regionMapHeight == 220)
         #expect(style.size.appIconGridMax == 180)
@@ -114,7 +132,7 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
-        #expect(resolved.size.calendarDayMinHeight == 56)
+        #expect(resolved.calendar.dayMinHeight == 56)
     }
 
     @MainActor
@@ -189,7 +207,7 @@ private struct StylesheetProbe: View {
 
     var body: some View {
         Color.clear
-            .onChange(of: stylesheet.size.calendarDayMinHeight, initial: true) { _, newValue in
+            .onChange(of: stylesheet.calendar.dayMinHeight, initial: true) { _, newValue in
                 box.calendarDayMinHeight = newValue
             }
     }

@@ -13,10 +13,10 @@ import SwiftUI
 /// callers off the `View` tree (layout helpers, tests) use ``default``.
 struct WhereStylesheet: BStylesheet {
     var spacing = Spacing()
-    var padding = Padding()
     var cornerRadius = CornerRadius()
     var size = Size()
     var card = CardStyles.standard
+    var calendar = CalendarStyle.standard
 
     init() {}
 
@@ -28,7 +28,7 @@ struct WhereStylesheet: BStylesheet {
 
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
-            size.calendarDayMinHeight = 56
+            calendar.dayMinHeight = 56
         }
 
         // Reduce Transparency flattens the cards: drop the decorative rim-glow
@@ -58,26 +58,17 @@ extension WhereStylesheet {
         var xxxLarge: CGFloat = 20
     }
 
-    /// Padding inside container surfaces such as the region cards.
-    struct Padding: Equatable {
-        var compactCard: CGFloat = 16
-        var card: CGFloat = 22
-    }
-
-    /// Corner radii for Liquid Glass surfaces.
+    /// Corner radii for Liquid Glass surfaces not owned by a component style.
     struct CornerRadius: Equatable {
-        var compactCard: CGFloat = 22
         var card: CGFloat = 28
     }
 
-    /// One-off element sizes that aren't part of the spacing scale. Card-specific
-    /// geometry (stamp, watermark, progress bar, shadows, fonts) lives on
-    /// ``CardStyle`` instead.
+    /// One-off element sizes that aren't part of the spacing scale. Component
+    /// geometry (the region card's stamp/shadows, the calendar's day grid/dots)
+    /// lives on ``CardStyle`` / ``CalendarStyle`` instead.
     struct Size: Equatable {
         var timelineAccentWidth: CGFloat = 4
         var timelineAccentHeight: CGFloat = 34
-        var calendarDot: CGFloat = 6
-        var calendarDayMinHeight: CGFloat = 44
         var statusIconWidth: CGFloat = 28
         /// Height of the map header on the Elsewhere region drill-in.
         var regionMapHeight: CGFloat = 220
@@ -236,6 +227,79 @@ extension WhereStylesheet {
                 glow: CardStyle.Shadow(opacity: 0.55, radius: 6),
                 lift: CardStyle.Shadow(opacity: 0.4, radius: 17, offsetY: 9),
             ),
+        )
+    }
+}
+
+// MARK: - Calendar
+
+extension WhereStylesheet {
+    /// Style for the year calendar (`CalendarView`): `month` covers one month
+    /// section, and the remaining properties cover the day cells shared across
+    /// every month. Grouping the component's appearance here (rather than reading
+    /// scattered generic tokens) keeps its full spec in one place and gives a
+    /// future theme a single surface to reskin.
+    struct CalendarStyle: Equatable {
+        /// Vertical spacing between month sections in the scroll.
+        var monthSpacing: CGFloat
+        var month: MonthStyle
+        /// Min height (tap target) of a day cell — grows at accessibility
+        /// Dynamic Type sizes.
+        var dayMinHeight: CGFloat
+        /// Diameter of a region-presence dot.
+        var dotSize: CGFloat
+        /// Spacing inside a day cell (the number over its dots).
+        var dayContentSpacing: CGFloat
+        /// Edge of the rounded day-number chip.
+        var dayNumberSize: CGFloat
+        /// Fill behind today's day number, and the color of that number.
+        var todayMarker: Color
+        var todayNumberColor: Color
+        /// Fill behind a day that needs attention (unresolved), and its number.
+        var unresolvedDayMarker: Color
+        var unresolvedNumberColor: Color
+
+        /// Style for one month section: the header/grid/footer stack, its
+        /// current-month highlight, and the tally footer.
+        struct MonthStyle: Equatable {
+            /// Spacing between the month header, day grid, and footer.
+            var sectionSpacing: CGFloat
+            /// Spacing between day cells in the grid (both axes).
+            var gridSpacing: CGFloat
+            var padding: CGFloat
+            var cornerRadius: CGFloat
+            /// Wash behind the current month.
+            var currentMonthHighlight: Color
+            /// Spacing between footer rows.
+            var footerSpacing: CGFloat
+            /// Spacing within a footer row (dot ↔ label).
+            var footerRowSpacing: CGFloat
+            /// Opacity of an unfocused footer row while a region is focused.
+            var unfocusedRowOpacity: Double
+        }
+
+        /// The fixed calendar geometry, migrated from the former generic
+        /// spacing/size tokens and inline colors in `CalendarView`.
+        static let standard = CalendarStyle(
+            monthSpacing: 16,
+            month: MonthStyle(
+                sectionSpacing: 8,
+                gridSpacing: 6,
+                padding: 16,
+                cornerRadius: 22,
+                currentMonthHighlight: Color.accentColor.opacity(0.08),
+                footerSpacing: 4,
+                footerRowSpacing: 6,
+                unfocusedRowOpacity: 0.55,
+            ),
+            dayMinHeight: 44,
+            dotSize: 6,
+            dayContentSpacing: 2,
+            dayNumberSize: 26,
+            todayMarker: .accentColor,
+            todayNumberColor: .white,
+            unresolvedDayMarker: Color.red.opacity(0.15),
+            unresolvedNumberColor: .red,
         )
     }
 }

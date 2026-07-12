@@ -116,10 +116,8 @@ public struct RegionMapView: View {
         HStack(spacing: stylesheet.spacing.large) {
             Circle()
                 .fill(color(forTitle: group.title, region: group.region))
-                .frame(
-                    width: stylesheet.size.calendarDot * 2,
-                    height: stylesheet.size.calendarDot * 2,
-                )
+                // Developer legend swatch — a fixed dev-tool size, not a themed token.
+                .frame(width: 12, height: 12)
                 .accessibilityHidden(true)
             Text(group.title)
             Spacer()
