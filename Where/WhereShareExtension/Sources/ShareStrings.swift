@@ -25,8 +25,29 @@ enum ShareStrings {
         String(localized: "share.ok", defaultValue: "OK", bundle: .module)
     }
 
-    static var attachmentHeader: String {
-        String(localized: "share.attachment.header", defaultValue: "Attachment", bundle: .module)
+    /// Section header above the shared attachments — singular for one item,
+    /// plural for several (a multi-item share captures one record each).
+    static func attachmentHeader(count: Int) -> String {
+        count > 1
+            ? String(
+                localized: "share.attachment.headerPlural",
+                defaultValue: "Attachments",
+                bundle: .module,
+            )
+            : String(
+                localized: "share.attachment.header",
+                defaultValue: "Attachment",
+                bundle: .module,
+            )
+    }
+
+    /// Stand-in name for an attachment the provider gave no filename for.
+    static var attachmentFallbackName: String {
+        String(
+            localized: "share.attachment.fallbackName",
+            defaultValue: "Attachment",
+            bundle: .module,
+        )
     }
 
     static var noAttachment: String {

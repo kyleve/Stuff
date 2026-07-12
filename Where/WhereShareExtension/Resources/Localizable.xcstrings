@@ -1,13 +1,35 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "share.attachment.header" : {
-      "comment" : "Section header above the shared attachment summary.",
+    "share.attachment.fallbackName" : {
+      "comment" : "Stand-in name for a shared attachment the provider gave no filename for.",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "Attachment"
+          }
+        }
+      }
+    },
+    "share.attachment.header" : {
+      "comment" : "Section header above the shared attachment summary (one item).",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attachment"
+          }
+        }
+      }
+    },
+    "share.attachment.headerPlural" : {
+      "comment" : "Section header above the shared attachments (more than one item).",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attachments"
           }
         }
       }

@@ -59,7 +59,7 @@ struct ShareEvidenceView: View {
                 Text(message)
             }
         }
-        .task { await model.loadAttachment() }
+        .task { await model.loadAttachments() }
     }
 
     private var form: some View {
@@ -93,26 +93,32 @@ struct ShareEvidenceView: View {
 
     private var attachmentSection: some View {
         Section {
-            if let attachment = model.attachment {
-                HStack {
-                    Label(
-                        attachment.filename ?? ShareStrings.attachmentHeader,
-                        systemImage: "paperclip",
-                    )
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                    Spacer(minLength: 12)
-                    Text(attachment.data.count.formatted(.byteCount(style: .file)))
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                }
-            } else {
+            if model.attachments.isEmpty {
                 Text(ShareStrings.noAttachment)
                     .foregroundStyle(.secondary)
+            } else {
+                ForEach(Array(model.attachments.enumerated()), id: \.offset) { _, attachment in
+                    attachmentRow(attachment)
+                }
             }
         } header: {
-            Text(ShareStrings.attachmentHeader)
+            Text(ShareStrings.attachmentHeader(count: model.attachments.count))
+        }
+    }
+
+    private func attachmentRow(_ attachment: SharedAttachment) -> some View {
+        HStack {
+            Label(
+                attachment.filename ?? ShareStrings.attachmentFallbackName,
+                systemImage: "paperclip",
+            )
+            .lineLimit(1)
+            .truncationMode(.middle)
+            Spacer(minLength: 12)
+            Text(attachment.data.count.formatted(.byteCount(style: .file)))
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
         }
     }
 }

@@ -15,31 +15,34 @@ struct SharedAttachment {
     let filename: String?
 }
 
-/// Extracts the first usable attachment from the share sheet's extension items.
+/// Extracts every usable attachment from the share sheet's extension items.
 ///
 /// Share invocations carry one or more `NSExtensionItem`s, each with a list of
 /// `NSItemProvider`s that can vend the same content in several representations
 /// (a PDF also advertised as a file, a photo as several image formats, an email
-/// as a file *and* a URL). We take the first provider that yields bytes,
-/// preferring the most preview-friendly representation it registered: PDF, then
-/// image, then any concrete file, then text, then a URL (captured as its
-/// string). Everything runs on the main actor so the non-`Sendable` providers
-/// are never sent across actors.
+/// as a file *and* a URL). We take one attachment per provider — its most
+/// preview-friendly representation: PDF, then image, then any concrete file,
+/// then text, then a URL (captured as its string) — so sharing several items at
+/// once (the activation rule allows up to 20) captures all of them rather than
+/// silently keeping just the first. Everything runs on the main actor so the
+/// non-`Sendable` providers are never sent across actors.
 @MainActor
 enum SharedItemLoader {
     private static let logger = WhereLog.channel(.shareExtension)
 
-    /// Load the first attachment any provider in `items` can produce, or `nil`
-    /// when nothing yields bytes (the compose form then saves metadata only).
-    static func loadFirstAttachment(from items: [NSExtensionItem]) async -> SharedAttachment? {
+    /// Load every attachment the providers in `items` can produce, one per
+    /// provider, in share order. Empty when nothing yields bytes (the compose
+    /// form then saves metadata only).
+    static func loadAttachments(from items: [NSExtensionItem]) async -> [SharedAttachment] {
+        var attachments: [SharedAttachment] = []
         for item in items {
             for provider in item.attachments ?? [] {
                 if let attachment = await load(from: provider) {
-                    return attachment
+                    attachments.append(attachment)
                 }
             }
         }
-        return nil
+        return attachments
     }
 
     private static func load(from provider: NSItemProvider) async -> SharedAttachment? {

@@ -30,7 +30,7 @@ final class ShareEvidenceModel {
     }
 
     private(set) var phase: Phase = .loading
-    private(set) var attachment: SharedAttachment?
+    private(set) var attachments: [SharedAttachment] = []
 
     /// Editable form fields (bound directly by the view).
     var kind: EvidenceKind = .document
@@ -76,30 +76,33 @@ final class ShareEvidenceModel {
         set { if !newValue { phase = .composing } }
     }
 
-    /// Pull the first usable attachment out of the shared items and open the
-    /// form. A share with nothing loadable still composes — the user can save
-    /// metadata only.
-    func loadAttachment() async {
-        let loaded = await SharedItemLoader.loadFirstAttachment(from: items)
-        attachment = loaded
-        if let loaded {
-            kind = Self.defaultKind(for: loaded)
+    /// Pull every usable attachment out of the shared items and open the form.
+    /// A share with nothing loadable still composes — the user can save metadata
+    /// only.
+    func loadAttachments() async {
+        attachments = await SharedItemLoader.loadAttachments(from: items)
+        if let first = attachments.first {
+            kind = Self.defaultKind(for: first)
         }
         phase = .composing
     }
 
-    /// Build the `Evidence` from the form and persist it (with any attachment
-    /// bytes). Returns `true` on success so the host can dismiss; on failure
-    /// records `.failed(_)`, logs, and returns `false` so the form stays open.
-    /// Never silently swallows the write error.
+    /// Build one `Evidence` per shared attachment (all carrying the form's
+    /// kind/date/note) and persist them in a single transaction. Returns `true`
+    /// on success so the host can dismiss; on failure records `.failed(_)`,
+    /// logs, and returns `false` so the form stays open. Never silently swallows
+    /// the write error.
     func save() async -> Bool {
         phase = .saving
-        let evidence = buildEvidence()
-        let blob = attachment?.data
+        let pending = buildPendingEvidence()
         do {
             let store = try SwiftDataStore.make(storage: storage)
-            try await store.perform { try await store.write(evidence: evidence, blob: blob) }
-            Self.logger.info("Saved shared evidence \(evidence.id) (blob: \(blob != nil))")
+            try await store.perform {
+                for item in pending {
+                    try await store.write(evidence: item.evidence, blob: item.blob)
+                }
+            }
+            Self.logger.info("Saved \(pending.count) shared evidence record(s)")
             return true
         } catch {
             phase = .failed(error.localizedDescription)
@@ -108,20 +111,50 @@ final class ShareEvidenceModel {
         }
     }
 
-    /// Assemble the `Evidence` value from the current field state. `internal`
-    /// so a test can assert the mapping without going through persistence.
-    func buildEvidence() -> Evidence {
+    /// One evidence record plus its attachment bytes, ready to persist. A small
+    /// named value (not a tuple) since it escapes `buildPendingEvidence` into
+    /// `save`.
+    struct PendingEvidence {
+        let evidence: Evidence
+        let blob: Data?
+    }
+
+    /// Assemble the evidence records from the current field state: one per
+    /// attachment (each classified from its own bytes), or a single
+    /// metadata-only record when nothing was shared. `internal` so a test can
+    /// assert the mapping without going through persistence.
+    func buildPendingEvidence() -> [PendingEvidence] {
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        let contentType: EvidenceContentType = attachment
-            .map { EvidenceContentType.classify(data: $0.data, typeIdentifier: $0.typeIdentifier) }
-            ?? .other(nil)
-        return Evidence(
-            kind: resolvedKind(),
-            capturedAt: capturedAt,
-            region: nil,
-            note: trimmedNote.isEmpty ? nil : trimmedNote,
-            contentType: contentType,
-        )
+        let note: String? = trimmedNote.isEmpty ? nil : trimmedNote
+        let kind = resolvedKind()
+        guard !attachments.isEmpty else {
+            return [PendingEvidence(
+                evidence: Evidence(
+                    kind: kind,
+                    capturedAt: capturedAt,
+                    region: nil,
+                    note: note,
+                    contentType: .other(nil),
+                ),
+                blob: nil,
+            )]
+        }
+        return attachments.map { attachment in
+            let contentType = EvidenceContentType.classify(
+                data: attachment.data,
+                typeIdentifier: attachment.typeIdentifier,
+            )
+            return PendingEvidence(
+                evidence: Evidence(
+                    kind: kind,
+                    capturedAt: capturedAt,
+                    region: nil,
+                    note: note,
+                    contentType: contentType,
+                ),
+                blob: attachment.data,
+            )
+        }
     }
 
     /// Fold the free-text `otherLabel` into the kind when `.other` is selected;

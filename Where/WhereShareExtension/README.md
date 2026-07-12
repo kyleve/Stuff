@@ -19,13 +19,15 @@ Host app Share sheet
                             └─▶ App Group store (group.com.stuff.where)
 ```
 
-- **`SharedItemLoader`** takes the first `NSItemProvider` that yields bytes,
-  preferring the most preview-friendly representation it registered: PDF →
-  image → concrete file (`.pkpass`, `.eml`, …) → text → URL (kept as its
+- **`SharedItemLoader`** takes one attachment per `NSItemProvider` that yields
+  bytes (so a multi-item share — the activation rule allows up to 20 — keeps them
+  all), preferring the most preview-friendly representation each registered:
+  PDF → image → concrete file (`.pkpass`, `.eml`, …) → text → URL (kept as its
   string). A share with nothing loadable still composes as a metadata-only note.
-- **`ShareEvidenceModel`** holds the editable fields, classifies the attachment
+- **`ShareEvidenceModel`** holds the editable fields, classifies each attachment
   with [`EvidenceContentType.classify`](../WhereCore/Sources/Evidence/EvidenceContentType+Classify.swift),
-  and persists a new `Evidence`.
+  and persists one `Evidence` per attachment (all sharing the form's
+  kind/date/note) in a single transaction.
 - **`ShareEvidenceView`** is the compose form; kind names/symbols reuse
   WhereUI's public `EvidenceKind` presentation helpers so they read identically
   to the in-app "Add evidence" sheet. Extension-only chrome resolves through
