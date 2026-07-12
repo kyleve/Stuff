@@ -22,6 +22,7 @@ Where/
   WhereUI/       SPM library – SwiftUI views + view models (depends on WhereCore)
   WhereTesting/  SPM library – iOS test host helpers (show(), waitFor, ...)
   WhereWidgets/  Widget extension – reads published snapshots, renders WhereUI views
+  WhereShareExtension/  Share extension – saves shared content as Evidence into the App Group store
   RegionViewer/  Mac Catalyst shell for the region-map developer tool
 ```
 
@@ -128,6 +129,9 @@ views or thrown errors.
   because a surface is dev-only.
 - **WhereWidgets:** gallery name/description live in the extension's own
   catalog; in-widget copy reuses WhereUI `Strings`.
+- **WhereShareExtension:** compose-sheet chrome lives in the extension's own
+  catalog (`ShareStrings`); evidence kind names reuse WhereUI's public
+  `EvidenceKind` presentation helpers.
 
 Add the key to the catalog first, then reference it — never ship English
 literals in SwiftUI `Text` or `errorDescription`.
