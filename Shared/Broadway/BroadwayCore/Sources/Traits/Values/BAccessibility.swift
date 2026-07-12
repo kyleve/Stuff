@@ -109,6 +109,7 @@ public struct BAccessibility: Equatable, Hashable, Sendable {
         self.shouldDifferentiateWithoutColor = shouldDifferentiateWithoutColor
     }
 
+    @MainActor
     public init(with provider: SettingsProvider) {
         buttonShapesEnabled = provider.buttonShapesEnabled
         isAssistiveTouchRunning = provider.isAssistiveTouchRunning
@@ -157,6 +158,12 @@ extension BAccessibility {
     ///
     /// Instead of accessing `UIAccessibility.{...}` directly, utilize
     /// `BAccessibility.systemSettings`.
+    ///
+    /// Reading live accessibility state is a main-actor operation — the system
+    /// provider reads `@MainActor` `UIAccessibility` flags — so the protocol and
+    /// the snapshot APIs built on it (``current(with:)`` / ``init(with:)``) are
+    /// `@MainActor` rather than assuming that isolation at runtime.
+    @MainActor
     public protocol SettingsProvider: AnyObject, Sendable {
         // MARK: Assistive Technologies
 
@@ -198,6 +205,7 @@ extension BAccessibility {
 extension BAccessibility {
     /// Returns a snapshot of the current device accessibility settings
     /// by reading each `UIAccessibility` class property.
+    @MainActor
     public static func current(
         with provider: any SettingsProvider = BAccessibility.systemSettings,
     ) -> BAccessibility {
@@ -205,6 +213,7 @@ extension BAccessibility {
     }
 
     /// The provider which returns the current accessibility values from`UIAccessibility.{...}`.
+    @MainActor
     public static let systemSettings: any SettingsProvider = SystemSettingsProvider()
 }
 
@@ -333,7 +342,10 @@ extension BAccessibility {
 }
 
 extension BAccessibility {
-    private final class SystemSettingsProvider: SettingsProvider, @unchecked Sendable {
+    /// Reads the live, `@MainActor`-isolated `UIAccessibility` status flags.
+    /// `@MainActor` so it satisfies the main-actor ``SettingsProvider`` contract.
+    @MainActor
+    private final class SystemSettingsProvider: SettingsProvider {
         var isVoiceOverRunning: Bool {
             UIAccessibility.isVoiceOverRunning
         }
