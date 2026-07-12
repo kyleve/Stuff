@@ -42,6 +42,10 @@ enum Strings {
         localized("common.done")
     }
 
+    static var commonCancel: String {
+        String(localized: "common.cancel", defaultValue: "Cancel", bundle: .module)
+    }
+
     /// "1 day" / "5 days" — with the count rendered.
     static func dayCount(_ count: Int) -> String {
         String(localized: "common.dayCount", defaultValue: "\(count) days", bundle: .module)
@@ -990,6 +994,23 @@ enum Strings {
         date: Date,
         regions: [Region],
         needsAttention: Bool,
+        hasEvidence: Bool,
+    ) -> String {
+        let base = calendarDayBase(date: date, regions: regions, needsAttention: needsAttention)
+        guard hasEvidence else { return base }
+        // Append the attachment cue so VoiceOver announces it after the day's
+        // regions/status, e.g. "Monday, March 4, California, has evidence".
+        return String(
+            localized: "calendar.day.hasEvidence.accessibility",
+            defaultValue: "\(base), has evidence",
+            bundle: .module,
+        )
+    }
+
+    private static func calendarDayBase(
+        date: Date,
+        regions: [Region],
+        needsAttention: Bool,
     ) -> String {
         let day = date.formatted(.dateTime.weekday(.wide).month(.wide).day())
         if needsAttention {
@@ -1010,6 +1031,223 @@ enum Strings {
         return String(
             localized: "calendar.day.accessibility",
             defaultValue: "\(day), \(names)",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Evidence
+
+    /// Toolbar label + accessibility for the Primary tab's "view all evidence"
+    /// button.
+    static var primaryEvidence: String {
+        String(localized: "primary.evidence", defaultValue: "Evidence", bundle: .module)
+    }
+
+    static func evidenceListTitle(year: Int) -> String {
+        String(
+            localized: "evidence.list.title",
+            defaultValue: "Evidence · \(yearText(year))",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceEmptyTitle: String {
+        String(localized: "evidence.empty.title", defaultValue: "No evidence yet", bundle: .module)
+    }
+
+    static var evidenceEmptyDescription: String {
+        String(
+            localized: "evidence.empty.description",
+            defaultValue: "Attach a boarding pass, receipt, or screenshot to back up where you were. Add one here, or share it into Where from another app.",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceFailedTitle: String {
+        String(
+            localized: "evidence.failed.title",
+            defaultValue: "Couldn't load evidence",
+            bundle: .module,
+        )
+    }
+
+    /// Toolbar "+" label for adding a new piece of evidence in-app.
+    static var evidenceAdd: String {
+        String(localized: "evidence.add", defaultValue: "Add evidence", bundle: .module)
+    }
+
+    /// Human-readable name for an evidence kind, used in the list rows, the
+    /// detail header, and the compose form's picker. `.other` shows its
+    /// user-supplied label when present, else a generic "Other".
+    static func evidenceKind(_ kind: EvidenceKind) -> String {
+        switch kind {
+            case .planeTicket:
+                return String(
+                    localized: "evidence.kind.planeTicket",
+                    defaultValue: "Plane ticket",
+                    bundle: .module,
+                )
+            case .boardingPass:
+                return String(
+                    localized: "evidence.kind.boardingPass",
+                    defaultValue: "Boarding pass",
+                    bundle: .module,
+                )
+            case .hotelReceipt:
+                return String(
+                    localized: "evidence.kind.hotelReceipt",
+                    defaultValue: "Hotel receipt",
+                    bundle: .module,
+                )
+            case .carRental:
+                return String(
+                    localized: "evidence.kind.carRental",
+                    defaultValue: "Car rental",
+                    bundle: .module,
+                )
+            case .rideshare:
+                return String(
+                    localized: "evidence.kind.rideshare",
+                    defaultValue: "Rideshare",
+                    bundle: .module,
+                )
+            case .photo:
+                return String(
+                    localized: "evidence.kind.photo",
+                    defaultValue: "Photo",
+                    bundle: .module,
+                )
+            case .document:
+                return String(
+                    localized: "evidence.kind.document",
+                    defaultValue: "Document",
+                    bundle: .module,
+                )
+            case .email:
+                return String(
+                    localized: "evidence.kind.email",
+                    defaultValue: "Email",
+                    bundle: .module,
+                )
+            case let .other(label):
+                if let label, !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    return label
+                }
+                return String(
+                    localized: "evidence.kind.other",
+                    defaultValue: "Other",
+                    bundle: .module,
+                )
+        }
+    }
+
+    static var evidenceKindPickerLabel: String {
+        String(localized: "evidence.form.kind", defaultValue: "Kind", bundle: .module)
+    }
+
+    static var evidenceOtherLabelPlaceholder: String {
+        String(localized: "evidence.form.otherLabel", defaultValue: "Label", bundle: .module)
+    }
+
+    static var evidenceDateLabel: String {
+        String(localized: "evidence.form.date", defaultValue: "Date", bundle: .module)
+    }
+
+    static var evidenceNoteLabel: String {
+        String(localized: "evidence.form.note", defaultValue: "Note", bundle: .module)
+    }
+
+    static var evidenceNotePlaceholder: String {
+        String(
+            localized: "evidence.form.notePlaceholder",
+            defaultValue: "Add a note (optional)",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceAttachmentHeader: String {
+        String(
+            localized: "evidence.form.attachmentHeader",
+            defaultValue: "Attachment",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceChooseFile: String {
+        String(localized: "evidence.form.chooseFile", defaultValue: "Choose file", bundle: .module)
+    }
+
+    static var evidenceChoosePhoto: String {
+        String(
+            localized: "evidence.form.choosePhoto",
+            defaultValue: "Choose photo",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceRemoveAttachment: String {
+        String(
+            localized: "evidence.form.remove",
+            defaultValue: "Remove attachment",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceSave: String {
+        String(localized: "evidence.form.save", defaultValue: "Save", bundle: .module)
+    }
+
+    static var evidenceSaveErrorTitle: String {
+        String(
+            localized: "evidence.form.saveError.title",
+            defaultValue: "Couldn't save evidence",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceDetailNoteHeader: String {
+        String(localized: "evidence.detail.noteHeader", defaultValue: "Note", bundle: .module)
+    }
+
+    static var evidenceNoPreviewTitle: String {
+        String(
+            localized: "evidence.detail.noPreview.title",
+            defaultValue: "No preview",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceNoPreviewDescription: String {
+        String(
+            localized: "evidence.detail.noPreview.description",
+            defaultValue: "This attachment can't be previewed here.",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceNoAttachment: String {
+        String(
+            localized: "evidence.detail.noAttachment",
+            defaultValue: "No attachment",
+            bundle: .module,
+        )
+    }
+
+    static var evidencePreviewFailed: String {
+        String(
+            localized: "evidence.detail.previewFailed",
+            defaultValue: "Couldn't load this attachment.",
+            bundle: .module,
+        )
+    }
+
+    /// Accessibility summary for a single evidence row: its kind and captured
+    /// date, e.g. "Plane ticket, March 4, 2026".
+    static func evidenceRowAccessibility(kind: EvidenceKind, date: Date) -> String {
+        let day = date.formatted(.dateTime.month(.wide).day().year())
+        return String(
+            localized: "evidence.row.accessibility",
+            defaultValue: "\(evidenceKind(kind)), \(day)",
             bundle: .module,
         )
     }
