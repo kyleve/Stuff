@@ -19,6 +19,7 @@ struct WhereStylesheet: BStylesheet {
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
     var regionMap = RegionMapStyle.standard
+    var evidence = EvidenceStyle.standard
     var palette = Palette.standard
     var motion = Motion.standard
     var typography = Typography.standard
@@ -293,6 +294,8 @@ extension WhereStylesheet {
         /// Fill behind a day that needs attention (unresolved), and its number.
         var unresolvedDayMarker: Color
         var unresolvedNumberColor: Color
+        /// The small badge marking a day that carries evidence.
+        var evidenceBadge: EvidenceBadge
 
         /// Style for one month section: the header/grid/footer stack, its
         /// current-month highlight, and the tally footer.
@@ -311,6 +314,18 @@ extension WhereStylesheet {
             var footerRowSpacing: CGFloat
             /// Opacity of an unfocused footer row while a region is focused.
             var unfocusedRowOpacity: Double
+        }
+
+        /// The paperclip badge in a day cell's top-trailing corner marking a day
+        /// that carries evidence. Its tint (accent) and backing disc (system
+        /// background) follow the app/system roles, so only geometry lives here.
+        struct EvidenceBadge: Equatable {
+            /// Point size of the paperclip glyph.
+            var iconSize: CGFloat
+            /// Padding around the glyph inside its backing disc.
+            var padding: CGFloat
+            /// Offset nudging the badge past the day-number chip's corner.
+            var offset: CGSize
         }
 
         /// The fixed calendar geometry, migrated from the former generic
@@ -335,6 +350,11 @@ extension WhereStylesheet {
             todayNumberColor: .white,
             unresolvedDayMarker: Color.red.opacity(0.15),
             unresolvedNumberColor: .red,
+            evidenceBadge: EvidenceBadge(
+                iconSize: 8,
+                padding: 2,
+                offset: CGSize(width: 3, height: -2),
+            ),
         )
     }
 }
@@ -431,6 +451,29 @@ extension WhereStylesheet {
             uncertaintyFillOpacity: 0.15,
             uncertaintyStrokeOpacity: 0.6,
             uncertaintyStrokeWidth: 1,
+        )
+    }
+}
+
+// MARK: - Evidence
+
+extension WhereStylesheet {
+    /// Style for the evidence viewer (`EvidenceDetailView` + `EvidenceBlobPreview`):
+    /// the rounded attachment-preview surface and the heights the inline PDF and
+    /// the still-loading attachment reserve. Generic spacing (the detail header
+    /// and list-row stacks) still comes from ``Spacing``.
+    struct EvidenceStyle: Equatable {
+        /// Corner radius of an attachment preview surface (PDF, image).
+        var previewCornerRadius: CGFloat
+        /// Minimum height of the inline PDF preview.
+        var pdfPreviewMinHeight: CGFloat
+        /// Minimum height reserved for the attachment area while its bytes load.
+        var loadingMinHeight: CGFloat
+
+        static let standard = EvidenceStyle(
+            previewCornerRadius: 22,
+            pdfPreviewMinHeight: 420,
+            loadingMinHeight: 200,
         )
     }
 }

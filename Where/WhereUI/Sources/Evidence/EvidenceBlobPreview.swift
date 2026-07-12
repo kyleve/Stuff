@@ -19,8 +19,9 @@ struct EvidenceBlobPreview: View {
         switch contentType {
             case .pdf:
                 PDFDocumentView(data: data)
-                    .frame(minHeight: 420)
-                    .clipShape(RoundedRectangle(cornerRadius: stylesheet.card.compact.cornerRadius))
+                    .frame(minHeight: stylesheet.evidence.pdfPreviewMinHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: stylesheet.evidence
+                            .previewCornerRadius))
             case .image:
                 imagePreview
             case .plainText:
@@ -37,7 +38,7 @@ struct EvidenceBlobPreview: View {
                 .resizable()
                 .scaledToFit()
                 .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: stylesheet.card.compact.cornerRadius))
+                .clipShape(RoundedRectangle(cornerRadius: stylesheet.evidence.previewCornerRadius))
                 .accessibilityLabel(Strings.primaryEvidence)
         } else {
             failedToDecode

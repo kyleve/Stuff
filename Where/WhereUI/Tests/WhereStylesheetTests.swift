@@ -111,6 +111,11 @@ struct WhereStylesheetTests {
         #expect(calendar.todayNumberColor == .white)
         #expect(calendar.unresolvedDayMarker == Color.red.opacity(0.15))
         #expect(calendar.unresolvedNumberColor == .red)
+        #expect(calendar.evidenceBadge == .init(
+            iconSize: 8,
+            padding: 2,
+            offset: CGSize(width: 3, height: -2),
+        ))
 
         let month = calendar.month
         #expect(month.sectionSpacing == 8)
@@ -166,6 +171,13 @@ struct WhereStylesheetTests {
         #expect(regionMap.uncertaintyFillOpacity == 0.15)
         #expect(regionMap.uncertaintyStrokeOpacity == 0.6)
         #expect(regionMap.uncertaintyStrokeWidth == 1)
+    }
+
+    @Test func evidenceStyle() {
+        let evidence = style.evidence
+        #expect(evidence.previewCornerRadius == 22)
+        #expect(evidence.pdfPreviewMinHeight == 420)
+        #expect(evidence.loadingMinHeight == 200)
     }
 
     @Test func typographyFaces() {

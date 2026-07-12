@@ -309,11 +309,14 @@ private struct DayCell: View {
                 .overlay(alignment: .topTrailing) {
                     if day.hasEvidence {
                         Image(systemName: "paperclip")
-                            .font(.system(size: 8, weight: .bold))
+                            .font(.system(size: calendar.evidenceBadge.iconSize, weight: .bold))
                             .foregroundStyle(Color.accentColor)
-                            .padding(2)
+                            .padding(calendar.evidenceBadge.padding)
                             .background(Circle().fill(Color(.systemBackground)))
-                            .offset(x: 3, y: -2)
+                            .offset(
+                                x: calendar.evidenceBadge.offset.width,
+                                y: calendar.evidenceBadge.offset.height,
+                            )
                     }
                 }
 

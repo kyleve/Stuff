@@ -66,7 +66,7 @@ struct EvidenceDetailView: View {
         switch model.blobState {
             case .idle, .loading:
                 ProgressView()
-                    .frame(maxWidth: .infinity, minHeight: 200)
+                    .frame(maxWidth: .infinity, minHeight: stylesheet.evidence.loadingMinHeight)
             case let .loaded(data):
                 if let data {
                     EvidenceBlobPreview(data: data, contentType: model.evidence.contentType)
