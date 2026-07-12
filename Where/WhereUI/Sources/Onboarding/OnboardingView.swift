@@ -47,7 +47,10 @@ public struct OnboardingView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(
             LinearGradient(
-                colors: [Color(.systemBackground), Color.accentColor.opacity(0.12)],
+                colors: [
+                    stylesheet.palette.onboarding.backgroundTop,
+                    stylesheet.palette.onboarding.backgroundBottom,
+                ],
                 startPoint: .top,
                 endPoint: .bottom,
             )

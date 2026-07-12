@@ -19,6 +19,7 @@ struct WhereStylesheet: BStylesheet {
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
     var regionMap = RegionMapStyle.standard
+    var palette = Palette.standard
 
     init() {}
 
@@ -410,6 +411,63 @@ extension WhereStylesheet {
             labelSpacing: 2,
             trailingMinSpacing: 8,
             rowVerticalPadding: 4,
+        )
+    }
+}
+
+// MARK: - Palette
+
+extension WhereStylesheet {
+    /// App-level colors that aren't owned by a single component — chiefly the
+    /// screen backdrops. This is the primary surface a future app-wide or
+    /// seasonal theme reskins. (Per-region tints stay in `RegionStyle`; adaptive
+    /// system roles like `.secondary` stay inline; `.accentColor` follows the
+    /// app's tint.)
+    struct Palette: Equatable {
+        var primary: Primary
+        var splash: Splash
+        var onboarding: Onboarding
+
+        /// The Primary tab's deep "passport cover" backdrop (top → bottom).
+        struct Primary: Equatable {
+            var backgroundTop: Color
+            var backgroundBottom: Color
+        }
+
+        /// The launch splash: dark backdrop, radial vignette, brand-tinted icon
+        /// glow / radar, and the reassurance caption.
+        struct Splash: Equatable {
+            var background: Color
+            var vignetteCenter: Color
+            var vignetteEdge: Color
+            var iconGlow: Color
+            var caption: Color
+            var captionSecondary: Color
+        }
+
+        /// The onboarding backdrop (top → bottom).
+        struct Onboarding: Equatable {
+            var backgroundTop: Color
+            var backgroundBottom: Color
+        }
+
+        static let standard = Palette(
+            primary: Primary(
+                backgroundTop: Color(red: 0.07, green: 0.08, blue: 0.13),
+                backgroundBottom: Color(red: 0.02, green: 0.02, blue: 0.05),
+            ),
+            splash: Splash(
+                background: .black,
+                vignetteCenter: Color(white: 0.16),
+                vignetteEdge: .black,
+                iconGlow: .accentColor,
+                caption: .white,
+                captionSecondary: Color.white.opacity(0.7),
+            ),
+            onboarding: Onboarding(
+                backgroundTop: Color(.systemBackground),
+                backgroundBottom: Color.accentColor.opacity(0.12),
+            ),
         )
     }
 }

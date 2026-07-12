@@ -99,8 +99,8 @@ struct PrimaryView: View {
     private var elevatedBackground: LinearGradient {
         LinearGradient(
             colors: [
-                Color(red: 0.07, green: 0.08, blue: 0.13),
-                Color(red: 0.02, green: 0.02, blue: 0.05),
+                stylesheet.palette.primary.backgroundTop,
+                stylesheet.palette.primary.backgroundBottom,
             ],
             startPoint: .top,
             endPoint: .bottom,

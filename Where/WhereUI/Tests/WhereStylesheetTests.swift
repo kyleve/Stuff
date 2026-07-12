@@ -149,6 +149,20 @@ struct WhereStylesheetTests {
         #expect(regionMap.uncertaintyStrokeWidth == 1)
     }
 
+    @Test func paletteColors() {
+        let palette = style.palette
+        #expect(palette.primary.backgroundTop == Color(red: 0.07, green: 0.08, blue: 0.13))
+        #expect(palette.primary.backgroundBottom == Color(red: 0.02, green: 0.02, blue: 0.05))
+        #expect(palette.splash.background == .black)
+        #expect(palette.splash.vignetteCenter == Color(white: 0.16))
+        #expect(palette.splash.vignetteEdge == .black)
+        #expect(palette.splash.iconGlow == .accentColor)
+        #expect(palette.splash.caption == .white)
+        #expect(palette.splash.captionSecondary == Color.white.opacity(0.7))
+        #expect(palette.onboarding.backgroundTop == Color(.systemBackground))
+        #expect(palette.onboarding.backgroundBottom == Color.accentColor.opacity(0.12))
+    }
+
     @Test func elementSizes() {
         #expect(style.size.statusIconWidth == 28)
         #expect(style.size.launchIcon == 120)
