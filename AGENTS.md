@@ -269,6 +269,29 @@ editing and pushing, not on understanding. Once the user points you at feedback
 (names comments, says "address these", etc.), that's your go-ahead — do the
 work end to end without re-asking per comment.
 
+## Debugging build/test/CI failures
+
+**Check `git status` and recent history first — before analyzing the error.** A
+baffling build/test failure (a module that won't resolve, a symbol that
+vanished, a type that stopped conforming) is often a *logical conflict with a
+recent `main` change*, not your own edits or a broken toolchain.
+
+- Run `git status -sb` and `git log --oneline -15`: confirm which branch you're
+  on and whether a **merge of `main` you didn't make** is already in the history
+  (a teammate, tooling, or a rebase may have landed one). `git merge-base
+  --is-ancestor <main-sha> HEAD` answers "is that commit already in my branch?".
+- Skim recent `main` commits (`git log origin/main`) for **structural changes**
+  — a renamed/moved/deleted module or target, relocated test scaffolding, a
+  changed shared helper — then check whether the failing file still references
+  the old shape. That's usually the fix.
+- **CI merges `main` into the branch before it runs**, so green-locally /
+  red-on-CI almost always means `main` moved. Reproduce by merging (or rebasing)
+  the latest `main` into the branch locally, then rebuild — don't debug CI
+  against a stale base.
+- Only after ruling the above out should you reach for heavier remedies
+  (clearing DerivedData / module caches, regenerating the project). Wiping
+  caches to chase a logical conflict just adds cold-build noise.
+
 ## Waiting on CI
 
 Do **not** block the main conversation polling for CI to finish (GitHub
