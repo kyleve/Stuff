@@ -159,6 +159,17 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   When adding behavior, default to Core (+ view-model glue if the UI needs a
   trigger or observable mirror); push logic into a `View` only for presentation.
   See [`Where/AGENTS.md`](Where/AGENTS.md#layering).
+- **Reuse before you duplicate.** Before adding a new view / form / component
+  (or any type), look for an existing one covering the same concept and *extend*
+  it — a new mode or parameter, or a shared subview — rather than forking a
+  near-copy. Two screens that differ only in a few sections (e.g. *add* vs.
+  *edit* of the same thing) should be **one view with a mode**, not parallel
+  files; shared chrome (a save-error alert, a region-toggle section, an audit
+  block) becomes a shared subview, not copy-paste. If a planned addition would
+  substantially overlap existing UI and consolidating vs. forking isn't clearly
+  right, **flag it and align before building** rather than shipping the
+  duplicate. (This is the reflex behind `ManualDayView`'s add/edit modes and the
+  shared `ManualEntryAuditSection`.)
 - **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
   arguments so new behavior isn't silently opted into. Reserve defaults for
   SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
