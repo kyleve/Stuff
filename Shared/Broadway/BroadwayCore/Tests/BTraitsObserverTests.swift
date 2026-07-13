@@ -1,5 +1,5 @@
 @testable import BroadwayCore
-import BroadwayTesting
+import TestHostSupport
 import Testing
 import UIKit
 

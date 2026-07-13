@@ -1,8 +1,8 @@
 import RegionKit
 import SwiftUI
+import TestHostSupport
 import Testing
 import WhereCore
-import WhereTesting
 @testable import WhereUI
 
 /// Hosts the widget entry views in a real window across their data states

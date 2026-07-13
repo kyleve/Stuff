@@ -64,7 +64,7 @@ TUIST_DEVELOPMENT_TEAM = "ABCDE12345"
 ## Project structure
 
 ```
-Package.swift       Local Swift package (StuffCore, LifecycleKit, WhereCore, WhereUI, WhereTesting)
+Package.swift       Local Swift package (StuffCore, LifecycleKit, WhereCore, WhereUI, TestHostSupport, …)
 Project.swift       Tuist manifest (Where app, StuffTestHost, test bundles → SPM)
 Tuist.swift         Tuist configuration
 .mise.toml          Pins Tuist 4.200.5 and SwiftFormat 0.60.1

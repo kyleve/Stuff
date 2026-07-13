@@ -29,5 +29,5 @@ Complements the root [`AGENTS.md`](../../../AGENTS.md) and the group
   `BRootViewController`-set context still reaches SwiftUI).
 - Public API is `public`.
 
-Tests: `BroadwayUITests` in `StuffTestHost`, linking `BroadwayTesting`
+Tests: `BroadwayUITests` in `StuffTestHost`, linking `TestHostSupport`
 (`tuist test BroadwayUITests`).

@@ -1,9 +1,9 @@
 import LogViewerUI
 import RegionKit
 import SwiftUI
+import TestHostSupport
 import Testing
 import WhereCore
-import WhereTesting
 @testable import WhereUI
 
 /// Hosts each top-level screen in a real window with seeded preview data to
