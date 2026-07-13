@@ -14,10 +14,12 @@ struct LoggedDaysView: View {
     let report: YearReportModel
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.stylesheet) private var stylesheet
     @State private var model: LoggedDaysModel
     @State private var showingAdd = false
     @State private var editTarget: EditTarget?
     @State private var deleteError = SaveErrorAlertState()
+    @State private var filter: LoggedDaysFilter = .all
 
     init(report: YearReportModel) {
         self.report = report
@@ -95,7 +97,7 @@ struct LoggedDaysView: View {
             case .idle, .loading:
                 AppIconLoadingView(caption: Strings.primaryLoading)
             case let .loaded(days):
-                list(days)
+                loaded(days)
             case .empty:
                 emptyState
             case let .failed(message):
@@ -105,6 +107,43 @@ struct LoggedDaysView: View {
                     Text(message)
                 }
         }
+    }
+
+    /// The Logged/Overridden/All filter pinned above the list, then the matching
+    /// rows — or a "nothing matches this filter" state, distinct from the
+    /// year-has-no-entries `emptyState`.
+    private func loaded(_ days: [DayPresence]) -> some View {
+        let matches = days.filter(filter.matches)
+        return VStack(spacing: 0) {
+            Picker(Strings.loggedDaysFilterLabel, selection: $filter) {
+                ForEach(LoggedDaysFilter.allCases) { option in
+                    Text(option.title).tag(option)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, stylesheet.spacing.small)
+            .accessibilityIdentifier("where_logged_days_filter")
+
+            if matches.isEmpty {
+                noMatchesState
+            } else {
+                list(matches)
+            }
+        }
+        .animation(.default, value: filter)
+    }
+
+    private var noMatchesState: some View {
+        ContentUnavailableView {
+            Label(
+                Strings.loggedDaysNoMatchesTitle,
+                systemImage: "line.3.horizontal.decrease.circle",
+            )
+        } description: {
+            Text(Strings.loggedDaysNoMatchesDescription)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func list(_ days: [DayPresence]) -> some View {

@@ -1112,6 +1112,33 @@ enum Strings {
         )
     }
 
+    /// Accessibility label for the Logged/Overridden/All segmented filter (hidden
+    /// visually by the segmented style, read by VoiceOver).
+    static var loggedDaysFilterLabel: String {
+        String(localized: "loggedDays.filter.label", defaultValue: "Filter", bundle: .module)
+    }
+
+    /// Filter segment showing both logged and overridden entries.
+    static var loggedDaysFilterAll: String {
+        String(localized: "loggedDays.filter.all", defaultValue: "All", bundle: .module)
+    }
+
+    static var loggedDaysNoMatchesTitle: String {
+        String(
+            localized: "loggedDays.noMatches.title",
+            defaultValue: "No matching days",
+            bundle: .module,
+        )
+    }
+
+    static var loggedDaysNoMatchesDescription: String {
+        String(
+            localized: "loggedDays.noMatches.description",
+            defaultValue: "No days match this filter.",
+            bundle: .module,
+        )
+    }
+
     // MARK: Evidence
 
     /// Toolbar label + accessibility for the Primary tab's "view all evidence"

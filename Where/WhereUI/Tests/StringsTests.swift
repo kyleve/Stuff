@@ -109,6 +109,7 @@ struct StringsTests {
         #expect(Strings.loggedDaysEmptyTitle == "No logged days")
         #expect(Strings.loggedDaysKindLogged == "Logged")
         #expect(Strings.loggedDaysKindOverridden == "Overridden")
+        #expect(Strings.loggedDaysFilterAll == "All")
         #expect(Strings.settingsYearLabel == "Year")
     }
 
