@@ -17,7 +17,16 @@ struct LoggedDayEditorView: View {
     @State private var regionSelection: RegionSelectionState
     @State private var note: String
     @State private var saveError = SaveErrorAlertState()
-    @State private var isSaving = false
+    @State private var deleteError = SaveErrorAlertState()
+    @State private var showDeleteConfirmation = false
+    @State private var pending: PendingWrite?
+
+    /// Which async write is in flight, so the form can disable inputs and show
+    /// progress without two overlapping `Bool`s.
+    private enum PendingWrite {
+        case saving
+        case deleting
+    }
 
     init(day: DayPresence, report: YearReportModel) {
         self.day = day
@@ -39,11 +48,12 @@ struct LoggedDayEditorView: View {
     }
 
     private var canSave: Bool {
-        !regionSelection.selectedRegions.isEmpty && !isSaving && hasChanges
+        !regionSelection.selectedRegions.isEmpty && pending == nil && hasChanges
     }
 
     var body: some View {
         @Bindable var saveError = saveError
+        @Bindable var deleteError = deleteError
 
         Form {
             Section {
@@ -67,14 +77,27 @@ struct LoggedDayEditorView: View {
                     axis: .vertical,
                 )
                 .lineLimit(3, reservesSpace: true)
-                .disabled(isSaving)
+                .disabled(pending != nil)
             } header: {
                 Text(Strings.manualNoteHeader)
             } footer: {
                 Text(Strings.manualNoteFooter)
             }
 
-            if isSaving {
+            // This editor only ever edits an already-stored entry, so deleting
+            // it (restoring the day's GPS attribution) always applies.
+            Section {
+                Button(role: .destructive) {
+                    showDeleteConfirmation = true
+                } label: {
+                    Label(Strings.loggedDaysDelete, systemImage: "trash")
+                }
+                .disabled(pending != nil)
+            } footer: {
+                Text(Strings.loggedDaysDeleteFooter)
+            }
+
+            if pending == .saving {
                 Section {
                     SavingStatusRow(text: Strings.manualSavingStatus)
                 }
@@ -84,22 +107,32 @@ struct LoggedDayEditorView: View {
                 ManualEntryAuditSection(audit: audit)
             }
         }
-        .animation(.default, value: isSaving)
+        .animation(.default, value: pending)
         .navigationTitle(Strings.loggedDaysEditTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button(Strings.commonCancel) { dismiss() }
-                    .disabled(isSaving)
+                    .disabled(pending != nil)
             }
             ToolbarItem(placement: .confirmationAction) {
-                if isSaving {
+                if pending == .saving {
                     ProgressView()
                 } else {
                     Button(Strings.manualSave) { save() }
                         .disabled(!canSave)
                 }
             }
+        }
+        .confirmationDialog(
+            Strings.loggedDaysDelete,
+            isPresented: $showDeleteConfirmation,
+            titleVisibility: .visible,
+        ) {
+            Button(Strings.loggedDaysDelete, role: .destructive) { delete() }
+            Button(Strings.commonCancel, role: .cancel) {}
+        } message: {
+            Text(Strings.loggedDaysDeleteFooter)
         }
         .alert(
             Strings.manualSaveErrorTitle,
@@ -108,6 +141,16 @@ struct LoggedDayEditorView: View {
             Button(Strings.commonOK, role: .cancel) {}
         } message: {
             if let message = saveError.message {
+                Text(message)
+            }
+        }
+        .alert(
+            Strings.loggedDaysDeleteErrorTitle,
+            isPresented: $deleteError.isPresented,
+        ) {
+            Button(Strings.commonOK, role: .cancel) {}
+        } message: {
+            if let message = deleteError.message {
                 Text(message)
             }
         }
@@ -121,7 +164,7 @@ struct LoggedDayEditorView: View {
     /// authoritative (replaces GPS); an additive backfill stays additive (unions
     /// with GPS). Keeps the form up on failure so the user can retry.
     private func save() {
-        isSaving = true
+        pending = .saving
         saveError.message = nil
         Task {
             do {
@@ -141,7 +184,23 @@ struct LoggedDayEditorView: View {
                 dismiss()
             } catch {
                 saveError.message = error.localizedDescription
-                isSaving = false
+                pending = nil
+            }
+        }
+    }
+
+    /// Delete this manual entry, restoring the day's GPS-detected attribution.
+    /// Keeps the form up on failure so the user can retry.
+    private func delete() {
+        pending = .deleting
+        deleteError.message = nil
+        Task {
+            do {
+                try await report.clearManualDay(date: day.date)
+                dismiss()
+            } catch {
+                deleteError.message = error.localizedDescription
+                pending = nil
             }
         }
     }

@@ -1070,6 +1070,21 @@ enum Strings {
         String(localized: "loggedDays.edit.date", defaultValue: "Day", bundle: .module)
     }
 
+    /// Destructive button + confirmation title for deleting a logged day.
+    static var loggedDaysDelete: String {
+        String(localized: "loggedDays.delete", defaultValue: "Delete entry", bundle: .module)
+    }
+
+    /// Explains what deleting a logged day does — used as the editor section
+    /// footer and the delete confirmation message.
+    static var loggedDaysDeleteFooter: String {
+        String(
+            localized: "loggedDays.delete.footer",
+            defaultValue: "Removes this manual entry and restores the day's GPS-detected location.",
+            bundle: .module,
+        )
+    }
+
     static var loggedDaysEmptyTitle: String {
         String(localized: "loggedDays.empty.title", defaultValue: "No logged days", bundle: .module)
     }
