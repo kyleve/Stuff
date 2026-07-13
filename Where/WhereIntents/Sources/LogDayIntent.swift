@@ -31,7 +31,7 @@ public struct LogDayIntent: AppIntent {
         guard !regionSet.isEmpty else {
             return .result(dialog: IntentDialog("\(IntentStrings.chooseRegions())"))
         }
-        let services = try WhereServices.forIntents()
+        let services = try await IntentServices.shared.current()
         let day = date ?? Date()
         try await WhereIntentWriter(services: services).logDay(date: day, regions: regionSet)
         return .result(

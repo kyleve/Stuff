@@ -28,8 +28,8 @@ public struct DaysInRegionIntent: AppIntent {
     }
 
     public func perform() async throws -> some IntentResult & ReturnsValue<Int> & ProvidesDialog {
-        let services = try WhereServices.forIntents()
-        let resolvedYear = year ?? Calendar.current.component(.year, from: Date())
+        let services = try await IntentServices.shared.current()
+        let resolvedYear = year ?? Calendar.whereIntents.component(.year, from: Date())
         let count = try await WhereIntentReader(services: services)
             .dayCount(in: region.region, year: resolvedYear)
         // The value + dialog answer voice-only Siri; the interactive snippet

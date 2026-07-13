@@ -8,7 +8,7 @@ import WhereCore
 /// action intents delegate to.
 struct WhereIntentWriter {
     let services: WhereServices
-    var calendar = Calendar.current
+    var calendar = Calendar.whereIntents
     var now: @Sendable () -> Date = { Date() }
 
     /// Additively record `regions` for the calendar day containing `date`

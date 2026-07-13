@@ -26,8 +26,8 @@ public struct DaysInRegionSnippetIntent: SnippetIntent {
 
     @MainActor
     public func perform() async throws -> some IntentResult & ShowsSnippetView {
-        let services = try WhereServices.forIntents()
-        let resolvedYear = year ?? Calendar.current.component(.year, from: Date())
+        let services = try await IntentServices.shared.current()
+        let resolvedYear = year ?? Calendar.whereIntents.component(.year, from: Date())
         let count = try await WhereIntentReader(services: services)
             .dayCount(in: region.region, year: resolvedYear)
         let snapshot = DaysInRegionSnapshot(
@@ -35,33 +35,45 @@ public struct DaysInRegionSnippetIntent: SnippetIntent {
             year: resolvedYear,
             dayCount: count,
         )
-        return .result(view: DaysInRegionInteractiveSnippet(snapshot: snapshot, region: region))
+        // "Log today here" logs into the *current* year, so it can only change
+        // this card's count when the card is showing the current year. Omit it
+        // otherwise, rather than offer a button that appears to do nothing.
+        return .result(
+            view: DaysInRegionInteractiveSnippet(
+                snapshot: snapshot,
+                region: region,
+                canLogToday: isCurrentYear(resolvedYear),
+            ),
+        )
     }
 }
 
-/// The card the snippet renders: the WhereUI day-count card plus a
-/// `Button(intent:)` that logs today for the region. The interactive wrapper
-/// lives here (not WhereUI) because it references `LogDayIntent`; the card body
-/// stays a plain WhereUI view.
+/// The card the snippet renders: the WhereUI day-count card plus — for the
+/// current year — a `Button(intent:)` that logs today for the region. The
+/// interactive wrapper lives here (not WhereUI) because it references
+/// `LogDayIntent`; the card body stays a plain WhereUI view.
 struct DaysInRegionInteractiveSnippet: View {
     let snapshot: DaysInRegionSnapshot
     let region: RegionEntity
+    let canLogToday: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             DaysInRegionSnippetView(snapshot: snapshot)
-            Button(intent: LogDayIntent(regions: [region])) {
-                Label {
-                    Text(IntentStrings.logTodayHere)
-                } icon: {
-                    Image(systemName: "plus.circle.fill")
+            if canLogToday {
+                Button(intent: LogDayIntent(regions: [region])) {
+                    Label {
+                        Text(IntentStrings.logTodayHere)
+                    } icon: {
+                        Image(systemName: "plus.circle.fill")
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.borderedProminent)
+                .tint(snapshot.region.style.tint)
+                .padding(.horizontal)
+                .padding(.bottom)
             }
-            .buttonStyle(.borderedProminent)
-            .tint(snapshot.region.style.tint)
-            .padding(.horizontal)
-            .padding(.bottom)
         }
         .whereBroadwayRoot()
     }

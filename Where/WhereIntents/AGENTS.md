@@ -31,8 +31,16 @@ layering, localization, and the WhereUI duplicate-metadata rule).
 - **Intents never start GPS.** `WhereServices.forIntents()` wires
   `IdleLocationSource`; a manual entry logged from an intent records a
   `ManualEntryAudit` with a "Logged with Siri" note and no captured location.
-- **Reads open the shared App Group store** (`.localOnly`, matching the share
-  extension); the running app observes the write via `.NSPersistentStoreRemoteChange`.
+- **Resolve services through `IntentServices.shared`, not `forIntents()`
+  directly.** It caches one `WhereServices` per process so repeated intent runs
+  and snippet reloads share a single App Group store (`.localOnly`, matching the
+  share extension) — which also makes a `LogDayIntent` write immediately visible
+  when the day-count snippet reloads. The running app observes the write via
+  `.NSPersistentStoreRemoteChange`.
+- **Use `Calendar.whereIntents` for all year/day math**, never `Calendar.current`
+  — it's Gregorian in the current time zone, matching `DayAggregator()`, so a
+  spoken "this year" lines up with the aggregated report even on a non-Gregorian
+  device calendar. `Calendar+WhereIntentsTests` guards the alignment.
 - **Snippet `perform()` is side-effect-free and re-run on reload.** The
   interactive `DaysInRegionSnippetIntent.perform()` only re-reads and re-renders;
   its `Button(intent:)` runs a separate action intent (`LogDayIntent`) that

@@ -34,7 +34,7 @@ public struct LogTripIntent: AppIntent {
         guard !regionSet.isEmpty else {
             return .result(dialog: IntentDialog("\(IntentStrings.chooseRegions())"))
         }
-        let services = try WhereServices.forIntents()
+        let services = try await IntentServices.shared.current()
         let dayCount = try await WhereIntentWriter(services: services)
             .logTrip(from: startDate, through: endDate, regions: regionSet)
         guard dayCount > 0 else {

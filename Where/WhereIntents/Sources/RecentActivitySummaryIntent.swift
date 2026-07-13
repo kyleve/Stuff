@@ -25,7 +25,7 @@ public struct RecentActivitySummaryIntent: AppIntent {
     private static let logger = WhereLog.channel(.whereIntents)
 
     public func perform() async throws -> some IntentResult & ProvidesDialog {
-        let services = try WhereServices.forIntents()
+        let services = try await IntentServices.shared.current()
         let reader = WhereIntentReader(services: services)
         do {
             let summary = try await reader.recentActivity(window.window)

@@ -18,7 +18,7 @@ public struct TodayRegionsIntent: AppIntent {
 
     @MainActor
     public func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
-        let services = try WhereServices.forIntents()
+        let services = try await IntentServices.shared.current()
         let regions = try await WhereIntentReader(services: services).todayRegions()
         let ordered = orderedRegions(regions)
         return .result(

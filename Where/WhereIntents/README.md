@@ -4,11 +4,14 @@ The **Where** App Intents layer: it brings Where's region / day-count data and
 manual day logging to **Siri**, **Spotlight**, and the **Shortcuts app**, and
 presents results as interactive snippet cards.
 
-Intents are thin adapters. They open the shared App Group store through
+Intents are thin adapters. They resolve a process-cached `WhereServices`
+(`IntentServices.shared`, backed by
 [`WhereServices.forIntents()`](../WhereCore/Sources/WhereServices+Intents.swift)
-(no GPS is started — see `WhereCore`'s `IdleLocationSource`), do their read/write
-through the existing `WhereServices` collaborators (`reports`, `recentActivity`,
-`journal`), and render with [`WhereUI`](../WhereUI/) snippet views. The
+— the shared App Group store, no GPS started via `WhereCore`'s
+`IdleLocationSource`), do their read/write through the existing collaborators
+(`reports`, `recentActivity`, `journal`) using a Gregorian calendar
+(`Calendar.whereIntents`, matching the domain's aggregation so year/day math
+lines up), and render with [`WhereUI`](../WhereUI/) snippet views. The
 `AppShortcutsProvider` that gives Siri its spoken phrases lives in the **Where**
 app target (`WhereShortcuts`), not here, so App Intents metadata extraction
 always discovers it.

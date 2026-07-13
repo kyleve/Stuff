@@ -25,7 +25,7 @@ public struct RegionOnDateIntent: AppIntent {
 
     @MainActor
     public func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
-        let services = try WhereServices.forIntents()
+        let services = try await IntentServices.shared.current()
         let regions = try await WhereIntentReader(services: services).regions(on: date)
         let ordered = orderedRegions(regions)
         return .result(
@@ -33,10 +33,4 @@ public struct RegionOnDateIntent: AppIntent {
             view: RegionsSnippetView.onDate(date, regions: ordered).whereBroadwayRoot(),
         )
     }
-}
-
-/// The regions in `Region.allCases` declaration order, so multi-region output
-/// (entities and dialog) is stable.
-func orderedRegions(_ regions: Set<Region>) -> [Region] {
-    Region.allCases.filter(regions.contains)
 }

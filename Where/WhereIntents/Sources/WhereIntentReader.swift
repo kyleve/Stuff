@@ -9,7 +9,7 @@ import WhereCore
 /// the intents delegate to.
 struct WhereIntentReader {
     let services: WhereServices
-    var calendar = Calendar.current
+    var calendar = Calendar.whereIntents
     var now: @Sendable () -> Date = { Date() }
     /// The published widget snapshot to use for the `todayRegions()` fast path.
     /// Defaults to reading the shared App Group file; tests inject a value (or
