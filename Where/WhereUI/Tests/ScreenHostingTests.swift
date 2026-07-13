@@ -179,7 +179,33 @@ struct ScreenHostingTests {
         }
     }
 
-    @Test func loggedDayEditorHostsAdditiveAndAuthoritative() throws {
+    @Test func manualDayViewHostsAddModes() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        for showsCancel in [false, true] {
+            let rootView = NavigationStack {
+                ManualDayView(
+                    report: report,
+                    mode: .add(prefill: nil),
+                    showsCancelButton: showsCancel,
+                )
+            }
+            try show(UIHostingController(rootView: rootView)) { hosted in
+                #expect(hosted.view != nil)
+            }
+        }
+
+        // Prefilled-range add (the Resolve backfill flow).
+        let missing = PreviewSupport.missingDaysYearReportModel()
+        let range = try #require(missing.missingDays.first)
+        let prefilled = NavigationStack {
+            ManualDayView(report: missing, mode: .add(prefill: range))
+        }
+        try show(UIHostingController(rootView: prefilled)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func manualDayViewHostsEditModes() throws {
         let report = PreviewSupport.loadedYearReportModel()
         let days = [
             DayPresence(date: .now, regions: [.california]),
@@ -191,37 +217,12 @@ struct ScreenHostingTests {
             ),
         ]
         for day in days {
-            let rootView = NavigationStack { LoggedDayEditorView(day: day, report: report) }
+            let rootView = NavigationStack {
+                ManualDayView(report: report, mode: .edit(day), showsCancelButton: true)
+            }
             try show(UIHostingController(rootView: rootView)) { hosted in
                 #expect(hosted.view != nil)
             }
-        }
-    }
-
-    @Test func manualDayEntryViewHostsDefault() throws {
-        let report = PreviewSupport.loadedYearReportModel()
-        let rootView = NavigationStack { ManualDayEntryView(report: report) }
-        try show(UIHostingController(rootView: rootView)) { hosted in
-            #expect(hosted.view != nil)
-        }
-    }
-
-    @Test func manualDayEntryViewHostsWithCancelButton() throws {
-        let report = PreviewSupport.loadedYearReportModel()
-        let rootView = NavigationStack {
-            ManualDayEntryView(report: report, showsCancelButton: true)
-        }
-        try show(UIHostingController(rootView: rootView)) { hosted in
-            #expect(hosted.view != nil)
-        }
-    }
-
-    @Test func manualDayEntryViewHostsPrefill() throws {
-        let report = PreviewSupport.missingDaysYearReportModel()
-        let range = try #require(report.missingDays.first)
-        let rootView = NavigationStack { ManualDayEntryView(report: report, prefill: range) }
-        try show(UIHostingController(rootView: rootView)) { hosted in
-            #expect(hosted.view != nil)
         }
     }
 

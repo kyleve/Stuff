@@ -71,12 +71,12 @@ struct LoggedDaysView: View {
         .task { await model.observe(year: report.selectedYear) }
         .sheet(isPresented: $showingAdd) {
             NavigationStack {
-                ManualDayEntryView(report: report, showsCancelButton: true)
+                ManualDayView(report: report, mode: .add(prefill: nil), showsCancelButton: true)
             }
         }
         .sheet(item: $editTarget) { target in
             NavigationStack {
-                LoggedDayEditorView(day: target.day, report: report)
+                ManualDayView(report: report, mode: .edit(target.day), showsCancelButton: true)
             }
         }
         .alert(
