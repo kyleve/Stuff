@@ -159,6 +159,17 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   When adding behavior, default to Core (+ view-model glue if the UI needs a
   trigger or observable mirror); push logic into a `View` only for presentation.
   See [`Where/AGENTS.md`](Where/AGENTS.md#layering).
+- **Reuse before you duplicate.** Before adding a new view / form / component
+  (or any type), look for an existing one covering the same concept and *extend*
+  it — a new mode or parameter, or a shared subview — rather than forking a
+  near-copy. Two screens that differ only in a few sections (e.g. *add* vs.
+  *edit* of the same thing) should be **one view with a mode**, not parallel
+  files; shared chrome (a save-error alert, a region-toggle section, an audit
+  block) becomes a shared subview, not copy-paste. If a planned addition would
+  substantially overlap existing UI and consolidating vs. forking isn't clearly
+  right, **flag it and align before building** rather than shipping the
+  duplicate. (This is the reflex behind `ManualDayView`'s add/edit modes and the
+  shared `ManualEntryAuditSection`.)
 - **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
   arguments so new behavior isn't silently opted into. Reserve defaults for
   SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
@@ -268,6 +279,29 @@ comments and surrounding code to write that summary is expected; the gate is on
 editing and pushing, not on understanding. Once the user points you at feedback
 (names comments, says "address these", etc.), that's your go-ahead — do the
 work end to end without re-asking per comment.
+
+## Debugging build/test/CI failures
+
+**Check `git status` and recent history first — before analyzing the error.** A
+baffling build/test failure (a module that won't resolve, a symbol that
+vanished, a type that stopped conforming) is often a *logical conflict with a
+recent `main` change*, not your own edits or a broken toolchain.
+
+- Run `git status -sb` and `git log --oneline -15`: confirm which branch you're
+  on and whether a **merge of `main` you didn't make** is already in the history
+  (a teammate, tooling, or a rebase may have landed one). `git merge-base
+  --is-ancestor <main-sha> HEAD` answers "is that commit already in my branch?".
+- Skim recent `main` commits (`git log origin/main`) for **structural changes**
+  — a renamed/moved/deleted module or target, relocated test scaffolding, a
+  changed shared helper — then check whether the failing file still references
+  the old shape. That's usually the fix.
+- **CI merges `main` into the branch before it runs**, so green-locally /
+  red-on-CI almost always means `main` moved. Reproduce by merging (or rebasing)
+  the latest `main` into the branch locally, then rebuild — don't debug CI
+  against a stale base.
+- Only after ruling the above out should you reach for heavier remedies
+  (clearing DerivedData / module caches, regenerating the project). Wiping
+  caches to chase a logical conflict just adds cold-build noise.
 
 ## Waiting on CI
 
