@@ -15,10 +15,11 @@ iOS test host and build scaffolding are Stuff's.
   own and propagate `BContext` (`BRootViewController` and its SwiftUI-native
   counterpart `BRootView` / `.broadwayRoot(themes:)`,
   `BTraitOverridesViewController`). Depends on BroadwayCore.
-- **BroadwayTesting** ([BroadwayTesting/](BroadwayTesting/)) — UIKit test
-  helpers (`show`, `waitFor`, ...) for hosted Swift Testing bundles.
 - **BroadwayCatalog** ([BroadwayCatalog/](BroadwayCatalog/)) — a showcase app
   for BroadwayUI components.
+
+UIKit hosting helpers (`show`, `waitFor`, …) for Broadway's hosted Swift Testing
+bundles live in the shared [`TestHostSupport`](../TestHostSupport) module.
 
 ## Build & test
 

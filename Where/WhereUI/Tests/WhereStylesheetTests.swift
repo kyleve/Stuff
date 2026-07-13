@@ -2,9 +2,9 @@ import BroadwayCore
 import BroadwayUI
 import CoreGraphics
 import SwiftUI
+import TestHostSupport
 import Testing
 import UIKit
-import WhereTesting
 @testable import WhereUI
 
 /// `WhereStylesheet` currently ships the fixed geometry migrated from the former

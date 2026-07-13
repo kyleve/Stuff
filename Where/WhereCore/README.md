@@ -136,3 +136,7 @@ Use `SwiftDataStore.inMemory()` + `ScriptedLocationSource` — never the
 on-disk/CloudKit store or `CoreLocationSource`. The CloudKit remote-import path
 is exercised via the `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`.
+
+`InMemoryKeyValueStore` — a `KeyValueStore` test double for `WherePreferences` —
+also ships here behind `@_spi(Testing)` (`#if DEBUG`); import it into test bundles
+with `@_spi(Testing) import WhereCore`.

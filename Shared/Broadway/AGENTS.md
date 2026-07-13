@@ -12,12 +12,14 @@ formatting, and global conventions. Read that first.
 
 - **BroadwayCore** — foundation types (Foundation + UIKit). No sibling deps.
 - **BroadwayUI** — components (SwiftUI + UIKit). Depends on BroadwayCore.
-- **BroadwayTesting** — UIKit test helpers for hosted bundles. Test-only.
 - **BroadwayCatalog** — showcase app. Depends on BroadwayUI.
 
+UIKit hosting helpers for Broadway's hosted test bundles live in the shared
+[`TestHostSupport`](../TestHostSupport) module (not a Broadway module).
+
 Libraries live in [`Package.swift`](../../Package.swift); the app + hosted test
-bundles in [`Project.swift`](../../Project.swift) (the `broadwayUnitTests`
-helper, `com.stuff.broadway.*` bundle IDs).
+bundles in [`Project.swift`](../../Project.swift) (the shared `unitTests` helper,
+`com.stuff.broadway.*` bundle IDs).
 
 ## Invariants an agent can't re-derive
 
@@ -27,12 +29,14 @@ helper, `com.stuff.broadway.*` bundle IDs).
 - **`BRootViewController` defers setup** — child creation, trait observation,
   and context are wired on `viewIsAppearing`, so `context` is `nil` before the
   controller enters a valid hierarchy.
-- **Broadway tests run in the shared `StuffTestHost`.** `BroadwayTesting.show`
-  finds the host window via scene enumeration (`hostKeyWindow()`), not the app
-  delegate — don't reintroduce a `UIApplication.shared.delegate?.window` lookup.
+- **Broadway tests run in the shared `StuffTestHost`** via `TestHostSupport`
+  (`show`, `hostKeyWindow`). The host stamps its window with
+  `isMainTestHostWindow` and `hostKeyWindow()` selects only that window — don't
+  reintroduce a "first key window" or `UIApplication.shared.delegate?.window`
+  lookup.
 
 ## Testing
 
 Hosted Swift Testing bundles (`BroadwayCoreTests`, `BroadwayUITests`,
-`BroadwayCatalogTests`) run in `StuffTestHost` and link `BroadwayTesting`. 1:1
+`BroadwayCatalogTests`) run in `StuffTestHost` and link `TestHostSupport`. 1:1
 test files per the root rules.

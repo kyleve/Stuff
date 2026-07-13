@@ -13,13 +13,12 @@ let package = Package(
         .library(name: "LogKit", targets: ["LogKit"]),
         .library(name: "LogViewerUI", targets: ["LogViewerUI"]),
         .library(name: "SwiftDataInspector", targets: ["SwiftDataInspector"]),
+        .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
         .library(name: "RegionKit", targets: ["RegionKit"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
-        .library(name: "WhereTesting", targets: ["WhereTesting"]),
         .library(name: "BroadwayCore", targets: ["BroadwayCore"]),
         .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
-        .library(name: "BroadwayTesting", targets: ["BroadwayTesting"]),
     ],
     dependencies: [
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
@@ -50,6 +49,10 @@ let package = Package(
         .target(
             name: "SwiftDataInspector",
             path: "Shared/SwiftDataInspector/Sources",
+        ),
+        .target(
+            name: "TestHostSupport",
+            path: "Shared/TestHostSupport/Sources",
         ),
         .target(
             name: "RegionKit",
@@ -91,13 +94,6 @@ let package = Package(
             ],
         ),
         .target(
-            name: "WhereTesting",
-            dependencies: [
-                .target(name: "WhereCore"),
-            ],
-            path: "Where/WhereTesting/Sources",
-        ),
-        .target(
             name: "BroadwayCore",
             path: "Shared/Broadway/BroadwayCore/Sources",
         ),
@@ -107,13 +103,6 @@ let package = Package(
                 .target(name: "BroadwayCore"),
             ],
             path: "Shared/Broadway/BroadwayUI/Sources",
-        ),
-        .target(
-            name: "BroadwayTesting",
-            dependencies: [
-                .target(name: "BroadwayCore"),
-            ],
-            path: "Shared/Broadway/BroadwayTesting/Sources",
         ),
     ],
 )
