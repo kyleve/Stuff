@@ -140,6 +140,13 @@ literals in SwiftUI `Text` or `errorDescription`.
 
 - **Year bounds are half-open** (`[Jan 1 year, Jan 1 year+1)`); **day ranges
   are inclusive** (`Date.calendarDays(through:in:)`).
+- **The app is Gregorian-only.** All presence data is aggregated in a Gregorian
+  calendar (`DayAggregator()` defaults to Gregorian + current time zone), so any
+  day/year math must use a Gregorian calendar — **never `Calendar.current`**,
+  which on a non-Gregorian device (Buddhist, Japanese-era, …) reports a
+  different year and silently mismatches the stored reports. Use the calendar
+  the owning type vends (below), or a fresh `Calendar(identifier: .gregorian)`
+  with the current time zone (see `Calendar.whereIntents` in WhereIntents).
 - **Inject `Calendar`, don't reach for globals** — the scene's
   `YearReportModel` owns the calendar (Gregorian, current time zone) its
   missing-day math uses; layout types carry the calendar they were built with.
