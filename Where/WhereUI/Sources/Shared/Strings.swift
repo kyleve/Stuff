@@ -1060,6 +1060,16 @@ enum Strings {
         String(localized: "loggedDays.add", defaultValue: "Log a day", bundle: .module)
     }
 
+    /// Navigation title of the logged-day editor sheet.
+    static var loggedDaysEditTitle: String {
+        String(localized: "loggedDays.edit.title", defaultValue: "Edit day", bundle: .module)
+    }
+
+    /// Leading label for the (fixed) date row in the logged-day editor.
+    static var loggedDaysEditDate: String {
+        String(localized: "loggedDays.edit.date", defaultValue: "Day", bundle: .module)
+    }
+
     static var loggedDaysEmptyTitle: String {
         String(localized: "loggedDays.empty.title", defaultValue: "No logged days", bundle: .module)
     }

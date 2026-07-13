@@ -66,6 +66,37 @@ struct LoggedDaysModelTests {
         #expect(!days[1].isAuthoritative)
     }
 
+    @Test func reloadReflectsADeletedEntry() async throws {
+        let services = try makeServices()
+        try await services.journal.addManualDay(
+            date: Self.date(2026, 2, 10),
+            regions: [.california],
+            audit: nil,
+        )
+        try await services.journal.addManualDay(
+            date: Self.date(2026, 6, 4),
+            regions: [.newYork],
+            audit: nil,
+        )
+        let model = LoggedDaysModel(services: services)
+        await model.load(for: 2026)
+        guard case let .loaded(before) = model.loadState else {
+            Issue.record("expected loaded, got \(model.loadState)")
+            return
+        }
+        #expect(before.count == 2)
+
+        try await services.journal.clearManualDays(dates: [Self.date(2026, 2, 10)])
+        await model.load(for: 2026)
+
+        guard case let .loaded(after) = model.loadState else {
+            Issue.record("expected loaded, got \(model.loadState)")
+            return
+        }
+        #expect(after.count == 1)
+        #expect(after.first?.regions == [.newYork])
+    }
+
     @Test func loadExcludesOtherYears() async throws {
         let services = try makeServices()
         try await services.journal.addManualDay(

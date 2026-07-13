@@ -179,9 +179,38 @@ struct ScreenHostingTests {
         }
     }
 
+    @Test func loggedDayEditorHostsAdditiveAndAuthoritative() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let days = [
+            DayPresence(date: .now, regions: [.california]),
+            DayPresence(
+                date: .now,
+                regions: [.canada],
+                isAuthoritative: true,
+                audit: ManualEntryAudit(recordedAt: .now, note: "Boarding pass.", location: nil),
+            ),
+        ]
+        for day in days {
+            let rootView = NavigationStack { LoggedDayEditorView(day: day, report: report) }
+            try show(UIHostingController(rootView: rootView)) { hosted in
+                #expect(hosted.view != nil)
+            }
+        }
+    }
+
     @Test func manualDayEntryViewHostsDefault() throws {
         let report = PreviewSupport.loadedYearReportModel()
         let rootView = NavigationStack { ManualDayEntryView(report: report) }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func manualDayEntryViewHostsWithCancelButton() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let rootView = NavigationStack {
+            ManualDayEntryView(report: report, showsCancelButton: true)
+        }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }

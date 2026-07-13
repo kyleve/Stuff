@@ -8,6 +8,11 @@ import WhereCore
 struct ManualDayEntryView: View {
     let report: YearReportModel
 
+    /// When presented modally (the logged-days list's "+"), the form needs its
+    /// own Cancel button to dismiss without saving. Pushed contexts (the Resolve
+    /// backfill flow) rely on the navigation back button, so it defaults off.
+    let showsCancelButton: Bool
+
     @Environment(\.dismiss) private var dismiss
 
     private enum EntryMode: Hashable, CaseIterable, Identifiable {
@@ -36,8 +41,13 @@ struct ManualDayEntryView: View {
 
     /// Open with the dates (and single-day vs range mode) preselected — used by
     /// the backfill flow so tapping a missing range lands on a populated form.
-    init(report: YearReportModel, prefill: MissingDayRange? = nil) {
+    init(
+        report: YearReportModel,
+        prefill: MissingDayRange? = nil,
+        showsCancelButton: Bool = false,
+    ) {
         self.report = report
+        self.showsCancelButton = showsCancelButton
         guard let prefill else { return }
         _mode = State(initialValue: prefill.dayCount > 1 ? .range : .singleDay)
         _startDate = State(initialValue: prefill.start)
@@ -115,6 +125,12 @@ struct ManualDayEntryView: View {
             if endDate < newValue { endDate = newValue }
         }
         .toolbar {
+            if showsCancelButton {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(Strings.commonCancel) { dismiss() }
+                        .disabled(isSaving)
+                }
+            }
             ToolbarItem(placement: .confirmationAction) {
                 if isSaving {
                     ProgressView()

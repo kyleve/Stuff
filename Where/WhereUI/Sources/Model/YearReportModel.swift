@@ -415,6 +415,14 @@ public final class YearReportModel {
         try await services.journal.clearManualDay(date: date)
     }
 
+    /// Undo several days' manual overlays in one transaction (the logged-days
+    /// list's delete). Throws on persistence failure so the caller can surface
+    /// it; the committed write pings the store-change signal, so observers
+    /// re-pull without an inline refresh.
+    public func clearManualDays(dates: [Date]) async throws {
+        try await services.journal.clearManualDays(dates: dates)
+    }
+
     public func clearSelectedYear() async {
         do {
             // The committed write pings the store-change signal, so

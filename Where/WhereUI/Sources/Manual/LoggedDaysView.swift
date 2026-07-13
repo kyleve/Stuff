@@ -3,20 +3,20 @@ import SwiftUI
 import WhereCore
 
 /// A sheet listing every day the user logged or overrode by hand in the selected
-/// year, newest first, with a "+" to log a new one. Tapping a row pushes the
-/// relabel form to correct it; swiping (or edit mode) deletes the entry,
-/// restoring the GPS-derived attribution for that day. Presented from the
-/// Primary tab.
+/// year, newest first, with a "+" to log a new one. Tapping a row opens an editor
+/// to correct it; swiping (or edit mode) deletes the entry, restoring the
+/// GPS-derived attribution for that day. Presented from the Primary tab.
 ///
-/// The list reloads whenever the selected year's report changes (any committed
-/// write re-pulls it) and again after adding or deleting, so a new, edited, or
-/// removed entry appears immediately.
+/// The list stays in sync off the single store-change signal
+/// (`LoggedDaysModel.observe`), so an add, edit, or delete — from here or
+/// anywhere — reloads it.
 struct LoggedDaysView: View {
     let report: YearReportModel
 
     @Environment(\.dismiss) private var dismiss
     @State private var model: LoggedDaysModel
     @State private var showingAdd = false
+    @State private var editTarget: EditTarget?
     @State private var deleteError = SaveErrorAlertState()
 
     init(report: YearReportModel) {
@@ -32,12 +32,14 @@ struct LoggedDaysView: View {
         }
     #endif
 
-    /// Inputs that should trigger a reload: the selected year and the loaded
-    /// report (any committed write in the year re-pulls it, so an edit made in
-    /// the pushed relabel form refreshes the list on return).
-    private struct LoadID: Equatable {
-        let year: Int
-        let report: YearReport?
+    /// Identifies which day's editor to present. `DayPresence` isn't
+    /// `Identifiable`, and `.sheet(item:)` needs identity; a manual entry's
+    /// start-of-day date is unique.
+    private struct EditTarget: Identifiable {
+        let day: DayPresence
+        var id: Date {
+            day.date
+        }
     }
 
     var body: some View {
@@ -60,18 +62,20 @@ struct LoggedDaysView: View {
                         .accessibilityIdentifier("where_add_logged_day_button")
                     }
                 }
-                .navigationDestination(for: DayPresence.self) { day in
-                    DayRelabelView(day: day, report: report)
-                }
-                .navigationDestination(isPresented: $showingAdd) {
-                    ManualDayEntryView(report: report)
-                }
         }
-        .task(id: loadID) { await model.load(for: report.selectedYear) }
-        // The pushed add form commits before it pops; reload on return so a new
-        // entry appears even when it didn't change the aggregated report.
-        .onChange(of: showingAdd) { _, isShowing in
-            if !isShowing { reloadAfterAdd() }
+        // Load, then keep the list current off the single store-change signal —
+        // no per-action reload wiring needed. Runs for the sheet's lifetime and
+        // is cancelled when it closes.
+        .task { await model.observe(year: report.selectedYear) }
+        .sheet(isPresented: $showingAdd) {
+            NavigationStack {
+                ManualDayEntryView(report: report, showsCancelButton: true)
+            }
+        }
+        .sheet(item: $editTarget) { target in
+            NavigationStack {
+                LoggedDayEditorView(day: target.day, report: report)
+            }
         }
         .alert(
             Strings.loggedDaysDeleteErrorTitle,
@@ -83,17 +87,6 @@ struct LoggedDaysView: View {
                 Text(message)
             }
         }
-    }
-
-    private var loadID: LoadID {
-        LoadID(year: report.selectedYear, report: report.report)
-    }
-
-    /// A new entry can land on a day whose aggregated attribution is unchanged
-    /// (an additive backfill of a region GPS already had), leaving `loadID`
-    /// unchanged — so reload explicitly when the add sheet closes.
-    private func reloadAfterAdd() {
-        Task { await model.load(for: report.selectedYear) }
     }
 
     @ViewBuilder
@@ -117,9 +110,12 @@ struct LoggedDaysView: View {
     private func list(_ days: [DayPresence]) -> some View {
         List {
             ForEach(days, id: \.date) { day in
-                NavigationLink(value: day) {
+                Button {
+                    editTarget = EditTarget(day: day)
+                } label: {
                     LoggedDayRow(day: day)
                 }
+                .buttonStyle(.plain)
             }
             .onDelete { offsets in
                 delete(offsets.map { days[$0] })
@@ -139,16 +135,14 @@ struct LoggedDaysView: View {
         }
     }
 
-    /// Delete the given manual entries (restoring GPS attribution for those
-    /// days), then reload. A failure surfaces in an alert and the list keeps its
-    /// rows rather than dropping one that's still stored.
+    /// Delete the given manual entries in one transaction (restoring GPS
+    /// attribution for those days). The list refreshes off the store-change
+    /// signal `observe` watches; a failure surfaces in an alert and the rows
+    /// stay put.
     private func delete(_ days: [DayPresence]) {
         Task {
             do {
-                for day in days {
-                    try await report.clearManualDay(date: day.date)
-                }
-                await model.load(for: report.selectedYear)
+                try await report.clearManualDays(dates: days.map(\.date))
             } catch {
                 deleteError.message = error.localizedDescription
             }
@@ -185,11 +179,16 @@ private struct LoggedDayRow: View {
                 }
             }
             Spacer(minLength: stylesheet.spacing.small)
+            // `fixedSize` keeps the tag at its intrinsic width so long region
+            // lists wrap in the VStack rather than squeezing "Logged"/"Overridden".
             Text(kindText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+                .fixedSize()
         }
         .padding(.vertical, stylesheet.spacing.xxSmall)
+        // Make the whole row (including the spacer) tap into the edit sheet.
+        .contentShape(.rect)
         .accessibilityElement(children: .combine)
     }
 

@@ -31,6 +31,17 @@ public final class LoggedDaysModel {
         self.services = services
     }
 
+    /// Load the year's manual days, then keep the list in sync by reloading on
+    /// every committed store change — an add, edit, or delete from this screen
+    /// or anywhere (the single read-refresh signal, `dataChangeUpdates()`). Runs
+    /// until the calling `.task` is cancelled (the sheet closes).
+    public func observe(year: Int) async {
+        await load(for: year)
+        for await _ in services.dataChangeUpdates() {
+            await load(for: year)
+        }
+    }
+
     /// Load (or reload) the manual days logged for `year`, newest first. Maps an
     /// empty result to `.empty` and a failure to `.failed(_)` + a logged warning,
     /// keeping the two honestly distinct.

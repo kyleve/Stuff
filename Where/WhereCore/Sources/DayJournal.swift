@@ -124,6 +124,27 @@ public actor DayJournal {
         )
     }
 
+    /// Drop the manual overlays for several calendar days in one transaction
+    /// (the logged-days list's swipe / multi-delete), restoring each day's
+    /// GPS-derived attribution. Keys are normalized to start-of-day; a day with
+    /// no manual record is silently skipped by the store. An empty input is a
+    /// no-op (no transaction, no reconcile). Batching keeps the reconcile +
+    /// widget publish to once for the whole delete rather than once per day.
+    public func clearManualDays(dates: [Date]) async throws {
+        guard !dates.isEmpty else { return }
+        let keys = dates.map { aggregator.calendar.startOfDay(for: $0) }
+        try await store.perform {
+            for key in keys {
+                try await store.clearManualDay(key)
+            }
+        }
+        await issueScanner.invalidate()
+        await reminders.reconcile()
+        await issueAlerts.reconcile()
+        await widgets.publish()
+        Self.logger.info("Cleared manual overlays for \(keys.count) day(s)")
+    }
+
     /// Assert `regions` for every calendar day in the inclusive range
     /// `start...end` (handy for backfilling a trip). Both bounds are normalized
     /// to start-of-day in the aggregator's calendar, and the whole range is
