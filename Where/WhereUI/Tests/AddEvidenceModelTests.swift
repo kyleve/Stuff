@@ -1,7 +1,7 @@
 import Foundation
+import TestHostSupport
 import Testing
 import WhereCore
-import WhereTesting
 @testable import WhereUI
 
 /// Covers `AddEvidenceModel`: how the form fields map into an `Evidence` value

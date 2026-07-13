@@ -62,4 +62,7 @@ Drive collaborators against `SwiftDataStore.inMemory()` + `ScriptedLocationSourc
 — never the on-disk/CloudKit store or `CoreLocationSource`. The CloudKit
 remote-import path uses the `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`. Internal types are reached via
-`@testable import WhereCore`.
+`@testable import WhereCore`. `InMemoryKeyValueStore` (the `KeyValueStore` test
+double) ships here behind `@_spi(Testing)` + `#if DEBUG` — not in a test-only
+module — so it never ships in release; test bundles get it with
+`@_spi(Testing) import WhereCore`.

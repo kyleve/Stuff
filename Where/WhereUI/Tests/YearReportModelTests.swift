@@ -1,7 +1,7 @@
 import Foundation
+import TestHostSupport
 import Testing
-import WhereCore
-import WhereTesting
+@_spi(Testing) import WhereCore
 @testable import WhereUI
 
 /// Covers `YearReportModel`: the year report load (out-of-order year fetches, failed

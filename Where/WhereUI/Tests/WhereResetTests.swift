@@ -1,8 +1,8 @@
 import Foundation
 import LifecycleKit
+import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
-import WhereTesting
 import WhereUI
 
 private struct WaitTimeout: Error {}

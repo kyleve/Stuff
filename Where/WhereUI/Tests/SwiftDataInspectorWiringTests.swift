@@ -1,9 +1,9 @@
 import Foundation
 import SwiftDataInspector
 import SwiftUI
+import TestHostSupport
 import Testing
 import WhereCore
-import WhereTesting
 @testable import WhereUI
 
 /// Verifies the DEBUG-only SwiftData inspector entry point is wired to the live

@@ -113,7 +113,7 @@ the happy path. See the feature
 ## Testing
 
 Swift Testing in [`Tests/`](Tests) (`WhereUITests`), hosted in `StuffTestHost`
-and linking `WhereTesting` (`show(_:perform:)`, `waitFor`). View models are
+and linking `TestHostSupport` (`show(_:perform:)`, `waitFor`). View models are
 driven against a `ScriptedLocationSource` + in-memory `SwiftDataStore` (never
 the on-disk/CloudKit store); hosting tests mount views for their key states.
 Internal types are reached via `@testable import WhereUI`.

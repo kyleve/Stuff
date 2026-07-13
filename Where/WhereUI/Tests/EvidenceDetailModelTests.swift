@@ -1,7 +1,7 @@
 import Foundation
+import TestHostSupport
 import Testing
 import WhereCore
-import WhereTesting
 @testable import WhereUI
 
 /// Covers `EvidenceDetailModel`'s blob load, distinguishing a stored attachment

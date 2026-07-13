@@ -1,7 +1,7 @@
 import BroadwayCore
-import BroadwayTesting
 @testable import BroadwayUI
 import SwiftUI
+import TestHostSupport
 import Testing
 import UIKit
 

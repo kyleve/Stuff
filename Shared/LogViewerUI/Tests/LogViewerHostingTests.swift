@@ -1,9 +1,9 @@
 @_spi(Testing) import LogKit
 import LogViewerUI
 import SwiftUI
+import TestHostSupport
 import Testing
 import UIKit
-import WhereTesting
 
 private func isViewHosted(_ hosted: UIViewController) -> Bool {
     hosted.parent != nil

@@ -13,8 +13,12 @@ system, formatting, and global conventions. Read that first.
 - **UIKit only** — no feature UI, no SwiftUI entry point, no test assertions
   in production sources.
 - **Key window with root VC.** Hosted tests assume
-  `WhereTesting.hostKeyWindow()` returns a window whose `rootViewController`
+  `TestHostSupport.hostKeyWindow()` returns a window whose `rootViewController`
   is non-nil; don't defer window creation or leave root unset.
+- **`SceneDelegate` stamps the window `isMainTestHostWindow`.**
+  `TestHostSupport.hostKeyWindow()` finds the host window *only* by that marker
+  (not "the first key window"), so the stamp is load-bearing — keep it in
+  `scene(_:willConnectTo:)`.
 - **Scene name matches plist.** `"Default Configuration"` must stay aligned
   between `AppDelegate`, `SceneDelegate`, and the `UIApplicationSceneManifest`
   in `Project.swift`.
@@ -42,4 +46,4 @@ until a slimmer host split is designed.
 
 The host itself has no test target; its invariants are covered by
 `StuffTestHostSmokeTests` (in `LifecycleKitTests`) and every
-`WhereTesting.show` call site.
+`TestHostSupport.show` call site.
