@@ -31,6 +31,14 @@ public struct ReportReader: Sendable {
         )
     }
 
+    /// Every persisted `LocationSample` recorded during `year`, unaggregated, so
+    /// callers that need per-fix timestamps (the speed-based `FlightDayDetector`
+    /// via `DataIssueScanner`) can walk the raw stream rather than the collapsed
+    /// `YearReport`. Ordering is the store's; callers that need chronology sort.
+    public func samples(inYear year: Int) async throws -> [LocationSample] {
+        try await store.samples(in: aggregator.yearInterval(year: year))
+    }
+
     /// The manual-day records (backfills and authoritative overrides) the user
     /// asserted for `year`, so the "logged days" management screen can list,
     /// edit, and delete them. Unlike `yearReport`, these are the raw user

@@ -100,11 +100,16 @@ public actor DataIssueScanner {
         let otherDayCoordinates = Dictionary(
             uniqueKeysWithValues: otherLocations.map { ($0.date, $0.points.map(\.coordinate)) },
         )
+        let daySamples = try await Self.gpsSamplesByDay(
+            reportReader.samples(inYear: year),
+            calendar: calendar,
+        )
         let dismissed = try await reportReader.dismissedIssueKeys()
         let input = DataIssueInput(
             year: year,
             report: report,
             otherDayCoordinates: otherDayCoordinates,
+            daySamples: daySamples,
             primaryRegions: primaryRegions,
             attributor: attributor,
             driftThresholdMeters: driftThresholdMeters,
@@ -154,6 +159,26 @@ public actor DataIssueScanner {
     /// Drop the cache so the next `issues(...)` recomputes regardless of throttle.
     public func invalidate() {
         cache = nil
+    }
+
+    /// Group passive GPS fixes by start-of-day (in `calendar`), each day's
+    /// samples sorted ascending by timestamp, for the speed-based detectors.
+    /// Manual and evidence-implied samples are dropped: their timestamps are
+    /// user-asserted, so a speed computed across them would be meaningless.
+    private static func gpsSamplesByDay(
+        _ samples: [LocationSample],
+        calendar: Calendar,
+    ) -> [Date: [LocationSample]] {
+        var byDay: [Date: [LocationSample]] = [:]
+        for sample in samples {
+            switch sample.source {
+                case .gpsVisit, .gpsSignificantChange:
+                    byDay[calendar.startOfDay(for: sample.timestamp), default: []].append(sample)
+                case .manual, .evidenceImplied:
+                    continue
+            }
+        }
+        return byDay.mapValues { $0.sorted { $0.timestamp < $1.timestamp } }
     }
 
     private static func sortIssues(_ issues: [any DataIssue]) -> [any DataIssue] {
