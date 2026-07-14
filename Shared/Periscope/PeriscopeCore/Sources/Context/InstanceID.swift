@@ -8,17 +8,18 @@ public struct InstanceID: Hashable, Sendable, CustomDebugStringConvertible {
     /// Pointer identity of the instance.
     let object: ObjectIdentifier
 
-    /// Identity of the instance's dynamic type.
-    let typeID: ObjectIdentifier
+    /// The instance's dynamic type.
+    public let type: Any.Type
 
-    /// The dynamic type's name, e.g. `"PhotoController"`.
-    public let typeName: String
+    /// The dynamic type's name, e.g. `"PhotoController"` — derived on
+    /// demand from ``type``.
+    public var typeName: String {
+        String(describing: type)
+    }
 
     public init(of instance: AnyObject) {
         object = ObjectIdentifier(instance)
-        let dynamicType = type(of: instance)
-        typeID = ObjectIdentifier(dynamicType)
-        typeName = String(describing: dynamicType)
+        type = Swift.type(of: instance)
     }
 
     public var debugDescription: String {
@@ -26,11 +27,11 @@ public struct InstanceID: Hashable, Sendable, CustomDebugStringConvertible {
     }
 
     public static func == (lhs: InstanceID, rhs: InstanceID) -> Bool {
-        lhs.object == rhs.object && lhs.typeID == rhs.typeID
+        lhs.object == rhs.object && ObjectIdentifier(lhs.type) == ObjectIdentifier(rhs.type)
     }
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(object)
-        hasher.combine(typeID)
+        hasher.combine(ObjectIdentifier(type))
     }
 }

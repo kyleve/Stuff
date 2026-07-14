@@ -27,6 +27,7 @@ struct InstanceIDTests {
         let id = InstanceID(of: FirstFixture())
         #expect(id.debugDescription.hasPrefix("FirstFixture@0x"))
         #expect(id.typeName == "FirstFixture")
+        #expect(id.type == FirstFixture.self)
     }
 
     @Test func worksAsADictionaryKey() {
