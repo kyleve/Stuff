@@ -17,6 +17,7 @@ let package = Package(
         .library(name: "RegionKit", targets: ["RegionKit"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
+        .library(name: "WhereIntents", targets: ["WhereIntents"]),
         .library(name: "BroadwayCore", targets: ["BroadwayCore"]),
         .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
     ],
@@ -89,6 +90,19 @@ let package = Package(
                 .target(name: "SwiftDataInspector"),
             ],
             path: "Where/WhereUI/Sources",
+            resources: [
+                .process("Resources"),
+            ],
+        ),
+        .target(
+            name: "WhereIntents",
+            dependencies: [
+                .target(name: "LogKit"),
+                .target(name: "RegionKit"),
+                .target(name: "WhereCore"),
+                .target(name: "WhereUI"),
+            ],
+            path: "Where/WhereIntents/Sources",
             resources: [
                 .process("Resources"),
             ],

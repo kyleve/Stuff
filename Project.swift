@@ -97,6 +97,7 @@ let project = Project(
                 .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
+                .package(product: "WhereIntents"),
                 .target(name: "WhereWidgets"),
                 .target(name: "WhereShareExtension"),
             ],
@@ -318,6 +319,18 @@ let project = Project(
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
         ),
+        // WhereIntents depends on WhereUI (a dynamic framework) for its snippet
+        // cards, so — exactly like WhereUITests above — this bundle lists no
+        // `extraPackageProducts`: WhereUI/WhereCore/RegionKit/Broadway all arrive
+        // transitively, and re-listing any of them would land a duplicate copy
+        // that splits the module's type metadata across the WhereUI boundary.
+        // See the root AGENTS.md "Targets" note.
+        unitTests(
+            name: "WhereIntentsTests",
+            bundleIdSuffix: "whereintents",
+            productDependency: "WhereIntents",
+            sources: ["Where/WhereIntents/Tests/**"],
+        ),
         .target(
             name: "BroadwayCatalog",
             destinations: destinations,
@@ -396,6 +409,7 @@ let project = Project(
                 "WhereCoreTests",
                 "WhereTests",
                 "WhereUITests",
+                "WhereIntentsTests",
                 "BroadwayCatalog",
                 "BroadwayCoreTests",
                 "BroadwayUITests",
@@ -411,6 +425,7 @@ let project = Project(
                 "WhereCoreTests",
                 "WhereTests",
                 "WhereUITests",
+                "WhereIntentsTests",
                 "BroadwayCoreTests",
                 "BroadwayUITests",
                 "BroadwayCatalogTests",
@@ -425,6 +440,7 @@ let project = Project(
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
+        testScheme(name: "WhereIntentsTests"),
         testScheme(name: "BroadwayCoreTests"),
         testScheme(name: "BroadwayUITests"),
         testScheme(name: "BroadwayCatalogTests"),

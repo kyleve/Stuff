@@ -37,6 +37,7 @@ public enum WhereLog {
         case session = "WhereSession"
         case shareExtension = "WhereShareExtension"
         case swiftDataStore = "SwiftDataStore"
+        case whereIntents = "WhereIntents"
         case widgetRefresher = "WidgetRefresher"
         case widgetSnapshotPublisher = "WidgetSnapshotPublisher"
         case whereWidgets = "WhereWidgets"
