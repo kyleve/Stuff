@@ -143,7 +143,7 @@ private struct IssueRow: View {
     private var destination: some View {
         switch issue.resolution {
             case let .backfill(range):
-                ManualDayEntryView(report: report, prefill: range)
+                ManualDayView(report: report, mode: .add(prefill: range))
             case let .relabelDay(day, suggested, _):
                 DayRelabelView(day: day, report: report, initialRegions: suggested)
             case .markTravelDay:

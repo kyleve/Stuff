@@ -11,6 +11,7 @@ struct PrimaryView: View {
     @State private var showingCalendar = false
     @State private var showingRecentActivity = false
     @State private var showingEvidence = false
+    @State private var showingLoggedDays = false
     @State private var calendarFocus: CalendarFocus?
 
     /// Drives the region cards' tilt-reactive holographic sheen. Started/stopped
@@ -84,7 +85,15 @@ struct PrimaryView: View {
                         .accessibilityIdentifier("where_evidence_button")
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        YearSelector(report: report)
+                        Button {
+                            showingLoggedDays = true
+                        } label: {
+                            Label(
+                                Strings.primaryLoggedDays,
+                                systemImage: "calendar.badge.plus",
+                            )
+                        }
+                        .accessibilityIdentifier("where_logged_days_button")
                     }
                 }
         }
@@ -101,6 +110,9 @@ struct PrimaryView: View {
         }
         .sheet(isPresented: $showingEvidence) {
             EvidenceListView(report: report)
+        }
+        .sheet(isPresented: $showingLoggedDays) {
+            LoggedDaysView(report: report)
         }
         .sheet(item: $calendarFocus) { focus in
             CalendarView(focusedRegion: focus.region, report: report)
