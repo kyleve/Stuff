@@ -12,6 +12,19 @@ struct SpanExitTests {
         #expect(SpanExit.orphaned.mode == .orphaned)
     }
 
+    @Test func everyModeHasAReasonTakingFactory() {
+        let exits: [SpanExit] = [
+            .success("done"),
+            .failure("card declined"),
+            .cancelled("user backed out"),
+            .superseded("flow restarted"),
+            .expired("gave up"),
+            .orphaned("previous process died"),
+        ]
+        #expect(exits.map(\.mode) == SpanExit.Mode.allCases)
+        #expect(exits.allSatisfy { $0.reason != nil })
+    }
+
     @Test func expiredCarriesItsBudget() {
         let exit = SpanExit.expired(budget: .seconds(30))
         #expect(exit.mode == .expired)

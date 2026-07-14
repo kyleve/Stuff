@@ -47,6 +47,18 @@ public struct SpanExit: Hashable, Codable, Sendable {
         SpanExit(mode: .cancelled, reason: reason)
     }
 
+    public static func superseded(_ reason: String) -> SpanExit {
+        SpanExit(mode: .superseded, reason: reason)
+    }
+
+    public static func orphaned(_ reason: String) -> SpanExit {
+        SpanExit(mode: .orphaned, reason: reason)
+    }
+
+    public static func expired(_ reason: String) -> SpanExit {
+        SpanExit(mode: .expired, reason: reason)
+    }
+
     public static func expired(budget: Duration) -> SpanExit {
         SpanExit(mode: .expired, reason: "exceeded \(budget.formatted()) budget")
     }
