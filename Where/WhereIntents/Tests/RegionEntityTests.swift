@@ -19,7 +19,7 @@ struct RegionEntityTests {
 
     @Test func queryResolvesKnownIdsAndDropsUnknown() async throws {
         let query = RegionEntityQuery()
-        let resolved = try await query.entities(for: ["california", "bogus", "canada"])
+        let resolved = try await query.entities(for: ["us-CA", "bogus", "canada"])
         #expect(resolved.map(\.region) == [.california, .canada])
     }
 

@@ -1,76 +1,96 @@
 import Foundation
 
 /// A geographic region we track presence in for purposes like state-residency
-/// audits. Not US-specific: `.canada` and `.europeanUnion` are first-class.
+/// audits. Not US-specific: Canada and the European Union are first-class, and
+/// any US state (plus DC / PR) is an available region.
 ///
-/// `.other` is the catch-all for any coordinate that doesn't fall inside the
-/// bundled polygons (or for manual day entries where the user wants to
-/// represent "somewhere else").
+/// A `Region` is a thin `Hashable` value wrapping a **stable string id**
+/// (`rawValue`, e.g. `"us-CA"`, `"canada"`) — the identifier used by SwiftData,
+/// `Codable`, and lookup tables. It is **not** user-facing; use `localizedName`.
+/// The set of available regions and each region's metadata (display name,
+/// geometry file) live in ``RegionCatalog``, loaded from the bundled
+/// `regions.json` manifest, so adding a region is a data change, not a new case.
 ///
-/// The `rawValue` strings (`"california"`, `"newYork"`, …) are stable
-/// data identifiers used by SwiftData, Codable, and lookup tables. They
-/// are **not** user-facing — use `localizedName` for anything the UI
-/// renders.
-public enum Region: String, Codable, Sendable, Hashable, CaseIterable {
-    case california
-    case newYork
-    case canada
-    case europeanUnion
-    case other
+/// `.other` is the catch-all for any coordinate outside every loaded region (or
+/// a manual day the user marks as "somewhere else"); it has no geometry and is
+/// not a catalog entry.
+public struct Region: Hashable, Sendable, RawRepresentable {
+    /// The stable data identifier (e.g. `"us-CA"`, `"canada"`). Never shown to
+    /// the user — user-facing labels go through `localizedName`.
+    public let rawValue: String
 
-    /// User-facing name for this region, read from the `RegionKit`
-    /// string catalog (`Resources/Localizable.xcstrings`).
-    ///
-    /// Uses `String(localized:)` with a literal key per case (rather
-    /// than `NSLocalizedString` with a runtime-composed
-    /// `"region.\(rawValue)"`) so Xcode's string-catalog extraction
-    /// tooling can statically find every key. Adding a new region
-    /// case is intentionally a compile error here until you add a
-    /// matching string catalog entry.
+    /// Wraps `rawValue` **without** validating it against the catalog. Used to
+    /// rehydrate stored/decoded ids (which must round-trip even if the catalog
+    /// later changes) and to define the well-known conveniences.
+    init(unchecked rawValue: String) {
+        self.rawValue = rawValue
+    }
+
+    /// Creates a region only if `rawValue` names a catalog region (or is the
+    /// `.other` sentinel), returning `nil` otherwise — matching the former
+    /// enum's failable initializer. Use it for untrusted input (an intent
+    /// parameter, a Spotlight id); rehydrate values the app itself produced
+    /// through the `Codable` path or ``init(unchecked:)`` so a valid stored id
+    /// is never dropped.
+    public init?(rawValue: String) {
+        if rawValue == Region.other.rawValue {
+            self = .other
+        } else if RegionCatalog.shared.contains(id: rawValue) {
+            self.init(unchecked: rawValue)
+        } else {
+            return nil
+        }
+    }
+}
+
+extension Region: Codable {
+    /// Decodes the bare id string **without** catalog validation, so a stored
+    /// region stays honest even if the catalog changes between writes and reads.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        try self.init(unchecked: container.decode(String.self))
+    }
+
+    /// Encodes as the bare id string, so `Set<Region>` / `[Region: Int]` and the
+    /// persisted `regionRaws` round-trip through a single value.
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+}
+
+extension Region {
+    /// User-facing name for this region, resolved through ``RegionCatalog`` (a
+    /// `localizationKey` from the bundled string catalog when present, otherwise
+    /// the manifest's English `name`).
     public var localizedName: String {
-        switch self {
-            case .california:
-                String(localized: "region.california", bundle: .module)
-            case .newYork:
-                String(localized: "region.newYork", bundle: .module)
-            case .canada:
-                String(localized: "region.canada", bundle: .module)
-            case .europeanUnion:
-                String(localized: "region.europeanUnion", bundle: .module)
-            case .other:
-                String(localized: "region.other", bundle: .module)
-        }
+        RegionCatalog.shared.localizedName(for: self)
     }
+}
 
-    /// Where this region's boundary geometry comes from. This is the
-    /// single source of truth that drives `RegionAttributor`'s bundle
-    /// load (and the developer region-map viewer) — collapsing what used
-    /// to be a hardcoded region list plus a separate name table. Like
-    /// `localizedName`, the exhaustive `switch` makes adding a `Region`
-    /// case a compile error until its geometry source is declared here.
-    public var geometrySource: GeometrySource {
-        switch self {
-            case .california: .usStateFeature(name: "California")
-            case .newYork: .usStateFeature(name: "New York")
-            case .canada: .bundledFile
-            case .europeanUnion: .bundledFile
-            case .other: .none
-        }
-    }
+// MARK: - Well-known regions
 
-    /// How a `Region`'s boundary polygons are sourced from bundled
-    /// GeoJSON in `Resources/`.
-    public enum GeometrySource: Hashable, Sendable {
-        /// A feature in the shared `us-states.geojson`, matched by its
-        /// Census `properties.NAME` (the associated value). The name is a
-        /// **data identifier** for matching the bundled file, never shown
-        /// to the user — user-facing labels go through `localizedName`.
-        /// Adding a US state needs no new bundled file.
-        case usStateFeature(name: String)
-        /// A dedicated `<Region.rawValue>.geojson` file (e.g. `.canada`,
-        /// `.europeanUnion`).
-        case bundledFile
-        /// No bundled polygons — the catch-all `.other`.
-        case none
+extension Region {
+    /// The catch-all sentinel: any coordinate outside every loaded region. Has
+    /// no geometry and is not a catalog entry.
+    public static let other = Region(unchecked: "other")
+
+    /// Conveniences for the regions the app has historically tracked, so call
+    /// sites read as naturally as the former enum cases (`.california`). Every
+    /// other available region is reached through ``RegionCatalog``.
+    public static let california = Region(unchecked: "us-CA")
+    public static let newYork = Region(unchecked: "us-NY")
+    public static let canada = Region(unchecked: "canada")
+    public static let europeanUnion = Region(unchecked: "european-union")
+}
+
+// MARK: - CaseIterable compatibility
+
+extension Region: CaseIterable {
+    /// Every available region in canonical (catalog) order, followed by the
+    /// `.other` sentinel. Callers that want only the *available* regions (no
+    /// `.other`) use ``RegionCatalog/all`` directly.
+    public static var allCases: [Region] {
+        RegionCatalog.shared.all + [.other]
     }
 }

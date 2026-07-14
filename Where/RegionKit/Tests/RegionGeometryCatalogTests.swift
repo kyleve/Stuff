@@ -40,15 +40,17 @@ struct RegionGeometryCatalogTests {
         #expect(eu.allSatisfy { $0.title == Region.europeanUnion.localizedName })
     }
 
-    @Test func source_mapsModeledStatesToRegionAndLeavesOthersNil() async throws {
+    @Test func source_tagsEveryStateWithItsRegion() async throws {
         let outlines = try await RegionGeometryCatalog.outlines(for: .source)
         let california = try #require(outlines.first { $0.title == "California" })
         #expect(california.region == .california)
         let newYork = try #require(outlines.first { $0.title == "New York" })
         #expect(newYork.region == .newYork)
-        // A state with no `Region` case is still drawn, just untagged.
+        // Every US state is now a first-class catalog region — no untagged
+        // source features remain.
         let texas = try #require(outlines.first { $0.title == "Texas" })
-        #expect(texas.region == nil)
+        #expect(texas.region == Region(rawValue: "us-TX"))
+        #expect(outlines.allSatisfy { $0.region != nil })
     }
 
     // MARK: - Outline shape

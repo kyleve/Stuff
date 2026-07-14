@@ -135,7 +135,7 @@ struct BackupServiceTests {
     @Test func legacyManualDayWithoutAuthoritativeKeyDecodesAsAdditive() throws {
         // Simulates a manifest written before `isAuthoritative` existed: the
         // missing key must decode as additive rather than failing.
-        let json = #"{"date":"2026-07-04T00:00:00Z","regions":["newYork"]}"#
+        let json = #"{"date":"2026-07-04T00:00:00Z","regions":["us-NY"]}"#
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let decoded = try decoder.decode(DayPresence.self, from: Data(json.utf8))

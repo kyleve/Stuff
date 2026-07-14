@@ -20,6 +20,7 @@ public enum RegionLog {
     public enum Category: String, CaseIterable, Sendable {
         case attributor = "RegionAttributor"
         case geometryCatalog = "RegionGeometryCatalog"
+        case catalog = "RegionCatalog"
     }
 
     /// A logging channel for `category`, wired to the shared buffer.
