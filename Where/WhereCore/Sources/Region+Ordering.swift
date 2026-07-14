@@ -5,12 +5,13 @@ import RegionKit
 /// because it's about the app's presence/day-count domain, not region geometry
 /// or lookup; `RegionKit` stays focused on regions and geofencing.
 extension Region {
-    /// Each region's position in `Region.allCases`. This declaration order is
-    /// the app's canonical tiebreak: whenever two regions compare equal on some
-    /// metric (most often an equal day count), comparisons fall back to it so
-    /// rankings, widget rows, and calendar footers stay deterministic instead of
-    /// riding on `Dictionary` iteration order. Precomputed once rather than
-    /// scanning `allCases.firstIndex(of:)` per comparison.
+    /// Each region's position in the catalog's canonical order (`Region.allCases`
+    /// = the manifest order, then `.other`). This is the app's canonical
+    /// tiebreak: whenever two regions compare equal on some metric (most often an
+    /// equal day count), comparisons fall back to it so rankings, widget rows,
+    /// and calendar footers stay deterministic instead of riding on `Dictionary`
+    /// iteration order. Precomputed once rather than scanning
+    /// `allCases.firstIndex(of:)` per comparison.
     public static let declarationOrder: [Region: Int] = Dictionary(
         uniqueKeysWithValues: Region.allCases.enumerated().map { ($1, $0) },
     )

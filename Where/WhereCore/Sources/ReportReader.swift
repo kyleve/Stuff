@@ -11,7 +11,7 @@ import RegionKit
 public struct ReportReader: Sendable {
     let store: any WhereStore
     let aggregator: DayAggregator
-    let attributor: RegionAttributor
+    let attributor: any RegionAttributing
 
     /// The half-open date interval covering `year` in the aggregator's calendar.
     func yearInterval(year: Int) -> DateInterval {

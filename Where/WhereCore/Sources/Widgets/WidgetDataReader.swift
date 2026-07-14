@@ -37,12 +37,12 @@ public struct WidgetSnapshot: Hashable, Sendable, Codable {
 public struct WidgetDataReader: Sendable {
     private let store: any WhereStore
     private let aggregator: DayAggregator
-    private let attributor: RegionAttributor
+    private let attributor: any RegionAttributing
 
     public init(
         store: any WhereStore,
         aggregator: DayAggregator = DayAggregator(),
-        attributor: RegionAttributor = .shared,
+        attributor: any RegionAttributing = RegionAttributor.shared,
     ) {
         self.store = store
         self.aggregator = aggregator

@@ -30,10 +30,10 @@ struct BackupCoordinatorTests {
             widgetReader: WidgetDataReader(
                 store: store,
                 aggregator: aggregator,
-                attributor: .shared,
+                attributor: RegionAttributor.shared,
             ),
             widgetRefresher: refresher,
-            attributor: .shared,
+            attributor: RegionAttributor.shared,
             calendar: WhereCoreTestSupport.calendar(),
             now: { Date() },
         )

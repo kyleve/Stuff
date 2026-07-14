@@ -12,7 +12,11 @@ struct ReportReaderTests {
             calendar: WhereCoreTestSupport.calendar(),
             timeZone: WhereCoreTestSupport.pacific,
         )
-        let reader = ReportReader(store: store, aggregator: aggregator, attributor: .shared)
+        let reader = ReportReader(
+            store: store,
+            aggregator: aggregator,
+            attributor: RegionAttributor.shared,
+        )
         return (reader, store)
     }
 

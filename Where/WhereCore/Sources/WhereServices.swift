@@ -55,7 +55,7 @@ public struct WhereServices: Sendable {
     public init(
         store: any WhereStore,
         locationSource: any LocationSource,
-        attributor: RegionAttributor = .shared,
+        attributor: any RegionAttributing = RegionAttributor.shared,
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling = UserNotificationReminderScheduler(),
         summaryScheduler: any DailySummaryScheduling = UserNotificationDailySummaryScheduler(),
@@ -178,6 +178,50 @@ public struct WhereServices: Sendable {
         self.recentActivity = recentActivity
         self.store = store
         modelContainer = (store as? SwiftDataStore)?.inspectorContainer
+    }
+
+    /// Assemble services whose attributor is derived from the store's **tracked
+    /// regions** (the synced set the user chose, or the default four) and stays
+    /// live: the returned `RegionAttribution` rebuilds on `store.changes()` when
+    /// that set changes — a local edit or a remote CloudKit import.
+    ///
+    /// Reading the tracked set is why this is `async` where `init` is not: the
+    /// synchronous `init` is for tests/previews (in-memory stores with no tracked
+    /// rows resolve to the default four, matching `RegionAttributor.shared`),
+    /// while production wiring — the app launch and the App Intents process —
+    /// goes through here so both attribute against the *same* stored set.
+    public static func make(
+        store: any WhereStore,
+        locationSource: any LocationSource,
+        aggregator: DayAggregator = DayAggregator(),
+        reminderScheduler: any LoggingReminderScheduling = UserNotificationReminderScheduler(),
+        summaryScheduler: any DailySummaryScheduling = UserNotificationDailySummaryScheduler(),
+        issueAlertScheduler: any DataIssueAlertScheduling =
+            UserNotificationDataIssueAlertScheduler(),
+        widgetRefresher: any WidgetTimelineRefreshing = WidgetCenterTimelineRefresher(),
+        locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
+        activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
+        now: @escaping @Sendable () -> Date = { Date() },
+    ) async throws -> WhereServices {
+        let tracked = try await store.trackedRegions()
+        let attribution = RegionAttribution(
+            store: store,
+            initial: RegionAttributor(for: Array(tracked)),
+            trackedIDs: Set(tracked.map(\.rawValue)),
+        )
+        return WhereServices(
+            store: store,
+            locationSource: locationSource,
+            attributor: attribution,
+            aggregator: aggregator,
+            reminderScheduler: reminderScheduler,
+            summaryScheduler: summaryScheduler,
+            issueAlertScheduler: issueAlertScheduler,
+            widgetRefresher: widgetRefresher,
+            locationOutbox: locationOutbox,
+            activitySummaryGenerator: activitySummaryGenerator,
+            now: now,
+        )
     }
 
     /// A fresh stream that fires whenever persisted data changes — local commits

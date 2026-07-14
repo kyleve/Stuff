@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 
 /// Persistence boundary for the Where feature. Everything that crosses
 /// this protocol is a value type, so callers (the `WhereServices` collaborators)
@@ -90,4 +91,35 @@ public protocol WhereStore: Sendable {
     /// instead of stamping "now". Upserts by `key`. Must run inside
     /// `perform { ... }`. Used by backup import.
     func restoreDismissedIssue(_ issue: DismissedIssue) async throws
+
+    /// The user's tracked regions — the set the app loads geometry for and
+    /// attributes against. Stored as one row per region (so concurrent
+    /// cross-device edits merge rather than clobbering the whole set) and read
+    /// as a `Set`; when the user hasn't chosen any yet, this returns
+    /// ``WhereStore/defaultTrackedRegions``.
+    func trackedRegions() async throws -> Set<Region>
+
+    /// Add (`tracked == true`) or remove (`false`) a single tracked region by
+    /// its `Region.rawValue`. Per-region so two devices adding different regions
+    /// both survive a sync. Must run inside `perform { ... }`.
+    func setTrackedRegion(_ tracked: Bool, id: String) async throws
+}
+
+extension WhereStore {
+    /// Regions tracked out of the box, until the user chooses their own. The
+    /// "no rows yet" fallback for ``trackedRegions()`` and the historical
+    /// California / New York / Canada / European Union set.
+    public static var defaultTrackedRegions: Set<Region> {
+        [.california, .newYork, .canada, .europeanUnion]
+    }
+
+    /// Default: the out-of-the-box set. `SwiftDataStore` overrides this with the
+    /// persisted rows; in-memory test fakes inherit the default.
+    public func trackedRegions() async throws -> Set<Region> {
+        Self.defaultTrackedRegions
+    }
+
+    /// Default: a no-op. `SwiftDataStore` overrides this to persist rows; test
+    /// fakes that don't exercise tracked-region persistence inherit the no-op.
+    public func setTrackedRegion(_: Bool, id _: String) async throws {}
 }

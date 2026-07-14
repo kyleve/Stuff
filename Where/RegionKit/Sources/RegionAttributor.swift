@@ -1,6 +1,20 @@
 import Foundation
 import LogKit
 
+/// A coordinate-to-`Region` lookup engine. Abstracted as a protocol so callers
+/// can hold either an immutable ``RegionAttributor`` snapshot or a live,
+/// swappable attributor (e.g. one WhereCore rebuilds when the user's tracked
+/// regions change) behind the same synchronous API.
+public protocol RegionAttributing: Sendable {
+    /// The region `coordinate` falls inside, or `.other` if none.
+    func region(at coordinate: Coordinate) -> Region
+    /// Smallest distance in meters from `coordinate` to `region`'s boundary, or
+    /// `nil` for a region this attributor didn't load.
+    func distanceToBoundary(of region: Region, from coordinate: Coordinate) -> Double?
+    /// The regions this attributor loaded and attributes to (excludes `.other`).
+    var loadedRegions: [Region] { get }
+}
+
 /// Maps coordinates to the `Region` they fall inside. Backed by a list of
 /// polygons per region, checked in order so the first match wins (regions are
 /// mutually exclusive at our resolution).
@@ -11,11 +25,14 @@ import LogKit
 /// track. The order of the regions passed to ``init(for:)`` fixes the
 /// first-match priority in ``region(at:)``. Anything outside every loaded
 /// region (and `.other` itself, which has no geometry) is `.other`.
-public struct RegionAttributor: Sendable {
+public struct RegionAttributor: RegionAttributing {
     private let regionPolygons: [RegionPolygons]
 
-    /// Attributor for the regions the app has historically tracked. Kept as a
-    /// convenience while the app's tracked set moves into the store; the
+    /// Attributor for the default set of tracked regions (California, New York,
+    /// Canada, the European Union). Production derives its attributor from the
+    /// store's tracked regions via `WhereServices.make(...)`; this snapshot backs
+    /// the synchronous defaults for tests and previews (whose in-memory stores
+    /// resolve to this same default) and the "no tracked rows yet" fallback. The
     /// developer viewer and tests use ``all`` for the whole catalog.
     public static let shared = RegionAttributor(for: [
         .california,
@@ -46,6 +63,11 @@ public struct RegionAttributor: Sendable {
     /// `RegionGeometryCatalog.outlines(for:)`, never raw `RegionPolygons`.
     var loadedRegionPolygons: [RegionPolygons] {
         regionPolygons
+    }
+
+    /// The regions this attributor loaded, in load order (excludes `.other`).
+    public var loadedRegions: [Region] {
+        regionPolygons.map(\.region)
     }
 
     public func region(at coordinate: Coordinate) -> Region {

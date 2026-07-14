@@ -11,7 +11,7 @@ import RegionKit
 /// An `actor` because it holds that cache; composes `ReportReader`.
 public actor DataIssueScanner {
     private let reportReader: ReportReader
-    private let attributor: RegionAttributor
+    private let attributor: any RegionAttributing
     private let calendar: Calendar
     private let now: @Sendable () -> Date
     private let scanInterval: TimeInterval
@@ -40,7 +40,7 @@ public actor DataIssueScanner {
 
     public init(
         reportReader: ReportReader,
-        attributor: RegionAttributor,
+        attributor: any RegionAttributing,
         calendar: Calendar,
         now: @escaping @Sendable () -> Date = { Date() },
         scanInterval: TimeInterval = 3 * 60 * 60,
