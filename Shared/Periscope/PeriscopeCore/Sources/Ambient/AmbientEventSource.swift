@@ -2,8 +2,9 @@ import Foundation
 import os
 
 /// A source of ambient/environmental events. Built-ins cover app lifecycle,
-/// memory warnings, network path, thermal state, and low power mode;
-/// apps conform to add their own (push registration, sync status, …).
+/// memory warnings, network path, thermal state, low power mode, and
+/// accessibility settings; apps conform to add their own (push
+/// registration, sync status, …).
 ///
 /// Sources are registered with ``Periscope/startAmbientSource(_:)``, which
 /// retains them and hands them a logger under the shared ambient scope;
@@ -67,8 +68,8 @@ extension Periscope {
     }
 
     /// Start every built-in ambient source: network path, thermal state,
-    /// low power mode, and (where UIKit exists) app lifecycle and memory
-    /// warnings.
+    /// low power mode, and (where UIKit exists) app lifecycle, memory
+    /// warnings, and accessibility settings.
     public func startDefaultAmbientSources() {
         startAmbientSource(NetworkPathAmbientSource())
         startAmbientSource(ThermalStateAmbientSource())
@@ -76,6 +77,7 @@ extension Periscope {
         #if canImport(UIKit)
             startAmbientSource(AppLifecycleAmbientSource())
             startAmbientSource(MemoryWarningAmbientSource())
+            startAmbientSource(AccessibilityAmbientSource())
         #endif
     }
 }

@@ -26,6 +26,7 @@ extension AmbientKind {
     public static let network = AmbientKind("network")
     public static let thermalState = AmbientKind("thermal-state")
     public static let powerMode = AmbientKind("power-mode")
+    public static let accessibility = AmbientKind("accessibility")
 }
 
 /// The standard event ambient sources emit: environmental context —
