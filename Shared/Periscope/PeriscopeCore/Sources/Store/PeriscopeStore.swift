@@ -231,6 +231,30 @@ public actor PeriscopeStore: LogSink {
             recoverFromFailedWrite()
             writeFailures += 1
             Self.failureLogger.error("Failed to persist \(records.count) log events: \(error)")
+            persistWriteFailureMarker(
+                lostRecordCount: records.count,
+                reason: String(describing: error),
+            )
+        }
+    }
+
+    /// After a rolled-back write, persist a ``StoreWriteFailed`` marker so
+    /// the durable history is honest about its own gap — the batch is gone,
+    /// but the store says so where the viewer can see it. Best-effort: if
+    /// the marker's own tiny save also fails, the OSLog line above is the
+    /// last signal (no recursion).
+    private func persistWriteFailureMarker(lostRecordCount: Int, reason: String) {
+        let marker = LogRecord(
+            date: Date(),
+            event: StoreWriteFailed(lostRecordCount: lostRecordCount, reason: reason),
+            scopes: [],
+        )
+        do {
+            try persist([marker])
+            notifyChanged()
+        } catch {
+            recoverFromFailedWrite()
+            Self.failureLogger.error("Failed to persist the write-failure marker: \(error)")
         }
     }
 

@@ -581,8 +581,15 @@ struct PeriscopeStoreTests {
 
         await store.write([makeRecord("healthy", date: date(2), scopes: [root.id])])
 
+        // The poisoned batch is gone, but the store says so durably: a
+        // StoreWriteFailed marker records the gap's size and cause.
         let events = try await store.events(matching: LogQuery())
-        #expect(events.map(\.message) == ["healthy"])
+        #expect(events.map(\.message).contains("healthy"))
+        #expect(!events.map(\.message).contains("poisoned"))
+        let marker = try #require(events.first { $0.eventName == StoreWriteFailed.eventName })
+        let decoded = try marker.decode(StoreWriteFailed.self)
+        #expect(decoded.lostRecordCount == 1)
+        #expect(decoded.reason.contains("InjectedSaveFailure"))
         #expect(await store.writeFailureCount == 1)
     }
 
