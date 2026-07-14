@@ -217,7 +217,7 @@ struct LogSpanTests {
         let superseded = try #require(recorder.records.first { record in
             (record.event as? SpanEnded)?.exit == .superseded
         })
-        #expect(superseded.tags == [key: "pay_1"])
+        #expect(superseded.tags == [LogTag(key: key, value: "pay_1")])
         #expect(superseded.scopes == original.scopes.map(\.id))
     }
 

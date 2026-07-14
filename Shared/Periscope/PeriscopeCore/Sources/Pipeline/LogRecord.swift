@@ -15,7 +15,7 @@ public struct LogRecord: Sendable, Identifiable {
     public let scopes: [ScopeID]
 
     /// The tags the emitting context had accumulated (see `Log.tagged`).
-    public let tags: [LogTagKey: String]
+    public let tags: [LogTag]
 
     /// Data attached at the call site (see `LogAttachment`).
     public let attachments: [LogAttachment]
@@ -31,7 +31,7 @@ public struct LogRecord: Sendable, Identifiable {
         date: Date,
         event: any LogEvent,
         scopes: [ScopeID],
-        tags: [LogTagKey: String] = [:],
+        tags: [LogTag] = [],
         attachments: [LogAttachment] = [],
     ) {
         self.id = id

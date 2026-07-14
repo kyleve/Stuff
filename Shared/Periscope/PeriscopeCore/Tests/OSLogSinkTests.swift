@@ -39,7 +39,10 @@ struct OSLogSinkTests {
             date: Date(),
             event: Message(level: .info, "hello"),
             scopes: [root.id],
-            tags: [LogTagKey("b-key"): "2", LogTagKey("a-key"): "1"],
+            tags: [
+                LogTag(key: LogTagKey("b-key"), value: "2"),
+                LogTag(key: LogTagKey("a-key"), value: "1"),
+            ],
         )
 
         #expect(sink.formattedMessage(for: record) == "hello {a-key=1, b-key=2}")

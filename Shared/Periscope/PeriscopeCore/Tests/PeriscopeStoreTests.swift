@@ -284,7 +284,7 @@ struct PeriscopeStoreTests {
         name: String,
         relaunch: SpanRelaunchPolicy,
         scope: LogScope,
-        tags: [LogTagKey: String] = [:],
+        tags: [LogTag] = [],
     ) async {
         await store.write([
             LogRecord(
@@ -311,7 +311,7 @@ struct PeriscopeStoreTests {
             name: "checkout",
             relaunch: .endsWithProcess,
             scope: root,
-            tags: [key: "pay_1"],
+            tags: [LogTag(key: key, value: "pay_1")],
         )
 
         // A new session declares the earlier one dead.
@@ -325,7 +325,7 @@ struct PeriscopeStoreTests {
         #expect(orphan.duration == nil)
         #expect(orphan.name == "checkout")
         #expect(orphanRow.scopes == [root.id])
-        #expect(orphanRow.tags == [key: "pay_1"])
+        #expect(orphanRow.tags == [LogTag(key: key, value: "pay_1")])
         #expect(orphanRow.level == .warning)
     }
 
@@ -385,25 +385,89 @@ struct PeriscopeStoreTests {
                 date: date(1),
                 event: Message(level: .info, "for pay_1"),
                 scopes: [root.id],
-                tags: [key: "pay_1"],
+                tags: [LogTag(key: key, value: "pay_1")],
             ),
             LogRecord(
                 date: date(2),
                 event: Message(level: .info, "for pay_2"),
                 scopes: [root.id],
-                tags: [key: "pay_2"],
+                tags: [LogTag(key: key, value: "pay_2")],
             ),
             makeRecord("untagged", date: date(3), scopes: [root.id]),
         ])
 
         var query = LogQuery()
-        query.tag = LogTag(key: key, value: "pay_1")
+        query.tags = [LogTag(key: key, value: "pay_1")]
         let events = try await store.events(matching: query)
         #expect(events.map(\.message) == ["for pay_1"])
-        #expect(events.first?.tags == [key: "pay_1"])
+        #expect(events.first?.tags == [LogTag(key: key, value: "pay_1")])
 
         let all = try await store.events(matching: LogQuery())
-        #expect(all.first { $0.message == "untagged" }?.tags == [:])
+        #expect(all.first { $0.message == "untagged" }?.tags.isEmpty == true)
+    }
+
+    @Test func multipleQueryTagsCombineWithAND() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let payment = LogTagKey("payment-id")
+        let retry = LogTagKey("retry")
+        await store.write([
+            LogRecord(
+                date: date(1),
+                event: Message(level: .info, "both"),
+                scopes: [root.id],
+                tags: [
+                    LogTag(key: payment, value: "pay_1"),
+                    LogTag(key: retry, value: .int(2)),
+                ],
+            ),
+            LogRecord(
+                date: date(2),
+                event: Message(level: .info, "payment only"),
+                scopes: [root.id],
+                tags: [LogTag(key: payment, value: "pay_1")],
+            ),
+            LogRecord(
+                date: date(3),
+                event: Message(level: .info, "retry only"),
+                scopes: [root.id],
+                tags: [LogTag(key: retry, value: .int(2))],
+            ),
+        ])
+
+        var query = LogQuery()
+        query.tags = [
+            LogTag(key: payment, value: "pay_1"),
+            LogTag(key: retry, value: .int(2)),
+        ]
+        let events = try await store.events(matching: query)
+        #expect(events.map(\.message) == ["both"])
+    }
+
+    @Test func typedTagValuesRoundTripAndStayDistinctFromStrings() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let key = LogTagKey("retry")
+        await store.write([
+            LogRecord(
+                date: date(1),
+                event: Message(level: .info, "typed int"),
+                scopes: [root.id],
+                tags: [LogTag(key: key, value: .int(3))],
+            ),
+            LogRecord(
+                date: date(2),
+                event: Message(level: .info, "stringly"),
+                scopes: [root.id],
+                tags: [LogTag(key: key, value: .string("3"))],
+            ),
+        ])
+
+        // The kind survives persistence: filtering by .int(3) must not
+        // match .string("3"), and the read-back value stays typed.
+        var query = LogQuery()
+        query.tags = [LogTag(key: key, value: .int(3))]
+        let events = try await store.events(matching: query)
+        #expect(events.map(\.message) == ["typed int"])
+        #expect(events.first?.tags[key] == .int(3))
     }
 
     @Test func limitAndOffsetPageNewestFirst() async throws {
@@ -535,7 +599,7 @@ struct PeriscopeStoreTests {
                 date: date(1),
                 event: Message(level: .info, "poisoned"),
                 scopes: [scope.id],
-                tags: [key: "pay_1"],
+                tags: [LogTag(key: key, value: "pay_1")],
             ),
         ])
         #expect(try await store.scope(for: scope.id) == nil)
@@ -546,13 +610,13 @@ struct PeriscopeStoreTests {
                 date: date(2),
                 event: Message(level: .info, "healthy"),
                 scopes: [scope.id],
-                tags: [key: "pay_1"],
+                tags: [LogTag(key: key, value: "pay_1")],
             ),
         ])
 
         #expect(try await store.scope(for: scope.id) == scope)
         var query = LogQuery()
-        query.tag = LogTag(key: key, value: "pay_1")
+        query.tags = [LogTag(key: key, value: "pay_1")]
         #expect(try await store.events(matching: query).map(\.message) == ["healthy"])
     }
 

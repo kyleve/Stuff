@@ -24,8 +24,9 @@ public struct LogQuery: Sendable {
     /// Only events referencing the given scope — exactly, or anywhere in
     /// its subtree.
     public var scope: ScopeFilter?
-    /// Only events stamped with this exact key/value tag.
-    public var tag: LogTag?
+    /// Only events stamped with *all* of these exact key/value tags.
+    /// Empty doesn't filter.
+    public var tags: [LogTag] = []
     /// Only span-ended events with this exit mode — "everything that
     /// failed", "everything that expired".
     public var spanExitMode: SpanExit.Mode?

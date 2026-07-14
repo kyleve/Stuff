@@ -44,7 +44,7 @@ func makeRecord(
     level: LogLevel = .info,
     date: Date,
     scopes: [ScopeID],
-    tags: [LogTagKey: String] = [:],
+    tags: [LogTag] = [],
 ) -> LogRecord {
     LogRecord(
         date: date,

@@ -181,7 +181,7 @@ extension LogRecord {
             date: date,
             event: strippedEvent,
             scopes: scopes,
-            tags: [:],
+            tags: [],
             attachments: [],
         )
         stripped.bypassesFloors = bypassesFloors
@@ -227,7 +227,7 @@ public struct OpenSpan: Sendable {
     /// true, so pairs never dangle across floor changes.
     public let beganRecorded: Bool
     public let scopes: [ScopeID]
-    public let tags: [LogTagKey: String]
+    public let tags: [LogTag]
 
     public init(
         id: SpanID,
@@ -236,7 +236,7 @@ public struct OpenSpan: Sendable {
         lifetime: SpanLifetime,
         beganRecorded: Bool,
         scopes: [ScopeID],
-        tags: [LogTagKey: String],
+        tags: [LogTag],
     ) {
         self.id = id
         self.name = name

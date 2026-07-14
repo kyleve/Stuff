@@ -50,11 +50,8 @@ struct LogEventDetailView: View {
 
             if !event.tags.isEmpty {
                 Section("Tags") {
-                    ForEach(
-                        event.tags.sorted { $0.key.rawValue < $1.key.rawValue },
-                        id: \.key,
-                    ) { key, value in
-                        LabeledContent(key.rawValue, value: value)
+                    ForEach(event.tags, id: \.key) { tag in
+                        LabeledContent(tag.key.rawValue, value: tag.value.stringValue)
                     }
                 }
             }

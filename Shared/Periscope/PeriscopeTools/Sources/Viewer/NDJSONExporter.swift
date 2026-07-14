@@ -32,7 +32,8 @@ enum NDJSONExporter {
         }
         if !event.tags.isEmpty {
             object["tags"] = Dictionary(
-                uniqueKeysWithValues: event.tags.map { ($0.key.rawValue, $0.value) },
+                uniqueKeysWithValues: event.tags
+                    .map { ($0.key.rawValue, jsonValue(for: $0.value)) },
             )
         }
         if let span = event.spanID {
@@ -61,6 +62,23 @@ enum NDJSONExporter {
             return "{}"
         }
         return String(decoding: data, as: UTF8.self)
+    }
+
+    /// A tag value as its native JSON type — numbers stay numbers, bools
+    /// stay bools; an `.encoded` payload embeds as parsed JSON when it
+    /// parses, its raw string otherwise.
+    private static func jsonValue(for value: LogTagValue) -> Any {
+        switch value {
+            case let .string(string): string
+            case let .int(int): int
+            case let .double(double): double
+            case let .bool(bool): bool
+            case let .encoded(json):
+                (try? JSONSerialization.jsonObject(
+                    with: Data(json.utf8),
+                    options: [.fragmentsAllowed],
+                )) ?? json
+        }
     }
 
     /// The primary scope's path (root → leaf), e.g. `"app/photos/album-1"`

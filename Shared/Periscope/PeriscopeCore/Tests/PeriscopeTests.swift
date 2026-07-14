@@ -648,7 +648,7 @@ struct PeriscopeTests {
             (record.event as? SpanEnded)?.exit.mode == .expired
         })
         #expect(expired.scopes == log.scopes.map(\.id))
-        #expect(expired.tags == [key: "pay_1"])
+        #expect(expired.tags == [LogTag(key: key, value: "pay_1")])
     }
 
     @Test func expiredSpansFreeTheirKeyForReuse() async {

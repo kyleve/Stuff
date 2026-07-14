@@ -138,10 +138,13 @@ struct LogTests {
         tagged { AppLogs() }
 
         #expect(recorder.records.count == 2)
-        #expect(recorder.records.allSatisfy { $0.tags == [LogTagKey("payment-id"): "pay_123"] })
+        #expect(recorder.records.allSatisfy { $0.tags == [LogTag(
+            key: LogTagKey("payment-id"),
+            value: "pay_123",
+        )] })
 
         root.info("untagged")
-        #expect(recorder.records.last?.tags == [:])
+        #expect(recorder.records.last?.tags.isEmpty == true)
     }
 
     @Test func tagsFlowDownDerivations() {
@@ -149,13 +152,29 @@ struct LogTests {
         let child = root(PhotoLogs.self)(for: "album-1")
 
         child.info("deep")
-        #expect(recorder.records.last?.tags == [LogTagKey("payment-id"): "pay_123"])
+        #expect(recorder.records.last?.tags == [LogTag(
+            key: LogTagKey("payment-id"),
+            value: "pay_123",
+        )])
     }
 
     @Test func laterTagsOverrideEarlierValuesForTheSameKey() {
         let key = LogTagKey("payment-id")
         let log = Log<AppLogs>(recorder: recorder).tagged(key, "old").tagged(key, "new")
-        #expect(log.tags == [key: "new"])
+        #expect(log.tags == [LogTag(key: key, value: "new")])
+    }
+
+    @Test func taggedAcceptsTypedValues() {
+        let log = Log<AppLogs>(recorder: recorder)
+            .tagged(LogTagKey("payment-id"), "pay_1")
+            .tagged(LogTagKey("retry"), 3)
+            .tagged(LogTagKey("ratio"), 0.5)
+            .tagged(LogTagKey("cached"), true)
+
+        #expect(log.tags[LogTagKey("payment-id")] == .string("pay_1"))
+        #expect(log.tags[LogTagKey("retry")] == .int(3))
+        #expect(log.tags[LogTagKey("ratio")] == .double(0.5))
+        #expect(log.tags[LogTagKey("cached")] == .bool(true))
     }
 
     @Test func linkingMergesTagsWithTheLeftSideWinning() {
@@ -169,10 +188,12 @@ struct LogTests {
 
         let joined = model + ui
 
+        // Arrays keep insertion order: the model's tags first (left side
+        // is primary), then the ui's non-conflicting keys.
         #expect(joined.tags == [
-            key: "model-side",
-            LogTagKey("model-only"): "m",
-            LogTagKey("ui-only"): "u",
+            LogTag(key: key, value: "model-side"),
+            LogTag(key: LogTagKey("model-only"), value: "m"),
+            LogTag(key: LogTagKey("ui-only"), value: "u"),
         ])
     }
 

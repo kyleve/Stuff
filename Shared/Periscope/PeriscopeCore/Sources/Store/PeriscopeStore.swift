@@ -159,10 +159,7 @@ public actor PeriscopeStore: LogSink {
                         exit: .orphaned,
                     ),
                     scopes: row.orderedScopeIDs.map(ScopeID.init(rawValue:)),
-                    tags: Dictionary(
-                        row.tags.map { (LogTagKey($0.key), $0.value) },
-                        uniquingKeysWith: { first, _ in first },
-                    ),
+                    tags: Self.tags(from: row),
                 ))
             }
             guard !orphans.isEmpty else { return }
@@ -314,8 +311,8 @@ public actor PeriscopeStore: LogSink {
                 )
             }
             let scopeRows = try record.scopes.map { try scopeRow(for: $0.rawValue) }
-            let tagRows = try record.tags.map { key, value in
-                try tagRow(for: LogTag(key: key, value: value))
+            let tagRows = try record.tags.map { tag in
+                try tagRow(for: tag)
             }
             let attachmentRows = record.attachments.enumerated().map { index, attachment in
                 SDLogAttachment(
@@ -408,11 +405,24 @@ public actor PeriscopeStore: LogSink {
     // MARK: Tags
 
     /// Fetch-or-create the shared row for a key/value tag pair.
+    /// The typed tags for an event row, key-sorted for deterministic order
+    /// (the relationship itself is unordered).
+    private static func tags(from row: SDLogEvent) -> [LogTag] {
+        row.tags
+            .map { tagRow in
+                LogTag(
+                    key: LogTagKey(tagRow.key),
+                    value: LogTagValue(kind: tagRow.valueKind, stored: tagRow.value),
+                )
+            }
+            .sorted { $0.key.rawValue < $1.key.rawValue }
+    }
+
     private func tagRow(for tag: LogTag) throws -> SDLogTag {
         if let cached = tagRowCache[tag] {
             return cached
         }
-        let pair = SDLogTag.pairValue(key: tag.key.rawValue, value: tag.value)
+        let pair = tag.pair
         var descriptor = FetchDescriptor<SDLogTag>(
             predicate: #Predicate { $0.pair == pair },
         )
@@ -421,7 +431,7 @@ public actor PeriscopeStore: LogSink {
             tagRowCache[tag] = existing
             return existing
         }
-        let row = SDLogTag(key: tag.key.rawValue, value: tag.value)
+        let row = SDLogTag(tag: tag)
         modelContext.insert(row)
         tagRowCache[tag] = row
         return row
@@ -465,10 +475,8 @@ public actor PeriscopeStore: LogSink {
             case let .subtree(id): try subtreeIDs(of: id)
             case nil: []
         }
-        let filtersTag = query.tag != nil
-        let tagPair = query.tag.map {
-            SDLogTag.pairValue(key: $0.key.rawValue, value: $0.value)
-        } ?? ""
+        let filtersTags = !query.tags.isEmpty
+        let tagPairs = query.tags.map(\.pair)
         let filtersExit = query.spanExitMode != nil
         let exitMode: String? = query.spanExitMode?.rawValue
 
@@ -486,8 +494,8 @@ public actor PeriscopeStore: LogSink {
             search: search,
             filtersScope: filtersScope,
             scopeIDs: scopeIDs,
-            filtersTag: filtersTag,
-            tagPair: tagPair,
+            filtersTags: filtersTags,
+            tagPairs: tagPairs,
         )
 
         var descriptor = Self.readDescriptor(
@@ -527,8 +535,8 @@ public actor PeriscopeStore: LogSink {
         search: String,
         filtersScope: Bool,
         scopeIDs: [UUID],
-        filtersTag: Bool,
-        tagPair: String,
+        filtersTags: Bool,
+        tagPairs: [String],
     ) -> Predicate<SDLogEvent> {
         Predicate<SDLogEvent>({ event in
             let afterStart = PredicateExpressions.build_Comparison(
@@ -624,24 +632,33 @@ public actor PeriscopeStore: LogSink {
                     )
                 },
             )
+            // AND across the requested tags without a dynamic expression
+            // tree: an event row can't carry duplicate pairs, so "matches
+            // all N tags" is "N of its tag rows have a pair in the list".
             let matchesTag = PredicateExpressions.build_Disjunction(
                 lhs: PredicateExpressions.build_Negation(
-                    PredicateExpressions.build_Arg(filtersTag),
+                    PredicateExpressions.build_Arg(filtersTags),
                 ),
-                rhs: PredicateExpressions.build_contains(
-                    PredicateExpressions.build_KeyPath(
-                        root: PredicateExpressions.build_Arg(event),
-                        keyPath: \.tags,
+                rhs: PredicateExpressions.build_Equal(
+                    lhs: PredicateExpressions.build_KeyPath(
+                        root: PredicateExpressions.build_filter(
+                            PredicateExpressions.build_KeyPath(
+                                root: PredicateExpressions.build_Arg(event),
+                                keyPath: \.tags,
+                            ),
+                        ) { tag in
+                            PredicateExpressions.build_contains(
+                                PredicateExpressions.build_Arg(tagPairs),
+                                PredicateExpressions.build_KeyPath(
+                                    root: PredicateExpressions.build_Arg(tag),
+                                    keyPath: \.pair,
+                                ),
+                            )
+                        },
+                        keyPath: \.count,
                     ),
-                ) { tag in
-                    PredicateExpressions.build_Equal(
-                        lhs: PredicateExpressions.build_KeyPath(
-                            root: PredicateExpressions.build_Arg(tag),
-                            keyPath: \.pair,
-                        ),
-                        rhs: PredicateExpressions.build_Arg(tagPair),
-                    )
-                },
+                    rhs: PredicateExpressions.build_Arg(tagPairs.count),
+                ),
             )
 
             let dates = PredicateExpressions.build_Conjunction(
@@ -746,10 +763,7 @@ public actor PeriscopeStore: LogSink {
             message: row.message,
             payload: row.payload,
             scopes: row.orderedScopeIDs.map(ScopeID.init(rawValue:)),
-            tags: Dictionary(
-                row.tags.map { (LogTagKey($0.key), $0.value) },
-                uniquingKeysWith: { first, _ in first },
-            ),
+            tags: tags(from: row),
             spanID: row.spanID.map(SpanID.init(rawValue:)),
             spanExitMode: row.spanExitMode.flatMap(SpanExit.Mode.init(rawValue:)),
             attachments: row.attachments

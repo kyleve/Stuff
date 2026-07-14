@@ -100,7 +100,7 @@ struct LogContextEnvironmentTests {
             system: system,
         )
 
-        #expect(records.first?.tags == [key: "pay_123"])
+        #expect(records.first?.tags == [LogTag(key: key, value: "pay_123")])
     }
 
     @Test func typedLoggersDeriveFromTheEnvironmentContext() throws {

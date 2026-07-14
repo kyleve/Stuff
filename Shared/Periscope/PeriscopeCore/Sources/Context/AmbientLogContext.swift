@@ -7,7 +7,7 @@ import Foundation
 enum AmbientLogContext {
     struct Context {
         var scopes: [LogScope]
-        var tags: [LogTagKey: String]
+        var tags: [LogTag]
         var recorder: any LogRecorder
     }
 
@@ -56,9 +56,7 @@ extension Log {
             for scope in existing.scopes where !scopes.contains(scope) {
                 scopes.append(scope)
             }
-            for (key, value) in existing.tags where tags[key] == nil {
-                tags[key] = value
-            }
+            tags = tags.merging(existing.tags)
         }
         return AmbientLogContext.Context(scopes: scopes, tags: tags, recorder: recorder)
     }

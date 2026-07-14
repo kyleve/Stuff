@@ -106,7 +106,7 @@ struct AmbientLogContextTests {
         }
         await system.flush()
 
-        #expect(sink.records.first?.tags == [key: "pay_123"])
+        #expect(sink.records.first?.tags == [LogTag(key: key, value: "pay_123")])
     }
 
     @Test func nestedContextTagsMergeWithTheInnerWinning() async {
@@ -123,7 +123,10 @@ struct AmbientLogContextTests {
         }
         await system.flush()
 
-        #expect(sink.records.first?.tags == [key: "inner", LogTagKey("extra"): "e"])
+        #expect(sink.records.first?.tags == [
+            LogTag(key: key, value: "inner"),
+            LogTag(key: LogTagKey("extra"), value: "e"),
+        ])
     }
 
     @Test func contextEndsWhenWithContextReturns() async {

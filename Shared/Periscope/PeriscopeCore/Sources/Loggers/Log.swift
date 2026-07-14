@@ -26,7 +26,7 @@ public struct Log<Event: LogEvent>: Sendable {
     public let scopes: [LogScope]
 
     /// The tags stamped on every event emitted here (see ``tagged(_:_:)``).
-    public let tags: [LogTagKey: String]
+    public let tags: [LogTag]
 
     let recorder: any LogRecorder
 
@@ -37,10 +37,10 @@ public struct Log<Event: LogEvent>: Sendable {
 
     /// A root logger whose scope is named after `Event`.
     public init(recorder: any LogRecorder) {
-        self.init(scopes: [LogScope.root(named: Event.eventName)], tags: [:], recorder: recorder)
+        self.init(scopes: [LogScope.root(named: Event.eventName)], tags: [], recorder: recorder)
     }
 
-    init(scopes: [LogScope], tags: [LogTagKey: String], recorder: any LogRecorder) {
+    init(scopes: [LogScope], tags: [LogTag], recorder: any LogRecorder) {
         precondition(!scopes.isEmpty, "A Log must have at least one scope")
         self.scopes = scopes
         self.tags = tags
@@ -83,11 +83,7 @@ public struct Log<Event: LogEvent>: Sendable {
         for scope in other.scopes where !merged.contains(scope) {
             merged.append(scope)
         }
-        var tags = tags
-        for (key, value) in other.tags where tags[key] == nil {
-            tags[key] = value
-        }
-        return Log(scopes: merged, tags: tags, recorder: recorder)
+        return Log(scopes: merged, tags: tags.merging(other.tags), recorder: recorder)
     }
 
     // MARK: Retyping
@@ -106,9 +102,11 @@ public struct Log<Event: LogEvent>: Sendable {
     /// the tags already accumulated. Tags flow down derivations and links —
     /// tag a flow's root once (say, the current payment's ID) and every
     /// event under it carries the tag, wherever it sits in the tree.
-    public func tagged(_ key: LogTagKey, _ value: String) -> Log<Event> {
+    /// Values are typed (see ``LogTagValue``); `String`, `Int`, `Double`,
+    /// and `Bool` convert directly. Re-tagging a key replaces its value.
+    public func tagged(_ key: LogTagKey, _ value: some LogTagValueConvertible) -> Log<Event> {
         var tags = tags
-        tags[key] = value
+        tags.set(value.logTagValue, forKey: key)
         return Log(scopes: scopes, tags: tags, recorder: recorder)
     }
 

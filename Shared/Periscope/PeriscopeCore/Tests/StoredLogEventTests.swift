@@ -15,7 +15,7 @@ struct StoredLogEventTests {
             message: "photo p1",
             payload: payload,
             scopes: [scope.id],
-            tags: [LogTagKey("payment-id"): "pay_123"],
+            tags: [LogTag(key: LogTagKey("payment-id"), value: "pay_123")],
             spanID: nil,
             spanExitMode: nil,
             attachments: [],

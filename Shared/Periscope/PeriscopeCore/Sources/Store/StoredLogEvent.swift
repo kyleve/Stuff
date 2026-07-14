@@ -22,7 +22,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
     /// Every scope the event references, primary first, in emission order.
     public let scopes: [ScopeID]
     /// The tags the event was stamped with.
-    public let tags: [LogTagKey: String]
+    public let tags: [LogTag]
     /// The span this event begins or ends, when it is a span event.
     public let spanID: SpanID?
     /// How the span ended, when this is a span-ended event (the reason
@@ -43,7 +43,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         message: String,
         payload: Data,
         scopes: [ScopeID],
-        tags: [LogTagKey: String],
+        tags: [LogTag],
         spanID: SpanID?,
         spanExitMode: SpanExit.Mode?,
         attachments: [LogAttachmentInfo],

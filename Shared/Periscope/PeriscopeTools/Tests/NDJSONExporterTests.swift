@@ -16,7 +16,7 @@ struct NDJSONExporterTests {
         message: String,
         date: Date,
         payload: Data = Data(),
-        tags: [LogTagKey: String] = [:],
+        tags: [LogTag] = [],
         spanExitMode: SpanExit.Mode? = nil,
     ) -> StoredLogEvent {
         StoredLogEvent(
@@ -75,7 +75,7 @@ struct NDJSONExporterTests {
                 message: "hello",
                 date: date(1),
                 payload: payload,
-                tags: [LogTagKey("payment-id"): "pay_1"],
+                tags: [LogTag(key: LogTagKey("payment-id"), value: "pay_1")],
             ),
             scopes: scopes,
         )
@@ -114,7 +114,7 @@ struct NDJSONExporterTests {
             message: "bare",
             payload: Data(),
             scopes: [LogScope.root(named: "never-defined").id],
-            tags: [:],
+            tags: [],
             spanID: nil,
             spanExitMode: nil,
             attachments: [],

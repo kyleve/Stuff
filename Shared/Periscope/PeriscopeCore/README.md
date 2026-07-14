@@ -21,7 +21,7 @@ inspect mode live in [`PeriscopeTools`](../PeriscopeTools).
 | Link | OTel span links — one event referencing several scopes |
 | Span | OTel span — a timed operation with a shared `SpanID` |
 | Session | OTel `Resource` — per-launch app/OS/device metadata |
-| Tag | Datadog/Jaeger tags — key/value stamped on events |
+| Tag | Datadog/Jaeger tags — typed key/value (`LogTagValue`: string, int, double, bool, or any `Codable` via `.encoding`) stamped on events |
 
 ## Installation
 

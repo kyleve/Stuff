@@ -111,23 +111,24 @@ final class SDLogTag {
     #Index<SDLogTag>([\.pair])
 
     var key: String
+    /// The `LogTagValue` discriminator (string/int/double/bool/encoded),
+    /// so typed values round-trip as themselves.
+    var valueKind: String
+    /// The value's canonical string form.
     var value: String
-    /// `key` and `value` joined with a separator — a single indexed column
-    /// so tag predicates stay one comparison.
+    /// Key, kind, and value joined — a single indexed column so tag
+    /// predicates stay one comparison (see `LogTag.pair`).
     var pair: String
 
     @Relationship(inverse: \SDLogEvent.tags)
     var events: [SDLogEvent]
 
-    init(key: String, value: String) {
-        self.key = key
-        self.value = value
-        pair = Self.pairValue(key: key, value: value)
+    init(tag: LogTag) {
+        key = tag.key.rawValue
+        valueKind = tag.value.kind
+        value = tag.value.stringValue
+        pair = tag.pair
         events = []
-    }
-
-    static func pairValue(key: String, value: String) -> String {
-        "\(key)\u{1F}\(value)"
     }
 }
 

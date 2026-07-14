@@ -51,7 +51,7 @@ extension Periscope {
     ) -> Log<Object.LogEventType> {
         let scopes = instanceScopes.scopes(for: object)
         defineScope(scopes.type)
-        return Log(scopes: [scopes.instance], tags: [:], recorder: self)
+        return Log(scopes: [scopes.instance], tags: [], recorder: self)
     }
 }
 

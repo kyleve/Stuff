@@ -57,7 +57,7 @@ public struct OSLogSink: LogSink {
         if !record.tags.isEmpty {
             let tags = record.tags
                 .sorted { $0.key.rawValue < $1.key.rawValue }
-                .map { "\($0.key)=\($0.value)" }
+                .map { "\($0.key)=\($0.value.stringValue)" }
             message += " {\(tags.joined(separator: ", "))}"
         }
         return message
