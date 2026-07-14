@@ -2,21 +2,37 @@ import RegionKit
 import SwiftUI
 import WhereCore
 
+/// Why the user landed on "Fix this day", so the screen can show a short banner
+/// explaining the flagged problem. `.none` is the plain browsing entry (the
+/// Elsewhere drill-in) — no banner.
+enum DayRelabelReason: Hashable {
+    case none
+    case borderDrift(region: Region, distanceMeters: Double?)
+    case travelDay
+    case flight(removed: Set<Region>)
+}
+
 /// Correct which regions a single day counted for. Unlike `ManualDayView`
 /// (which unions with GPS to backfill / edits a hand-logged entry), saving here
 /// *overrides* the day — it replaces whatever GPS or a prior entry recorded, so
 /// a wrong attribution can be removed. The raw GPS samples are left untouched
 /// (see `DayJournal.overrideDay`), so the fix is reversible.
+///
+/// A map of the day's recorded points sits at the top (so the user can see
+/// where the fixes actually were), and an optional `reason` banner explains why
+/// the day was flagged.
 struct DayRelabelView: View {
     @Environment(\.dismiss) private var dismiss
 
     let day: DayPresence
     let report: YearReportModel
+    let reason: DayRelabelReason
 
     @State private var regionSelection: RegionSelectionState
     @State private var note = ""
     @State private var saveError = SaveErrorAlertState()
     @State private var pending: PendingWrite?
+    @State private var mapPoints: [RecordedMapPoint] = []
 
     /// Which async write is in flight. Saving captures a one-shot GPS fix (see
     /// `LocationSource.requestCurrentLocation()`) so it can take a moment and
@@ -26,9 +42,15 @@ struct DayRelabelView: View {
         case resetting
     }
 
-    init(day: DayPresence, report: YearReportModel, initialRegions: Set<Region>? = nil) {
+    init(
+        day: DayPresence,
+        report: YearReportModel,
+        initialRegions: Set<Region>? = nil,
+        reason: DayRelabelReason = .none,
+    ) {
         self.day = day
         self.report = report
+        self.reason = reason
         _regionSelection = State(
             initialValue: RegionSelectionState(selectedRegions: initialRegions ?? day.regions),
         )
@@ -42,7 +64,41 @@ struct DayRelabelView: View {
     var body: some View {
         @Bindable var saveError = saveError
 
+        VStack(spacing: 0) {
+            if !mapPoints.isEmpty {
+                RecordedPointsMap(points: mapPoints)
+            }
+            form
+        }
+        .navigationTitle(Strings.relabelTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                if pending == .saving {
+                    ProgressView()
+                } else {
+                    Button(Strings.manualSave) { save() }
+                        .disabled(!canSave)
+                }
+            }
+        }
+        .alert(
+            Strings.manualSaveErrorTitle,
+            isPresented: $saveError.isPresented,
+        ) {
+            Button(Strings.commonOK, role: .cancel) {}
+        } message: {
+            if let saveError = saveError.message {
+                Text(saveError)
+            }
+        }
+        .task(id: day.date) { await loadPoints() }
+    }
+
+    private var form: some View {
         Form {
+            reasonBanner
+
             Section {
                 LabeledContent(Strings.relabelTitle, value: dateText)
             }
@@ -87,26 +143,60 @@ struct DayRelabelView: View {
             }
         }
         .animation(.default, value: pending)
-        .navigationTitle(Strings.relabelTitle)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
-                if pending == .saving {
-                    ProgressView()
-                } else {
-                    Button(Strings.manualSave) { save() }
-                        .disabled(!canSave)
-                }
-            }
+    }
+
+    /// A short callout explaining why the day was flagged, driven by the
+    /// classifier that routed here. `.none` (plain Elsewhere browsing) shows
+    /// nothing.
+    @ViewBuilder
+    private var reasonBanner: some View {
+        switch reason {
+            case .none:
+                EmptyView()
+            case let .borderDrift(region, meters):
+                banner(
+                    icon: "location.circle",
+                    text: Strings.relabelReasonBorderDrift(
+                        region: region.localizedName,
+                        distance: meters.map(Self.formattedDistance),
+                    ),
+                )
+            case .travelDay:
+                banner(icon: "arrow.triangle.swap", text: Strings.relabelReasonTravelDay)
+            case let .flight(removed):
+                banner(icon: "airplane", text: Strings.relabelReasonFlight(removed: removed))
         }
-        .alert(
-            Strings.manualSaveErrorTitle,
-            isPresented: $saveError.isPresented,
-        ) {
-            Button(Strings.commonOK, role: .cancel) {}
-        } message: {
-            if let saveError = saveError.message {
-                Text(saveError)
+    }
+
+    private func banner(icon: String, text: String) -> some View {
+        Section {
+            Label {
+                Text(text)
+            } icon: {
+                Image(systemName: icon)
+                    .foregroundStyle(.tint)
+            }
+            .font(.subheadline)
+        } header: {
+            Text(Strings.relabelReasonTitle)
+        }
+    }
+
+    private static func formattedDistance(_ meters: Double) -> String {
+        Measurement(value: meters, unit: UnitLength.meters)
+            .formatted(.measurement(width: .abbreviated, usage: .road))
+    }
+
+    private func loadPoints() async {
+        let byRegion = await report.locations(onDay: day.date)
+        guard !Task.isCancelled else { return }
+        mapPoints = byRegion.flatMap { region, points in
+            points.map {
+                RecordedMapPoint(
+                    coordinate: $0.coordinate,
+                    horizontalAccuracy: $0.horizontalAccuracy,
+                    region: region,
+                )
             }
         }
     }
@@ -166,6 +256,16 @@ struct DayRelabelView: View {
             DayRelabelView(
                 day: DayPresence(date: .now, regions: [.other]),
                 report: PreviewSupport.loadedYearReportModel(),
+            )
+        }
+    }
+
+    #Preview("Flight reason banner") {
+        NavigationStack {
+            DayRelabelView(
+                day: DayPresence(date: .now, regions: [.newYork, .other, .california]),
+                report: PreviewSupport.loadedYearReportModel(),
+                reason: .flight(removed: [.other]),
             )
         }
     }
