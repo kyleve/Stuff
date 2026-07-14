@@ -202,10 +202,9 @@ private struct DayRow: View {
         day.date.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
     }
 
-    /// Region names joined in declaration order so the caption is stable.
+    /// Region names joined in canonical order so the caption is stable.
     private var regionsText: String {
-        Region.allCases
-            .filter { day.regions.contains($0) }
+        Region.inCanonicalOrder(day.regions)
             .map(\.localizedName)
             .joined(separator: ", ")
     }

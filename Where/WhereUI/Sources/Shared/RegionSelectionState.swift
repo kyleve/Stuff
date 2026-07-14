@@ -25,8 +25,16 @@ final class RegionToggleItem: Identifiable {
 final class RegionSelectionState {
     var items: [RegionToggleItem]
 
-    init(selectedRegions: Set<Region> = []) {
-        items = Region.allCases.map {
+    /// - Parameters:
+    ///   - regions: the regions to offer as toggles, in order. Defaults to every
+    ///     available catalog region plus the `.other` catch-all; a caller (e.g. a
+    ///     future onboarding-aware form) can pass the user's tracked subset.
+    ///   - selectedRegions: which of those start on.
+    init(
+        regions: [Region] = RegionCatalog.shared.all + [.other],
+        selectedRegions: Set<Region> = [],
+    ) {
+        items = regions.map {
             RegionToggleItem(region: $0, isOn: selectedRegions.contains($0))
         }
     }

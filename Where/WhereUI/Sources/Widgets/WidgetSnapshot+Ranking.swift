@@ -10,9 +10,9 @@ extension WidgetSnapshot {
         return Array(RegionRanking.ranked(report: report).prefix(max(0, maxRows)))
     }
 
-    /// Today's regions in `Region.allCases` declaration order so widget
-    /// layouts are stable between timeline reloads.
+    /// Today's regions in the catalog's canonical order so widget layouts are
+    /// stable between timeline reloads.
     var orderedDayRegions: [Region] {
-        Region.allCases.filter { dayRegions.contains($0) }
+        Region.inCanonicalOrder(dayRegions)
     }
 }

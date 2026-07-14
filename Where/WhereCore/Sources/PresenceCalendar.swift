@@ -215,9 +215,9 @@ public enum PresenceCalendar {
             }
             // Dots reflect the focus filter; the footer (regionTotals) keeps
             // counting every region present that day.
-            let regions = Region.allCases.filter { region in
-                presentRegions.contains(region) && (focusedRegion == nil || region == focusedRegion)
-            }
+            let regions = Region.inCanonicalOrder(
+                presentRegions.filter { focusedRegion == nil || $0 == focusedRegion },
+            )
             days.append(CalendarDayCell(
                 date: date,
                 dayOfMonth: dayOfMonth,

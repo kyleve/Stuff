@@ -16,6 +16,14 @@ extension Region {
         uniqueKeysWithValues: Region.allCases.enumerated().map { ($1, $0) },
     )
 
+    /// `regions` in the catalog's canonical order — the same `declarationOrder`
+    /// tiebreak used for ranking, but without a day-count metric. The catalog-
+    /// driven way to display a *set* of regions in a stable order (e.g. the
+    /// regions present on a calendar day), replacing `Region.allCases.filter`.
+    public static func inCanonicalOrder(_ regions: some Sequence<Region>) -> [Region] {
+        regions.sorted { declarationOrder[$0, default: 0] < declarationOrder[$1, default: 0] }
+    }
+
     /// Order `elements` by their day count, descending, breaking ties by
     /// `declarationOrder`. The single home for the "most days first, stable
     /// order" ranking, so every surface that ranks regions (year reports,
