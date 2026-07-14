@@ -33,6 +33,7 @@ struct NDJSONExporterTests {
             spanID: nil,
             spanExitMode: spanExitMode,
             callSite: nil,
+            externalID: nil,
             attachments: [],
             sessionID: sessionID,
         )
@@ -119,6 +120,7 @@ struct NDJSONExporterTests {
             spanID: nil,
             spanExitMode: nil,
             callSite: nil,
+            externalID: nil,
             attachments: [],
             sessionID: sessionID,
         )

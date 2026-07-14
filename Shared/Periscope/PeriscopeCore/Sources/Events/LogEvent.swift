@@ -47,6 +47,13 @@ public protocol LogEvent: Codable, Sendable {
     /// Human-readable rendering, shown in Console.app and the log viewer.
     var message: String { get }
 
+    /// An identifier linking this event to the object it's about — a
+    /// photo's URI in the local store, a Core Data managed object ID's
+    /// URI representation — so tooling can find every event about an
+    /// object (`LogQuery.externalID`) or look the object up from an
+    /// event. Defaults to `nil`; the format is the app's to choose.
+    var externalID: String? { get }
+
     /// Whether the overflow drop policy must keep records of this event
     /// under queue pressure (see
     /// ``Periscope/Configuration/pendingBufferCapacity``). Defaults to
@@ -71,5 +78,9 @@ extension LogEvent {
 
     public static var isProtectedFromDropping: Bool {
         false
+    }
+
+    public var externalID: String? {
+        nil
     }
 }

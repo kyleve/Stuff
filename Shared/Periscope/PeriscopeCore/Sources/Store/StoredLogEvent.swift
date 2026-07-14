@@ -54,6 +54,8 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
     public let spanExitMode: SpanExit.Mode?
     /// The emitting function/file, when the call site captured one.
     public let callSite: LogCallSite?
+    /// The event's associated-object identifier (`LogEvent.externalID`).
+    public let externalID: String?
     /// Attachment metadata; bytes load via
     /// `PeriscopeStore.attachments(forEvent:)`.
     public let attachments: [LogAttachmentInfo]
@@ -73,6 +75,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         spanID: SpanID?,
         spanExitMode: SpanExit.Mode?,
         callSite: LogCallSite?,
+        externalID: String?,
         attachments: [LogAttachmentInfo],
         sessionID: UUID,
     ) {
@@ -89,6 +92,7 @@ public struct StoredLogEvent: Sendable, Identifiable, Hashable {
         self.spanID = spanID
         self.spanExitMode = spanExitMode
         self.callSite = callSite
+        self.externalID = externalID
         self.attachments = attachments
         self.sessionID = sessionID
     }

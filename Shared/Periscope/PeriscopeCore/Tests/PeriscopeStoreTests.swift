@@ -406,6 +406,43 @@ struct PeriscopeStoreTests {
         #expect(all.first { $0.message == "untagged" }?.tags.isEmpty == true)
     }
 
+    @Test func externalIDsPersistAndFilter() async throws {
+        struct PhotoUploaded: LogEvent {
+            var photoURI: String
+            var message: String {
+                "uploaded"
+            }
+
+            var externalID: String? {
+                photoURI
+            }
+        }
+
+        let (store, root, _, _) = try await makeStore()
+        await store.write([
+            LogRecord(
+                date: date(1),
+                event: PhotoUploaded(photoURI: "photos://p1"),
+                scopes: [root.id],
+            ),
+            LogRecord(
+                date: date(2),
+                event: PhotoUploaded(photoURI: "photos://p2"),
+                scopes: [root.id],
+            ),
+            makeRecord("no object", date: date(3), scopes: [root.id]),
+        ])
+
+        var query = LogQuery()
+        query.externalID = "photos://p1"
+        let events = try await store.events(matching: query)
+        #expect(events.count == 1)
+        #expect(events.first?.externalID == "photos://p1")
+
+        let all = try await store.events(matching: LogQuery())
+        #expect(all.first { $0.message == "no object" }?.externalID == nil)
+    }
+
     @Test func callSitesPersistAndReadBack() async throws {
         let (store, root, _, _) = try await makeStore()
         await store.write([

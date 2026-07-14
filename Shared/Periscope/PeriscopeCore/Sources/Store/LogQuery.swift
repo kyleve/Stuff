@@ -30,6 +30,9 @@ public struct LogQuery: Sendable {
     /// Only span-ended events with this exit mode — "everything that
     /// failed", "everything that expired".
     public var spanExitMode: SpanExit.Mode?
+    /// Only events declaring this ``LogEvent/externalID`` — "every event
+    /// about this object".
+    public var externalID: String?
     /// Only events whose message matches this text
     /// (`localizedStandardContains`).
     public var messageContains: String?

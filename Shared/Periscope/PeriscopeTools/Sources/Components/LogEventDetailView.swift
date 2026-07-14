@@ -42,6 +42,9 @@ struct LogEventDetailView: View {
                 if let callSite = event.callSite {
                     LabeledContent("Emitted From", value: callSite.description)
                 }
+                if let externalID = event.externalID {
+                    LabeledContent("Object", value: externalID)
+                }
                 LabeledContent("Session", value: event.sessionID.uuidString)
             }
 

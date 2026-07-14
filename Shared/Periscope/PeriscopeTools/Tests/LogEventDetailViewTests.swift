@@ -22,6 +22,7 @@ struct LogEventDetailViewTests {
             spanID: nil,
             spanExitMode: nil,
             callSite: nil,
+            externalID: nil,
             attachments: [],
             sessionID: UUID(),
         )

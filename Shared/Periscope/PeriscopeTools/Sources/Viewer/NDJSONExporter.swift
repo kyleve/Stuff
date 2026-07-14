@@ -46,6 +46,9 @@ enum NDJSONExporter {
             object["function"] = callSite.function
             object["file"] = callSite.fileID
         }
+        if let externalID = event.externalID {
+            object["externalID"] = externalID
+        }
         if !event.payload.isEmpty {
             if let payload = try? JSONSerialization.jsonObject(with: event.payload) {
                 object["payload"] = payload

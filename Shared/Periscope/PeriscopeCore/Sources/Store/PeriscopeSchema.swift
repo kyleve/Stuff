@@ -19,6 +19,7 @@ final class SDLogEvent {
         [\.sessionID],
         [\.spanID],
         [\.spanExitMode],
+        [\.externalID],
     )
 
     var eventID: UUID
@@ -44,6 +45,9 @@ final class SDLogEvent {
     /// The emitting function/file (`#function`/`#fileID`), when captured.
     var callFunction: String?
     var callFileID: String?
+    /// The event's associated-object identifier (`LogEvent.externalID`),
+    /// indexed so "every event about this object" is one query.
+    var externalID: String?
     var scopes: [SDLogScope]
     var tags: [SDLogTag]
 
@@ -66,6 +70,7 @@ final class SDLogEvent {
         spanExitMode: String?,
         callFunction: String?,
         callFileID: String?,
+        externalID: String?,
         scopes: [SDLogScope],
         tags: [SDLogTag],
         attachments: [SDLogAttachment],
@@ -85,6 +90,7 @@ final class SDLogEvent {
         self.spanExitMode = spanExitMode
         self.callFunction = callFunction
         self.callFileID = callFileID
+        self.externalID = externalID
         self.scopes = scopes
         self.tags = tags
         self.attachments = attachments

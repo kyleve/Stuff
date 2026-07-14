@@ -89,6 +89,11 @@ public struct LogRecord: Sendable, Identifiable {
         type(of: event).eventVersion
     }
 
+    /// The event's associated-object identifier, when it declares one.
+    public var externalID: String? {
+        event.externalID
+    }
+
     /// Whether the overflow drop policy must keep this record — the
     /// event type's ``LogEvent/isProtectedFromDropping`` opt-in. Span
     /// began/ended events set it so pairs never split under drop

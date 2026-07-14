@@ -362,6 +362,7 @@ public actor PeriscopeStore: LogSink {
                 spanExitMode: record.spanExit?.mode.rawValue,
                 callFunction: record.callSite?.function,
                 callFileID: record.callSite?.fileID,
+                externalID: record.externalID,
                 scopes: scopeRows,
                 tags: tagRows,
                 attachments: attachmentRows,
@@ -505,6 +506,8 @@ public actor PeriscopeStore: LogSink {
         let tagPairs = query.tags.map(\.pair)
         let filtersExit = query.spanExitMode != nil
         let exitMode: String? = query.spanExitMode?.rawValue
+        let filtersExternalID = query.externalID != nil
+        let externalID: String? = query.externalID
 
         let predicate = Self.eventsPredicate(
             start: start,
@@ -516,6 +519,8 @@ public actor PeriscopeStore: LogSink {
             session: session,
             filtersExit: filtersExit,
             exitMode: exitMode,
+            filtersExternalID: filtersExternalID,
+            externalID: externalID,
             filtersSearch: filtersSearch,
             search: search,
             filtersScope: filtersScope,
@@ -557,6 +562,8 @@ public actor PeriscopeStore: LogSink {
         session: UUID,
         filtersExit: Bool,
         exitMode: String?,
+        filtersExternalID: Bool,
+        externalID: String?,
         filtersSearch: Bool,
         search: String,
         filtersScope: Bool,
@@ -625,6 +632,18 @@ public actor PeriscopeStore: LogSink {
                         keyPath: \.spanExitMode,
                     ),
                     rhs: PredicateExpressions.build_Arg(exitMode),
+                ),
+            )
+            let matchesExternalID = PredicateExpressions.build_Disjunction(
+                lhs: PredicateExpressions.build_Negation(
+                    PredicateExpressions.build_Arg(filtersExternalID),
+                ),
+                rhs: PredicateExpressions.build_Equal(
+                    lhs: PredicateExpressions.build_KeyPath(
+                        root: PredicateExpressions.build_Arg(event),
+                        keyPath: \.externalID,
+                    ),
+                    rhs: PredicateExpressions.build_Arg(externalID),
                 ),
             )
             let matchesSearch = PredicateExpressions.build_Disjunction(
@@ -707,8 +726,12 @@ public actor PeriscopeStore: LogSink {
                 lhs: sessioned,
                 rhs: matchesExit,
             )
-            let searched = PredicateExpressions.build_Conjunction(
+            let externallyIdentified = PredicateExpressions.build_Conjunction(
                 lhs: exited,
+                rhs: matchesExternalID,
+            )
+            let searched = PredicateExpressions.build_Conjunction(
+                lhs: externallyIdentified,
                 rhs: matchesSearch,
             )
             let scoped = PredicateExpressions.build_Conjunction(
@@ -795,6 +818,7 @@ public actor PeriscopeStore: LogSink {
             callSite: row.callFunction.flatMap { function in
                 row.callFileID.map { LogCallSite(function: function, fileID: $0) }
             },
+            externalID: row.externalID,
             attachments: row.attachments
                 .sorted { $0.index < $1.index }
                 .map { row in
