@@ -1,6 +1,6 @@
+import TestHostSupport
 import Testing
 import UIKit
-import WhereTesting
 
 @MainActor
 struct StuffTestHostSmokeTests {

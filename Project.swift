@@ -3,8 +3,8 @@ import ProjectDescription
 let destinations: Destinations = [.iPhone, .iPad]
 let deployment: DeploymentTargets = .iOS("26.0")
 
-/// Local Swift package (see root `Package.swift`) for StuffCore, WhereCore, WhereUI, and
-/// WhereTesting.
+/// Local Swift package (see root `Package.swift`) for the library products
+/// (StuffCore, WhereCore, WhereUI, TestHostSupport, the Broadway modules, …).
 private let stuffPackage = Package.local(path: .relativeToRoot("."))
 
 /// Apple Developer Team used to code-sign when building to a device, read from
@@ -36,36 +36,7 @@ func unitTests(
 ) -> Target {
     var dependencies: [TargetDependency] = [
         .package(product: productDependency),
-        .package(product: "WhereTesting"),
-        .target(name: "StuffTestHost"),
-    ]
-    for product in extraPackageProducts {
-        dependencies.append(.package(product: product))
-    }
-    return .target(
-        name: name,
-        destinations: destinations,
-        product: .unitTests,
-        bundleId: "com.stuff.\(bundleIdSuffix).tests",
-        deploymentTargets: deployment,
-        sources: sources,
-        dependencies: dependencies,
-    )
-}
-
-/// Like `unitTests`, but for the Broadway modules: links `BroadwayTesting`
-/// (not `WhereTesting`) so Broadway's hosted test bundles don't drag in the
-/// Where domain. Still runs inside the shared `StuffTestHost`.
-func broadwayUnitTests(
-    name: String,
-    bundleIdSuffix: String,
-    productDependency: String,
-    sources: ProjectDescription.SourceFilesList,
-    extraPackageProducts: [String] = [],
-) -> Target {
-    var dependencies: [TargetDependency] = [
-        .package(product: productDependency),
-        .package(product: "BroadwayTesting"),
+        .package(product: "TestHostSupport"),
         .target(name: "StuffTestHost"),
     ]
     for product in extraPackageProducts {
@@ -241,7 +212,7 @@ let project = Project(
             dependencies: [
                 .target(name: "Where"),
                 .package(product: "LifecycleKit"),
-                .package(product: "WhereTesting"),
+                .package(product: "TestHostSupport"),
                 .package(product: "WhereUI"),
             ],
         ),
@@ -281,6 +252,9 @@ let project = Project(
             // by running the full scheme without a direct RegionKit dep).
             dependencies: [
                 .package(product: "WhereCore"),
+                // Lets `SceneDelegate` stamp its window with `isMainTestHostWindow`
+                // so hosted tests can find it via `TestHostSupport.hostKeyWindow()`.
+                .package(product: "TestHostSupport"),
             ],
         ),
         unitTests(
@@ -382,16 +356,16 @@ let project = Project(
             sources: ["Shared/Broadway/BroadwayCatalog/Tests/**"],
             dependencies: [
                 .target(name: "BroadwayCatalog"),
-                .package(product: "BroadwayTesting"),
+                .package(product: "TestHostSupport"),
             ],
         ),
-        broadwayUnitTests(
+        unitTests(
             name: "BroadwayCoreTests",
             bundleIdSuffix: "broadway.core",
             productDependency: "BroadwayCore",
             sources: ["Shared/Broadway/BroadwayCore/Tests/**"],
         ),
-        broadwayUnitTests(
+        unitTests(
             name: "BroadwayUITests",
             bundleIdSuffix: "broadway.ui",
             productDependency: "BroadwayUI",

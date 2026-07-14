@@ -1,6 +1,6 @@
 import SwiftUI
+import TestHostSupport
 import Testing
-import WhereTesting
 @testable import WhereUI
 
 @MainActor

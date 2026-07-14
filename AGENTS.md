@@ -8,7 +8,7 @@
 | SwiftFormat | 0.60.1   | `.mise.toml` |
 | Swift PM    | 6.2      | `Package.swift` (`swift-tools-version`) |
 
-**Libraries** (**StuffCore**, **LifecycleKit**, **LogKit**, **LogViewerUI**, **RegionKit**, **WhereCore**, **WhereUI**, **WhereTesting**) are defined in the root [`Package.swift`](Package.swift) — local package for libraries, Tuist for apps and test bundles.
+**Libraries** (**StuffCore**, **LifecycleKit**, **LogKit**, **LogViewerUI**, **TestHostSupport**, **RegionKit**, **WhereCore**, **WhereUI**) are defined in the root [`Package.swift`](Package.swift) — local package for libraries, Tuist for apps and test bundles.
 
 Tuist manifests live at the repo root ([`Project.swift`](Project.swift), [`Tuist.swift`](Tuist.swift)). `Project.swift` references `Package.local(path: .relativeToRoot("."))` and declares the **Where** app, **StuffTestHost**, and unit-test targets that depend on package products.
 
@@ -53,8 +53,8 @@ by `./sync-agents`.
 
 ## Targets
 
-- **Package products** ([`Package.swift`](Package.swift)) — **StuffCore** ([`Shared/StuffCore/Sources/`](Shared/StuffCore/Sources/)), **LifecycleKit** ([`Shared/LifecycleKit/Sources/`](Shared/LifecycleKit/Sources/)), **LogKit** ([`Shared/LogKit/Sources/`](Shared/LogKit/Sources/), the logging facade), **LogViewerUI** ([`Shared/LogViewerUI/Sources/`](Shared/LogViewerUI/Sources/), the generic SwiftUI log viewer), and **SwiftDataInspector** ([`Shared/SwiftDataInspector/Sources/`](Shared/SwiftDataInspector/Sources/), the generic SwiftData browser) under [`Shared/`](Shared/); the **Broadway** design-system libraries **BroadwayCore** / **BroadwayUI** / **BroadwayTesting** under [`Shared/Broadway/`](Shared/Broadway/) (see [`Shared/Broadway/AGENTS.md`](Shared/Broadway/AGENTS.md)); **RegionKit** ([`Where/RegionKit/Sources/`](Where/RegionKit/Sources/), the geometry + GeoJSON + region-lookup engine WhereCore builds on) / **WhereCore** / **WhereUI** / **WhereTesting** under [`Where/`](Where/).
-- **Tuist targets** ([`Project.swift`](Project.swift)) — **Where** app ([`Where/Where/`](Where/Where/)) and its embedded app extensions **WhereWidgets** ([`Where/WhereWidgets/`](Where/WhereWidgets/), home/lock-screen widgets) and **WhereShareExtension** ([`Where/WhereShareExtension/`](Where/WhereShareExtension/), a Share-sheet action that saves shared content as evidence into the App Group store), **RegionViewer** ([`Where/RegionViewer/`](Where/RegionViewer/), a thin standalone **Mac Catalyst** host for the WhereUI region-map developer tool — the only target with a `.macCatalyst` destination), **BroadwayCatalog** ([`Shared/Broadway/BroadwayCatalog/`](Shared/Broadway/BroadwayCatalog/), the Broadway component showcase app), **StuffTestHost** ([`Shared/StuffTestHost/`](Shared/StuffTestHost/)), **WhereTests** (app tests, no host), and hosted **\*Tests** bundles (**StuffCoreTests**, **LifecycleKitTests**, **LogKitTests**, **LogViewerUITests**, **SwiftDataInspectorTests**, **RegionKitTests**, **WhereCoreTests**, **WhereUITests**) that depend on **StuffTestHost** + **WhereTesting** + the relevant package product, plus the Broadway bundles (**BroadwayCoreTests**, **BroadwayUITests**, **BroadwayCatalogTests**) which link **BroadwayTesting** instead of WhereTesting via the `broadwayUnitTests` helper.
+- **Package products** ([`Package.swift`](Package.swift)) — **StuffCore** ([`Shared/StuffCore/Sources/`](Shared/StuffCore/Sources/)), **LifecycleKit** ([`Shared/LifecycleKit/Sources/`](Shared/LifecycleKit/Sources/)), **LogKit** ([`Shared/LogKit/Sources/`](Shared/LogKit/Sources/), the logging facade), **LogViewerUI** ([`Shared/LogViewerUI/Sources/`](Shared/LogViewerUI/Sources/), the generic SwiftUI log viewer), **SwiftDataInspector** ([`Shared/SwiftDataInspector/Sources/`](Shared/SwiftDataInspector/Sources/), the generic SwiftData browser), and **TestHostSupport** ([`Shared/TestHostSupport/Sources/`](Shared/TestHostSupport/Sources/), the shared UIKit hosting + run-loop helpers for hosted test bundles) under [`Shared/`](Shared/); the **Broadway** design-system libraries **BroadwayCore** / **BroadwayUI** under [`Shared/Broadway/`](Shared/Broadway/) (see [`Shared/Broadway/AGENTS.md`](Shared/Broadway/AGENTS.md)); **RegionKit** ([`Where/RegionKit/Sources/`](Where/RegionKit/Sources/), the geometry + GeoJSON + region-lookup engine WhereCore builds on) / **WhereCore** / **WhereUI** under [`Where/`](Where/).
+- **Tuist targets** ([`Project.swift`](Project.swift)) — **Where** app ([`Where/Where/`](Where/Where/)) and its embedded app extensions **WhereWidgets** ([`Where/WhereWidgets/`](Where/WhereWidgets/), home/lock-screen widgets) and **WhereShareExtension** ([`Where/WhereShareExtension/`](Where/WhereShareExtension/), a Share-sheet action that saves shared content as evidence into the App Group store), **RegionViewer** ([`Where/RegionViewer/`](Where/RegionViewer/), a thin standalone **Mac Catalyst** host for the WhereUI region-map developer tool — the only target with a `.macCatalyst` destination), **BroadwayCatalog** ([`Shared/Broadway/BroadwayCatalog/`](Shared/Broadway/BroadwayCatalog/), the Broadway component showcase app), **StuffTestHost** ([`Shared/StuffTestHost/`](Shared/StuffTestHost/)), **WhereTests** (app tests, no host), and hosted **\*Tests** bundles (**StuffCoreTests**, **LifecycleKitTests**, **LogKitTests**, **LogViewerUITests**, **SwiftDataInspectorTests**, **RegionKitTests**, **WhereCoreTests**, **WhereUITests**, **BroadwayCoreTests**, **BroadwayUITests**, **BroadwayCatalogTests**) that depend on **StuffTestHost** + **TestHostSupport** + the relevant package product (most via the shared `unitTests` helper).
 - Add SPM library targets in `Package.swift` and wire apps/tests in `Project.swift` (see existing `unitTests` helper). A new module also ships a root `README.md` and `AGENTS.md` — see [Per-module docs](#per-module-docs).
 - **CI scheme**: CI runs the explicit shared **Stuff-iOS-Tests** scheme (all test bundles) rather than the autogenerated `Stuff-Workspace` scheme. New test bundles must be added to the `Stuff-iOS-Tests` scheme in `Project.swift` or CI won't run them.
 - **Never double-link a package product into a test bundle that already gets it through a dynamic-framework dependency.** Xcode's default SPM integration (how `Package.local` is wired here) embeds a product's code into *every* image that links it. **WhereUI** is a dynamic framework that statically embeds its own dependencies (WhereCore, BroadwayCore/BroadwayUI, LifecycleKit, LogViewerUI, SwiftDataInspector, …), so a `*Tests` bundle that depends on **WhereUI** *and* re-lists one of those in `extraPackageProducts` ends up with a **second copy** of it. When the shared **StuffTestHost** loads several `.xctest` bundles into one process, that leaves duplicate **type metadata** for the module, and any *type-keyed runtime lookup that crosses the WhereUI boundary* — SwiftUI `EnvironmentKey`s, `UITraitBridgedEnvironmentKey` bridging, the type-keyed `BTraits`/`BThemes`/`BStylesheets` containers — silently resolves against the wrong copy and returns the default (the writer stores under one copy's key *type*, the reader looks it up under another's). It only reproduces in the **full multi-bundle scheme** (not isolated `tuist test WhereUITests` runs) and is papered over by newer Xcode linkers, so it is brutal to diagnose (it cost ~2 hours once). **Depend on such products only transitively via `WhereUI`; keep them out of `extraPackageProducts`.** `WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot` is the regression guard — it exercises a `\.stylesheet` (→ `\.bContext`) read across the boundary and fails if a duplicate copy returns.
@@ -159,6 +159,17 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   When adding behavior, default to Core (+ view-model glue if the UI needs a
   trigger or observable mirror); push logic into a `View` only for presentation.
   See [`Where/AGENTS.md`](Where/AGENTS.md#layering).
+- **Reuse before you duplicate.** Before adding a new view / form / component
+  (or any type), look for an existing one covering the same concept and *extend*
+  it — a new mode or parameter, or a shared subview — rather than forking a
+  near-copy. Two screens that differ only in a few sections (e.g. *add* vs.
+  *edit* of the same thing) should be **one view with a mode**, not parallel
+  files; shared chrome (a save-error alert, a region-toggle section, an audit
+  block) becomes a shared subview, not copy-paste. If a planned addition would
+  substantially overlap existing UI and consolidating vs. forking isn't clearly
+  right, **flag it and align before building** rather than shipping the
+  duplicate. (This is the reflex behind `ManualDayView`'s add/edit modes and the
+  shared `ManualEntryAuditSection`.)
 - **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
   arguments so new behavior isn't silently opted into. Reserve defaults for
   SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
@@ -268,6 +279,29 @@ comments and surrounding code to write that summary is expected; the gate is on
 editing and pushing, not on understanding. Once the user points you at feedback
 (names comments, says "address these", etc.), that's your go-ahead — do the
 work end to end without re-asking per comment.
+
+## Debugging build/test/CI failures
+
+**Check `git status` and recent history first — before analyzing the error.** A
+baffling build/test failure (a module that won't resolve, a symbol that
+vanished, a type that stopped conforming) is often a *logical conflict with a
+recent `main` change*, not your own edits or a broken toolchain.
+
+- Run `git status -sb` and `git log --oneline -15`: confirm which branch you're
+  on and whether a **merge of `main` you didn't make** is already in the history
+  (a teammate, tooling, or a rebase may have landed one). `git merge-base
+  --is-ancestor <main-sha> HEAD` answers "is that commit already in my branch?".
+- Skim recent `main` commits (`git log origin/main`) for **structural changes**
+  — a renamed/moved/deleted module or target, relocated test scaffolding, a
+  changed shared helper — then check whether the failing file still references
+  the old shape. That's usually the fix.
+- **CI merges `main` into the branch before it runs**, so green-locally /
+  red-on-CI almost always means `main` moved. Reproduce by merging (or rebasing)
+  the latest `main` into the branch locally, then rebuild — don't debug CI
+  against a stale base.
+- Only after ruling the above out should you reach for heavier remedies
+  (clearing DerivedData / module caches, regenerating the project). Wiping
+  caches to chase a logical conflict just adds cold-build noise.
 
 ## Waiting on CI
 

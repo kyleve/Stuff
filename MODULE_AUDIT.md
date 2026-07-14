@@ -127,7 +127,7 @@ Actionable follow-ups from the audit.
 - [ ] **LifecycleKit** — Fix cancel-and-drain during `minVisible` hold in `LifecycleRunner` (treat cancellation after `hold()`, gate `.ready` on current drive) (**high**, bug, **needs-design**)
 - [ ] **LifecycleKit** — Add test superseding drive during `minVisible` (teardown/enterForeground while hold is active) (**high**, test, **quick-win** — after LifecycleKit fix lands)
 - [x] **WhereTesting** — Fix `show()` child VC lifecycle order (`addChild` → attach → `didMove`; reverse on teardown) (**high**, bug, **quick-win**)
-- [ ] **WhereTesting** — Split UIKit-only test helpers from `InMemoryKeyValueStore` so hosted bundles need not link WhereCore (**high**, convention, **needs-design**)
+- [x] **WhereTesting** — Split UIKit-only test helpers from `InMemoryKeyValueStore` so hosted bundles need not link WhereCore (**high**, convention, **needs-design**) *(done: UIKit helpers merged with `BroadwayTesting` into the dependency-free `TestHostSupport`; `InMemoryKeyValueStore` moved into `WhereCore` behind `@_spi(Testing)`)*
 - [ ] **WhereUI** — Serialize `WhereSession.trackingEnabled` mutations (cancel/coalesce in-flight start/stop tasks) (**high**, bug, **needs-design**)
 - [x] **SwiftDataInspector** — Resolve to-one relationships when value is bare `PersistentIdentifier` (fall back to schema destination type) (**high**, bug, **quick-win**)
 - [ ] **SwiftDataInspector** — Improve `EntityTableView` scalability for wide schemas (cap/virtualize columns or row summary drill-in) (**high**, performance, **needs-design**)

@@ -1,7 +1,7 @@
 import Foundation
+import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
-import WhereTesting
 import WhereUI
 
 /// Covers the always-on coordinator's launch / foreground lifecycle hooks: that

@@ -20,7 +20,6 @@ Where/
   RegionKit/     SPM library – geometry, GeoJSON, Region model + lookup (WhereCore depends on it)
   WhereCore/     SPM library – domain model, persistence, GPS, aggregation
   WhereUI/       SPM library – SwiftUI views + view models (depends on WhereCore)
-  WhereTesting/  SPM library – iOS test host helpers (show(), waitFor, ...)
   WhereWidgets/  Widget extension – reads published snapshots, renders WhereUI views
   WhereShareExtension/  Share extension – saves shared content as Evidence into the App Group store
   RegionViewer/  Mac Catalyst shell for the region-map developer tool
@@ -205,7 +204,9 @@ manual-entry forms.
 ## Testing
 
 - Test bundles run in `StuffTestHost` via the `unitTests` helper in
-  `Project.swift` and link `WhereTesting` (`show(_:perform:)`, `waitFor`).
+  `Project.swift` and link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
+  The `InMemoryKeyValueStore` test double lives in `WhereCore` behind
+  `@_spi(Testing)` (`#if DEBUG`) — import it with `@_spi(Testing) import WhereCore`.
 - Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()` — never
   `CoreLocationSource` or the user's on-disk/CloudKit store. The CloudKit
   remote-import path is exercised with the `@_spi(Testing)`

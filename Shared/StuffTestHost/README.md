@@ -2,19 +2,20 @@
 
 A minimal UIKit iOS app that **hosts** Swift Testing unit-test bundles. Hosted
 tests run in a real process with a key window and root view controller so
-`WhereTesting.show(_:perform:)` can drive UIKit appearance lifecycle and SwiftUI
+`TestHostSupport.show(_:perform:)` can drive UIKit appearance lifecycle and SwiftUI
 `onAppear` in tests.
 
 The host intentionally does almost nothing: blank root view, no business logic.
 Feature code under test lives in SPM libraries; test bundles link those libraries
-plus `WhereTesting` and run inside this app (see [`Project.swift`](../../Project.swift)).
+plus `TestHostSupport` and run inside this app (see [`Project.swift`](../../Project.swift)).
 
 ## What it provides
 
 - `@main` [`AppDelegate`](Sources/AppDelegate.swift) — scene configuration for
   the default window scene.
 - [`SceneDelegate`](Sources/SceneDelegate.swift) — creates a key window with an
-  empty `UIViewController` as root.
+  empty `UIViewController` as root and marks it `isMainTestHostWindow` (from
+  `TestHostSupport`) so `hostKeyWindow()` can find it.
 
 ## Bundle.module embedding
 
@@ -31,5 +32,5 @@ checklist when adding modules with processed resources.
 
 Host invariants (key window + root view controller) are asserted by
 [`StuffTestHostSmokeTests`](../LifecycleKit/Tests/StuffTestHostSmokeTests.swift)
-in `LifecycleKitTests`. Individual feature bundles rely on `WhereTesting.show`
+in `LifecycleKitTests`. Individual feature bundles rely on `TestHostSupport.show`
 for deeper lifecycle coverage.

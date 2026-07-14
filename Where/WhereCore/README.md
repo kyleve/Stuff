@@ -34,8 +34,9 @@ one it belongs to rather than to a god-object:
 
 ### Reads & aggregation
 
-- **`ReportReader`** — the pure read path: `yearReport(for:)`, per-region
-  `locations(in:year:)`, and `representativeCoordinates(for:)`.
+- **`ReportReader`** — the pure read path: `yearReport(for:)`, the year's raw
+  manual entries `manualDays(inYear:)`, per-region `locations(in:year:)`, and
+  `representativeCoordinates(for:)`.
 - **`YearReport` / `DayPresence` / `RegionDayLocations`** — the aggregated,
   snapshot-stable value types the UI renders. A day counts for a region if *any*
   sample that calendar day fell inside it, so a single day can belong to several.
@@ -136,3 +137,7 @@ Use `SwiftDataStore.inMemory()` + `ScriptedLocationSource` — never the
 on-disk/CloudKit store or `CoreLocationSource`. The CloudKit remote-import path
 is exercised via the `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`.
+
+`InMemoryKeyValueStore` — a `KeyValueStore` test double for `WherePreferences` —
+also ships here behind `@_spi(Testing)` (`#if DEBUG`); import it into test bundles
+with `@_spi(Testing) import WhereCore`.

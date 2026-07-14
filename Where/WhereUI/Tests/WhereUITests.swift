@@ -1,6 +1,6 @@
 import SwiftUI
+import TestHostSupport
 import Testing
-import WhereTesting
 import WhereUI
 
 @Test

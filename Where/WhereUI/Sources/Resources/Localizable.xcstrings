@@ -2085,39 +2085,6 @@
         }
       }
     },
-    "settings.manual.footer" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Backfill a trip the GPS missed, or correct a day by hand."
-          }
-        }
-      }
-    },
-    "settings.manual.header" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Manual entry"
-          }
-        }
-      }
-    },
-    "settings.manual.link" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Log or override a day"
-          }
-        }
-      }
-    },
     "settings.permissionAlert.message" : {
       "extractionState" : "manual",
       "localizations" : {
