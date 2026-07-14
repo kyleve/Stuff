@@ -458,6 +458,20 @@ public final class YearReportModel {
         }
     }
 
+    /// The recorded points for a single calendar `day`, grouped by attributed
+    /// region, for the "Fix this day" screen and flight-day detail view maps.
+    /// Logs and returns empty on failure (see `locations(in:)`).
+    public func locations(onDay day: Date) async -> [Region: [RegionDayPoint]] {
+        do {
+            return try await services.reports.locations(onDay: day)
+        } catch {
+            Self.logger.warning(
+                "Failed to load locations for day \(day) in \(selectedYear): \(error.localizedDescription)",
+            )
+            return [:]
+        }
+    }
+
     /// One representative coordinate per region for the selected year (the most
     /// heavily sampled spot in each), for the Elsewhere cards' place-name teaser.
     /// Logs and returns empty on failure (see `locations(in:)`).

@@ -236,6 +236,50 @@ struct DayAggregatorTests {
         #expect(first[.california] != nil)
     }
 
+    @Test func pointsByRegionGroupsOneDayAcrossRegions() {
+        // A same-day flight: two CA points, an .other fly-over, and an NY point.
+        let samples = [
+            makeSample(at: "2026-07-14T08:00:00-07:00", lat: 37.6213, lng: -122.3790), // CA
+            makeSample(at: "2026-07-14T10:00:00-07:00", lat: 37.7749, lng: -122.4194), // CA
+            makeSample(at: "2026-07-14T13:00:00-07:00", lat: 39.53, lng: -106.16), // .other
+            makeSample(at: "2026-07-14T17:00:00-07:00", lat: 40.7128, lng: -74.0060), // NY
+        ]
+        let byRegion = aggregator.pointsByRegion(
+            onDay: startOfDay(forYear: 2026, month: 7, day: 14),
+            samples: samples,
+            attributor: attributor,
+        )
+        #expect(byRegion[.california]?.count == 2)
+        #expect(byRegion[.other]?.count == 1)
+        #expect(byRegion[.newYork]?.count == 1)
+        #expect(byRegion[.canada] == nil)
+    }
+
+    @Test func pointsByRegionExcludesOtherDays() {
+        let samples = [
+            makeSample(at: "2026-07-14T10:00:00-07:00", lat: 37.7749, lng: -122.4194),
+            makeSample(at: "2026-07-15T10:00:00-07:00", lat: 37.7749, lng: -122.4194),
+        ]
+        let byRegion = aggregator.pointsByRegion(
+            onDay: startOfDay(forYear: 2026, month: 7, day: 14),
+            samples: samples,
+            attributor: attributor,
+        )
+        #expect(byRegion[.california]?.count == 1)
+    }
+
+    @Test func pointsByRegionCarryHorizontalAccuracy() {
+        let samples = [
+            makeSample(at: "2026-07-14T10:00:00-07:00", lat: 37.7749, lng: -122.4194, accuracy: 42),
+        ]
+        let byRegion = aggregator.pointsByRegion(
+            onDay: startOfDay(forYear: 2026, month: 7, day: 14),
+            samples: samples,
+            attributor: attributor,
+        )
+        #expect(byRegion[.california]?.first?.horizontalAccuracy == 42)
+    }
+
     @Test func reportFiltersOtherYears() {
         let samples = [
             makeSample(at: "2025-12-31T12:00:00-08:00", lat: 37.7749, lng: -122.4194),

@@ -57,6 +57,20 @@ public struct ReportReader: Sendable {
         return aggregator.locations(in: region, samples: samples, attributor: attributor)
     }
 
+    /// The recorded points for a single calendar `day`, grouped by the region
+    /// they attribute to, so the "Fix this day" screen and the flight-day detail
+    /// view can map every point of a multi-region day at once. Reads only that
+    /// day's samples (a half-open [start-of-day, next-day) window). Manual
+    /// overlays don't contribute coordinates (see `DayAggregator`).
+    public func locations(onDay day: Date) async throws -> [Region: [RegionDayPoint]] {
+        let start = aggregator.calendar.startOfDay(for: day)
+        guard let end = aggregator.calendar.date(byAdding: .day, value: 1, to: start) else {
+            return [:]
+        }
+        let samples = try await store.samples(in: DateInterval(start: start, end: end))
+        return aggregator.pointsByRegion(onDay: start, samples: samples, attributor: attributor)
+    }
+
     /// One representative coordinate per region for `year` — the most heavily
     /// sampled spot in each — so the Elsewhere cards can show a "where" teaser
     /// with a single geocode per region.
