@@ -376,10 +376,20 @@ public final class Periscope: LogRecorder, Sendable {
         state.withLock { $0.scopes[id] }
     }
 
-    /// Keep an ambient source alive for the process lifetime — see
+    /// Keep an ambient source alive until stopped — see
     /// `startAmbientSource(_:)`.
     func retainAmbientSource(_ source: some AmbientEventSource) {
         state.withLock { $0.ambientSources.append(source) }
+    }
+
+    /// Release every retained ambient source, returning them so the caller
+    /// can stop them — see `stopAmbientSources()`.
+    func releaseAmbientSources() -> [any AmbientEventSource] {
+        state.withLock { state in
+            let sources = state.ambientSources
+            state.ambientSources = []
+            return sources
+        }
     }
 
     /// The developer "log view mode" flag: when enabled, inspectable UI

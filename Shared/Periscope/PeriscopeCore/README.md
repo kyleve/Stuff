@@ -99,8 +99,9 @@ Periscope.shared.startDefaultAmbientSources()
   built in), level floors (`minimumLevel`, `setMinimumLevel(_:forSubtree:)`),
   flush threshold, bounded drop policy with synthetic `DroppedEvents`,
   redaction hook, recent buffer + `liveRecords()` stream, ambient
-  sources (`startAmbientSource`, `startDefaultAmbientSources`), and the
-  `isInspectModeEnabled` flag behind PeriscopeTools' log view mode.
+  sources (`startAmbientSource`, `startDefaultAmbientSources`,
+  `stopAmbientSources`), and the `isInspectModeEnabled` flag behind
+  PeriscopeTools' log view mode.
 - **Store** — `PeriscopeStore` (`@ModelActor` `LogSink`): sessions
   (`LogSession`), `events(matching: LogQuery)` (time range, level floor,
   event name, session, scope/subtree, tag, search, paging),

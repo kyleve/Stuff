@@ -27,6 +27,15 @@ public struct NetworkPathAmbientSource: AmbientEventSource {
         previous?.cancel()
     }
 
+    public func stop() {
+        let running = monitor.withLockUnchecked { boxed -> NWPathMonitor? in
+            let running = boxed
+            boxed = nil
+            return running
+        }
+        running?.cancel()
+    }
+
     private static func describe(_ path: NWPath) -> String {
         switch path.status {
             case .satisfied:
