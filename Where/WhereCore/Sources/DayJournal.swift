@@ -39,6 +39,31 @@ public actor DayJournal {
         self.widgets = widgets
     }
 
+    // MARK: - Post-write reconciliation
+
+    /// Recount data issues and reconcile the reminder badge + the "issues to
+    /// resolve" notification off the fresh count. The subset every committed
+    /// write shares; a write that changes *day data* additionally republishes
+    /// the widget snapshot via `reconcileAfterDayChange()`.
+    ///
+    /// The scanner is invalidated inline (not just via its async store-change
+    /// observation) so the reconciles below recount from fresh data rather than
+    /// racing it.
+    private func reconcileIssueState() async {
+        await issueScanner.invalidate()
+        await reminders.reconcile()
+        await issueAlerts.reconcile()
+    }
+
+    /// Full reconcile after a change to persisted day data (manual overlays,
+    /// clears): recount issues / badge / notification, then republish the widget
+    /// snapshot. Every day-mutating write funnels through here so the fan-out
+    /// stays in one place.
+    private func reconcileAfterDayChange() async {
+        await reconcileIssueState()
+        await widgets.publish()
+    }
+
     // MARK: - Ingestion
 
     public func ingest(_ sample: LocationSample) async throws {
@@ -77,10 +102,7 @@ public actor DayJournal {
         let key = aggregator.calendar.startOfDay(for: date)
         let presence = DayPresence(date: key, regions: regions, audit: audit)
         try await store.perform { try await store.setManualDay(presence) }
-        await issueScanner.invalidate()
-        await reminders.reconcile()
-        await issueAlerts.reconcile()
-        await widgets.publish()
+        await reconcileAfterDayChange()
         Self.logger.info(
             "Added manual day \(Self.dayLogLabel(key, calendar: aggregator.calendar)) with \(regions.count) region(s)",
         )
@@ -99,10 +121,7 @@ public actor DayJournal {
         let key = aggregator.calendar.startOfDay(for: date)
         let presence = DayPresence(date: key, regions: regions, isAuthoritative: true, audit: audit)
         try await store.perform { try await store.setManualDay(presence) }
-        await issueScanner.invalidate()
-        await reminders.reconcile()
-        await issueAlerts.reconcile()
-        await widgets.publish()
+        await reconcileAfterDayChange()
         Self.logger.info(
             "Overrode day \(Self.dayLogLabel(key, calendar: aggregator.calendar)) with \(regions.count) region(s)",
         )
@@ -115,21 +134,21 @@ public actor DayJournal {
     public func clearManualDay(date: Date) async throws {
         let key = aggregator.calendar.startOfDay(for: date)
         try await store.perform { try await store.clearManualDay(key) }
-        await issueScanner.invalidate()
-        await reminders.reconcile()
-        await issueAlerts.reconcile()
-        await widgets.publish()
+        await reconcileAfterDayChange()
         Self.logger.info(
             "Cleared manual overlay for day \(Self.dayLogLabel(key, calendar: aggregator.calendar))",
         )
     }
 
-    /// Drop the manual overlays for several calendar days in one transaction
-    /// (the logged-days list's swipe / multi-delete), restoring each day's
-    /// GPS-derived attribution. Keys are normalized to start-of-day; a day with
-    /// no manual record is silently skipped by the store. An empty input is a
-    /// no-op (no transaction, no reconcile). Batching keeps the reconcile +
-    /// widget publish to once for the whole delete rather than once per day.
+    /// Drop the manual overlays for several calendar days (the logged-days
+    /// list's swipe / multi-delete), restoring each day's GPS-derived
+    /// attribution. All deletes run inside a *single* `store.perform`
+    /// transaction, so it's **all-or-nothing**: a failure part-way through rolls
+    /// the whole batch back rather than leaving half the days cleared (see
+    /// `WhereStore.perform`). Keys are normalized to start-of-day; a day with no
+    /// manual record is silently skipped by the store. An empty input is a no-op
+    /// (no transaction, no reconcile). Batching also keeps the reconcile + widget
+    /// publish to once for the whole delete rather than once per day.
     public func clearManualDays(dates: [Date]) async throws {
         guard !dates.isEmpty else { return }
         let keys = dates.map { aggregator.calendar.startOfDay(for: $0) }
@@ -138,10 +157,7 @@ public actor DayJournal {
                 try await store.clearManualDay(key)
             }
         }
-        await issueScanner.invalidate()
-        await reminders.reconcile()
-        await issueAlerts.reconcile()
-        await widgets.publish()
+        await reconcileAfterDayChange()
         Self.logger.info("Cleared manual overlays for \(keys.count) day(s)")
     }
 
@@ -171,10 +187,7 @@ public actor DayJournal {
                 )
             }
         }
-        await issueScanner.invalidate()
-        await reminders.reconcile()
-        await issueAlerts.reconcile()
-        await widgets.publish()
+        await reconcileAfterDayChange()
         Self.logger.info(
             "Backfilled \(dayKeys.count) manual day(s) with \(regions.count) region(s)",
         )
@@ -185,10 +198,7 @@ public actor DayJournal {
     public func clearYear(_ year: Int) async throws {
         let interval = aggregator.yearInterval(year: year)
         try await store.perform { try await store.clear(in: interval) }
-        await issueScanner.invalidate()
-        await reminders.reconcile()
-        await issueAlerts.reconcile()
-        await widgets.publish()
+        await reconcileAfterDayChange()
         Self.logger.info("Cleared year \(year)")
     }
 
@@ -199,10 +209,7 @@ public actor DayJournal {
     /// store immediately rather than relying on a later launch step.
     public func eraseAllData() async throws {
         try await store.perform { try await store.clearAll() }
-        await issueScanner.invalidate()
-        await reminders.reconcile()
-        await issueAlerts.reconcile()
-        await widgets.publish()
+        await reconcileAfterDayChange()
         Self.logger.info("Erased all store data")
     }
 
@@ -226,17 +233,14 @@ public actor DayJournal {
     public func dismissIssue(key: String) async throws {
         try await store.perform { try await store.setIssueDismissed(true, key: key) }
         // Dismissing removes the issue from the unresolved count, so the badge
-        // and the "issues to resolve" notification both have to recount.
-        await issueScanner.invalidate()
-        await reminders.reconcile()
-        await issueAlerts.reconcile()
+        // and the "issues to resolve" notification both have to recount. No
+        // widget publish: a dismissal doesn't change day data.
+        await reconcileIssueState()
     }
 
     public func restoreIssue(key: String) async throws {
         try await store.perform { try await store.setIssueDismissed(false, key: key) }
-        await issueScanner.invalidate()
-        await reminders.reconcile()
-        await issueAlerts.reconcile()
+        await reconcileIssueState()
     }
 
     private static func dayLogLabel(_ day: Date, calendar: Calendar) -> String {
