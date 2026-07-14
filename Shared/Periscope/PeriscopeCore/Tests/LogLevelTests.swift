@@ -46,10 +46,30 @@ struct LogLevelTests {
         #expect(LogLevel(name: "meltdown", severity: 900).osLogType == .fault)
     }
 
+    @Test func customLevelsCanOverrideTheirOSLogType() {
+        let audit = LogLevel(name: "audit", severity: 450, osLogType: .error)
+        #expect(audit.osLogType == .error)
+
+        // The mapping routes OSLog mirroring; it is not part of identity.
+        let banded = LogLevel(name: "audit", severity: 450)
+        #expect(audit == banded)
+        #expect(audit.hashValue == banded.hashValue)
+    }
+
     @Test func roundTripsThroughCodable() throws {
         let level = LogLevel(name: "audit", severity: 450)
         let data = try JSONEncoder().encode(level)
         let decoded = try JSONDecoder().decode(LogLevel.self, from: data)
         #expect(decoded == level)
+    }
+
+    @Test func decodedLevelsRederiveTheBandDefaultOSLogType() throws {
+        // The OSLog mapping only routes live mirroring, so it isn't
+        // persisted — a custom mapping decodes back to the band default.
+        let custom = LogLevel(name: "audit", severity: 450, osLogType: .error)
+        let data = try JSONEncoder().encode(custom)
+        let decoded = try JSONDecoder().decode(LogLevel.self, from: data)
+        #expect(decoded == custom)
+        #expect(decoded.osLogType == .default)
     }
 }
