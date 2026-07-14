@@ -5,6 +5,7 @@ public enum DataIssueCategory: Sendable, Hashable, CaseIterable {
     case missingDays
     case borderDrift
     case abruptChange
+    case flightDay
 }
 
 /// Closed set of fix shapes. The UI switches on this, so a new detector that
@@ -14,12 +15,24 @@ public enum IssueResolution: Sendable, Hashable {
     case backfill(MissingDayRange)
     case relabelDay(day: DayPresence, suggestedRegions: Set<Region>, approximateMeters: Double?)
     case markTravelDay(earlier: DayPresence, later: DayPresence, suggestedRegions: Set<Region>)
+    /// A day whose region set was polluted by cruise-speed GPS fixes crossing
+    /// untracked geography (a flight). `keepRegions` are the endpoints/dwell
+    /// regions to preserve; `removedRegions` are the fly-over-only regions the
+    /// one-tap fix drops (applied as an authoritative `overrideDay(keepRegions)`).
+    /// `peakSpeedKMH` is the fastest leg, for the detail view's copy.
+    case correctFlightDay(
+        day: DayPresence,
+        keepRegions: Set<Region>,
+        removedRegions: Set<Region>,
+        peakSpeedKMH: Double,
+    )
 }
 
 public enum DataIssueID: Hashable, Sendable {
     case missingDays(start: Date)
     case borderDrift(date: Date)
     case abruptChange(earlier: Date, later: Date)
+    case flightDay(start: Date)
 
     /// Stable, device-independent key for persisted dismissal and `ForEach`.
     public var storageKey: String {
@@ -30,6 +43,8 @@ public enum DataIssueID: Hashable, Sendable {
                 "borderDrift:\(Self.dayKey(date))"
             case let .abruptChange(earlier, later):
                 "abruptChange:\(Self.dayKey(earlier)):\(Self.dayKey(later))"
+            case let .flightDay(start):
+                "flightDay:\(Self.dayKey(start))"
         }
     }
 

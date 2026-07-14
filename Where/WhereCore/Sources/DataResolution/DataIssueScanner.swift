@@ -48,6 +48,7 @@ public actor DataIssueScanner {
             MissingDaysDetector(),
             BorderDriftDetector(),
             AbruptLocationChangeDetector(),
+            FlightDayDetector(),
         ],
         // Defaults to an already-finished stream — *not* `AsyncStream { _ in }`,
         // which never yields or finishes and so would park the observation task
