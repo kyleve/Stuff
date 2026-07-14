@@ -42,8 +42,9 @@ event sources). Tests stay flat, named 1:1 with their source files.
   many-to-many (links), and scopes keep their parent chain.
 - **Custom levels are values, not cases.** `LogLevel` is a struct ordered by
   `severity`; never switch exhaustively over "all" levels.
-- **Sink failures never propagate or vanish** — the store logs them to OSLog
-  and counts them; the pipeline reports drops with a synthetic
+- **Sink failures never propagate or vanish** — the store logs them to
+  OSLog, counts them, and persists a synthetic `StoreWriteFailed` marker
+  for the lost batch; the pipeline reports drops with a synthetic
   `DroppedEvents` record.
 - **A failed store save must roll back** (`recoverFromFailedWrite`):
   the context is discarded, row caches drop, and the session row refetches
@@ -61,7 +62,8 @@ event sources). Tests stay flat, named 1:1 with their source files.
   and the `SpanBegan` record land atomically (`LogRecorder.beginSpan`), so
   a span is never closable before its began is in the pipeline; the
   overflow drop policy never splits a recorded pair
-  (`LogRecord.isProtectedFromDropping`); and redaction is transform-only
+  (`LogEvent.isProtectedFromDropping`, an event-type opt-in the span pair
+  events set); and redaction is transform-only
   for pair records (suppression falls back to a stripped copy). Keep all
   three.
 - **Span pairs floor together.** The floor decision is made once, at

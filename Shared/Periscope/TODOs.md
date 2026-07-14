@@ -9,6 +9,12 @@
 # Open issues
 
 ## P0s (Must do)
+- design: Crash durability — the async pipeline can drop events exactly at crash time. Options from PR review: a synchronous per-event journal the async queue ingests, or writing straight to the store. Needs a plan/build loop.
+- design: Span record modeling — `spanID`/`spanExit` bolted onto every `LogRecord` (and `bypassesFloors` as a one-off flag) feels wrong; consider `enum { case span(Span), case event(Event) }` or a dedicated span record type. Plan/build loop.
+- design: Decompose `Periscope` (the type and its flat `State` — group watchdog/inspect/ambient/live-observer state into sub-structs) and `PeriscopeStore` into children per behavioral area. Plan/build loop.
+- design: `ScopeID` derivation — hash-derived vs a concatenated, human-readable path that preserves the input for debugging. Plan/build loop.
+- design: `LogContextProviding` parent hierarchy — instance logs need a way to nest under a container's context (e.g. a controller inside another controller). Plan/build loop.
+- design: Ambient state snapshots — ambients should persist their *current state* (session-style) alongside change events, so any event joins to the system state at that moment. Plan/build loop.
 - feat: Implement `SpanRelaunchPolicy.survivesRelaunch` resume mechanics. The policy is already recorded on `SpanBegan` payloads and the relaunch sweep honors it (surviving spans are left open, not orphan-closed), but nothing re-seeds them: `end(for:)` in the new process warns "without a matching begin". Needs an async bootstrap step at store/system startup that queries unmatched surviving `SpanBegan` events and re-opens them in `Periscope.openSpans` — plus wall-clock durations for resumed spans (`ContinuousClock` instants don't survive reboot; `SpanEnded.duration` is already optional for this) and accepting that signpost intervals can't resume.
 
 
@@ -21,6 +27,14 @@
 
 # Completed issues
 
+## PR review pass (bugs + mechanical reshapes)
+- fix: Ambient sources retain their NotificationCenter observer tokens (`AmbientObserverTokens`) — dropped tokens made observations unremovable and immortalized the captured system; restarts now replace instead of doubling. `AmbientEventSource` gains `stop()` and `Periscope.stopAmbientSources()`.
+- feat: `LogAttachment.ContentType` enum (json/png/jpeg/plainText + `.other(mime)`); `LogLevel.osLogType` is a stored, overridable property (identity and Codable stay name + severity); `SpanExit` factories for every mode.
+- feat: Tags reshaped — `LogTagValue` (typed values incl. any Codable), `[LogTag]` lists everywhere, multi-tag AND queries via filter-count predicate; SDLogTag gains `valueKind`.
+- refactor: `InstanceID` stores the `Any.Type`, deriving the name on demand; drop protection is a `LogEvent.isProtectedFromDropping` opt-in rather than concrete type checks.
+- feat: `StoreWriteFailed` marker persists after rolled-back writes; retention prunes orphaned sessions, tag rows, and event-less scope branches (leaf-first) in a follow-up save.
+- feat: `#function`/`#fileID` capture on every emit (`LogCallSite` → columns → detail view + NDJSON); `LogEvent.externalID` links events to app objects (indexed column, `LogQuery.externalID`).
+- feat: `AccessibilityAmbientSource` — start summary plus per-toggle changes across the UIAccessibility settings; tool caps raised to 500 and per-instance.
 
 ## Second review pass
 - fix: Redaction can no longer split span pairs — `SpanBegan`/`SpanEnded` records are transform-only through the hook: returning `nil` records a stripped copy instead (tags and attachments dropped, `SpanEnded.exit.reason` blanked; `strippedOfSensitivePayload`), since a suppressed half would strand its partner. Level floors remain the supported way to silence spans; `SpanOverdue` stays suppressible.
