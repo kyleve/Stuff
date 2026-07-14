@@ -46,9 +46,10 @@ depend on `WhereIntents`.
 
 ## Spotlight
 
-`RegionEntity` conforms to `IndexedEntity`; the five regions are indexed into
-Spotlight (`RegionSpotlightIndexer.indexRegions()`, called at app launch) so a
-search for a region name surfaces Where and its day-count query.
+`RegionEntity` conforms to `IndexedEntity`; the user's **tracked** regions are
+indexed into Spotlight (`RegionSpotlightIndexer.indexRegions()`, called at app
+launch, re-run picks up changes) so a search for a region name surfaces Where and
+its day-count query.
 
 ## Shared types
 
@@ -58,7 +59,10 @@ search for a region name surfaces Where and its day-count query.
   per-instance `displayRepresentation` can read `Region.localizedName` at
   runtime — App Intents requires an `AppEnum`'s `caseDisplayRepresentations` to
   be compile-time-constant literals, which would force restating RegionKit's
-  region names here.
+  region names here. `entities(for:)` resolves **any available** region by id
+  (so "days in Texas" answers even when untracked), while `suggestedEntities()`
+  and the Spotlight index surface the user's **tracked** set (via
+  `WhereServices.trackedRegions()`).
 - `ActivityWindowAppEnum` — mirrors `RecentActivityWindow` (24h / week / month /
   year so far). An enum is fine here because these display names have no
   RegionKit-owned source.

@@ -51,6 +51,12 @@ layering, localization, and the WhereUI duplicate-metadata rule).
   per-instance `displayRepresentation` is runtime, so it reads
   `Region.localizedName` and RegionKit stays the single source of a region's
   spelling. `RegionEntity`/`RegionEntityQuery` are `rawValue`-keyed.
+- **Suggestions and Spotlight surface the *tracked* set; resolution is
+  *full-catalog*.** `RegionEntityQuery.suggestedEntities()` and
+  `RegionSpotlightIndexer` read the user's tracked regions via
+  `RegionEntity.tracked(from:)` (→ `WhereServices.trackedRegions()`), while
+  `entities(for:)` resolves any available region by id (so a spoken untracked
+  region still answers, with a zero count).
 - **App Intents static metadata is literal; dialog copy is catalog-backed.**
   Titles, parameter titles, and type/case display names are `LocalizedStringResource`
   literals (the framework extracts/localizes them and requires constants).

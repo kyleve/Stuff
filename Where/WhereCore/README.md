@@ -25,7 +25,16 @@ one it belongs to rather than to a god-object:
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one
   atomic transaction) and `changes()` emits once per commit and on a CloudKit
   remote import. `SwiftDataStore.make()` is the production, CloudKit-backed
-  implementation; `SwiftDataStore.inMemory()` backs tests and previews.
+  implementation; `SwiftDataStore.inMemory()` backs tests and previews. It also
+  holds the user's **tracked regions** (`trackedRegions()` /
+  `setTrackedRegion(_:id:)`) — one synced row per region, defaulting to the four
+  until the user chooses.
+- **`RegionAttribution`** — a live `RegionAttributing` built from the tracked
+  regions that rebuilds on `changes()` (a local edit or a remote import), so the
+  app + App Intents process attribute against the same synced set. Assemble
+  services with `WhereServices.make(...)` (async — it reads the tracked set) in
+  production; the synchronous `WhereServices.init` uses `RegionAttributor.shared`
+  (the default four) for tests/previews.
 - **`DayJournal`** — the user-sourced writes: manual-day overlays
   (`addManualDay` / `overrideDay` / `addManualDays`), clears
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
@@ -89,7 +98,11 @@ and talk to the collaborators:
 ```swift
 import WhereCore
 
-let services = WhereServices(
+// Production wiring reads the tracked regions from the store to build the
+// attributor, so `make(...)` is async. Tests/previews can use the synchronous
+// `WhereServices(store:locationSource:)` (in-memory stores resolve to the
+// default four).
+let services = try await WhereServices.make(
     store: try SwiftDataStore.make(),   // production; use .inMemory() in tests
     locationSource: CoreLocationSource(),
 )

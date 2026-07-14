@@ -28,11 +28,13 @@ Where/
 - **App target** `Where` is intentionally tiny: it wires `RootView` from
   `WhereUI` into a `WindowGroup`. Add domain behavior to `WhereCore`,
   presentation and view-model wiring to `WhereUI`.
-- **`RegionKit`** is the lowest layer: the `Region` model, coordinate geometry
-  (`Coordinate`, `GeoPolygon`, `BoundingBox`, `LongitudeSpan`), GeoJSON
-  decoding, and coordinate-to-`Region` lookup (`RegionAttributor`). Pure Swift +
-  Foundation + LogKit; the bundled region polygons (`Resources/*.geojson`) and
-  the region-name catalog ship here. See [`RegionKit/AGENTS.md`](RegionKit/AGENTS.md).
+- **`RegionKit`** is the lowest layer: the data-driven `Region` value type +
+  `RegionCatalog` (available regions from a bundled `regions.json` manifest),
+  coordinate geometry (`Coordinate`, `GeoPolygon`, `BoundingBox`,
+  `LongitudeSpan`), GeoJSON decoding, and coordinate-to-`Region` lookup
+  (`RegionAttributor`, built per tracked subset and loading only those regions'
+  files). Pure Swift + Foundation + LogKit; the generated manifest +
+  per-region polygons ship in `Resources/`. See [`RegionKit/AGENTS.md`](RegionKit/AGENTS.md).
 - **`WhereCore`** is the domain layer: pure Swift + Foundation + SwiftData +
   CoreLocation; it must **not** import SwiftUI or UIKit. It depends on
   **`RegionKit`** and calls into it for region lookup.
@@ -122,8 +124,11 @@ views or thrown errors.
   variations; years use a grouping-free number style ("2026", not "2,026").
 - **WhereCore:** user-visible errors use static
   `String(localized:bundle: .module)` keys in its own catalog.
-- **RegionKit:** region names (`Region.localizedName`) use static
-  `String(localized:bundle: .module)` keys in RegionKit's own catalog.
+- **RegionKit:** region names (`Region.localizedName`) come from the
+  `regions.json` manifest, with an optional `localizationKey` overriding from
+  RegionKit's own `Localizable.xcstrings` (`bundle: .module`). Because ids are
+  data, region names lose static string-catalog extraction — a deliberate
+  trade-off for a data-driven catalog.
 - **DEBUG-only UI** still gets catalog entries — don't bypass localization
   because a surface is dev-only.
 - **WhereWidgets:** gallery name/description live in the extension's own
@@ -189,12 +194,14 @@ manual-entry forms.
 - **New library target:** add to root [`Package.swift`](../Package.swift)
   under `Where/<Name>/Sources`, then wire a hosted test bundle in
   [`Project.swift`](../Project.swift) via the `unitTests` helper.
-- **New region:** add the `Region` case in **`RegionKit`**, then resolve the two
-  compile errors it forces: a `region.<rawValue>` entry in RegionKit's
-  `Resources/Localizable.xcstrings` (for `localizedName`) and a
-  `Region.geometrySource` case (`.usStateFeature(name:)` or `.bundledFile` with a
-  new `<rawValue>.geojson` in RegionKit's `Resources/`). Add a
-  `RegionAttributorTests` spot-check (in `RegionKit/Tests`).
+- **New region:** it's **pure data** now — add geometry under
+  `RegionKit/Tools/source/`, run `ruby Where/RegionKit/Tools/generate-regions.rb`
+  to regenerate `Resources/regions/` + `regions.json` (extend the script's id
+  map / `NON_US` list as needed), optionally add a `region.<key>` string +
+  `localizationKey`, and add a `RegionAttributorTests` spot-check. No `Region`
+  case, no code — `RegionStyle`, region pickers, and the App Intents
+  `RegionEntity` all derive from the catalog. (See
+  [`RegionKit/README.md`](RegionKit/README.md#adding-a-region).)
 - **New evidence kind / sample source:** add the case and follow the compile
   errors through the exhaustive switches.
 - **New app icon:** run `./icons --add` (see the root
