@@ -46,6 +46,14 @@ public protocol LogEvent: Codable, Sendable {
 
     /// Human-readable rendering, shown in Console.app and the log viewer.
     var message: String { get }
+
+    /// Whether the overflow drop policy must keep records of this event
+    /// under queue pressure (see
+    /// ``Periscope/Configuration/pendingBufferCapacity``). Defaults to
+    /// `false`; span began/ended events opt in so pairs never split.
+    /// Reserve for events whose *absence* corrupts the story the log
+    /// tells — protected records can push the queue past its bound.
+    static var isProtectedFromDropping: Bool { get }
 }
 
 extension LogEvent {
@@ -59,5 +67,9 @@ extension LogEvent {
 
     public var level: LogLevel {
         .info
+    }
+
+    public static var isProtectedFromDropping: Bool {
+        false
     }
 }

@@ -35,6 +35,8 @@ extension SpanID: Codable {
 public struct SpanBegan: LogEvent {
     public static let eventName = "span-began"
     public static let eventVersion = 2
+    /// Half of a span pair — see `LogEvent.isProtectedFromDropping`.
+    public static let isProtectedFromDropping = true
 
     public let spanID: SpanID
     public let name: String
@@ -68,6 +70,8 @@ public struct SpanBegan: LogEvent {
 public struct SpanEnded: LogEvent {
     public static let eventName = "span-ended"
     public static let eventVersion = 2
+    /// Half of a span pair — see `LogEvent.isProtectedFromDropping`.
+    public static let isProtectedFromDropping = true
 
     public let spanID: SpanID
     public let name: String
@@ -150,16 +154,6 @@ public struct SpanOverdue: LogEvent {
 extension SpanOverdue: SpanCarrying {}
 
 extension LogRecord {
-    /// Whether the overflow drop policy must keep this record: span pairs
-    /// never split under drop pressure. Dropping a began strands its end
-    /// (nothing repairs a parentless `SpanEnded`); dropping an end leaves
-    /// the span reading as still open for the rest of the session (the
-    /// orphan sweep only runs at the next launch). `SpanOverdue` is a
-    /// disposable warning and drops like any other record.
-    var isProtectedFromDropping: Bool {
-        event is SpanBegan || event is SpanEnded
-    }
-
     /// The pair-integrity fallback for a redaction hook that tries to
     /// suppress a protected span record: the same event with its PII
     /// carriers removed — tags and attachments dropped, a `SpanEnded`'s

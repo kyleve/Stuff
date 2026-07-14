@@ -57,4 +57,14 @@ public struct LogRecord: Sendable, Identifiable {
     public var eventVersion: Int {
         type(of: event).eventVersion
     }
+
+    /// Whether the overflow drop policy must keep this record — the
+    /// event type's ``LogEvent/isProtectedFromDropping`` opt-in. Span
+    /// began/ended events set it so pairs never split under drop
+    /// pressure: a dropped began strands its end, and a dropped end
+    /// reads as still-open until the next launch's orphan sweep.
+    /// (`SpanOverdue` stays droppable — a disposable warning.)
+    var isProtectedFromDropping: Bool {
+        type(of: event).isProtectedFromDropping
+    }
 }

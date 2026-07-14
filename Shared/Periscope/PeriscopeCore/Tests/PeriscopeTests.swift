@@ -868,6 +868,37 @@ struct PeriscopeTests {
         }
     }
 
+    @Test func customEventsCanOptIntoDropProtection() async throws {
+        struct AuditEvent: LogEvent {
+            static let isProtectedFromDropping = true
+            var message: String {
+                "audit-entry"
+            }
+        }
+
+        let gate = GateSink()
+        let system = Periscope(
+            configuration: Periscope.Configuration(pendingBufferCapacity: 3),
+            sinks: [gate, sink],
+        )
+        let log = Log<AppLogs>(system: system)
+
+        log.info("r0")
+        let drainBlocked = await waitUntil { gate.batchCount >= 1 }
+        try #require(drainBlocked)
+
+        log(AuditEvent.self) { AuditEvent() }
+        for index in 1 ... 5 {
+            log.info("r\(index)")
+        }
+        gate.open()
+        await system.flush()
+
+        let messages = sink.records.map(\.message)
+        #expect(messages.contains("audit-entry"))
+        #expect(!messages.contains("r1"))
+    }
+
     @Test func overflowNeverSplitsSpanPairs() async throws {
         let gate = GateSink()
         let system = Periscope(
