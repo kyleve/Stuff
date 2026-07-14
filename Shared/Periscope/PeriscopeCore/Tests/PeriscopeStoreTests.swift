@@ -518,6 +518,57 @@ struct PeriscopeStoreTests {
         #expect(try await store.events(matching: LogQuery()).map(\.message) == ["new"])
     }
 
+    @Test func pruningRemovesOrphanedSessionsTagsAndScopes() async throws {
+        let store = try await PeriscopeStore.inMemory(session: .fixture())
+        let root = LogScope.root(named: "app")
+        let album = root.child(named: "album-1")
+        let key = LogTagKey("payment-id")
+        await store.defineScopes([root, album])
+        await store.write([
+            LogRecord(
+                date: date(1),
+                event: Message(level: .info, "old"),
+                scopes: [album.id],
+                tags: [LogTag(key: key, value: "pay_old")],
+            ),
+        ])
+
+        // A later launch writes newer events under the root only.
+        let liveSession = LogSession.fixture(startedAt: date(100))
+        try await store.startSession(liveSession)
+        await store.write([
+            LogRecord(
+                date: date(200),
+                event: Message(level: .info, "new"),
+                scopes: [root.id],
+                tags: [LogTag(key: key, value: "pay_new")],
+            ),
+        ])
+
+        #expect(try await store.pruneEvents(olderThan: date(50)) == 1)
+
+        // The dead launch's session, the orphaned tag pair, and the
+        // event-less album leaf are gone; root keeps its event, and the
+        // live session survives.
+        #expect(try await store.sessions().map(\.id) == [liveSession.id])
+        #expect(try await store.scope(for: album.id) == nil)
+        #expect(try await store.scope(for: root.id) == root)
+
+        // A pruned tag pair is re-creatable — the row cache dropped its
+        // deleted entry rather than handing back a dead row.
+        await store.write([
+            LogRecord(
+                date: date(300),
+                event: Message(level: .info, "old pair reused"),
+                scopes: [root.id],
+                tags: [LogTag(key: key, value: "pay_old")],
+            ),
+        ])
+        var query = LogQuery()
+        query.tags = [LogTag(key: key, value: "pay_old")]
+        #expect(try await store.events(matching: query).map(\.message) == ["old pair reused"])
+    }
+
     @Test func pruneKeepingNewestKeepsTheCount() async throws {
         let (store, root, _, _) = try await makeStore()
         await store.write((1 ... 5).map { index in

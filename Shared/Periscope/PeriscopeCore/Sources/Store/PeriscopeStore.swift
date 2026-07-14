@@ -805,7 +805,9 @@ public actor PeriscopeStore: LogSink {
     // MARK: Retention
 
     /// Delete events older than `cutoff`; returns how many were removed.
-    /// Scopes and sessions stay — they're tiny and keep old exports legible.
+    /// Metadata the deletion orphans — event-less sessions, tag rows, and
+    /// scope branches — goes with it, so long-term growth stays bounded by
+    /// the events actually retained.
     public func pruneEvents(olderThan cutoff: Date) throws -> Int {
         let descriptor = FetchDescriptor<SDLogEvent>(
             predicate: #Predicate { $0.date < cutoff },
@@ -844,8 +846,67 @@ public actor PeriscopeStore: LogSink {
             recoverFromFailedWrite()
             throw error
         }
+        do {
+            // A second save, after the deletions committed: inverse
+            // relationships (`scope.events`, `tag.events`) only reflect
+            // removed rows once saved, so orphanhood isn't provable inside
+            // the same transaction.
+            try pruneOrphanedMetadata()
+            try modelContext.save()
+        } catch {
+            recoverFromFailedWrite()
+            throw error
+        }
         notifyChanged()
         return rows.count
+    }
+
+    /// Remove metadata rows the deletion just orphaned, in the same save —
+    /// without this, retention only bounds the events table: one session
+    /// row per launch and one tag row per distinct pair (unbounded when
+    /// values are entity IDs) accumulate forever.
+    ///
+    /// - Sessions with no remaining events go, except the active launch's.
+    /// - Tag rows with no remaining events go (their cache entries too).
+    /// - Scopes go leaf-first when they have no events *and* no children,
+    ///   so ancestors of still-populated scopes survive for path
+    ///   resolution.
+    private func pruneOrphanedMetadata() throws {
+        for session in try modelContext.fetch(FetchDescriptor<SDLogSession>()) {
+            let sessionID = session.sessionID
+            guard sessionID != activeSession?.id else { continue }
+            var events = FetchDescriptor<SDLogEvent>(
+                predicate: #Predicate { $0.sessionID == sessionID },
+            )
+            events.fetchLimit = 1
+            if try modelContext.fetchCount(events) == 0 {
+                modelContext.delete(session)
+            }
+        }
+
+        for tag in try modelContext.fetch(FetchDescriptor<SDLogTag>()) where tag.events.isEmpty {
+            tagRowCache[LogTag(
+                key: LogTagKey(tag.key),
+                value: LogTagValue(kind: tag.valueKind, stored: tag.value),
+            )] = nil
+            modelContext.delete(tag)
+        }
+
+        var scopes = try modelContext.fetch(FetchDescriptor<SDLogScope>())
+        var removedLeaf = true
+        while removedLeaf {
+            removedLeaf = false
+            let parentIDs = Set(scopes.compactMap(\.parentID))
+            scopes.removeAll { scope in
+                guard scope.events.isEmpty, !parentIDs.contains(scope.scopeID) else {
+                    return false
+                }
+                scopeRowCache[scope.scopeID] = nil
+                modelContext.delete(scope)
+                removedLeaf = true
+                return true
+            }
+        }
     }
 
     // MARK: Change notification
