@@ -1,10 +1,11 @@
 import Foundation
 import RegionKit
+import WhereCore
 
-/// The regions in `Region.allCases` declaration order, so multi-region output
+/// The regions in the catalog's canonical order, so multi-region output
 /// (entities and dialog) is stable regardless of set iteration order.
 func orderedRegions(_ regions: Set<Region>) -> [Region] {
-    Region.allCases.filter(regions.contains)
+    Region.inCanonicalOrder(regions)
 }
 
 /// Whether "now" falls in `year`. Gates the day-count snippet's "Log today

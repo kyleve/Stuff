@@ -234,6 +234,14 @@ public struct WhereServices: Sendable {
         store.changes()
     }
 
+    /// The user's tracked regions (the synced set the app attributes against),
+    /// read fresh from the store. Exposed for the App Intents layer, whose "pick
+    /// a region" suggestions and Spotlight index surface the tracked set (rather
+    /// than every available region).
+    public func trackedRegions() async throws -> Set<Region> {
+        try await store.trackedRegions()
+    }
+
     /// Return the services to a clean slate for the app's "erase all data &
     /// reset" teardown: quiesce GPS ingestion (stop monitoring, refuse further
     /// samples, await any in-flight write, and drop the retry backlog) so

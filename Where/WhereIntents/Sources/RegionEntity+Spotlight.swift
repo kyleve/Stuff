@@ -5,19 +5,21 @@ import WhereCore
 
 /// Makes `RegionEntity` part of the system's on-device index so a Spotlight
 /// search for a region name surfaces Where — and Siri can reason over the
-/// tracked regions. The five regions are a tiny, fixed set, so they're indexed
+/// tracked regions. The tracked set is small (a handful), so it's indexed
 /// wholesale at launch rather than incrementally.
 extension RegionEntity: IndexedEntity {}
 
-/// Indexes the tracked regions into Spotlight. Runs once at app launch (see the
-/// app's `AppDelegate`); indexing five items is cheap and idempotent.
+/// Indexes the user's tracked regions into Spotlight. Runs once at app launch
+/// (see the app's `AppDelegate`); indexing a handful of items is cheap and
+/// idempotent, and re-runs pick up any change to the tracked set.
 public enum RegionSpotlightIndexer {
     private static let logger = WhereLog.channel(.whereIntents)
 
     public static func indexRegions() async {
         do {
-            try await CSSearchableIndex.default().indexAppEntities(RegionEntity.all)
-            logger.info("Indexed \(RegionEntity.all.count) region(s) for Spotlight")
+            let entities = try await RegionEntity.tracked(from: IntentServices.shared.current())
+            try await CSSearchableIndex.default().indexAppEntities(entities)
+            logger.info("Indexed \(entities.count) region(s) for Spotlight")
         } catch {
             // Degraded-but-handled: search integration is a nicety, so a failure
             // is logged and swallowed rather than surfaced to the user.

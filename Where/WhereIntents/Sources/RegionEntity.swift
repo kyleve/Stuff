@@ -1,5 +1,6 @@
 import AppIntents
 import RegionKit
+import WhereCore
 
 /// A `Region` as an `AppEntity`: the region parameter every intent operates on,
 /// the Spotlight-indexable representation of a tracked region, and the
@@ -11,8 +12,9 @@ import RegionKit
 /// literals, which would force restating RegionKit's region names here. An
 /// entity's `displayRepresentation` is per-instance and evaluated at runtime, so
 /// it reads `Region.localizedName` directly — RegionKit stays the single source
-/// of a region's spelling. The system builds the same "pick a region" menu from
-/// `RegionEntityQuery.suggestedEntities()`.
+/// of a region's spelling. The system builds the "pick a region" menu from
+/// `RegionEntityQuery.suggestedEntities()`, which surfaces the user's *tracked*
+/// regions.
 public struct RegionEntity: AppEntity, Identifiable, Sendable {
     /// `Region.rawValue` — the stable data identifier.
     public var id: String
@@ -39,15 +41,20 @@ public struct RegionEntity: AppEntity, Identifiable, Sendable {
 
     public static let defaultQuery = RegionEntityQuery()
 
-    /// Every tracked region as an entity, in `Region.allCases` order.
-    public static var all: [RegionEntity] {
-        Region.allCases.map(RegionEntity.init)
+    /// The user's tracked regions as entities, in the catalog's canonical order
+    /// — the "pick a region" menu and the Spotlight index. Takes `services` so
+    /// it's testable; the zero-argument query and indexer resolve the process
+    /// services (`IntentServices.shared`).
+    static func tracked(from services: WhereServices) async throws -> [RegionEntity] {
+        let regions = try await services.trackedRegions()
+        return Region.inCanonicalOrder(regions).map(RegionEntity.init)
     }
 }
 
-/// Resolves `RegionEntity` values for the fixed, five-case region set — no
-/// store access needed, so it also serves as the entities' `suggestedEntities`
-/// (the full menu) and the source for Spotlight indexing.
+/// Resolves `RegionEntity` values for the intents. `entities(for:)` resolves any
+/// **available** region id (so "days in Texas" works even if Texas isn't
+/// tracked — it just reports 0), while `suggestedEntities()` offers the user's
+/// **tracked** set as the menu.
 public struct RegionEntityQuery: EntityQuery {
     public init() {}
 
@@ -58,6 +65,6 @@ public struct RegionEntityQuery: EntityQuery {
     }
 
     public func suggestedEntities() async throws -> [RegionEntity] {
-        RegionEntity.all
+        try await RegionEntity.tracked(from: IntentServices.shared.current())
     }
 }
