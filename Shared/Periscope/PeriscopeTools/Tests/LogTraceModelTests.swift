@@ -23,7 +23,7 @@ struct LogTraceModelTests {
         // Trace from the error, not the newest event.
         let error = try #require(try await store.events(matching: LogQuery())
             .first { $0.message == "origin error" })
-        let model = LogTraceModel(store: store, origin: error)
+        let model = LogTraceModel(store: store, origin: error, limit: 500)
         await model.load()
 
         #expect(model.trail.map(\.message) == ["later", "earlier"])
@@ -40,7 +40,7 @@ struct LogTraceModelTests {
             makeRecord("origin", level: .error, date: date(4), scopes: [album.id]),
         ])
         let origin = try await originEvent(in: store)
-        let model = LogTraceModel(store: store, origin: origin)
+        let model = LogTraceModel(store: store, origin: origin, limit: 500)
         await model.load()
 
         #expect(model.trail.map(\.message) == ["at photos", "at root"])
@@ -55,7 +55,7 @@ struct LogTraceModelTests {
             makeRecord("origin", level: .error, date: date(2), scopes: [album.id, screen.id]),
         ])
         let origin = try await originEvent(in: store)
-        let model = LogTraceModel(store: store, origin: origin)
+        let model = LogTraceModel(store: store, origin: origin, limit: 500)
         await model.load()
 
         #expect(model.trail.map(\.message) == ["ui context"])
@@ -89,7 +89,7 @@ struct LogTraceModelTests {
         let origin = try await originEvent(in: store)
         #expect(origin.spanID == span)
 
-        let model = LogTraceModel(store: store, origin: origin)
+        let model = LogTraceModel(store: store, origin: origin, limit: 500)
         await model.load()
 
         #expect(model.trail.contains { $0.spanID == span && $0.eventName == "span-began" })
@@ -106,7 +106,7 @@ struct LogTraceModelTests {
         let origin = try #require(try await store.events(matching: LogQuery())
             .first { $0.message == "origin" })
 
-        let model = LogTraceModel(store: store, origin: origin)
+        let model = LogTraceModel(store: store, origin: origin, limit: 500)
         await model.load()
 
         #expect(model.trail.map(\.message) == ["before"])
@@ -117,7 +117,7 @@ struct LogTraceModelTests {
         await store.write([makeRecord("origin", date: date(1), scopes: [album.id])])
         let origin = try await originEvent(in: store)
 
-        let model = LogTraceModel(store: store, origin: origin)
+        let model = LogTraceModel(store: store, origin: origin, limit: 500)
         await model.load()
 
         #expect(model.trail.isEmpty)
@@ -130,7 +130,7 @@ struct LogTraceModelTests {
             makeRecord("origin", date: date(2), scopes: [album.id]),
         ])
         let origin = try await originEvent(in: store)
-        let model = LogTraceModel(store: store, origin: origin)
+        let model = LogTraceModel(store: store, origin: origin, limit: 500)
         await model.load()
 
         let context = try #require(model.trail.first)

@@ -11,19 +11,22 @@ import SwiftUI
 public struct LogTraceView: View {
     private let store: PeriscopeStore
     private let origin: StoredLogEvent
+    private let limit: Int
     @State private var model: LogTraceModel
 
-    public init(store: PeriscopeStore, origin: StoredLogEvent) {
+    public init(store: PeriscopeStore, origin: StoredLogEvent, limit: Int = 500) {
         self.store = store
         self.origin = origin
-        _model = State(initialValue: LogTraceModel(store: store, origin: origin))
+        self.limit = limit
+        _model = State(initialValue: LogTraceModel(store: store, origin: origin, limit: limit))
     }
 
     /// The identity of this view's inputs — re-keying the task rebinds the
-    /// model when either changes in place.
+    /// model when any changes in place.
     private struct Inputs: Equatable {
         let store: ObjectIdentifier
         let origin: UUID
+        let limit: Int
     }
 
     public var body: some View {
@@ -41,9 +44,9 @@ public struct LogTraceView: View {
         .listStyle(.plain)
         .navigationTitle("Trace")
         .navigationBarTitleDisplayMode(.inline)
-        .task(id: Inputs(store: ObjectIdentifier(store), origin: origin.id)) {
-            if model.store !== store || model.origin.id != origin.id {
-                model = LogTraceModel(store: store, origin: origin)
+        .task(id: Inputs(store: ObjectIdentifier(store), origin: origin.id, limit: limit)) {
+            if model.store !== store || model.origin.id != origin.id || model.limit != limit {
+                model = LogTraceModel(store: store, origin: origin, limit: limit)
             }
             await model.load()
         }

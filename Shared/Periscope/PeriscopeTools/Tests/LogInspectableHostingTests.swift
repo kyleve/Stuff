@@ -44,7 +44,7 @@ struct LogInspectableHostingTests {
         await store.write([makeRecord("deep", date: date(1), scopes: [album.id])])
 
         let host = UIHostingController(rootView: NavigationStack {
-            LogInspectorView(store: store, scopes: [photos.id])
+            LogInspectorView(store: store, scopes: [photos.id], limit: 500)
         })
         try show(host) { _ in
             try waitFor { host.view.window != nil }

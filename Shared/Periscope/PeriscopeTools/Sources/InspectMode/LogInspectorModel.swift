@@ -14,7 +14,8 @@ final class LogInspectorModel {
         case failed(String)
     }
 
-    static let limit = 200
+    /// Cap on the loaded events; the modifier default is 500.
+    let limit: Int
 
     /// Exposed so the hosting view can detect input swaps and rebuild.
     let store: PeriscopeStore
@@ -23,9 +24,10 @@ final class LogInspectorModel {
     private(set) var state: LoadState = .loading
     private(set) var scopes: [ScopeID: LogScope] = [:]
 
-    init(store: PeriscopeStore, inspectedScopes: [ScopeID]) {
+    init(store: PeriscopeStore, inspectedScopes: [ScopeID], limit: Int) {
         self.store = store
         self.inspectedScopes = inspectedScopes
+        self.limit = limit
     }
 
     var events: [StoredLogEvent] {
@@ -55,7 +57,7 @@ final class LogInspectorModel {
             for scope in inspectedScopes {
                 var query = LogQuery()
                 query.scope = .subtree(scope)
-                query.limit = Self.limit
+                query.limit = limit
                 for event in try await store.events(matching: query) {
                     collected[event.id] = event
                 }
@@ -63,7 +65,7 @@ final class LogInspectorModel {
             let ordered = collected.values.sorted { lhs, rhs in
                 (lhs.date, lhs.sequence) > (rhs.date, rhs.sequence)
             }
-            state = .loaded(Array(ordered.prefix(Self.limit)))
+            state = .loaded(Array(ordered.prefix(limit)))
         } catch {
             state = .failed(String(describing: error))
         }

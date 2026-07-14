@@ -16,8 +16,9 @@ final class LogTraceModel {
         case failed(String)
     }
 
-    /// Cap on the assembled trail (and on each underlying query).
-    static let limit = 100
+    /// Cap on the assembled trail (and on each underlying query); the
+    /// view default is 500.
+    let limit: Int
 
     let origin: StoredLogEvent
     /// Exposed so the hosting view can detect a store swap and rebuild.
@@ -26,9 +27,10 @@ final class LogTraceModel {
     private(set) var state: LoadState = .loading
     private(set) var scopes: [ScopeID: LogScope] = [:]
 
-    init(store: PeriscopeStore, origin: StoredLogEvent) {
+    init(store: PeriscopeStore, origin: StoredLogEvent, limit: Int) {
         self.store = store
         self.origin = origin
+        self.limit = limit
     }
 
     /// The trail leading up to the origin (origin itself excluded), newest
@@ -53,7 +55,7 @@ final class LogTraceModel {
                 var query = LogQuery()
                 query.end = origin.date
                 query.scope = filter
-                query.limit = Self.limit
+                query.limit = limit
                 for event in try await store.events(matching: query) {
                     collected[event.id] = event
                 }
@@ -69,7 +71,7 @@ final class LogTraceModel {
                 .sorted { lhs, rhs in
                     (lhs.date, lhs.sequence) > (rhs.date, rhs.sequence)
                 }
-            state = .loaded(Array(ordered.prefix(Self.limit)))
+            state = .loaded(Array(ordered.prefix(limit)))
         } catch {
             state = .failed(String(describing: error))
         }

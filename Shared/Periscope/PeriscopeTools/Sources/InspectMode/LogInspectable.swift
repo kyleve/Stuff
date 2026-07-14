@@ -4,22 +4,27 @@ import SwiftUI
 extension View {
     /// Mark this view inspectable in "log view mode": when the environment
     /// ``PeriscopeInspector`` is enabled, the view gains a badge that opens
-    /// every stored event in the given context's scope subtrees — e.g. wrap
-    /// a payment row and see everything associated with that payment. With
-    /// no inspector or the mode off, the view renders unchanged.
-    public func logInspectable(_ log: Log<some LogEvent>) -> some View {
-        modifier(LogInspectableModifier(scopes: log.scopes.map(\.id)))
+    /// the newest `limit` stored events in the given context's scope
+    /// subtrees — e.g. wrap a payment row and see everything associated
+    /// with that payment. With no inspector or the mode off, the view
+    /// renders unchanged.
+    public func logInspectable(_ log: Log<some LogEvent>, limit: Int = 500) -> some View {
+        modifier(LogInspectableModifier(scopes: log.scopes.map(\.id), limit: limit))
     }
 
     /// Inspectability keyed to a `LogContextProviding` model's instance
     /// context — `.logInspectable(payment)`.
-    public func logInspectable(_ provider: some LogContextProviding) -> some View {
-        logInspectable(provider.log)
+    public func logInspectable(
+        _ provider: some LogContextProviding,
+        limit: Int = 500,
+    ) -> some View {
+        logInspectable(provider.log, limit: limit)
     }
 }
 
 struct LogInspectableModifier: ViewModifier {
     let scopes: [ScopeID]
+    let limit: Int
 
     @Environment(\.periscopeInspector) private var inspector
     @State private var isPresentingEvents = false
@@ -38,7 +43,7 @@ struct LogInspectableModifier: ViewModifier {
                 .padding(2)
                 .sheet(isPresented: $isPresentingEvents) {
                     NavigationStack {
-                        LogInspectorView(store: inspector.store, scopes: scopes)
+                        LogInspectorView(store: inspector.store, scopes: scopes, limit: limit)
                     }
                 }
             }
@@ -52,21 +57,28 @@ struct LogInspectableModifier: ViewModifier {
 struct LogInspectorView: View {
     let store: PeriscopeStore
     let scopes: [ScopeID]
+    let limit: Int
 
     @State private var model: LogInspectorModel
     @Environment(\.dismiss) private var dismiss
 
-    init(store: PeriscopeStore, scopes: [ScopeID]) {
+    init(store: PeriscopeStore, scopes: [ScopeID], limit: Int) {
         self.store = store
         self.scopes = scopes
-        _model = State(initialValue: LogInspectorModel(store: store, inspectedScopes: scopes))
+        self.limit = limit
+        _model = State(initialValue: LogInspectorModel(
+            store: store,
+            inspectedScopes: scopes,
+            limit: limit,
+        ))
     }
 
     /// The identity of this view's inputs — re-keying the task rebinds the
-    /// model when either changes in place.
+    /// model when any changes in place.
     private struct Inputs: Equatable {
         let store: ObjectIdentifier
         let scopes: [ScopeID]
+        let limit: Int
     }
 
     var body: some View {
@@ -78,9 +90,15 @@ struct LogInspectorView: View {
                     Button("Done") { dismiss() }
                 }
             }
-            .task(id: Inputs(store: ObjectIdentifier(store), scopes: scopes)) {
-                if model.store !== store || model.inspectedScopes != scopes {
-                    model = LogInspectorModel(store: store, inspectedScopes: scopes)
+            .task(id: Inputs(store: ObjectIdentifier(store), scopes: scopes, limit: limit)) {
+                if model.store !== store || model.inspectedScopes != scopes
+                    || model.limit != limit
+                {
+                    model = LogInspectorModel(
+                        store: store,
+                        inspectedScopes: scopes,
+                        limit: limit,
+                    )
                 }
                 await model.run()
             }
