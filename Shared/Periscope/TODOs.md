@@ -11,9 +11,16 @@
 ## P0s (Must do)
 - feat: Implement `SpanRelaunchPolicy.survivesRelaunch` resume mechanics. The policy is already recorded on `SpanBegan` payloads and the relaunch sweep honors it (surviving spans are left open, not orphan-closed), but nothing re-seeds them: `end(for:)` in the new process warns "without a matching begin". Needs an async bootstrap step at store/system startup that queries unmatched surviving `SpanBegan` events and re-opens them in `Periscope.openSpans` — plus wall-clock durations for resumed spans (`ContinuousClock` instants don't survive reboot; `SpanEnded.duration` is already optional for this) and accepting that signpost intervals can't resume.
 
+
 ## P1s (Should do)
+- fix: After initial merge, we should come back and update the UI to consume the Shared/Broadway design system tooling, eg a PeriscopeStylesheet for components and other recommendations.
+
+
 ## P2s (Nice to have)
+
+
 # Completed issues
+
 
 ## Second review pass
 - fix: Redaction can no longer split span pairs — `SpanBegan`/`SpanEnded` records are transform-only through the hook: returning `nil` records a stripped copy instead (tags and attachments dropped, `SpanEnded.exit.reason` blanked; `strippedOfSensitivePayload`), since a suppressed half would strand its partner. Level floors remain the supported way to silence spans; `SpanOverdue` stays suppressible.
@@ -31,6 +38,7 @@
 - fix: Span pairs floor together — the begin-time floor decision (`OpenSpan.beganRecorded`) governs the whole lifecycle via `LogRecord.bypassesFloors`; no dangling halves across floor changes. (Finding 3.)
 - fix: The span watchdog holds the system weakly (strong promotion per call, never across sleeps), so discarded systems release immediately; adds the missing respawn-on-earlier-deadline test. (Finding 4.)
 
+
 ## P2s (Nice to have)
 - fix: `NetworkPathAmbientSource.start` cancels the prior monitor when restarted (it used to keep running and logging forever); `AmbientEventSource.start` documents its called-exactly-once contract.
 - refactor: Tool views (`PeriscopeViewer`, `LogInspectorView`, `LogTraceView`, `LogEventDetailView`) rebuild their models when identity-relevant inputs change in place — `.task(id:)` keyed on store identity plus each view's inputs, verified by a store-swap hosting test against `changes()` observer counts.
@@ -40,11 +48,13 @@
 - feat: Derive-and-emit `callAsFunction` overloads — `log(PhotoLogs.self) { … }` and `album(for: id) { … }` now compile as single expressions (Swift resolves a value call's args + trailing closure as one application; type callees like SwiftUI Layouts get an implicit init-then-call split, value callees don't).
 - perf: `LocalNotificationAlertHandler` caches its authorization outcome (granted/denied; transient request failures retry) behind an `AlertNotificationCenter` seam modeled on Where's `NotificationReminderCenter`, so error storms don't do a daemon round-trip per alert.
 
+
 ## P1s (Should do)
 - fix: Check level floors before running redaction in `Periscope.record` — redaction code no longer executes (touching PII) for records the floor discards; floors apply to the record as emitted.
 - fix: PeriscopeTools/PeriscopeUI used iOS-only API while the package advertised `.macOS(.v26)`. Resolved from the other side: Foreman's removal made the package iOS-only, so macOS is no longer advertised anywhere. (Core's `#if canImport(UIKit)` gating stays — it's still correct per-SDK hygiene.)
 - fix: The tracer trims its trail to events strictly `(date, sequence)`-before the origin, so same-millisecond events that landed after it (and a traced `SpanBegan`'s own end event) no longer appear under "leading up to it".
 - feat: Optional budget for `measure` spans — `log.measure(.saveEvent, budget: .seconds(1)) { … }` emits a `SpanOverdue` warning *while the closure hangs* (per-call sentinel task, cancelled on completion); the span still ends normally with its derived exit.
+
 
 ## P0s (Must do)
 - fix: Roll back failed `PeriscopeStore` saves so one poisoned batch can't wedge every subsequent save; recovery drops row caches and refetches the session row by identity. (Code review finding 1.)
