@@ -41,6 +41,9 @@ final class SDLogEvent {
     /// `SpanExit.Mode.rawValue` on span-ended events — queryable, so the
     /// viewer can filter "everything that failed/expired/orphaned".
     var spanExitMode: String?
+    /// The emitting function/file (`#function`/`#fileID`), when captured.
+    var callFunction: String?
+    var callFileID: String?
     var scopes: [SDLogScope]
     var tags: [SDLogTag]
 
@@ -61,6 +64,8 @@ final class SDLogEvent {
         sessionID: UUID,
         spanID: UUID?,
         spanExitMode: String?,
+        callFunction: String?,
+        callFileID: String?,
         scopes: [SDLogScope],
         tags: [SDLogTag],
         attachments: [SDLogAttachment],
@@ -78,6 +83,8 @@ final class SDLogEvent {
         self.sessionID = sessionID
         self.spanID = spanID
         self.spanExitMode = spanExitMode
+        self.callFunction = callFunction
+        self.callFileID = callFileID
         self.scopes = scopes
         self.tags = tags
         self.attachments = attachments

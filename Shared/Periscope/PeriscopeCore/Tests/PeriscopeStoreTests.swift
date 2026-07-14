@@ -406,6 +406,25 @@ struct PeriscopeStoreTests {
         #expect(all.first { $0.message == "untagged" }?.tags.isEmpty == true)
     }
 
+    @Test func callSitesPersistAndReadBack() async throws {
+        let (store, root, _, _) = try await makeStore()
+        await store.write([
+            LogRecord(
+                date: date(1),
+                event: Message(level: .info, "located"),
+                scopes: [root.id],
+                callSite: LogCallSite(function: "uploadPhoto(_:)", fileID: "App/Uploader.swift"),
+            ),
+            makeRecord("system-synthesized", date: date(2), scopes: [root.id]),
+        ])
+
+        let events = try await store.events(matching: LogQuery())
+        let located = try #require(events.first { $0.message == "located" })
+        #expect(located.callSite?.function == "uploadPhoto(_:)")
+        #expect(located.callSite?.fileID == "App/Uploader.swift")
+        #expect(events.first { $0.message == "system-synthesized" }?.callSite == nil)
+    }
+
     @Test func multipleQueryTagsCombineWithAND() async throws {
         let (store, root, _, _) = try await makeStore()
         let payment = LogTagKey("payment-id")

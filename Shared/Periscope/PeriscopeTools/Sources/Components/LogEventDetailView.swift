@@ -39,6 +39,9 @@ struct LogEventDetailView: View {
                         }
                     }
                 }
+                if let callSite = event.callSite {
+                    LabeledContent("Emitted From", value: callSite.description)
+                }
                 LabeledContent("Session", value: event.sessionID.uuidString)
             }
 

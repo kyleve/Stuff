@@ -113,14 +113,27 @@ public struct Log<Event: LogEvent>: Sendable {
     // MARK: Emitting
 
     /// Log a structured event with this logger's full context.
-    public func callAsFunction(_ event: () -> Event) {
-        emit(event())
+    public func callAsFunction(
+        function: StaticString = #function,
+        fileID: StaticString = #fileID,
+        _ event: () -> Event,
+    ) {
+        emit(event(), callSite: LogCallSite(function: function, fileID: fileID))
     }
 
     /// Log a structured event with attached data — errors, payloads,
     /// screenshots (see ``LogAttachment``).
-    public func callAsFunction(attachments: [LogAttachment], _ event: () -> Event) {
-        emit(event(), attachments: attachments)
+    public func callAsFunction(
+        attachments: [LogAttachment],
+        function: StaticString = #function,
+        fileID: StaticString = #fileID,
+        _ event: () -> Event,
+    ) {
+        emit(
+            event(),
+            attachments: attachments,
+            callSite: LogCallSite(function: function, fileID: fileID),
+        )
     }
 
     /// Derive the typed child scope and log one event into it, in a single
@@ -133,10 +146,12 @@ public struct Log<Event: LogEvent>: Sendable {
     /// compile and must be written as two statements.
     public func callAsFunction<Child: LogEvent>(
         _ type: Child.Type,
+        function: StaticString = #function,
+        fileID: StaticString = #fileID,
         _ event: () -> Child,
     ) {
         let child: Log<Child> = callAsFunction(type)
-        child.emit(event())
+        child.emit(event(), callSite: LogCallSite(function: function, fileID: fileID))
     }
 
     /// Derive the entity-keyed child scope and log one event into it, in a
@@ -144,16 +159,19 @@ public struct Log<Event: LogEvent>: Sendable {
     /// the same trailing-closure reason as the typed variant above.
     public func callAsFunction(
         for id: some Hashable & Sendable,
+        function: StaticString = #function,
+        fileID: StaticString = #fileID,
         _ event: () -> Event,
     ) {
         let child: Log<Event> = callAsFunction(for: id)
-        child.emit(event())
+        child.emit(event(), callSite: LogCallSite(function: function, fileID: fileID))
     }
 
     func emit(
         _ event: any LogEvent,
         attachments: [LogAttachment] = [],
         bypassingFloors: Bool = false,
+        callSite: LogCallSite? = nil,
     ) {
         var record = LogRecord(
             date: Date(),
@@ -161,6 +179,7 @@ public struct Log<Event: LogEvent>: Sendable {
             scopes: scopes.map(\.id),
             tags: tags,
             attachments: attachments,
+            callSite: callSite,
         )
         record.bypassesFloors = bypassingFloors
         recorder.record(record)
@@ -175,32 +194,68 @@ extension Log {
         _ level: LogLevel,
         _ text: @autoclosure () -> String,
         attachments: [LogAttachment] = [],
+        function: StaticString = #function,
+        fileID: StaticString = #fileID,
     ) {
         guard recorder.shouldRecord(level: level, scopes: scopes.map(\.id)) else { return }
-        emit(Message(level: level, text()), attachments: attachments)
+        emit(
+            Message(level: level, text()),
+            attachments: attachments,
+            callSite: LogCallSite(function: function, fileID: fileID),
+        )
     }
 
-    public func debug(_ text: @autoclosure () -> String, attachments: [LogAttachment] = []) {
-        log(.debug, text(), attachments: attachments)
+    public func debug(
+        _ text: @autoclosure () -> String,
+        attachments: [LogAttachment] = [],
+        function: StaticString = #function,
+        fileID: StaticString = #fileID,
+    ) {
+        log(.debug, text(), attachments: attachments, function: function, fileID: fileID)
     }
 
-    public func info(_ text: @autoclosure () -> String, attachments: [LogAttachment] = []) {
-        log(.info, text(), attachments: attachments)
+    public func info(
+        _ text: @autoclosure () -> String,
+        attachments: [LogAttachment] = [],
+        function: StaticString = #function,
+        fileID: StaticString = #fileID,
+    ) {
+        log(.info, text(), attachments: attachments, function: function, fileID: fileID)
     }
 
-    public func notice(_ text: @autoclosure () -> String, attachments: [LogAttachment] = []) {
-        log(.notice, text(), attachments: attachments)
+    public func notice(
+        _ text: @autoclosure () -> String,
+        attachments: [LogAttachment] = [],
+        function: StaticString = #function,
+        fileID: StaticString = #fileID,
+    ) {
+        log(.notice, text(), attachments: attachments, function: function, fileID: fileID)
     }
 
-    public func warning(_ text: @autoclosure () -> String, attachments: [LogAttachment] = []) {
-        log(.warning, text(), attachments: attachments)
+    public func warning(
+        _ text: @autoclosure () -> String,
+        attachments: [LogAttachment] = [],
+        function: StaticString = #function,
+        fileID: StaticString = #fileID,
+    ) {
+        log(.warning, text(), attachments: attachments, function: function, fileID: fileID)
     }
 
-    public func error(_ text: @autoclosure () -> String, attachments: [LogAttachment] = []) {
-        log(.error, text(), attachments: attachments)
+    public func error(
+        _ text: @autoclosure () -> String,
+        attachments: [LogAttachment] = [],
+        function: StaticString = #function,
+        fileID: StaticString = #fileID,
+    ) {
+        log(.error, text(), attachments: attachments, function: function, fileID: fileID)
     }
 
-    public func fault(_ text: @autoclosure () -> String, attachments: [LogAttachment] = []) {
-        log(.fault, text(), attachments: attachments)
+    public func fault(
+        _ text: @autoclosure () -> String,
+        attachments: [LogAttachment] = [],
+        function: StaticString = #function,
+        fileID: StaticString = #fileID,
+    ) {
+        log(.fault, text(), attachments: attachments, function: function, fileID: fileID)
     }
 }

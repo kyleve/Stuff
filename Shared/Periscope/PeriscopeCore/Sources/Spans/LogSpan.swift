@@ -177,6 +177,7 @@ extension LogRecord {
             scopes: scopes,
             tags: [],
             attachments: [],
+            callSite: callSite,
         )
         stripped.bypassesFloors = bypassesFloors
         return stripped

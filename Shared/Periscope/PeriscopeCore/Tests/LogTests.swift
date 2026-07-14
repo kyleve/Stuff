@@ -164,6 +164,18 @@ struct LogTests {
         #expect(log.tags == [LogTag(key: key, value: "new")])
     }
 
+    @Test func emitsCaptureTheirCallSite() {
+        let log = Log<AppLogs>(recorder: recorder)
+        log.info("freeform")
+        log { AppLogs() }
+
+        for record in recorder.records {
+            #expect(record.callSite?.function == "emitsCaptureTheirCallSite()")
+            #expect(record.callSite?.fileID.hasSuffix("LogTests.swift") == true)
+        }
+        #expect(recorder.records.count == 2)
+    }
+
     @Test func taggedAcceptsTypedValues() {
         let log = Log<AppLogs>(recorder: recorder)
             .tagged(LogTagKey("payment-id"), "pay_1")

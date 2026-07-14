@@ -42,6 +42,10 @@ enum NDJSONExporter {
         if let exitMode = event.spanExitMode {
             object["spanExit"] = exitMode.rawValue
         }
+        if let callSite = event.callSite {
+            object["function"] = callSite.function
+            object["file"] = callSite.fileID
+        }
         if !event.payload.isEmpty {
             if let payload = try? JSONSerialization.jsonObject(with: event.payload) {
                 object["payload"] = payload

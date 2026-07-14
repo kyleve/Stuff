@@ -18,6 +18,7 @@ struct StoredLogEventTests {
             tags: [LogTag(key: LogTagKey("payment-id"), value: "pay_123")],
             spanID: nil,
             spanExitMode: nil,
+            callSite: nil,
             attachments: [],
             sessionID: UUID(),
         )

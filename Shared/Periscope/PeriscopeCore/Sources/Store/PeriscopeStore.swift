@@ -360,6 +360,8 @@ public actor PeriscopeStore: LogSink {
                 sessionID: session.sessionID,
                 spanID: record.spanID?.rawValue,
                 spanExitMode: record.spanExit?.mode.rawValue,
+                callFunction: record.callSite?.function,
+                callFileID: record.callSite?.fileID,
                 scopes: scopeRows,
                 tags: tagRows,
                 attachments: attachmentRows,
@@ -790,6 +792,9 @@ public actor PeriscopeStore: LogSink {
             tags: tags(from: row),
             spanID: row.spanID.map(SpanID.init(rawValue:)),
             spanExitMode: row.spanExitMode.flatMap(SpanExit.Mode.init(rawValue:)),
+            callSite: row.callFunction.flatMap { function in
+                row.callFileID.map { LogCallSite(function: function, fileID: $0) }
+            },
             attachments: row.attachments
                 .sorted { $0.index < $1.index }
                 .map { row in

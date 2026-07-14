@@ -1,5 +1,30 @@
 import Foundation
 
+/// Where an event was emitted: the calling function and file, captured
+/// via `#function`/`#fileID` defaults at the log call site.
+public struct LogCallSite: Hashable, Codable, Sendable {
+    /// E.g. `"uploadPhoto(_:)"`.
+    public let function: String
+    /// E.g. `"Where/PhotoUploader.swift"`.
+    public let fileID: String
+
+    public init(function: StaticString, fileID: StaticString) {
+        self.function = String(describing: function)
+        self.fileID = String(describing: fileID)
+    }
+
+    public init(function: String, fileID: String) {
+        self.function = function
+        self.fileID = fileID
+    }
+
+    /// Display form: `"PhotoUploader.swift · uploadPhoto(_:)"`.
+    public var description: String {
+        let fileName = fileID.split(separator: "/").last.map(String.init) ?? fileID
+        return "\(fileName) · \(function)"
+    }
+}
+
 /// One emitted log event with its context: the event value itself, when it
 /// happened, and the scopes it belongs to.
 ///
@@ -20,6 +45,10 @@ public struct LogRecord: Sendable, Identifiable {
     /// Data attached at the call site (see `LogAttachment`).
     public let attachments: [LogAttachment]
 
+    /// The function and file that emitted this record; `nil` for
+    /// system-synthesized records (drop reports, orphan closes, expiry).
+    public let callSite: LogCallSite?
+
     /// Skips the recorder's level floors on delivery. Span lifecycle
     /// records set this: the floor decision is made once, at `begin`, and
     /// the whole pair follows it — a recorded began must get its end even
@@ -33,6 +62,7 @@ public struct LogRecord: Sendable, Identifiable {
         scopes: [ScopeID],
         tags: [LogTag] = [],
         attachments: [LogAttachment] = [],
+        callSite: LogCallSite? = nil,
     ) {
         self.id = id
         self.date = date
@@ -40,6 +70,7 @@ public struct LogRecord: Sendable, Identifiable {
         self.scopes = scopes
         self.tags = tags
         self.attachments = attachments
+        self.callSite = callSite
     }
 
     public var level: LogLevel {
