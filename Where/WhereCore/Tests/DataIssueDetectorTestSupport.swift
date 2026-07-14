@@ -19,6 +19,22 @@ enum DataIssueDetectorFixtures {
         ))!)
     }
 
+    /// A passive GPS fix at `coordinate`, `hoursAfterStart` into `dayStart`, for
+    /// building the timestamp-sorted `daySamples` the speed-based detector walks.
+    static func gpsSample(
+        dayStart: Date,
+        hoursAfterStart: Double,
+        _ coordinate: Coordinate,
+        source: SampleSource = .gpsSignificantChange,
+    ) -> LocationSample {
+        LocationSample(
+            timestamp: dayStart.addingTimeInterval(hoursAfterStart * 3600),
+            coordinate: coordinate,
+            horizontalAccuracy: 20,
+            source: source,
+        )
+    }
+
     static func input(
         year: Int = 2026,
         days: [DayPresence] = [],
