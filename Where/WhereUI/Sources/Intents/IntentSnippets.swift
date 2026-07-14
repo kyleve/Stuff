@@ -37,7 +37,9 @@ public struct DaysInRegionSnippetView: View {
     public var body: some View {
         HStack(spacing: stylesheet.spacing.medium) {
             Text(region.style.emoji)
-                .font(.system(size: 44))
+                // Semantic Dynamic Type face, matching TodayWidgetView's hero
+                // emoji — no hardcoded point size.
+                .font(.largeTitle)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
                 Text(snapshot.dayCount, format: .number)
@@ -60,6 +62,31 @@ public struct DaysInRegionSnippetView: View {
         let unit = Strings.dayUnit(snapshot.dayCount)
         let yearText = snapshot.year.formatted(.number.grouping(.never))
         return "\(unit) in \(region.localizedName) · \(yearText)"
+    }
+}
+
+/// The day-count card with a trailing action area — the interactive snippet's
+/// layout. Owns the card's spacing and the action's padding via the stylesheet,
+/// so the App Intents layer (which supplies the `Button(intent:)` but can't see
+/// the internal `WhereStylesheet`) doesn't hardcode geometry.
+public struct DaysInRegionSnippetCard<Action: View>: View {
+    private let snapshot: DaysInRegionSnapshot
+    private let action: Action
+
+    public init(snapshot: DaysInRegionSnapshot, @ViewBuilder action: () -> Action) {
+        self.snapshot = snapshot
+        self.action = action()
+    }
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    public var body: some View {
+        VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
+            DaysInRegionSnippetView(snapshot: snapshot)
+            action
+                .padding(.horizontal, stylesheet.spacing.medium)
+                .padding(.bottom, stylesheet.spacing.medium)
+        }
     }
 }
 
@@ -149,6 +176,18 @@ extension RegionsSnippetView {
         DaysInRegionSnippetView(
             snapshot: DaysInRegionSnapshot(region: .canada, year: 2026, dayCount: 1),
         )
+        .whereBroadwayRoot()
+    }
+
+    #Preview("Days in region · with action") {
+        DaysInRegionSnippetCard(
+            snapshot: DaysInRegionSnapshot(region: .california, year: 2026, dayCount: 132),
+        ) {
+            Button("Log today here") {}
+                .buttonStyle(.borderedProminent)
+                .tint(Region.california.style.tint)
+                .frame(maxWidth: .infinity)
+        }
         .whereBroadwayRoot()
     }
 

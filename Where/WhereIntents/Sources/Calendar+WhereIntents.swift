@@ -10,9 +10,13 @@ extension Calendar {
     /// anyone whose device calendar is non-Gregorian (a Buddhist-calendar
     /// device reports year ~2569, yielding an empty report). The
     /// `Calendar+WhereIntentsTests` drift guard pins this to `DayAggregator()`.
-    static var whereIntents: Calendar {
+    ///
+    /// A `let` captures the time zone once (at first use), which is fine: intent
+    /// processes are short-lived, and `DayAggregator()` likewise snapshots
+    /// `.current` when it's built — so the two stay aligned within a run.
+    static let whereIntents: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         return calendar
-    }
+    }()
 }

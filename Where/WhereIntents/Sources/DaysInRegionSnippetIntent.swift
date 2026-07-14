@@ -58,9 +58,15 @@ struct DaysInRegionInteractiveSnippet: View {
     let canLogToday: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            DaysInRegionSnippetView(snapshot: snapshot)
-            if canLogToday {
+        content
+            .whereBroadwayRoot()
+    }
+
+    @ViewBuilder private var content: some View {
+        if canLogToday {
+            // WhereUI owns the card's spacing/padding (stylesheet-driven); this
+            // layer only supplies the intent-backed button and its region tint.
+            DaysInRegionSnippetCard(snapshot: snapshot) {
                 Button(intent: LogDayIntent(regions: [region])) {
                     Label {
                         Text(IntentStrings.logTodayHere)
@@ -71,10 +77,9 @@ struct DaysInRegionInteractiveSnippet: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(snapshot.region.style.tint)
-                .padding(.horizontal)
-                .padding(.bottom)
             }
+        } else {
+            DaysInRegionSnippetView(snapshot: snapshot)
         }
-        .whereBroadwayRoot()
     }
 }
