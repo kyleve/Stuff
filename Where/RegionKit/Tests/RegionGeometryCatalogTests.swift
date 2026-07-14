@@ -2,16 +2,26 @@
 import Testing
 
 struct RegionGeometryCatalogTests {
+    /// A representative tracked subset, so `.attribution` outlines reflect a
+    /// specific attributor rather than a global.
+    let trackedFour = RegionAttributor(for: [.california, .newYork, .canada, .europeanUnion])
+
     // MARK: - Attribution
 
-    @Test func attribution_coversExactlyTheLoadedRegions() async throws {
-        let outlines = try await RegionGeometryCatalog.outlines(for: .attribution)
+    @Test func attribution_coversExactlyTheAttributorsRegions() async throws {
+        let outlines = try await RegionGeometryCatalog.outlines(
+            for: .attribution,
+            attributor: trackedFour,
+        )
         let regions = Set(outlines.compactMap(\.region))
         #expect(regions == [.california, .newYork, .canada, .europeanUnion])
     }
 
     @Test func attribution_everyOutlineIsTaggedWithARealRegion() async throws {
-        let outlines = try await RegionGeometryCatalog.outlines(for: .attribution)
+        let outlines = try await RegionGeometryCatalog.outlines(
+            for: .attribution,
+            attributor: trackedFour,
+        )
         #expect(!outlines.isEmpty)
         #expect(outlines.allSatisfy { $0.region != nil && $0.region != .other })
     }
@@ -19,7 +29,7 @@ struct RegionGeometryCatalogTests {
     // MARK: - Source
 
     @Test func source_decodesAll52USStateFeatures() async throws {
-        let outlines = try await RegionGeometryCatalog.outlines(for: .source)
+        let outlines = try await RegionGeometryCatalog.outlines(for: .source, attributor: .all)
         // Distinct titles minus the two bundled-file regions are the US
         // Census features (50 states + DC + Puerto Rico = 52).
         let bundledTitles: Set = [
@@ -31,7 +41,7 @@ struct RegionGeometryCatalogTests {
     }
 
     @Test func source_includesCanadaAndEU() async throws {
-        let outlines = try await RegionGeometryCatalog.outlines(for: .source)
+        let outlines = try await RegionGeometryCatalog.outlines(for: .source, attributor: .all)
         let canada = outlines.filter { $0.region == .canada }
         let eu = outlines.filter { $0.region == .europeanUnion }
         #expect(!canada.isEmpty)
@@ -41,7 +51,7 @@ struct RegionGeometryCatalogTests {
     }
 
     @Test func source_tagsEveryStateWithItsRegion() async throws {
-        let outlines = try await RegionGeometryCatalog.outlines(for: .source)
+        let outlines = try await RegionGeometryCatalog.outlines(for: .source, attributor: .all)
         let california = try #require(outlines.first { $0.title == "California" })
         #expect(california.region == .california)
         let newYork = try #require(outlines.first { $0.title == "New York" })
@@ -57,14 +67,14 @@ struct RegionGeometryCatalogTests {
 
     @Test func outlineIDsAreUniqueWithinAResult() async throws {
         for kind in RegionGeometryKind.allCases {
-            let outlines = try await RegionGeometryCatalog.outlines(for: kind)
+            let outlines = try await RegionGeometryCatalog.outlines(for: kind, attributor: .all)
             #expect(Set(outlines.map(\.id)).count == outlines.count)
         }
     }
 
     @Test func everyOutlineRingHasAtLeastThreeVertices() async throws {
         for kind in RegionGeometryKind.allCases {
-            let outlines = try await RegionGeometryCatalog.outlines(for: kind)
+            let outlines = try await RegionGeometryCatalog.outlines(for: kind, attributor: .all)
             #expect(outlines.allSatisfy { $0.coordinates.count >= 3 })
         }
     }
@@ -101,7 +111,10 @@ struct RegionGeometryCatalogTests {
     // MARK: - Bounding box
 
     @Test func boundingBox_enclosesEveryOutlineCoordinate() async throws {
-        let outlines = try await RegionGeometryCatalog.outlines(for: .attribution)
+        let outlines = try await RegionGeometryCatalog.outlines(
+            for: .attribution,
+            attributor: trackedFour,
+        )
         let box = try #require(BoundingBox.enclosing(outlines))
         for outline in outlines {
             for coordinate in outline.coordinates {

@@ -72,6 +72,12 @@ extension RegionGeometryError: LocalizedError {
 public enum RegionGeometryCatalog {
     /// Drawable outlines for `kind`.
     ///
+    /// - `.attribution` reflects exactly what `attributor` loaded (the tracked
+    ///   subset) — the caller passes the attributor rather than the catalog
+    ///   reaching for a global, so the viewer shows the regions it cares about.
+    /// - `.source` decodes every available region from the catalog and ignores
+    ///   `attributor`.
+    ///
     /// The file read + JSON decode runs **off the main thread**:
     /// `RegionGeometryCatalog` is a plain (non-`@MainActor`) type and
     /// this method is `nonisolated`, so `await`-ing it from a
@@ -80,10 +86,13 @@ public enum RegionGeometryCatalog {
     /// `Sendable` result back to the main actor. Throws
     /// `RegionGeometryError` / a `DecodingError` rather than absorbing a
     /// missing or malformed bundle into an empty list.
-    public static func outlines(for kind: RegionGeometryKind) async throws -> [RegionOutline] {
+    public static func outlines(
+        for kind: RegionGeometryKind,
+        attributor: RegionAttributor,
+    ) async throws -> [RegionOutline] {
         switch kind {
             case .attribution:
-                attributionOutlines()
+                attributionOutlines(for: attributor)
             case .source:
                 try await SourceCache.shared.outlines()
         }
@@ -91,11 +100,11 @@ public enum RegionGeometryCatalog {
 
     // MARK: - Attribution
 
-    /// Outlines for exactly what the shared `RegionAttributor` loaded — cheap,
-    /// since it reads the already-resolved `RegionAttributor.shared`.
-    private static func attributionOutlines() -> [RegionOutline] {
+    /// Outlines for exactly what `attributor` loaded — cheap, since it reads the
+    /// already-resolved polygons.
+    private static func attributionOutlines(for attributor: RegionAttributor) -> [RegionOutline] {
         var builder = OutlineBuilder()
-        for entry in RegionAttributor.shared.loadedRegionPolygons {
+        for entry in attributor.loadedRegionPolygons {
             for polygon in entry.polygons {
                 builder.add(
                     title: entry.region.localizedName,
