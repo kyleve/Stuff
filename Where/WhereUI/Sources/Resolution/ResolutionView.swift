@@ -102,6 +102,7 @@ struct ResolutionView: View {
             case .missingDays: "calendar.badge.exclamationmark"
             case .borderDrift: "location.circle"
             case .abruptChange: "arrow.triangle.swap"
+            case .flightDay: "airplane"
         }
     }
 }
@@ -144,10 +145,17 @@ private struct IssueRow: View {
         switch issue.resolution {
             case let .backfill(range):
                 ManualDayView(report: report, mode: .add(prefill: range))
-            case let .relabelDay(day, suggested, _):
-                DayRelabelView(day: day, report: report, initialRegions: suggested)
+            case let .relabelDay(day, suggested, meters):
+                DayRelabelView(
+                    day: day,
+                    report: report,
+                    initialRegions: suggested,
+                    reason: .borderDrift(region: suggested.first ?? .other, distanceMeters: meters),
+                )
             case .markTravelDay:
                 AbruptChangeDetailView(issue: issue, report: report, resolve: resolve)
+            case .correctFlightDay:
+                FlightDayDetailView(issue: issue, report: report, resolve: resolve)
         }
     }
 
@@ -162,6 +170,8 @@ private struct IssueRow: View {
                     earlier: earlier.regions,
                     later: later.regions,
                 )
+            case let .correctFlightDay(day, _, _, _):
+                day.date.formatted(.dateTime.month(.abbreviated).day().year())
         }
     }
 
@@ -173,6 +183,8 @@ private struct IssueRow: View {
                 Self.relabelSubtitle(suggested: suggested, meters: meters)
             case let .markTravelDay(_, later, _):
                 later.date.formatted(.dateTime.month(.abbreviated).day().year())
+            case .correctFlightDay:
+                Strings.resolutionFlightRowSubtitle
         }
     }
 
