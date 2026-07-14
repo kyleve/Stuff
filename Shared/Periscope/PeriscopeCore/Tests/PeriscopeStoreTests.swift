@@ -176,8 +176,8 @@ struct PeriscopeStoreTests {
 
     @Test func attachmentsPersistAndLoadOnDemand() async throws {
         let (store, root, _, _) = try await makeStore()
-        let first = LogAttachment(name: "a", contentType: "text/plain", data: Data([1]))
-        let second = LogAttachment(name: "b", contentType: "image/png", data: Data([2, 3]))
+        let first = LogAttachment(name: "a", contentType: .plainText, data: Data([1]))
+        let second = LogAttachment(name: "b", contentType: .png, data: Data([2, 3]))
         let record = LogRecord(
             date: date(1),
             event: Message(level: .error, "failed"),
@@ -189,8 +189,8 @@ struct PeriscopeStoreTests {
         let stored = try #require(try await store.events(matching: LogQuery())
             .first { $0.message == "failed" })
         #expect(stored.attachments == [
-            LogAttachmentInfo(name: "a", contentType: "text/plain"),
-            LogAttachmentInfo(name: "b", contentType: "image/png"),
+            LogAttachmentInfo(name: "a", contentType: .plainText),
+            LogAttachmentInfo(name: "b", contentType: .png),
         ])
 
         let loaded = try await store.attachments(forEvent: record.id)

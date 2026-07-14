@@ -115,7 +115,7 @@ struct LogEventDetailView: View {
             case let .success(loaded):
                 ForEach(Array(loaded.enumerated()), id: \.offset) { _, attachment in
                     LabeledContent(attachment.name) {
-                        Text("\(attachment.contentType) · \(attachment.data.count) bytes")
+                        Text("\(attachment.contentType.mimeType) · \(attachment.data.count) bytes")
                     }
                 }
         }

@@ -11,19 +11,29 @@ struct LogAttachmentTests {
     @Test func rawDataAttachmentKeepsItsFields() {
         let attachment = LogAttachment(
             name: "response",
-            contentType: "application/octet-stream",
+            contentType: .other("application/octet-stream"),
             data: Data([1, 2, 3]),
         )
         #expect(attachment.name == "response")
-        #expect(attachment.contentType == "application/octet-stream")
+        #expect(attachment.contentType.mimeType == "application/octet-stream")
         #expect(attachment.data == Data([1, 2, 3]))
+    }
+
+    @Test func contentTypesRoundTripThroughTheirMIMEStrings() {
+        let known: [LogAttachment.ContentType] = [.json, .png, .jpeg, .plainText]
+        for type in known {
+            #expect(LogAttachment.ContentType(mimeType: type.mimeType) == type)
+        }
+        let uncommon = LogAttachment.ContentType(mimeType: "application/octet-stream")
+        #expect(uncommon == .other("application/octet-stream"))
+        #expect(uncommon.mimeType == "application/octet-stream")
     }
 
     @Test func errorAttachmentCapturesDescriptionDomainAndCode() throws {
         let error = NSError(domain: "com.stuff.test", code: 42, userInfo: nil)
         let attachment = LogAttachment.error(error, name: "failure")
 
-        #expect(attachment.contentType == "application/json")
+        #expect(attachment.contentType == .json)
         let decoded = try JSONDecoder().decode([String: String].self, from: attachment.data)
         #expect(decoded["domain"] == "com.stuff.test")
         #expect(decoded["code"] == "42")
@@ -38,7 +48,7 @@ struct LogAttachmentTests {
 
     @Test func jsonAttachmentRoundTripsEncodableValues() throws {
         let attachment = try LogAttachment.json(PhotoLogs(photoID: "p1"), name: "photo")
-        #expect(attachment.contentType == "application/json")
+        #expect(attachment.contentType == .json)
         let decoded = try JSONDecoder().decode(PhotoLogs.self, from: attachment.data)
         #expect(decoded.photoID == "p1")
     }
@@ -52,7 +62,7 @@ struct LogAttachmentTests {
             }
 
             let attachment = try #require(LogAttachment.image(image, name: "screenshot"))
-            #expect(attachment.contentType == "image/png")
+            #expect(attachment.contentType == .png)
             #expect(!attachment.data.isEmpty)
         }
     #endif

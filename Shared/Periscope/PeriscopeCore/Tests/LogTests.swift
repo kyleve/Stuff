@@ -116,7 +116,7 @@ struct LogTests {
         let log = Log<PhotoLogs>(recorder: recorder)
         let attachment = LogAttachment(
             name: "thumbnail",
-            contentType: "image/png",
+            contentType: .png,
             data: Data([9]),
         )
 

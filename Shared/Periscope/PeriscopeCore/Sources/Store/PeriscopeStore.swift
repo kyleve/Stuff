@@ -320,7 +320,7 @@ public actor PeriscopeStore: LogSink {
             let attachmentRows = record.attachments.enumerated().map { index, attachment in
                 SDLogAttachment(
                     name: attachment.name,
-                    contentType: attachment.contentType,
+                    contentType: attachment.contentType.mimeType,
                     index: index,
                     data: attachment.data,
                 )
@@ -706,7 +706,13 @@ public actor PeriscopeStore: LogSink {
         guard let row = try fetchEventRow(id: id) else { return [] }
         return row.attachments
             .sorted { $0.index < $1.index }
-            .map { LogAttachment(name: $0.name, contentType: $0.contentType, data: $0.data) }
+            .map { row in
+                LogAttachment(
+                    name: row.name,
+                    contentType: LogAttachment.ContentType(mimeType: row.contentType),
+                    data: row.data,
+                )
+            }
     }
 
     private func fetchEventRow(id: UUID) throws -> SDLogEvent? {
@@ -748,7 +754,12 @@ public actor PeriscopeStore: LogSink {
             spanExitMode: row.spanExitMode.flatMap(SpanExit.Mode.init(rawValue:)),
             attachments: row.attachments
                 .sorted { $0.index < $1.index }
-                .map { LogAttachmentInfo(name: $0.name, contentType: $0.contentType) },
+                .map { row in
+                    LogAttachmentInfo(
+                        name: row.name,
+                        contentType: LogAttachment.ContentType(mimeType: row.contentType),
+                    )
+                },
             sessionID: row.sessionID,
         )
     }
