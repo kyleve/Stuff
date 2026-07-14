@@ -219,7 +219,15 @@ public final class WhereBootstrap {
         let source = locationSource ?? CoreLocationSource()
         locationSource = nil
         let store = try await Task.detached(priority: .userInitiated) {
-            try SwiftDataStore.make()
+            let store = try SwiftDataStore.make()
+            // Run pending data migrations off the main actor, before the services
+            // (and their first reads) exist, so a reader never sees un-migrated
+            // rows. Uses the same Gregorian/current-time-zone calendar the default
+            // `DayAggregator` buckets days in.
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = .current
+            try await store.runPendingMigrations(calendar: calendar)
+            return store
         }.value
         Self.logger.info("WhereServices assembled")
         return WhereServices(

@@ -442,9 +442,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
     public func setManualDay(_ day: DayPresence) async throws {
         let context = mutationContext()
-        let key = day.date
+        let key = day.day.description
         if let existing = try context.fetch(
-            FetchDescriptor<SDManualDay>(predicate: #Predicate { $0.dateKey == key }),
+            FetchDescriptor<SDManualDay>(predicate: #Predicate { $0.dayKey == key }),
         ).first {
             existing.update(from: Self.resolved(incoming: day, existing: existing))
         } else {
@@ -466,35 +466,37 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         guard existing.isAuthoritative ?? false, !day.isAuthoritative else { return day }
         let existingRegions = Set((existing.regionRaws ?? []).compactMap { Region(rawValue: $0) })
         return DayPresence(
-            date: day.date,
+            day: day.day,
             regions: existingRegions.union(day.regions),
             isAuthoritative: true,
             audit: day.audit,
         )
     }
 
-    public func clearManualDay(_ date: Date) async throws {
+    public func clearManualDay(_ day: CalendarDay) async throws {
         let context = mutationContext()
-        let key = date
-        let descriptor = FetchDescriptor<SDManualDay>(predicate: #Predicate { $0.dateKey == key })
+        let key = day.description
+        let descriptor = FetchDescriptor<SDManualDay>(predicate: #Predicate { $0.dayKey == key })
         for record in try context.fetch(descriptor) {
             context.delete(record)
         }
     }
 
-    public func manualDays(in interval: DateInterval) async throws -> [DayPresence] {
+    public func manualDays(in dayRange: ClosedRange<CalendarDay>) async throws -> [DayPresence] {
         let context = readContext()
-        let start = interval.start
-        let end = interval.end
+        // ISO `YYYY-MM-DD` sorts lexicographically, so a string range is a
+        // correct inclusive day range.
+        let low = dayRange.lowerBound.description
+        let high = dayRange.upperBound.description
         var descriptor = FetchDescriptor<SDManualDay>(
             predicate: #Predicate {
-                if let dateKey = $0.dateKey {
-                    dateKey >= start && dateKey < end
+                if let dayKey = $0.dayKey {
+                    dayKey >= low && dayKey <= high
                 } else {
                     false
                 }
             },
-            sortBy: [SortDescriptor(\.dateKey)],
+            sortBy: [SortDescriptor(\.dayKey)],
         )
         descriptor.includePendingChanges = true
         return try context.fetch(descriptor).compactMap { record in
@@ -506,7 +508,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
     public func allManualDays() async throws -> [DayPresence] {
         let context = readContext()
-        var descriptor = FetchDescriptor<SDManualDay>(sortBy: [SortDescriptor(\.dateKey)])
+        var descriptor = FetchDescriptor<SDManualDay>(sortBy: [SortDescriptor(\.dayKey)])
         descriptor.includePendingChanges = true
         return try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
@@ -515,7 +517,10 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
-    public func clear(in interval: DateInterval) async throws {
+    public func clear(
+        in interval: DateInterval,
+        manualDays dayRange: ClosedRange<CalendarDay>,
+    ) async throws {
         let context = mutationContext()
         let start = interval.start
         let end = interval.end
@@ -543,10 +548,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         for record in evidences {
             context.delete(record)
         }
+        let low = dayRange.lowerBound.description
+        let high = dayRange.upperBound.description
         let manuals = try context.fetch(
             FetchDescriptor<SDManualDay>(predicate: #Predicate {
-                if let dateKey = $0.dateKey {
-                    dateKey >= start && dateKey < end
+                if let dayKey = $0.dayKey {
+                    dayKey >= low && dayKey <= high
                 } else {
                     false
                 }
@@ -621,6 +628,72 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         logger.fault(
             "Dropped corrupt SwiftData record of type \(String(describing: Record.self))",
         )
+    }
+}
+
+// MARK: - Migrations
+
+extension SwiftDataStore {
+    /// `KeyValueStore` key for the highest applied `StoreMigration.version`.
+    public static let migrationVersionKey = "store.migrationVersion"
+
+    /// Run every registered migration whose `version` exceeds the persisted
+    /// marker, in ascending order, each in its own transaction, bumping the
+    /// App-Group marker after each. Call once at store open (see
+    /// `WhereBootstrap.makeServices()`), before any read, so first reads observe
+    /// migrated data. A no-op when nothing is pending.
+    public func runPendingMigrations(calendar: Calendar) throws {
+        let defaults = UserDefaults(suiteName: Self.appGroupIdentifier) ?? .standard
+        try runMigrations(StoreMigrations.all, calendar: calendar, versionStore: defaults)
+    }
+
+    /// Test seam: run `migrations` against an injected `versionStore`, so the
+    /// migrator can be exercised without touching the shared App-Group defaults.
+    @_spi(Testing)
+    public func runMigrations(
+        _ migrations: [any StoreMigration],
+        calendar: Calendar,
+        versionStore: any KeyValueStore,
+    ) throws {
+        let applied = versionStore.object(forKey: Self.migrationVersionKey) as? Int ?? 0
+        let pending = migrations
+            .filter { $0.version > applied }
+            .sorted { $0.version < $1.version }
+        guard !pending.isEmpty else { return }
+
+        var didApply = false
+        for migration in pending {
+            let context = ModelContext(modelContainer)
+            try migration.migrate(context, calendar: calendar)
+            if context.hasChanges { try context.save() }
+            versionStore.set(migration.version, forKey: Self.migrationVersionKey)
+            didApply = true
+            Self.logger.info("Applied store migration v\(migration.version): \(migration.name)")
+        }
+        // A committed migration is a committed data change; ping observers so a
+        // (re)opened session re-reads. At cold-launch there are none yet, but a
+        // re-run store (reset flow) stays honest.
+        if didApply { changeBroadcaster.send() }
+    }
+
+    /// Test seam: insert a *legacy-shaped* manual-day row — `dateKey` set,
+    /// `dayKey` nil, as rows looked before the `CalendarDay` cutover — so the
+    /// `CalendarDayMigration` backfill is exercisable. Not wrapped in `perform`
+    /// (it writes through its own context, like the migrator).
+    @_spi(Testing)
+    public func insertLegacyManualDay(
+        dateKey: Date,
+        regionRaws: [String],
+        isAuthoritative: Bool,
+    ) throws {
+        let context = ModelContext(modelContainer)
+        let row = SDManualDay()
+        row.dayKey = nil
+        row.dateKey = dateKey
+        row.regionRaws = regionRaws.sorted()
+        row.isAuthoritative = isAuthoritative
+        context.insert(row)
+        try context.save()
     }
 }
 
@@ -739,6 +812,14 @@ final class SDEvidence {
 
 @Model
 final class SDManualDay {
+    /// Canonical, timezone-independent identity: the day's `CalendarDay` ISO
+    /// string (`YYYY-MM-DD`). Nil only on rows written before this column
+    /// existed, until the `CalendarDay` migration backfills them from `dateKey`.
+    var dayKey: String?
+    /// The original start-of-day instant this record was written with, kept for
+    /// information (and as the migration's source for `dayKey`). No longer the
+    /// lookup key — `dayKey` is — and left untouched on new writes, so it is nil
+    /// for rows created after the `CalendarDay` cutover.
     var dateKey: Date?
     var regionRaws: [String]?
     /// Whether this manual day replaces (rather than unions with) GPS for its
@@ -766,7 +847,7 @@ final class SDManualDay {
     }
 
     func update(from value: DayPresence) {
-        dateKey = value.date
+        dayKey = value.day.description
         regionRaws = value.regions.map(\.rawValue).sorted()
         isAuthoritative = value.isAuthoritative
         applyAudit(value.audit)
@@ -782,14 +863,34 @@ final class SDManualDay {
     }
 
     func toValue() -> DayPresence? {
-        guard let dateKey else { return nil }
+        guard let day = resolvedDay() else { return nil }
         return DayPresence(
-            date: dateKey,
+            day: day,
             regions: Set((regionRaws ?? []).compactMap { Region(rawValue: $0) }),
             isAuthoritative: isAuthoritative ?? false,
             audit: auditValue(),
         )
     }
+
+    /// The record's `CalendarDay`: the persisted `dayKey` when present, else a
+    /// defensive best-effort recovery from a legacy `dateKey` instant (the
+    /// migration normally backfills `dayKey` at launch before any read, using
+    /// the device calendar; this UTC fallback only covers a read that races it).
+    private func resolvedDay() -> CalendarDay? {
+        if let dayKey, let calendarDay = CalendarDay(iso: dayKey) {
+            return calendarDay
+        }
+        if let dateKey {
+            return CalendarDay(recoveringLegacyStartOfDay: dateKey, in: SDManualDay.utcCalendar)
+        }
+        return nil
+    }
+
+    private static let utcCalendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        return calendar
+    }()
 
     private func auditValue() -> ManualEntryAudit? {
         guard let auditRecordedAt else { return nil }

@@ -27,6 +27,10 @@ struct YearReportModelTests {
         calendar.date(from: DateComponents(year: year, month: month, day: day))!
     }
 
+    private static func cday(_ year: Int, _ month: Int, _ day: Int) -> CalendarDay {
+        CalendarDay(year: year, month: month, day: day)
+    }
+
     private func makeServices() throws -> WhereServices {
         try WhereServices(
             store: SwiftDataStore.inMemory(),
@@ -156,7 +160,8 @@ struct YearReportModelTests {
             services: makeServices(),
             report: YearReport(
                 year: 2026,
-                days: present.map { DayPresence(date: $0, regions: [.california]) },
+                days: present
+                    .map { DayPresence(date: $0, in: Self.calendar, regions: [.california]) },
                 totals: [.california: present.count],
             ),
             selectedYear: 2026,
@@ -166,11 +171,11 @@ struct YearReportModelTests {
         // Jan 1 and Jan 3 are past gaps. Jan 5 (today) is still loggable, so it
         // isn't surfaced even though it's unlogged.
         #expect(report.missingDays.map(\.start) == [
-            Self.day(2026, 1, 1),
-            Self.day(2026, 1, 3),
+            Self.cday(2026, 1, 1),
+            Self.cday(2026, 1, 3),
         ])
         #expect(report.missingDayCount == 2)
-        #expect(!report.missingDays.contains { $0.start == Self.day(2026, 1, 5) })
+        #expect(!report.missingDays.contains { $0.start == Self.cday(2026, 1, 5) })
     }
 
     @Test func missingDaysAreEmptyWhenViewingAPastYear() throws {
@@ -460,7 +465,7 @@ struct YearReportModelTests {
 
         await report.activate()
 
-        #expect(report.evidenceDayKeys == [Self.day(2026, 3, 4)])
+        #expect(report.evidenceDayKeys == [Self.cday(2026, 3, 4)])
     }
 
     /// Adding evidence pings the store-change signal, so the observer re-pulls
@@ -480,7 +485,7 @@ struct YearReportModelTests {
             blob: nil,
         )
 
-        await waitUntil { report.evidenceDayKeys == [Self.day(2026, 7, 9)] }
+        await waitUntil { report.evidenceDayKeys == [Self.cday(2026, 7, 9)] }
     }
 
     /// Switching years clears the previous year's markers immediately so the
@@ -497,7 +502,7 @@ struct YearReportModelTests {
         )
         let report = YearReportModel(services: services, selectedYear: 2026)
         await report.activate()
-        #expect(report.evidenceDayKeys == [Self.day(2026, 5, 2)])
+        #expect(report.evidenceDayKeys == [Self.cday(2026, 5, 2)])
 
         await report.select(year: 2025)
         #expect(report.evidenceDayKeys.isEmpty)

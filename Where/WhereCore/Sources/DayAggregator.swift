@@ -28,15 +28,15 @@ public struct DayAggregator: Sendable {
         samples: [LocationSample],
         attributor: RegionAttributor,
     ) -> [DayPresence] {
-        var dayRegions: [Date: Set<Region>] = [:]
+        var dayRegions: [CalendarDay: Set<Region>] = [:]
         for sample in samples {
-            let dayStart = calendar.startOfDay(for: sample.timestamp)
+            let day = CalendarDay(from: sample.timestamp, in: calendar)
             let region = attributor.region(at: sample.coordinate)
-            dayRegions[dayStart, default: []].insert(region)
+            dayRegions[day, default: []].insert(region)
         }
         return dayRegions
-            .map { DayPresence(date: $0.key, regions: $0.value) }
-            .sorted { $0.date < $1.date }
+            .map { DayPresence(day: $0.key, regions: $0.value) }
+            .sorted { $0.day < $1.day }
     }
 
     /// Group every sample that fell inside `region` by calendar day, keeping
@@ -53,17 +53,17 @@ public struct DayAggregator: Sendable {
         samples: [LocationSample],
         attributor: RegionAttributor,
     ) -> [RegionDayLocations] {
-        var byDay: [Date: [RegionDayPoint]] = [:]
+        var byDay: [CalendarDay: [RegionDayPoint]] = [:]
         for sample in samples where attributor.region(at: sample.coordinate) == region {
-            let dayStart = calendar.startOfDay(for: sample.timestamp)
-            byDay[dayStart, default: []].append(RegionDayPoint(
+            let day = CalendarDay(from: sample.timestamp, in: calendar)
+            byDay[day, default: []].append(RegionDayPoint(
                 coordinate: sample.coordinate,
                 horizontalAccuracy: sample.horizontalAccuracy,
             ))
         }
         return byDay
-            .map { RegionDayLocations(date: $0.key, points: $0.value) }
-            .sorted { $0.date < $1.date }
+            .map { RegionDayLocations(day: $0.key, points: $0.value) }
+            .sorted { $0.day < $1.day }
     }
 
     /// One representative coordinate per region: the point inside the most
@@ -121,27 +121,25 @@ public struct DayAggregator: Sendable {
         manualDays: [DayPresence] = [],
         attributor: RegionAttributor,
     ) -> YearReport {
-        var dayRegions: [Date: Set<Region>] = [:]
+        var dayRegions: [CalendarDay: Set<Region>] = [:]
         for day in aggregate(samples: samples, attributor: attributor) {
-            dayRegions[day.date, default: []].formUnion(day.regions)
+            dayRegions[day.day, default: []].formUnion(day.regions)
         }
         // Additive manual days union with GPS (backfilling a region GPS
         // missed). Authoritative manual days are applied afterward so a user
         // correction *replaces* whatever GPS — or an earlier additive overlay
         // — produced for that day, letting them remove a wrong attribution.
         for day in manualDays where !day.isAuthoritative {
-            let dayStart = calendar.startOfDay(for: day.date)
-            dayRegions[dayStart, default: []].formUnion(day.regions)
+            dayRegions[day.day, default: []].formUnion(day.regions)
         }
         for day in manualDays where day.isAuthoritative {
-            let dayStart = calendar.startOfDay(for: day.date)
-            dayRegions[dayStart] = day.regions
+            dayRegions[day.day] = day.regions
         }
 
         let yearDays = dayRegions
-            .filter { calendar.component(.year, from: $0.key) == year }
-            .map { DayPresence(date: $0.key, regions: $0.value) }
-            .sorted { $0.date < $1.date }
+            .filter { $0.key.year == year }
+            .map { DayPresence(day: $0.key, regions: $0.value) }
+            .sorted { $0.day < $1.day }
 
         var totals: [Region: Int] = [:]
         for day in yearDays {

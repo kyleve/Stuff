@@ -225,7 +225,7 @@ struct DataIssueScannerTests {
         #expect(currentYear.map(\.id) != pastYear.map(\.id))
         #expect(pastYear.contains { issue in
             guard case let .backfill(range) = issue.resolution else { return false }
-            return Self.calendar.component(.year, from: range.start) == 2025
+            return range.start.year == 2025
         })
     }
 

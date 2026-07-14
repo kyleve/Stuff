@@ -13,7 +13,7 @@ public struct AbruptLocationChangeDetector: DataIssueDetector {
     public init() {}
 
     public func detectIssues(in input: DataIssueInput) -> [AbruptChangeIssue] {
-        let sortedDays = input.report.days.sorted { $0.date < $1.date }
+        let sortedDays = input.report.days.sorted { $0.day < $1.day }
         guard sortedDays.count >= 2 else { return [] }
 
         var issues: [AbruptChangeIssue] = []
@@ -24,16 +24,11 @@ public struct AbruptLocationChangeDetector: DataIssueDetector {
                 !earlier.regions.isEmpty,
                 !later.regions.isEmpty,
                 earlier.regions.isDisjoint(with: later.regions),
-                isCalendarAdjacent(earlier.date, later.date, calendar: input.calendar)
+                earlier.day.adding(days: 1) == later.day
             else { continue }
 
             issues.append(AbruptChangeIssue(earlierDay: earlier, laterDay: later))
         }
         return issues
-    }
-
-    private func isCalendarAdjacent(_ earlier: Date, _ later: Date, calendar: Calendar) -> Bool {
-        guard let next = calendar.date(byAdding: .day, value: 1, to: earlier) else { return false }
-        return calendar.isDate(next, inSameDayAs: later)
     }
 }

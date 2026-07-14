@@ -110,8 +110,8 @@ public struct CalendarMonth: Hashable, Sendable, Identifiable {
 /// Builds month grids from a `YearReport`. Pure calendar layout derived from
 /// `DayPresence`, parallel to `PresenceTimeline` in WhereUI.
 public enum PresenceCalendar {
-    /// Build every month in `report.year`. `missingDates` should be start-of-day
-    /// keys in the same `calendar` used here and in `DayAggregator`.
+    /// Build every month in `report.year`. `missingDates` and `evidenceDays` are
+    /// `CalendarDay`s; the grid resolves each cell's day in `calendar`.
     ///
     /// When `focusedRegion` is non-nil, each day's dots are filtered to just
     /// that region (days where it wasn't present show no dots), so the calendar
@@ -121,14 +121,13 @@ public enum PresenceCalendar {
         from report: YearReport,
         calendar: Calendar,
         referenceDate: Date,
-        missingDates: Set<Date> = [],
-        evidenceDays: Set<Date> = [],
+        missingDates: Set<CalendarDay> = [],
+        evidenceDays: Set<CalendarDay> = [],
         focusedRegion: Region? = nil,
     ) throws -> [CalendarMonth] {
-        var regionsByDay: [Date: Set<Region>] = [:]
+        var regionsByDay: [CalendarDay: Set<Region>] = [:]
         for day in report.days {
-            let key = calendar.startOfDay(for: day.date)
-            regionsByDay[key] = day.regions
+            regionsByDay[day.day] = day.regions
         }
 
         guard
@@ -144,8 +143,6 @@ public enum PresenceCalendar {
             throw PresenceCalendarError.missingMonthRange(year: report.year)
         }
 
-        let normalizedMissing = Set(missingDates.map { calendar.startOfDay(for: $0) })
-        let normalizedEvidence = Set(evidenceDays.map { calendar.startOfDay(for: $0) })
         let referenceStartOfDay = calendar.startOfDay(for: referenceDate)
 
         return try monthRange.map { monthNumber in
@@ -155,8 +152,8 @@ public enum PresenceCalendar {
                 regionsByDay: regionsByDay,
                 calendar: calendar,
                 referenceDate: referenceStartOfDay,
-                missingDates: normalizedMissing,
-                evidenceDays: normalizedEvidence,
+                missingDates: missingDates,
+                evidenceDays: evidenceDays,
                 focusedRegion: focusedRegion,
             )
         }
@@ -165,11 +162,11 @@ public enum PresenceCalendar {
     public static func month(
         year: Int,
         month: Int,
-        regionsByDay: [Date: Set<Region>],
+        regionsByDay: [CalendarDay: Set<Region>],
         calendar: Calendar,
         referenceDate: Date,
-        missingDates: Set<Date> = [],
-        evidenceDays: Set<Date> = [],
+        missingDates: Set<CalendarDay> = [],
+        evidenceDays: Set<CalendarDay> = [],
         focusedRegion: Region? = nil,
     ) throws -> CalendarMonth {
         guard
@@ -209,7 +206,8 @@ public enum PresenceCalendar {
                     day: dayOfMonth,
                 )
             }
-            let presentRegions = regionsByDay[date] ?? []
+            let calendarDay = CalendarDay(from: date, in: calendar)
+            let presentRegions = regionsByDay[calendarDay] ?? []
             for region in presentRegions {
                 dayCountsByRegion[region, default: 0] += 1
             }
@@ -223,8 +221,8 @@ public enum PresenceCalendar {
                 dayOfMonth: dayOfMonth,
                 regions: regions,
                 isToday: calendar.isDate(date, inSameDayAs: referenceDate),
-                needsAttention: missingDates.contains(date),
-                hasEvidence: evidenceDays.contains(date),
+                needsAttention: missingDates.contains(calendarDay),
+                hasEvidence: evidenceDays.contains(calendarDay),
             ))
         }
 
@@ -262,14 +260,13 @@ public enum PresenceCalendar {
 }
 
 extension YearReport {
-    /// Month grids for the calendar sheet. Pass the same `calendar` and
-    /// start-of-day `missingDates` keys used by `MissingDays` and
-    /// `DayAggregator`.
+    /// Month grids for the calendar sheet. Pass the same `calendar` used by
+    /// `DayAggregator`; `missingDates`/`evidenceDays` are `CalendarDay`s.
     public func calendarMonths(
         calendar: Calendar,
         referenceDate: Date,
-        missingDates: Set<Date> = [],
-        evidenceDays: Set<Date> = [],
+        missingDates: Set<CalendarDay> = [],
+        evidenceDays: Set<CalendarDay> = [],
         focusedRegion: Region? = nil,
     ) throws -> [CalendarMonth] {
         try PresenceCalendar.months(

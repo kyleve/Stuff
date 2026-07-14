@@ -20,7 +20,7 @@ extension DataIssueDetector {
 public struct DataIssueInput: Sendable {
     public let year: Int
     public let report: YearReport
-    public let otherDayCoordinates: [Date: [Coordinate]]
+    public let otherDayCoordinates: [CalendarDay: [Coordinate]]
     public let primaryRegions: [Region]
     public let attributor: RegionAttributor
     public let driftThresholdMeters: Double
@@ -30,7 +30,7 @@ public struct DataIssueInput: Sendable {
     public init(
         year: Int,
         report: YearReport,
-        otherDayCoordinates: [Date: [Coordinate]],
+        otherDayCoordinates: [CalendarDay: [Coordinate]],
         primaryRegions: [Region],
         attributor: RegionAttributor,
         driftThresholdMeters: Double,

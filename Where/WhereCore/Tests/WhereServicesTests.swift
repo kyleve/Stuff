@@ -144,10 +144,7 @@ struct WhereServicesTests {
 
         let report = try await services.reports.yearReport(for: 2026)
         let july4 = report.days.first { day in
-            var cal = Calendar(identifier: .gregorian)
-            cal.timeZone = TimeZone(identifier: "America/Los_Angeles") ?? .gmt
-            let components = cal.dateComponents([.month, .day], from: day.date)
-            return components.month == 7 && components.day == 4
+            day.day == CalendarDay(year: 2026, month: 7, day: 4)
         }
         #expect(july4?.regions == [.california, .newYork])
     }
@@ -262,10 +259,7 @@ struct WhereServicesTests {
 
         let report = try await services.reports.yearReport(for: 2026)
         let july4 = report.days.first {
-            Self.pacificCalendar.isDate(
-                $0.date,
-                inSameDayAs: WhereCoreTestSupport.iso("2026-07-04T12:00:00-07:00"),
-            )
+            $0.day == CalendarDay(year: 2026, month: 7, day: 4)
         }
         // The relabel survives: New York stays removed (GPS is not resurrected)
         // and the backfilled Canada unions onto the corrected California.
@@ -631,6 +625,7 @@ struct WhereServicesTests {
         let seedSample = sample(at: "2026-03-15T12:00:00-07:00")
         let seedDay = DayPresence(
             date: Date(timeIntervalSince1970: 1_700_000_000),
+            in: Self.pacificCalendar,
             regions: [.california],
         )
         try await store.perform {
@@ -1292,20 +1287,23 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.setManualDay(day)
     }
 
-    func clearManualDay(_ date: Date) async throws {
-        try await backing.clearManualDay(date)
+    func clearManualDay(_ day: CalendarDay) async throws {
+        try await backing.clearManualDay(day)
     }
 
-    func manualDays(in interval: DateInterval) async throws -> [DayPresence] {
-        try await backing.manualDays(in: interval)
+    func manualDays(in dayRange: ClosedRange<CalendarDay>) async throws -> [DayPresence] {
+        try await backing.manualDays(in: dayRange)
     }
 
     func allManualDays() async throws -> [DayPresence] {
         try await backing.allManualDays()
     }
 
-    func clear(in interval: DateInterval) async throws {
-        try await backing.clear(in: interval)
+    func clear(
+        in interval: DateInterval,
+        manualDays dayRange: ClosedRange<CalendarDay>,
+    ) async throws {
+        try await backing.clear(in: interval, manualDays: dayRange)
     }
 
     func clearAll() async throws {

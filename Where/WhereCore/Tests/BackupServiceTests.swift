@@ -4,6 +4,8 @@ import Testing
 import WhereCore
 
 struct BackupServiceTests {
+    private static let calendar = WhereCoreTestSupport.calendar()
+
     // Whole-second timestamps so the `.iso8601` date strategy (no
     // fractional seconds) round-trips exactly.
     private static let exportDate = Date(timeIntervalSince1970: 1_700_000_000)
@@ -55,6 +57,7 @@ struct BackupServiceTests {
         [
             DayPresence(
                 date: Date(timeIntervalSince1970: 1_700_000_000),
+                in: calendar,
                 regions: [.california, .newYork],
             ),
         ]
@@ -114,6 +117,7 @@ struct BackupServiceTests {
         let manualDays = [
             DayPresence(
                 date: Date(timeIntervalSince1970: 1_700_000_000),
+                in: Self.calendar,
                 regions: [.newYork],
                 isAuthoritative: true,
             ),
@@ -150,6 +154,7 @@ struct BackupServiceTests {
         let manualDays = [
             DayPresence(
                 date: Date(timeIntervalSince1970: 1_700_000_000),
+                in: Self.calendar,
                 regions: [.california],
                 isAuthoritative: true,
                 audit: ManualEntryAudit(

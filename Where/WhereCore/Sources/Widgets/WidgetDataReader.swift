@@ -54,11 +54,14 @@ public struct WidgetDataReader: Sendable {
     /// year report, so the widget and the app never disagree on a count.
     public func snapshot(asOf date: Date) async throws -> WidgetSnapshot {
         let calendar = aggregator.calendar
-        let day = calendar.startOfDay(for: date)
-        let year = calendar.component(.year, from: day)
+        let startOfDay = calendar.startOfDay(for: date)
+        let calendarDay = CalendarDay(from: date, in: calendar)
+        let year = calendarDay.year
         let interval = aggregator.yearInterval(year: year)
+        let dayRange = CalendarDay(year: year, month: 1, day: 1)
+            ... CalendarDay(year: year, month: 12, day: 31)
         let samples = try await store.samples(in: interval)
-        let manualDays = try await store.manualDays(in: interval)
+        let manualDays = try await store.manualDays(in: dayRange)
         let report = aggregator.report(
             for: year,
             samples: samples,
@@ -66,8 +69,13 @@ public struct WidgetDataReader: Sendable {
             attributor: attributor,
         )
         let dayRegions = report.days
-            .first { calendar.startOfDay(for: $0.date) == day }?
+            .first { $0.day == calendarDay }?
             .regions ?? []
-        return WidgetSnapshot(day: day, year: year, dayRegions: dayRegions, totals: report.totals)
+        return WidgetSnapshot(
+            day: startOfDay,
+            year: year,
+            dayRegions: dayRegions,
+            totals: report.totals,
+        )
     }
 }

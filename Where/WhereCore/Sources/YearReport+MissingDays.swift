@@ -14,15 +14,14 @@ extension YearReport {
         year == calendar.component(.year, from: now)
     }
 
-    /// Start-of-day keys for days in this report's year that still need logging
-    /// as of `now` (Jan 1 through yesterday). Empty for a past year.
-    public func missingDayKeys(asOf now: Date, calendar: Calendar) -> Set<Date> {
+    /// Calendar days in this report's year that still need logging as of `now`
+    /// (Jan 1 through yesterday). Empty for a past year.
+    public func missingDayKeys(asOf now: Date, calendar: Calendar) -> Set<CalendarDay> {
         guard isCurrentYear(asOf: now, calendar: calendar) else { return [] }
         return Set(MissingDays.missingDayKeys(
             year: year,
             through: MissingDays.backlogCutoff(asOf: now, calendar: calendar),
-            present: Set(days.map(\.date)),
-            calendar: calendar,
+            present: Set(days.map(\.day)),
         ))
     }
 
@@ -34,8 +33,7 @@ extension YearReport {
         return MissingDays.missingRanges(
             year: year,
             through: MissingDays.backlogCutoff(asOf: now, calendar: calendar),
-            present: Set(days.map(\.date)),
-            calendar: calendar,
+            present: Set(days.map(\.day)),
         )
     }
 

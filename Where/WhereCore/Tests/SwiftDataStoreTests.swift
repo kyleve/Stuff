@@ -8,8 +8,11 @@ import Testing
 /// covered by `StoreChangeBroadcasterTests`; here we assert the *store* fires it
 /// on a committed `perform` and stays silent on a rolled-back one.
 struct SwiftDataStoreTests {
+    private static let calendar = WhereCoreTestSupport.calendar()
+
     private let day = DayPresence(
         date: Date(timeIntervalSince1970: 0),
+        in: SwiftDataStoreTests.calendar,
         regions: [.california],
     )
 
@@ -84,7 +87,11 @@ struct SwiftDataStoreTests {
         let date = Date(timeIntervalSince1970: 0)
 
         try await store.perform {
-            try await store.setManualDay(DayPresence(date: date, regions: [.california]))
+            try await store.setManualDay(DayPresence(
+                date: date,
+                in: Self.calendar,
+                regions: [.california],
+            ))
         }
         let afterInsert = try await store.allManualDays()
         #expect(afterInsert.count == 1)
@@ -92,7 +99,11 @@ struct SwiftDataStoreTests {
 
         // Same `date` key, so this replaces the row the read above registered.
         try await store.perform {
-            try await store.setManualDay(DayPresence(date: date, regions: [.newYork]))
+            try await store.setManualDay(DayPresence(
+                date: date,
+                in: Self.calendar,
+                regions: [.newYork],
+            ))
         }
         let afterUpdate = try await store.allManualDays()
         #expect(afterUpdate.count == 1)
@@ -114,7 +125,13 @@ struct SwiftDataStoreTests {
 
         try await store.perform {
             try await store.setManualDay(
-                DayPresence(date: date, regions: [.newYork], isAuthoritative: true, audit: audit),
+                DayPresence(
+                    date: date,
+                    in: Self.calendar,
+                    regions: [.newYork],
+                    isAuthoritative: true,
+                    audit: audit,
+                ),
             )
         }
 
@@ -134,6 +151,7 @@ struct SwiftDataStoreTests {
         try await store.perform {
             try await store.setManualDay(DayPresence(
                 date: date,
+                in: Self.calendar,
                 regions: [.california],
                 audit: audit,
             ))
@@ -164,6 +182,7 @@ struct SwiftDataStoreTests {
             try await store.setManualDay(
                 DayPresence(
                     date: date,
+                    in: Self.calendar,
                     regions: [.california],
                     isAuthoritative: true,
                     audit: firstAudit,
@@ -174,6 +193,7 @@ struct SwiftDataStoreTests {
             try await store.setManualDay(
                 DayPresence(
                     date: date,
+                    in: Self.calendar,
                     regions: [.newYork],
                     isAuthoritative: false,
                     audit: laterAudit,

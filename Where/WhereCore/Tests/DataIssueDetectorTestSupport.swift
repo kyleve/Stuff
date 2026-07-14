@@ -19,10 +19,14 @@ enum DataIssueDetectorFixtures {
         ))!)
     }
 
+    static func calendarDay(_ year: Int, _ month: Int, _ day: Int) -> CalendarDay {
+        CalendarDay(year: year, month: month, day: day)
+    }
+
     static func input(
         year: Int = 2026,
         days: [DayPresence] = [],
-        otherDayCoordinates: [Date: [Coordinate]] = [:],
+        otherDayCoordinates: [CalendarDay: [Coordinate]] = [:],
         primaryRegions: [Region] = [.california, .newYork],
         driftThresholdMeters: Double = 10000,
         now: Date? = nil,

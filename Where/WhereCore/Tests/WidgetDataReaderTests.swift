@@ -60,6 +60,7 @@ struct WidgetDataReaderTests {
             // A manual backfill for a third day.
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-05-01T00:00:00-07:00"),
+                in: WhereCoreTestSupport.calendar(),
                 regions: [.canada],
             ))
         }
@@ -125,6 +126,7 @@ struct WidgetDataReaderTests {
             ))
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-03-15T07:00:00-07:00"),
+                in: WhereCoreTestSupport.calendar(),
                 regions: [.newYork],
                 isAuthoritative: true,
             ))
