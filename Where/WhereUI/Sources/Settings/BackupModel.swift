@@ -95,7 +95,7 @@ public final class BackupModel {
             continuation.finish()
             await observer.value
             Self.logger.info(
-                "Imported backup (\(summary.sampleCount) samples, \(summary.evidenceCount) evidence, \(summary.manualDayCount) manual days, \(summary.dismissedIssueCount) dismissals)",
+                "Imported backup (\(summary.sampleCount) samples, \(summary.evidenceCount) evidence, \(summary.manualDayCount) manual days, \(summary.dismissedIssueCount) dismissals, \(summary.trackedRegionCount) tracked regions)",
             )
             return summary
         } catch {

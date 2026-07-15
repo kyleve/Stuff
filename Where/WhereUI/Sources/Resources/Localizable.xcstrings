@@ -1772,7 +1772,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Imported %lld location samples, %lld pieces of evidence, %lld manual days, and %lld dismissed issues."
+            "value" : "Imported %lld location samples, %lld pieces of evidence, %lld manual days, %lld dismissed issues, and %lld tracked regions."
           }
         }
       }

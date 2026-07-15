@@ -145,6 +145,36 @@ struct BackupServiceTests {
         #expect(decoded.audit == nil)
     }
 
+    @Test func trackedRegionsSurviveArchiveRoundTrip() throws {
+        let service = BackupService()
+        let texas = try #require(Region(rawValue: "us-TX"))
+        let url = try service.makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            trackedRegions: [.california, texas],
+            blobs: [:],
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let result = try service.readArchive(at: url)
+        #expect(result.archive.trackedRegions == [.california, texas])
+    }
+
+    @Test func legacyManifestWithoutTrackedRegionsDecodesAsEmpty() throws {
+        // A manifest written before `trackedRegions` existed must decode to []
+        // rather than failing (additive field, like `dismissedIssues`).
+        let json = #"""
+        {"formatVersion":1,"exportedAt":"2026-06-05T12:00:00Z","samples":[],"evidence":[],"manualDays":[],"assets":[]}
+        """#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let archive = try decoder.decode(BackupArchive.self, from: Data(json.utf8))
+        #expect(archive.trackedRegions.isEmpty)
+        #expect(archive.dismissedIssues.isEmpty)
+    }
+
     @Test func auditManualDaySurvivesArchiveRoundTrip() throws {
         let service = BackupService()
         let manualDays = [
