@@ -26,12 +26,16 @@ struct WidgetSnapshotPublisherTests {
             calendar: WhereCoreTestSupport.calendar(),
             timeZone: WhereCoreTestSupport.pacific,
         )
-        let reader = WidgetDataReader(store: store, aggregator: aggregator, attributor: .shared)
+        let reader = WidgetDataReader(
+            store: store,
+            aggregator: aggregator,
+            attributor: RegionAttributor.shared,
+        )
         let refresher = SpyRefresher()
         let publisher = WidgetSnapshotPublisher(
             widgetReader: reader,
             widgetRefresher: refresher,
-            attributor: .shared,
+            attributor: RegionAttributor.shared,
             calendar: WhereCoreTestSupport.calendar(),
             now: now,
             maxAge: maxAge,

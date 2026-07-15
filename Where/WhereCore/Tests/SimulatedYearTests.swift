@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 
 struct SimulatedYearTests {
     private static let pacific = WhereCoreTestSupport.pacific

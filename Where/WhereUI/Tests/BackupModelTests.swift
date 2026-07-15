@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 @testable import WhereUI
 
 /// Exercises `BackupModel`'s export/import bridging: a successful round-trip

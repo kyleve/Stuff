@@ -3,14 +3,12 @@ import Foundation
 /// Which set of region polygons to vend, for the developer region-map
 /// viewer's source toggle.
 public enum RegionGeometryKind: String, CaseIterable, Sendable, Hashable {
-    /// What `RegionAttributor` actually loads and uses to attribute
-    /// coordinates today: California, New York, and the simplified
-    /// Canada / EU polygons, exterior rings only.
+    /// What a `RegionAttributor` actually loaded and uses to attribute
+    /// coordinates — the app's tracked subset, exterior rings only.
     case attribution
-    /// Every feature decoded straight from the bundled GeoJSON files
-    /// (all US-state features in `us-states.geojson`, plus Canada and
-    /// the EU) at full authored fidelity — what attribution is built
-    /// *from*, before the simplifications.
+    /// Every available region in the catalog, decoded straight from its bundled
+    /// per-region GeoJSON at full authored fidelity — what attribution is built
+    /// *from*, before the bounding-box pre-pass simplifications.
     case source
 }
 
@@ -30,12 +28,10 @@ public struct RegionOutline: Identifiable, Sendable, Hashable {
     }
 
     public let id: ID
-    /// Human-readable label: a US Census feature `NAME` (e.g. "Texas")
-    /// or a `Region.localizedName` (e.g. "Canada").
+    /// Human-readable label: a `Region.localizedName` (e.g. "California").
     public let title: String
     /// The tracked region this outline belongs to, or `nil` for a source
-    /// feature that isn't currently modeled as a `Region` (e.g. a US
-    /// state with no `Region` case yet).
+    /// feature not modeled as a `Region`.
     public let region: Region?
     /// The exterior ring, in order.
     public let coordinates: [Coordinate]
@@ -76,6 +72,12 @@ extension RegionGeometryError: LocalizedError {
 public enum RegionGeometryCatalog {
     /// Drawable outlines for `kind`.
     ///
+    /// - `.attribution` reflects exactly what `attributor` loaded (the tracked
+    ///   subset) — the caller passes the attributor rather than the catalog
+    ///   reaching for a global, so the viewer shows the regions it cares about.
+    /// - `.source` decodes every available region from the catalog and ignores
+    ///   `attributor`.
+    ///
     /// The file read + JSON decode runs **off the main thread**:
     /// `RegionGeometryCatalog` is a plain (non-`@MainActor`) type and
     /// this method is `nonisolated`, so `await`-ing it from a
@@ -84,10 +86,13 @@ public enum RegionGeometryCatalog {
     /// `Sendable` result back to the main actor. Throws
     /// `RegionGeometryError` / a `DecodingError` rather than absorbing a
     /// missing or malformed bundle into an empty list.
-    public static func outlines(for kind: RegionGeometryKind) async throws -> [RegionOutline] {
+    public static func outlines(
+        for kind: RegionGeometryKind,
+        attributor: RegionAttributor,
+    ) async throws -> [RegionOutline] {
         switch kind {
             case .attribution:
-                attributionOutlines()
+                attributionOutlines(for: attributor)
             case .source:
                 try await SourceCache.shared.outlines()
         }
@@ -95,11 +100,11 @@ public enum RegionGeometryCatalog {
 
     // MARK: - Attribution
 
-    /// Outlines for exactly what `RegionAttributor` loaded — cheap, since
-    /// it reads the already-resolved `RegionAttributor.shared`.
-    private static func attributionOutlines() -> [RegionOutline] {
+    /// Outlines for exactly what `attributor` loaded — cheap, since it reads the
+    /// already-resolved polygons.
+    private static func attributionOutlines(for attributor: RegionAttributor) -> [RegionOutline] {
         var builder = OutlineBuilder()
-        for entry in RegionAttributor.shared.loadedRegionPolygons {
+        for entry in attributor.loadedRegionPolygons {
             for polygon in entry.polygons {
                 builder.add(
                     title: entry.region.localizedName,
@@ -113,58 +118,35 @@ public enum RegionGeometryCatalog {
 
     // MARK: - Source
 
-    /// Decode every bundled feature: all features in `us-states.geojson`
-    /// (titled by Census `NAME`, mapped to a `Region` when one claims
-    /// that name), plus each `.bundledFile` region's own file (titled and
-    /// tagged by that `Region`, since those files carry no `NAME`).
+    /// Decode every available region's bundled per-region GeoJSON at full
+    /// fidelity, each outline tagged with the `Region` it belongs to and titled
+    /// by its `localizedName`.
     static func buildSourceOutlines() throws -> [RegionOutline] {
         var builder = OutlineBuilder()
-
-        let regionByStateName = usStateRegionsByName()
-        for feature in try namedPolygons(resource: "us-states") {
-            let title = feature.name ?? "Unnamed feature"
-            let region = feature.name.flatMap { regionByStateName[$0] }
-            for polygon in feature.polygons {
-                builder.add(title: title, region: region, coordinates: polygon.vertices)
-            }
-        }
-
-        for region in Region.allCases where region.geometrySource == .bundledFile {
-            for feature in try namedPolygons(resource: region.rawValue) {
+        for entry in RegionCatalog.shared.entries {
+            for feature in try namedPolygons(for: entry.region) {
                 for polygon in feature.polygons {
                     builder.add(
-                        title: region.localizedName,
-                        region: region,
+                        title: entry.region.localizedName,
+                        region: entry.region,
                         coordinates: polygon.vertices,
                     )
                 }
             }
         }
-
         return builder.outlines
     }
 
-    /// `[Census NAME: Region]` for every `.usStateFeature` region.
-    private static func usStateRegionsByName() -> [String: Region] {
-        var map: [String: Region] = [:]
-        for region in Region.allCases {
-            guard case let .usStateFeature(name) = region.geometrySource else { continue }
-            map[name] = region
-        }
-        return map
-    }
-
-    private static func namedPolygons(resource: String) throws -> [GeoJSON.NamedPolygons] {
-        guard let url = Bundle.module.url(forResource: resource, withExtension: "geojson") else {
-            throw RegionGeometryError.missingResource(resource)
+    private static func namedPolygons(for region: Region) throws -> [GeoJSON.NamedPolygons] {
+        guard let url = RegionCatalog.shared.geometryURL(for: region) else {
+            throw RegionGeometryError.missingResource(region.rawValue)
         }
         return try GeoJSON.namedPolygons(at: url)
     }
 
-    /// Caches the heavy `.source` decode (the ~2.5 MB `us-states.geojson`
-    /// parse) so toggling back to source after the first load is instant.
-    /// An `actor` both serializes the one-time build and runs it off the
-    /// main thread.
+    /// Caches the heavy `.source` decode (parsing every per-region file) so
+    /// toggling back to source after the first load is instant. An `actor` both
+    /// serializes the one-time build and runs it off the main thread.
     private actor SourceCache {
         static let shared = SourceCache()
         private var cached: [RegionOutline]?

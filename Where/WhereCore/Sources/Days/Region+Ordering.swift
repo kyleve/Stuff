@@ -5,15 +5,24 @@ import RegionKit
 /// because it's about the app's presence/day-count domain, not region geometry
 /// or lookup; `RegionKit` stays focused on regions and geofencing.
 extension Region {
-    /// Each region's position in `Region.allCases`. This declaration order is
-    /// the app's canonical tiebreak: whenever two regions compare equal on some
-    /// metric (most often an equal day count), comparisons fall back to it so
-    /// rankings, widget rows, and calendar footers stay deterministic instead of
-    /// riding on `Dictionary` iteration order. Precomputed once rather than
-    /// scanning `allCases.firstIndex(of:)` per comparison.
+    /// Each region's position in the catalog's canonical order (`Region.allCases`
+    /// = the manifest order, then `.other`). This is the app's canonical
+    /// tiebreak: whenever two regions compare equal on some metric (most often an
+    /// equal day count), comparisons fall back to it so rankings, widget rows,
+    /// and calendar footers stay deterministic instead of riding on `Dictionary`
+    /// iteration order. Precomputed once rather than scanning
+    /// `allCases.firstIndex(of:)` per comparison.
     public static let declarationOrder: [Region: Int] = Dictionary(
         uniqueKeysWithValues: Region.allCases.enumerated().map { ($1, $0) },
     )
+
+    /// `regions` in the catalog's canonical order — the same `declarationOrder`
+    /// tiebreak used for ranking, but without a day-count metric. The catalog-
+    /// driven way to display a *set* of regions in a stable order (e.g. the
+    /// regions present on a calendar day), replacing `Region.allCases.filter`.
+    public static func inCanonicalOrder(_ regions: some Sequence<Region>) -> [Region] {
+        regions.sorted { declarationOrder[$0, default: 0] < declarationOrder[$1, default: 0] }
+    }
 
     /// Order `elements` by their day count, descending, breaking ties by
     /// `declarationOrder`. The single home for the "most days first, stable

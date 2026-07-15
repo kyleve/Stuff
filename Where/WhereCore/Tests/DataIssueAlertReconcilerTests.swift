@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import Testing
 @testable import WhereCore
 
@@ -19,10 +20,14 @@ struct DataIssueAlertReconcilerTests {
         let store = try SwiftDataStore.inMemory()
         let calendar = WhereCoreTestSupport.calendar()
         let aggregator = DayAggregator(calendar: calendar, timeZone: WhereCoreTestSupport.pacific)
-        let reader = ReportReader(store: store, aggregator: aggregator, attributor: .shared)
+        let reader = ReportReader(
+            store: store,
+            aggregator: aggregator,
+            attributor: RegionAttributor.shared,
+        )
         let scanner = DataIssueScanner(
             reportReader: reader,
-            attributor: .shared,
+            attributor: RegionAttributor.shared,
             calendar: calendar,
             now: now,
         )

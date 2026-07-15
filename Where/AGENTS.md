@@ -87,9 +87,13 @@ views or thrown errors.
 - **WhereUI:** funnel every string through `Strings.swift` (keys in the module
   `Localizable.xcstrings`, `bundle: .module`). Counts use catalog plural
   variations; years use a grouping-free number style ("2026", not "2,026").
-- **WhereCore** (user-visible errors) and **RegionKit** (region names via
-  `Region.localizedName`) use static `String(localized:bundle: .module)` keys
-  in their own catalogs.
+- **WhereCore:** user-visible errors use static
+  `String(localized:bundle: .module)` keys in its own catalog.
+- **RegionKit:** region names (`Region.localizedName`) come from the
+  `regions.json` manifest, with an optional `localizationKey` overriding from
+  RegionKit's own `Localizable.xcstrings` (`bundle: .module`) — so, unlike the
+  other modules, region names lose static string-catalog extraction (a
+  deliberate trade-off for a data-driven catalog).
 - **Extensions** (WhereWidgets, WhereShareExtension) keep their chrome in
   their own catalogs and reuse WhereUI's public presentation helpers for
   shared copy.
@@ -164,12 +168,14 @@ path.
 - **New library target:** add to root [`Package.swift`](../Package.swift)
   under `Where/<Name>/Sources`, then wire a hosted test bundle in
   [`Project.swift`](../Project.swift) via the `unitTests` helper.
-- **New region:** add the `Region` case in **`RegionKit`**, then resolve the two
-  compile errors it forces: a `region.<rawValue>` entry in RegionKit's
-  `Resources/Localizable.xcstrings` (for `localizedName`) and a
-  `Region.geometrySource` case (`.usStateFeature(name:)` or `.bundledFile` with a
-  new `<rawValue>.geojson` in RegionKit's `Resources/`). Add a
-  `RegionAttributorTests` spot-check (in `RegionKit/Tests`).
+- **New region:** it's **pure data** now — add geometry under
+  `RegionKit/Tools/source/`, run `ruby Where/RegionKit/Tools/generate-regions.rb`
+  to regenerate `Resources/regions/` + `regions.json` (extend the script's id
+  map / `NON_US` list as needed), optionally add a `region.<key>` string +
+  `localizationKey`, and add a `RegionAttributorTests` spot-check. No `Region`
+  case, no code — `RegionStyle`, region pickers, and the App Intents
+  `RegionEntity` all derive from the catalog. (See
+  [`RegionKit/README.md`](RegionKit/README.md#adding-a-region).)
 - **New evidence kind / sample source:** add the case and follow the compile
   errors through the exhaustive switches.
 - **New app icon:** run `./icons --add` (see the root

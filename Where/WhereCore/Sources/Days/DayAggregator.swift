@@ -26,7 +26,7 @@ public struct DayAggregator: Sendable {
 
     public func aggregate(
         samples: [LocationSample],
-        attributor: RegionAttributor,
+        attributor: any RegionAttributing,
     ) -> [DayPresence] {
         var dayRegions: [CalendarDay: Set<Region>] = [:]
         for sample in samples {
@@ -51,7 +51,7 @@ public struct DayAggregator: Sendable {
     public func locations(
         in region: Region,
         samples: [LocationSample],
-        attributor: RegionAttributor,
+        attributor: any RegionAttributing,
     ) -> [RegionDayLocations] {
         var byDay: [CalendarDay: [RegionDayPoint]] = [:]
         for sample in samples where attributor.region(at: sample.coordinate) == region {
@@ -72,7 +72,7 @@ public struct DayAggregator: Sendable {
     /// without geocoding every point. Regions with no samples are absent.
     public func representativeCoordinates(
         samples: [LocationSample],
-        attributor: RegionAttributor,
+        attributor: any RegionAttributing,
     ) -> [Region: Coordinate] {
         let precision = 20.0
         var tallies: [Region: [Int: CellTally]] = [:]
@@ -119,7 +119,7 @@ public struct DayAggregator: Sendable {
         for year: Int,
         samples: [LocationSample],
         manualDays: [DayPresence] = [],
-        attributor: RegionAttributor,
+        attributor: any RegionAttributing,
     ) -> YearReport {
         var dayRegions: [CalendarDay: Set<Region>] = [:]
         for day in aggregate(samples: samples, attributor: attributor) {

@@ -88,4 +88,26 @@ struct RegionAttributorTests {
         let tokyo = Coordinate(latitude: 35.6762, longitude: 139.6503)
         #expect(attributor.region(at: tokyo) == .other)
     }
+
+    // MARK: - On-demand subset loading
+
+    /// An attributor loads and attributes only the regions it's built for, so a
+    /// coordinate inside an untracked region falls through to `.other`.
+    @Test func attributorLoadsOnlyItsRegions() {
+        let californiaOnly = RegionAttributor(for: [.california])
+        let sf = Coordinate(latitude: 37.7749, longitude: -122.4194)
+        let nyc = Coordinate(latitude: 40.7128, longitude: -74.0060)
+        #expect(californiaOnly.region(at: sf) == .california)
+        // New York isn't loaded, so a NYC coordinate falls through to `.other`.
+        #expect(californiaOnly.region(at: nyc) == .other)
+    }
+
+    /// Any catalog state — not just the historical four — can be tracked, since
+    /// each region loads from its own bundled file.
+    @Test func attributorCanTrackAnyCatalogState() throws {
+        let illinois = try #require(Region(rawValue: "us-IL"))
+        let attributor = RegionAttributor(for: [illinois])
+        let chicago = Coordinate(latitude: 41.8781, longitude: -87.6298)
+        #expect(attributor.region(at: chicago) == illinois)
+    }
 }

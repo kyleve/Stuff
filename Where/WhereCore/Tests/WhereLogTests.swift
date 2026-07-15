@@ -26,7 +26,8 @@ func categoryRawValuesMatchTypeNames() {
     #expect(WhereLog.Category.recentActivitySummarizer.rawValue == "RecentActivitySummarizer")
     #expect(WhereLog.Category.shareExtension.rawValue == "WhereShareExtension")
     #expect(WhereLog.Category.whereIntents.rawValue == "WhereIntents")
-    #expect(WhereLog.Category.allCases.count == 22)
+    #expect(WhereLog.Category.regionAttribution.rawValue == "RegionAttribution")
+    #expect(WhereLog.Category.allCases.count == 23)
 }
 
 @Test

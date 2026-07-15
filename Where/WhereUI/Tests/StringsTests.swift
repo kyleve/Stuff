@@ -88,9 +88,10 @@ struct StringsTests {
                 evidence: 2,
                 manualDays: 5,
                 dismissedIssues: 4,
+                trackedRegions: 6,
             )
                 ==
-                "Imported 3 location samples, 2 pieces of evidence, 5 manual days, and 4 dismissed issues.",
+                "Imported 3 location samples, 2 pieces of evidence, 5 manual days, 4 dismissed issues, and 6 tracked regions.",
         )
     }
 

@@ -1,6 +1,7 @@
 import Foundation
+import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 struct DataIssueScannerTests {
     private static var calendar: Calendar {
@@ -35,11 +36,11 @@ struct DataIssueScannerTests {
         let reader = ReportReader(
             store: store,
             aggregator: DayAggregator(calendar: Self.calendar, timeZone: Self.calendar.timeZone),
-            attributor: .shared,
+            attributor: RegionAttributor.shared,
         )
         return DataIssueScanner(
             reportReader: reader,
-            attributor: .shared,
+            attributor: RegionAttributor.shared,
             calendar: Self.calendar,
             now: now,
             scanInterval: scanInterval,

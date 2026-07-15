@@ -10,7 +10,7 @@ import Testing
 struct WhereServicesIntentsTests {
     @Test func stackWritesThroughJournalAndReadsBackThroughReports() async throws {
         let store = try SwiftDataStore.inMemory()
-        let services = WhereServices.makeForIntents(store: store)
+        let services = try await WhereServices.makeForIntents(store: store)
 
         try await services.journal.addManualDay(
             date: WhereCoreTestSupport.iso("2026-06-15T12:00:00-07:00"),
@@ -25,7 +25,7 @@ struct WhereServicesIntentsTests {
 
     @Test func stackNeverOffersALocationFix() async throws {
         let store = try SwiftDataStore.inMemory()
-        let services = WhereServices.makeForIntents(store: store)
+        let services = try await WhereServices.makeForIntents(store: store)
 
         // The idle source backs the ingestor, so a manual entry made from an
         // intent honestly records "no captured location" rather than a fix.

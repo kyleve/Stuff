@@ -22,7 +22,7 @@ struct TimeZoneIndependenceTests {
         ReportReader(
             store: store,
             aggregator: DayAggregator(timeZone: timeZone),
-            attributor: .shared,
+            attributor: RegionAttributor.shared,
         )
     }
 

@@ -18,17 +18,19 @@ extension WhereServices {
     /// on an empty store.
     public static func forIntents(
         now: @escaping @Sendable () -> Date = { Date() },
-    ) throws -> WhereServices {
-        try makeForIntents(store: SwiftDataStore.make(storage: .localOnly), now: now)
+    ) async throws -> WhereServices {
+        try await makeForIntents(store: SwiftDataStore.make(storage: .localOnly), now: now)
     }
 
     /// Composition seam shared by `forIntents()` (production, real App Group
     /// store) and unit tests (an in-memory store): wraps `store` in the same
-    /// GPS-free service stack an intent uses.
+    /// GPS-free service stack an intent uses. `async` because it derives the
+    /// attributor from the store's tracked regions (via ``make(store:locationSource:)``),
+    /// so an intent attributes against the same synced set the app does.
     static func makeForIntents(
         store: any WhereStore,
         now: @escaping @Sendable () -> Date = { Date() },
-    ) -> WhereServices {
-        WhereServices(store: store, locationSource: IdleLocationSource(), now: now)
+    ) async throws -> WhereServices {
+        try await make(store: store, locationSource: IdleLocationSource(), now: now)
     }
 }
