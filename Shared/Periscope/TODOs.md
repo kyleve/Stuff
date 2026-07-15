@@ -19,6 +19,7 @@
 
 ## P1s (Should do)
 - fix: After initial merge, we should come back and update the UI to consume the Shared/Broadway design system tooling, eg a PeriscopeStylesheet for components and other recommendations.
+- feat: Multi-process store + journal coordination. Today only app processes ingest journals (extensions journal but never ingest, so an extension launch can't delete the live app's journal) — but the reverse hole remains: an app launching while an extension session is live would ingest and delete that *live* journal out from under its open descriptor, silently ending its recoverability. Needs a claim mechanism (e.g. a claim file the writer holds, or skip-directories-with-live-claims) designed alongside App Group store sharing — which the store doesn't support yet either (exclusive sequence counters, SwiftData container coordination).
 
 
 ## P2s (Nice to have)

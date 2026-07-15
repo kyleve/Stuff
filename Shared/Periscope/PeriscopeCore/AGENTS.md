@@ -59,6 +59,11 @@ sources). Tests stay flat, named 1:1 with their source files.
   count and log to OSLog but never throw into the emit path. Ingest runs
   *before* `startSession` so recovered begans join the orphan sweep; a
   journal that fails ingest stays for the next launch.
+- **Only app processes ingest journals.** App extensions journal their own
+  sessions but skip ingest (ingest deletes journals; an extension launch
+  must not eat the live app's) — the app's next launch recovers everyone's.
+  Sharing one on-disk store across *concurrently live* processes is not
+  yet supported; see [`TODOs.md`](../TODOs.md).
 - **Payloads persist as versioned JSON** (`eventName` + `eventVersion`), not
   per-event schemas — changing an event's shape must not require a SwiftData
   migration.

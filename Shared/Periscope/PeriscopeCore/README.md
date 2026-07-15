@@ -128,7 +128,8 @@ undelivered records persist (deduplicated by event ID), recovered span
 begans join the orphan sweep, a `.notice` marks the recovery, and the
 journal is deleted. The loss window at a hard crash is the microseconds
 between a record buffering and its append returning. In-memory stores
-never journal.
+never journal, and only app processes ingest — app extensions journal
+their own sessions and leave recovery to the app's next launch.
 
 ## Contracts & limitations
 

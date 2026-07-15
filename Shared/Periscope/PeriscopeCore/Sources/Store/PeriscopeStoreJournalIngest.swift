@@ -9,10 +9,25 @@ import SwiftData
 /// journal is deleted. A journal that fails to ingest stays on disk for
 /// the next launch to retry.
 extension PeriscopeStore {
+    /// Whether this process is an app extension (widget, share sheet, …).
+    /// Extensions journal their own sessions but never ingest: ingest
+    /// deletes journals, and an extension launching mid-app-session must
+    /// not eat the live app's journal. The app's next launch ingests
+    /// everyone's. (Full multi-process coordination — the reverse case of
+    /// an app launch during a live extension session — is tracked in
+    /// `Shared/Periscope/TODOs.md`.)
+    private static var isAppExtension: Bool {
+        Bundle.main.bundleURL.pathExtension == "appex"
+    }
+
     /// Ingest every prior session's journal under `Periscope-Journals/`.
     /// Runs before `startSession`, so recovered span begans participate in
-    /// the orphan sweep.
+    /// the orphan sweep. App processes only — see ``isAppExtension``.
     func ingestRecoveredJournals() async {
+        guard !Self.isAppExtension else {
+            Self.failureLogger.debug("Skipping crash journal ingest in an app extension")
+            return
+        }
         let root = journalsRoot
         guard FileManager.default.fileExists(atPath: root.path) else { return }
         let directories: [URL]
