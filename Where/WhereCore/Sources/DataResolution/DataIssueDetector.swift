@@ -29,7 +29,7 @@ public struct DataIssueInput: Sendable {
     /// Unlike `report` / `otherDayCoordinates` these retain per-fix timestamps.
     public let daySamples: [CalendarDay: [LocationSample]]
     public let primaryRegions: [Region]
-    public let attributor: RegionAttributor
+    public let attributor: any RegionAttributing
     public let driftThresholdMeters: Double
     public let calendar: Calendar
     public let now: Date
@@ -40,7 +40,7 @@ public struct DataIssueInput: Sendable {
         otherDayCoordinates: [CalendarDay: [Coordinate]],
         daySamples: [CalendarDay: [LocationSample]],
         primaryRegions: [Region],
-        attributor: RegionAttributor,
+        attributor: any RegionAttributing,
         driftThresholdMeters: Double,
         calendar: Calendar,
         now: Date,

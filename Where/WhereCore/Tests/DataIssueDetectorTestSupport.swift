@@ -55,7 +55,7 @@ enum DataIssueDetectorFixtures {
             otherDayCoordinates: otherDayCoordinates,
             daySamples: daySamples,
             primaryRegions: primaryRegions,
-            attributor: .shared,
+            attributor: RegionAttributor.shared,
             driftThresholdMeters: driftThresholdMeters,
             calendar: calendar,
             now: now ?? day(year, 6, 15),

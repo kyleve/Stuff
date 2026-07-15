@@ -99,7 +99,7 @@ public actor RecentActivitySummarizer {
     public static let defaultSegmentLimit = 60
 
     private let store: any WhereStore
-    private let attributor: RegionAttributor
+    private let attributor: any RegionAttributing
     private let generator: any ActivitySummaryGenerating
     private let calendar: Calendar
     private let now: @Sendable () -> Date
@@ -109,7 +109,7 @@ public actor RecentActivitySummarizer {
 
     init(
         store: any WhereStore,
-        attributor: RegionAttributor,
+        attributor: any RegionAttributing,
         generator: any ActivitySummaryGenerating,
         calendar: Calendar,
         now: @escaping @Sendable () -> Date,

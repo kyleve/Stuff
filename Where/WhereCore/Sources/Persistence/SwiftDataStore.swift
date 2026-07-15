@@ -111,6 +111,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDEvidence.self,
             SDManualDay.self,
             SDDismissedIssue.self,
+            SDTrackedRegion.self,
         ])
         // On-disk storage lives in the App Group container so the share
         // extension (and any other sibling process) writes into the same store
@@ -214,7 +215,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// SwiftData inspector can enumerate them without naming the (intentionally
     /// internal) record types. Mirrors the `Schema` in `makeContainer`.
     public static var inspectorModelTypes: [any PersistentModel.Type] {
-        [SDLocationSample.self, SDEvidence.self, SDManualDay.self, SDDismissedIssue.self]
+        [
+            SDLocationSample.self,
+            SDEvidence.self,
+            SDManualDay.self,
+            SDDismissedIssue.self,
+            SDTrackedRegion.self,
+        ]
     }
 
     private static let logger = WhereLog.channel(.swiftDataStore)
@@ -578,6 +585,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         for dismissed in try context.fetch(FetchDescriptor<SDDismissedIssue>()) {
             context.delete(dismissed)
         }
+        for tracked in try context.fetch(FetchDescriptor<SDTrackedRegion>()) {
+            context.delete(tracked)
+        }
     }
 
     public func dismissedIssueKeys() async throws -> Set<String> {
@@ -621,6 +631,70 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             record.dismissedAt = issue.dismissedAt
         } else {
             context.insert(SDDismissedIssue(key: issue.key, dismissedAt: issue.dismissedAt))
+        }
+    }
+
+    // MARK: - Tracked regions
+
+    public func trackedRegions() async throws -> Set<Region> {
+        let context = readContext()
+        var descriptor = FetchDescriptor<SDTrackedRegion>()
+        descriptor.includePendingChanges = true
+        let ids = try context.fetch(descriptor).compactMap(\.regionID)
+        // No rows means the user hasn't chosen yet — fall back to the default
+        // set (applied identically in every process). Once any row exists, the
+        // tracked set is exactly the persisted rows.
+        guard !ids.isEmpty else { return Self.defaultTrackedRegions }
+        // Unknown ids (e.g. a region dropped from the catalog) are filtered out
+        // rather than crashing. Surface it: a stored id we can't resolve is a
+        // degraded state — and if *every* id drops, the resulting empty set makes
+        // everything attribute to `.other`, which must not be silent.
+        var resolved: Set<Region> = []
+        var unknown: [String] = []
+        for id in ids {
+            if let region = Region(rawValue: id) {
+                resolved.insert(region)
+            } else {
+                unknown.append(id)
+            }
+        }
+        if !unknown.isEmpty {
+            Self.logger.warning(
+                "Ignored \(unknown.count) unknown tracked-region id(s): \(unknown.sorted().joined(separator: ", "))",
+            )
+        }
+        return resolved
+    }
+
+    public func setTrackedRegion(_ tracked: Bool, id: String) async throws {
+        let context = mutationContext()
+        let descriptor = FetchDescriptor<SDTrackedRegion>(
+            predicate: #Predicate { $0.regionID == id },
+        )
+        let existing = try context.fetch(descriptor)
+        if tracked {
+            // Dedupe defensively: CloudKit can't enforce uniqueness, so collapse
+            // any accidental duplicate rows to one on write.
+            guard existing.isEmpty else {
+                for extra in existing.dropFirst() {
+                    context.delete(extra)
+                }
+                return
+            }
+            context.insert(SDTrackedRegion(regionID: id))
+        } else {
+            // TODO: Untracking deletes the row, which drops the region from the
+            // attributor's load set — so re-aggregating a past year would
+            // re-attribute that region's GPS days to `.other` (manual days,
+            // stored as region sets, are unaffected). When the onboarding /
+            // region picker lands, switch to a soft-delete (mark the row
+            // inactive, never delete) and have the attributor load every
+            // ever-tracked region so past reports stay stable, while "active"
+            // drives the UI/primary set. Not user-reachable yet — nothing calls
+            // `setTrackedRegion(false)` outside tests.
+            for record in existing {
+                context.delete(record)
+            }
         }
     }
 
@@ -866,5 +940,21 @@ final class SDDismissedIssue {
     func toValue() -> DismissedIssue? {
         guard let key, let dismissedAt else { return nil }
         return DismissedIssue(key: key, dismissedAt: dismissedAt)
+    }
+}
+
+/// One tracked region, stored as a row (not a single blob of ids) so concurrent
+/// cross-device edits merge: adding different regions on two devices keeps both,
+/// and add/add of the same region collapses to one on read (`trackedRegions()`
+/// returns a `Set`). `regionID` is `Region.rawValue`; optional per the CloudKit
+/// mirror's requirement.
+@Model
+final class SDTrackedRegion {
+    var regionID: String?
+
+    init() {}
+
+    init(regionID: String) {
+        self.regionID = regionID
     }
 }

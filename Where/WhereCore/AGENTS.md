@@ -88,6 +88,14 @@ internal shape.
   + significant-change); tests/previews use `ScriptedLocationSource`. The
   one-shot `requestCurrentLocation()` returns `nil` (never throws) when no fix
   is available — it only stamps a manual entry's audit trail.
+- **Tracked regions live in the store, not preferences.** They're synced app
+  data (one `SDTrackedRegion` row per region so concurrent cross-device edits
+  merge; read as a `Set`, defaulting to the four when unset). `RegionAttribution`
+  derives the attributor from them and rebuilds on `changes()`; assemble via the
+  async `WhereServices.make(...)` (which reads the set) so the app and the App
+  Intents process (`WhereServices.forIntents()`, also async) attribute against
+  the same synced set. Detection is naturally scoped to it — the attributor only
+  loads tracked-region geometry, so `distanceToBoundary` is `nil` elsewhere.
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are
   `async throws` so the CloudKit-backed store can report I/O failure; a `catch`
   must log via `WhereLog.channel(_:)` (typed `Category`, PII-free) and leave

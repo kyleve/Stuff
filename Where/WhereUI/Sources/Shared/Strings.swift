@@ -868,10 +868,11 @@ enum Strings {
         evidence: Int,
         manualDays: Int,
         dismissedIssues: Int,
+        trackedRegions: Int,
     ) -> String {
         String(
             localized: "settings.backup.imported.message",
-            defaultValue: "Imported \(samples) location samples, \(evidence) pieces of evidence, \(manualDays) manual days, and \(dismissedIssues) dismissed issues.",
+            defaultValue: "Imported \(samples) location samples, \(evidence) pieces of evidence, \(manualDays) manual days, \(dismissedIssues) dismissed issues, and \(trackedRegions) tracked regions.",
             bundle: .module,
         )
     }

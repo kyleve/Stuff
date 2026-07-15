@@ -1,21 +1,22 @@
 import Foundation
+import RegionKit
 
 /// Versioned, `Codable` manifest describing a whole-database backup of the
 /// Where feature. Serialized to `manifest.json` at the root of the backup
 /// `.zip`; evidence blob bytes live alongside it under `assets/` and are
 /// linked back to their records by `BackupAssetEntry`.
 ///
-/// The four arrays mirror the four SwiftData tables exactly
-/// (`SDLocationSample` / `SDEvidence` / `SDManualDay` / `SDDismissedIssue`) via
+/// The arrays mirror the SwiftData tables exactly (`SDLocationSample` /
+/// `SDEvidence` / `SDManualDay` / `SDDismissedIssue` / `SDTrackedRegion`) via
 /// their value-type representations, so an export captures everything and an
 /// import can upsert it back row-for-row.
 public struct BackupArchive: Codable, Sendable, Hashable {
     /// Bumped whenever the archive's on-disk shape changes in a way older
     /// readers can't understand, so an importer can refuse a file it doesn't
     /// know how to read instead of silently dropping data. `dismissedIssues`
-    /// was added without a bump because it is additive: older readers ignore
-    /// the unknown key, and newer readers tolerate its absence (see
-    /// `init(from:)`).
+    /// and `trackedRegions` were added without a bump because they are additive:
+    /// older readers ignore the unknown key, and newer readers tolerate its
+    /// absence (see `init(from:)`).
     ///
     /// v2 keys `manualDays` by a timezone-independent `CalendarDay` (`day`)
     /// rather than an absolute `date` instant. This reader still imports v1
@@ -33,6 +34,10 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// keeps issues the user already dismissed dismissed. Absent in manifests
     /// written before this field existed; those decode to `[]`.
     public let dismissedIssues: [DismissedIssue]
+    /// The user's tracked regions at export time, so a restore carries the
+    /// region selection like any other data. Absent in manifests written before
+    /// this field existed; those decode to `[]`.
+    public let trackedRegions: [Region]
     /// One entry per evidence record that has blob bytes in the archive.
     /// Evidence without bytes simply has no entry here.
     public let assets: [BackupAssetEntry]
@@ -44,6 +49,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         evidence: [Evidence],
         manualDays: [DayPresence],
         dismissedIssues: [DismissedIssue] = [],
+        trackedRegions: [Region] = [],
         assets: [BackupAssetEntry],
     ) {
         self.formatVersion = formatVersion
@@ -52,6 +58,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         self.evidence = evidence
         self.manualDays = manualDays
         self.dismissedIssues = dismissedIssues
+        self.trackedRegions = trackedRegions
         self.assets = assets
     }
 
@@ -62,12 +69,13 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         case evidence
         case manualDays
         case dismissedIssues
+        case trackedRegions
         case assets
     }
 
     /// Custom decode (encode stays synthesized) so manifests written before
-    /// `dismissedIssues` existed still import: the missing key decodes to `[]`
-    /// rather than throwing.
+    /// `dismissedIssues` / `trackedRegions` existed still import: the missing
+    /// keys decode to `[]` rather than throwing.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         formatVersion = try container.decode(Int.self, forKey: .formatVersion)
@@ -77,6 +85,8 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         manualDays = try container.decode([DayPresence].self, forKey: .manualDays)
         dismissedIssues = try container
             .decodeIfPresent([DismissedIssue].self, forKey: .dismissedIssues) ?? []
+        trackedRegions = try container
+            .decodeIfPresent([Region].self, forKey: .trackedRegions) ?? []
         assets = try container.decode([BackupAssetEntry].self, forKey: .assets)
     }
 }

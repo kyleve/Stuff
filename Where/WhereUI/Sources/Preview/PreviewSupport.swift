@@ -1,7 +1,7 @@
 #if DEBUG
     import Foundation
     import RegionKit
-    import WhereCore
+    @_spi(Testing) import WhereCore
 
     /// Preview/test fixtures for `WhereUI`. Provides a synchronous sample
     /// `YearReport` (for static display previews) plus ready-to-render

@@ -18,7 +18,7 @@ import RegionKit
 public actor WidgetSnapshotPublisher {
     private let widgetReader: WidgetDataReader
     private let widgetRefresher: any WidgetTimelineRefreshing
-    private let attributor: RegionAttributor
+    private let attributor: any RegionAttributing
     private let calendar: Calendar
     private let now: @Sendable () -> Date
     private let maxAge: TimeInterval
@@ -42,7 +42,7 @@ public actor WidgetSnapshotPublisher {
     init(
         widgetReader: WidgetDataReader,
         widgetRefresher: any WidgetTimelineRefreshing,
-        attributor: RegionAttributor,
+        attributor: any RegionAttributing,
         calendar: Calendar,
         now: @escaping @Sendable () -> Date,
         maxAge: TimeInterval = WidgetSnapshotPublisher.defaultMaxAge,

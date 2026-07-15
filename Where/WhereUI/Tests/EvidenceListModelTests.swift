@@ -1,7 +1,7 @@
 import Foundation
 import TestHostSupport
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 @testable import WhereUI
 
 /// Covers `EvidenceListModel`'s mapping of the year's evidence into a

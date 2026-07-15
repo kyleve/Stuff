@@ -137,6 +137,42 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
     }
 
+    @Test func replaceImportRestoresTheArchivesTrackedRegions() async throws {
+        let source = try Self.makeHarness()
+        let texas = try #require(Region(rawValue: "us-TX"))
+        try await source.store.perform {
+            try await source.store.setTrackedRegion(true, id: Region.california.rawValue)
+            try await source.store.setTrackedRegion(true, id: texas.rawValue)
+        }
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let destination = try Self.makeHarness()
+        let summary = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+
+        #expect(summary.trackedRegionCount == 2)
+        #expect(try await destination.store.trackedRegions() == [.california, texas])
+    }
+
+    @Test func mergeImportUnionsTrackedRegionsWithTheExisting() async throws {
+        let source = try Self.makeHarness()
+        let texas = try #require(Region(rawValue: "us-TX"))
+        try await source.store.perform {
+            try await source.store.setTrackedRegion(true, id: texas.rawValue)
+        }
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let destination = try Self.makeHarness()
+        try await destination.store.perform {
+            try await destination.store.setTrackedRegion(true, id: Region.california.rawValue)
+        }
+        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+
+        // Merge unions the archive's set into the device's existing selection.
+        #expect(try await destination.store.trackedRegions() == [.california, texas])
+    }
+
     /// Regression guard: an import rewrites day data, so the coordinator must
     /// invoke its `onImport` hook once new data lands — the composition root
     /// wires that hook to the badge / notification / widget reconcile, so

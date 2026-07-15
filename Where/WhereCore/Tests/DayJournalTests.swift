@@ -55,10 +55,14 @@ struct DayJournalTests {
             calendar: WhereCoreTestSupport.calendar(),
             timeZone: WhereCoreTestSupport.pacific,
         )
-        let reader = ReportReader(store: store, aggregator: aggregator, attributor: .shared)
+        let reader = ReportReader(
+            store: store,
+            aggregator: aggregator,
+            attributor: RegionAttributor.shared,
+        )
         let scanner = DataIssueScanner(
             reportReader: reader,
-            attributor: .shared,
+            attributor: RegionAttributor.shared,
             calendar: WhereCoreTestSupport.calendar(),
             now: now,
         )
@@ -81,10 +85,10 @@ struct DayJournalTests {
             widgetReader: WidgetDataReader(
                 store: store,
                 aggregator: aggregator,
-                attributor: .shared,
+                attributor: RegionAttributor.shared,
             ),
             widgetRefresher: refresher,
-            attributor: .shared,
+            attributor: RegionAttributor.shared,
             calendar: WhereCoreTestSupport.calendar(),
             now: now,
         )

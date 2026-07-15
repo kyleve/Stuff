@@ -222,7 +222,7 @@ public final class WhereBootstrap {
             try SwiftDataStore.make()
         }.value
         Self.logger.info("WhereServices assembled")
-        return WhereServices(
+        return try await WhereServices.make(
             store: store,
             locationSource: source,
             locationOutbox: FileLocationOutbox.applicationSupport(),

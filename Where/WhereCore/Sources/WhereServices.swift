@@ -52,10 +52,17 @@ public struct WhereServices: Sendable {
     /// SwiftData never has to route through the value-type `WhereStore` boundary.
     public let modelContainer: ModelContainer?
 
+    /// Synchronous assembly with an explicitly-provided `attributor` (default:
+    /// the historical four via `RegionAttributor.shared`). For **tests and
+    /// previews** — hence `@_spi(Testing)` — which build in-memory stacks without
+    /// an async store read. Production wiring (the app launch, the App Intents
+    /// process) goes through the public `make(...)`, which derives the attributor
+    /// from the store's tracked regions.
+    @_spi(Testing)
     public init(
         store: any WhereStore,
         locationSource: any LocationSource,
-        attributor: RegionAttributor = .shared,
+        attributor: any RegionAttributing = RegionAttributor.shared,
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling = UserNotificationReminderScheduler(),
         summaryScheduler: any DailySummaryScheduling = UserNotificationDailySummaryScheduler(),
@@ -186,6 +193,52 @@ public struct WhereServices: Sendable {
         modelContainer = (store as? SwiftDataStore)?.inspectorContainer
     }
 
+    /// Assemble services whose attributor is derived from the store's **tracked
+    /// regions** (the synced set the user chose, or the default four) and stays
+    /// live: the returned `RegionAttribution` rebuilds on `store.changes()` when
+    /// that set changes — a local edit or a remote CloudKit import.
+    ///
+    /// Reading the tracked set is why this is `async` where `init` is not: the
+    /// synchronous `init` is for tests/previews (in-memory stores with no tracked
+    /// rows resolve to the default four, matching `RegionAttributor.shared`),
+    /// while production wiring — the app launch and the App Intents process —
+    /// goes through here so both attribute against the *same* stored set.
+    public static func make(
+        store: any WhereStore,
+        locationSource: any LocationSource,
+        aggregator: DayAggregator = DayAggregator(),
+        reminderScheduler: any LoggingReminderScheduling = UserNotificationReminderScheduler(),
+        summaryScheduler: any DailySummaryScheduling = UserNotificationDailySummaryScheduler(),
+        issueAlertScheduler: any DataIssueAlertScheduling =
+            UserNotificationDataIssueAlertScheduler(),
+        widgetRefresher: any WidgetTimelineRefreshing = WidgetCenterTimelineRefresher(),
+        locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
+        activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
+        now: @escaping @Sendable () -> Date = { Date() },
+    ) async throws -> WhereServices {
+        let tracked = try await store.trackedRegions()
+        let attribution = RegionAttribution(
+            store: store,
+            // Canonical order (not `Array(Set)`) so the attributor's first-match
+            // priority is deterministic and matches the catalog order.
+            initial: RegionAttributor(for: Region.inCanonicalOrder(tracked)),
+            trackedIDs: Set(tracked.map(\.rawValue)),
+        )
+        return WhereServices(
+            store: store,
+            locationSource: locationSource,
+            attributor: attribution,
+            aggregator: aggregator,
+            reminderScheduler: reminderScheduler,
+            summaryScheduler: summaryScheduler,
+            issueAlertScheduler: issueAlertScheduler,
+            widgetRefresher: widgetRefresher,
+            locationOutbox: locationOutbox,
+            activitySummaryGenerator: activitySummaryGenerator,
+            now: now,
+        )
+    }
+
     /// A fresh stream that fires whenever persisted data changes — local commits
     /// (manual edits, live GPS ingestion) and, for a CloudKit-backed store,
     /// remote imports synced from another device. `WhereSession` subscribes and
@@ -194,6 +247,14 @@ public struct WhereServices: Sendable {
     /// (see `StoreChangeBroadcaster`).
     public func dataChangeUpdates() -> AsyncStream<Void> {
         store.changes()
+    }
+
+    /// The user's tracked regions (the synced set the app attributes against),
+    /// read fresh from the store. Exposed for the App Intents layer, whose "pick
+    /// a region" suggestions and Spotlight index surface the tracked set (rather
+    /// than every available region).
+    public func trackedRegions() async throws -> Set<Region> {
+        try await store.trackedRegions()
     }
 
     /// Return the services to a clean slate for the app's "erase all data &

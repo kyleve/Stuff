@@ -1,0 +1,384 @@
+[
+  {
+    "id": "us-AL",
+    "name": "Alabama",
+    "geometry": {
+      "file": "us-AL.geojson"
+    }
+  },
+  {
+    "id": "us-AK",
+    "name": "Alaska",
+    "geometry": {
+      "file": "us-AK.geojson"
+    }
+  },
+  {
+    "id": "us-AZ",
+    "name": "Arizona",
+    "geometry": {
+      "file": "us-AZ.geojson"
+    }
+  },
+  {
+    "id": "us-AR",
+    "name": "Arkansas",
+    "geometry": {
+      "file": "us-AR.geojson"
+    }
+  },
+  {
+    "id": "us-CA",
+    "name": "California",
+    "localizationKey": "region.california",
+    "geometry": {
+      "file": "us-CA.geojson"
+    }
+  },
+  {
+    "id": "us-CO",
+    "name": "Colorado",
+    "geometry": {
+      "file": "us-CO.geojson"
+    }
+  },
+  {
+    "id": "us-CT",
+    "name": "Connecticut",
+    "geometry": {
+      "file": "us-CT.geojson"
+    }
+  },
+  {
+    "id": "us-DE",
+    "name": "Delaware",
+    "geometry": {
+      "file": "us-DE.geojson"
+    }
+  },
+  {
+    "id": "us-DC",
+    "name": "District of Columbia",
+    "geometry": {
+      "file": "us-DC.geojson"
+    }
+  },
+  {
+    "id": "us-FL",
+    "name": "Florida",
+    "geometry": {
+      "file": "us-FL.geojson"
+    }
+  },
+  {
+    "id": "us-GA",
+    "name": "Georgia",
+    "geometry": {
+      "file": "us-GA.geojson"
+    }
+  },
+  {
+    "id": "us-HI",
+    "name": "Hawaii",
+    "geometry": {
+      "file": "us-HI.geojson"
+    }
+  },
+  {
+    "id": "us-ID",
+    "name": "Idaho",
+    "geometry": {
+      "file": "us-ID.geojson"
+    }
+  },
+  {
+    "id": "us-IL",
+    "name": "Illinois",
+    "geometry": {
+      "file": "us-IL.geojson"
+    }
+  },
+  {
+    "id": "us-IN",
+    "name": "Indiana",
+    "geometry": {
+      "file": "us-IN.geojson"
+    }
+  },
+  {
+    "id": "us-IA",
+    "name": "Iowa",
+    "geometry": {
+      "file": "us-IA.geojson"
+    }
+  },
+  {
+    "id": "us-KS",
+    "name": "Kansas",
+    "geometry": {
+      "file": "us-KS.geojson"
+    }
+  },
+  {
+    "id": "us-KY",
+    "name": "Kentucky",
+    "geometry": {
+      "file": "us-KY.geojson"
+    }
+  },
+  {
+    "id": "us-LA",
+    "name": "Louisiana",
+    "geometry": {
+      "file": "us-LA.geojson"
+    }
+  },
+  {
+    "id": "us-ME",
+    "name": "Maine",
+    "geometry": {
+      "file": "us-ME.geojson"
+    }
+  },
+  {
+    "id": "us-MD",
+    "name": "Maryland",
+    "geometry": {
+      "file": "us-MD.geojson"
+    }
+  },
+  {
+    "id": "us-MA",
+    "name": "Massachusetts",
+    "geometry": {
+      "file": "us-MA.geojson"
+    }
+  },
+  {
+    "id": "us-MI",
+    "name": "Michigan",
+    "geometry": {
+      "file": "us-MI.geojson"
+    }
+  },
+  {
+    "id": "us-MN",
+    "name": "Minnesota",
+    "geometry": {
+      "file": "us-MN.geojson"
+    }
+  },
+  {
+    "id": "us-MS",
+    "name": "Mississippi",
+    "geometry": {
+      "file": "us-MS.geojson"
+    }
+  },
+  {
+    "id": "us-MO",
+    "name": "Missouri",
+    "geometry": {
+      "file": "us-MO.geojson"
+    }
+  },
+  {
+    "id": "us-MT",
+    "name": "Montana",
+    "geometry": {
+      "file": "us-MT.geojson"
+    }
+  },
+  {
+    "id": "us-NE",
+    "name": "Nebraska",
+    "geometry": {
+      "file": "us-NE.geojson"
+    }
+  },
+  {
+    "id": "us-NV",
+    "name": "Nevada",
+    "geometry": {
+      "file": "us-NV.geojson"
+    }
+  },
+  {
+    "id": "us-NH",
+    "name": "New Hampshire",
+    "geometry": {
+      "file": "us-NH.geojson"
+    }
+  },
+  {
+    "id": "us-NJ",
+    "name": "New Jersey",
+    "geometry": {
+      "file": "us-NJ.geojson"
+    }
+  },
+  {
+    "id": "us-NM",
+    "name": "New Mexico",
+    "geometry": {
+      "file": "us-NM.geojson"
+    }
+  },
+  {
+    "id": "us-NY",
+    "name": "New York",
+    "localizationKey": "region.newYork",
+    "geometry": {
+      "file": "us-NY.geojson"
+    }
+  },
+  {
+    "id": "us-NC",
+    "name": "North Carolina",
+    "geometry": {
+      "file": "us-NC.geojson"
+    }
+  },
+  {
+    "id": "us-ND",
+    "name": "North Dakota",
+    "geometry": {
+      "file": "us-ND.geojson"
+    }
+  },
+  {
+    "id": "us-OH",
+    "name": "Ohio",
+    "geometry": {
+      "file": "us-OH.geojson"
+    }
+  },
+  {
+    "id": "us-OK",
+    "name": "Oklahoma",
+    "geometry": {
+      "file": "us-OK.geojson"
+    }
+  },
+  {
+    "id": "us-OR",
+    "name": "Oregon",
+    "geometry": {
+      "file": "us-OR.geojson"
+    }
+  },
+  {
+    "id": "us-PA",
+    "name": "Pennsylvania",
+    "geometry": {
+      "file": "us-PA.geojson"
+    }
+  },
+  {
+    "id": "us-PR",
+    "name": "Puerto Rico",
+    "geometry": {
+      "file": "us-PR.geojson"
+    }
+  },
+  {
+    "id": "us-RI",
+    "name": "Rhode Island",
+    "geometry": {
+      "file": "us-RI.geojson"
+    }
+  },
+  {
+    "id": "us-SC",
+    "name": "South Carolina",
+    "geometry": {
+      "file": "us-SC.geojson"
+    }
+  },
+  {
+    "id": "us-SD",
+    "name": "South Dakota",
+    "geometry": {
+      "file": "us-SD.geojson"
+    }
+  },
+  {
+    "id": "us-TN",
+    "name": "Tennessee",
+    "geometry": {
+      "file": "us-TN.geojson"
+    }
+  },
+  {
+    "id": "us-TX",
+    "name": "Texas",
+    "geometry": {
+      "file": "us-TX.geojson"
+    }
+  },
+  {
+    "id": "us-UT",
+    "name": "Utah",
+    "geometry": {
+      "file": "us-UT.geojson"
+    }
+  },
+  {
+    "id": "us-VT",
+    "name": "Vermont",
+    "geometry": {
+      "file": "us-VT.geojson"
+    }
+  },
+  {
+    "id": "us-VA",
+    "name": "Virginia",
+    "geometry": {
+      "file": "us-VA.geojson"
+    }
+  },
+  {
+    "id": "us-WA",
+    "name": "Washington",
+    "geometry": {
+      "file": "us-WA.geojson"
+    }
+  },
+  {
+    "id": "us-WV",
+    "name": "West Virginia",
+    "geometry": {
+      "file": "us-WV.geojson"
+    }
+  },
+  {
+    "id": "us-WI",
+    "name": "Wisconsin",
+    "geometry": {
+      "file": "us-WI.geojson"
+    }
+  },
+  {
+    "id": "us-WY",
+    "name": "Wyoming",
+    "geometry": {
+      "file": "us-WY.geojson"
+    }
+  },
+  {
+    "id": "canada",
+    "name": "Canada",
+    "localizationKey": "region.canada",
+    "geometry": {
+      "file": "canada.geojson"
+    }
+  },
+  {
+    "id": "european-union",
+    "name": "European Union",
+    "localizationKey": "region.europeanUnion",
+    "geometry": {
+      "file": "european-union.geojson"
+    }
+  }
+]
