@@ -636,10 +636,27 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let ids = try context.fetch(descriptor).compactMap(\.regionID)
         // No rows means the user hasn't chosen yet — fall back to the default
         // set (applied identically in every process). Once any row exists, the
-        // tracked set is exactly the persisted rows. Unknown ids (e.g. a region
-        // dropped from the catalog) are filtered out via `Region(rawValue:)`.
+        // tracked set is exactly the persisted rows.
         guard !ids.isEmpty else { return Self.defaultTrackedRegions }
-        return Set(ids.compactMap { Region(rawValue: $0) })
+        // Unknown ids (e.g. a region dropped from the catalog) are filtered out
+        // rather than crashing. Surface it: a stored id we can't resolve is a
+        // degraded state — and if *every* id drops, the resulting empty set makes
+        // everything attribute to `.other`, which must not be silent.
+        var resolved: Set<Region> = []
+        var unknown: [String] = []
+        for id in ids {
+            if let region = Region(rawValue: id) {
+                resolved.insert(region)
+            } else {
+                unknown.append(id)
+            }
+        }
+        if !unknown.isEmpty {
+            Self.logger.warning(
+                "Ignored \(unknown.count) unknown tracked-region id(s): \(unknown.sorted().joined(separator: ", "))",
+            )
+        }
+        return resolved
     }
 
     public func setTrackedRegion(_ tracked: Bool, id: String) async throws {

@@ -31,6 +31,56 @@ struct WhereServicesTests {
         return (services, store, source)
     }
 
+    private static func sample(
+        _ iso: String,
+        latitude: Double,
+        longitude: Double,
+    ) -> LocationSample {
+        LocationSample(
+            id: UUID(),
+            timestamp: WhereCoreTestSupport.iso(iso),
+            coordinate: Coordinate(latitude: latitude, longitude: longitude),
+            horizontalAccuracy: 5,
+            source: .manual,
+        )
+    }
+
+    /// End-to-end proof that `make(...)` derives the attributor from the store's
+    /// tracked regions and threads it through the read path — not just that the
+    /// store + provider work in isolation.
+    @Test func makeAttributesReadsAgainstTheStoredTrackedSet() async throws {
+        let store = try SwiftDataStore.inMemory()
+        // Track only California.
+        try await store.perform {
+            try await store.setTrackedRegion(true, id: Region.california.rawValue)
+        }
+        let services = try await WhereServices.make(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            aggregator: Self.makeAggregator(),
+        )
+        // Two samples on the same Pacific day: one in California, one in New York.
+        try await store.perform {
+            try await store.add(sample: Self.sample(
+                "2026-06-15T09:00:00-07:00",
+                latitude: 37.7749,
+                longitude: -122.4194,
+            ))
+            try await store.add(sample: Self.sample(
+                "2026-06-15T15:00:00-07:00",
+                latitude: 40.7128,
+                longitude: -74.0060,
+            ))
+        }
+
+        let report = try await services.reports.yearReport(for: 2026)
+        // California is tracked, so the SF sample counts. New York isn't loaded,
+        // so the NYC sample attributes to `.other` rather than `.newYork`.
+        #expect(report.totals[.california] == 1)
+        #expect(report.totals[.newYork] == nil)
+        #expect(report.totals[.other] == 1)
+    }
+
     private static var pacificCalendar: Calendar {
         WhereCoreTestSupport.calendar()
     }
