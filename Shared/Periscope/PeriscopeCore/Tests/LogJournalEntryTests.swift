@@ -71,6 +71,18 @@ struct LogJournalEntryTests {
         #expect(decoded == .record(journaled))
     }
 
+    @Test func envelopesNestPayloadsAsJSONObjectsNotBase64() throws {
+        // The wire format pins the single-pass encoding: a base64 string
+        // payload would mean re-encoded bytes and ~33% inflation.
+        let entry = LogJournalEntry.session(.fixture())
+        let object = try #require(
+            try JSONSerialization.jsonObject(with: entry.encoded()) as? [String: Any],
+        )
+        #expect(object["v"] as? Int == 1)
+        #expect(object["kind"] as? String == "session")
+        #expect(object["payload"] is [String: Any])
+    }
+
     @Test func unknownKindsDecodeAsNilNotErrors() throws {
         // A newer build's entry kind must be skippable, not fatal.
         let future = Data(#"{"v":9,"kind":"hologram","payload":""}"#.utf8)

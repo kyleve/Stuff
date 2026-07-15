@@ -16,62 +16,63 @@ import Foundation
     /// One emitted record.
     case record(LogJournalRecord)
 
-    private enum CodingKeys: String, CodingKey {
-        case version = "v"
-        case kind
-        case payload
-    }
-
     private static let version = 1
 
+    /// One encoding pass: the payload nests as a JSON *object*, not
+    /// re-encoded bytes — base64-wrapping the payload would inflate every
+    /// entry ~33% and pay an extra encode on the emit path.
     @_spi(Testing) public func encoded() throws -> Data {
-        let encoder = JSONEncoder()
-        var container = EncodableEntry(version: Self.version)
         switch self {
             case let .session(session):
-                container.kind = "session"
-                container.payload = try JSONEncoder().encode(session)
+                try JSONEncoder().encode(
+                    Envelope(version: Self.version, kind: "session", payload: session),
+                )
             case let .scope(scope):
-                container.kind = "scope"
-                container.payload = try JSONEncoder().encode(scope)
+                try JSONEncoder().encode(
+                    Envelope(version: Self.version, kind: "scope", payload: scope),
+                )
             case let .record(record):
-                container.kind = "record"
-                container.payload = try JSONEncoder().encode(record)
+                try JSONEncoder().encode(
+                    Envelope(version: Self.version, kind: "record", payload: record),
+                )
         }
-        return try encoder.encode(container)
     }
 
     /// Decode one journal payload. Returns `nil` for a kind this build
     /// doesn't know (a newer build wrote it — skip, don't fail); throws
-    /// for malformed data.
+    /// for malformed data. Two passes — a cheap kind peek, then the typed
+    /// decode — which only ingest pays, once per launch.
     @_spi(Testing) public static func decoded(from data: Data) throws -> LogJournalEntry? {
-        let container = try JSONDecoder().decode(EncodableEntry.self, from: data)
-        switch container.kind {
+        switch try JSONDecoder().decode(EnvelopeHeader.self, from: data).kind {
             case "session":
-                return try .session(JSONDecoder().decode(LogSession.self, from: container.payload))
+                try .session(JSONDecoder().decode(Envelope<LogSession>.self, from: data).payload)
             case "scope":
-                return try .scope(JSONDecoder().decode(LogScope.self, from: container.payload))
+                try .scope(JSONDecoder().decode(Envelope<LogScope>.self, from: data).payload)
             case "record":
-                return try .record(JSONDecoder().decode(
-                    LogJournalRecord.self,
-                    from: container.payload,
-                ))
+                try .record(JSONDecoder().decode(Envelope<LogJournalRecord>.self, from: data)
+                    .payload)
             default:
-                return nil
+                nil
         }
     }
 
-    /// The wire shape: version + kind discriminator + nested payload bytes.
-    private struct EncodableEntry: Codable {
+    /// The wire shape: version + kind discriminator + the payload as a
+    /// nested JSON object.
+    private struct Envelope<Payload: Codable>: Codable {
         var version: Int
-        var kind = ""
-        var payload = Data()
+        var kind: String
+        var payload: Payload
 
         private enum CodingKeys: String, CodingKey {
             case version = "v"
             case kind
             case payload
         }
+    }
+
+    /// The discriminator alone — decoded first to pick the typed decode.
+    private struct EnvelopeHeader: Codable {
+        var kind: String
     }
 }
 
