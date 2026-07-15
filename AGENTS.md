@@ -268,8 +268,20 @@ mark `in_progress`, implement, run local checks, commit, mark `completed`.
 - Pure-groundwork steps (no behavior change) still get their own commit; say so
   in the body.
 - Name the plan step each commit closes (the to-do title is fine).
-- Don't push until the user asks — unless the plan says otherwise, or the
-  request clearly implies it (e.g. "open a PR", "ship it").
+- Pushing follows the [GitHub](#github) rules: a branch with an open PR gets
+  every commit pushed as it lands; otherwise don't push until the user asks —
+  unless the plan says otherwise, or the request clearly implies it
+  (e.g. "open a PR", "ship it").
+
+## GitHub
+
+- Use the `gh` CLI for **all** GitHub interaction — PRs, issues, checks,
+  releases, review comments — not raw API calls or the web UI.
+- Open PRs in **ready-for-review** mode, not draft.
+- **Keep open PRs current.** When the current branch has an open PR, push each
+  local commit as it lands so the PR never goes stale. A branch without a PR
+  still waits for the user before pushing (see [Working on
+  plans](#working-on-plans)).
 
 ## Working on PR feedback
 
@@ -279,6 +291,13 @@ comments and surrounding code to write that summary is expected; the gate is on
 editing and pushing, not on understanding. Once the user points you at feedback
 (names comments, says "address these", etc.), that's your go-ahead — do the
 work end to end without re-asking per comment.
+
+- **When a commit resolves an issue a comment called out, reply to that
+  comment** saying so — name the commit and what changed — using the AI-agent
+  prefix from [Posting on the user's behalf](#posting-on-the-users-behalf).
+- **Deferred feedback gets filed, never dropped.** If a comment is deliberately
+  not addressed, record it somewhere durable (the module's `TODOs.md` or the
+  review-tracking file) and reply linking where it's tracked.
 
 ## Debugging build/test/CI failures
 
