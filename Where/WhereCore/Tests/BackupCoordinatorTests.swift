@@ -3,42 +3,33 @@ import RegionKit
 import Testing
 @testable import WhereCore
 
-/// Covers export/import round-trips and the post-import widget publish the
-/// controller delegates to `BackupCoordinator`.
+/// Covers export/import round-trips and the post-import `onImport` hook the
+/// coordinator invokes once new data lands.
 struct BackupCoordinatorTests {
     private struct Harness {
         let coordinator: BackupCoordinator
         let store: SwiftDataStore
-        let widgets: SpyRefresher
+        let onImport: HookSpy
     }
 
-    private actor SpyRefresher: WidgetTimelineRefreshing {
-        private(set) var publishCount = 0
-        func publish(_: WidgetSnapshot) async {
-            publishCount += 1
+    /// Records how many times the coordinator invoked its `onImport` hook, so a
+    /// test can assert an import triggers the (composition-root-supplied)
+    /// badge / notification / widget reconcile exactly once.
+    private actor HookSpy {
+        private(set) var count = 0
+        func run() {
+            count += 1
         }
     }
 
     private static func makeHarness() throws -> Harness {
         let store = try SwiftDataStore.inMemory()
-        let aggregator = DayAggregator(
-            calendar: WhereCoreTestSupport.calendar(),
-            timeZone: WhereCoreTestSupport.pacific,
+        let hook = HookSpy()
+        let coordinator = BackupCoordinator(
+            store: store,
+            onImport: { await hook.run() },
         )
-        let refresher = SpyRefresher()
-        let widgets = WidgetSnapshotPublisher(
-            widgetReader: WidgetDataReader(
-                store: store,
-                aggregator: aggregator,
-                attributor: .shared,
-            ),
-            widgetRefresher: refresher,
-            attributor: .shared,
-            calendar: WhereCoreTestSupport.calendar(),
-            now: { Date() },
-        )
-        let coordinator = BackupCoordinator(store: store, widgets: widgets)
-        return Harness(coordinator: coordinator, store: store, widgets: refresher)
+        return Harness(coordinator: coordinator, store: store, onImport: hook)
     }
 
     private static let evidence = Evidence(
@@ -94,8 +85,8 @@ struct BackupCoordinatorTests {
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
         #expect(try await destination.store.evidenceBlob(for: Self.evidence.id) == Self.blob)
-        // An import that lands new data republishes the widget snapshot.
-        #expect(await destination.widgets.publishCount == 1)
+        // An import that lands new data runs the post-import hook once.
+        #expect(await destination.onImport.count == 1)
     }
 
     @Test func mergeImportKeepsPreexistingRows() async throws {
@@ -144,6 +135,26 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.allDismissedIssues() == source.store
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
+    }
+
+    /// Regression guard: an import rewrites day data, so the coordinator must
+    /// invoke its `onImport` hook once new data lands — the composition root
+    /// wires that hook to the badge / notification / widget reconcile, so
+    /// skipping it leaves the home-screen badge and issues alert stuck at their
+    /// pre-import values (the "badge stuck at 157 after replace import" bug).
+    /// The end-to-end badge recount is asserted in `WhereServicesTests`.
+    @Test func replaceImportInvokesTheOnImportHook() async throws {
+        let source = try Self.makeHarness()
+        try await Self.seed(source.store)
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let destination = try Self.makeHarness()
+        #expect(await destination.onImport.count == 0)
+
+        _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+
+        #expect(await destination.onImport.count == 1)
     }
 
     /// The coordinator owns the export staging directory's lifecycle: starting a
