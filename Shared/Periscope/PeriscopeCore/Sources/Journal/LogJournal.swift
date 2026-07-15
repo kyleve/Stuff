@@ -43,7 +43,7 @@ import os
     /// Journal one emitted record. `sequence` (stamped under the pipeline's
     /// state lock) orders replay, so appends may race here without
     /// reordering recovery.
-    func append(_ record: LogRecord, sequence: Int) {
+    @_spi(Testing) public func append(_ record: LogRecord, sequence: Int) {
         do {
             let entry = try LogJournalEntry.record(LogJournalRecord(
                 record: record,

@@ -5,10 +5,6 @@ import Testing
 private struct InjectedSaveFailure: Error {}
 
 struct PeriscopeStoreTests {
-    private func date(_ offset: TimeInterval) -> Date {
-        Date(timeIntervalSinceReferenceDate: offset)
-    }
-
     /// A store with a small defined hierarchy: app → photos → album-1.
     private func makeStore() async throws -> (
         store: PeriscopeStore,
