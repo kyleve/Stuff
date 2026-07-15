@@ -46,8 +46,9 @@ public struct CalendarDay: Hashable, Sendable, Codable, Comparable, CustomString
     }
 
     /// Parse the `YYYY-MM-DD` form produced by `description`. Returns `nil` for
-    /// anything that isn't three sensibly-ranged, correctly-padded fields, so a
-    /// corrupt persisted key can't decode as a bogus day.
+    /// anything that isn't three correctly-padded fields *and* a real Gregorian
+    /// date, so a corrupt persisted key (`2026-13-01`, `2026-02-31`) can't decode
+    /// as a bogus day.
     public init?(iso: String) {
         let parts = iso.split(separator: "-", omittingEmptySubsequences: false)
         guard parts.count == 3,
@@ -55,6 +56,13 @@ public struct CalendarDay: Hashable, Sendable, Codable, Comparable, CustomString
               let year = Int(parts[0]), let month = Int(parts[1]), let day = Int(parts[2]),
               (1 ... 12).contains(month), (1 ... 31).contains(day)
         else { return nil }
+        // Reject impossible dates: the components must survive a round-trip
+        // through the Gregorian calendar unchanged (Feb 31 would roll to March).
+        let components = DateComponents(year: year, month: month, day: day)
+        let calendar = Self.arithmeticCalendar
+        guard let resolved = calendar.date(from: components) else { return nil }
+        let check = calendar.dateComponents([.year, .month, .day], from: resolved)
+        guard check.year == year, check.month == month, check.day == day else { return nil }
         self.init(year: year, month: month, day: day)
     }
 

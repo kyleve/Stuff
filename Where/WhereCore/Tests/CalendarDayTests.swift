@@ -50,6 +50,14 @@ struct CalendarDayTests {
         #expect(CalendarDay(iso: "2026-01") == nil)
     }
 
+    @Test func rejectsImpossibleButWellFormedDates() {
+        #expect(CalendarDay(iso: "2026-02-31") == nil) // Feb never has 31
+        #expect(CalendarDay(iso: "2026-02-29") == nil) // 2026 isn't a leap year
+        #expect(CalendarDay(iso: "2026-04-31") == nil) // April has 30 days
+        // A real leap day still parses.
+        #expect(CalendarDay(iso: "2028-02-29") == CalendarDay(year: 2028, month: 2, day: 29))
+    }
+
     // MARK: - Ordering
 
     @Test func comparesByYearThenMonthThenDay() {
