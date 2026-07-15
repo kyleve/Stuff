@@ -42,6 +42,14 @@ public actor BackupCoordinator {
     private let store: any WhereStore
     private let backupService = BackupService()
     private let widgets: WidgetSnapshotPublisher
+    /// Shared scanner behind the badge/notification issue count. Dropped inline
+    /// after an import commits so the reconciles below recount from fresh data
+    /// rather than racing the scanner's async store-change invalidation.
+    private let issueScanner: DataIssueScanner
+    /// App-icon badge (missing-day backlog + unresolved-issue count).
+    private let reminders: ReminderReconciler
+    /// "Issues to resolve" notification.
+    private let issueAlerts: DataIssueAlertReconciler
     private static let logger = WhereLog.channel(.backupService)
 
     /// Staging directory of the most recent export. Each archive lands in its
@@ -52,9 +60,18 @@ public actor BackupCoordinator {
     /// the export being torn down.
     private var previousExportDirectory: URL?
 
-    init(store: any WhereStore, widgets: WidgetSnapshotPublisher) {
+    init(
+        store: any WhereStore,
+        widgets: WidgetSnapshotPublisher,
+        issueScanner: DataIssueScanner,
+        reminders: ReminderReconciler,
+        issueAlerts: DataIssueAlertReconciler,
+    ) {
         self.store = store
         self.widgets = widgets
+        self.issueScanner = issueScanner
+        self.reminders = reminders
+        self.issueAlerts = issueAlerts
     }
 
     /// Serialize the entire store (all four tables plus evidence blobs) to a
@@ -166,6 +183,18 @@ public actor BackupCoordinator {
                 report()
             }
         }
+        // An import rewrites day data, so reconcile exactly like a `DayJournal`
+        // day change: drop the scanner cache inline (so the reconciles below
+        // recount fresh rather than racing its async store-change
+        // invalidation), then reconcile the app-icon badge + issues
+        // notification off the new count and republish the widget snapshot.
+        // These headless reconcilers don't observe `store.changes()`, so
+        // without this an import leaves the home-screen badge and the issues
+        // alert stuck at their pre-import values. Keep this fan-out in sync with
+        // `DayJournal.reconcileAfterDayChange()`.
+        await issueScanner.invalidate()
+        await reminders.reconcile()
+        await issueAlerts.reconcile()
         await widgets.publish()
 
         return ImportSummary(

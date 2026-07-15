@@ -155,7 +155,13 @@ public struct WhereServices: Sendable {
             issueScanner: resolution,
             widgets: widgets,
         )
-        let backup = BackupCoordinator(store: store, widgets: widgets)
+        let backup = BackupCoordinator(
+            store: store,
+            widgets: widgets,
+            issueScanner: resolution,
+            reminders: reminders,
+            issueAlerts: issueAlerts,
+        )
         let recentActivity = RecentActivitySummarizer(
             store: store,
             attributor: attributor,
