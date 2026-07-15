@@ -158,9 +158,10 @@ There is currently no editing capability.
 
 ## Example: adopting it in an app (Where)
 
-The Where app exposes it behind a DEBUG-only entry point in Settings. It surfaces
-the live container and model types through narrow accessors (without widening its
-SwiftData-free store boundary) and builds a configuration:
+The Where app exposes it behind a DEBUG-only entry point in its floating
+developer overlay. It surfaces the live container and model types through narrow
+accessors (without widening its SwiftData-free store boundary) and builds a
+configuration:
 
 ```swift
 #if DEBUG
@@ -181,7 +182,7 @@ extension WhereSession {
 #if DEBUG
 if let configuration = session.swiftDataInspectorConfiguration {
     NavigationLink("SwiftData inspector") {
-        SwiftDataInspectorView(configuration: configuration)   // ambient stack from the Settings screen
+        SwiftDataInspectorView(configuration: configuration)   // ambient stack from the developer tools screen
     }
 }
 #endif

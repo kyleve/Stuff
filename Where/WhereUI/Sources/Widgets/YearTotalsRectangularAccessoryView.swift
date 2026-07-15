@@ -14,6 +14,8 @@ public struct YearTotalsRectangularAccessoryView: View {
         self.snapshot = snapshot
     }
 
+    @Environment(\.stylesheet) private var stylesheet
+
     private var ranked: [RegionDays] {
         snapshot.rankedTotals(maxRows: Self.maxRows)
     }
@@ -25,7 +27,7 @@ public struct YearTotalsRectangularAccessoryView: View {
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(ranked) { entry in
-                    HStack(spacing: UIConstants.Spacings.xSmall) {
+                    HStack(spacing: stylesheet.spacing.xSmall) {
                         Image(systemName: entry.region.style.symbolName)
                             .font(.caption2)
                             .accessibilityHidden(true)
@@ -33,7 +35,7 @@ public struct YearTotalsRectangularAccessoryView: View {
                             .font(.caption2)
                             .lineLimit(1)
                             .minimumScaleFactor(0.7)
-                        Spacer(minLength: UIConstants.Spacings.xSmall)
+                        Spacer(minLength: stylesheet.spacing.xSmall)
                         Text(entry.days, format: .number)
                             .font(.caption.weight(.bold))
                             .monospacedDigit()

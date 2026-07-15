@@ -1,9 +1,9 @@
 import Foundation
 import LifecycleKit
 import SwiftUI
+import TestHostSupport
 import Testing
-import WhereCore
-import WhereTesting
+@_spi(Testing) import WhereCore
 import WhereUI
 
 @MainActor

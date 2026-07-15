@@ -244,4 +244,33 @@ struct PresenceCalendarTests {
         let allEmpty = months.allSatisfy(\.regionTotals.isEmpty)
         #expect(allEmpty)
     }
+
+    @Test func evidenceDaysMarkOnlyMatchingCells() throws {
+        let months = try PresenceCalendar.months(
+            from: report([]),
+            calendar: calendar,
+            referenceDate: referenceDate(2026, 6, 15),
+            evidenceDays: [day(2026, 6, 10)],
+        )
+        let june = months[5]
+        let markedDay = june.days.first { $0.dayOfMonth == 10 }
+        let unmarkedDay = june.days.first { $0.dayOfMonth == 11 }
+        #expect(markedDay?.hasEvidence == true)
+        #expect(unmarkedDay?.hasEvidence == false)
+    }
+
+    @Test func evidenceDaysAreNormalizedToStartOfDay() throws {
+        // A mid-day capture time must still flag the whole calendar day.
+        let midday = try #require(calendar.date(
+            from: DateComponents(year: 2026, month: 6, day: 10, hour: 15, minute: 30),
+        ))
+        let months = try PresenceCalendar.months(
+            from: report([]),
+            calendar: calendar,
+            referenceDate: referenceDate(2026, 6, 15),
+            evidenceDays: [midday],
+        )
+        let markedDay = months[5].days.first { $0.dayOfMonth == 10 }
+        #expect(markedDay?.hasEvidence == true)
+    }
 }

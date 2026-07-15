@@ -185,6 +185,37 @@ struct DayJournalTests {
         #expect(report.days.first?.regions == [.california])
     }
 
+    @Test func clearManualDaysRemovesEveryGivenDay() async throws {
+        let h = try Self.makeHarness()
+        let d1 = WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00")
+        let d2 = WhereCoreTestSupport.iso("2026-02-02T00:00:00-08:00")
+        let d3 = WhereCoreTestSupport.iso("2026-02-03T00:00:00-08:00")
+        for date in [d1, d2, d3] {
+            try await h.journal.addManualDay(date: date, regions: [.newYork], audit: nil)
+        }
+
+        try await h.journal.clearManualDays(dates: [d1, d3])
+
+        let remaining = try await Set(h.store.allManualDays().map(\.date))
+        #expect(remaining == [d2])
+    }
+
+    @Test func clearManualDaysIsANoOpWhenEmpty() async throws {
+        let h = try Self.makeHarness()
+        try await h.journal.addManualDay(
+            date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
+            regions: [.newYork],
+            audit: nil,
+        )
+        let publishesBefore = await h.widgets.publishCount
+
+        try await h.journal.clearManualDays(dates: [])
+
+        // Empty input writes nothing and skips the reconcile/publish fan-out.
+        #expect(await h.widgets.publishCount == publishesBefore)
+        #expect(try await h.store.allManualDays().count == 1)
+    }
+
     @Test func addManualDaysBackfillsEveryDayInRange() async throws {
         let h = try Self.makeHarness()
         try await h.journal.addManualDays(

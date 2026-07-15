@@ -95,9 +95,9 @@ consumes snapshots on the main actor for display.
 
 ## Example: adopting it in an app (Where)
 
-The Where app exposes it behind a DEBUG-only entry in Settings, pointed at both
-process-wide buffers — `WhereLog` (the app/WhereCore facade) and `RegionLog`
-(RegionKit) — merged into one list:
+The Where app exposes it behind a DEBUG-only entry in its floating developer
+overlay, pointed at both process-wide buffers — `WhereLog` (the app/WhereCore
+facade) and `RegionLog` (RegionKit) — merged into one list:
 
 ```swift
 #if DEBUG

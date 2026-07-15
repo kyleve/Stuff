@@ -90,6 +90,11 @@ struct EvidenceKindTests {
         #expect(decoded == original)
     }
 
+    @Test func email_roundTripsThroughDiscriminator() {
+        #expect(EvidenceKind.email.discriminator == "email")
+        #expect(EvidenceKind.fromDiscriminator("email") == .email)
+    }
+
     @Test func unknownDiscriminator_throws() {
         // Synthesized `Codable` for enums-with-associated-values uses
         // the case name as the outer key; an unknown key fails to
@@ -110,6 +115,7 @@ struct EvidenceKindTests {
             "rideshare",
             "photo",
             "document",
+            "email",
             "other",
         ]
         #expect(discriminators == expected)

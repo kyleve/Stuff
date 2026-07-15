@@ -1,7 +1,7 @@
 import Foundation
+import TestHostSupport
 import Testing
-import WhereCore
-import WhereTesting
+@_spi(Testing) import WhereCore
 @testable import WhereUI
 
 /// Covers `YearReportModel`: the year report load (out-of-order year fetches, failed
@@ -443,6 +443,64 @@ struct YearReportModelTests {
         // Foregrounding re-subscribes and pulls the gap.
         await report.activate()
         #expect(report.report?.days.count == 1)
+    }
+
+    // MARK: - Evidence day keys
+
+    /// `activate()` loads the evidence day-keys the calendar badge reads, keyed
+    /// to the capture day (in the model's calendar).
+    @Test func activateLoadsEvidenceDayKeys() async throws {
+        let services = try makeServices()
+        let captured = date(year: 2026, month: 3, day: 4)
+        try await services.journal.addEvidence(
+            Evidence(kind: .planeTicket, capturedAt: captured, contentType: .pdf),
+            blob: nil,
+        )
+        let report = YearReportModel(services: services, selectedYear: 2026)
+
+        await report.activate()
+
+        #expect(report.evidenceDayKeys == [Self.day(2026, 3, 4)])
+    }
+
+    /// Adding evidence pings the store-change signal, so the observer re-pulls
+    /// the day-keys without an explicit refresh — the calendar lights up on its
+    /// own.
+    @Test func addingEvidenceRefreshesDayKeysViaObserver() async throws {
+        let services = try makeServices()
+        let report = YearReportModel(services: services, selectedYear: 2026)
+        report.observeDataChanges()
+
+        try await services.journal.addEvidence(
+            Evidence(
+                kind: .document,
+                capturedAt: date(year: 2026, month: 7, day: 9),
+                contentType: .pdf,
+            ),
+            blob: nil,
+        )
+
+        await waitUntil { report.evidenceDayKeys == [Self.day(2026, 7, 9)] }
+    }
+
+    /// Switching years clears the previous year's markers immediately so the
+    /// calendar can't badge the new year's days with the old year's evidence.
+    @Test func selectingYearClearsEvidenceDayKeys() async throws {
+        let services = try makeServices()
+        try await services.journal.addEvidence(
+            Evidence(
+                kind: .photo,
+                capturedAt: date(year: 2026, month: 5, day: 2),
+                contentType: .image,
+            ),
+            blob: nil,
+        )
+        let report = YearReportModel(services: services, selectedYear: 2026)
+        await report.activate()
+        #expect(report.evidenceDayKeys == [Self.day(2026, 5, 2)])
+
+        await report.select(year: 2025)
+        #expect(report.evidenceDayKeys.isEmpty)
     }
 
     private func waitUntil(

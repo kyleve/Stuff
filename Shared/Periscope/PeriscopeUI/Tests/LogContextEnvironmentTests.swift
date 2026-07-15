@@ -1,9 +1,9 @@
 import PeriscopeCore
 import PeriscopeUI
 import SwiftUI
+import TestHostSupport
 import Testing
 import UIKit
-import WhereTesting
 
 /// Reads the accumulated context from the environment and logs once on
 /// appear, exercising exactly what production views do.

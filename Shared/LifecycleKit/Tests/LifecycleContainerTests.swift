@@ -1,7 +1,7 @@
 @testable import LifecycleKit
 import SwiftUI
+import TestHostSupport
 import Testing
-import WhereTesting
 
 private struct ProbeError: LocalizedError {
     var errorDescription: String? {

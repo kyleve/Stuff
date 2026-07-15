@@ -25,10 +25,13 @@ protocol StoreRemoteChangeSource: AnyObject, Sendable {
 }
 
 /// Production `StoreRemoteChangeSource`: bridges Core Data's
-/// `.NSPersistentStoreRemoteChange` notification — posted by the CloudKit mirror
-/// (`NSPersistentCloudKitContainer`) when it imports records synced from another
-/// device — into an `AsyncStream`. Observing this notification and re-reading is
-/// Apple's documented way to react to remote SwiftData/CloudKit changes.
+/// `.NSPersistentStoreRemoteChange` notification into an `AsyncStream`. That
+/// notification fires both when the CloudKit mirror
+/// (`NSPersistentCloudKitContainer`) imports records synced from another device
+/// and when a sibling process writes to a shared App Group store (the Where
+/// share extension saving evidence) — persistent-history tracking is on for
+/// on-disk stores. Observing it and re-reading is Apple's documented way to
+/// react to remote SwiftData/CloudKit and cross-process changes.
 ///
 /// One store per app, so it forwards every remote-change notification rather
 /// than filtering by coordinator (SwiftData doesn't expose the underlying

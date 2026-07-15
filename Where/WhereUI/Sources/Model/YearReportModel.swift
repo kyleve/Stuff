@@ -64,6 +64,13 @@ public final class YearReportModel {
     public private(set) var report: YearReport?
     public private(set) var loadState: LoadState = .idle
 
+    /// Start-of-day keys for days in the selected year that carry at least one
+    /// piece of evidence. Refreshed alongside the report on every committed
+    /// write (so a newly added attachment lights up its day), and fed into the
+    /// calendar's `hasEvidence` day badge. Evidence is metadata only, so this is
+    /// tracked separately from `report` (which drives residency).
+    public private(set) var evidenceDayKeys: Set<Date> = []
+
     /// Unresolved data-issue count for the selected year — the Resolve tab badge.
     /// The full issue list lives on the view-scoped `ResolveModel`; only this
     /// count is kept here because the badge must render before the Resolve tab
@@ -250,6 +257,9 @@ public final class YearReportModel {
         // Drop the previous year's report so views fall back to their loading
         // state instead of rendering stale data under the new year's label.
         report = nil
+        // Clear the previous year's evidence markers too, so the calendar can't
+        // briefly badge the new year's days with the old year's evidence.
+        evidenceDayKeys = []
         await refreshAll(forceDataIssueCount: true)
     }
 
@@ -260,7 +270,29 @@ public final class YearReportModel {
     /// count (no report re-pull); this just names the pairing the shared sites use.
     func refreshAll(forceDataIssueCount: Bool) async {
         await refresh()
+        await refreshEvidenceDayKeys()
         await refreshDataIssueCount(force: forceDataIssueCount)
+    }
+
+    /// Reload the set of days carrying evidence for the selected year. Runs on
+    /// the same triggers as `refresh()` (activate, year switch, any committed
+    /// write), so an added/removed attachment updates the calendar badge without
+    /// a bespoke signal. Keeps the last good value and logs on failure rather
+    /// than blanking the markers.
+    func refreshEvidenceDayKeys() async {
+        // Capture the year this load is for; the model is reentrant while
+        // awaiting, so a concurrent `select(year:)` could otherwise install
+        // keys under the wrong year's label.
+        let requestedYear = selectedYear
+        do {
+            let keys = try await services.evidence.dayKeys(for: requestedYear)
+            guard requestedYear == selectedYear else { return }
+            if evidenceDayKeys != keys { evidenceDayKeys = keys }
+        } catch {
+            Self.logger.warning(
+                "Failed to load evidence day keys for \(requestedYear): \(error.localizedDescription)",
+            )
+        }
     }
 
     /// Recompute the Resolve badge count for the selected year. Uses the cached
@@ -381,6 +413,14 @@ public final class YearReportModel {
     /// (the relabel "reset to GPS" action). Throws on persistence failure.
     public func clearManualDay(date: Date) async throws {
         try await services.journal.clearManualDay(date: date)
+    }
+
+    /// Undo several days' manual overlays in one transaction (the logged-days
+    /// list's delete). Throws on persistence failure so the caller can surface
+    /// it; the committed write pings the store-change signal, so observers
+    /// re-pull without an inline refresh.
+    public func clearManualDays(dates: [Date]) async throws {
+        try await services.journal.clearManualDays(dates: dates)
     }
 
     public func clearSelectedYear() async {

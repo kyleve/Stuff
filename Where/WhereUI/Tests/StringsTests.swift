@@ -1,3 +1,4 @@
+import Foundation
 import RegionKit
 import Testing
 import WhereCore
@@ -93,17 +94,71 @@ struct StringsTests {
         )
     }
 
-    @Test func debugSettingsStringsResolveToCatalogValues() {
-        #expect(Strings.settingsDebugHeader == "Developer")
-        #expect(Strings.settingsDebugLogsLink == "Logs")
-        #expect(Strings.settingsDebugLogsTitle == "Logs")
-        #expect(Strings.settingsDebugInspectorLink == "SwiftData Inspector")
-        #expect(Strings.settingsDebugInspectorTitle == "SwiftData")
-        #expect(Strings.settingsDebugRegionMapLink == "Region map")
+    @Test func evidenceStringsResolveToCatalogValues() {
+        #expect(Strings.primaryEvidence == "Evidence")
+        #expect(Strings.evidenceEmptyTitle == "No evidence yet")
+        #expect(Strings.evidenceAdd == "Add evidence")
+        #expect(Strings.evidenceListTitle(year: 2026) == "Evidence · 2026")
+        #expect(Strings.commonCancel == "Cancel")
+    }
+
+    @Test func loggedDaysStringsResolveToCatalogValues() {
+        #expect(Strings.primaryLoggedDays == "Logged days")
+        #expect(Strings.loggedDaysTitle(year: 2026) == "Logged Days · 2026")
+        #expect(Strings.loggedDaysAdd == "Log a day")
+        #expect(Strings.loggedDaysEmptyTitle == "No logged days")
+        #expect(Strings.loggedDaysKindLogged == "Logged")
+        #expect(Strings.loggedDaysKindOverridden == "Overridden")
+        #expect(Strings.loggedDaysFilterAll == "All")
+        #expect(Strings.loggedDaysDelete == "Delete entry")
+        #expect(Strings.settingsYearLabel == "Year")
+    }
+
+    @Test func evidenceKindDisplayNamesResolve() {
+        #expect(Strings.evidenceKind(.planeTicket) == "Plane ticket")
+        #expect(Strings.evidenceKind(.boardingPass) == "Boarding pass")
+        #expect(Strings.evidenceKind(.email) == "Email")
+        #expect(Strings.evidenceKind(.other("Ferry ticket")) == "Ferry ticket")
+        #expect(Strings.evidenceKind(.other(nil)) == "Other")
+    }
+
+    @Test func calendarDayAccessibilityAppendsEvidenceCue() throws {
+        let date = try #require(Calendar(identifier: .gregorian)
+            .date(from: DateComponents(year: 2026, month: 3, day: 4)))
+        let withEvidence = Strings.calendarDayAccessibility(
+            date: date,
+            regions: [.california],
+            needsAttention: false,
+            hasEvidence: true,
+        )
+        let without = Strings.calendarDayAccessibility(
+            date: date,
+            regions: [.california],
+            needsAttention: false,
+            hasEvidence: false,
+        )
+        #expect(withEvidence.hasSuffix("has evidence"))
+        #expect(!without.hasSuffix("has evidence"))
+    }
+
+    @Test func developerToolsStringsResolveToCatalogValues() {
+        #expect(Strings.developerTitle == "Developer")
+        #expect(Strings.developerLogsLink == "Logs")
+        #expect(Strings.developerLogsTitle == "Logs")
+        #expect(Strings.developerInspectorLink == "SwiftData Inspector")
+        #expect(Strings.developerInspectorTitle == "SwiftData")
+        #expect(Strings.developerRegionMapLink == "Region map")
         #expect(
-            Strings.settingsDebugFooter
+            Strings.developerFooter
                 == "On-device logs and data tools. Debug builds only.",
         )
+    }
+
+    @Test func developerOverlayChromeStringsResolveToCatalogValues() {
+        #expect(Strings.developerButtonLabel == "Developer tools")
+        #expect(Strings.developerClose == "Close")
+        #expect(Strings.developerExpand == "Enter full screen")
+        #expect(Strings.developerCollapse == "Exit full screen")
     }
 
     @Test func regionMapStringsResolveToCatalogValues() {

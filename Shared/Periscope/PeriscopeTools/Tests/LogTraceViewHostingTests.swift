@@ -2,9 +2,9 @@ import Foundation
 @_spi(Testing) import PeriscopeCore
 import PeriscopeTools
 import SwiftUI
+import TestHostSupport
 import Testing
 import UIKit
-import WhereTesting
 
 @MainActor
 struct LogTraceViewHostingTests {

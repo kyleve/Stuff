@@ -36,6 +36,25 @@ struct ReportReaderTests {
         #expect(report.totals == [.california: 1, .newYork: 1])
     }
 
+    @Test func manualDaysReturnsOnlyTheRequestedYear() async throws {
+        let (reader, store) = try Self.makeReader()
+        try await store.perform {
+            try await store.setManualDay(DayPresence(
+                date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
+                regions: [.newYork],
+            ))
+            // A day just before the requested year (Pacific) must be excluded.
+            try await store.setManualDay(DayPresence(
+                date: WhereCoreTestSupport.iso("2025-12-31T00:00:00-08:00"),
+                regions: [.california],
+            ))
+        }
+
+        let days = try await reader.manualDays(inYear: 2026)
+        #expect(days.count == 1)
+        #expect(days.first?.regions == [.newYork])
+    }
+
     @Test func locationsAndRepresentativeCoordinatesReadFromSamples() async throws {
         let (reader, store) = try Self.makeReader()
         let sf = Coordinate(latitude: 37.7749, longitude: -122.4194)

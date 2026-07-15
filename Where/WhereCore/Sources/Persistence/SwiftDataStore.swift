@@ -80,7 +80,25 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
                 return .cloudKit
             #endif
         }
+
+        /// Whether a store of this mode can receive writes from outside this
+        /// process — a sibling App Group process (the share extension) for any
+        /// on-disk store, or a CloudKit sync from another device — surfaced as
+        /// `.NSPersistentStoreRemoteChange`. In-memory stores have no shared
+        /// container and no other writers, so there's nothing to observe.
+        var observesRemoteChanges: Bool {
+            switch self {
+                case .inMemory: false
+                case .localOnly, .cloudKit: true
+            }
+        }
     }
+
+    /// App Group the on-disk store lives in, shared by the Where app, its
+    /// widget extension, and the share extension so every process opens the
+    /// *same* SwiftData store. Must match the `com.apple.security.application-groups`
+    /// entitlement each of those targets declares (see `Project.swift`).
+    public static let appGroupIdentifier = "group.com.stuff.where"
 
     public static func makeContainer(storage: Storage) throws -> ModelContainer {
         // A plain `Schema` of the live models. SwiftData runs implicit
@@ -94,6 +112,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDManualDay.self,
             SDDismissedIssue.self,
         ])
+        // On-disk storage lives in the App Group container so the share
+        // extension (and any other sibling process) writes into the same store
+        // the app reads. An in-memory store has no container — leave it default.
+        let groupContainer: ModelConfiguration.GroupContainer = switch storage {
+            case .inMemory: .none
+            case .localOnly, .cloudKit: .identifier(appGroupIdentifier)
+        }
         // CloudKit mode backs the container with `NSPersistentCloudKitContainer`,
         // which enables persistent-history tracking and posts
         // `.NSPersistentStoreRemoteChange` on remote import — no extra knobs
@@ -102,6 +127,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let config = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: storage == .inMemory,
+            groupContainer: groupContainer,
             cloudKitDatabase: storage == .cloudKit ? .automatic : .none,
         )
         return try ModelContainer(for: schema, configurations: [config])
@@ -125,12 +151,32 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// app/UI layer.
     public static func make(storage: Storage = .default) throws -> SwiftDataStore {
         let container = try makeContainer(storage: storage)
-        logger.info("Opened SwiftData store (mode: \(storage))")
+        if storage == .inMemory {
+            logger.info("Opened SwiftData store (mode: \(storage))")
+        } else {
+            // Log the resolved on-disk path and whether the App Group container
+            // is actually reachable at runtime. If the App Group capability isn't
+            // provisioned for the signing in use, `containerURL(...)` is nil and
+            // SwiftData falls back to the per-process sandbox — which reads as
+            // "my old data is still here / the store didn't move" rather than an
+            // error. Logging both makes that diagnosable instead of a guess.
+            let groupResolved = FileManager.default
+                .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) != nil
+            let url = container.configurations.first?.url.path(percentEncoded: false) ?? "unknown"
+            logger.info(
+                "Opened SwiftData store (mode: \(storage), appGroupResolved: \(groupResolved), url: \(url))",
+            )
+        }
         let store = SwiftDataStore(modelContainer: container)
-        // Only CloudKit storage imports changes from other devices. The mirror
-        // posts `.NSPersistentStoreRemoteChange` on import; forward those into
-        // `changes()` so a remote sync refreshes the UI like a local commit.
-        if storage == .cloudKit {
+        // On-disk stores live in a shared App Group container, so another process
+        // (the share extension) — or, for CloudKit, a sync from another device —
+        // can commit behind our back. Both surface as
+        // `.NSPersistentStoreRemoteChange` (persistent-history tracking is on for
+        // on-disk stores); forward those into `changes()` so an external write
+        // refreshes the UI like a local commit. This is what makes a
+        // share-extension add show up live in the running app (debug included),
+        // not just on next launch.
+        if storage.observesRemoteChanges {
             store.startObservingRemoteChanges(PersistentStoreRemoteChangeSource())
         }
         return store
@@ -199,7 +245,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// retains `source`, so the caller needn't.
     ///
     /// `private` and wired exactly once per store from a factory — `make`
-    /// (production CloudKit) or `inMemory(remoteChangeSource:)` (tests) — so
+    /// (any on-disk store) or `inMemory(remoteChangeSource:)` (tests) — so
     /// there's deliberately no way to call it twice. That keeps the
     /// unsynchronized, `nonisolated(unsafe)` `remoteChangeTask` sound without a
     /// re-arm/cancel dance: it's assigned once before the store is shared and

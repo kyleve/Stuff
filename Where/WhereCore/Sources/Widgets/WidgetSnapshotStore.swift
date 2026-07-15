@@ -19,7 +19,10 @@ public struct WidgetSnapshotStore: Sendable {
         public init() {}
     }
 
-    private static let appGroupIdentifier = "group.com.stuff.where"
+    /// The single App Group identifier every Where process shares (app, widget
+    /// extension, share extension). Sourced from `SwiftDataStore` so there's one
+    /// canonical value rather than a per-store literal that could drift.
+    private static let appGroupIdentifier = SwiftDataStore.appGroupIdentifier
     private static let fileName = "widget-snapshot.json"
 
     /// Directory the snapshot file lives in. Exposed via `init` so tests can
