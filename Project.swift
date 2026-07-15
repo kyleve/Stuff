@@ -248,6 +248,7 @@ let project = Project(
             bundleIdSuffix: "periscopecore",
             productDependency: "PeriscopeCore",
             sources: ["Shared/Periscope/PeriscopeCore/Tests/**"],
+            extraPackageProducts: ["JournalKit"],
         ),
         unitTests(
             name: "PeriscopeUITests",

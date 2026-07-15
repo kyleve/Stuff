@@ -56,6 +56,16 @@ public actor PeriscopeStore: LogSink {
         private var pendingWriteFailure: (any Error)?
     #endif
 
+    /// The crash journal for this launch — created for on-disk stores and
+    /// installed into `Periscope` when the store is added as a sink.
+    /// Boxed so the `@ModelActor`-synthesized init stays usable and the
+    /// pipeline can read it without an actor hop.
+    private nonisolated let journalBox = OSAllocatedUnfairLock<LogJournal?>(initialState: nil)
+
+    @_spi(Testing) public nonisolated var journal: LogJournal? {
+        journalBox.withLock { $0 }
+    }
+
     public static func makeContainer(storage: Storage) throws -> ModelContainer {
         let schema = Schema(PeriscopeSchema.models)
         let configuration = ModelConfiguration(
@@ -67,19 +77,74 @@ public actor PeriscopeStore: LogSink {
     }
 
     /// App-wiring factory: opens the store and starts `session` so every
-    /// subsequent event is attributed to this launch.
+    /// subsequent event is attributed to this launch. On-disk stores also
+    /// open this launch's crash journal beside the database — the
+    /// synchronous net `Periscope` writes through once the store is added
+    /// as a sink.
     public static func make(storage: Storage, session: LogSession) async throws -> PeriscopeStore {
         let container = try makeContainer(storage: storage)
         let store = PeriscopeStore(modelContainer: container)
         try await store.startSession(session)
+        if storage == .onDisk {
+            await store.openJournal(session: session)
+        }
         return store
     }
 
-    /// Test/preview factory: a fresh in-memory store per call.
+    /// Test/preview factory: a fresh in-memory store per call. In-memory
+    /// stores never journal — journaling is a durability feature, and
+    /// recovery *is* persistence.
     @_spi(Testing) public static func inMemory(
         session: LogSession,
     ) async throws -> PeriscopeStore {
         try await make(storage: .inMemory, session: session)
+    }
+
+    /// Test factory: a fully journaling on-disk store rooted at an explicit
+    /// URL, so tests exercise the durability path in isolated temporary
+    /// directories.
+    @_spi(Testing) public static func onDisk(
+        databaseURL: URL,
+        session: LogSession,
+    ) async throws -> PeriscopeStore {
+        let schema = Schema(PeriscopeSchema.models)
+        let configuration = ModelConfiguration(schema: schema, url: databaseURL)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let store = PeriscopeStore(modelContainer: container)
+        try await store.startSession(session)
+        await store.openJournal(session: session)
+        return store
+    }
+
+    // MARK: Journal
+
+    /// Where session journals live: `Periscope-Journals/<sessionID>/`
+    /// beside the database.
+    @_spi(Testing) public nonisolated func journalDirectory(forSession id: UUID) -> URL {
+        journalsRoot.appendingPathComponent(id.uuidString, isDirectory: true)
+    }
+
+    private nonisolated var journalsRoot: URL {
+        let databaseDirectory = modelContainer.configurations.first?.url
+            .deletingLastPathComponent()
+            ?? URL.applicationSupportDirectory
+        return databaseDirectory.appendingPathComponent("Periscope-Journals", isDirectory: true)
+    }
+
+    /// Open this launch's journal. Degraded-but-handled on failure: an
+    /// unjournalable disk must not take down logging, so the error logs
+    /// and counts while the async pipeline keeps delivering.
+    private func openJournal(session: LogSession) {
+        do {
+            let journal = try LogJournal(
+                directory: journalDirectory(forSession: session.id),
+                session: session,
+            )
+            journalBox.withLock { $0 = journal }
+        } catch {
+            writeFailures += 1
+            Self.failureLogger.warning("Failed to open the crash journal: \(error)")
+        }
     }
 
     // MARK: Sessions

@@ -127,6 +127,12 @@ public final class Periscope: LogRecorder, Sendable {
         var ambientSources: [any AmbientEventSource] = []
         var inspectModeEnabled = false
         var inspectObservers: [UUID: AsyncStream<Bool>.Continuation] = [:]
+        /// The crash journal, installed when a `PeriscopeStore` sink is
+        /// added; every buffered record appends to it synchronously.
+        var journal: LogJournal?
+        /// Stamped under this lock so journal replay can restore buffer
+        /// order even though the file appends happen outside it.
+        var journalSequence = 0
         /// The active drain task; `nil` exactly when nothing is draining.
         var drainTask: Task<Void, Never>?
         /// The span watchdog. Generation-tagged: respawning with an earlier
@@ -183,7 +189,26 @@ public final class Periscope: LogRecorder, Sendable {
                 at: 0,
             )
         }
+        // Journaling requires a store: the store owns the journal (its
+        // directory and session), and recovery is persistence. Adding one
+        // turns the emit-side tap on.
+        if let store = sink as? PeriscopeStore, let journal = store.journal {
+            install(journal: journal)
+        }
         scheduleDrainIfNeeded()
+    }
+
+    /// Install the crash journal: every subsequent buffered record appends
+    /// to it synchronously, and the scopes seen so far replay into it (a
+    /// recovered record needs its hierarchy).
+    @_spi(Testing) public func install(journal: LogJournal) {
+        let scopes = state.withLock { state in
+            state.journal = journal
+            return Array(state.scopes.values)
+        }
+        for scope in scopes {
+            journal.append(scope: scope)
+        }
     }
 
     // MARK: Level floors
@@ -244,13 +269,14 @@ public final class Periscope: LogRecorder, Sendable {
     // MARK: LogRecorder
 
     public func defineScope(_ scope: LogScope) {
-        let isNew = state.withLock { state in
-            guard state.scopes[scope.id] == nil else { return false }
+        let (isNew, journal) = state.withLock { state -> (Bool, LogJournal?) in
+            guard state.scopes[scope.id] == nil else { return (false, nil) }
             state.scopes[scope.id] = scope
             state.pending.append(.scope(scope))
-            return true
+            return (true, state.journal)
         }
         guard isNew else { return }
+        journal?.append(scope: scope)
         scheduleDrainIfNeeded()
     }
 
@@ -263,10 +289,25 @@ public final class Periscope: LogRecorder, Sendable {
             guard shouldRecord(level: original.level, scopes: original.scopes) else { return }
         }
         guard let record = redacted(original) else { return }
-        state.withLock { state in
+        let journaled = state.withLock { state -> (LogJournal, Int)? in
             Self.buffer(record, into: &state, configuration: configuration)
+            return Self.stampForJournal(&state)
+        }
+        // The file append happens outside the lock (I/O must not serialize
+        // every emitter); the sequence stamped inside it restores buffer
+        // order at replay.
+        if let (journal, sequence) = journaled {
+            journal.append(record, sequence: sequence)
         }
         scheduleFollowUp(for: record)
+    }
+
+    /// Reserve the next journal sequence, when a journal is installed —
+    /// call under the state lock, append outside it.
+    private static func stampForJournal(_ state: inout State) -> (LogJournal, Int)? {
+        guard let journal = state.journal else { return nil }
+        state.journalSequence += 1
+        return (journal, state.journalSequence)
     }
 
     /// Append `record` to the buffers and yield it to live observers — the
@@ -445,15 +486,18 @@ public final class Periscope: LogRecorder, Sendable {
         // One lock acquisition for registry + buffer: the span becomes
         // visible for closing only with its began already in the pipeline,
         // so no interleaving can record this span's end first.
-        let superseded = state.withLock { state -> OpenSpan? in
+        let (superseded, journaled) = state.withLock {
+            state -> (OpenSpan?, (LogJournal, Int)?) in
             let prior = state.openSpans.removeValue(forKey: key)
             state.openSpans[key] = span
-            if let buffered {
-                Self.buffer(buffered, into: &state, configuration: configuration)
-            }
-            return prior
+            guard let buffered else { return (prior, nil) }
+            Self.buffer(buffered, into: &state, configuration: configuration)
+            return (prior, Self.stampForJournal(&state))
         }
         if let buffered {
+            if let (journal, sequence) = journaled {
+                journal.append(buffered, sequence: sequence)
+            }
             scheduleFollowUp(for: buffered)
         }
         scheduleWatchdogIfNeeded()
