@@ -53,12 +53,18 @@ extension PeriscopeStore {
             let inserted = try persistRecovered(
                 records: journal.records.sorted { $0.sequence < $1.sequence },
                 session: session,
+                recovery: recovered,
             )
             try JournalRecovery.remove(directory: directory)
-            if inserted > 0 {
+            let hasGaps = recovered.foundTornEntry || recovered.droppedOlderEntries
+            if inserted > 0 || hasGaps {
                 notifyChanged()
                 Self.failureLogger.info(
-                    "Recovered \(inserted) journaled event(s) from session \(session.id)",
+                    """
+                    Recovered \(inserted) journaled event(s) from session \
+                    \(session.id) (torn: \(recovered.foundTornEntry), \
+                    rotated: \(recovered.droppedOlderEntries))
+                    """,
                 )
             }
         } catch {
@@ -98,12 +104,19 @@ extension PeriscopeStore {
     }
 
     /// Persist the recovered records the store doesn't already have, plus
-    /// a notice marking the recovery, in one save. Returns how many
-    /// records were inserted.
-    private func persistRecovered(records: [LogJournalRecord], session: LogSession) throws -> Int {
+    /// a marker recording the recovery — and, honestly, its gaps — in one
+    /// save. Returns how many records were inserted.
+    private func persistRecovered(
+        records: [LogJournalRecord],
+        session: LogSession,
+        recovery: JournalRecovery.Recovered,
+    ) throws -> Int {
         let existing = try existingEventIDs(among: records)
         let missing = records.filter { !existing.contains($0.id) }
-        guard !missing.isEmpty else { return 0 }
+        let hasGaps = recovery.foundTornEntry || recovery.droppedOlderEntries
+        // A complete journal whose every record already arrived needs no
+        // marker; a gappy one tells its story even when nothing inserts.
+        guard !missing.isEmpty || hasGaps else { return 0 }
 
         let sessionRow = try fetchOrInsertSession(session)
         for record in missing {
@@ -144,11 +157,17 @@ extension PeriscopeStore {
         }
 
         // The recovery is itself diagnostic gold — mark it in the story,
-        // attributed to the crashed session.
-        let notice = Message(
-            level: .notice,
-            "Recovered \(missing.count) event(s) from this session's crash journal",
-        )
+        // attributed to the crashed session, and be honest about what the
+        // journal could *not* preserve. Gaps escalate the marker to
+        // .warning (degraded but handled).
+        var text = "Recovered \(missing.count) event(s) from this session's crash journal"
+        if recovery.foundTornEntry {
+            text += "; the journal ended in a torn entry (its record is lost)"
+        }
+        if recovery.droppedOlderEntries {
+            text += "; older entries were dropped by the journal's byte budget"
+        }
+        let notice = Message(level: hasGaps ? .warning : .notice, text)
         let marker = try SDLogEvent(
             eventID: UUID(),
             date: Date(),

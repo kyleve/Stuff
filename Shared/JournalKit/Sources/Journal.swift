@@ -23,8 +23,16 @@ public final class Journal: @unchecked Sendable {
         /// segment is dropped whole.
         public var maximumByteCount: Int
 
-        public init(maximumByteCount: Int) {
+        /// Re-written as the first entry of every segment, so rotation can
+        /// never drop it: identity/context entries (say, a session header)
+        /// stay recoverable however far the journal rotates. Recovery
+        /// returns it like any other entry — expect one copy per surviving
+        /// segment.
+        public var segmentHeader: Data?
+
+        public init(maximumByteCount: Int, segmentHeader: Data? = nil) {
             self.maximumByteCount = maximumByteCount
+            self.segmentHeader = segmentHeader
         }
     }
 
@@ -81,6 +89,9 @@ public final class Journal: @unchecked Sendable {
             segmentByteCount: 0,
             totalByteCount: existingBytes,
         ))
+        try state.withLock { state in
+            try writeSegmentHeader(&state)
+        }
     }
 
     deinit {
@@ -166,6 +177,7 @@ public final class Journal: @unchecked Sendable {
         state.descriptor = try JournalSegments.open(index: next, in: directory)
         state.segmentIndex = next
         state.segmentByteCount = 0
+        try writeSegmentHeader(&state)
         // Drop oldest segments until the (pre-append) total fits the budget.
         var indexes = try JournalSegments.indexes(in: directory)
         while state.totalByteCount > configuration.maximumByteCount, indexes.count > 1 {
@@ -175,6 +187,25 @@ public final class Journal: @unchecked Sendable {
             state.totalByteCount -= bytes
             state.droppedSegmentCount += 1
         }
+    }
+
+    /// Write the configured header as the segment's first entry — every
+    /// segment must be self-describing, since rotation drops whole
+    /// segments from the oldest end.
+    private func writeSegmentHeader(_ state: inout State) throws {
+        guard let header = configuration.segmentHeader else { return }
+        let framed = JournalFraming.frame(header)
+        let written = framed.withUnsafeBytes { buffer in
+            write(state.descriptor, buffer.baseAddress, buffer.count)
+        }
+        guard written == framed.count else {
+            if written > 0 {
+                state.segmentIsPoisoned = true
+            }
+            throw JournalError.writeFailed(errno: errno)
+        }
+        state.segmentByteCount += framed.count
+        state.totalByteCount += framed.count
     }
 }
 

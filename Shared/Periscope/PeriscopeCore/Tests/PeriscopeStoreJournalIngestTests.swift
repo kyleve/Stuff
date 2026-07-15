@@ -156,6 +156,91 @@ struct PeriscopeStoreJournalIngestTests {
         #expect(try ended.decode(SpanEnded.self).exit == .orphaned)
     }
 
+    @Test func tornJournalsEscalateTheRecoveryMarker() async throws {
+        let root = try makeRoot()
+        let crashed = LogSession.fixture(startedAt: date(0))
+        let scope = LogScope.root(named: "app")
+        try writeCrashedJournal(
+            root: root,
+            session: crashed,
+            scopes: [scope],
+            records: [
+                LogRecord(
+                    date: date(1),
+                    event: Message(level: .info, "intact"),
+                    scopes: [scope.id],
+                ),
+                LogRecord(date: date(2), event: Message(level: .info, "torn"), scopes: [scope.id]),
+            ],
+        )
+        // Tear the final entry, as a crash mid-append would.
+        let journalDirectory = root
+            .appendingPathComponent("Periscope-Journals", isDirectory: true)
+            .appendingPathComponent(crashed.id.uuidString, isDirectory: true)
+        let segment = try FileManager.default
+            .contentsOfDirectory(at: journalDirectory, includingPropertiesForKeys: nil)
+            .first { $0.pathExtension == "journalsegment" }
+        let segmentURL = try #require(segment)
+        let bytes = try Data(contentsOf: segmentURL)
+        try bytes.prefix(bytes.count - 5).write(to: segmentURL)
+
+        let store = try await PeriscopeStore.onDisk(
+            databaseURL: databaseURL(in: root),
+            session: .fixture(startedAt: date(100)),
+        )
+        let events = try await store.events(matching: LogQuery())
+        #expect(events.contains { $0.message == "intact" })
+        #expect(!events.contains { $0.message == "torn" })
+        let marker = try #require(events.first { $0.message.contains("crash journal") })
+        #expect(marker.level == .warning)
+        #expect(marker.message.contains("torn entry"))
+    }
+
+    @Test func rotatedJournalsMarkTheirDroppedEntries() async throws {
+        // A journal that rotated away old segments still attributes itself
+        // (the session entry heads every segment) and its marker admits
+        // the loss.
+        let root = try makeRoot()
+        let crashed = LogSession.fixture(startedAt: date(0))
+        let scope = LogScope.root(named: "app")
+        let journalDirectory = root
+            .appendingPathComponent("Periscope-Journals", isDirectory: true)
+            .appendingPathComponent(crashed.id.uuidString, isDirectory: true)
+        let journal = try Journal(
+            directory: journalDirectory,
+            configuration: Journal.Configuration(
+                maximumByteCount: 4096,
+                segmentHeader: LogJournalEntry.session(crashed).encoded(),
+            ),
+        )
+        try journal.append(LogJournalEntry.scope(scope).encoded(), sync: .processDeath)
+        for index in 0 ..< 40 {
+            let record = LogRecord(
+                date: date(TimeInterval(index)),
+                event: Message(level: .info, "storm-\(index)"),
+                scopes: [scope.id],
+            )
+            try journal.append(
+                LogJournalEntry.record(LogJournalRecord(record: record, sequence: index)).encoded(),
+                sync: .processDeath,
+            )
+        }
+        journal.close()
+
+        let store = try await PeriscopeStore.onDisk(
+            databaseURL: databaseURL(in: root),
+            session: .fixture(startedAt: date(100)),
+        )
+        let events = try await store.events(matching: LogQuery())
+        // The newest records survived; the oldest rotated away.
+        #expect(events.contains { $0.message == "storm-39" })
+        #expect(!events.contains { $0.message == "storm-0" })
+        let marker = try #require(events.first { $0.message.contains("crash journal") })
+        #expect(marker.level == .warning)
+        #expect(marker.message.contains("older entries were dropped"))
+        #expect(marker.sessionID == crashed.id)
+    }
+
     @Test func journalsWithoutASessionEntryAreDiscarded() async throws {
         let root = try makeRoot()
         // A torn first write: entries exist, none of them the session.

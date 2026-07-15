@@ -29,15 +29,18 @@ import os
     private let journal: Journal
     private let failureCount = OSAllocatedUnfairLock(initialState: 0)
 
-    /// Opens the journal and writes the session entry, so a recovered
-    /// journal attributes itself without external context.
+    /// Opens the journal with the session entry as every segment's header,
+    /// so a recovered journal attributes itself however far the budget's
+    /// rotation went — dropping old segments must never orphan the rest.
     @_spi(Testing) public init(directory: URL, session: LogSession) throws {
         self.directory = directory
         journal = try Journal(
             directory: directory,
-            configuration: Journal.Configuration(maximumByteCount: Self.byteBudget),
+            configuration: Journal.Configuration(
+                maximumByteCount: Self.byteBudget,
+                segmentHeader: LogJournalEntry.session(session).encoded(),
+            ),
         )
-        try journal.append(LogJournalEntry.session(session).encoded(), sync: .processDeath)
     }
 
     /// Journal one emitted record. `sequence` (stamped under the pipeline's

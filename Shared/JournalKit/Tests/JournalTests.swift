@@ -87,6 +87,33 @@ struct JournalTests {
         #expect(segments.count == 2)
     }
 
+    @Test func segmentHeadersSurviveRotation() throws {
+        // The header re-writes at every segment's start, so however far
+        // the budget rotates, the newest segment self-describes — dropping
+        // old segments can never orphan the journal's identity.
+        let directory = makeJournalDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let journal = try Journal(
+            directory: directory,
+            configuration: Journal.Configuration(
+                maximumByteCount: 1024,
+                segmentHeader: payload("header"),
+            ),
+        )
+        for index in 0 ..< 40 {
+            try journal.append(
+                payload("entry-\(index)-" + String(repeating: "x", count: 90)),
+                sync: .processDeath,
+            )
+        }
+        journal.close()
+
+        let recovered = try JournalRecovery.recover(directory: directory)
+        #expect(recovered.droppedOlderEntries)
+        #expect(texts(recovered.payloads).first == "header")
+        #expect(texts(recovered.payloads).last?.hasPrefix("entry-39-") == true)
+    }
+
     @Test func reopeningContinuesAfterExistingSegments() throws {
         let directory = makeJournalDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }

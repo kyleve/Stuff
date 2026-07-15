@@ -41,7 +41,11 @@ numbered segment files. Segments rotate at half the byte budget, and the
 oldest segment drops whole when the budget overflows — the journal favors
 the newest entries, like a flight recorder, and reports
 `droppedSegmentCount` / `droppedOlderEntries` so callers can surface the
-gap.
+gap. An optional `segmentHeader` re-writes as the first entry of every
+segment, so identity/context entries survive any amount of rotation
+(recovery returns one copy per surviving segment). A *partial* write
+poisons its segment and the next append rotates, so torn bytes never
+strand later entries.
 
 Recovery reads segments in order and validates each entry's length and CRC.
 A torn or corrupt entry ends that segment's recovery and sets
