@@ -17,31 +17,33 @@ public enum IssueResolution: Sendable, Hashable {
 }
 
 public enum DataIssueID: Hashable, Sendable {
-    case missingDays(start: Date)
-    case borderDrift(date: Date)
-    case abruptChange(earlier: Date, later: Date)
+    case missingDays(start: CalendarDay)
+    case borderDrift(day: CalendarDay)
+    case abruptChange(earlier: CalendarDay, later: CalendarDay)
 
-    /// Stable, device-independent key for persisted dismissal and `ForEach`.
+    /// Stable, device- and timezone-independent key for persisted dismissal and
+    /// `ForEach`. Keyed by the `CalendarDay` ISO string so a dismissal survives a
+    /// time-zone change instead of drifting onto a different day (the reason
+    /// dismissals used to reappear after travel). Caveat: the *key* is pinned to
+    /// its `CalendarDay`, but a GPS-derived issue's day is itself re-bucketed at
+    /// read time, so a GPS-only dismissal can still shift with the underlying day
+    /// — see the `CalendarDay` scope boundary in `WhereCore/AGENTS.md`.
     public var storageKey: String {
         switch self {
             case let .missingDays(start):
-                "missingDays:\(Self.dayKey(start))"
-            case let .borderDrift(date):
-                "borderDrift:\(Self.dayKey(date))"
+                "missingDays:\(start)"
+            case let .borderDrift(day):
+                "borderDrift:\(day)"
             case let .abruptChange(earlier, later):
-                "abruptChange:\(Self.dayKey(earlier)):\(Self.dayKey(later))"
+                "abruptChange:\(earlier):\(later)"
         }
-    }
-
-    private static func dayKey(_ date: Date) -> String {
-        String(format: "%.0f", date.timeIntervalSince1970)
     }
 }
 
 public protocol DataIssue: Identifiable, Sendable where ID == DataIssueID {
     var id: DataIssueID { get }
     var category: DataIssueCategory { get }
-    var sortKey: Date { get }
+    var sortKey: CalendarDay { get }
     var isDismissible: Bool { get }
     var resolution: IssueResolution { get }
 }

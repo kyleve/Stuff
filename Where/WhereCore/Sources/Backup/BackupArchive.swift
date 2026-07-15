@@ -17,7 +17,13 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// and `trackedRegions` were added without a bump because they are additive:
     /// older readers ignore the unknown key, and newer readers tolerate its
     /// absence (see `init(from:)`).
-    public static let currentFormatVersion = 1
+    ///
+    /// v2 keys `manualDays` by a timezone-independent `CalendarDay` (`day`)
+    /// rather than an absolute `date` instant. This reader still imports v1
+    /// archives — `DayPresence` decodes the legacy `date` and recovers its
+    /// calendar day — but a pre-v2 build refuses a v2 file with a clear
+    /// "newer version" message instead of failing to find `date`.
+    public static let currentFormatVersion = 2
 
     public let formatVersion: Int
     public let exportedAt: Date

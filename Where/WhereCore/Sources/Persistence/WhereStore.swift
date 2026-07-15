@@ -51,23 +51,29 @@ public protocol WhereStore: Sendable {
     func allEvidence() async throws -> [Evidence]
     func evidenceBlob(for id: UUID) async throws -> Data?
 
-    /// Set (or replace) the manual presence record for a given calendar day.
-    /// Implementations should treat `day.date` as already normalized to the
-    /// start-of-day key (callers via `DayJournal` do this for them).
+    /// Set (or replace) the manual presence record for a calendar day, keyed by
+    /// `day.day` (its timezone-independent `CalendarDay`).
     func setManualDay(_ day: DayPresence) async throws
-    /// Remove the manual presence record for a given calendar day, if any.
-    /// `date` is the start-of-day key (callers via `DayJournal` normalize
-    /// it). A no-op when no record exists. Used to undo a relabel/backfill for
-    /// a single day without disturbing raw samples.
-    func clearManualDay(_ date: Date) async throws
-    func manualDays(in interval: DateInterval) async throws -> [DayPresence]
-    /// Every manual-day record in the store, regardless of `dateKey`. Used
-    /// by the whole-database backup export.
+    /// Remove the manual presence record for `day`, if any. A no-op when no
+    /// record exists. Used to undo a relabel/backfill for a single day without
+    /// disturbing raw samples.
+    func clearManualDay(_ day: CalendarDay) async throws
+    /// The manual-day records whose `CalendarDay` falls in the inclusive
+    /// `dayRange`. Used to load a year's manual entries.
+    func manualDays(in dayRange: ClosedRange<CalendarDay>) async throws -> [DayPresence]
+    /// Every manual-day record in the store, regardless of day. Used by the
+    /// whole-database backup export.
     func allManualDays() async throws -> [DayPresence]
 
-    /// Erase all samples / evidence / manual entries whose timestamp lies in
-    /// the given interval. Used by `DayJournal.clearYear`.
-    func clear(in interval: DateInterval) async throws
+    /// Erase samples / evidence whose timestamp lies in `interval` and manual
+    /// entries whose `CalendarDay` falls in `manualDays`. Manual days key by
+    /// calendar day (not instant), so they take a `CalendarDay` range rather
+    /// than the timestamp interval used for samples/evidence. Used by
+    /// `DayJournal.clearYear`.
+    func clear(
+        in interval: DateInterval,
+        manualDays dayRange: ClosedRange<CalendarDay>,
+    ) async throws
 
     /// Erase every sample / evidence / manual entry in the store. Used by the
     /// "replace" backup-import strategy to mirror the imported file exactly.

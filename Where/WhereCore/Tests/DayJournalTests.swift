@@ -200,8 +200,8 @@ struct DayJournalTests {
 
         try await h.journal.clearManualDays(dates: [d1, d3])
 
-        let remaining = try await Set(h.store.allManualDays().map(\.date))
-        #expect(remaining == [d2])
+        let remaining = try await Set(h.store.allManualDays().map(\.day))
+        #expect(remaining == [CalendarDay(year: 2026, month: 2, day: 2)])
     }
 
     @Test func clearManualDaysIsANoOpWhenEmpty() async throws {

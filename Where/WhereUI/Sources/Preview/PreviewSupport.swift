@@ -39,7 +39,7 @@
                 totals[entry.region] = entry.days
                 for _ in 0 ..< entry.days {
                     let date = calendar.date(byAdding: .day, value: dayOffset, to: startOfYear)!
-                    days.append(DayPresence(date: date, regions: [entry.region]))
+                    days.append(DayPresence(date: date, in: calendar, regions: [entry.region]))
                     dayOffset += 1
                 }
             }
@@ -102,6 +102,7 @@
             let days = (0 ..< 9).map { offset in
                 DayPresence(
                     date: calendar.date(byAdding: .day, value: offset, to: startOfYear)!,
+                    in: calendar,
                     regions: [.other],
                 )
             }
@@ -127,6 +128,7 @@
             let days = loggedOffsets.map { offset in
                 DayPresence(
                     date: calendar.date(byAdding: .day, value: offset, to: startOfYear)!,
+                    in: calendar,
                     regions: [.california],
                 )
             }
@@ -147,16 +149,21 @@
             let start = calendar.date(from: DateComponents(year: year, month: 3, day: 1))!
             let day2 = calendar.date(byAdding: .day, value: 1, to: start)!
             let day3 = calendar.date(byAdding: .day, value: 2, to: start)!
+            let startDay = CalendarDay(from: start, in: calendar)
             return [
-                MissingDaysIssue(range: MissingDayRange(start: start, end: start, dayCount: 1)),
+                MissingDaysIssue(range: MissingDayRange(
+                    start: startDay,
+                    end: startDay,
+                    dayCount: 1,
+                )),
                 BorderDriftIssue(
-                    day: DayPresence(date: day2, regions: [.other]),
+                    day: DayPresence(date: day2, in: calendar, regions: [.other]),
                     nearestRegion: .california,
                     distanceMeters: 6000,
                 ),
                 AbruptChangeIssue(
-                    earlierDay: DayPresence(date: day2, regions: [.california]),
-                    laterDay: DayPresence(date: day3, regions: [.newYork]),
+                    earlierDay: DayPresence(date: day2, in: calendar, regions: [.california]),
+                    laterDay: DayPresence(date: day3, in: calendar, regions: [.newYork]),
                 ),
             ]
         }
@@ -196,9 +203,10 @@
                 calendar.date(from: DateComponents(year: year, month: month, day: dayOfMonth))!
             }
             return [
-                DayPresence(date: day(1, 6), regions: [.california]),
+                DayPresence(date: day(1, 6), in: calendar, regions: [.california]),
                 DayPresence(
                     date: day(3, 14),
+                    in: calendar,
                     regions: [.newYork],
                     audit: ManualEntryAudit(
                         recordedAt: day(3, 15),
@@ -208,6 +216,7 @@
                 ),
                 DayPresence(
                     date: day(6, 2),
+                    in: calendar,
                     regions: [.canada],
                     isAuthoritative: true,
                     audit: ManualEntryAudit(

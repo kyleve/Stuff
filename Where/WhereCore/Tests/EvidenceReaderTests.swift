@@ -48,9 +48,9 @@ struct EvidenceReaderTests {
         }
 
         let keys = try await reader.dayKeys(for: 2026)
-        let expected: Set<Date> = [
-            Self.aggregator.calendar.startOfDay(for: Self.date(2026, 3, 4)),
-            Self.aggregator.calendar.startOfDay(for: Self.date(2026, 7, 9)),
+        let expected: Set<CalendarDay> = [
+            CalendarDay(year: 2026, month: 3, day: 4),
+            CalendarDay(year: 2026, month: 7, day: 9),
         ]
         #expect(keys == expected)
     }

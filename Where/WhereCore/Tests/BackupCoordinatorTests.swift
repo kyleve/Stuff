@@ -64,6 +64,7 @@ struct BackupCoordinatorTests {
             try await store.write(evidence: evidence, blob: blob)
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-07-04T00:00:00-07:00"),
+                in: WhereCoreTestSupport.calendar(),
                 regions: [.newYork],
             ))
             try await store.restoreDismissedIssue(dismissal)
@@ -125,6 +126,7 @@ struct BackupCoordinatorTests {
             try await destination.store.add(sample: Self.sample(at: "2026-01-01T09:00:00-08:00"))
             try await destination.store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-02T00:00:00-08:00"),
+                in: WhereCoreTestSupport.calendar(),
                 regions: [.canada],
             ))
             // A preexisting dismissal that the file doesn't contain must be wiped

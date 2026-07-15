@@ -110,20 +110,23 @@ actor TestStore: WhereStore {
         try await backing.setManualDay(day)
     }
 
-    func clearManualDay(_ date: Date) async throws {
-        try await backing.clearManualDay(date)
+    func clearManualDay(_ day: CalendarDay) async throws {
+        try await backing.clearManualDay(day)
     }
 
-    func manualDays(in interval: DateInterval) async throws -> [DayPresence] {
-        try await backing.manualDays(in: interval)
+    func manualDays(in dayRange: ClosedRange<CalendarDay>) async throws -> [DayPresence] {
+        try await backing.manualDays(in: dayRange)
     }
 
     func allManualDays() async throws -> [DayPresence] {
         try await backing.allManualDays()
     }
 
-    func clear(in interval: DateInterval) async throws {
-        try await backing.clear(in: interval)
+    func clear(
+        in interval: DateInterval,
+        manualDays dayRange: ClosedRange<CalendarDay>,
+    ) async throws {
+        try await backing.clear(in: interval, manualDays: dayRange)
     }
 
     func clearAll() async throws {

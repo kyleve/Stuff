@@ -142,8 +142,14 @@ literals in SwiftUI `Text` or `errorDescription`.
 
 ## Dates & presentation
 
+- **A logical day is a `CalendarDay` (Y-M-D), not a `Date`.** It is the
+  timezone-independent identity every stored day-record and day comparison keys
+  on (see [`WhereCore/AGENTS.md`](WhereCore/AGENTS.md)); a `Date` is only for
+  instants (GPS bucketing, grid geometry, display), derived via
+  `CalendarDay.startOfDay(in:)`. Never persist a day as an absolute instant.
 - **Year bounds are half-open** (`[Jan 1 year, Jan 1 year+1)`); **day ranges
-  are inclusive** (`Date.calendarDays(through:in:)`).
+  are inclusive** (`Date.calendarDays(through:in:)` for instants,
+  `CalendarDay.days(through:)` for logical days).
 - **The app is Gregorian-only.** All presence data is aggregated in a Gregorian
   calendar (`DayAggregator()` defaults to Gregorian + current time zone), so any
   day/year math must use a Gregorian calendar — **never `Calendar.current`**,

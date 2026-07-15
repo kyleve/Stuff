@@ -7,12 +7,16 @@ private typealias Fixtures = DataIssueDetectorFixtures
 
 struct BorderDriftDetectorTests {
     @Test func flagsNearbyOtherDay() {
-        let otherDay = DayPresence(date: Fixtures.day(2026, 3, 1), regions: [.other])
+        let otherDay = DayPresence(
+            date: Fixtures.day(2026, 3, 1),
+            in: Fixtures.calendar,
+            regions: [.other],
+        )
         // Reno — outside CA but close to the border.
         let reno = Coordinate(latitude: 39.5296, longitude: -119.8138)
         let issues = BorderDriftDetector().detectIssues(in: Fixtures.input(
             days: [otherDay],
-            otherDayCoordinates: [otherDay.date: [reno]],
+            otherDayCoordinates: [otherDay.day: [reno]],
             driftThresholdMeters: 50000,
         ))
         #expect(issues.count == 1)
@@ -28,11 +32,15 @@ struct BorderDriftDetectorTests {
 
     @Test func flagsMixedDayWithStrayOther() {
         // A day that already counts for California but picked up a stray .other.
-        let mixedDay = DayPresence(date: Fixtures.day(2026, 3, 1), regions: [.california, .other])
+        let mixedDay = DayPresence(
+            date: Fixtures.day(2026, 3, 1),
+            in: Fixtures.calendar,
+            regions: [.california, .other],
+        )
         let reno = Coordinate(latitude: 39.5296, longitude: -119.8138)
         let issues = BorderDriftDetector().detectIssues(in: Fixtures.input(
             days: [mixedDay],
-            otherDayCoordinates: [mixedDay.date: [reno]],
+            otherDayCoordinates: [mixedDay.day: [reno]],
             driftThresholdMeters: 50000,
         ))
         #expect(issues.count == 1)
@@ -49,14 +57,18 @@ struct BorderDriftDetectorTests {
         // Real-world regression: a New York day whose only .other coordinates
         // are the two coarse June 26 fixes that drifted west toward the Hudson
         // (~852 m / ~952 m outside the NY polygon), checked at the 1 km default.
-        let day = DayPresence(date: Fixtures.day(2026, 6, 26), regions: [.newYork, .other])
+        let day = DayPresence(
+            date: Fixtures.day(2026, 6, 26),
+            in: Fixtures.calendar,
+            regions: [.newYork, .other],
+        )
         let strayPoints = [
             Coordinate(latitude: 40.80015, longitude: -73.99439),
             Coordinate(latitude: 40.81084, longitude: -73.98805),
         ]
         let issues = BorderDriftDetector().detectIssues(in: Fixtures.input(
             days: [day],
-            otherDayCoordinates: [day.date: strayPoints],
+            otherDayCoordinates: [day.day: strayPoints],
             driftThresholdMeters: DriftThreshold.km1.meters,
         ))
         #expect(issues.count == 1)
@@ -70,21 +82,29 @@ struct BorderDriftDetectorTests {
     }
 
     @Test func skipsWhenBeyondThreshold() {
-        let otherDay = DayPresence(date: Fixtures.day(2026, 3, 1), regions: [.other])
+        let otherDay = DayPresence(
+            date: Fixtures.day(2026, 3, 1),
+            in: Fixtures.calendar,
+            regions: [.other],
+        )
         let tokyo = Coordinate(latitude: 35.6762, longitude: 139.6503)
         let issues = BorderDriftDetector().detectIssues(in: Fixtures.input(
             days: [otherDay],
-            otherDayCoordinates: [otherDay.date: [tokyo]],
+            otherDayCoordinates: [otherDay.day: [tokyo]],
         ))
         #expect(issues.isEmpty)
     }
 
     @Test func skipsAttributedRegion() {
-        let caDay = DayPresence(date: Fixtures.day(2026, 3, 1), regions: [.california])
+        let caDay = DayPresence(
+            date: Fixtures.day(2026, 3, 1),
+            in: Fixtures.calendar,
+            regions: [.california],
+        )
         let sf = Coordinate(latitude: 37.7749, longitude: -122.4194)
         let issues = BorderDriftDetector().detectIssues(in: Fixtures.input(
             days: [caDay],
-            otherDayCoordinates: [caDay.date: [sf]],
+            otherDayCoordinates: [caDay.day: [sf]],
         ))
         #expect(issues.isEmpty)
     }

@@ -102,7 +102,11 @@ struct WhereSessionTests {
         let store = try TestStore()
         // Seed straight into the store (inside `perform`, as the store
         // requires) so nothing is published before the session's lifecycle hook.
-        let seed = DayPresence(date: date(year: 2026, month: 3, day: 1), regions: [.california])
+        let seed = DayPresence(
+            date: date(year: 2026, month: 3, day: 1),
+            in: .current,
+            regions: [.california],
+        )
         try await store.perform { try await store.setManualDay(seed) }
         let refresher = SpyWidgetRefresher()
         let now = date(year: 2026, month: 3, day: 15)

@@ -4,6 +4,8 @@ import Testing
 import WhereCore
 
 struct BackupServiceTests {
+    private static let calendar = WhereCoreTestSupport.calendar()
+
     // Whole-second timestamps so the `.iso8601` date strategy (no
     // fractional seconds) round-trips exactly.
     private static let exportDate = Date(timeIntervalSince1970: 1_700_000_000)
@@ -55,6 +57,7 @@ struct BackupServiceTests {
         [
             DayPresence(
                 date: Date(timeIntervalSince1970: 1_700_000_000),
+                in: calendar,
                 regions: [.california, .newYork],
             ),
         ]
@@ -114,6 +117,7 @@ struct BackupServiceTests {
         let manualDays = [
             DayPresence(
                 date: Date(timeIntervalSince1970: 1_700_000_000),
+                in: Self.calendar,
                 regions: [.newYork],
                 isAuthoritative: true,
             ),
@@ -180,6 +184,7 @@ struct BackupServiceTests {
         let manualDays = [
             DayPresence(
                 date: Date(timeIntervalSince1970: 1_700_000_000),
+                in: Self.calendar,
                 regions: [.california],
                 isAuthoritative: true,
                 audit: ManualEntryAudit(
@@ -243,6 +248,24 @@ struct BackupServiceTests {
         let decoded = try decoder.decode(BackupArchive.self, from: Data(json.utf8))
         #expect(decoded.dismissedIssues.isEmpty)
         #expect(decoded.formatVersion == 1)
+    }
+
+    @Test func legacyManifestWithDateKeyedManualDaysImports() throws {
+        // A pre-CalendarDay (v1) manifest keyed manual days by an absolute
+        // `date` instant. "2026-02-08T05:00:00Z" is midnight in New York; it
+        // must import as Feb 8 (not shift to Feb 7) — the exact bug this fix
+        // guards. The current reader accepts v1 and recovers the calendar day.
+        let json = """
+        {"formatVersion":1,"exportedAt":"2023-11-14T22:13:20Z","samples":[],\
+        "evidence":[],"manualDays":[{"date":"2026-02-08T05:00:00Z",\
+        "regions":["us-NY"],"isAuthoritative":false}],"assets":[]}
+        """
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(BackupArchive.self, from: Data(json.utf8))
+        #expect(decoded.manualDays.count == 1)
+        #expect(decoded.manualDays.first?.day == CalendarDay(year: 2026, month: 2, day: 8))
+        #expect(decoded.manualDays.first?.regions == [.newYork])
     }
 
     @Test func readingAFileThatIsNotAZipThrows() throws {

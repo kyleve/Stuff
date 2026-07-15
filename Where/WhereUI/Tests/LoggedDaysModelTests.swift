@@ -60,7 +60,7 @@ struct LoggedDaysModelTests {
         }
         #expect(days.count == 2)
         // Newest first: the June override precedes the February backfill.
-        #expect(days[0].date > days[1].date)
+        #expect(days[0].day > days[1].day)
         #expect(days[0].regions == [.newYork])
         #expect(days[0].isAuthoritative)
         #expect(!days[1].isAuthoritative)

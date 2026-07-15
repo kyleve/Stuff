@@ -40,6 +40,38 @@ internal shape.
   production `SwiftDataStore` traps otherwise), and each committed transaction
   pings `changes()` — the single signal readers refresh from. The live
   `ModelContainer` is surfaced only for the read-only debug inspector.
+- **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (year-month-
+  day) is the timezone-independent identity of a day, and it is what every
+  *stored user record* and *day comparison* keys on: `DayPresence.day`,
+  `SDManualDay.dayKey`, `RegionDayLocations.day`, `MissingDayRange`, the
+  missing-day / detector present-sets, and `DataIssueID.storageKey` (hence
+  persisted dismissals). A `Date` is an absolute instant, so persisting a day as
+  one makes it drift onto a *different* day when the device changes time zones —
+  the residency bug this exists to prevent. Reach for a `Date` only where you
+  genuinely need an instant — bucketing a GPS `sample.timestamp` into a day
+  (`CalendarDay(from:in:)` with the working calendar), calendar-grid geometry,
+  sorting, or display — and derive it via `CalendarDay.startOfDay(in:)` /
+  `DayPresence.startOfDay(in:)`; never store an instant as the key.
+  `SDManualDay.dateKey` is kept only as informational history and as
+  `toValue()`'s recovery source for a legacy `dayKey`-less row, not as a lookup
+  key. **Scope boundary:** this pins *stored user records* (manual days,
+  dismissals) to a fixed day, but a GPS `sample.timestamp` is still bucketed into
+  a `CalendarDay` by the *current* calendar at read time, so a GPS-derived day
+  can still shift by one across a time-zone change — and with it a dismissed
+  *GPS-only* border-drift / abrupt-change issue (whose `storageKey` is that
+  re-bucketed day) can reappear. Only user-asserted records and their keys are
+  travel-proof; travel-proofing GPS-derived detections would mean bucketing GPS
+  by a fixed home zone, which we intentionally don't do ("where was I on this
+  *local* day?").
+- **Pre-`CalendarDay` rows are read, not migrated.** There is no boot-time data
+  migration: a legacy `SDManualDay` (no `dayKey`) reads correctly via
+  `toValue()`'s recovery from `dateKey` (in UTC, so timezone-stable), and a
+  one-time backup **export → replace-import** rewrites such rows with a canonical
+  `dayKey`. Legacy *dismissal* keys (epoch, not ISO) are **not** recovered on
+  read, so a pre-`CalendarDay` dismissal can reappear until re-dismissed or fixed
+  in that export round-trip. This is deliberate for pre-release; the durable,
+  general successor (per-entity schema versioning) is tracked in
+  [`../TODOs.md`](../TODOs.md).
 - **Writes await their side effects.** `DayJournal` commits, then awaits the
   reminder reconcile + widget publish in sequence, so a reader on the next
   `changes()` ping never observes a half-applied write. `DataIssueScanner` drops

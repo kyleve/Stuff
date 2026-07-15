@@ -31,6 +31,7 @@ struct ReportReaderTests {
             ))
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
+                in: WhereCoreTestSupport.calendar(),
                 regions: [.newYork],
             ))
         }
@@ -45,11 +46,13 @@ struct ReportReaderTests {
         try await store.perform {
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
+                in: WhereCoreTestSupport.calendar(),
                 regions: [.newYork],
             ))
             // A day just before the requested year (Pacific) must be excluded.
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2025-12-31T00:00:00-08:00"),
+                in: WhereCoreTestSupport.calendar(),
                 regions: [.california],
             ))
         }

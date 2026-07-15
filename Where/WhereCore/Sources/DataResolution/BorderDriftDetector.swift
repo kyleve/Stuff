@@ -26,7 +26,7 @@ public struct BorderDriftDetector: DataIssueDetector {
 
         var issues: [BorderDriftIssue] = []
         for day in input.report.days where day.regions.contains(.other) {
-            guard let coordinates = input.otherDayCoordinates[day.date],
+            guard let coordinates = input.otherDayCoordinates[day.day],
                   !coordinates.isEmpty else { continue }
 
             var bestRegion: Region?

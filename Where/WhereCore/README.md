@@ -47,10 +47,17 @@ one it belongs to rather than to a god-object:
   manual entries `manualDays(inYear:)`, per-region `locations(in:year:)`, and
   `representativeCoordinates(for:)`.
 - **`YearReport` / `DayPresence` / `RegionDayLocations`** — the aggregated,
-  snapshot-stable value types the UI renders. A day counts for a region if *any*
-  sample that calendar day fell inside it, so a single day can belong to several.
+  snapshot-stable value types the UI renders, each keyed by a
+  timezone-independent **`CalendarDay`** (`DayPresence.day`). A day counts for a
+  region if *any* sample that calendar day fell inside it, so a single day can
+  belong to several.
+- **`CalendarDay`** — a Y-M-D value that is the stable identity of a logical day.
+  Stored user records and day comparisons key on it so they don't drift onto a
+  different day across a time-zone change; project to a concrete `Date` (grid
+  layout, display) only via `startOfDay(in:)`.
 - **`DayAggregator`** — turns samples + manual overlays into those reports,
-  carrying the injected `Calendar`.
+  carrying the injected `Calendar` (which decides how a `sample.timestamp`
+  buckets into a `CalendarDay`).
 
 ### Location
 
@@ -66,7 +73,9 @@ one it belongs to rather than to a god-object:
 
 - **`DataIssueScanner`** + the `DataIssue` family (missing days, border drift,
   abrupt change) — the "Resolve" tab's detections and their `IssueResolution`
-  fixes; dismissals persist under a stable, device-independent `storageKey`.
+  fixes; dismissals persist under a stable, device- and timezone-independent
+  `storageKey` (a `CalendarDay` ISO string), so a dismissal doesn't reappear
+  after travel.
 - **Reconcilers** — `ReminderReconciler` (daily logging reminder + app-icon
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").

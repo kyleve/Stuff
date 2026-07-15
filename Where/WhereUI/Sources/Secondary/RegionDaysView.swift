@@ -16,7 +16,7 @@ struct RegionDaysView: View {
     /// store. Drives the map pins and each row's representative point. Empty
     /// until loaded (and in previews/tests, which seed no raw samples).
     @State private var pins: [MapPin] = []
-    @State private var coordinatesByDay: [Date: [Coordinate]] = [:]
+    @State private var coordinatesByDay: [CalendarDay: [Coordinate]] = [:]
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -41,12 +41,12 @@ struct RegionDaysView: View {
         // The day list is report-based (it honors manual overrides) while raw
         // GPS coordinates are not, so a relabeled-away day could otherwise keep
         // a stale pin on the map. Restrict pins/points to days still in the list.
-        let listedDates = Set(days.map(\.date))
+        let listedDays = Set(days.map(\.day))
         let locations = await report.locations(in: region)
-            .filter { listedDates.contains($0.date) }
+            .filter { listedDays.contains($0.day) }
         guard !Task.isCancelled else { return }
         coordinatesByDay = Dictionary(
-            locations.map { ($0.date, $0.points.map(\.coordinate)) },
+            locations.map { ($0.day, $0.points.map(\.coordinate)) },
             uniquingKeysWith: { first, _ in first },
         )
         pins = MapPin.deduplicated(from: locations.flatMap(\.points))
@@ -106,11 +106,11 @@ struct RegionDaysView: View {
     private var dayList: some View {
         List {
             Section {
-                ForEach(days, id: \.date) { day in
+                ForEach(days, id: \.day) { day in
                     NavigationLink {
                         DayRelabelView(day: day, report: report)
                     } label: {
-                        DayRow(day: day, coordinate: coordinatesByDay[day.date]?.first)
+                        DayRow(day: day, coordinate: coordinatesByDay[day.day]?.first)
                     }
                 }
             } footer: {
@@ -199,7 +199,7 @@ private struct DayRow: View {
     }
 
     private var dateText: String {
-        day.date.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
+        day.displayDate.formatted(.dateTime.weekday(.wide).month(.wide).day().year())
     }
 
     /// Region names joined in canonical order so the caption is stable.

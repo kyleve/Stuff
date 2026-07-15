@@ -38,8 +38,9 @@ public enum PresenceTimeline {
     ) -> [RegionStint] {
         var datesByRegion: [Region: [Date]] = [:]
         for day in report.days {
+            let startOfDay = day.startOfDay(in: calendar)
             for region in day.regions {
-                datesByRegion[region, default: []].append(day.date)
+                datesByRegion[region, default: []].append(startOfDay)
             }
         }
 

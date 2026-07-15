@@ -27,11 +27,10 @@ struct WhereIntentReader {
     /// The regions a calendar day counts for, matched by start-of-day in the
     /// reader's calendar (the same calendar the report was aggregated in).
     func regions(on date: Date) async throws -> Set<Region> {
-        let year = calendar.component(.year, from: date)
-        let startOfDay = calendar.startOfDay(for: date)
-        let report = try await services.reports.yearReport(for: year)
+        let day = CalendarDay(from: date, in: calendar)
+        let report = try await services.reports.yearReport(for: day.year)
         return report.days
-            .first { calendar.startOfDay(for: $0.date) == startOfDay }?
+            .first { $0.day == day }?
             .regions ?? []
     }
 

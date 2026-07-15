@@ -35,10 +35,12 @@ struct DailySummaryReconcilerTests {
         try await store.perform {
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
+                in: WhereCoreTestSupport.calendar(),
                 regions: [.california],
             ))
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-02T00:00:00-08:00"),
+                in: WhereCoreTestSupport.calendar(),
                 regions: [.newYork],
             ))
         }
@@ -56,6 +58,7 @@ struct DailySummaryReconcilerTests {
         try await store.perform {
             try await store.setManualDay(DayPresence(
                 date: WhereCoreTestSupport.iso("2026-02-01T00:00:00-08:00"),
+                in: WhereCoreTestSupport.calendar(),
                 regions: [.california],
             ))
         }
