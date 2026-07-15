@@ -10,6 +10,7 @@ let package = Package(
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
+        .library(name: "JournalKit", targets: ["JournalKit"]),
         .library(name: "LogKit", targets: ["LogKit"]),
         .library(name: "LogViewerUI", targets: ["LogViewerUI"]),
         .library(name: "PeriscopeCore", targets: ["PeriscopeCore"]),
@@ -40,6 +41,10 @@ let package = Package(
             ],
         ),
         .target(
+            name: "JournalKit",
+            path: "Shared/JournalKit/Sources",
+        ),
+        .target(
             name: "LogKit",
             path: "Shared/LogKit/Sources",
         ),
@@ -52,6 +57,9 @@ let package = Package(
         ),
         .target(
             name: "PeriscopeCore",
+            dependencies: [
+                .target(name: "JournalKit"),
+            ],
             path: "Shared/Periscope/PeriscopeCore/Sources",
         ),
         .target(

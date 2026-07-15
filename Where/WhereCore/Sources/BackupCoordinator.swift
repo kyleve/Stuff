@@ -2,8 +2,14 @@ import Foundation
 import LogKit
 import RegionKit
 
-/// Owns backup export/import over the `BackupService` and the store, publishing
-/// the widget snapshot after an import lands new data.
+/// Owns backup export/import over the `BackupService` and the store, running a
+/// caller-supplied `onImport` hook after an import lands new data.
+///
+/// An import rewrites day data, so the same badge / notification / widget
+/// reconcile a `DayJournal` day change runs has to follow it. Rather than reach
+/// into all those collaborators (a leaky abstraction), the coordinator takes one
+/// `onImport` closure and the composition root points it at the shared fan-out —
+/// so the reconcile stays defined in a single place.
 ///
 /// Public so its `ImportStrategy` / `ImportSummary` types stay nameable from the
 /// UI directly through `WhereServices.backup`; construction stays in-module via
@@ -45,7 +51,11 @@ public actor BackupCoordinator {
 
     private let store: any WhereStore
     private let backupService = BackupService()
-    private let widgets: WidgetSnapshotPublisher
+    /// Invoked once after an import successfully commits. The composition root
+    /// wires it to the same post-day-change reconcile a journal write runs
+    /// (drop the issue-scan cache, reconcile the app-icon badge + issues
+    /// notification, republish the widget snapshot).
+    private let onImport: @Sendable () async -> Void
     private static let logger = WhereLog.channel(.backupService)
 
     /// Staging directory of the most recent export. Each archive lands in its
@@ -56,9 +66,12 @@ public actor BackupCoordinator {
     /// the export being torn down.
     private var previousExportDirectory: URL?
 
-    init(store: any WhereStore, widgets: WidgetSnapshotPublisher) {
+    init(
+        store: any WhereStore,
+        onImport: @escaping @Sendable () async -> Void,
+    ) {
         self.store = store
-        self.widgets = widgets
+        self.onImport = onImport
     }
 
     /// Serialize the entire store (all four tables plus evidence blobs) to a
@@ -190,7 +203,12 @@ public actor BackupCoordinator {
                 try await store.setTrackedRegion(true, id: region.rawValue)
             }
         }
-        await widgets.publish()
+        // An import rewrites day data, so the badge / notification / widget
+        // reconcile a day change runs has to follow it — these headless
+        // reconcilers don't observe `store.changes()`, so without this the
+        // home-screen badge and the issues alert stay stuck at their pre-import
+        // values. The composition root supplies the shared fan-out.
+        await onImport()
 
         return ImportSummary(
             sampleCount: archive.samples.count,

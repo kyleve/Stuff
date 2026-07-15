@@ -198,6 +198,12 @@ extension LogSession {
     }
 }
 
+/// A deterministic instant `offset` seconds into the reference era, for
+/// store and journal tests.
+func date(_ offset: TimeInterval) -> Date {
+    Date(timeIntervalSinceReferenceDate: offset)
+}
+
 /// A freeform record with an explicit date, for deterministic store tests.
 func makeRecord(
     _ text: String,

@@ -9,7 +9,6 @@
 # Open issues
 
 ## P0s (Must do)
-- design: Crash durability — the async pipeline can drop events exactly at crash time. Options from PR review: a synchronous per-event journal the async queue ingests, or writing straight to the store. Needs a plan/build loop.
 - design: Span record modeling — `spanID`/`spanExit` bolted onto every `LogRecord` (and `bypassesFloors` as a one-off flag) feels wrong; consider `enum { case span(Span), case event(Event) }` or a dedicated span record type. Plan/build loop.
 - design: Decompose `Periscope` (the type and its flat `State` — group watchdog/inspect/ambient/live-observer state into sub-structs) and `PeriscopeStore` into children per behavioral area. Plan/build loop.
 - design: `ScopeID` derivation — hash-derived vs a concatenated, human-readable path that preserves the input for debugging. Plan/build loop.
@@ -20,6 +19,8 @@
 
 ## P1s (Should do)
 - fix: After initial merge, we should come back and update the UI to consume the Shared/Broadway design system tooling, eg a PeriscopeStylesheet for components and other recommendations.
+- feat: Journal attachments via external storage (PR #86 review). Instead of inlining blobs ≤64KB and omitting larger ones, write attachment bytes as files beside the journal segments (the entry referencing them by filename), clean them up with segment rotation and journal removal, and re-attach them at ingest. Removes the size cliff entirely — screenshots and payloads survive crashes too. Follow-up PR after #86.
+- feat: Multi-process store + journal coordination. Today only app processes ingest journals (extensions journal but never ingest, so an extension launch can't delete the live app's journal) — but the reverse hole remains: an app launching while an extension session is live would ingest and delete that *live* journal out from under its open descriptor, silently ending its recoverability. Needs a claim mechanism (e.g. a claim file the writer holds, or skip-directories-with-live-claims) designed alongside App Group store sharing — which the store doesn't support yet either (exclusive sequence counters, SwiftData container coordination).
 
 
 ## P2s (Nice to have)
@@ -27,7 +28,8 @@
 
 # Completed issues
 
-## PR review pass (bugs + mechanical reshapes)
+## Crash durability (design loop 1)
+- feat: Crash journal — every emitted record appends synchronously to a per-session append-only journal (**JournalKit**, a new generic module: CRC-framed segments, torn-tail-tolerant recovery, flight-recorder rotation) once an on-disk store is attached; fault+ records `F_FULLFSYNC`. At the next launch the store ingests prior journals before the session starts (dedupe by event ID, recovered begans join the orphan sweep, `.notice` recovery marker), then deletes them. Decision made on measured data: the benchmark prototype (`Prototypes/JournalBenchmark`) showed the file append is the only candidate with a microseconds-bounded worst case, and SIGKILL children proved page-cache appends survive process death while batched ORM saves lose their unsaved tail. In-memory stores never journal. Remaining refinement: journal the flush-on-background trigger is unnecessary now (the journal covers background kills), and attachment blobs >64KB journal as omitted markers.
 - fix: Ambient sources retain their NotificationCenter observer tokens (`AmbientObserverTokens`) — dropped tokens made observations unremovable and immortalized the captured system; restarts now replace instead of doubling. `AmbientEventSource` gains `stop()` and `Periscope.stopAmbientSources()`.
 - feat: `LogAttachment.ContentType` enum (json/png/jpeg/plainText + `.other(mime)`); `LogLevel.osLogType` is a stored, overridable property (identity and Codable stay name + severity); `SpanExit` factories for every mode.
 - feat: Tags reshaped — `LogTagValue` (typed values incl. any Codable), `[LogTag]` lists everywhere, multi-tag AND queries via filter-count predicate; SDLogTag gains `valueKind`.

@@ -58,8 +58,9 @@ public actor DayJournal {
     /// Full reconcile after a change to persisted day data (manual overlays,
     /// clears): recount issues / badge / notification, then republish the widget
     /// snapshot. Every day-mutating write funnels through here so the fan-out
-    /// stays in one place.
-    private func reconcileAfterDayChange() async {
+    /// stays in one place — including the backup import, which the composition
+    /// root points at this method via `BackupCoordinator`'s `onImport` hook.
+    func reconcileAfterDayChange() async {
         await reconcileIssueState()
         await widgets.publish()
     }
