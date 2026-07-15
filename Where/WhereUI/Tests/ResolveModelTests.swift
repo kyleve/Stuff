@@ -121,14 +121,18 @@ struct ResolveModelTests {
         await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
 
         let flight = try #require(resolve.dataIssues.first { $0.category == .flightDay })
-        guard case let .correctFlightDay(day, keep, _, _) = flight.resolution else {
+        guard case let .correctFlightDay(_, keep, _, _) = flight.resolution else {
             Issue.record("expected correctFlightDay resolution")
             return
         }
 
         // Apply the fix the same way the detail view's "Apply" button does, then
         // drop the scanner cache so the reload sees a fresh scan.
-        try await services.journal.overrideDay(date: day.date, regions: keep, audit: nil)
+        try await services.journal.overrideDay(
+            date: flightSampleDate(hour: 12),
+            regions: keep,
+            audit: nil,
+        )
         await services.resolution.invalidate()
         await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
 

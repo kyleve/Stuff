@@ -92,7 +92,7 @@ struct DayRelabelView: View {
                 Text(saveError)
             }
         }
-        .task(id: day.date) { await loadPoints() }
+        .task(id: day.day) { await loadPoints() }
     }
 
     private var form: some View {
@@ -188,7 +188,7 @@ struct DayRelabelView: View {
     }
 
     private func loadPoints() async {
-        let byRegion = await report.locations(onDay: day.date)
+        let byRegion = await report.locations(onDay: day.day)
         guard !Task.isCancelled else { return }
         mapPoints = byRegion.flatMap { region, points in
             points.map {
@@ -212,7 +212,7 @@ struct DayRelabelView: View {
     }
 
     private var dateText: String {
-        day.date.formatted(.dateTime.month(.abbreviated).day().year())
+        day.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
     }
 
     private func save() {
@@ -221,7 +221,7 @@ struct DayRelabelView: View {
         Task {
             do {
                 try await report.overrideDay(
-                    date: day.date,
+                    date: day.startOfDay(in: report.calendar),
                     regions: regionSelection.selectedRegions,
                     note: note,
                 )
@@ -239,7 +239,7 @@ struct DayRelabelView: View {
         saveError.message = nil
         Task {
             do {
-                try await report.clearManualDay(date: day.date)
+                try await report.clearManualDay(date: day.startOfDay(in: report.calendar))
                 dismiss()
             } catch {
                 // Keep the form up so the user can retry; nothing was cleared.
@@ -254,7 +254,7 @@ struct DayRelabelView: View {
     #Preview("Other region") {
         NavigationStack {
             DayRelabelView(
-                day: DayPresence(date: .now, regions: [.other]),
+                day: DayPresence(date: .now, in: .current, regions: [.other]),
                 report: PreviewSupport.loadedYearReportModel(),
             )
         }
@@ -263,7 +263,11 @@ struct DayRelabelView: View {
     #Preview("Flight reason banner") {
         NavigationStack {
             DayRelabelView(
-                day: DayPresence(date: .now, regions: [.newYork, .other, .california]),
+                day: DayPresence(
+                    date: .now,
+                    in: .current,
+                    regions: [.newYork, .other, .california],
+                ),
                 report: PreviewSupport.loadedYearReportModel(),
                 reason: .flight(removed: [.other]),
             )
@@ -275,6 +279,7 @@ struct DayRelabelView: View {
             DayRelabelView(
                 day: DayPresence(
                     date: .now,
+                    in: .current,
                     regions: [.california],
                     isAuthoritative: true,
                     audit: ManualEntryAudit(

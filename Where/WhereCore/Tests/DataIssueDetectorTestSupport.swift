@@ -19,16 +19,20 @@ enum DataIssueDetectorFixtures {
         ))!)
     }
 
-    /// A passive GPS fix at `coordinate`, `hoursAfterStart` into `dayStart`, for
+    static func calendarDay(_ year: Int, _ month: Int, _ day: Int) -> CalendarDay {
+        CalendarDay(year: year, month: month, day: day)
+    }
+
+    /// A passive GPS fix at `coordinate`, `hoursAfterStart` into `day`, for
     /// building the timestamp-sorted `daySamples` the speed-based detector walks.
     static func gpsSample(
-        dayStart: Date,
+        day: CalendarDay,
         hoursAfterStart: Double,
         _ coordinate: Coordinate,
         source: SampleSource = .gpsSignificantChange,
     ) -> LocationSample {
         LocationSample(
-            timestamp: dayStart.addingTimeInterval(hoursAfterStart * 3600),
+            timestamp: day.startOfDay(in: calendar).addingTimeInterval(hoursAfterStart * 3600),
             coordinate: coordinate,
             horizontalAccuracy: 20,
             source: source,
@@ -38,8 +42,8 @@ enum DataIssueDetectorFixtures {
     static func input(
         year: Int = 2026,
         days: [DayPresence] = [],
-        otherDayCoordinates: [Date: [Coordinate]] = [:],
-        daySamples: [Date: [LocationSample]] = [:],
+        otherDayCoordinates: [CalendarDay: [Coordinate]] = [:],
+        daySamples: [CalendarDay: [LocationSample]] = [:],
         primaryRegions: [Region] = [.california, .newYork],
         driftThresholdMeters: Double = 10000,
         now: Date? = nil,

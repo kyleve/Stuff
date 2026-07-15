@@ -97,7 +97,7 @@ struct ScreenHostingTests {
 
     @Test func dayRelabelViewHosts() throws {
         let report = PreviewSupport.loadedYearReportModel()
-        let day = DayPresence(date: .now, regions: [.other])
+        let day = DayPresence(date: .now, in: .current, regions: [.other])
         let rootView = NavigationStack { DayRelabelView(day: day, report: report) }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
@@ -108,6 +108,7 @@ struct ScreenHostingTests {
         let report = PreviewSupport.loadedYearReportModel()
         let day = DayPresence(
             date: .now,
+            in: .current,
             regions: [.california],
             isAuthoritative: true,
             audit: ManualEntryAudit(
@@ -128,7 +129,7 @@ struct ScreenHostingTests {
 
     @Test func flightDayDetailViewHosts() throws {
         let issue = FlightDayIssue(
-            day: DayPresence(date: .now, regions: [.newYork, .other, .california]),
+            day: DayPresence(date: .now, in: .current, regions: [.newYork, .other, .california]),
             keepRegions: [.newYork, .california],
             removedRegions: [.other],
             peakSpeedKMH: 880,
@@ -227,9 +228,10 @@ struct ScreenHostingTests {
     @Test func manualDayViewHostsEditModes() throws {
         let report = PreviewSupport.loadedYearReportModel()
         let days = [
-            DayPresence(date: .now, regions: [.california]),
+            DayPresence(date: .now, in: .current, regions: [.california]),
             DayPresence(
                 date: .now,
+                in: .current,
                 regions: [.canada],
                 isAuthoritative: true,
                 audit: ManualEntryAudit(recordedAt: .now, note: "Boarding pass.", location: nil),

@@ -26,7 +26,7 @@ struct FlightDayDetailView: View {
         Group {
             if let payload = flightPayload {
                 content(payload)
-                    .task(id: payload.day.date) { await loadPoints(for: payload.day.date) }
+                    .task(id: payload.day.day) { await loadPoints(for: payload.day.day) }
             } else {
                 ContentUnavailableView(
                     Strings.loadErrorTitle,
@@ -112,10 +112,10 @@ struct FlightDayDetailView: View {
     }
 
     private func dateText(_ day: DayPresence) -> String {
-        day.date.formatted(.dateTime.month(.abbreviated).day().year())
+        day.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
     }
 
-    private func loadPoints(for day: Date) async {
+    private func loadPoints(for day: CalendarDay) async {
         let byRegion = await report.locations(onDay: day)
         guard !Task.isCancelled else { return }
         mapPoints = byRegion.flatMap { region, points in
@@ -134,7 +134,10 @@ struct FlightDayDetailView: View {
         saveError.message = nil
         Task {
             do {
-                try await report.overrideDay(date: payload.day.date, regions: payload.keep)
+                try await report.overrideDay(
+                    date: payload.day.startOfDay(in: report.calendar),
+                    regions: payload.keep,
+                )
                 dismiss()
             } catch {
                 // Keep the screen up so the user can retry; the fix didn't land.
@@ -166,7 +169,11 @@ struct FlightDayDetailView: View {
         NavigationStack {
             FlightDayDetailView(
                 issue: FlightDayIssue(
-                    day: DayPresence(date: .now, regions: [.newYork, .other, .california]),
+                    day: DayPresence(
+                        date: .now,
+                        in: .current,
+                        regions: [.newYork, .other, .california],
+                    ),
                     keepRegions: [.newYork, .california],
                     removedRegions: [.other],
                     peakSpeedKMH: 880,

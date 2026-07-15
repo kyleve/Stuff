@@ -79,7 +79,7 @@ struct AbruptChangeDetailView: View {
 
     private func daySummary(_ day: DayPresence) -> some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-            Text(day.date.formatted(.dateTime.month(.abbreviated).day().year()))
+            Text(day.displayDate.formatted(.dateTime.month(.abbreviated).day().year()))
                 .font(.headline)
             Text(day.regions.map(\.localizedName).sorted().joined(separator: ", "))
                 .foregroundStyle(.secondary)
@@ -94,10 +94,12 @@ struct AbruptChangeDetailView: View {
                 issue: AbruptChangeIssue(
                     earlierDay: DayPresence(
                         date: .now,
+                        in: .current,
                         regions: [.california],
                     ),
                     laterDay: DayPresence(
-                        date: .now,
+                        date: Date().addingTimeInterval(86400),
+                        in: .current,
                         regions: [.newYork],
                     ),
                 ),

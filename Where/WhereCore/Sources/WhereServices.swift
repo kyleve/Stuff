@@ -155,7 +155,13 @@ public struct WhereServices: Sendable {
             issueScanner: resolution,
             widgets: widgets,
         )
-        let backup = BackupCoordinator(store: store, widgets: widgets)
+        // An import changes day data, so it reuses the journal's post-day-change
+        // reconcile (scanner invalidate + badge/notification reconcile + widget
+        // publish) rather than duplicating that fan-out.
+        let backup = BackupCoordinator(
+            store: store,
+            onImport: { await journal.reconcileAfterDayChange() },
+        )
         let recentActivity = RecentActivitySummarizer(
             store: store,
             attributor: attributor,

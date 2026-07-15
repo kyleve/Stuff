@@ -12,17 +12,15 @@ extended.
 
 ## Scope & dependencies
 
-- **SwiftUI + `WhereCore`** (and `RegionKit` transitively) plus the Broadway
-  design-system stack (`BroadwayCore` / `BroadwayUI`). It is the presentation
-  layer — no domain rules, persistence, or store I/O here (see
-  [Layering](../AGENTS.md#layering)).
-- Library target in [`Package.swift`](../../Package.swift)
-  (`Where/WhereUI/Sources`); consumed by the **Where** app and the
-  **WhereWidgets** extension. `WhereWidgets` gets Broadway *through* WhereUI (a
-  dynamic framework) and must **not** link `BroadwayUI` itself — a second copy
-  would split Broadway's type-keyed environment metadata and the stylesheet
-  would stop resolving across the boundary. This is why `whereBroadwayRoot()`
-  lives here rather than being called as `broadwayRoot` at each site.
+- Presentation layer only — no domain rules, persistence, or store I/O here
+  (see [Layering](../AGENTS.md#layering)). Dependencies live in the root
+  [`Package.swift`](../../Package.swift).
+- Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI (a
+  dynamic framework) and must **not** link `BroadwayUI`/`BroadwayCore`
+  themselves — a second copy would split Broadway's type-keyed environment
+  metadata and the stylesheet would stop resolving across the boundary. This
+  is why `whereBroadwayRoot()` lives here rather than being called as
+  `broadwayRoot` at each site.
 
 ## Design system — `WhereStylesheet`
 
@@ -35,14 +33,12 @@ not back inline in a view.
 
 ### Using tokens
 
-- Read them in a view with `@Environment(\.stylesheet) private var stylesheet`,
-  then reach for the token: `stylesheet.spacing.medium`,
-  `stylesheet.calendar.dayMinHeight`, `stylesheet.palette.splash.background`.
-- The active sheet is seeded at the app root by `whereBroadwayRoot()` (in
-  `RootView`) and — because it has no other Broadway root — by the
-  **WhereWidgets** extension. With no root present (isolated previews, code off
-  the `View` tree) resolution falls back to `WhereStylesheet.default`; use that
-  static directly in layout helpers and tests.
+- Read tokens in a view with `@Environment(\.stylesheet) private var
+  stylesheet` (e.g. `stylesheet.spacing.medium`). The active sheet is seeded
+  by `whereBroadwayRoot()` at the app root and in each Broadway-root-less
+  consumer (WhereWidgets); with no root present (isolated previews, code off
+  the `View` tree) resolution falls back to `WhereStylesheet.default` — use
+  that static directly in layout helpers and tests.
 - **Resolve a variant once.** For a component with more than one look, vend a
   resolved sub-spec and read it into a single property rather than branching
   through the body: `RegionSummaryCard` reads `stylesheet.card[variant]` into a

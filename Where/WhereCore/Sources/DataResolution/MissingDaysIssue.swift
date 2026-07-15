@@ -15,7 +15,7 @@ public struct MissingDaysIssue: DataIssue, Hashable {
         .missingDays
     }
 
-    public var sortKey: Date {
+    public var sortKey: CalendarDay {
         range.start
     }
 

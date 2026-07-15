@@ -99,7 +99,7 @@ public actor DataIssueScanner {
         let report = try await reportReader.yearReport(for: year)
         let otherLocations = try await reportReader.locations(in: .other, year: year)
         let otherDayCoordinates = Dictionary(
-            uniqueKeysWithValues: otherLocations.map { ($0.date, $0.points.map(\.coordinate)) },
+            uniqueKeysWithValues: otherLocations.map { ($0.day, $0.points.map(\.coordinate)) },
         )
         let daySamples = try await Self.gpsSamplesByDay(
             reportReader.samples(inYear: year),
@@ -169,12 +169,13 @@ public actor DataIssueScanner {
     private static func gpsSamplesByDay(
         _ samples: [LocationSample],
         calendar: Calendar,
-    ) -> [Date: [LocationSample]] {
-        var byDay: [Date: [LocationSample]] = [:]
+    ) -> [CalendarDay: [LocationSample]] {
+        var byDay: [CalendarDay: [LocationSample]] = [:]
         for sample in samples {
             switch sample.source {
                 case .gpsVisit, .gpsSignificantChange:
-                    byDay[calendar.startOfDay(for: sample.timestamp), default: []].append(sample)
+                    byDay[CalendarDay(from: sample.timestamp, in: calendar), default: []]
+                        .append(sample)
                 case .manual, .evidenceImplied:
                     continue
             }

@@ -20,14 +20,14 @@ extension DataIssueDetector {
 public struct DataIssueInput: Sendable {
     public let year: Int
     public let report: YearReport
-    public let otherDayCoordinates: [Date: [Coordinate]]
-    /// Passive GPS fixes for the year keyed by start-of-day, each day's samples
+    public let otherDayCoordinates: [CalendarDay: [Coordinate]]
+    /// Passive GPS fixes for the year keyed by `CalendarDay`, each day's samples
     /// sorted ascending by timestamp. Only `.gpsVisit` / `.gpsSignificantChange`
     /// sources are included — manual and evidence-implied samples carry
     /// user-asserted timestamps that would produce meaningless speeds — so a
     /// speed-based detector (`FlightDayDetector`) can walk consecutive fixes.
     /// Unlike `report` / `otherDayCoordinates` these retain per-fix timestamps.
-    public let daySamples: [Date: [LocationSample]]
+    public let daySamples: [CalendarDay: [LocationSample]]
     public let primaryRegions: [Region]
     public let attributor: RegionAttributor
     public let driftThresholdMeters: Double
@@ -37,8 +37,8 @@ public struct DataIssueInput: Sendable {
     public init(
         year: Int,
         report: YearReport,
-        otherDayCoordinates: [Date: [Coordinate]],
-        daySamples: [Date: [LocationSample]],
+        otherDayCoordinates: [CalendarDay: [Coordinate]],
+        daySamples: [CalendarDay: [LocationSample]],
         primaryRegions: [Region],
         attributor: RegionAttributor,
         driftThresholdMeters: Double,

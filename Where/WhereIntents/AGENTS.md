@@ -11,12 +11,11 @@ layering, localization, and the WhereUI duplicate-metadata rule).
 
 ## Scope & dependencies
 
-- **App Intents + SwiftUI + `WhereCore` + `WhereUI`** (plus `RegionKit`,
-  `LogKit`). Library target in [`Package.swift`](../../Package.swift)
-  (`Where/WhereIntents/Sources`), linked by the **Where** app. It depends on
-  **WhereUI** for its snippet cards — mirroring **WhereWidgets** — so it must
-  **not** link `BroadwayUI`/`BroadwayCore` directly (a second copy would split
-  Broadway's type-keyed metadata; see the root AGENTS "Targets" note).
+- Dependencies live in the root [`Package.swift`](../../Package.swift). It
+  depends on **WhereUI** for its snippet cards — mirroring **WhereWidgets** —
+  so it must **not** link `BroadwayUI`/`BroadwayCore` directly (a second copy
+  would split Broadway's type-keyed metadata; see the root AGENTS "Targets"
+  note).
 - Intents stay **thin adapters**: they resolve `WhereServices.forIntents()` and
   delegate to its collaborators. Domain rules, persistence, and aggregation stay
   in `WhereCore`; presentation (the card bodies) stays in `WhereUI`. Don't

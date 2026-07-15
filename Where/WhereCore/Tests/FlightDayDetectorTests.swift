@@ -16,17 +16,17 @@ struct FlightDayDetectorTests {
     /// The July 14 NYC→SF profile: two grounded NY fixes in the morning, a run
     /// of cruise-speed legs across untracked states, then grounded SFO fixes.
     @Test func flagsCoastToCoastFlight() {
-        let date = Fixtures.day(2026, 7, 14)
-        let day = DayPresence(date: date, regions: [.newYork, .other, .california])
+        let date = Fixtures.calendarDay(2026, 7, 14)
+        let day = DayPresence(day: date, regions: [.newYork, .other, .california])
         let samples = [
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 8.0, Self.jfk),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 8.5, Self.jfk),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 12.0, Self.jfk),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 13.5, Self.illinois),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 15.0, Self.colorado),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 16.5, Self.nevada),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 17.5, Self.sfo),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 18.0, Self.sfo),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 8.0, Self.jfk),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 8.5, Self.jfk),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 12.0, Self.jfk),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 13.5, Self.illinois),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 15.0, Self.colorado),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 16.5, Self.nevada),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 17.5, Self.sfo),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 18.0, Self.sfo),
         ]
         let issues = FlightDayDetector().detectIssues(in: Fixtures.input(
             days: [day],
@@ -52,18 +52,18 @@ struct FlightDayDetectorTests {
     /// keeps `.other` grounded, so nothing is removed and the day isn't flagged.
     /// The detector must not strip a region the user actually stopped in.
     @Test func keepsRegionWithALegitimateLayover() {
-        let date = Fixtures.day(2026, 7, 14)
+        let date = Fixtures.calendarDay(2026, 7, 14)
         let chicago = Coordinate(latitude: 41.8781, longitude: -87.6298) // .other, with dwell
-        let day = DayPresence(date: date, regions: [.newYork, .other, .california])
+        let day = DayPresence(day: date, regions: [.newYork, .other, .california])
         let samples = [
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 8.0, Self.jfk),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 9.0, Self.jfk),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 11.0, Self.colorado), // fly-over
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 12.5, Self.nevada), // fly-over
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 14.0, chicago), // land + dwell
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 15.0, chicago),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 16.0, chicago),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 19.0, Self.sfo),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 8.0, Self.jfk),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 9.0, Self.jfk),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 11.0, Self.colorado), // fly-over
+            Fixtures.gpsSample(day: date, hoursAfterStart: 12.5, Self.nevada), // fly-over
+            Fixtures.gpsSample(day: date, hoursAfterStart: 14.0, chicago), // land + dwell
+            Fixtures.gpsSample(day: date, hoursAfterStart: 15.0, chicago),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 16.0, chicago),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 19.0, Self.sfo),
         ]
         let issues = FlightDayDetector().detectIssues(in: Fixtures.input(
             days: [day],
@@ -75,14 +75,14 @@ struct FlightDayDetectorTests {
     /// A fast road trip that dips into `.other` but never reaches cruise speed:
     /// no leg clears the threshold, so nothing is a fly-over point.
     @Test func ignoresFastDrivingBelowThreshold() {
-        let date = Fixtures.day(2026, 7, 14)
-        let day = DayPresence(date: date, regions: [.newYork, .other])
+        let date = Fixtures.calendarDay(2026, 7, 14)
+        let day = DayPresence(day: date, regions: [.newYork, .other])
         let newYorkCity = Coordinate(latitude: 40.7128, longitude: -74.0060)
         let newJersey = Coordinate(latitude: 40.05, longitude: -74.60) // .other, ~80 km away
         let samples = [
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 9.0, newYorkCity),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 10.0, newJersey),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 11.0, newYorkCity),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 9.0, newYorkCity),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 10.0, newJersey),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 11.0, newYorkCity),
         ]
         let issues = FlightDayDetector().detectIssues(in: Fixtures.input(
             days: [day],
@@ -94,12 +94,12 @@ struct FlightDayDetectorTests {
     /// A single teleport glitch — one bad fix that jumps far away and straight
     /// back — is a different data issue, not a plane, so it isn't flagged.
     @Test func ignoresLoneTeleportGlitch() {
-        let date = Fixtures.day(2026, 7, 14)
-        let day = DayPresence(date: date, regions: [.newYork, .other])
+        let date = Fixtures.calendarDay(2026, 7, 14)
+        let day = DayPresence(day: date, regions: [.newYork, .other])
         let samples = [
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 9.0, Self.jfk),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 9.05, Self.colorado),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 9.1, Self.jfk),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 9.0, Self.jfk),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 9.05, Self.colorado),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 9.1, Self.jfk),
         ]
         let issues = FlightDayDetector().detectIssues(in: Fixtures.input(
             days: [day],
@@ -112,12 +112,12 @@ struct FlightDayDetectorTests {
     /// day) leaves the crossed region grounded at its first/last fix, so there
     /// is nothing spurious to remove — the day is left alone, not blanked.
     @Test func skipsMidFlightOnlyDay() {
-        let date = Fixtures.day(2026, 7, 14)
-        let day = DayPresence(date: date, regions: [.other])
+        let date = Fixtures.calendarDay(2026, 7, 14)
+        let day = DayPresence(day: date, regions: [.other])
         let samples = [
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 0.5, Self.illinois),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 2.0, Self.colorado),
-            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 3.5, Self.nevada),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 0.5, Self.illinois),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 2.0, Self.colorado),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 3.5, Self.nevada),
         ]
         let issues = FlightDayDetector().detectIssues(in: Fixtures.input(
             days: [day],
@@ -127,8 +127,8 @@ struct FlightDayDetectorTests {
     }
 
     @Test func skipsDayWithNoSamples() {
-        let date = Fixtures.day(2026, 7, 14)
-        let day = DayPresence(date: date, regions: [.newYork, .other, .california])
+        let date = Fixtures.calendarDay(2026, 7, 14)
+        let day = DayPresence(day: date, regions: [.newYork, .other, .california])
         let issues = FlightDayDetector().detectIssues(in: Fixtures.input(days: [day]))
         #expect(issues.isEmpty)
     }

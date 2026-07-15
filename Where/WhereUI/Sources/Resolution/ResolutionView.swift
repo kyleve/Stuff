@@ -164,14 +164,14 @@ private struct IssueRow: View {
             case let .backfill(range):
                 DateRangeFormatting.abbreviated(start: range.start, end: range.end)
             case let .relabelDay(day, _, _):
-                day.date.formatted(.dateTime.month(.abbreviated).day().year())
+                day.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
             case let .markTravelDay(earlier, later, _):
                 Strings.resolutionAbruptRowTitle(
                     earlier: earlier.regions,
                     later: later.regions,
                 )
             case let .correctFlightDay(day, _, _, _):
-                day.date.formatted(.dateTime.month(.abbreviated).day().year())
+                day.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
         }
     }
 
@@ -182,7 +182,7 @@ private struct IssueRow: View {
             case let .relabelDay(_, suggested, meters):
                 Self.relabelSubtitle(suggested: suggested, meters: meters)
             case let .markTravelDay(_, later, _):
-                later.date.formatted(.dateTime.month(.abbreviated).day().year())
+                later.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
             case .correctFlightDay:
                 Strings.resolutionFlightRowSubtitle
         }

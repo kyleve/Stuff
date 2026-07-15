@@ -25,15 +25,15 @@ public struct FlightDayIssue: DataIssue, Hashable {
     }
 
     public var id: DataIssueID {
-        .flightDay(start: day.date)
+        .flightDay(day: day.day)
     }
 
     public var category: DataIssueCategory {
         .flightDay
     }
 
-    public var sortKey: Date {
-        day.date
+    public var sortKey: CalendarDay {
+        day.day
     }
 
     public var isDismissible: Bool {

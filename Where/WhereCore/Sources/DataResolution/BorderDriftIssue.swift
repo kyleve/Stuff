@@ -13,15 +13,15 @@ public struct BorderDriftIssue: DataIssue, Hashable {
     }
 
     public var id: DataIssueID {
-        .borderDrift(date: day.date)
+        .borderDrift(day: day.day)
     }
 
     public var category: DataIssueCategory {
         .borderDrift
     }
 
-    public var sortKey: Date {
-        day.date
+    public var sortKey: CalendarDay {
+        day.day
     }
 
     public var isDismissible: Bool {

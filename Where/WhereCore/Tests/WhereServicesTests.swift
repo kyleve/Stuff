@@ -144,10 +144,7 @@ struct WhereServicesTests {
 
         let report = try await services.reports.yearReport(for: 2026)
         let july4 = report.days.first { day in
-            var cal = Calendar(identifier: .gregorian)
-            cal.timeZone = TimeZone(identifier: "America/Los_Angeles") ?? .gmt
-            let components = cal.dateComponents([.month, .day], from: day.date)
-            return components.month == 7 && components.day == 4
+            day.day == CalendarDay(year: 2026, month: 7, day: 4)
         }
         #expect(july4?.regions == [.california, .newYork])
     }
@@ -262,10 +259,7 @@ struct WhereServicesTests {
 
         let report = try await services.reports.yearReport(for: 2026)
         let july4 = report.days.first {
-            Self.pacificCalendar.isDate(
-                $0.date,
-                inSameDayAs: WhereCoreTestSupport.iso("2026-07-04T12:00:00-07:00"),
-            )
+            $0.day == CalendarDay(year: 2026, month: 7, day: 4)
         }
         // The relabel survives: New York stays removed (GPS is not resurrected)
         // and the backfilled Canada unions onto the corrected California.
@@ -626,11 +620,58 @@ struct WhereServicesTests {
         #expect(try await destinationStore.allManualDays() == sourceStore.allManualDays())
     }
 
+    /// End-to-end guard for the "home-screen badge stuck after a replace import"
+    /// bug: importing new data must reconcile the app-icon badge off the fresh
+    /// data through the assembled services, not leave the pre-import count.
+    @Test func backupReplaceImportRefreshesTheAppIconBadge() async throws {
+        // Frozen at Jan 5, so the backlog window is just Jan 1–4.
+        let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
+
+        // Source logs the whole backlog window, exporting a fully-covered start
+        // of year.
+        let (source, _, _) = try Self.makeReminderServices(
+            now: now,
+            scheduler: SpyReminderScheduler(),
+        )
+        try await source.journal.addManualDays(
+            from: WhereCoreTestSupport.iso("2026-01-01T12:00:00-08:00"),
+            through: WhereCoreTestSupport.iso("2026-01-04T12:00:00-08:00"),
+            regions: [.california],
+            audit: nil,
+        )
+        let url = try await source.backup.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        // Destination enables reminders + issue alerts while empty, so its badge
+        // starts at the fully-missing-year count (Jan 1–4 backlog + one
+        // missing-days range).
+        let spy = SpyReminderScheduler()
+        let (destination, _, _) = try Self.makeReminderServices(now: now, scheduler: spy)
+        await destination.reminders.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: true,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
+        let emptyBadge = await spy.lastBadgeCount
+        let reconcilesBeforeImport = await spy.reconcileCount
+
+        _ = try await destination.backup.importBackup(from: url, strategy: .replace)
+
+        // The import reconciled the badge off the imported data instead of
+        // leaving the stale empty-store count: Jan 1–4 are now logged with no
+        // unresolved issues, so the badge drops from 5 to 0.
+        #expect(await spy.reconcileCount > reconcilesBeforeImport)
+        #expect(emptyBadge == 5)
+        #expect(await spy.lastBadgeCount == 0)
+    }
+
     @Test func clearAll_removesEveryTable() async throws {
         let store = try SwiftDataStore.inMemory()
         let seedSample = sample(at: "2026-03-15T12:00:00-07:00")
         let seedDay = DayPresence(
             date: Date(timeIntervalSince1970: 1_700_000_000),
+            in: Self.pacificCalendar,
             regions: [.california],
         )
         try await store.perform {
@@ -1292,20 +1333,23 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.setManualDay(day)
     }
 
-    func clearManualDay(_ date: Date) async throws {
-        try await backing.clearManualDay(date)
+    func clearManualDay(_ day: CalendarDay) async throws {
+        try await backing.clearManualDay(day)
     }
 
-    func manualDays(in interval: DateInterval) async throws -> [DayPresence] {
-        try await backing.manualDays(in: interval)
+    func manualDays(in dayRange: ClosedRange<CalendarDay>) async throws -> [DayPresence] {
+        try await backing.manualDays(in: dayRange)
     }
 
     func allManualDays() async throws -> [DayPresence] {
         try await backing.allManualDays()
     }
 
-    func clear(in interval: DateInterval) async throws {
-        try await backing.clear(in: interval)
+    func clear(
+        in interval: DateInterval,
+        manualDays dayRange: ClosedRange<CalendarDay>,
+    ) async throws {
+        try await backing.clear(in: interval, manualDays: dayRange)
     }
 
     func clearAll() async throws {

@@ -49,7 +49,7 @@ public struct FlightDayDetector: DataIssueDetector {
     public func detectIssues(in input: DataIssueInput) -> [FlightDayIssue] {
         var issues: [FlightDayIssue] = []
         for day in input.report.days {
-            guard let samples = input.daySamples[day.date] else { continue }
+            guard let samples = input.daySamples[day.day] else { continue }
             if let issue = flightIssue(for: day, samples: samples, attributor: input.attributor) {
                 issues.append(issue)
             }

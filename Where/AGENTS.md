@@ -14,40 +14,13 @@ system, formatting, and global conventions. Read that first.
 
 ## Modules
 
-```
-Where/
-  Where/         App target – SwiftUI entry point (WhereApp → RootView)
-  RegionKit/     SPM library – geometry, GeoJSON, Region model + lookup (WhereCore depends on it)
-  WhereCore/     SPM library – domain model, persistence, GPS, aggregation
-  WhereUI/       SPM library – SwiftUI views + view models (depends on WhereCore)
-  WhereWidgets/  Widget extension – reads published snapshots, renders WhereUI views
-  WhereShareExtension/  Share extension – saves shared content as Evidence into the App Group store
-  RegionViewer/  Mac Catalyst shell for the region-map developer tool
-```
-
-- **App target** `Where` is intentionally tiny: it wires `RootView` from
-  `WhereUI` into a `WindowGroup`. Add domain behavior to `WhereCore`,
-  presentation and view-model wiring to `WhereUI`.
-- **`RegionKit`** is the lowest layer: the `Region` model, coordinate geometry
-  (`Coordinate`, `GeoPolygon`, `BoundingBox`, `LongitudeSpan`), GeoJSON
-  decoding, and coordinate-to-`Region` lookup (`RegionAttributor`). Pure Swift +
-  Foundation + LogKit; the bundled region polygons (`Resources/*.geojson`) and
-  the region-name catalog ship here. See [`RegionKit/AGENTS.md`](RegionKit/AGENTS.md).
-- **`WhereCore`** is the domain layer: pure Swift + Foundation + SwiftData +
-  CoreLocation; it must **not** import SwiftUI or UIKit. It depends on
-  **`RegionKit`** and calls into it for region lookup.
-- **`WhereUI`** is the SwiftUI layer: views plus `@Observable` view models —
-  the app-level `WhereModel`, the always-on `WhereSession` coordinator (no
-  presentation state), and its scope-tiered children (scene-scoped
-  `YearReportModel`, view-scoped `ResolveModel` / `BackupModel` /
-  `RemindersSettingsModel`). It is **not** the domain model — see
-  [Layering](#layering).
-- **Developer tools** live behind a DEBUG-only floating overlay, not in Settings.
-  `Developer/DeveloperOverlay` is attached once at `RootView` (above every launch
-  phase and tab, reachable even logged out): a draggable, corner-snapping
-  `DeveloperOverlayButton` that expands into a Picture-in-Picture panel and grows
-  to full screen, hosting `Developer/DeveloperToolsView` (Logs / SwiftData
-  inspector / region map). All of it is compiled out of release.
+Each module's own `AGENTS.md` / `README.md` is the authority on what it is.
+The layering stack, bottom-up: **RegionKit** (geometry + region lookup) →
+**WhereCore** (domain; never imports SwiftUI/UIKit) → **WhereUI** (SwiftUI
+views + view models — *not* the domain model) → the thin hosts (**Where** app,
+**WhereIntents**, **WhereWidgets**, **WhereShareExtension**, **RegionViewer**).
+Each layer reaches only *down*. The app target stays intentionally tiny: add
+domain behavior to WhereCore, presentation to WhereUI — not there.
 
 ## Layering
 
@@ -90,27 +63,19 @@ Rules the code enforces and agents must preserve:
 - **Location comes through the `LocationSource` protocol** — production is
   `CoreLocationSource`; tests and previews use `ScriptedLocationSource`. Besides
   the passive `sampleStream`, it offers a best-effort one-shot
-  `requestCurrentLocation()` (re-exposed as `LocationIngestor.currentLocation()`)
-  used to stamp manual entries; it returns `nil` rather than throwing when no
-  fix is available.
+  `requestCurrentLocation()`, used to stamp manual entries; it returns `nil`
+  rather than throwing when no fix is available.
 - **Manual entries carry a `ManualEntryAudit`** (when made, an optional note,
   and a best-effort capture-time `CapturedLocation`). The view-model intents
-  (`YearReportModel.setManualDay` / `setManualDays` / `overrideDay`) assemble it
-  from a `note:` plus `currentLocation()`; `DayJournal`'s write methods take an
-  explicit `audit:` (no default) and persist it on `DayPresence` /
-  `SDManualDay`. An additive backfill can't downgrade an authoritative row's
-  regions, but the newer audit always wins. `DayRelabelView` shows it read-only.
-- **`WhereServices.recentActivity`** is a standalone, on-demand
-  `RecentActivitySummarizer` that summarizes a selectable look-back window
-  (`RecentActivityWindow`: 24h / week / month / year-so-far) of locations on
-  device via Foundation Models (behind the `ActivitySummaryGenerating` seam). It
-  collapses consecutive same-region readings into transitions and caps them so a
-  long window's prompt still fits the model's context. It is distinct from
-  `WhereServices.summary` (the daily notification recap); model unavailability
-  surfaces as a typed reason, never a silent empty summary. The sheet
-  (`RecentActivitySummaryView`) streams the result in with a typewriter reveal
-  (`TypewriterText`) and shows `AppIconActivityIndicator` — a subtle cousin of
-  the launch splash's pulsing icon — while generating.
+  assemble it; `DayJournal`'s write methods take an explicit `audit:` (no
+  default) and persist it. An additive backfill can't downgrade an
+  authoritative row's regions, but the newer audit always wins.
+- **`WhereServices.recentActivity`** (the on-demand Foundation Models
+  activity summarizer, behind the `ActivitySummaryGenerating` seam) is
+  distinct from `WhereServices.summary` (the daily notification recap). It
+  caps collapsed region transitions so a long window's prompt still fits the
+  model's context, and model unavailability surfaces as a typed reason — never
+  a silent empty summary.
 
 ## Localization
 
@@ -120,25 +85,28 @@ views or thrown errors.
 - **WhereUI:** funnel every string through `Strings.swift` (keys in the module
   `Localizable.xcstrings`, `bundle: .module`). Counts use catalog plural
   variations; years use a grouping-free number style ("2026", not "2,026").
-- **WhereCore:** user-visible errors use static
-  `String(localized:bundle: .module)` keys in its own catalog.
-- **RegionKit:** region names (`Region.localizedName`) use static
-  `String(localized:bundle: .module)` keys in RegionKit's own catalog.
+- **WhereCore** (user-visible errors) and **RegionKit** (region names via
+  `Region.localizedName`) use static `String(localized:bundle: .module)` keys
+  in their own catalogs.
+- **Extensions** (WhereWidgets, WhereShareExtension) keep their chrome in
+  their own catalogs and reuse WhereUI's public presentation helpers for
+  shared copy.
 - **DEBUG-only UI** still gets catalog entries — don't bypass localization
   because a surface is dev-only.
-- **WhereWidgets:** gallery name/description live in the extension's own
-  catalog; in-widget copy reuses WhereUI `Strings`.
-- **WhereShareExtension:** compose-sheet chrome lives in the extension's own
-  catalog (`ShareStrings`); evidence kind names reuse WhereUI's public
-  `EvidenceKind` presentation helpers.
 
 Add the key to the catalog first, then reference it — never ship English
 literals in SwiftUI `Text` or `errorDescription`.
 
 ## Dates & presentation
 
+- **A logical day is a `CalendarDay` (Y-M-D), not a `Date`.** It is the
+  timezone-independent identity every stored day-record and day comparison keys
+  on (see [`WhereCore/AGENTS.md`](WhereCore/AGENTS.md)); a `Date` is only for
+  instants (GPS bucketing, grid geometry, display), derived via
+  `CalendarDay.startOfDay(in:)`. Never persist a day as an absolute instant.
 - **Year bounds are half-open** (`[Jan 1 year, Jan 1 year+1)`); **day ranges
-  are inclusive** (`Date.calendarDays(through:in:)`).
+  are inclusive** (`Date.calendarDays(through:in:)` for instants,
+  `CalendarDay.days(through:)` for logical days).
 - **The app is Gregorian-only.** All presence data is aggregated in a Gregorian
   calendar (`DayAggregator()` defaults to Gregorian + current time zone), so any
   day/year math must use a Gregorian calendar — **never `Calendar.current`**,
@@ -153,15 +121,11 @@ literals in SwiftUI `Text` or `errorDescription`.
   derives 365/366 rather than assuming a length).
 - **Core layout APIs throw on failure**; views surface
   `ContentUnavailableView` + log, never `!`.
-- Layout tokens live in `WhereStylesheet` (a Broadway `BStylesheet`, read in
-  views via `@Environment(\.stylesheet)`; off the `View` tree — layout helpers,
-  tests — use `WhereStylesheet.default`). `RootView` seeds the Broadway context
-  with `.broadwayRoot(themes: WhereThemes.current)`, so tokens can derive from
-  live traits (e.g. bigger day-grid tap targets at accessibility Dynamic Type
-  sizes, a flatter card under Reduce Transparency). Shared date-range copy lives
-  in `DateRangeFormatting`; numbers and dates use `FormatStyle`, not string
-  interpolation. Expensive layout computes once into state, not per `body`
-  pass. Sharing uses `ShareLink` / `Transferable`.
+- Appearance tokens live in `WhereStylesheet` — see
+  [`WhereUI/AGENTS.md`](WhereUI/AGENTS.md) for how to read and extend it.
+  Shared date-range copy lives in `DateRangeFormatting`; numbers and dates use
+  `FormatStyle`, not string interpolation. Expensive layout computes once into
+  state, not per `body` pass. Sharing uses `ShareLink` / `Transferable`.
 
 ## SwiftUI views & previews
 
@@ -177,12 +141,21 @@ shell, the `WhereSession` coordinator for logged-in views). Cover the states
 that matter — empty, loaded, and distinct edge states — not just the happy
 path.
 
-Animate transitions between distinct states in a way that fits the surface and
-its content — don't hard-cut. A view that swaps on a `LoadState` (or shows an
-in-flight status) should fade/move rather than snap (e.g. `.transition(.opacity)`
-on each `switch` arm plus `.animation(_:value:)`, or `.animation(_:value:)` on a
-form that reveals a saving row). See `RecentActivitySummaryView` and the
-manual-entry forms.
+- **Animate transitions between distinct states** in a way that fits the
+  surface and its content — don't hard-cut. A view that swaps on a `LoadState`
+  (or shows an in-flight status) should fade/move rather than snap (e.g.
+  `.transition(.opacity)` on each `switch` arm plus `.animation(_:value:)`).
+  Hidden means *out of the tree* (`if` + transition), not opacity zero.
+- **Derive UI dimensions; don't repeat them.** A repeated dimension gets one
+  named home; real chrome is measured from the live UI via a preference key /
+  `onGeometryChange` (see `DeveloperTabBarInset`) rather than hardcoding its
+  expected size; controls scale with `@ScaledMetric`; prefer semantic font
+  styles over fixed point sizes.
+- **Custom full-screen surfaces must work under VoiceOver.** A surface that
+  takes over the screen carries the `.isModal` accessibility trait and posts
+  `.screenChanged` when crossing the modal boundary (`.layoutChanged` for
+  lighter transitions). Non-modal floating chrome stays reachable behind (see
+  `DeveloperOverlay`).
 
 ## Adding things
 

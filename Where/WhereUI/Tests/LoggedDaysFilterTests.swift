@@ -6,9 +6,10 @@ import WhereCore
 
 /// Covers which manual entries each logged-days filter admits.
 struct LoggedDaysFilterTests {
-    private let additive = DayPresence(date: .now, regions: [.california])
+    private let additive = DayPresence(date: .now, in: .current, regions: [.california])
     private let authoritative = DayPresence(
         date: .now,
+        in: .current,
         regions: [.newYork],
         isAuthoritative: true,
     )

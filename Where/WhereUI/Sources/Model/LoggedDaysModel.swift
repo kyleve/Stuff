@@ -58,7 +58,7 @@ public final class LoggedDaysModel {
         }
         do {
             let days = try await services.reports.manualDays(inYear: year)
-                .sorted { $0.date > $1.date }
+                .sorted { $0.day > $1.day }
             loadState = days.isEmpty ? .empty : .loaded(days)
         } catch {
             loadState = .failed(error.localizedDescription)

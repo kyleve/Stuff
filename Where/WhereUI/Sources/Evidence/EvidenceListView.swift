@@ -32,7 +32,7 @@ struct EvidenceListView: View {
     /// Inputs that should trigger a reload of the list.
     private struct LoadID: Equatable {
         let year: Int
-        let evidenceDayKeys: Set<Date>
+        let evidenceDayKeys: Set<CalendarDay>
     }
 
     var body: some View {
