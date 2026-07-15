@@ -118,6 +118,19 @@ the gap (scope definitions and span began/ended pairs are exempt). Event payload
 so old rows outlive their Swift types — `StoredLogEvent.decode(_:)` recovers
 the type, and tooling degrades to raw JSON when it can't.
 
+**Crash durability**: on-disk stores also open a per-session journal
+([JournalKit](../../JournalKit)) beside the database, and once the store is
+added as a sink, every record appends to it *synchronously* at emit
+(microseconds — a page-cache write that survives the process dying by any
+means; fault-level records `F_FULLFSYNC` for kernel-panic coverage). At the
+next launch the store ingests prior journals before the session starts:
+undelivered records persist (deduplicated by event ID), recovered span
+begans join the orphan sweep, a `.notice` marks the recovery, and the
+journal is deleted. The loss window at a hard crash is the microseconds
+between a record buffering and its append returning. In-memory stores
+never journal, and only app processes ingest — app extensions journal
+their own sessions and leave recovery to the app's next launch.
+
 ## Contracts & limitations
 
 - Messages mirror to OSLog as `.public` — keep PII out of messages, or scrub

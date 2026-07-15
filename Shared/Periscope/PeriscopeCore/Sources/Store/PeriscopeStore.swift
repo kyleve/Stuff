@@ -37,7 +37,7 @@ public actor PeriscopeStore: LogSink {
 
     /// Internal-failure telemetry: logging must never crash or throw into
     /// the pipeline, so persistence problems land here and in OSLog.
-    private static let failureLogger = os.Logger(
+    static let failureLogger = os.Logger(
         subsystem: "com.stuff.periscope",
         category: "PeriscopeStore",
     )
@@ -49,12 +49,22 @@ public actor PeriscopeStore: LogSink {
     private var scopeRowCache: [UUID: SDLogScope] = [:]
     private var tagRowCache: [LogTag: SDLogTag] = [:]
     private var changeObservers: [UUID: AsyncStream<Void>.Continuation] = [:]
-    private var writeFailures = 0
+    var writeFailures = 0
     private var nextSequence: Int?
 
     #if DEBUG
         private var pendingWriteFailure: (any Error)?
     #endif
+
+    /// The crash journal for this launch — created for on-disk stores and
+    /// installed into `Periscope` when the store is added as a sink.
+    /// Boxed so the `@ModelActor`-synthesized init stays usable and the
+    /// pipeline can read it without an actor hop.
+    private nonisolated let journalBox = OSAllocatedUnfairLock<LogJournal?>(initialState: nil)
+
+    @_spi(Testing) public nonisolated var journal: LogJournal? {
+        journalBox.withLock { $0 }
+    }
 
     public static func makeContainer(storage: Storage) throws -> ModelContainer {
         let schema = Schema(PeriscopeSchema.models)
@@ -67,19 +77,81 @@ public actor PeriscopeStore: LogSink {
     }
 
     /// App-wiring factory: opens the store and starts `session` so every
-    /// subsequent event is attributed to this launch.
+    /// subsequent event is attributed to this launch. On-disk stores also
+    /// open this launch's crash journal beside the database — the
+    /// synchronous net `Periscope` writes through once the store is added
+    /// as a sink.
     public static func make(storage: Storage, session: LogSession) async throws -> PeriscopeStore {
         let container = try makeContainer(storage: storage)
         let store = PeriscopeStore(modelContainer: container)
+        // Ingest before the session starts: recovered span begans must be
+        // in the store when startSession's orphan sweep runs, so a crashed
+        // flow closes as .orphaned instead of vanishing.
+        if storage == .onDisk {
+            await store.ingestRecoveredJournals()
+        }
         try await store.startSession(session)
+        if storage == .onDisk {
+            await store.openJournal(session: session)
+        }
         return store
     }
 
-    /// Test/preview factory: a fresh in-memory store per call.
+    /// Test/preview factory: a fresh in-memory store per call. In-memory
+    /// stores never journal — journaling is a durability feature, and
+    /// recovery *is* persistence.
     @_spi(Testing) public static func inMemory(
         session: LogSession,
     ) async throws -> PeriscopeStore {
         try await make(storage: .inMemory, session: session)
+    }
+
+    /// Test factory: a fully journaling on-disk store rooted at an explicit
+    /// URL, so tests exercise the durability path in isolated temporary
+    /// directories.
+    @_spi(Testing) public static func onDisk(
+        databaseURL: URL,
+        session: LogSession,
+    ) async throws -> PeriscopeStore {
+        let schema = Schema(PeriscopeSchema.models)
+        let configuration = ModelConfiguration(schema: schema, url: databaseURL)
+        let container = try ModelContainer(for: schema, configurations: [configuration])
+        let store = PeriscopeStore(modelContainer: container)
+        await store.ingestRecoveredJournals()
+        try await store.startSession(session)
+        await store.openJournal(session: session)
+        return store
+    }
+
+    // MARK: Journal
+
+    /// Where session journals live: `Periscope-Journals/<sessionID>/`
+    /// beside the database.
+    @_spi(Testing) public nonisolated func journalDirectory(forSession id: UUID) -> URL {
+        journalsRoot.appendingPathComponent(id.uuidString, isDirectory: true)
+    }
+
+    nonisolated var journalsRoot: URL {
+        let databaseDirectory = modelContainer.configurations.first?.url
+            .deletingLastPathComponent()
+            ?? URL.applicationSupportDirectory
+        return databaseDirectory.appendingPathComponent("Periscope-Journals", isDirectory: true)
+    }
+
+    /// Open this launch's journal. Degraded-but-handled on failure: an
+    /// unjournalable disk must not take down logging, so the error logs
+    /// and counts while the async pipeline keeps delivering.
+    private func openJournal(session: LogSession) {
+        do {
+            let journal = try LogJournal(
+                directory: journalDirectory(forSession: session.id),
+                session: session,
+            )
+            journalBox.withLock { $0 = journal }
+        } catch {
+            writeFailures += 1
+            Self.failureLogger.warning("Failed to open the crash journal: \(error)")
+        }
     }
 
     // MARK: Sessions
@@ -286,7 +358,7 @@ public actor PeriscopeStore: LogSink {
     /// save after it, and drop state that may reference rolled-back rows:
     /// the row caches, and the session-row reference (`ensureActiveSession`
     /// refetches or reinserts the same session identity on the next write).
-    private func recoverFromFailedWrite() {
+    func recoverFromFailedWrite() {
         modelContext.rollback()
         scopeRowCache.removeAll()
         tagRowCache.removeAll()
@@ -295,7 +367,7 @@ public actor PeriscopeStore: LogSink {
 
     /// Throws the injected test failure, if any (DEBUG-only seam; a no-op
     /// in release).
-    private func throwInjectedFailureIfPending() throws {
+    func throwInjectedFailureIfPending() throws {
         #if DEBUG
             if let pendingWriteFailure {
                 self.pendingWriteFailure = nil
@@ -306,7 +378,7 @@ public actor PeriscopeStore: LogSink {
 
     /// The next monotonic insertion sequence, resuming past the largest
     /// stored value on the first write of a launch.
-    private func takeSequence() throws -> Int {
+    func takeSequence() throws -> Int {
         if let nextSequence {
             self.nextSequence = nextSequence + 1
             return nextSequence
@@ -407,7 +479,7 @@ public actor PeriscopeStore: LogSink {
     /// Fetch-or-create a scope row. Records normally arrive after their
     /// scope definitions, but an unknown scope still gets a placeholder row
     /// (empty name) that a later definition fills in.
-    private func scopeRow(for id: UUID) throws -> SDLogScope {
+    func scopeRow(for id: UUID) throws -> SDLogScope {
         if let cached = scopeRowCache[id] {
             return cached
         }
@@ -445,7 +517,7 @@ public actor PeriscopeStore: LogSink {
             .sorted { $0.key.rawValue < $1.key.rawValue }
     }
 
-    private func tagRow(for tag: LogTag) throws -> SDLogTag {
+    func tagRow(for tag: LogTag) throws -> SDLogTag {
         if let cached = tagRowCache[tag] {
             return cached
         }
@@ -956,7 +1028,7 @@ public actor PeriscopeStore: LogSink {
         changeObservers[id] = nil
     }
 
-    private func notifyChanged() {
+    func notifyChanged() {
         for continuation in changeObservers.values {
             continuation.yield(())
         }
