@@ -24,6 +24,10 @@ public enum LaunchStepID: String {
     case syncAuth = "sync-auth"
     /// Start or stop GPS ingestion to match the user's intent + authorization.
     case reconcileTracking = "reconcile-tracking"
+    /// Take a one-shot GPS fix for today if none is logged yet, so opening the
+    /// app on a fresh day fills the calendar in. Foreground-only — a headless
+    /// background relaunch is itself the passive event, so it needs no fix.
+    case captureToday = "capture-today"
     /// Push the logging-reminder schedule + badge (backlog + issue count) to the
     /// reconciler.
     case reminders
@@ -147,6 +151,13 @@ public enum WhereLaunch {
             }
             LifecycleStep.work(LaunchStepID.reconcileTracking) { _ in
                 await model.session?.reconcileTracking()
+            }
+            // Foreground-only: a headless background relaunch is itself the
+            // passive location event, so it neither needs nor should trigger a
+            // fresh foreground fix. Returns fast (the ingestor spawns the ~10s
+            // fix internally), so it never delays reaching `.ready`.
+            LifecycleStep.work(LaunchStepID.captureToday, modes: .foreground) { _ in
+                await model.session?.captureTodayIfNeeded()
             }
             LifecycleStep.work(LaunchStepID.reminders) { _ in
                 await model.session?.applyReminderConfiguration()

@@ -63,8 +63,10 @@ Rules the code enforces and agents must preserve:
 - **Location comes through the `LocationSource` protocol** — production is
   `CoreLocationSource`; tests and previews use `ScriptedLocationSource`. Besides
   the passive `sampleStream`, it offers a best-effort one-shot
-  `requestCurrentLocation()`, used to stamp manual entries; it returns `nil`
-  rather than throwing when no fix is available.
+  `requestCurrentLocation()` — used both to stamp manual entries and to log
+  today when the app is opened on a day with no GPS sample yet
+  (`LocationIngestor.captureTodayIfNeeded`, driven by `WhereSession` on launch/
+  foreground); it returns `nil` rather than throwing when no fix is available.
 - **Manual entries carry a `ManualEntryAudit`** (when made, an optional note,
   and a best-effort capture-time `CapturedLocation`). The view-model intents
   assemble it; `DayJournal`'s write methods take an explicit `audit:` (no

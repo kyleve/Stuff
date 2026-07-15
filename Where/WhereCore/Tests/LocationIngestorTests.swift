@@ -99,6 +99,106 @@ struct LocationIngestorTests {
         #expect(await ingestor.currentLocation() == nil)
     }
 
+    @Test func captureTodayPersistsAndReportsFixWhenNoGPSSampleYet() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .whenInUse)
+        let recorder = OutcomeRecorder()
+        let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
+        source.setNextRequestedLocation(sample(at: "2026-03-15T08:05:00-07:00"))
+
+        // No monitoring started (the When-In-Use case): the foreground fix is
+        // the only way this user's data lands, and it still persists + reports.
+        await ingestor
+            .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
+
+        try await waitUntil { await (try? store.allSamples().count) == 1 }
+        #expect(await recorder.last?.liveSample != nil)
+    }
+
+    @Test func captureTodaySkipsWhenGPSSampleAlreadyExistsToday() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .whenInUse)
+        let recorder = OutcomeRecorder()
+        let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
+        // A passive GPS sample already covers today.
+        try await store
+            .perform { try await store.add(sample: sample(at: "2026-03-15T02:00:00-07:00")) }
+        source.setNextRequestedLocation(sample(at: "2026-03-15T08:05:00-07:00"))
+
+        await ingestor
+            .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
+
+        // The day is already covered, so no fix is taken. Give the capture task
+        // time to run and confirm it added nothing.
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(try await store.allSamples().count == 1)
+    }
+
+    @Test func captureTodayStillCapturesWhenOnlyManualSampleExistsToday() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .whenInUse)
+        let recorder = OutcomeRecorder()
+        let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
+        // A manual entry isn't a passive-tracking data point, so it must not
+        // suppress the GPS fix.
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-03-15T02:00:00-07:00"),
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 0,
+                source: .manual,
+            ))
+        }
+        source.setNextRequestedLocation(sample(at: "2026-03-15T08:05:00-07:00"))
+
+        await ingestor
+            .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
+
+        try await waitUntil { await (try? store.allSamples().count) == 2 }
+    }
+
+    @Test func captureTodaySkipsWhenSourceHasNoFix() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .whenInUse)
+        let recorder = OutcomeRecorder()
+        let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
+        // No fix scripted → `requestCurrentLocation()` returns nil.
+
+        await ingestor
+            .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
+
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(try await store.allSamples().isEmpty)
+    }
+
+    @Test func captureTodayIsSingleFlightWhileFixInFlight() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = GatedLocationSource(fix: sample(at: "2026-03-15T08:05:00-07:00"))
+        let recorder = OutcomeRecorder()
+        let ingestor = LocationIngestor(
+            store: store,
+            locationSource: source,
+            calendar: WhereCoreTestSupport.calendar(),
+            onPersisted: { outcome in await recorder.record(outcome) },
+        )
+        let now = WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00")
+
+        // The first capture parks awaiting the gated fix, holding the
+        // single-flight slot.
+        await ingestor.captureTodayIfNeeded(now: now)
+        try await waitUntil { source.requestCount == 1 }
+
+        // A second call while the first is still in flight is dropped by the
+        // single-flight guard — it never requests a fix of its own.
+        await ingestor.captureTodayIfNeeded(now: now)
+
+        // Release the fix: the first capture persists exactly one sample, and the
+        // second never asked the source for one.
+        source.openGate()
+        try await waitUntil { await (try? store.allSamples().count) == 1 }
+        #expect(source.requestCount == 1)
+    }
+
     @Test func liveSampleIsPersistedAndReported() async throws {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource(authorizationStatus: .always)
@@ -336,6 +436,61 @@ struct LocationIngestorTests {
 }
 
 private struct WaitTimeout: Error {}
+
+/// `LocationSource` whose one-shot `requestCurrentLocation()` blocks until
+/// `openGate()` is called, so a test can hold a capture "in flight" and prove
+/// the single-flight guard drops an overlapping second request. Counts fix
+/// requests so the test can assert the dropped call never reached the source.
+private final class GatedLocationSource: LocationSource, @unchecked Sendable {
+    let sampleStream: AsyncStream<LocationSample>
+    var authorizationUpdates: AsyncStream<LocationAuthorizationStatus> {
+        AsyncStream { _ in }
+    }
+
+    private let fix: LocationSample
+    private let lock = NSLock()
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    private var _requestCount = 0
+
+    init(fix: LocationSample) {
+        self.fix = fix
+        sampleStream = AsyncStream { _ in }
+    }
+
+    var requestCount: Int {
+        lock.withLock { _requestCount }
+    }
+
+    func start() async {}
+    func stop() async {}
+    func currentAuthorization() async -> LocationAuthorizationStatus {
+        .whenInUse
+    }
+
+    func requestPermission() async throws {}
+
+    func requestCurrentLocation() async -> LocationSample? {
+        await withCheckedContinuation { continuation in
+            lock.withLock {
+                _requestCount += 1
+                waiters.append(continuation)
+            }
+        }
+        return fix
+    }
+
+    /// Resume every parked fix request with the scripted fix.
+    func openGate() {
+        let resumed = lock.withLock {
+            let current = waiters
+            waiters.removeAll()
+            return current
+        }
+        for continuation in resumed {
+            continuation.resume()
+        }
+    }
+}
 
 private struct ToggleFailingStoreError: Error {}
 

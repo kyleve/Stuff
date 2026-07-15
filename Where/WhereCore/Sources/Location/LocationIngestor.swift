@@ -38,6 +38,20 @@ public actor LocationIngestor {
 
     private var ingestTask: Task<Void, Never>?
 
+    /// The in-flight one-shot capture spawned by `captureTodayIfNeeded(now:)`,
+    /// if any. Tracked so overlapping foreground / launch triggers coalesce onto
+    /// a single fix (single-flight) and so teardown can cancel it. Cleared when
+    /// the work completes. This spans the (slow, up to ~10s) fix acquisition, so
+    /// `quiesce()` cancels it but does *not* await it — see `capturePersistTask`.
+    private var captureTask: Task<Void, Never>?
+
+    /// The capture's *persist* step, once a fix is in hand — separate from
+    /// `captureTask` (which also covers the slow fix) so `quiesce()` can await a
+    /// commit already in progress without stalling on a slow GPS fix. A single
+    /// writer (capture is single-flight via `captureTask`), so it never clobbers
+    /// the stream loop's `inFlightIngest` the way a shared slot would.
+    private var capturePersistTask: Task<Void, Never>?
+
     /// The persist the stream loop is currently awaiting, if any. Tracked so
     /// `quiesce()` can wait for an in-flight write to commit before a teardown
     /// wipes the store — gating alone can't, since a persist that already
@@ -91,6 +105,8 @@ public actor LocationIngestor {
 
     deinit {
         ingestTask?.cancel()
+        captureTask?.cancel()
+        capturePersistTask?.cancel()
     }
 
     /// Begin (or resume) GPS ingestion. Idempotent: a second call while
@@ -166,8 +182,17 @@ public actor LocationIngestor {
         acceptsSamples = false
         isMonitoring = false
         await locationSource.stop()
-        // Let an already-started persist (and any retry re-enqueue it performs)
-        // settle first, then clear the backlog — so nothing re-adds after.
+        // Cancel the one-shot capture's fix acquisition (best-effort — it isn't
+        // the store write, so we don't await it and never stall the erase on a
+        // slow GPS fix). If it was still acquiring, the `acceptsSamples` gate
+        // stops it persisting; if it had already begun a persist, that is tracked
+        // on `capturePersistTask` and awaited below.
+        captureTask?.cancel()
+        captureTask = nil
+        // Let an already-started persist — the stream loop's and the capture's,
+        // each on its own single-writer handle — settle before clearing the
+        // backlog, so nothing commits into the store the caller is about to wipe.
+        await capturePersistTask?.value
         await inFlightIngest?.value
         retryQueue.removeAll()
         // Clear the durable mirror too; the store is about to be erased, so the
@@ -199,6 +224,70 @@ public actor LocationIngestor {
     /// `LocationSource` directly.
     public func currentLocation() async -> LocationSample? {
         await locationSource.requestCurrentLocation()
+    }
+
+    /// Fill in *today* with a best-effort one-shot GPS fix when the day has no
+    /// GPS sample yet, so opening the app on a fresh day doesn't leave the
+    /// calendar blank until passive monitoring (Visits / significant-change)
+    /// next fires. Non-blocking: the fix (which can take up to ~10s) runs on an
+    /// internal task so launch / foreground callers aren't held up — the
+    /// persisted sample refreshes readers via the store's change signal.
+    ///
+    /// Single-flight: a call while a capture is already in flight is a no-op.
+    /// Only a *GPS* sample suppresses the fix; a manual entry for today doesn't,
+    /// since it isn't a passive-tracking data point. Whether to attempt this at
+    /// all (the user's tracking intent + authorization) is the caller's gate;
+    /// this stays safe regardless because `requestCurrentLocation()` returns
+    /// `nil` when no fix is available.
+    public func captureTodayIfNeeded(now: Date) {
+        guard captureTask == nil else { return }
+        captureTask = Task { [weak self] in
+            await self?.performTodayCapture(now: now)
+            await self?.clearCaptureTask()
+        }
+    }
+
+    private func clearCaptureTask() {
+        captureTask = nil
+    }
+
+    /// The body of `captureTodayIfNeeded(now:)`, run on `captureTask`.
+    private func performTodayCapture(now: Date) async {
+        let startOfDay = calendar.startOfDay(for: now)
+        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else {
+            Self.logger.warning("Could not compute today's interval for foreground capture")
+            return
+        }
+        let interval = DateInterval(start: startOfDay, end: endOfDay)
+        do {
+            let existing = try await store.samples(in: interval)
+            if existing.contains(where: \.source.isGPS) { return }
+        } catch {
+            // Fail closed: if today's samples can't be read we skip rather than
+            // risk logging a duplicate fix. Surfaced, not silently swallowed.
+            Self.logger.warning(
+                "Skipping foreground capture; could not read today's samples: \(error.localizedDescription)",
+            )
+            return
+        }
+        guard let sample = await locationSource.requestCurrentLocation() else { return }
+        // The ~10s fix may have straddled a `quiesce()`; re-check the gate before
+        // persisting, mirroring `ingest(_:)`. The guard and the `capturePersistTask`
+        // assignment are synchronous (no `await` between), so a concurrent
+        // `quiesce()` either sees `acceptsSamples == false` here (we skip) or sees
+        // the handle already set (it awaits us) — never neither.
+        guard acceptsSamples else { return }
+        Self.logger.info("Captured one-shot foreground location for today")
+        // Persist via `processIngestedSample` on the capture's own handle rather
+        // than `ingest(_:)`, so it never shares the stream loop's single
+        // `inFlightIngest` slot. `quiesce()` awaits this handle independently.
+        let work = Task { [weak self] in
+            guard let self else { return }
+            await processIngestedSample(sample)
+        }
+        capturePersistTask = work
+        await work.value
+        capturePersistTask = nil
     }
 
     /// The current location authorization status.

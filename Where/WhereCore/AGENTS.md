@@ -81,7 +81,9 @@ internal shape.
 - **`LocationSource` abstracts GPS.** Production is `CoreLocationSource` (Visits
   + significant-change); tests/previews use `ScriptedLocationSource`. The
   one-shot `requestCurrentLocation()` returns `nil` (never throws) when no fix
-  is available — it only stamps a manual entry's audit trail.
+  is available — it stamps a manual entry's audit trail and backs
+  `LocationIngestor.captureTodayIfNeeded(now:)`, which persists a fix for today
+  (via the normal ingest path) when the app opens on a day with no GPS sample.
 - **Tracked regions live in the store, not preferences.** They're synced app
   data (one `SDTrackedRegion` row per region so concurrent cross-device edits
   merge; read as a `Set`, defaulting to the four when unset). `RegionAttribution`
