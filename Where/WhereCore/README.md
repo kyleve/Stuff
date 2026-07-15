@@ -67,10 +67,6 @@ one it belongs to rather than to a god-object:
   fixes; dismissals persist under a stable, device- and timezone-independent
   `storageKey` (a `CalendarDay` ISO string), so a dismissal doesn't reappear
   after travel.
-- **`StoreMigration` / `SwiftDataStore.runPendingMigrations`** — the one-time,
-  idempotent data migrations run at store open (registered in
-  `StoreMigrations.all`, gated by an App-Group version marker). `CalendarDayMigration`
-  is v1: it backfills `CalendarDay` keys onto records that predate them.
 - **Reconcilers** — `ReminderReconciler` (daily logging reminder + app-icon
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").

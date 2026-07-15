@@ -75,8 +75,7 @@ public struct DayPresence: Hashable, Sendable, Codable {
     /// stored an absolute `date` instant still import: the legacy instant is a
     /// start-of-day in the writer's zone, so we recover its calendar day (see
     /// `CalendarDay.init(recoveringLegacyStartOfDay:in:)`) using UTC — correct
-    /// for continental writers; the on-device migration re-derives with the
-    /// device calendar for the persisted store.
+    /// for continental writers.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         if let calendarDay = try container.decodeIfPresent(CalendarDay.self, forKey: .day) {

@@ -480,38 +480,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         for record in try context.fetch(descriptor) {
             context.delete(record)
         }
-        // Also drop a legacy keyless row that recovers to this day, so a
-        // recovered-but-now-visible day stays deletable (see `keylessManualDays`).
-        for entry in try keylessManualDays(context: context) where entry.value.day == day {
-            context.delete(entry.record)
-        }
-    }
-
-    /// A manual-day row a still-legacy writer synced in without a `dayKey`
-    /// (its CloudKit record predates the column), paired with the `CalendarDay`
-    /// it recovers to via `toValue()`.
-    private struct KeylessManualDay {
-        let record: SDManualDay
-        let value: DayPresence
-    }
-
-    /// Manual-day rows with no `dayKey`, recovered to a `CalendarDay`. The
-    /// `dayKey`-range queries can't recover these in the predicate, so the read
-    /// and clear paths fold them in to keep such a synced-in row from silently
-    /// vanishing from a year. Normally empty (local writes always set `dayKey`,
-    /// and the boot migration backfills existing rows); this is a stopgap for the
-    /// mixed-version sync window. See `Where/TODOs.md` (per-entity versioning) for
-    /// the durable successor.
-    private func keylessManualDays(context: ModelContext) throws -> [KeylessManualDay] {
-        var descriptor = FetchDescriptor<SDManualDay>(predicate: #Predicate { $0.dayKey == nil })
-        descriptor.includePendingChanges = true
-        return try context.fetch(descriptor).compactMap { record in
-            guard let value = record.toValue() else {
-                Self.logFault(forCorrupt: record)
-                return nil
-            }
-            return KeylessManualDay(record: record, value: value)
-        }
     }
 
     public func manualDays(in dayRange: ClosedRange<CalendarDay>) async throws -> [DayPresence] {
@@ -531,17 +499,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             sortBy: [SortDescriptor(\.dayKey)],
         )
         descriptor.includePendingChanges = true
-        let keyed = try context.fetch(descriptor).compactMap { record -> DayPresence? in
+        return try context.fetch(descriptor).compactMap { record in
             let value = record.toValue()
             if value == nil { Self.logFault(forCorrupt: record) }
             return value
         }
-        // Fold in any keyless rows synced from a still-legacy writer, recovered
-        // and filtered to the range in Swift (the predicate can't recover them).
-        let recovered = try keylessManualDays(context: context)
-            .map(\.value)
-            .filter { dayRange.contains($0.day) }
-        return (keyed + recovered).sorted { $0.day < $1.day }
     }
 
     public func allManualDays() async throws -> [DayPresence] {
@@ -599,13 +561,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         )
         for record in manuals {
             context.delete(record)
-        }
-        // Also clear legacy keyless rows whose recovered day falls in the range,
-        // so a synced-in row isn't left behind by a year clear.
-        for entry in try keylessManualDays(context: context)
-            where dayRange.contains(entry.value.day)
-        {
-            context.delete(entry.record)
         }
     }
 
@@ -674,76 +629,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             "Dropped corrupt SwiftData record of type \(String(describing: Record.self))",
         )
     }
-}
-
-// MARK: - Migrations
-
-extension SwiftDataStore {
-    /// `KeyValueStore` key for the highest applied `StoreMigration.version`.
-    public static let migrationVersionKey = "store.migrationVersion"
-
-    /// Run every registered migration whose `version` exceeds the persisted
-    /// marker, in ascending order, each in its own transaction, bumping the
-    /// App-Group marker after each. Call once at store open (see
-    /// `WhereBootstrap.makeServices()`), before any read, so first reads observe
-    /// migrated data. A no-op when nothing is pending.
-    public func runPendingMigrations(calendar: Calendar) throws {
-        let defaults = UserDefaults(suiteName: Self.appGroupIdentifier) ?? .standard
-        try runMigrations(StoreMigrations.all, calendar: calendar, versionStore: defaults)
-    }
-
-    /// Test seam: run `migrations` against an injected `versionStore`, so the
-    /// migrator can be exercised without touching the shared App-Group defaults.
-    @_spi(Testing)
-    public func runMigrations(
-        _ migrations: [any StoreMigration],
-        calendar: Calendar,
-        versionStore: any KeyValueStore,
-    ) throws {
-        let applied = versionStore.object(forKey: Self.migrationVersionKey) as? Int ?? 0
-        let pending = migrations
-            .filter { $0.version > applied }
-            .sorted { $0.version < $1.version }
-        guard !pending.isEmpty else { return }
-
-        var didApply = false
-        for migration in pending {
-            let context = ModelContext(modelContainer)
-            try migration.migrate(context, calendar: calendar)
-            if context.hasChanges { try context.save() }
-            versionStore.set(migration.version, forKey: Self.migrationVersionKey)
-            didApply = true
-            Self.logger.info("Applied store migration v\(migration.version): \(migration.name)")
-        }
-        // A committed migration is a committed data change; ping observers so a
-        // (re)opened session re-reads. At cold-launch there are none yet, but a
-        // re-run store (reset flow) stays honest.
-        if didApply { changeBroadcaster.send() }
-    }
-
-    #if DEBUG
-        /// Test seam: insert a *legacy-shaped* manual-day row — `dateKey` set,
-        /// `dayKey` nil, as rows looked before the `CalendarDay` cutover — so the
-        /// `CalendarDayMigration` backfill is exercisable. Not wrapped in `perform`
-        /// (it writes through its own context, like the migrator). Purely a test
-        /// fixture (it writes a deliberately invalid, `dayKey`-less row), so it's
-        /// `#if DEBUG` + `@_spi(Testing)` and never ships in release.
-        @_spi(Testing)
-        public func insertLegacyManualDay(
-            dateKey: Date,
-            regionRaws: [String],
-            isAuthoritative: Bool,
-        ) throws {
-            let context = ModelContext(modelContainer)
-            let row = SDManualDay()
-            row.dayKey = nil
-            row.dateKey = dateKey
-            row.regionRaws = regionRaws.sorted()
-            row.isAuthoritative = isAuthoritative
-            context.insert(row)
-            try context.save()
-        }
-    #endif
 }
 
 // MARK: - SwiftData models (internal)
@@ -862,13 +747,14 @@ final class SDEvidence {
 @Model
 final class SDManualDay {
     /// Canonical, timezone-independent identity: the day's `CalendarDay` ISO
-    /// string (`YYYY-MM-DD`). Nil only on rows written before this column
-    /// existed, until the `CalendarDay` migration backfills them from `dateKey`.
+    /// string (`YYYY-MM-DD`). Nil on rows written before this column existed;
+    /// such rows read correctly via `toValue()`'s recovery from `dateKey`, and a
+    /// one-time backup export → replace-import rewrites them with a `dayKey`.
     var dayKey: String?
     /// The original start-of-day instant this record was written with, kept for
-    /// information (and as the migration's source for `dayKey`). No longer the
-    /// lookup key — `dayKey` is — and left untouched on new writes, so it is nil
-    /// for rows created after the `CalendarDay` cutover.
+    /// information and as `toValue()`'s recovery source for a legacy `dayKey`-less
+    /// row. No longer the lookup key — `dayKey` is — and left untouched on new
+    /// writes, so it is nil for rows created after the `CalendarDay` cutover.
     var dateKey: Date?
     var regionRaws: [String]?
     /// Whether this manual day replaces (rather than unions with) GPS for its
@@ -921,10 +807,11 @@ final class SDManualDay {
         )
     }
 
-    /// The record's `CalendarDay`: the persisted `dayKey` when present, else a
-    /// defensive best-effort recovery from a legacy `dateKey` instant (the
-    /// migration normally backfills `dayKey` at launch before any read, using
-    /// the device calendar; this UTC fallback only covers a read that races it).
+    /// The record's `CalendarDay`: the persisted `dayKey` when present, else
+    /// recovered from a legacy `dateKey` instant. Legacy `dayKey`-less rows are
+    /// read through this recovery (in UTC, so it's timezone-stable and correct
+    /// for continental writers) until a one-time backup export → replace-import
+    /// rewrites them with a `dayKey`.
     private func resolvedDay() -> CalendarDay? {
         if let dayKey, let calendarDay = CalendarDay(iso: dayKey) {
             return calendarDay

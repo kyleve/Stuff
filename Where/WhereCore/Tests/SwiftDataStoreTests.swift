@@ -209,66 +209,6 @@ struct SwiftDataStoreTests {
         // ...but the newer audit wins.
         #expect(stored.first?.audit == laterAudit)
     }
-
-    // MARK: - Legacy keyless rows (mixed-version sync stopgap)
-
-    // A row a still-legacy device could sync in has `dayKey == nil`; the range
-    // query can't recover it in its predicate, so these guard that the read /
-    // clear paths still fold it in (rather than the day silently vanishing).
-    private static let year = 2026
-    private var yearDayRange: ClosedRange<CalendarDay> {
-        CalendarDay(year: Self.year, month: 1, day: 1)
-            ... CalendarDay(year: Self.year, month: 12, day: 31)
-    }
-
-    /// Midnight in New York (Eastern) — recovers to Feb 8 regardless of read zone.
-    private var legacyKeylessDate: Date {
-        WhereCoreTestSupport.iso("2026-02-08T05:00:00Z")
-    }
-
-    private let feb8 = CalendarDay(year: 2026, month: 2, day: 8)
-
-    @Test func manualDaysRecoversLegacyKeylessRows() async throws {
-        let store = try SwiftDataStore.inMemory()
-        try await store.insertLegacyManualDay(
-            dateKey: legacyKeylessDate,
-            regionRaws: [Region.newYork.rawValue],
-            isAuthoritative: false,
-        )
-
-        let days = try await store.manualDays(in: yearDayRange)
-        #expect(days.map(\.day) == [feb8])
-    }
-
-    @Test func clearYearRangeRemovesLegacyKeylessRows() async throws {
-        let store = try SwiftDataStore.inMemory()
-        try await store.insertLegacyManualDay(
-            dateKey: legacyKeylessDate,
-            regionRaws: [Region.newYork.rawValue],
-            isAuthoritative: false,
-        )
-
-        let interval = DayAggregator(timeZone: WhereCoreTestSupport.pacific)
-            .yearInterval(year: Self.year)
-        try await store.perform {
-            try await store.clear(in: interval, manualDays: yearDayRange)
-        }
-
-        #expect(try await store.allManualDays().isEmpty)
-    }
-
-    @Test func clearManualDayRemovesLegacyKeylessRow() async throws {
-        let store = try SwiftDataStore.inMemory()
-        try await store.insertLegacyManualDay(
-            dateKey: legacyKeylessDate,
-            regionRaws: [Region.newYork.rawValue],
-            isAuthoritative: false,
-        )
-
-        try await store.perform { try await store.clearManualDay(feb8) }
-
-        #expect(try await store.allManualDays().isEmpty)
-    }
 }
 
 /// Awaits the first `changes()` ping, returning `false` if none arrives within
