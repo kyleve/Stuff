@@ -53,7 +53,15 @@ internal shape.
   sorting, or display — and derive it via `CalendarDay.startOfDay(in:)` /
   `DayPresence.startOfDay(in:)`; never store an instant as the key.
   `SDManualDay.dateKey` is kept only as informational history and the migration's
-  source, not as a lookup key.
+  source, not as a lookup key. **Scope boundary:** this pins *stored user
+  records* (manual days, dismissals) to a fixed day, but a GPS `sample.timestamp`
+  is still bucketed into a `CalendarDay` by the *current* calendar at read time,
+  so a GPS-derived day can still shift by one across a time-zone change — and
+  with it a dismissed *GPS-only* border-drift / abrupt-change issue (whose
+  `storageKey` is that re-bucketed day) can reappear. Only user-asserted records
+  and their keys are travel-proof; travel-proofing GPS-derived detections would
+  mean bucketing GPS by a fixed home zone, which we intentionally don't do
+  ("where was I on this *local* day?").
 - **Data migrations run once at store open.** One-off data fixes are
   `StoreMigration`s registered in `StoreMigrations.all` and applied in ascending
   `version` order by `SwiftDataStore.runPendingMigrations(calendar:)` (called

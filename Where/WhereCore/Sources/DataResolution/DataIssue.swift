@@ -24,7 +24,10 @@ public enum DataIssueID: Hashable, Sendable {
     /// Stable, device- and timezone-independent key for persisted dismissal and
     /// `ForEach`. Keyed by the `CalendarDay` ISO string so a dismissal survives a
     /// time-zone change instead of drifting onto a different day (the reason
-    /// dismissals used to reappear after travel).
+    /// dismissals used to reappear after travel). Caveat: the *key* is pinned to
+    /// its `CalendarDay`, but a GPS-derived issue's day is itself re-bucketed at
+    /// read time, so a GPS-only dismissal can still shift with the underlying day
+    /// — see the `CalendarDay` scope boundary in `WhereCore/AGENTS.md`.
     public var storageKey: String {
         switch self {
             case let .missingDays(start):
