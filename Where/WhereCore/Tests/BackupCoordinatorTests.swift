@@ -10,6 +10,9 @@ struct BackupCoordinatorTests {
         let coordinator: BackupCoordinator
         let store: SwiftDataStore
         let widgets: SpyRefresher
+        let reminders: ReminderReconciler
+        let reminderScheduler: SpyReminderScheduler
+        let issueAlertScheduler: SpyIssueAlertScheduler
     }
 
     private actor SpyRefresher: WidgetTimelineRefreshing {
@@ -19,7 +22,50 @@ struct BackupCoordinatorTests {
         }
     }
 
-    private static func makeHarness() throws -> Harness {
+    /// Records the app-icon badge reconciles so a test can assert an import
+    /// recomputes the badge off the imported data.
+    private actor SpyReminderScheduler: LoggingReminderScheduling {
+        private(set) var reconcileCount = 0
+        private(set) var lastBadgeCount: Int?
+        func requestAuthorization() async -> Bool {
+            true
+        }
+
+        func isAuthorized() async -> Bool {
+            true
+        }
+
+        func reconcile(
+            badgeCount: Int,
+            scheduleDays _: [Date],
+            reminderTime _: ReminderTime,
+            enabled _: Bool,
+        ) async {
+            reconcileCount += 1
+            lastBadgeCount = badgeCount
+        }
+    }
+
+    /// Records the issue-alert reconciles so a test can assert an import
+    /// refreshes the "issues to resolve" notification.
+    private actor SpyIssueAlertScheduler: DataIssueAlertScheduling {
+        private(set) var reconcileCount = 0
+        func requestAuthorization() async -> Bool {
+            true
+        }
+
+        func isAuthorized() async -> Bool {
+            true
+        }
+
+        func reconcile(enabled _: Bool, time _: ReminderTime, body _: String) async {
+            reconcileCount += 1
+        }
+    }
+
+    private static func makeHarness(
+        now: Date = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00"),
+    ) throws -> Harness {
         let store = try SwiftDataStore.inMemory()
         let aggregator = DayAggregator(
             calendar: WhereCoreTestSupport.calendar(),
@@ -34,11 +80,47 @@ struct BackupCoordinatorTests {
             ),
             widgetRefresher: refresher,
             attributor: .shared,
-            calendar: WhereCoreTestSupport.calendar(),
-            now: { Date() },
+            calendar: aggregator.calendar,
+            now: { now },
         )
-        let coordinator = BackupCoordinator(store: store, widgets: widgets)
-        return Harness(coordinator: coordinator, store: store, widgets: refresher)
+        let reports = ReportReader(store: store, aggregator: aggregator, attributor: .shared)
+        let scanner = DataIssueScanner(
+            reportReader: reports,
+            attributor: .shared,
+            calendar: aggregator.calendar,
+            now: { now },
+            storeChanges: store.changes(),
+        )
+        let reminderScheduler = SpyReminderScheduler()
+        let reminders = ReminderReconciler(
+            scheduler: reminderScheduler,
+            reportReader: reports,
+            issueScanner: scanner,
+            calendar: aggregator.calendar,
+            now: { now },
+        )
+        let issueAlertScheduler = SpyIssueAlertScheduler()
+        let issueAlerts = DataIssueAlertReconciler(
+            scheduler: issueAlertScheduler,
+            scanner: scanner,
+            calendar: aggregator.calendar,
+            now: { now },
+        )
+        let coordinator = BackupCoordinator(
+            store: store,
+            widgets: widgets,
+            issueScanner: scanner,
+            reminders: reminders,
+            issueAlerts: issueAlerts,
+        )
+        return Harness(
+            coordinator: coordinator,
+            store: store,
+            widgets: refresher,
+            reminders: reminders,
+            reminderScheduler: reminderScheduler,
+            issueAlertScheduler: issueAlertScheduler,
+        )
     }
 
     private static let evidence = Evidence(
@@ -144,6 +226,60 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.allDismissedIssues() == source.store
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
+    }
+
+    /// Regression guard: an import rewrites day data, so it must reconcile the
+    /// app-icon badge and the issues-to-resolve notification off the fresh data
+    /// rather than leaving them at their pre-import values (the "home-screen
+    /// badge stuck at 157 after replace import" bug). The headless reconcilers
+    /// don't observe `store.changes()`, so the import has to drive them.
+    @Test func replaceImportReconcilesTheBadgeOffTheImportedData() async throws {
+        // Frozen at Jan 5, so the backlog window is just Jan 1–4.
+        let now = WhereCoreTestSupport.iso("2026-01-05T09:00:00-08:00")
+
+        // Source covers the whole backlog window, so it exports a fully-logged
+        // start of year (no missing days, no unresolved issues).
+        let source = try Self.makeHarness(now: now)
+        try await source.store.perform {
+            for iso in [
+                "2026-01-01T12:00:00-08:00",
+                "2026-01-02T12:00:00-08:00",
+                "2026-01-03T12:00:00-08:00",
+                "2026-01-04T12:00:00-08:00",
+            ] {
+                try await source.store.setManualDay(DayPresence(
+                    date: WhereCoreTestSupport.iso(iso),
+                    in: WhereCoreTestSupport.calendar(),
+                    regions: [.california],
+                ))
+            }
+        }
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        // Destination enables reminders + issue alerts while empty, so its badge
+        // starts at the fully-missing-year count (Jan 1–4 backlog + one
+        // missing-days range).
+        let destination = try Self.makeHarness(now: now)
+        await destination.reminders.configure(
+            enabled: true,
+            time: .defaultEvening,
+            issueAlertsEnabled: true,
+            driftThresholdMeters: Double(DriftThreshold.default.rawValue),
+        )
+        let emptyBadge = await destination.reminderScheduler.lastBadgeCount
+        let remindersBeforeImport = await destination.reminderScheduler.reconcileCount
+        let issueAlertsBeforeImport = await destination.issueAlertScheduler.reconcileCount
+
+        _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+
+        // Both headless reconcilers ran on the import.
+        #expect(await destination.reminderScheduler.reconcileCount > remindersBeforeImport)
+        #expect(await destination.issueAlertScheduler.reconcileCount > issueAlertsBeforeImport)
+        // The badge was recomputed off the imported data — backlog + one missing
+        // range while empty, dropping to zero once Jan 1–4 are all logged.
+        #expect(emptyBadge == 5)
+        #expect(await destination.reminderScheduler.lastBadgeCount == 0)
     }
 
     /// The coordinator owns the export staging directory's lifecycle: starting a
