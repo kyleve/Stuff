@@ -111,7 +111,6 @@ public actor BackupCoordinator {
             if let blob = try await store.evidenceBlob(for: item.id) {
                 blobs[item.id] = blob
             }
-            guard !evidence.isEmpty else { continue }
             let fraction = Double(index + 1) / Double(evidence.count) * Self.exportBlobLoadFraction
             let percent = Int(fraction * 100)
             guard percent != lastPercent else { continue }

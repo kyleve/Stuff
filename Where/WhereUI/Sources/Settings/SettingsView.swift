@@ -355,7 +355,7 @@ struct SettingsView: View {
 
             if backup.backupState == .idle, let url = exportedArchiveURL {
                 ShareLink(
-                    item: url,
+                    item: BackupArchiveFile(url: url),
                     preview: SharePreview(Strings.settingsBackupShareTitle),
                 ) {
                     Label(Strings.settingsBackupShare, systemImage: "square.and.arrow.up.on.square")
