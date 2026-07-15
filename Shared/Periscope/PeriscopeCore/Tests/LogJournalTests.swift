@@ -77,6 +77,58 @@ struct LogJournalTests {
         #expect(records[0].spanID == records[1].spanID)
     }
 
+    @Test func journalWritesOnlyRedactedContent() throws {
+        // The journal taps in *after* redaction — the highest-consequence
+        // placement in the pipeline, since journal files outlive the
+        // process. The raw segment bytes are the tripwire: the secret must
+        // not appear anywhere on disk, and a suppressed record must not
+        // appear at all.
+        let directory = makeDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let system = Periscope(
+            configuration: Periscope.Configuration(redact: { record in
+                if record.message.contains("suppress-me") {
+                    return nil
+                }
+                return LogRecord(
+                    id: record.id,
+                    date: record.date,
+                    event: Message(level: record.level, "[redacted]"),
+                    scopes: record.scopes,
+                )
+            }),
+            sinks: [CapturingSink()],
+        )
+        let journal = try LogJournal(directory: directory, session: .fixture())
+        system.install(journal: journal)
+
+        let log = Log<AppLogs>(system: system)
+        log.info("card number 4242-secret")
+        log.info("suppress-me entirely")
+
+        let records = try entries(in: directory).compactMap { entry -> LogJournalRecord? in
+            guard case let .record(record) = entry else { return nil }
+            return record
+        }
+        #expect(records.map(\.message) == ["[redacted]"])
+
+        // The leak vectors are the journaled payload JSON, message, and
+        // tags — check the decoded content (the envelope base64-wraps
+        // nested payloads, so raw bytes can't be grepped for them).
+        let payloadJSON = records.map { String(decoding: $0.payload, as: UTF8.self) }.joined()
+        #expect(!payloadJSON.contains("4242-secret"))
+        #expect(payloadJSON.contains("[redacted]"))
+
+        // And nothing leaks in plaintext at the envelope level either.
+        let segmentBytes = try FileManager.default
+            .contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)
+            .map { try Data(contentsOf: $0) }
+            .reduce(Data(), +)
+        let onDisk = String(decoding: segmentBytes, as: UTF8.self)
+        #expect(!onDisk.contains("4242-secret"))
+        #expect(!onDisk.contains("suppress-me"))
+    }
+
     @Test func journalFailuresCountInsteadOfThrowingIntoTheEmitPath() throws {
         let directory = makeDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
