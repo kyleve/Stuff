@@ -721,25 +721,29 @@ extension SwiftDataStore {
         if didApply { changeBroadcaster.send() }
     }
 
-    /// Test seam: insert a *legacy-shaped* manual-day row — `dateKey` set,
-    /// `dayKey` nil, as rows looked before the `CalendarDay` cutover — so the
-    /// `CalendarDayMigration` backfill is exercisable. Not wrapped in `perform`
-    /// (it writes through its own context, like the migrator).
-    @_spi(Testing)
-    public func insertLegacyManualDay(
-        dateKey: Date,
-        regionRaws: [String],
-        isAuthoritative: Bool,
-    ) throws {
-        let context = ModelContext(modelContainer)
-        let row = SDManualDay()
-        row.dayKey = nil
-        row.dateKey = dateKey
-        row.regionRaws = regionRaws.sorted()
-        row.isAuthoritative = isAuthoritative
-        context.insert(row)
-        try context.save()
-    }
+    #if DEBUG
+        /// Test seam: insert a *legacy-shaped* manual-day row — `dateKey` set,
+        /// `dayKey` nil, as rows looked before the `CalendarDay` cutover — so the
+        /// `CalendarDayMigration` backfill is exercisable. Not wrapped in `perform`
+        /// (it writes through its own context, like the migrator). Purely a test
+        /// fixture (it writes a deliberately invalid, `dayKey`-less row), so it's
+        /// `#if DEBUG` + `@_spi(Testing)` and never ships in release.
+        @_spi(Testing)
+        public func insertLegacyManualDay(
+            dateKey: Date,
+            regionRaws: [String],
+            isAuthoritative: Bool,
+        ) throws {
+            let context = ModelContext(modelContainer)
+            let row = SDManualDay()
+            row.dayKey = nil
+            row.dateKey = dateKey
+            row.regionRaws = regionRaws.sorted()
+            row.isAuthoritative = isAuthoritative
+            context.insert(row)
+            try context.save()
+        }
+    #endif
 }
 
 // MARK: - SwiftData models (internal)
