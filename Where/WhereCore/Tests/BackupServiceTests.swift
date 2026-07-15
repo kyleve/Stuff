@@ -220,6 +220,24 @@ struct BackupServiceTests {
         #expect(decoded.formatVersion == 1)
     }
 
+    @Test func legacyManifestWithDateKeyedManualDaysImports() throws {
+        // A pre-CalendarDay (v1) manifest keyed manual days by an absolute
+        // `date` instant. "2026-02-08T05:00:00Z" is midnight in New York; it
+        // must import as Feb 8 (not shift to Feb 7) — the exact bug this fix
+        // guards. The current reader accepts v1 and recovers the calendar day.
+        let json = """
+        {"formatVersion":1,"exportedAt":"2023-11-14T22:13:20Z","samples":[],\
+        "evidence":[],"manualDays":[{"date":"2026-02-08T05:00:00Z",\
+        "regions":["newYork"],"isAuthoritative":false}],"assets":[]}
+        """
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let decoded = try decoder.decode(BackupArchive.self, from: Data(json.utf8))
+        #expect(decoded.manualDays.count == 1)
+        #expect(decoded.manualDays.first?.day == CalendarDay(year: 2026, month: 2, day: 8))
+        #expect(decoded.manualDays.first?.regions == [.newYork])
+    }
+
     @Test func readingAFileThatIsNotAZipThrows() throws {
         let service = BackupService()
         let bogus = FileManager.default.temporaryDirectory
