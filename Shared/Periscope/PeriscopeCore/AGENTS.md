@@ -14,15 +14,17 @@ the build system, formatting, and global conventions. Read that first.
 tags, attachments), `Loggers/` (`Log<Event>` and the scope tree),
 `Context/` (task-local and per-instance context derivation), `Spans/`
 (timing and exits), `Pipeline/` (the `Periscope` system, records, sinks),
-`Store/` (SwiftData persistence and queries), and `Ambient/` (environmental
-event sources). Tests stay flat, named 1:1 with their source files.
+`Store/` (SwiftData persistence and queries), `Journal/` (the crash
+journal's log-layer envelope and writer, over
+[`JournalKit`](../../JournalKit)), and `Ambient/` (environmental event
+sources). Tests stay flat, named 1:1 with their source files.
 
 ## Scope & dependencies
 
-- **Foundation + os + SwiftData + Network only** (plus the ObjectiveC
-  runtime, solely for `LogContextProviding`'s deallocation trackers). No
-  SwiftUI, no app code, no LogKit. UIKit is allowed **only** inside
-  `#if canImport(UIKit)` (ambient sources, the image-attachment
+- **Foundation + os + SwiftData + Network + JournalKit only** (plus the
+  ObjectiveC runtime, solely for `LogContextProviding`'s deallocation
+  trackers). No SwiftUI, no app code, no LogKit. UIKit is allowed **only**
+  inside `#if canImport(UIKit)` (ambient sources, the image-attachment
   convenience).
 - Layering: `PeriscopeUI` and `PeriscopeTools` depend on this module — never
   the reverse.
@@ -50,6 +52,13 @@ event sources). Tests stay flat, named 1:1 with their source files.
   the context is discarded, row caches drop, and the session row refetches
   by identity — one poisoned batch must never wedge subsequent saves or
   fork the session.
+- **The crash journal is synchronous at emit and silent on failure.**
+  Every buffered record appends to the journal (when an on-disk store is
+  attached) *before* `record()` returns — sequence stamped under the state
+  lock, file I/O outside it, fault+ records `F_FULLFSYNC`. Journal failures
+  count and log to OSLog but never throw into the emit path. Ingest runs
+  *before* `startSession` so recovered begans join the orphan sweep; a
+  journal that fails ingest stays for the next launch.
 - **Payloads persist as versioned JSON** (`eventName` + `eventVersion`), not
   per-event schemas — changing an event's shape must not require a SwiftData
   migration.
