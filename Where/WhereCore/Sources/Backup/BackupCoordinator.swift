@@ -133,6 +133,15 @@ public actor BackupCoordinator {
         return url
     }
 
+    /// Delete the most recent export's staging directory now, rather than
+    /// lazily on the next export. For a caller that's finished offering the
+    /// archive — e.g. a UI that times out its "share" affordance — so the temp
+    /// file doesn't linger until the next export or process exit. A no-op when
+    /// there's nothing left to reclaim.
+    public func discardExport() {
+        purgePreviousExport()
+    }
+
     /// Delete the previous export's staging directory if we still have one. A
     /// failure here is non-fatal — a leftover temp directory only wastes a
     /// little disk — so it's logged rather than thrown, and never blocks the new

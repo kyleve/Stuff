@@ -380,6 +380,13 @@ struct SettingsView: View {
         } footer: {
             Text(Strings.settingsBackupFooter)
         }
+        // A finished export lingers in the temp directory; stop offering it (and
+        // reclaim the file) after a while so a stale link can't be shared. The
+        // task restarts whenever `exportedArchiveURL` changes and no-ops while
+        // it's `nil`.
+        .task(id: exportedArchiveURL) {
+            await expireExportIfNeeded()
+        }
     }
 
     /// Determinate progress for an in-flight export or import, driven by
@@ -391,6 +398,9 @@ struct SettingsView: View {
         }
     }
 
+    /// How long a finished export stays offered before it's auto-discarded.
+    private static let exportRetention: Duration = .seconds(10 * 60)
+
     /// Build the archive in the background, then reveal the share row. Clearing
     /// `exportedArchiveURL` first hides the stale share link — the coordinator
     /// purges the previous export's directory when this new export starts.
@@ -401,6 +411,18 @@ struct SettingsView: View {
                 exportedArchiveURL = url
             }
         }
+    }
+
+    /// After a finished export has been offered for `exportRetention`, hide the
+    /// share row and delete the temp file. Hiding before the delete closes the
+    /// window where the row could point at an already-removed file. A no-op when
+    /// there's no export to expire (the `.task(id:)` also runs on `nil`).
+    private func expireExportIfNeeded() async {
+        guard exportedArchiveURL != nil else { return }
+        try? await Task.sleep(for: Self.exportRetention)
+        guard !Task.isCancelled else { return }
+        exportedArchiveURL = nil
+        await backup.discardExport()
     }
 
     private func handleImportSelection(_ result: Result<URL, any Error>) {

@@ -82,6 +82,13 @@ public final class BackupModel {
         }
     }
 
+    /// Delete the most recent export's temp file now — for a caller that's done
+    /// offering it to share (e.g. its share affordance timed out). The
+    /// `BackupCoordinator` owns the file, so deletion routes through it.
+    public func discardExport() async {
+        await services.backup.discardExport()
+    }
+
     /// Import a backup file with the chosen merge/replace strategy. Returns the
     /// import summary on success, or `nil` on failure (with `backupError` set).
     /// The committed import pings the store-change signal, so the scene's
