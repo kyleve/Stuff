@@ -210,6 +210,37 @@ struct BackupCoordinatorTests {
         #expect(FileManager.default.fileExists(atPath: second.path))
     }
 
+    @Test func discardExportDeletesTheExportDirectory() async throws {
+        let harness = try Self.makeHarness()
+        try await Self.seed(harness.store)
+
+        let url = try await harness.coordinator.exportBackup()
+        let directory = url.deletingLastPathComponent()
+        #expect(FileManager.default.fileExists(atPath: url.path))
+
+        await harness.coordinator.discardExport()
+        #expect(!FileManager.default.fileExists(atPath: directory.path))
+
+        // Idempotent: a second discard (nothing left to reclaim) is a no-op.
+        await harness.coordinator.discardExport()
+    }
+
+    @Test func exportReportsProgressUpToCompletion() async throws {
+        let source = try Self.makeHarness()
+        try await Self.seed(source.store)
+
+        let recorder = ProgressRecorder()
+        let url = try await source.coordinator.exportBackup { fraction in
+            recorder.record(fraction)
+        }
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let fractions = recorder.fractions
+        #expect(!fractions.isEmpty)
+        #expect(fractions.allSatisfy { $0 > 0 && $0 <= 1 })
+        #expect(fractions.last == 1)
+    }
+
     @Test func importReportsProgressUpToCompletion() async throws {
         let source = try Self.makeHarness()
         try await Self.seed(source.store)
