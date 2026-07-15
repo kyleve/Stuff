@@ -47,6 +47,31 @@ struct FlightDayDetectorTests {
         #expect(peak > 300)
     }
 
+    /// A flight with a genuine layover in an untracked region: even with two
+    /// fly-over `.other` fixes, a real `.other` stop (dwell fixes in Chicago)
+    /// keeps `.other` grounded, so nothing is removed and the day isn't flagged.
+    /// The detector must not strip a region the user actually stopped in.
+    @Test func keepsRegionWithALegitimateLayover() {
+        let date = Fixtures.day(2026, 7, 14)
+        let chicago = Coordinate(latitude: 41.8781, longitude: -87.6298) // .other, with dwell
+        let day = DayPresence(date: date, regions: [.newYork, .other, .california])
+        let samples = [
+            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 8.0, Self.jfk),
+            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 9.0, Self.jfk),
+            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 11.0, Self.colorado), // fly-over
+            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 12.5, Self.nevada), // fly-over
+            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 14.0, chicago), // land + dwell
+            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 15.0, chicago),
+            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 16.0, chicago),
+            Fixtures.gpsSample(dayStart: date, hoursAfterStart: 19.0, Self.sfo),
+        ]
+        let issues = FlightDayDetector().detectIssues(in: Fixtures.input(
+            days: [day],
+            daySamples: [date: samples],
+        ))
+        #expect(issues.isEmpty)
+    }
+
     /// A fast road trip that dips into `.other` but never reaches cruise speed:
     /// no leg clears the threshold, so nothing is a fly-over point.
     @Test func ignoresFastDrivingBelowThreshold() {

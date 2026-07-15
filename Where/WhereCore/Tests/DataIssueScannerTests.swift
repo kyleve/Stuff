@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import Testing
 @testable import WhereCore
 
@@ -15,6 +16,10 @@ struct DataIssueScannerTests {
             month: month,
             day: day,
         ))!)
+    }
+
+    private static func time(_ year: Int, _ month: Int, _ day: Int, _ hour: Int) -> Date {
+        calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour))!
     }
 
     private func makeServices(now: @escaping @Sendable () -> Date) throws -> WhereServices {
@@ -44,6 +49,52 @@ struct DataIssueScannerTests {
             now: now,
             scanInterval: scanInterval,
         )
+    }
+
+    /// The speed-based `FlightDayDetector` must ignore manual and
+    /// evidence-implied samples: their timestamps are user-asserted, so a speed
+    /// computed across them is meaningless. The exact coast-to-coast pattern
+    /// that flags as GPS produces no flight issue when recorded as manual /
+    /// evidence fixes (the scanner's `gpsSamplesByDay` filters them out).
+    @Test func flightDetectionIgnoresManualAndEvidenceSamples() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let fixedNow = Self.day(2026, 6, 15)
+        let scanner = makeScanner(store: store, now: { fixedNow })
+
+        let jfk = Coordinate(latitude: 40.6413, longitude: -73.7781)
+        let sfo = Coordinate(latitude: 37.6213, longitude: -122.3790)
+        let illinois = Coordinate(latitude: 40.29, longitude: -90.39)
+        let colorado = Coordinate(latitude: 39.53, longitude: -106.16)
+        let nevada = Coordinate(latitude: 38.68, longitude: -116.90)
+        let evidence = SampleSource.evidenceImplied(id: UUID(), kind: .other(nil))
+        let fixes: [(Int, Coordinate, SampleSource)] = [
+            (8, jfk, .manual),
+            (9, jfk, .manual),
+            (12, jfk, .manual),
+            (13, illinois, .manual),
+            (14, colorado, .manual),
+            (15, nevada, evidence),
+            (17, sfo, .manual),
+            (18, sfo, .manual),
+        ]
+        try await store.perform {
+            for (hour, coordinate, source) in fixes {
+                try await store.add(sample: LocationSample(
+                    timestamp: Self.time(2026, 3, 15, hour),
+                    coordinate: coordinate,
+                    horizontalAccuracy: 20,
+                    source: source,
+                ))
+            }
+        }
+
+        let issues = try await scanner.issues(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 10000,
+            force: true,
+        )
+        #expect(!issues.contains { $0.category == .flightDay })
     }
 
     @Test func issues_returnsSortedIssues() async throws {

@@ -85,18 +85,69 @@ struct ResolveModelTests {
     @Test func loadSurfacesFlightDayIssue() async throws {
         let store = try TestStore()
         let now = date(year: 2026, month: 6, day: 15)
-        let services = WhereServices(
+        let services = flightServices(store: store, now: now)
+        let resolve = ResolveModel(
+            services: services,
+            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+        )
+
+        try await seedCoastToCoastFlight(into: store)
+        await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
+
+        let flight = try #require(resolve.dataIssues.first { $0.category == .flightDay })
+        guard case let .correctFlightDay(_, keep, removed, peak) = flight.resolution else {
+            Issue.record("expected correctFlightDay resolution")
+            return
+        }
+        #expect(keep == [.newYork, .california])
+        #expect(removed == [.other])
+        #expect(peak > 300)
+    }
+
+    /// Idempotence: applying the one-tap fix (an authoritative `overrideDay` to
+    /// the kept regions, exactly what `FlightDayDetailView` does) clears the
+    /// issue — a rescan no longer flags the day, so "Apply" visibly resolves it
+    /// rather than leaving a sticky row.
+    @Test func applyingFlightFixClearsTheIssue() async throws {
+        let store = try TestStore()
+        let now = date(year: 2026, month: 6, day: 15)
+        let services = flightServices(store: store, now: now)
+        let resolve = ResolveModel(
+            services: services,
+            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+        )
+
+        try await seedCoastToCoastFlight(into: store)
+        await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
+
+        let flight = try #require(resolve.dataIssues.first { $0.category == .flightDay })
+        guard case let .correctFlightDay(day, keep, _, _) = flight.resolution else {
+            Issue.record("expected correctFlightDay resolution")
+            return
+        }
+
+        // Apply the fix the same way the detail view's "Apply" button does, then
+        // drop the scanner cache so the reload sees a fresh scan.
+        try await services.journal.overrideDay(date: day.date, regions: keep, audit: nil)
+        await services.resolution.invalidate()
+        await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
+
+        #expect(!resolve.dataIssues.contains { $0.category == .flightDay })
+    }
+
+    private func flightServices(store: TestStore, now: Date) -> WhereServices {
+        WhereServices(
             store: store,
             locationSource: ScriptedLocationSource(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )
-        let resolve = ResolveModel(
-            services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
-        )
+    }
 
+    /// Seed the NYC→SF cruise profile as passive GPS fixes: grounded NY in the
+    /// morning, cruise-speed legs across untracked states, then grounded SFO.
+    private func seedCoastToCoastFlight(into store: TestStore) async throws {
         let jfk = Coordinate(latitude: 40.6413, longitude: -73.7781)
         let sfo = Coordinate(latitude: 37.6213, longitude: -122.3790)
         let illinois = Coordinate(latitude: 40.29, longitude: -90.39)
@@ -122,16 +173,6 @@ struct ResolveModelTests {
                 ))
             }
         }
-        await resolve.load(year: 2026, primaryRegions: [.california, .newYork])
-
-        let flight = try #require(resolve.dataIssues.first { $0.category == .flightDay })
-        guard case let .correctFlightDay(_, keep, removed, peak) = flight.resolution else {
-            Issue.record("expected correctFlightDay resolution")
-            return
-        }
-        #expect(keep == [.newYork, .california])
-        #expect(removed == [.other])
-        #expect(peak > 300)
     }
 
     private func flightSampleDate(hour: Double) -> Date {
