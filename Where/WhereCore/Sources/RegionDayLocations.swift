@@ -26,18 +26,19 @@ public struct RegionDayPoint: Hashable, Sendable {
 /// reverse-geocoding a representative point into a place name. Produced by
 /// `DayAggregator.locations(in:samples:attributor:)`.
 public struct RegionDayLocations: Hashable, Sendable, Identifiable {
-    /// Start-of-day for the points, in the producing aggregator's calendar.
-    public let date: Date
+    /// The calendar day these points fell on, in the producing aggregator's
+    /// calendar.
+    public let day: CalendarDay
     /// Every sample that fell inside the region on this day, in the order the
     /// samples were supplied (typically chronological).
     public let points: [RegionDayPoint]
 
-    public var id: Date {
-        date
+    public var id: CalendarDay {
+        day
     }
 
-    public init(date: Date, points: [RegionDayPoint]) {
-        self.date = date
+    public init(day: CalendarDay, points: [RegionDayPoint]) {
+        self.day = day
         self.points = points
     }
 }

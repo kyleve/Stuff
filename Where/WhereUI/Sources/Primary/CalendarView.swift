@@ -26,8 +26,8 @@ struct CalendarView: View {
     /// Inputs that invalidate a cached month grid.
     private struct CalendarLoadID: Equatable {
         let report: YearReport
-        let missingDayKeys: Set<Date>
-        let evidenceDayKeys: Set<Date>
+        let missingDayKeys: Set<CalendarDay>
+        let evidenceDayKeys: Set<CalendarDay>
         let referenceDay: Date
         let focusedRegion: Region?
     }

@@ -18,11 +18,16 @@ public struct ReportReader: Sendable {
         aggregator.yearInterval(year: year)
     }
 
+    /// The inclusive `CalendarDay` range spanning `year`.
+    func dayRange(for year: Int) -> ClosedRange<CalendarDay> {
+        CalendarDay.yearRange(year)
+    }
+
     /// Read everything in `year` and aggregate it into a snapshot-stable report.
     public func yearReport(for year: Int) async throws -> YearReport {
         let interval = aggregator.yearInterval(year: year)
         let samples = try await store.samples(in: interval)
-        let manuals = try await store.manualDays(in: interval)
+        let manuals = try await store.manualDays(in: dayRange(for: year))
         return aggregator.report(
             for: year,
             samples: samples,
@@ -37,7 +42,7 @@ public struct ReportReader: Sendable {
     /// entries — the `isAuthoritative` flag and `audit` trail are preserved
     /// rather than merged away.
     public func manualDays(inYear year: Int) async throws -> [DayPresence] {
-        try await store.manualDays(in: aggregator.yearInterval(year: year))
+        try await store.manualDays(in: dayRange(for: year))
     }
 
     /// The raw coordinates recorded inside `region` during `year`, grouped by

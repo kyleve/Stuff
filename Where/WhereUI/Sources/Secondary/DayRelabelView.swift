@@ -122,7 +122,7 @@ struct DayRelabelView: View {
     }
 
     private var dateText: String {
-        day.date.formatted(.dateTime.month(.abbreviated).day().year())
+        day.displayDate.formatted(.dateTime.month(.abbreviated).day().year())
     }
 
     private func save() {
@@ -131,7 +131,7 @@ struct DayRelabelView: View {
         Task {
             do {
                 try await report.overrideDay(
-                    date: day.date,
+                    date: day.startOfDay(in: report.calendar),
                     regions: regionSelection.selectedRegions,
                     note: note,
                 )
@@ -149,7 +149,7 @@ struct DayRelabelView: View {
         saveError.message = nil
         Task {
             do {
-                try await report.clearManualDay(date: day.date)
+                try await report.clearManualDay(date: day.startOfDay(in: report.calendar))
                 dismiss()
             } catch {
                 // Keep the form up so the user can retry; nothing was cleared.
@@ -164,7 +164,7 @@ struct DayRelabelView: View {
     #Preview("Other region") {
         NavigationStack {
             DayRelabelView(
-                day: DayPresence(date: .now, regions: [.other]),
+                day: DayPresence(date: .now, in: .current, regions: [.other]),
                 report: PreviewSupport.loadedYearReportModel(),
             )
         }
@@ -175,6 +175,7 @@ struct DayRelabelView: View {
             DayRelabelView(
                 day: DayPresence(
                     date: .now,
+                    in: .current,
                     regions: [.california],
                     isAuthoritative: true,
                     audit: ManualEntryAudit(

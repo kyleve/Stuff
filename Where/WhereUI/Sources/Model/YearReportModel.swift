@@ -69,7 +69,7 @@ public final class YearReportModel {
     /// write (so a newly added attachment lights up its day), and fed into the
     /// calendar's `hasEvidence` day badge. Evidence is metadata only, so this is
     /// tracked separately from `report` (which drives residency).
-    public private(set) var evidenceDayKeys: Set<Date> = []
+    public private(set) var evidenceDayKeys: Set<CalendarDay> = []
 
     /// Unresolved data-issue count for the selected year — the Resolve tab badge.
     /// The full issue list lives on the view-scoped `ResolveModel`; only this
@@ -177,8 +177,8 @@ public final class YearReportModel {
         now()
     }
 
-    /// Start-of-day keys for days that still need logging in the loaded year.
-    public var missingDayKeys: Set<Date> {
+    /// Calendar days that still need logging in the loaded year.
+    public var missingDayKeys: Set<CalendarDay> {
         report?.missingDayKeys(asOf: now(), calendar: calendar) ?? []
     }
 

@@ -136,7 +136,7 @@ public actor ReminderReconciler {
 
         do {
             let report = try await reportReader.yearReport(for: year)
-            let present = Set(report.days.map { calendar.startOfDay(for: $0.date) })
+            let present = Set(report.days.map(\.day))
             // The badge backlog is *past* misses only — today is still loggable,
             // so it's covered by the forward-looking reminder below rather than
             // counted as missed (otherwise the app would warn every morning).
@@ -144,7 +144,6 @@ public actor ReminderReconciler {
                 year: year,
                 through: MissingDays.backlogCutoff(asOf: now(), calendar: calendar),
                 present: present,
-                calendar: calendar,
             )
             let windowEnd = calendar.date(
                 byAdding: .day,
@@ -153,7 +152,7 @@ public actor ReminderReconciler {
             ) ?? today
             let scheduleDays = today
                 .calendarDays(through: windowEnd, in: calendar)
-                .filter { !present.contains($0) }
+                .filter { !present.contains(CalendarDay(from: $0, in: calendar)) }
             // Reuse the report we already read to derive the ranking the issue
             // scan needs, avoiding a second store read on this hot path.
             let issueBadge = await dataIssueBadgeCount(year: year, report: report)
@@ -163,7 +162,9 @@ public actor ReminderReconciler {
                 reminderTime: config.time,
                 enabled: true,
             )
-            todayCoveredByReconcile = present.contains(today) ? today : nil
+            todayCoveredByReconcile = present.contains(CalendarDay(from: today, in: calendar))
+                ? today
+                : nil
         } catch {
             Self.logger.error(
                 "Failed to reconcile logging reminders: \(error.localizedDescription)",

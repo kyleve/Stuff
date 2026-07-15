@@ -18,12 +18,12 @@ public struct EvidenceReader: Sendable {
         try await store.evidence(in: aggregator.yearInterval(year: year))
     }
 
-    /// Start-of-day keys (in the aggregator's calendar, matching `report.days`)
-    /// for every day in `year` that carries at least one piece of evidence.
-    /// Powers the calendar day badge.
-    public func dayKeys(for year: Int) async throws -> Set<Date> {
+    /// Calendar days (in the aggregator's calendar, matching `report.days`) for
+    /// every day in `year` that carries at least one piece of evidence. Powers
+    /// the calendar day badge.
+    public func dayKeys(for year: Int) async throws -> Set<CalendarDay> {
         let evidence = try await store.evidence(in: aggregator.yearInterval(year: year))
-        return Set(evidence.map { aggregator.calendar.startOfDay(for: $0.capturedAt) })
+        return Set(evidence.map { CalendarDay(from: $0.capturedAt, in: aggregator.calendar) })
     }
 
     /// The attachment bytes for a single evidence record, or `nil` when it has

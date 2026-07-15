@@ -99,13 +99,11 @@ public actor DayJournal {
         regions: Set<Region>,
         audit: ManualEntryAudit?,
     ) async throws {
-        let key = aggregator.calendar.startOfDay(for: date)
-        let presence = DayPresence(date: key, regions: regions, audit: audit)
+        let day = CalendarDay(from: date, in: aggregator.calendar)
+        let presence = DayPresence(day: day, regions: regions, audit: audit)
         try await store.perform { try await store.setManualDay(presence) }
         await reconcileAfterDayChange()
-        Self.logger.info(
-            "Added manual day \(Self.dayLogLabel(key, calendar: aggregator.calendar)) with \(regions.count) region(s)",
-        )
+        Self.logger.info("Added manual day \(day) with \(regions.count) region(s)")
     }
 
     /// Authoritatively set the regions for a single calendar day, *replacing*
@@ -118,13 +116,11 @@ public actor DayJournal {
         regions: Set<Region>,
         audit: ManualEntryAudit?,
     ) async throws {
-        let key = aggregator.calendar.startOfDay(for: date)
-        let presence = DayPresence(date: key, regions: regions, isAuthoritative: true, audit: audit)
+        let day = CalendarDay(from: date, in: aggregator.calendar)
+        let presence = DayPresence(day: day, regions: regions, isAuthoritative: true, audit: audit)
         try await store.perform { try await store.setManualDay(presence) }
         await reconcileAfterDayChange()
-        Self.logger.info(
-            "Overrode day \(Self.dayLogLabel(key, calendar: aggregator.calendar)) with \(regions.count) region(s)",
-        )
+        Self.logger.info("Overrode day \(day) with \(regions.count) region(s)")
     }
 
     /// Drop the manual overlay for a single calendar day, restoring the
@@ -132,12 +128,10 @@ public actor DayJournal {
     /// the day has no manual record. Raw samples are never touched, so this
     /// simply lets the aggregator fall back to whatever GPS recorded.
     public func clearManualDay(date: Date) async throws {
-        let key = aggregator.calendar.startOfDay(for: date)
-        try await store.perform { try await store.clearManualDay(key) }
+        let day = CalendarDay(from: date, in: aggregator.calendar)
+        try await store.perform { try await store.clearManualDay(day) }
         await reconcileAfterDayChange()
-        Self.logger.info(
-            "Cleared manual overlay for day \(Self.dayLogLabel(key, calendar: aggregator.calendar))",
-        )
+        Self.logger.info("Cleared manual overlay for day \(day)")
     }
 
     /// Drop the manual overlays for several calendar days (the logged-days
@@ -151,14 +145,14 @@ public actor DayJournal {
     /// publish to once for the whole delete rather than once per day.
     public func clearManualDays(dates: [Date]) async throws {
         guard !dates.isEmpty else { return }
-        let keys = dates.map { aggregator.calendar.startOfDay(for: $0) }
+        let days = dates.map { CalendarDay(from: $0, in: aggregator.calendar) }
         try await store.perform {
-            for key in keys {
-                try await store.clearManualDay(key)
+            for day in days {
+                try await store.clearManualDay(day)
             }
         }
         await reconcileAfterDayChange()
-        Self.logger.info("Cleared manual overlays for \(keys.count) day(s)")
+        Self.logger.info("Cleared manual overlays for \(days.count) day(s)")
     }
 
     /// Assert `regions` for every calendar day in the inclusive range
@@ -173,23 +167,25 @@ public actor DayJournal {
         regions: Set<Region>,
         audit: ManualEntryAudit?,
     ) async throws {
-        // `calendarDays` returns an immutable array, so the `@Sendable`
+        // `days(through:)` returns an immutable array, so the `@Sendable`
         // transaction body captures a `let` rather than a mutable cursor across
         // the concurrency boundary.
-        let dayKeys = start.calendarDays(through: end, in: aggregator.calendar)
-        guard !dayKeys.isEmpty else { return }
+        let calendar = aggregator.calendar
+        let days = CalendarDay(from: start, in: calendar)
+            .days(through: CalendarDay(from: end, in: calendar))
+        guard !days.isEmpty else { return }
         // One audit stamps every day in the range — it records the single act of
         // entry, not a per-day fact.
         try await store.perform {
-            for day in dayKeys {
+            for day in days {
                 try await store.setManualDay(
-                    DayPresence(date: day, regions: regions, audit: audit),
+                    DayPresence(day: day, regions: regions, audit: audit),
                 )
             }
         }
         await reconcileAfterDayChange()
         Self.logger.info(
-            "Backfilled \(dayKeys.count) manual day(s) with \(regions.count) region(s)",
+            "Backfilled \(days.count) manual day(s) with \(regions.count) region(s)",
         )
     }
 
@@ -197,7 +193,8 @@ public actor DayJournal {
 
     public func clearYear(_ year: Int) async throws {
         let interval = aggregator.yearInterval(year: year)
-        try await store.perform { try await store.clear(in: interval) }
+        let dayRange = CalendarDay.yearRange(year)
+        try await store.perform { try await store.clear(in: interval, manualDays: dayRange) }
         await reconcileAfterDayChange()
         Self.logger.info("Cleared year \(year)")
     }
@@ -241,15 +238,5 @@ public actor DayJournal {
     public func restoreIssue(key: String) async throws {
         try await store.perform { try await store.setIssueDismissed(false, key: key) }
         await reconcileIssueState()
-    }
-
-    private static func dayLogLabel(_ day: Date, calendar: Calendar) -> String {
-        let parts = calendar.dateComponents([.year, .month, .day], from: day)
-        return String(
-            format: "%04d-%02d-%02d",
-            parts.year ?? 0,
-            parts.month ?? 0,
-            parts.day ?? 0,
-        )
     }
 }

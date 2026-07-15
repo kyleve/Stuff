@@ -145,7 +145,7 @@ struct ManualDayView: View {
         @Bindable var edit = edit
 
         Section {
-            LabeledContent(Strings.loggedDaysEditDate, value: fixedDateText(edit.day.date))
+            LabeledContent(Strings.loggedDaysEditDate, value: fixedDateText(edit.day.displayDate))
         }
 
         regionsSection(edit.regions)
@@ -306,15 +306,16 @@ struct ManualDayView: View {
                 }
             case let .edit(edit):
                 let regions = edit.regions.selectedRegions
+                let date = edit.day.startOfDay(in: report.calendar)
                 if edit.day.isAuthoritative {
                     try await report.overrideDay(
-                        date: edit.day.date,
+                        date: date,
                         regions: regions,
                         note: edit.note,
                     )
                 } else {
                     try await report.setManualDay(
-                        date: edit.day.date,
+                        date: date,
                         regions: regions,
                         note: edit.note,
                     )
@@ -330,7 +331,7 @@ struct ManualDayView: View {
         deleteError.message = nil
         Task {
             do {
-                try await report.clearManualDay(date: edit.day.date)
+                try await report.clearManualDay(date: edit.day.startOfDay(in: report.calendar))
                 dismiss()
             } catch {
                 deleteError.message = error.localizedDescription
@@ -391,8 +392,8 @@ extension ManualDayView {
         init(prefill: MissingDayRange?) {
             if let prefill {
                 dateSpan = prefill.dayCount > 1 ? .range : .singleDay
-                startDate = prefill.start
-                endDate = prefill.end
+                startDate = prefill.start.startOfDay(in: .current)
+                endDate = prefill.end.startOfDay(in: .current)
             } else {
                 dateSpan = .singleDay
                 startDate = Date()
@@ -449,8 +450,8 @@ extension ManualDayView {
             ManualDayView(
                 report: PreviewSupport.missingDaysYearReportModel(),
                 mode: .add(prefill: MissingDayRange(
-                    start: Date(timeIntervalSince1970: 0),
-                    end: Date(timeIntervalSince1970: 86400 * 4),
+                    start: CalendarDay(year: 2026, month: 1, day: 1),
+                    end: CalendarDay(year: 2026, month: 1, day: 5),
                     dayCount: 5,
                 )),
             )
@@ -461,7 +462,7 @@ extension ManualDayView {
         NavigationStack {
             ManualDayView(
                 report: PreviewSupport.loadedYearReportModel(),
-                mode: .edit(DayPresence(date: .now, regions: [.california])),
+                mode: .edit(DayPresence(date: .now, in: .current, regions: [.california])),
             )
         }
     }
@@ -472,6 +473,7 @@ extension ManualDayView {
                 report: PreviewSupport.loadedYearReportModel(),
                 mode: .edit(DayPresence(
                     date: .now,
+                    in: .current,
                     regions: [.canada],
                     isAuthoritative: true,
                     audit: ManualEntryAudit(

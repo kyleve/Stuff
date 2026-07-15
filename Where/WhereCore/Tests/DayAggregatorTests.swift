@@ -15,6 +15,14 @@ struct DayAggregatorTests {
         )
     }
 
+    /// The Pacific calendar the aggregator buckets days in — used to pin manual
+    /// `DayPresence` entries to the same `CalendarDay` the aggregator computes.
+    private var calendar: Calendar {
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "America/Los_Angeles") ?? .gmt
+        return cal
+    }
+
     @Test func singleRegionDay() {
         let samples = [
             makeSample(at: "2026-03-15T09:00:00-07:00", lat: 37.7749, lng: -122.4194),
@@ -61,16 +69,13 @@ struct DayAggregatorTests {
         #expect(days.isEmpty)
     }
 
-    @Test func lateNightPacificStillSameDay() throws {
+    @Test func lateNightPacificStillSameDay() {
         let samples = [
             makeSample(at: "2026-03-15T23:59:00-07:00", lat: 37.7749, lng: -122.4194),
         ]
         let days = aggregator.aggregate(samples: samples, attributor: attributor)
         #expect(days.count == 1)
-        let pt = try #require(TimeZone(identifier: "America/Los_Angeles"))
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = pt
-        #expect(cal.component(.day, from: days[0].date) == 15)
+        #expect(days[0].day == CalendarDay(year: 2026, month: 3, day: 15))
     }
 
     @Test func crossMidnightInPacificButSameNewYorkDay_isTwoDays() {
@@ -91,6 +96,7 @@ struct DayAggregatorTests {
         ]
         let manual = DayPresence(
             date: startOfDay(forYear: 2026, month: 7, day: 4),
+            in: calendar,
             regions: [.newYork],
         )
         let report = aggregator.report(
@@ -99,7 +105,7 @@ struct DayAggregatorTests {
             manualDays: [manual],
             attributor: attributor,
         )
-        let day = report.days.first { $0.date == manual.date }
+        let day = report.days.first { $0.day == manual.day }
         #expect(day != nil)
         #expect(day?.regions == [.california, .newYork])
     }
@@ -112,6 +118,7 @@ struct DayAggregatorTests {
         ]
         let override = DayPresence(
             date: startOfDay(forYear: 2026, month: 7, day: 4),
+            in: calendar,
             regions: [.newYork],
             isAuthoritative: true,
         )
@@ -121,7 +128,7 @@ struct DayAggregatorTests {
             manualDays: [override],
             attributor: attributor,
         )
-        let day = report.days.first { $0.date == override.date }
+        let day = report.days.first { $0.day == override.day }
         #expect(day?.regions == [.newYork])
         #expect(report.totals == [.newYork: 1])
     }
@@ -130,15 +137,21 @@ struct DayAggregatorTests {
         // An additive overlay and an authoritative one on the same day: the
         // authoritative one wins, dropping the additive region too.
         let day = startOfDay(forYear: 2026, month: 7, day: 4)
-        let additive = DayPresence(date: day, regions: [.canada])
-        let override = DayPresence(date: day, regions: [.newYork], isAuthoritative: true)
+        let additive = DayPresence(date: day, in: calendar, regions: [.canada])
+        let override = DayPresence(
+            date: day,
+            in: calendar,
+            regions: [.newYork],
+            isAuthoritative: true,
+        )
         let report = aggregator.report(
             for: 2026,
             samples: [],
             manualDays: [additive, override],
             attributor: attributor,
         )
-        #expect(report.days.first { $0.date == day }?.regions == [.newYork])
+        #expect(report.days.first { $0.day == CalendarDay(from: day, in: calendar) }?
+            .regions == [.newYork])
     }
 
     @Test func locationsGroupInRegionSamplesByDayAndDropOthers() {
@@ -160,7 +173,7 @@ struct DayAggregatorTests {
         #expect(locations[0].points.count == 2)
         #expect(locations[1].points.count == 1)
         // Sorted ascending by day.
-        #expect(locations[0].date < locations[1].date)
+        #expect(locations[0].day < locations[1].day)
         // The New York point never lands in the California grouping.
         #expect(!locations.flatMap(\.points).map(\.coordinate).contains(Coordinate(
             latitude: 40.7128,

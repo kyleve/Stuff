@@ -77,7 +77,7 @@ struct PresenceCalendarTests {
 
     @Test func dayRegionsAreSortedByRegionAllCasesOrder() throws {
         let days = [
-            DayPresence(date: day(2026, 3, 15), regions: [.newYork, .california]),
+            DayPresence(date: day(2026, 3, 15), in: calendar, regions: [.newYork, .california]),
         ]
         let months = try PresenceCalendar.months(
             from: report(days),
@@ -111,7 +111,7 @@ struct PresenceCalendarTests {
 
     @Test func dayWithPresenceIncludesMatchingRegions() throws {
         let days = [
-            DayPresence(date: day(2026, 6, 10), regions: [.canada, .europeanUnion]),
+            DayPresence(date: day(2026, 6, 10), in: calendar, regions: [.canada, .europeanUnion]),
         ]
         let months = try PresenceCalendar.months(
             from: report(days),
@@ -135,7 +135,7 @@ struct PresenceCalendarTests {
     }
 
     @Test func marksMissingDatesAsNeedingAttention() throws {
-        let missing = day(2026, 2, 5)
+        let missing = CalendarDay(year: 2026, month: 2, day: 5)
         let months = try PresenceCalendar.months(
             from: report([]),
             calendar: calendar,
@@ -148,7 +148,7 @@ struct PresenceCalendarTests {
 
     @Test func yearReportCalendarMonthsMatchesPresenceCalendar() throws {
         let report = report([
-            DayPresence(date: day(2026, 1, 1), regions: [.california]),
+            DayPresence(date: day(2026, 1, 1), in: calendar, regions: [.california]),
         ])
         let reference = referenceDate(2026, 1, 1)
         let fromReport = try report.calendarMonths(calendar: calendar, referenceDate: reference)
@@ -162,8 +162,8 @@ struct PresenceCalendarTests {
 
     @Test func focusedRegionKeepsOnlyThatRegionsDots() throws {
         let days = [
-            DayPresence(date: day(2026, 6, 1), regions: [.california, .newYork]),
-            DayPresence(date: day(2026, 6, 2), regions: [.newYork]),
+            DayPresence(date: day(2026, 6, 1), in: calendar, regions: [.california, .newYork]),
+            DayPresence(date: day(2026, 6, 2), in: calendar, regions: [.newYork]),
         ]
         let months = try PresenceCalendar.months(
             from: report(days),
@@ -181,7 +181,7 @@ struct PresenceCalendarTests {
 
     @Test func unfocusedMonthShowsEveryRegionDot() throws {
         let days = [
-            DayPresence(date: day(2026, 6, 1), regions: [.california, .newYork]),
+            DayPresence(date: day(2026, 6, 1), in: calendar, regions: [.california, .newYork]),
         ]
         let months = try PresenceCalendar.months(
             from: report(days),
@@ -194,9 +194,9 @@ struct PresenceCalendarTests {
 
     @Test func regionTotalsCountDistinctDaysSortedByCount() throws {
         let days = [
-            DayPresence(date: day(2026, 6, 1), regions: [.california]),
-            DayPresence(date: day(2026, 6, 2), regions: [.california, .newYork]),
-            DayPresence(date: day(2026, 6, 3), regions: [.california]),
+            DayPresence(date: day(2026, 6, 1), in: calendar, regions: [.california]),
+            DayPresence(date: day(2026, 6, 2), in: calendar, regions: [.california, .newYork]),
+            DayPresence(date: day(2026, 6, 3), in: calendar, regions: [.california]),
         ]
         let months = try PresenceCalendar.months(
             from: report(days),
@@ -212,9 +212,9 @@ struct PresenceCalendarTests {
 
     @Test func regionTotalsAreUnaffectedByFocus() throws {
         let days = [
-            DayPresence(date: day(2026, 6, 1), regions: [.california]),
-            DayPresence(date: day(2026, 6, 2), regions: [.california, .newYork]),
-            DayPresence(date: day(2026, 6, 3), regions: [.newYork]),
+            DayPresence(date: day(2026, 6, 1), in: calendar, regions: [.california]),
+            DayPresence(date: day(2026, 6, 2), in: calendar, regions: [.california, .newYork]),
+            DayPresence(date: day(2026, 6, 3), in: calendar, regions: [.newYork]),
         ]
         let months = try PresenceCalendar.months(
             from: report(days),
@@ -250,7 +250,7 @@ struct PresenceCalendarTests {
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
-            evidenceDays: [day(2026, 6, 10)],
+            evidenceDays: [CalendarDay(year: 2026, month: 6, day: 10)],
         )
         let june = months[5]
         let markedDay = june.days.first { $0.dayOfMonth == 10 }
@@ -268,7 +268,7 @@ struct PresenceCalendarTests {
             from: report([]),
             calendar: calendar,
             referenceDate: referenceDate(2026, 6, 15),
-            evidenceDays: [midday],
+            evidenceDays: [CalendarDay(from: midday, in: calendar)],
         )
         let markedDay = months[5].days.first { $0.dayOfMonth == 10 }
         #expect(markedDay?.hasEvidence == true)

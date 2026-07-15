@@ -39,8 +39,8 @@ struct LoggedDaysView: View {
     /// start-of-day date is unique.
     private struct EditTarget: Identifiable {
         let day: DayPresence
-        var id: Date {
-            day.date
+        var id: CalendarDay {
+            day.day
         }
     }
 
@@ -148,7 +148,7 @@ struct LoggedDaysView: View {
 
     private func list(_ days: [DayPresence]) -> some View {
         List {
-            ForEach(days, id: \.date) { day in
+            ForEach(days, id: \.day) { day in
                 Button {
                     editTarget = EditTarget(day: day)
                 } label: {
@@ -181,7 +181,9 @@ struct LoggedDaysView: View {
     private func delete(_ days: [DayPresence]) {
         Task {
             do {
-                try await report.clearManualDays(dates: days.map(\.date))
+                try await report.clearManualDays(
+                    dates: days.map { $0.startOfDay(in: report.calendar) },
+                )
             } catch {
                 deleteError.message = error.localizedDescription
             }
@@ -232,7 +234,7 @@ private struct LoggedDayRow: View {
     }
 
     private var dateText: String {
-        day.date.formatted(.dateTime.weekday(.abbreviated).month(.wide).day().year())
+        day.displayDate.formatted(.dateTime.weekday(.abbreviated).month(.wide).day().year())
     }
 
     private var kindText: String {

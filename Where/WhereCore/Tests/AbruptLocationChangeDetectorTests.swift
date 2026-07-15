@@ -6,8 +6,16 @@ private typealias Fixtures = DataIssueDetectorFixtures
 
 struct AbruptLocationChangeDetectorTests {
     @Test func flagsAdjacentDisjointDays() {
-        let earlier = DayPresence(date: Fixtures.day(2026, 4, 10), regions: [.california])
-        let later = DayPresence(date: Fixtures.day(2026, 4, 11), regions: [.newYork])
+        let earlier = DayPresence(
+            date: Fixtures.day(2026, 4, 10),
+            in: Fixtures.calendar,
+            regions: [.california],
+        )
+        let later = DayPresence(
+            date: Fixtures.day(2026, 4, 11),
+            in: Fixtures.calendar,
+            regions: [.newYork],
+        )
         let issues = AbruptLocationChangeDetector().detectIssues(in: Fixtures.input(days: [
             earlier,
             later,
@@ -25,8 +33,16 @@ struct AbruptLocationChangeDetectorTests {
     }
 
     @Test func skipsOverlappingRegions() {
-        let earlier = DayPresence(date: Fixtures.day(2026, 4, 10), regions: [.california, .newYork])
-        let later = DayPresence(date: Fixtures.day(2026, 4, 11), regions: [.newYork])
+        let earlier = DayPresence(
+            date: Fixtures.day(2026, 4, 10),
+            in: Fixtures.calendar,
+            regions: [.california, .newYork],
+        )
+        let later = DayPresence(
+            date: Fixtures.day(2026, 4, 11),
+            in: Fixtures.calendar,
+            regions: [.newYork],
+        )
         let issues = AbruptLocationChangeDetector().detectIssues(in: Fixtures.input(days: [
             earlier,
             later,
@@ -35,8 +51,16 @@ struct AbruptLocationChangeDetectorTests {
     }
 
     @Test func skipsGapInCalendar() {
-        let earlier = DayPresence(date: Fixtures.day(2026, 4, 10), regions: [.california])
-        let later = DayPresence(date: Fixtures.day(2026, 4, 12), regions: [.newYork])
+        let earlier = DayPresence(
+            date: Fixtures.day(2026, 4, 10),
+            in: Fixtures.calendar,
+            regions: [.california],
+        )
+        let later = DayPresence(
+            date: Fixtures.day(2026, 4, 12),
+            in: Fixtures.calendar,
+            regions: [.newYork],
+        )
         let issues = AbruptLocationChangeDetector().detectIssues(in: Fixtures.input(days: [
             earlier,
             later,
