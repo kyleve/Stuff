@@ -108,9 +108,9 @@ and talk to the collaborators:
 import WhereCore
 
 // Production wiring reads the tracked regions from the store to build the
-// attributor, so `make(...)` is async. Tests/previews can use the synchronous
-// `WhereServices(store:locationSource:)` (in-memory stores resolve to the
-// default four).
+// attributor, so `make(...)` is the one public entry and is async. Tests and
+// previews use the synchronous `@_spi(Testing)` `init` instead (an explicit
+// attributor, default four) via `@_spi(Testing) import WhereCore`.
 let services = try await WhereServices.make(
     store: try SwiftDataStore.make(),   // production; use .inMemory() in tests
     locationSource: CoreLocationSource(),

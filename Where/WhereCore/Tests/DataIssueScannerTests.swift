@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 struct DataIssueScannerTests {
     private static var calendar: Calendar {

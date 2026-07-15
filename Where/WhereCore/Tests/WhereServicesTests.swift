@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 
 /// Integration coverage for the assembled `WhereServices`: the cross-collaborator
 /// wiring that no single focused suite owns — the ingestor's post-persist hook

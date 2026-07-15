@@ -2,7 +2,7 @@ import Foundation
 import RegionKit
 import TestHostSupport
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 @testable import WhereUI
 
 /// Covers `LoggedDaysModel`'s mapping of the selected year's manual entries into

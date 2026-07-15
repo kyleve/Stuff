@@ -683,6 +683,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             }
             context.insert(SDTrackedRegion(regionID: id))
         } else {
+            // TODO: Untracking deletes the row, which drops the region from the
+            // attributor's load set — so re-aggregating a past year would
+            // re-attribute that region's GPS days to `.other` (manual days,
+            // stored as region sets, are unaffected). When the onboarding /
+            // region picker lands, switch to a soft-delete (mark the row
+            // inactive, never delete) and have the attributor load every
+            // ever-tracked region so past reports stay stable, while "active"
+            // drives the UI/primary set. Not user-reachable yet — nothing calls
+            // `setTrackedRegion(false)` outside tests.
             for record in existing {
                 context.delete(record)
             }

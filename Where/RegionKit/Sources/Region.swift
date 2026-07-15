@@ -43,6 +43,12 @@ public struct Region: Hashable, Sendable, RawRepresentable {
     }
 }
 
+/// Hand-written `Codable` rather than the compiler-synthesized one: a single
+/// `rawValue` field would synthesize a *keyed* container (`{"rawValue":"us-CA"}`),
+/// but we want the **bare id string** (`"us-CA"`). That keeps `Set<Region>` /
+/// `[Region: Int]` and the persisted `regionRaws: [String]` round-tripping as
+/// plain strings — matching what the former `String`-backed enum produced, so
+/// stored SwiftData, widget snapshots, and backup archives stay compatible.
 extension Region: Codable {
     /// Decodes the bare id string **without** catalog validation, so a stored
     /// region stays honest even if the catalog changes between writes and reads.
@@ -51,8 +57,7 @@ extension Region: Codable {
         try self.init(unchecked: container.decode(String.self))
     }
 
-    /// Encodes as the bare id string, so `Set<Region>` / `[Region: Int]` and the
-    /// persisted `regionRaws` round-trip through a single value.
+    /// Encodes as the bare id string (see the type note above).
     public func encode(to encoder: any Encoder) throws {
         var container = encoder.singleValueContainer()
         try container.encode(rawValue)

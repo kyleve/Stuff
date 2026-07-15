@@ -57,14 +57,66 @@ print(region.localizedName) // "California"
 
 ## Bundled data
 
-The catalog manifest (`Sources/Resources/regions.json`) and one GeoJSON file per
-region (`Sources/Resources/regions/<id>.geojson`) are **generated** from the
-source data under `Tools/source/` by `Tools/generate-regions.rb`; see
-[`Sources/Resources/README.md`](Sources/Resources/README.md) for the id scheme,
-provenance, and how to regenerate. Region names come from the manifest, with an
-optional `localizationKey` overriding from RegionKit's own `Localizable.xcstrings`
-(`Region.localizedName`, `bundle: .module`) — a deliberate trade-off: dynamic
-ids mean names are data, so region names lose static string-catalog extraction.
+The catalog manifest and one GeoJSON file per region ship in
+`Sources/Resources/`. Both are **generated** — never hand-edit them.
+
+### `regions.json` — the catalog manifest
+
+An ordered array of entries, one per available region:
+
+```json
+{ "id": "us-CA", "name": "California", "localizationKey": "region.california",
+  "geometry": { "file": "us-CA.geojson" } }
+```
+
+- `id` — a stable data identifier, never shown to the user. US states are
+  `us-<USPS>` (`us-CA`, `us-NY`, …); countries/blocs use a slug (`canada`,
+  `european-union`). The `other` catch-all isn't in the manifest — it's a
+  sentinel with no geometry.
+- `name` — the English display name (the `localizedName` fallback).
+- `localizationKey` — optional; when present, `localizedName` resolves it from
+  `Localizable.xcstrings` (`bundle: .module`), else falls back to `name`. Only
+  the handful with existing translations carry one. (Dynamic ids mean names are
+  data, so region names lose static string-catalog extraction — a deliberate
+  trade-off.)
+- `geometry.file` — the per-region file under `regions/`.
+- **Array order is the catalog's canonical order** (US states alphabetically,
+  then countries/blocs, blocs last): it fixes attribution first-match priority
+  (regions are mutually exclusive at our resolution) and the day-count ranking
+  tiebreak.
+
+### `regions/<id>.geojson` — per-region geometry
+
+One FeatureCollection per region (a single `Polygon`/`MultiPolygon` feature,
+exterior rings only). `RegionAttributor` loads only the files for the regions
+it's asked to attribute, so we never parse the whole US at launch.
+
+### Regenerating
+
+`regions/` and `regions.json` are generated from the (non-bundled) source data
+under [`Tools/source/`](Tools/source) by
+[`Tools/generate-regions.rb`](Tools/generate-regions.rb) — re-run it from the
+repo root after changing the source (the `NAME → us-<USPS>` map lives in the
+script):
+
+```sh
+ruby Where/RegionKit/Tools/generate-regions.rb
+```
+
+### Source data (not bundled)
+
+- **`us-states.geojson`** — US state boundaries (50 states + DC + PR),
+  `MultiPolygon` per feature keyed by `properties.NAME`; the generator splits it
+  into one `regions/us-<USPS>.geojson` per feature. Originally
+  `gz_2010_us_040_00_5m.json` (5m, 2010 census) from
+  [eric.clst.org/tech/usgeojson](https://eric.clst.org/tech/usgeojson/),
+  converted from US Census Cartographic Boundary Files. License: US Government
+  works are public domain (17 U.S.C. § 105); attribution requested (see the repo
+  `README.md`).
+- **`canada.geojson` / `europeanUnion.geojson`** — hand-simplified outlines,
+  deliberately coarse (fine for `RegionAttributorTests` spot-checks; should be
+  replaced with higher-fidelity public-domain sources before any production
+  residency-audit use).
 
 ## Adding a region
 

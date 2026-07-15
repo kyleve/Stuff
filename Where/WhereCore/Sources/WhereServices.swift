@@ -52,6 +52,13 @@ public struct WhereServices: Sendable {
     /// SwiftData never has to route through the value-type `WhereStore` boundary.
     public let modelContainer: ModelContainer?
 
+    /// Synchronous assembly with an explicitly-provided `attributor` (default:
+    /// the historical four via `RegionAttributor.shared`). For **tests and
+    /// previews** — hence `@_spi(Testing)` — which build in-memory stacks without
+    /// an async store read. Production wiring (the app launch, the App Intents
+    /// process) goes through the public `make(...)`, which derives the attributor
+    /// from the store's tracked regions.
+    @_spi(Testing)
     public init(
         store: any WhereStore,
         locationSource: any LocationSource,

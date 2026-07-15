@@ -1,7 +1,7 @@
 import Foundation
 import RegionKit
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 @testable import WhereUI
 
 /// Covers `RecentActivityModel`'s mapping of the summarizer's output (and its

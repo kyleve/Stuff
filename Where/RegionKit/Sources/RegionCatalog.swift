@@ -8,7 +8,7 @@ import LogKit
 /// be a hardcoded `Region` enum plus a separate name table.
 ///
 /// Because the list is data, adding a region is a manifest + geometry-file
-/// change (see `Resources/README.md`), not a code change. `RegionAttributor`
+/// change (see the RegionKit `README.md`), not a code change. `RegionAttributor`
 /// loads geometry per region from the files this catalog names, so it only ever
 /// parses the regions it's asked to attribute.
 ///
