@@ -17,6 +17,8 @@ final class RegionAttribution: RegionAttributing {
         var trackedIDs: Set<String>
     }
 
+    private static let logger = WhereLog.channel(.regionAttribution)
+
     private let store: any WhereStore
     private let state: OSAllocatedUnfairLock<State>
     /// Set once in `init` and only cancelled in `deinit`, so there's no
@@ -67,11 +69,22 @@ final class RegionAttribution: RegionAttributing {
     /// parse runs only on an actual change. Serialized by the single observer
     /// task; also exposed so callers/tests can reconcile deterministically.
     func reconcile() async {
-        guard let tracked = try? await store.trackedRegions() else { return }
+        let tracked: Set<Region>
+        do {
+            tracked = try await store.trackedRegions()
+        } catch {
+            // Degraded-but-handled: keep the last-good attributor rather than
+            // silently freezing on an empty/stale set, and surface the failure so
+            // a persistent read error is observable instead of invisible.
+            Self.logger.warning("Failed to read tracked regions for attributor rebuild: \(error)")
+            return
+        }
         let ids = Set(tracked.map(\.rawValue))
         let changed = state.withLock { $0.trackedIDs != ids }
         guard changed else { return }
-        let rebuilt = RegionAttributor(for: Array(tracked))
+        // Canonical order so the rebuilt attributor's first-match priority is
+        // deterministic (see WhereServices.make).
+        let rebuilt = RegionAttributor(for: Region.inCanonicalOrder(tracked))
         state.withLock { $0 = State(attributor: rebuilt, trackedIDs: ids) }
     }
 }

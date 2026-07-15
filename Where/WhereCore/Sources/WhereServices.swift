@@ -206,7 +206,9 @@ public struct WhereServices: Sendable {
         let tracked = try await store.trackedRegions()
         let attribution = RegionAttribution(
             store: store,
-            initial: RegionAttributor(for: Array(tracked)),
+            // Canonical order (not `Array(Set)`) so the attributor's first-match
+            // priority is deterministic and matches the catalog order.
+            initial: RegionAttributor(for: Region.inCanonicalOrder(tracked)),
             trackedIDs: Set(tracked.map(\.rawValue)),
         )
         return WhereServices(
