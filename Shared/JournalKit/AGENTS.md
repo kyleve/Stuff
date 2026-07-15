@@ -23,6 +23,10 @@ the build system, formatting, and global conventions. Read that first.
   any byte; recovery yields every wholly-written entry and flags the tear.
   The truncation fuzz in `JournalRecoveryTests` pins this at every cut
   point — keep it passing.
+- **A torn write poisons only its own segment.** A partial `write(2)`
+  (disk-full's shape) leaves bytes recovery stops at, so the segment is
+  marked poisoned and the next append rotates to a fresh one — later
+  entries must never land behind a tear.
 - **Drops are whole segments, oldest first,** and always observable
   (`droppedSegmentCount`, `droppedOlderEntries`) — the newest entries are
   never sacrificed.

@@ -1,5 +1,5 @@
 import Foundation
-import JournalKit
+@_spi(Testing) import JournalKit
 import Testing
 
 struct JournalTests {
@@ -58,6 +58,33 @@ struct JournalTests {
         // The newest entry always survives — the journal drops from the
         // oldest end, like a flight recorder.
         #expect(texts(recovered.payloads).last?.hasPrefix("entry-39-") == true)
+    }
+
+    @Test func tornWritesPoisonOnlyTheirSegment() throws {
+        // A short write (disk-full's shape) leaves torn bytes recovery
+        // stops at. The segment poisons; the next append rotates to a
+        // fresh one — so a moment of disk pressure loses one entry, not
+        // everything after it.
+        let directory = makeJournalDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let journal = try Journal(
+            directory: directory,
+            configuration: Journal.Configuration(maximumByteCount: 1_000_000),
+        )
+        try journal.append(payload("before"), sync: .processDeath)
+        journal.injectShortWriteOnNextAppend()
+        #expect(throws: (any Error).self) {
+            try journal.append(payload("torn"), sync: .processDeath)
+        }
+        try journal.append(payload("after"), sync: .processDeath)
+        journal.close()
+
+        let recovered = try JournalRecovery.recover(directory: directory)
+        #expect(texts(recovered.payloads) == ["before", "after"])
+        #expect(recovered.foundTornEntry)
+        // The poisoned segment stayed behind; "after" landed in a new one.
+        let segments = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+        #expect(segments.count == 2)
     }
 
     @Test func reopeningContinuesAfterExistingSegments() throws {
