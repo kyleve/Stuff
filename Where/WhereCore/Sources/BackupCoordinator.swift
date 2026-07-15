@@ -1,8 +1,14 @@
 import Foundation
 import LogKit
 
-/// Owns backup export/import over the `BackupService` and the store, publishing
-/// the widget snapshot after an import lands new data.
+/// Owns backup export/import over the `BackupService` and the store, running a
+/// caller-supplied `onImport` hook after an import lands new data.
+///
+/// An import rewrites day data, so the same badge / notification / widget
+/// reconcile a `DayJournal` day change runs has to follow it. Rather than reach
+/// into all those collaborators (a leaky abstraction), the coordinator takes one
+/// `onImport` closure and the composition root points it at the shared fan-out —
+/// so the reconcile stays defined in a single place.
 ///
 /// Public so its `ImportStrategy` / `ImportSummary` types stay nameable from the
 /// UI directly through `WhereServices.backup`; construction stays in-module via
@@ -41,15 +47,11 @@ public actor BackupCoordinator {
 
     private let store: any WhereStore
     private let backupService = BackupService()
-    private let widgets: WidgetSnapshotPublisher
-    /// Shared scanner behind the badge/notification issue count. Dropped inline
-    /// after an import commits so the reconciles below recount from fresh data
-    /// rather than racing the scanner's async store-change invalidation.
-    private let issueScanner: DataIssueScanner
-    /// App-icon badge (missing-day backlog + unresolved-issue count).
-    private let reminders: ReminderReconciler
-    /// "Issues to resolve" notification.
-    private let issueAlerts: DataIssueAlertReconciler
+    /// Invoked once after an import successfully commits. The composition root
+    /// wires it to the same post-day-change reconcile a journal write runs
+    /// (drop the issue-scan cache, reconcile the app-icon badge + issues
+    /// notification, republish the widget snapshot).
+    private let onImport: @Sendable () async -> Void
     private static let logger = WhereLog.channel(.backupService)
 
     /// Staging directory of the most recent export. Each archive lands in its
@@ -62,16 +64,10 @@ public actor BackupCoordinator {
 
     init(
         store: any WhereStore,
-        widgets: WidgetSnapshotPublisher,
-        issueScanner: DataIssueScanner,
-        reminders: ReminderReconciler,
-        issueAlerts: DataIssueAlertReconciler,
+        onImport: @escaping @Sendable () async -> Void,
     ) {
         self.store = store
-        self.widgets = widgets
-        self.issueScanner = issueScanner
-        self.reminders = reminders
-        self.issueAlerts = issueAlerts
+        self.onImport = onImport
     }
 
     /// Serialize the entire store (all four tables plus evidence blobs) to a
@@ -183,19 +179,12 @@ public actor BackupCoordinator {
                 report()
             }
         }
-        // An import rewrites day data, so reconcile exactly like a `DayJournal`
-        // day change: drop the scanner cache inline (so the reconciles below
-        // recount fresh rather than racing its async store-change
-        // invalidation), then reconcile the app-icon badge + issues
-        // notification off the new count and republish the widget snapshot.
-        // These headless reconcilers don't observe `store.changes()`, so
-        // without this an import leaves the home-screen badge and the issues
-        // alert stuck at their pre-import values. Keep this fan-out in sync with
-        // `DayJournal.reconcileAfterDayChange()`.
-        await issueScanner.invalidate()
-        await reminders.reconcile()
-        await issueAlerts.reconcile()
-        await widgets.publish()
+        // An import rewrites day data, so the badge / notification / widget
+        // reconcile a day change runs has to follow it — these headless
+        // reconcilers don't observe `store.changes()`, so without this the
+        // home-screen badge and the issues alert stay stuck at their pre-import
+        // values. The composition root supplies the shared fan-out.
+        await onImport()
 
         return ImportSummary(
             sampleCount: archive.samples.count,
