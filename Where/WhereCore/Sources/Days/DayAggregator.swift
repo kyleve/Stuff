@@ -76,7 +76,7 @@ public struct DayAggregator: Sendable {
     public func pointsByRegion(
         onDay day: CalendarDay,
         samples: [LocationSample],
-        attributor: RegionAttributor,
+        attributor: any RegionAttributing,
     ) -> [Region: [RegionDayPoint]] {
         var byRegion: [Region: [RegionDayPoint]] = [:]
         for sample in samples where CalendarDay(from: sample.timestamp, in: calendar) == day {

@@ -60,7 +60,7 @@ public struct FlightDayDetector: DataIssueDetector {
     private func flightIssue(
         for day: DayPresence,
         samples: [LocationSample],
-        attributor: RegionAttributor,
+        attributor: any RegionAttributing,
     ) -> FlightDayIssue? {
         guard samples.count >= 3 else { return nil }
 
