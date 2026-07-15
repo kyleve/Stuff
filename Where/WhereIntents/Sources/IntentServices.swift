@@ -20,11 +20,11 @@ actor IntentServices {
 
     private var cached: WhereServices?
 
-    func current() throws -> WhereServices {
+    func current() async throws -> WhereServices {
         if let cached {
             return cached
         }
-        let services = try WhereServices.forIntents()
+        let services = try await WhereServices.forIntents()
         cached = services
         return services
     }

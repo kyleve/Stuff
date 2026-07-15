@@ -22,7 +22,7 @@ public struct DataIssueInput: Sendable {
     public let report: YearReport
     public let otherDayCoordinates: [CalendarDay: [Coordinate]]
     public let primaryRegions: [Region]
-    public let attributor: RegionAttributor
+    public let attributor: any RegionAttributing
     public let driftThresholdMeters: Double
     public let calendar: Calendar
     public let now: Date
@@ -32,7 +32,7 @@ public struct DataIssueInput: Sendable {
         report: YearReport,
         otherDayCoordinates: [CalendarDay: [Coordinate]],
         primaryRegions: [Region],
-        attributor: RegionAttributor,
+        attributor: any RegionAttributing,
         driftThresholdMeters: Double,
         calendar: Calendar,
         now: Date,

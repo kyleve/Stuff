@@ -1,4 +1,5 @@
 import Foundation
+import RegionKit
 import Testing
 @testable import WhereCore
 
@@ -13,7 +14,11 @@ struct DailySummaryReconcilerTests {
             calendar: WhereCoreTestSupport.calendar(),
             timeZone: WhereCoreTestSupport.pacific,
         )
-        let reader = ReportReader(store: store, aggregator: aggregator, attributor: .shared)
+        let reader = ReportReader(
+            store: store,
+            aggregator: aggregator,
+            attributor: RegionAttributor.shared,
+        )
         let spy = SpyDailySummaryScheduler()
         let reconciler = DailySummaryReconciler(
             scheduler: spy,

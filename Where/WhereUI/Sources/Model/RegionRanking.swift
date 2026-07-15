@@ -48,8 +48,8 @@ public struct RegionRanking: Hashable, Sendable {
         self.init(primary: primary, secondary: secondary)
     }
 
-    /// All present regions sorted by day count descending, ties broken by
-    /// `Region.allCases` declaration order so the layout is stable.
+    /// All present regions sorted by day count descending, ties broken by the
+    /// catalog's canonical (`declarationOrder`) order so the layout is stable.
     static func ranked(report: YearReport) -> [RegionDays] {
         Region.rankedByDayCount(
             report.totals

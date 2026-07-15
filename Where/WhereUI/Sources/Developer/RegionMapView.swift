@@ -140,7 +140,10 @@ public struct RegionMapView: View {
         outlines = nil
         selectedTitle = nil
         do {
-            let loaded = try await RegionGeometryCatalog.outlines(for: kind)
+            // Standalone dev tool with no session/store, so `.attribution` shows
+            // every available region the engine can attribute (`.all`); `.source`
+            // ignores the attributor.
+            let loaded = try await RegionGeometryCatalog.outlines(for: kind, attributor: .all)
             guard !Task.isCancelled else { return }
             outlines = .success(loaded)
             reframe(to: loaded)

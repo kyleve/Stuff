@@ -15,25 +15,36 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   the lowest layer of the feature, and `WhereCore` depends on *it*, never the
   reverse.
 - Library target in [`Package.swift`](../../Package.swift)
-  (`Where/RegionKit/Sources`). Bundled region polygons and the region-name
-  string catalog ship in `Sources/Resources/`.
+  (`Where/RegionKit/Sources`). The generated catalog manifest + per-region
+  polygons and the region-name string catalog ship in `Sources/Resources/`; the
+  (non-bundled) source geometry lives in `Tools/source/`.
 
 ## Invariants
 
-- **`Region.geometrySource` is the single source of truth** for where a region's
-  polygons come from; `Region.localizedName` and `geometrySource` are exhaustive
-  switches, so adding a `Region` case is a compile error until its name and
-  geometry are declared (see [README](README.md#adding-a-region)).
-- **`Region.allCases` order fixes attribution priority** — `RegionAttributor`
-  checks regions in declaration order and the first polygon match wins (regions
-  are mutually exclusive at our resolution). (Day-count ranking of regions lives
-  in `WhereCore`'s `Region+Ordering`, not here.)
-- **Attribution loads once, lazily** (`RegionAttributor.shared`) and is UI-free:
-  `BoundingBox` / `LongitudeSpan` expose the min/max math, but MapKit conversion
-  lives in the UI layer.
-- **Missing/corrupt bundled geometry is a programmer error** — the loader logs a
-  `fault` via `RegionLog` *and* `assertionFailure`s (debug), degrading to
-  `.other` in release rather than crashing.
+- **`Region` is a data-driven value type, not a hardcoded enum.** It wraps a
+  stable `rawValue` id; the set of available regions and their metadata live in
+  the bundled `regions.json` manifest, read by `RegionCatalog`. Adding a region
+  is a data change (regenerate via `Tools/generate-regions.rb`), never a new case
+  — see [README](README.md#adding-a-region). `regions/` + `regions.json` are
+  generated; never hand-edit them.
+- **The catalog's canonical order (`RegionCatalog.all`, hence `Region.allCases`
+  = catalog order then `.other`) fixes attribution priority** — an attributor
+  checks its regions in order and the first polygon match wins (regions are
+  mutually exclusive at our resolution). (Day-count ranking lives in `WhereCore`'s
+  `Region+Ordering`, not here.)
+- **Attribution is per-region, on demand.** `RegionAttributor(for:)` loads only
+  the passed regions' `regions/<id>.geojson` files, so the app parses only the
+  tracked set — never the whole US at launch. `.all` loads the whole catalog
+  (dev viewer/tests); `.shared` the default four. It's UI-free: `BoundingBox` /
+  `LongitudeSpan` expose the min/max math, but MapKit conversion lives in the UI
+  layer. `RegionAttributing` lets `WhereCore` supply a live, swappable attributor.
+- **Region names are manifest data (a documented trade-off).** `localizedName`
+  resolves a manifest entry's optional `localizationKey` from the string catalog,
+  else the manifest's English `name` — so dynamic ids cost static string-catalog
+  extraction for region names.
+- **Missing/corrupt bundled geometry (or manifest) is a programmer error** — the
+  loader logs a `fault` via `RegionLog` *and* `assertionFailure`s (debug),
+  degrading to `.other`/an empty catalog in release rather than crashing.
 - **Logging goes through `RegionLog.channel(_:)`** (subsystem
   `com.stuff.regionkit`), never `WhereLog` — RegionKit owns its own channel and
   in-memory store.

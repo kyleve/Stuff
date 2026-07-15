@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-import WhereCore
+@_spi(Testing) import WhereCore
 
 struct LocationAuthorizationTests {
     private func makeServices(

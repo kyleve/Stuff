@@ -1,10 +1,10 @@
 # RegionKit
 
 The geometry and region-lookup engine behind the Where app. Given a WGS84
-`Coordinate`, RegionKit answers *which tracked `Region` is it in?* — backed by
-bundled GeoJSON polygons loaded once at process start. It is pure Swift +
-Foundation (no SwiftUI, UIKit, SwiftData, or CoreLocation), so it can be reused
-and unit-tested in isolation.
+`Coordinate`, RegionKit answers *which `Region` is it in?* — backed by bundled
+GeoJSON polygons loaded **on demand, per region**. It is pure Swift + Foundation
+(no SwiftUI, UIKit, SwiftData, or CoreLocation), so it can be reused and
+unit-tested in isolation.
 
 RegionKit is the lowest layer of the Where feature: `WhereCore` (and, through
 it, `WhereUI`, the widgets, and the RegionViewer) depend on RegionKit and call
@@ -12,20 +12,28 @@ into it for lookup. RegionKit depends only on [`LogKit`](../../Shared/LogKit).
 
 ## What you get
 
-- **`Region`** — the tracked-region enum (`.california`, `.newYork`, `.canada`,
-  `.europeanUnion`, `.other`), with a `localizedName` (from RegionKit's own
-  string catalog) and a `geometrySource` describing where its polygons come
-  from. (Day-count *ranking* of regions lives in `WhereCore`, not here —
-  RegionKit stays about regions and geofencing.)
+- **`Region`** — a `Hashable`/`Codable` value type wrapping a stable string id
+  (`rawValue`, e.g. `"us-CA"`, `"canada"`), with a `localizedName`. It is **not**
+  a hardcoded enum: the set of *available* regions is data (see `RegionCatalog`).
+  Conveniences (`.california`, `.newYork`, `.canada`, `.europeanUnion`, `.other`)
+  read naturally at call sites; `.other` is the catch-all sentinel (no geometry).
+  (Day-count *ranking* lives in `WhereCore`, not here.)
+- **`RegionCatalog`** — the catalog of available regions, loaded from the bundled
+  `regions.json` manifest: `all`, `localizedName(for:)`, canonical order, and the
+  per-region geometry files. Adding a region is a data change, not a code change.
 - **`Coordinate`** — a plain WGS84 latitude/longitude value type (no
   CoreLocation), plus geometry primitives `GeoPolygon`, `BoundingBox`, and the
   antimeridian-aware `LongitudeSpan`.
-- **`RegionAttributor`** — `region(at:)` maps a coordinate to its `Region`
-  (bounding-box pre-pass, then an even-odd ray-cast), and `distanceToBoundary`
-  measures nearness to a region's edge. `RegionAttributor.shared` loads the
-  bundled polygons lazily.
+- **`RegionAttributor`** / **`RegionAttributing`** — `region(at:)` maps a
+  coordinate to its `Region` (bounding-box pre-pass, then an even-odd ray-cast),
+  and `distanceToBoundary` measures nearness to a region's edge. An attributor is
+  built for a **specific set of regions** (`RegionAttributor(for:)`) and loads
+  only those regions' files; `.all` covers the whole catalog and `.shared` the
+  default four. `RegionAttributing` is the protocol the app's live, swappable
+  attributor also conforms to.
 - **`RegionGeometryCatalog`** — read-only drawable `RegionOutline`s for the
-  developer region-map viewer (`.attribution` vs `.source` geometry).
+  developer region-map viewer (`.attribution` for a given attributor vs `.source`
+  for the whole catalog).
 - **`RegionLog`** — RegionKit's LogKit facade (subsystem `com.stuff.regionkit`).
 
 ## Installation
@@ -49,19 +57,81 @@ print(region.localizedName) // "California"
 
 ## Bundled data
 
-Region polygons ship in `Sources/Resources/*.geojson`; see
-[`Sources/Resources/README.md`](Sources/Resources/README.md) for provenance and
-fidelity notes. Region names resolve through RegionKit's own
-`Localizable.xcstrings` (`Region.localizedName`, `bundle: .module`).
+The catalog manifest and one GeoJSON file per region ship in
+`Sources/Resources/`. Both are **generated** — never hand-edit them.
+
+### `regions.json` — the catalog manifest
+
+An ordered array of entries, one per available region:
+
+```json
+{ "id": "us-CA", "name": "California", "localizationKey": "region.california",
+  "geometry": { "file": "us-CA.geojson" } }
+```
+
+- `id` — a stable data identifier, never shown to the user. US states are
+  `us-<USPS>` (`us-CA`, `us-NY`, …); countries/blocs use a slug (`canada`,
+  `european-union`). The `other` catch-all isn't in the manifest — it's a
+  sentinel with no geometry.
+- `name` — the English display name (the `localizedName` fallback).
+- `localizationKey` — optional; when present, `localizedName` resolves it from
+  `Localizable.xcstrings` (`bundle: .module`), else falls back to `name`. Only
+  the handful with existing translations carry one. (Dynamic ids mean names are
+  data, so region names lose static string-catalog extraction — a deliberate
+  trade-off.)
+- `geometry.file` — the per-region file under `regions/`.
+- **Array order is the catalog's canonical order** (US states alphabetically,
+  then countries/blocs, blocs last): it fixes attribution first-match priority
+  (regions are mutually exclusive at our resolution) and the day-count ranking
+  tiebreak.
+
+### `regions/<id>.geojson` — per-region geometry
+
+One FeatureCollection per region (a single `Polygon`/`MultiPolygon` feature,
+exterior rings only). `RegionAttributor` loads only the files for the regions
+it's asked to attribute, so we never parse the whole US at launch.
+
+### Regenerating
+
+`regions/` and `regions.json` are generated from the (non-bundled) source data
+under [`Tools/source/`](Tools/source) by
+[`Tools/generate-regions.rb`](Tools/generate-regions.rb) — re-run it from the
+repo root after changing the source (the `NAME → us-<USPS>` map lives in the
+script):
+
+```sh
+ruby Where/RegionKit/Tools/generate-regions.rb
+```
+
+### Source data (not bundled)
+
+- **`us-states.geojson`** — US state boundaries (50 states + DC + PR),
+  `MultiPolygon` per feature keyed by `properties.NAME`; the generator splits it
+  into one `regions/us-<USPS>.geojson` per feature. Originally
+  `gz_2010_us_040_00_5m.json` (5m, 2010 census) from
+  [eric.clst.org/tech/usgeojson](https://eric.clst.org/tech/usgeojson/),
+  converted from US Census Cartographic Boundary Files. License: US Government
+  works are public domain (17 U.S.C. § 105); attribution requested (see the repo
+  `README.md`).
+- **`canada.geojson` / `europeanUnion.geojson`** — hand-simplified outlines,
+  deliberately coarse (fine for `RegionAttributorTests` spot-checks; should be
+  replaced with higher-fidelity public-domain sources before any production
+  residency-audit use).
 
 ## Adding a region
 
-Add the `Region` case, then resolve the two compile errors it forces: a
-`region.<rawValue>` entry in `Sources/Resources/Localizable.xcstrings` (for
-`localizedName`) and a `Region.geometrySource` case — either
-`.usStateFeature(name:)` (a feature already in `us-states.geojson`, no new file)
-or `.bundledFile` with a new `<rawValue>.geojson` in `Sources/Resources/`. Add a
-`RegionAttributorTests` spot-check.
+Adding a region is now **pure data** — no new `Region` case, no code:
+
+1. Add its geometry to `Tools/source/` (a new feature, or a new source file).
+2. Run `ruby Where/RegionKit/Tools/generate-regions.rb` to regenerate
+   `regions/` + `regions.json` (add the `NAME → id` mapping in the script if it's
+   a new US feature; blocs/countries get an entry in the script's `NON_US` list).
+3. Optionally add a `region.<key>` entry to `Localizable.xcstrings` and point the
+   manifest entry's `localizationKey` at it (otherwise the English `name` shows).
+4. Add a `RegionAttributorTests` spot-check.
+
+Everything downstream (`RegionStyle`, region pickers, the App Intents
+`RegionEntity`) derives from the catalog automatically.
 
 ## Testing
 

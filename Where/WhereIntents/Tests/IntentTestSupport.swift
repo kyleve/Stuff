@@ -1,5 +1,5 @@
 import Foundation
-import WhereCore
+@_spi(Testing) import WhereCore
 @testable import WhereIntents
 
 /// Shared fixtures for the WhereIntents suites: an in-memory `WhereServices`

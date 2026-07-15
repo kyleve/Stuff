@@ -1,5 +1,6 @@
 import Foundation
 import LogKit
+import RegionKit
 import ZIPFoundation
 
 /// Serializes a whole-database backup to a `.zip` and reads one back.
@@ -91,6 +92,7 @@ public struct BackupService: Sendable {
         evidence: [Evidence],
         manualDays: [DayPresence],
         dismissedIssues: [DismissedIssue] = [],
+        trackedRegions: [Region] = [],
         blobs: [UUID: Data],
         exportedAt: Date = Date(),
         archiveName: String? = nil,
@@ -121,6 +123,7 @@ public struct BackupService: Sendable {
             evidence: evidence,
             manualDays: manualDays,
             dismissedIssues: dismissedIssues,
+            trackedRegions: trackedRegions,
             assets: assetEntries,
         )
         let manifestData = try Self.makeEncoder().encode(archive)
@@ -135,7 +138,7 @@ public struct BackupService: Sendable {
             compressionMethod: .deflate,
         )
         Self.logger.info(
-            "Wrote backup with \(samples.count) samples, \(evidence.count) evidence, \(manualDays.count) manual days, \(dismissedIssues.count) dismissals",
+            "Wrote backup with \(samples.count) samples, \(evidence.count) evidence, \(manualDays.count) manual days, \(dismissedIssues.count) dismissals, \(trackedRegions.count) tracked regions",
         )
         return zipURL
     }

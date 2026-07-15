@@ -46,7 +46,7 @@ struct RecentActivitySummarizerTests {
     ) -> RecentActivitySummarizer {
         RecentActivitySummarizer(
             store: store,
-            attributor: .shared,
+            attributor: RegionAttributor.shared,
             generator: generator,
             calendar: .current,
             now: { now },

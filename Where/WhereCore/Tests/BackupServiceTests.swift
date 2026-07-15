@@ -139,7 +139,7 @@ struct BackupServiceTests {
     @Test func legacyManualDayWithoutAuthoritativeKeyDecodesAsAdditive() throws {
         // Simulates a manifest written before `isAuthoritative` existed: the
         // missing key must decode as additive rather than failing.
-        let json = #"{"date":"2026-07-04T00:00:00Z","regions":["newYork"]}"#
+        let json = #"{"date":"2026-07-04T00:00:00Z","regions":["us-NY"]}"#
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         let decoded = try decoder.decode(DayPresence.self, from: Data(json.utf8))
@@ -147,6 +147,36 @@ struct BackupServiceTests {
         #expect(decoded.regions == [.newYork])
         // A manifest predating audit must decode with no audit, not fail.
         #expect(decoded.audit == nil)
+    }
+
+    @Test func trackedRegionsSurviveArchiveRoundTrip() throws {
+        let service = BackupService()
+        let texas = try #require(Region(rawValue: "us-TX"))
+        let url = try service.makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            trackedRegions: [.california, texas],
+            blobs: [:],
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let result = try service.readArchive(at: url)
+        #expect(result.archive.trackedRegions == [.california, texas])
+    }
+
+    @Test func legacyManifestWithoutTrackedRegionsDecodesAsEmpty() throws {
+        // A manifest written before `trackedRegions` existed must decode to []
+        // rather than failing (additive field, like `dismissedIssues`).
+        let json = #"""
+        {"formatVersion":1,"exportedAt":"2026-06-05T12:00:00Z","samples":[],"evidence":[],"manualDays":[],"assets":[]}
+        """#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let archive = try decoder.decode(BackupArchive.self, from: Data(json.utf8))
+        #expect(archive.trackedRegions.isEmpty)
+        #expect(archive.dismissedIssues.isEmpty)
     }
 
     @Test func auditManualDaySurvivesArchiveRoundTrip() throws {
@@ -228,7 +258,7 @@ struct BackupServiceTests {
         let json = """
         {"formatVersion":1,"exportedAt":"2023-11-14T22:13:20Z","samples":[],\
         "evidence":[],"manualDays":[{"date":"2026-02-08T05:00:00Z",\
-        "regions":["newYork"],"isAuthoritative":false}],"assets":[]}
+        "regions":["us-NY"],"isAuthoritative":false}],"assets":[]}
         """
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
