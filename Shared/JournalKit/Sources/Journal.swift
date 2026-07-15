@@ -58,6 +58,7 @@ public final class Journal: @unchecked Sendable {
         var segmentIsPoisoned = false
         #if DEBUG
             var pendingShortWrite = false
+            var pendingRemovalFailure = false
         #endif
     }
 
@@ -154,6 +155,12 @@ public final class Journal: @unchecked Sendable {
         @_spi(Testing) public func injectShortWriteOnNextAppend() {
             state.withLock { $0.pendingShortWrite = true }
         }
+
+        /// Testing seam: the next segment removal during rotation fails —
+        /// the accounting must not pretend it succeeded.
+        @_spi(Testing) public func injectRemovalFailureOnNextRotation() {
+            state.withLock { $0.pendingRemovalFailure = true }
+        }
     #endif
 
     /// Segments dropped so far to stay within the byte budget — each one
@@ -183,9 +190,28 @@ public final class Journal: @unchecked Sendable {
         while state.totalByteCount > configuration.maximumByteCount, indexes.count > 1 {
             let oldest = indexes.removeFirst()
             let bytes = try JournalSegments.byteCount(of: oldest, in: directory)
-            try? FileManager.default.removeItem(at: JournalSegments.url(for: oldest, in: directory))
+            // Only account for what actually leaves the disk: a segment
+            // that fails to delete is still there (a later rotation
+            // retries it), and the loop moves to the next-oldest so the
+            // byte budget still wins.
+            guard removeSegment(oldest, state: &state) else { continue }
             state.totalByteCount -= bytes
             state.droppedSegmentCount += 1
+        }
+    }
+
+    private func removeSegment(_ index: Int, state: inout State) -> Bool {
+        #if DEBUG
+            if state.pendingRemovalFailure {
+                state.pendingRemovalFailure = false
+                return false
+            }
+        #endif
+        do {
+            try FileManager.default.removeItem(at: JournalSegments.url(for: index, in: directory))
+            return true
+        } catch {
+            return false
         }
     }
 

@@ -87,6 +87,46 @@ struct JournalTests {
         #expect(segments.count == 2)
     }
 
+    @Test func failedSegmentRemovalsKeepTheBudgetHonest() throws {
+        // A removal that fails must not be counted as if it succeeded —
+        // the old accounting double-subtracted the segment's bytes on the
+        // retry, drifting the total low until the budget stopped enforcing
+        // and the journal grew without bound.
+        let directory = makeJournalDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let journal = try Journal(
+            directory: directory,
+            configuration: Journal.Configuration(maximumByteCount: 1024),
+        )
+        for index in 0 ..< 60 {
+            if index.isMultiple(of: 5) {
+                journal.injectRemovalFailureOnNextRotation()
+            }
+            try journal.append(
+                payload("entry-\(index)-" + String(repeating: "x", count: 90)),
+                sync: .processDeath,
+            )
+        }
+        journal.close()
+
+        // Transient removal failures retried; the disk footprint stays
+        // near the budget instead of growing with the append count.
+        let onDisk = try FileManager.default.contentsOfDirectory(atPath: directory.path)
+            .reduce(0) { total, name in
+                let path = directory.appendingPathComponent(name).path
+                let size = (
+                    try? FileManager.default.attributesOfItem(atPath: path)[.size] as? Int,
+                ) ??
+                    0
+                return total + (size ?? 0)
+            }
+        #expect(onDisk <= 2048)
+
+        let recovered = try JournalRecovery.recover(directory: directory)
+        #expect(texts(recovered.payloads).last?.hasPrefix("entry-59-") == true)
+        #expect(recovered.droppedOlderEntries)
+    }
+
     @Test func segmentHeadersSurviveRotation() throws {
         // The header re-writes at every segment's start, so however far
         // the budget rotates, the newest segment self-describes — dropping

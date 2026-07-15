@@ -29,7 +29,9 @@ the build system, formatting, and global conventions. Read that first.
   entries must never land behind a tear.
 - **Drops are whole segments, oldest first,** and always observable
   (`droppedSegmentCount`, `droppedOlderEntries`) — the newest entries are
-  never sacrificed.
+  never sacrificed. A segment that fails to delete stays in the byte
+  accounting (later rotations retry it) and the drop loop moves to the
+  next-oldest, so the budget still wins.
 
 ## Testing
 
