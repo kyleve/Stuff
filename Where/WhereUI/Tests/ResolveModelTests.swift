@@ -1,7 +1,7 @@
 import Foundation
+import TestHostSupport
 import Testing
-import WhereCore
-import WhereTesting
+@_spi(Testing) import WhereCore
 @_spi(Testing) @testable import WhereUI
 
 /// Covers `ResolveModel` — the Resolve tab's issue list and dismiss action.

@@ -2,11 +2,11 @@ import RegionKit
 import SwiftUI
 import WhereCore
 
-/// Correct which regions a single day counted for. Unlike `ManualDayEntryView`
-/// (which unions with GPS to backfill), saving here *overrides* the day — it
-/// replaces whatever GPS or a prior entry recorded, so a wrong attribution can
-/// be removed. The raw GPS samples are left untouched (see
-/// `DayJournal.overrideDay`), so the fix is reversible.
+/// Correct which regions a single day counted for. Unlike `ManualDayView`
+/// (which unions with GPS to backfill / edits a hand-logged entry), saving here
+/// *overrides* the day — it replaces whatever GPS or a prior entry recorded, so
+/// a wrong attribution can be removed. The raw GPS samples are left untouched
+/// (see `DayJournal.overrideDay`), so the fix is reversible.
 struct DayRelabelView: View {
     @Environment(\.dismiss) private var dismiss
 
@@ -117,32 +117,12 @@ struct DayRelabelView: View {
     @ViewBuilder
     private var auditSection: some View {
         if let audit = day.audit {
-            Section {
-                LabeledContent(Strings.auditRecordedAt, value: recordedAtText(audit.recordedAt))
-                if let note = audit.note {
-                    LabeledContent(Strings.auditNote, value: note)
-                }
-                LabeledContent(Strings.auditLocation, value: locationText(audit.location))
-            } header: {
-                Text(Strings.auditHeader)
-            }
+            ManualEntryAuditSection(audit: audit)
         }
     }
 
     private var dateText: String {
         day.date.formatted(.dateTime.month(.abbreviated).day().year())
-    }
-
-    private func recordedAtText(_ date: Date) -> String {
-        date.formatted(.dateTime.month(.abbreviated).day().year().hour().minute())
-    }
-
-    private func locationText(_ location: CapturedLocation?) -> String {
-        guard let location else { return Strings.auditLocationUnavailable }
-        return Strings.auditCoordinate(
-            latitude: location.coordinate.latitude,
-            longitude: location.coordinate.longitude,
-        )
     }
 
     private func save() {

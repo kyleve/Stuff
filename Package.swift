@@ -17,10 +17,13 @@ let package = Package(
         .library(name: "PeriscopeUI", targets: ["PeriscopeUI"]),
         .library(name: "PeriscopeTools", targets: ["PeriscopeTools"]),
         .library(name: "SwiftDataInspector", targets: ["SwiftDataInspector"]),
+        .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
         .library(name: "RegionKit", targets: ["RegionKit"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
         .library(name: "WhereUI", targets: ["WhereUI"]),
-        .library(name: "WhereTesting", targets: ["WhereTesting"]),
+        .library(name: "WhereIntents", targets: ["WhereIntents"]),
+        .library(name: "BroadwayCore", targets: ["BroadwayCore"]),
+        .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
     ],
     dependencies: [
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
@@ -79,6 +82,10 @@ let package = Package(
             path: "Shared/SwiftDataInspector/Sources",
         ),
         .target(
+            name: "TestHostSupport",
+            path: "Shared/TestHostSupport/Sources",
+        ),
+        .target(
             name: "RegionKit",
             dependencies: [
                 .target(name: "LogKit"),
@@ -104,6 +111,8 @@ let package = Package(
             name: "WhereUI",
             dependencies: [
                 .target(name: "WhereCore"),
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
                 .target(name: "LifecycleKit"),
                 .target(name: "LogKit"),
                 .target(name: "LogViewerUI"),
@@ -116,11 +125,28 @@ let package = Package(
             ],
         ),
         .target(
-            name: "WhereTesting",
+            name: "WhereIntents",
             dependencies: [
+                .target(name: "LogKit"),
+                .target(name: "RegionKit"),
                 .target(name: "WhereCore"),
+                .target(name: "WhereUI"),
             ],
-            path: "Where/WhereTesting/Sources",
+            path: "Where/WhereIntents/Sources",
+            resources: [
+                .process("Resources"),
+            ],
+        ),
+        .target(
+            name: "BroadwayCore",
+            path: "Shared/Broadway/BroadwayCore/Sources",
+        ),
+        .target(
+            name: "BroadwayUI",
+            dependencies: [
+                .target(name: "BroadwayCore"),
+            ],
+            path: "Shared/Broadway/BroadwayUI/Sources",
         ),
     ],
 )

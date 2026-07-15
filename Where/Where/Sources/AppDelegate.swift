@@ -2,6 +2,7 @@ import CoreLocation
 import LifecycleKit
 import UIKit
 import WhereCore
+import WhereIntents
 import WhereUI
 
 /// Owns the app's single `WhereModel` and the `LifecycleRunner` that drives
@@ -40,6 +41,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // async steps off this synchronous launch path.
         launcher = WhereLaunch.makeLauncher(model: model, reason: reason)
         Task { await launcher.run() }
+        // Index the tracked regions into Spotlight so a search for a region name
+        // surfaces Where and its day-count query. Off the launch critical path;
+        // indexing five items is cheap and idempotent.
+        Task { await RegionSpotlightIndexer.indexRegions() }
         return true
     }
 }

@@ -391,14 +391,14 @@ public final class WhereSession {
 #if DEBUG
     extension WhereSession {
         /// A read-only SwiftData inspector over the live store, for the DEBUG-only
-        /// developer entry point in Settings. `nil` when the backing store isn't
-        /// SwiftData (e.g. a preview/test fake), so the entry point hides itself.
+        /// developer overlay. `nil` when the backing store isn't SwiftData (e.g. a
+        /// preview/test fake), so the inspector row hides itself.
         var swiftDataInspectorConfiguration: SwiftDataInspectorConfiguration? {
             guard let container = services.modelContainer else { return nil }
             return SwiftDataInspectorConfiguration(
                 container: container,
                 modelTypes: SwiftDataStore.inspectorModelTypes,
-                title: Strings.settingsDebugInspectorTitle,
+                title: Strings.developerInspectorTitle,
             )
         }
     }

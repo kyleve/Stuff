@@ -15,6 +15,9 @@ import SwiftData
 public struct WhereServices: Sendable {
     /// Pure reads: `YearReport` + location projections.
     public let reports: ReportReader
+    /// Pure reads over user-attached evidence (per-year list, per-day keys for
+    /// the calendar badge, attachment bytes). Writes go through `journal`.
+    public let evidence: EvidenceReader
     /// Widget snapshot publishing + freshness policy.
     public let widgets: WidgetSnapshotPublisher
     /// Daily logging-reminder intent + badge/schedule reconciliation.
@@ -64,6 +67,7 @@ public struct WhereServices: Sendable {
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         let reports = ReportReader(store: store, aggregator: aggregator, attributor: attributor)
+        let evidence = EvidenceReader(store: store, aggregator: aggregator)
         // Built before the reconcilers that consume it: the reminder reconciler
         // folds its unresolved-issue count into the app-icon badge, and the
         // issue-alert reconciler drives the "issues to resolve" notification off
@@ -162,6 +166,7 @@ public struct WhereServices: Sendable {
         )
 
         self.reports = reports
+        self.evidence = evidence
         self.reminders = reminders
         self.summary = summary
         self.issueAlerts = issueAlerts

@@ -1,23 +1,19 @@
 import LifecycleKit
-import LogViewerUI
-import RegionKit
-#if DEBUG
-    import SwiftDataInspector
-#endif
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
 import WhereCore
 
-/// Settings tab: location permission + tracking, retroactive manual entry,
-/// whole-database backup export/import, and the destructive "erase a year"
-/// action.
+/// Settings tab: location permission + tracking, notification reminders and
+/// summaries, the report year, whole-database backup export/import, and the
+/// destructive "erase a year" action. (Logging or overriding a day moved to the
+/// Primary tab's "Logged days" toolbar item.)
 struct SettingsView: View {
     // The scene's report model drives the year-scoped rows (clear-year, drift
     // threshold); the always-on `WhereSession` coordinator (environment) drives
-    // tracking/permission + the DEBUG inspector; `model` (environment) drives
-    // the reset sequence (which rebuilds the session from scratch). The reminder
-    // and backup editing surfaces are view-scoped models owned here.
+    // tracking/permission; `model` (environment) drives the reset sequence (which
+    // rebuilds the session from scratch). The reminder and backup editing
+    // surfaces are view-scoped models owned here.
     let report: YearReportModel
     @State private var backup: BackupModel
     @State private var reminders: RemindersSettingsModel
@@ -61,14 +57,11 @@ struct SettingsView: View {
                 issueAlertsSection
                 resolutionSection
                 tabsSection
+                yearSection
                 appIconSection
-                manualEntrySection
                 backupSection
                 dataSection
                 resetSection
-                #if DEBUG
-                    developerSection
-                #endif
             }
             .navigationTitle(Strings.settingsTitle)
             // Notification permission can change in the Settings app while we're
@@ -319,17 +312,19 @@ struct SettingsView: View {
         }
     }
 
-    private var manualEntrySection: some View {
+    /// The report year moved here off the Primary/Elsewhere toolbars — it's set
+    /// rarely, so it lives in Settings rather than taking a permanent toolbar
+    /// slot. Reuses `YearSelector`, which reads/drives the shared scene model, so
+    /// changing it here updates every tab (and the erase-year row below).
+    private var yearSection: some View {
         Section {
-            NavigationLink {
-                ManualDayEntryView(report: report)
-            } label: {
-                Label(Strings.settingsManualLink, systemImage: "calendar.badge.plus")
+            LabeledContent(Strings.settingsYearLabel) {
+                YearSelector(report: report)
             }
         } header: {
-            Text(Strings.settingsManualHeader)
+            Text(Strings.settingsYearHeader)
         } footer: {
-            Text(Strings.settingsManualFooter)
+            Text(Strings.settingsYearFooter)
         }
     }
 
@@ -465,44 +460,6 @@ struct SettingsView: View {
     private func requestReset() {
         Task { await runner.teardown(WhereLaunch.resetSequence(for: model)) }
     }
-
-    #if DEBUG
-        /// Developer-only tools, compiled out of release: the in-app log viewer
-        /// over both process buffers — `WhereLog` (the app/WhereCore facade) and
-        /// `RegionLog` (RegionKit) — merged chronologically, plus — when the live
-        /// session can vend a SwiftData container — the generic SwiftData
-        /// inspector (previews and non-SwiftData fakes don't show it).
-        private var developerSection: some View {
-            Section {
-                NavigationLink {
-                    LogViewer(configuration: LogViewerConfiguration(
-                        stores: [WhereLog.store, RegionLog.store],
-                        title: Strings.settingsDebugLogsTitle,
-                    ))
-                } label: {
-                    Label(Strings.settingsDebugLogsLink, systemImage: "ladybug")
-                }
-
-                if let configuration = session.swiftDataInspectorConfiguration {
-                    NavigationLink {
-                        SwiftDataInspectorView(configuration: configuration)
-                    } label: {
-                        Label(Strings.settingsDebugInspectorLink, systemImage: "cylinder.split.1x2")
-                    }
-                }
-
-                NavigationLink {
-                    RegionMapView()
-                } label: {
-                    Label(Strings.settingsDebugRegionMapLink, systemImage: "map")
-                }
-            } header: {
-                Text(Strings.settingsDebugHeader)
-            } footer: {
-                Text(Strings.settingsDebugFooter)
-            }
-        }
-    #endif
 
     private func openSystemSettings() {
         guard let url = URL(string: UIApplication.openSettingsURLString) else { return }

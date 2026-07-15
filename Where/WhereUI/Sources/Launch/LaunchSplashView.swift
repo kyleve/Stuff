@@ -22,8 +22,13 @@ import SwiftUI
 /// static frame, and the caption appears without a fade.
 struct LaunchSplashView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.stylesheet) private var stylesheet
     @State private var pulsing = false
     @State private var showCaption: Bool
+
+    private var splash: WhereStylesheet.Palette.Splash {
+        stylesheet.palette.splash
+    }
 
     /// How long the splash must linger before the "taking a moment" caption
     /// fades in, so a fast launch never flashes it.
@@ -44,20 +49,20 @@ struct LaunchSplashView: View {
         let imageName = injectedPreviewImageName ?? AppIconCatalog.liveSelectedPreviewImageName()
         ZStack {
             background
-            RadarPingBackground(animated: !reduceMotion, tint: .accentColor)
+            RadarPingBackground(animated: !reduceMotion, tint: splash.iconGlow)
             icon(named: imageName)
 
             if showCaption {
                 VStack {
                     Spacer()
                     caption
-                        .padding(.bottom, UIConstants.Size.launchCaptionBottomInset)
+                        .padding(.bottom, stylesheet.size.launchCaptionBottomInset)
                 }
                 .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.black)
+        .background(splash.background)
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(showCaption ? Strings.migrationTitle : Strings.launchAccessibilityLabel)
@@ -67,7 +72,7 @@ struct LaunchSplashView: View {
             if reduceMotion {
                 showCaption = true
             } else {
-                withAnimation(.easeOut(duration: 0.3)) { showCaption = true }
+                withAnimation(stylesheet.motion.captionFade) { showCaption = true }
             }
         }
     }
@@ -76,23 +81,23 @@ struct LaunchSplashView: View {
     /// and pulsing icon already say "working", so this is just text, pinned
     /// light since the backdrop is always dark.
     private var caption: some View {
-        VStack(spacing: UIConstants.Spacings.small) {
+        VStack(spacing: stylesheet.spacing.small) {
             Text(Strings.migrationTitle)
                 .font(.headline)
             Text(Strings.migrationSubtitle)
                 .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(splash.captionSecondary)
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(splash.caption)
         .multilineTextAlignment(.center)
-        .padding(.horizontal, UIConstants.Spacings.xxxLarge)
+        .padding(.horizontal, stylesheet.spacing.xxxLarge)
     }
 
     /// A subtle vignette — a touch lighter at the center, falling to black — so
     /// the icon and rings have some depth instead of floating on flat black.
     private var background: some View {
         RadialGradient(
-            colors: [Color(white: 0.16), .black],
+            colors: [splash.vignetteCenter, splash.vignetteEdge],
             center: .center,
             startRadius: 0,
             endRadius: 520,
@@ -101,13 +106,13 @@ struct LaunchSplashView: View {
     }
 
     private func icon(named name: String) -> some View {
-        let cornerRadius = UIConstants.Size.launchIcon * AppIconImage.cornerRadiusRatio
-        return AppIconImage(name: name, size: UIConstants.Size.launchIcon, bordered: false)
+        let cornerRadius = stylesheet.size.launchIcon * AppIconImage.cornerRadiusRatio
+        return AppIconImage(name: name, size: stylesheet.size.launchIcon, bordered: false)
             .scaleEffect(pulsing ? 1.1 : 1)
             .background {
                 // A soft brand-tinted glow that breathes with the pulse.
                 RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                    .fill(Color.accentColor)
+                    .fill(splash.iconGlow)
                     .blur(radius: 44)
                     .opacity(pulsing ? 0.55 : 0.3)
                     .scaleEffect(pulsing ? 1.3 : 0.85)

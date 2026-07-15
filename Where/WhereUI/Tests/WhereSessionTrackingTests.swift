@@ -1,7 +1,7 @@
 import Foundation
+import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
-import WhereTesting
 import WhereUI
 
 /// Covers the launch-time reconciliation that fixes the "toggle is always off"

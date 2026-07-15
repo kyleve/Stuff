@@ -10,7 +10,7 @@ import WhereCore
 ///
 /// Self-contained on purpose — it reads geometry straight from
 /// `RegionGeometryCatalog` and holds no `@Environment(WhereSession.self)`,
-/// so the same view backs both the in-app Settings → Developer entry and
+/// so the same view backs both the in-app developer overlay entry and
 /// the standalone `RegionViewer` Mac Catalyst app (which has no session /
 /// dependency injection). The catalog decodes off the main thread, so the
 /// `.task` below never blocks the UI on the heavy `.source` parse.
@@ -24,8 +24,10 @@ public struct RegionMapView: View {
     @State private var selectedTitle: String?
     @State private var cameraPosition: MapCameraPosition = .automatic
 
+    @Environment(\.stylesheet) private var stylesheet
+
     /// Public so the standalone `RegionViewer` app (a separate module) can
-    /// present the same screen as the in-app Settings → Developer entry.
+    /// present the same screen as the in-app developer overlay entry.
     public init() {}
 
     public var body: some View {
@@ -107,17 +109,15 @@ public struct RegionMapView: View {
                 Text(Strings.regionMapKindFooter(kind))
             }
         }
-        .frame(height: UIConstants.Size.regionMapHeight)
+        .frame(height: stylesheet.regionMap.height)
     }
 
     private func legendRow(_ group: LegendGroup) -> some View {
-        HStack(spacing: UIConstants.Spacings.large) {
+        HStack(spacing: stylesheet.spacing.large) {
             Circle()
                 .fill(color(forTitle: group.title, region: group.region))
-                .frame(
-                    width: UIConstants.Size.calendarDot * 2,
-                    height: UIConstants.Size.calendarDot * 2,
-                )
+                // Developer legend swatch — a fixed dev-tool size, not a themed token.
+                .frame(width: 12, height: 12)
                 .accessibilityHidden(true)
             Text(group.title)
             Spacer()

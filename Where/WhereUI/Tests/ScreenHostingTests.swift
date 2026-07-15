@@ -1,9 +1,9 @@
 import LogViewerUI
 import RegionKit
 import SwiftUI
+import TestHostSupport
 import Testing
 import WhereCore
-import WhereTesting
 @testable import WhereUI
 
 /// Hosts each top-level screen in a real window with seeded preview data to
@@ -27,8 +27,8 @@ struct ScreenHostingTests {
     }
 
     @Test func settingsViewHosts() throws {
-        // Settings reads the app model (reset) and the logged-in session (tracking
-        // + inspector) from the environment, and takes the scene report explicitly.
+        // Settings reads the app model (reset) and the logged-in session
+        // (tracking) from the environment, and takes the scene report explicitly.
         let model = PreviewSupport.loadedModel()
         let session = PreviewSupport.loadedSession()
         let rootView = SettingsView(report: PreviewSupport.loadedYearReportModel())
@@ -163,28 +163,94 @@ struct ScreenHostingTests {
         }
     }
 
-    @Test func manualDayEntryViewHostsDefault() throws {
+    @Test func loggedDaysViewHostsEachState() throws {
+        for state in [
+            LoggedDaysModel.LoadState.loaded(PreviewSupport.sampleManualDays()),
+            .empty,
+            .failed("iCloud is unavailable."),
+        ] {
+            let rootView = LoggedDaysView(
+                report: PreviewSupport.loadedYearReportModel(),
+                model: PreviewSupport.loggedDaysModel(state: state),
+            )
+            try show(UIHostingController(rootView: rootView)) { hosted in
+                #expect(hosted.view != nil)
+            }
+        }
+    }
+
+    @Test func manualDayViewHostsAddModes() throws {
         let report = PreviewSupport.loadedYearReportModel()
-        let rootView = NavigationStack { ManualDayEntryView(report: report) }
-        try show(UIHostingController(rootView: rootView)) { hosted in
+        for showsCancel in [false, true] {
+            let rootView = NavigationStack {
+                ManualDayView(
+                    report: report,
+                    mode: .add(prefill: nil),
+                    showsCancelButton: showsCancel,
+                )
+            }
+            try show(UIHostingController(rootView: rootView)) { hosted in
+                #expect(hosted.view != nil)
+            }
+        }
+
+        // Prefilled-range add (the Resolve backfill flow).
+        let missing = PreviewSupport.missingDaysYearReportModel()
+        let range = try #require(missing.missingDays.first)
+        let prefilled = NavigationStack {
+            ManualDayView(report: missing, mode: .add(prefill: range))
+        }
+        try show(UIHostingController(rootView: prefilled)) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
-    @Test func manualDayEntryViewHostsPrefill() throws {
-        let report = PreviewSupport.missingDaysYearReportModel()
-        let range = try #require(report.missingDays.first)
-        let rootView = NavigationStack { ManualDayEntryView(report: report, prefill: range) }
-        try show(UIHostingController(rootView: rootView)) { hosted in
-            #expect(hosted.view != nil)
+    @Test func manualDayViewHostsEditModes() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let days = [
+            DayPresence(date: .now, regions: [.california]),
+            DayPresence(
+                date: .now,
+                regions: [.canada],
+                isAuthoritative: true,
+                audit: ManualEntryAudit(recordedAt: .now, note: "Boarding pass.", location: nil),
+            ),
+        ]
+        for day in days {
+            let rootView = NavigationStack {
+                ManualDayView(report: report, mode: .edit(day), showsCancelButton: true)
+            }
+            try show(UIHostingController(rootView: rootView)) { hosted in
+                #expect(hosted.view != nil)
+            }
         }
     }
 
     @Test func debugLogViewerHostsWithSharedStore() throws {
-        // The Settings debug entry pushes this viewer over WhereLog's buffer.
+        // The developer tools surface pushes this viewer over WhereLog's buffer.
         let rootView = NavigationStack {
             LogViewer(configuration: LogViewerConfiguration(store: WhereLog.store, title: "Logs"))
         }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func developerToolsViewHosts() throws {
+        // Reads the logged-in session from the environment for the SwiftData
+        // inspector row; owns its own navigation stack for the pushed viewers.
+        let rootView = DeveloperToolsView()
+            .environment(PreviewSupport.loadedSession())
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func developerOverlayHosts() throws {
+        // The floating overlay mounts (collapsed) with a session available for the
+        // tools it can expand into.
+        let rootView = DeveloperOverlay()
+            .environment(PreviewSupport.loadedSession())
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }

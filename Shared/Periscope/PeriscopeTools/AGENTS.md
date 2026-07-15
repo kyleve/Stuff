@@ -46,4 +46,4 @@ flat, named 1:1 with their source files.
 
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
 (`PeriscopeToolsTests`). Seed an in-memory store, drive the view models
-directly, and host views with `WhereTesting`'s `show()` helpers.
+directly, and host views with `TestHostSupport`'s `show()` helpers.

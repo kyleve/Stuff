@@ -1,7 +1,7 @@
 import Foundation
 @_spi(Testing) import PeriscopeCore
+import TestHostSupport
 import UIKit
-import WhereTesting
 
 /// Shared fixture event for the tools suites.
 struct PhotoLogs: LogEvent {
@@ -81,7 +81,7 @@ func waitUntil(_ predicate: () async -> Bool) async -> Bool {
     return await predicate()
 }
 
-/// `WhereTesting.show` with an async body: hosts `viewController` in the
+/// `TestHostSupport.show` with an async body: hosts `viewController` in the
 /// test host's hierarchy for the duration of `body`, so tests can await
 /// SwiftUI/task work while the view stays on screen.
 @MainActor
@@ -90,9 +90,9 @@ func showHosted<ViewController: UIViewController>(
     _ body: (ViewController) async throws -> Void,
 ) async throws {
     guard let rootVC = hostKeyWindow()?.rootViewController else {
-        throw WhereTestingError("No root view controller in test host.")
+        throw TestHostError("No root view controller in test host.")
     }
-    // Match WhereTesting.show: run window animations at 100x so tests
+    // Match TestHostSupport.show: run window animations at 100x so tests
     // never wait on real transition durations.
     defer { rootVC.view.window?.layer.speed = 1 }
     rootVC.view.window?.layer.speed = 100

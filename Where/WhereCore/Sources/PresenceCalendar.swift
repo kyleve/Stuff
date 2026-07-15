@@ -20,6 +20,10 @@ public struct CalendarDayCell: Hashable, Sendable, Identifiable {
     /// Whether this day still needs a location logged (matches the Primary
     /// tab's missing-day banner/backfill rules).
     public let needsAttention: Bool
+    /// Whether at least one piece of evidence was captured on this day (its
+    /// `capturedAt` falls on this calendar day). Drives the calendar's evidence
+    /// badge. Independent of `regions`/residency — evidence is metadata only.
+    public let hasEvidence: Bool
 
     public var id: Date {
         date
@@ -31,12 +35,14 @@ public struct CalendarDayCell: Hashable, Sendable, Identifiable {
         regions: [Region],
         isToday: Bool,
         needsAttention: Bool,
+        hasEvidence: Bool,
     ) {
         self.date = date
         self.dayOfMonth = dayOfMonth
         self.regions = regions
         self.isToday = isToday
         self.needsAttention = needsAttention
+        self.hasEvidence = hasEvidence
     }
 }
 
@@ -116,6 +122,7 @@ public enum PresenceCalendar {
         calendar: Calendar,
         referenceDate: Date,
         missingDates: Set<Date> = [],
+        evidenceDays: Set<Date> = [],
         focusedRegion: Region? = nil,
     ) throws -> [CalendarMonth] {
         var regionsByDay: [Date: Set<Region>] = [:]
@@ -138,6 +145,7 @@ public enum PresenceCalendar {
         }
 
         let normalizedMissing = Set(missingDates.map { calendar.startOfDay(for: $0) })
+        let normalizedEvidence = Set(evidenceDays.map { calendar.startOfDay(for: $0) })
         let referenceStartOfDay = calendar.startOfDay(for: referenceDate)
 
         return try monthRange.map { monthNumber in
@@ -148,6 +156,7 @@ public enum PresenceCalendar {
                 calendar: calendar,
                 referenceDate: referenceStartOfDay,
                 missingDates: normalizedMissing,
+                evidenceDays: normalizedEvidence,
                 focusedRegion: focusedRegion,
             )
         }
@@ -160,6 +169,7 @@ public enum PresenceCalendar {
         calendar: Calendar,
         referenceDate: Date,
         missingDates: Set<Date> = [],
+        evidenceDays: Set<Date> = [],
         focusedRegion: Region? = nil,
     ) throws -> CalendarMonth {
         guard
@@ -214,6 +224,7 @@ public enum PresenceCalendar {
                 regions: regions,
                 isToday: calendar.isDate(date, inSameDayAs: referenceDate),
                 needsAttention: missingDates.contains(date),
+                hasEvidence: evidenceDays.contains(date),
             ))
         }
 
@@ -258,6 +269,7 @@ extension YearReport {
         calendar: Calendar,
         referenceDate: Date,
         missingDates: Set<Date> = [],
+        evidenceDays: Set<Date> = [],
         focusedRegion: Region? = nil,
     ) throws -> [CalendarMonth] {
         try PresenceCalendar.months(
@@ -265,6 +277,7 @@ extension YearReport {
             calendar: calendar,
             referenceDate: referenceDate,
             missingDates: missingDates,
+            evidenceDays: evidenceDays,
             focusedRegion: focusedRegion,
         )
     }

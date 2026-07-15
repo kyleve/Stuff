@@ -27,5 +27,5 @@ the build system, formatting, and global conventions. Read that first.
 ## Testing
 
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
-(`PeriscopeUITests`). Host views with `WhereTesting`'s `show()` helpers and
+(`PeriscopeUITests`). Host views with `TestHostSupport`'s `show()` helpers and
 assert against a fresh `Periscope` system per test.

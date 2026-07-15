@@ -42,6 +42,7 @@ struct MainTabs: View {
         TabView(selection: $selection) {
             Tab(Strings.tabPrimary, systemImage: "star.fill", value: TabID.primary) {
                 PrimaryView(report: report)
+                    .reportingDeveloperTabBarInset()
             }
 
             // With "hide empty tabs" on (the default), Elsewhere and Resolve
@@ -59,18 +60,21 @@ struct MainTabs: View {
                     value: TabID.elsewhere,
                 ) {
                     SecondaryView(report: report)
+                        .reportingDeveloperTabBarInset()
                 }
             }
 
             if !report.hideEmptyTabs || report.dataIssueCount > 0 || selection == .resolution {
                 Tab(Strings.tabResolution, systemImage: "checklist", value: TabID.resolution) {
                     ResolutionView(report: report)
+                        .reportingDeveloperTabBarInset()
                 }
                 .badge(report.dataIssueCount)
             }
 
             Tab(Strings.tabSettings, systemImage: "gearshape.fill", value: TabID.settings) {
                 SettingsView(report: report)
+                    .reportingDeveloperTabBarInset()
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)

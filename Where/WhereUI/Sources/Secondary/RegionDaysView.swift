@@ -18,6 +18,12 @@ struct RegionDaysView: View {
     @State private var pins: [MapPin] = []
     @State private var coordinatesByDay: [Date: [Coordinate]] = [:]
 
+    @Environment(\.stylesheet) private var stylesheet
+
+    private var regionMap: WhereStylesheet.RegionMapStyle {
+        stylesheet.regionMap
+    }
+
     private var days: [DayPresence] {
         report.days(in: region)
     }
@@ -69,15 +75,19 @@ struct RegionDaysView: View {
             ForEach(pins) { pin in
                 if let radius = drawnUncertaintyRadius(for: pin) {
                     MapCircle(center: pin.coordinate, radius: radius)
-                        .foregroundStyle(region.style.tint.opacity(0.15))
-                        .stroke(region.style.tint.opacity(0.6), lineWidth: 1)
+                        .foregroundStyle(region.style.tint
+                            .opacity(regionMap.uncertaintyFillOpacity))
+                        .stroke(
+                            region.style.tint.opacity(regionMap.uncertaintyStrokeOpacity),
+                            lineWidth: regionMap.uncertaintyStrokeWidth,
+                        )
                 }
                 Marker("", coordinate: pin.coordinate)
                     .tint(region.style.tint)
             }
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
-        .frame(height: UIConstants.Size.regionMapHeight)
+        .frame(height: regionMap.height)
         .accessibilityLabel(Strings.secondaryRegionMapAccessibility)
     }
 
@@ -159,13 +169,15 @@ private struct DayRow: View {
 
     @State private var placeName: String?
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
-        HStack(spacing: UIConstants.Spacings.large) {
+        HStack(spacing: stylesheet.spacing.large) {
             Image(systemName: "calendar")
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
 
-            VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
+            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                 Text(dateText)
                     .font(.headline)
                 if let placeName {
@@ -178,7 +190,7 @@ private struct DayRow: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(.vertical, UIConstants.Spacings.xSmall)
+        .padding(.vertical, stylesheet.spacing.xSmall)
         .task(id: coordinate) {
             guard let coordinate else { return }
             placeName = await LocationNamer.shared.name(for: coordinate)

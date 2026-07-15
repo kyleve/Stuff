@@ -20,8 +20,8 @@ Where/
   RegionKit/     SPM library – geometry, GeoJSON, Region model + lookup (WhereCore depends on it)
   WhereCore/     SPM library – domain model, persistence, GPS, aggregation
   WhereUI/       SPM library – SwiftUI views + view models (depends on WhereCore)
-  WhereTesting/  SPM library – iOS test host helpers (show(), waitFor, ...)
   WhereWidgets/  Widget extension – reads published snapshots, renders WhereUI views
+  WhereShareExtension/  Share extension – saves shared content as Evidence into the App Group store
   RegionViewer/  Mac Catalyst shell for the region-map developer tool
 ```
 
@@ -42,6 +42,12 @@ Where/
   `YearReportModel`, view-scoped `ResolveModel` / `BackupModel` /
   `RemindersSettingsModel`). It is **not** the domain model — see
   [Layering](#layering).
+- **Developer tools** live behind a DEBUG-only floating overlay, not in Settings.
+  `Developer/DeveloperOverlay` is attached once at `RootView` (above every launch
+  phase and tab, reachable even logged out): a draggable, corner-snapping
+  `DeveloperOverlayButton` that expands into a Picture-in-Picture panel and grows
+  to full screen, hosting `Developer/DeveloperToolsView` (Logs / SwiftData
+  inspector / region map). All of it is compiled out of release.
 
 ## Layering
 
@@ -78,7 +84,7 @@ Rules the code enforces and agents must preserve:
   degraded-but-handled, `error`/`fault` = outright failure; hot paths
   (per-sample persist, widget throttle) stay quiet by design. **RegionKit** logs
   through its own `RegionLog` facade (subsystem `com.stuff.regionkit`, separate
-  store) since it can't see `WhereLog`; the DEBUG Settings log viewer is
+  store) since it can't see `WhereLog`; the DEBUG developer log viewer is
   configured with **both** buffers (`[WhereLog.store, RegionLog.store]`) so it
   shows a single merged stream.
 - **Location comes through the `LocationSource` protocol** — production is
@@ -122,6 +128,9 @@ views or thrown errors.
   because a surface is dev-only.
 - **WhereWidgets:** gallery name/description live in the extension's own
   catalog; in-widget copy reuses WhereUI `Strings`.
+- **WhereShareExtension:** compose-sheet chrome lives in the extension's own
+  catalog (`ShareStrings`); evidence kind names reuse WhereUI's public
+  `EvidenceKind` presentation helpers.
 
 Add the key to the catalog first, then reference it — never ship English
 literals in SwiftUI `Text` or `errorDescription`.
@@ -130,6 +139,13 @@ literals in SwiftUI `Text` or `errorDescription`.
 
 - **Year bounds are half-open** (`[Jan 1 year, Jan 1 year+1)`); **day ranges
   are inclusive** (`Date.calendarDays(through:in:)`).
+- **The app is Gregorian-only.** All presence data is aggregated in a Gregorian
+  calendar (`DayAggregator()` defaults to Gregorian + current time zone), so any
+  day/year math must use a Gregorian calendar — **never `Calendar.current`**,
+  which on a non-Gregorian device (Buddhist, Japanese-era, …) reports a
+  different year and silently mismatches the stored reports. Use the calendar
+  the owning type vends (below), or a fresh `Calendar(identifier: .gregorian)`
+  with the current time zone (see `Calendar.whereIntents` in WhereIntents).
 - **Inject `Calendar`, don't reach for globals** — the scene's
   `YearReportModel` owns the calendar (Gregorian, current time zone) its
   missing-day math uses; layout types carry the calendar they were built with.
@@ -137,8 +153,13 @@ literals in SwiftUI `Text` or `errorDescription`.
   derives 365/366 rather than assuming a length).
 - **Core layout APIs throw on failure**; views surface
   `ContentUnavailableView` + log, never `!`.
-- Layout constants live in `UIConstants`, shared date-range copy in
-  `DateRangeFormatting`; numbers and dates use `FormatStyle`, not string
+- Layout tokens live in `WhereStylesheet` (a Broadway `BStylesheet`, read in
+  views via `@Environment(\.stylesheet)`; off the `View` tree — layout helpers,
+  tests — use `WhereStylesheet.default`). `RootView` seeds the Broadway context
+  with `.broadwayRoot(themes: WhereThemes.current)`, so tokens can derive from
+  live traits (e.g. bigger day-grid tap targets at accessibility Dynamic Type
+  sizes, a flatter card under Reduce Transparency). Shared date-range copy lives
+  in `DateRangeFormatting`; numbers and dates use `FormatStyle`, not string
   interpolation. Expensive layout computes once into state, not per `body`
   pass. Sharing uses `ShareLink` / `Transferable`.
 
@@ -183,7 +204,9 @@ manual-entry forms.
 ## Testing
 
 - Test bundles run in `StuffTestHost` via the `unitTests` helper in
-  `Project.swift` and link `WhereTesting` (`show(_:perform:)`, `waitFor`).
+  `Project.swift` and link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
+  The `InMemoryKeyValueStore` test double lives in `WhereCore` behind
+  `@_spi(Testing)` (`#if DEBUG`) — import it with `@_spi(Testing) import WhereCore`.
 - Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()` — never
   `CoreLocationSource` or the user's on-disk/CloudKit store. The CloudKit
   remote-import path is exercised with the `@_spi(Testing)`

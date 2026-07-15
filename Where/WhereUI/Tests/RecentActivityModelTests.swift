@@ -30,7 +30,9 @@ struct RecentActivityModelTests {
         }
     }
 
-    private static let now = Calendar.current.date(
+    /// `nonisolated` so the `@Sendable` `now:` closure in `makeServices` can
+    /// capture it without hopping off this `@MainActor` suite; `Date` is `Sendable`.
+    private nonisolated static let now = Calendar.current.date(
         from: DateComponents(year: 2026, month: 5, day: 2, hour: 12),
     )!
 

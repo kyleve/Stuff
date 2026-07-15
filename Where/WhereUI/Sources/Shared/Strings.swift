@@ -42,6 +42,10 @@ enum Strings {
         localized("common.done")
     }
 
+    static var commonCancel: String {
+        String(localized: "common.cancel", defaultValue: "Cancel", bundle: .module)
+    }
+
     /// "1 day" / "5 days" — with the count rendered.
     static func dayCount(_ count: Int) -> String {
         String(localized: "common.dayCount", defaultValue: "\(count) days", bundle: .module)
@@ -420,16 +424,20 @@ enum Strings {
         localized("settings.status.restricted")
     }
 
-    static var settingsManualHeader: String {
-        localized("settings.manual.header")
+    static var settingsYearLabel: String {
+        String(localized: "settings.year.label", defaultValue: "Year", bundle: .module)
     }
 
-    static var settingsManualLink: String {
-        localized("settings.manual.link")
+    static var settingsYearHeader: String {
+        String(localized: "settings.year.header", defaultValue: "Report year", bundle: .module)
     }
 
-    static var settingsManualFooter: String {
-        localized("settings.manual.footer")
+    static var settingsYearFooter: String {
+        String(
+            localized: "settings.year.footer",
+            defaultValue: "Choose which year your reports, calendar, and logged days cover.",
+            bundle: .module,
+        )
     }
 
     // MARK: Settings app icon
@@ -450,38 +458,55 @@ enum Strings {
         )
     }
 
-    // MARK: Settings debug
+    // MARK: Developer tools
 
-    static var settingsDebugHeader: String {
-        localized("settings.debug.header")
+    static var developerTitle: String {
+        localized("developer.title")
     }
 
-    static var settingsDebugLogsLink: String {
-        localized("settings.debug.logsLink")
+    static var developerLogsLink: String {
+        localized("developer.logsLink")
     }
 
-    static var settingsDebugFooter: String {
-        localized("settings.debug.footer")
+    static var developerFooter: String {
+        localized("developer.footer")
     }
 
-    static var settingsDebugLogsTitle: String {
-        localized("settings.debug.logsTitle")
+    static var developerLogsTitle: String {
+        localized("developer.logsTitle")
     }
 
-    static var settingsDebugInspectorLink: String {
-        localized("settings.debug.inspectorLink")
+    static var developerInspectorLink: String {
+        localized("developer.inspectorLink")
     }
 
-    static var settingsDebugInspectorTitle: String {
-        localized("settings.debug.inspectorTitle")
+    static var developerInspectorTitle: String {
+        localized("developer.inspectorTitle")
     }
 
-    static var settingsDebugRegionMapLink: String {
-        String(
-            localized: "settings.debug.regionMapLink",
-            defaultValue: "Region map",
-            bundle: .module,
-        )
+    static var developerRegionMapLink: String {
+        localized("developer.regionMapLink")
+    }
+
+    /// Accessibility label for the floating, collapsed developer button.
+    static var developerButtonLabel: String {
+        localized("developer.button.label")
+    }
+
+    /// Accessibility label for the developer panel's close control.
+    static var developerClose: String {
+        localized("developer.close")
+    }
+
+    /// Accessibility label for growing the developer panel to full screen.
+    static var developerExpand: String {
+        localized("developer.expand")
+    }
+
+    /// Accessibility label for shrinking the developer panel back to a
+    /// floating window.
+    static var developerCollapse: String {
+        localized("developer.collapse")
     }
 
     // MARK: Region map (developer)
@@ -973,6 +998,23 @@ enum Strings {
         date: Date,
         regions: [Region],
         needsAttention: Bool,
+        hasEvidence: Bool,
+    ) -> String {
+        let base = calendarDayBase(date: date, regions: regions, needsAttention: needsAttention)
+        guard hasEvidence else { return base }
+        // Append the attachment cue so VoiceOver announces it after the day's
+        // regions/status, e.g. "Monday, March 4, California, has evidence".
+        return String(
+            localized: "calendar.day.hasEvidence.accessibility",
+            defaultValue: "\(base), has evidence",
+            bundle: .module,
+        )
+    }
+
+    private static func calendarDayBase(
+        date: Date,
+        regions: [Region],
+        needsAttention: Bool,
     ) -> String {
         let day = date.formatted(.dateTime.weekday(.wide).month(.wide).day())
         if needsAttention {
@@ -993,6 +1035,338 @@ enum Strings {
         return String(
             localized: "calendar.day.accessibility",
             defaultValue: "\(day), \(names)",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Logged days
+
+    /// Toolbar label + accessibility for the Primary tab's "logged days" button
+    /// that opens the manual-entry management sheet.
+    static var primaryLoggedDays: String {
+        String(localized: "primary.loggedDays", defaultValue: "Logged days", bundle: .module)
+    }
+
+    static func loggedDaysTitle(year: Int) -> String {
+        String(
+            localized: "loggedDays.title",
+            defaultValue: "Logged Days · \(yearText(year))",
+            bundle: .module,
+        )
+    }
+
+    /// Toolbar "+" label for logging a new day by hand.
+    static var loggedDaysAdd: String {
+        String(localized: "loggedDays.add", defaultValue: "Log a day", bundle: .module)
+    }
+
+    /// Navigation title of the logged-day editor sheet.
+    static var loggedDaysEditTitle: String {
+        String(localized: "loggedDays.edit.title", defaultValue: "Edit day", bundle: .module)
+    }
+
+    /// Leading label for the (fixed) date row in the logged-day editor.
+    static var loggedDaysEditDate: String {
+        String(localized: "loggedDays.edit.date", defaultValue: "Day", bundle: .module)
+    }
+
+    /// Destructive button + confirmation title for deleting a logged day.
+    static var loggedDaysDelete: String {
+        String(localized: "loggedDays.delete", defaultValue: "Delete entry", bundle: .module)
+    }
+
+    /// Explains what deleting a logged day does — used as the editor section
+    /// footer and the delete confirmation message.
+    static var loggedDaysDeleteFooter: String {
+        String(
+            localized: "loggedDays.delete.footer",
+            defaultValue: "Removes this manual entry and restores the day's GPS-detected location.",
+            bundle: .module,
+        )
+    }
+
+    static var loggedDaysEmptyTitle: String {
+        String(localized: "loggedDays.empty.title", defaultValue: "No logged days", bundle: .module)
+    }
+
+    static var loggedDaysEmptyDescription: String {
+        String(
+            localized: "loggedDays.empty.description",
+            defaultValue: "Backfill a trip the GPS missed, or correct a day by hand — your manual entries for this year show up here.",
+            bundle: .module,
+        )
+    }
+
+    static var loggedDaysFailedTitle: String {
+        String(
+            localized: "loggedDays.failed.title",
+            defaultValue: "Couldn't load logged days",
+            bundle: .module,
+        )
+    }
+
+    /// Row tag for an additive backfill (unions with GPS).
+    static var loggedDaysKindLogged: String {
+        String(localized: "loggedDays.kind.logged", defaultValue: "Logged", bundle: .module)
+    }
+
+    /// Row tag for an authoritative override (replaces GPS).
+    static var loggedDaysKindOverridden: String {
+        String(
+            localized: "loggedDays.kind.overridden",
+            defaultValue: "Overridden",
+            bundle: .module,
+        )
+    }
+
+    static var loggedDaysDeleteErrorTitle: String {
+        String(
+            localized: "loggedDays.deleteError.title",
+            defaultValue: "Couldn't delete entry",
+            bundle: .module,
+        )
+    }
+
+    /// Accessibility label for the Logged/Overridden/All segmented filter (hidden
+    /// visually by the segmented style, read by VoiceOver).
+    static var loggedDaysFilterLabel: String {
+        String(localized: "loggedDays.filter.label", defaultValue: "Filter", bundle: .module)
+    }
+
+    /// Filter segment showing both logged and overridden entries.
+    static var loggedDaysFilterAll: String {
+        String(localized: "loggedDays.filter.all", defaultValue: "All", bundle: .module)
+    }
+
+    static var loggedDaysNoMatchesTitle: String {
+        String(
+            localized: "loggedDays.noMatches.title",
+            defaultValue: "No matching days",
+            bundle: .module,
+        )
+    }
+
+    static var loggedDaysNoMatchesDescription: String {
+        String(
+            localized: "loggedDays.noMatches.description",
+            defaultValue: "No days match this filter.",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Evidence
+
+    /// Toolbar label + accessibility for the Primary tab's "view all evidence"
+    /// button.
+    static var primaryEvidence: String {
+        String(localized: "primary.evidence", defaultValue: "Evidence", bundle: .module)
+    }
+
+    static func evidenceListTitle(year: Int) -> String {
+        String(
+            localized: "evidence.list.title",
+            defaultValue: "Evidence · \(yearText(year))",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceEmptyTitle: String {
+        String(localized: "evidence.empty.title", defaultValue: "No evidence yet", bundle: .module)
+    }
+
+    static var evidenceEmptyDescription: String {
+        String(
+            localized: "evidence.empty.description",
+            defaultValue: "Attach a boarding pass, receipt, or screenshot to back up where you were. Add one here, or share it into Where from another app.",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceFailedTitle: String {
+        String(
+            localized: "evidence.failed.title",
+            defaultValue: "Couldn't load evidence",
+            bundle: .module,
+        )
+    }
+
+    /// Toolbar "+" label for adding a new piece of evidence in-app.
+    static var evidenceAdd: String {
+        String(localized: "evidence.add", defaultValue: "Add evidence", bundle: .module)
+    }
+
+    /// Human-readable name for an evidence kind, used in the list rows, the
+    /// detail header, and the compose form's picker. `.other` shows its
+    /// user-supplied label when present, else a generic "Other".
+    static func evidenceKind(_ kind: EvidenceKind) -> String {
+        switch kind {
+            case .planeTicket:
+                return String(
+                    localized: "evidence.kind.planeTicket",
+                    defaultValue: "Plane ticket",
+                    bundle: .module,
+                )
+            case .boardingPass:
+                return String(
+                    localized: "evidence.kind.boardingPass",
+                    defaultValue: "Boarding pass",
+                    bundle: .module,
+                )
+            case .hotelReceipt:
+                return String(
+                    localized: "evidence.kind.hotelReceipt",
+                    defaultValue: "Hotel receipt",
+                    bundle: .module,
+                )
+            case .carRental:
+                return String(
+                    localized: "evidence.kind.carRental",
+                    defaultValue: "Car rental",
+                    bundle: .module,
+                )
+            case .rideshare:
+                return String(
+                    localized: "evidence.kind.rideshare",
+                    defaultValue: "Rideshare",
+                    bundle: .module,
+                )
+            case .photo:
+                return String(
+                    localized: "evidence.kind.photo",
+                    defaultValue: "Photo",
+                    bundle: .module,
+                )
+            case .document:
+                return String(
+                    localized: "evidence.kind.document",
+                    defaultValue: "Document",
+                    bundle: .module,
+                )
+            case .email:
+                return String(
+                    localized: "evidence.kind.email",
+                    defaultValue: "Email",
+                    bundle: .module,
+                )
+            case let .other(label):
+                if let label, !label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    return label
+                }
+                return String(
+                    localized: "evidence.kind.other",
+                    defaultValue: "Other",
+                    bundle: .module,
+                )
+        }
+    }
+
+    static var evidenceKindPickerLabel: String {
+        String(localized: "evidence.form.kind", defaultValue: "Kind", bundle: .module)
+    }
+
+    static var evidenceOtherLabelPlaceholder: String {
+        String(localized: "evidence.form.otherLabel", defaultValue: "Label", bundle: .module)
+    }
+
+    static var evidenceDateLabel: String {
+        String(localized: "evidence.form.date", defaultValue: "Date", bundle: .module)
+    }
+
+    static var evidenceNoteLabel: String {
+        String(localized: "evidence.form.note", defaultValue: "Note", bundle: .module)
+    }
+
+    static var evidenceNotePlaceholder: String {
+        String(
+            localized: "evidence.form.notePlaceholder",
+            defaultValue: "Add a note (optional)",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceAttachmentHeader: String {
+        String(
+            localized: "evidence.form.attachmentHeader",
+            defaultValue: "Attachment",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceChooseFile: String {
+        String(localized: "evidence.form.chooseFile", defaultValue: "Choose file", bundle: .module)
+    }
+
+    static var evidenceChoosePhoto: String {
+        String(
+            localized: "evidence.form.choosePhoto",
+            defaultValue: "Choose photo",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceRemoveAttachment: String {
+        String(
+            localized: "evidence.form.remove",
+            defaultValue: "Remove attachment",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceSave: String {
+        String(localized: "evidence.form.save", defaultValue: "Save", bundle: .module)
+    }
+
+    static var evidenceSaveErrorTitle: String {
+        String(
+            localized: "evidence.form.saveError.title",
+            defaultValue: "Couldn't save evidence",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceDetailNoteHeader: String {
+        String(localized: "evidence.detail.noteHeader", defaultValue: "Note", bundle: .module)
+    }
+
+    static var evidenceNoPreviewTitle: String {
+        String(
+            localized: "evidence.detail.noPreview.title",
+            defaultValue: "No preview",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceNoPreviewDescription: String {
+        String(
+            localized: "evidence.detail.noPreview.description",
+            defaultValue: "This attachment can't be previewed here.",
+            bundle: .module,
+        )
+    }
+
+    static var evidenceNoAttachment: String {
+        String(
+            localized: "evidence.detail.noAttachment",
+            defaultValue: "No attachment",
+            bundle: .module,
+        )
+    }
+
+    static var evidencePreviewFailed: String {
+        String(
+            localized: "evidence.detail.previewFailed",
+            defaultValue: "Couldn't load this attachment.",
+            bundle: .module,
+        )
+    }
+
+    /// Accessibility summary for a single evidence row: its kind and captured
+    /// date, e.g. "Plane ticket, March 4, 2026".
+    static func evidenceRowAccessibility(kind: EvidenceKind, date: Date) -> String {
+        let day = date.formatted(.dateTime.month(.wide).day().year())
+        return String(
+            localized: "evidence.row.accessibility",
+            defaultValue: "\(evidenceKind(kind)), \(day)",
             bundle: .module,
         )
     }

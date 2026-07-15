@@ -1,0 +1,68 @@
+# WhereShareExtension
+
+The **Where** share extension: a Share-sheet action that saves shared content —
+a boarding pass, a PDF receipt, a screenshot, a forwarded reservation email, a
+Wallet ticket — into Where as a new piece of [`Evidence`](../WhereCore/Sources/Evidence/Evidence.swift).
+
+Pick "Where" from any app's Share sheet, confirm the kind / date / note in the
+compose sheet, and tap **Save**. The attachment bytes and metadata are written
+straight into the shared App Group SwiftData store the app reads.
+
+## How it works
+
+```
+Host app Share sheet
+    └─▶ ShareViewController (principal class)
+            └─▶ SharedItemLoader           (extract bytes from NSItemProviders)
+            └─▶ ShareEvidenceView + Model  (SwiftUI compose sheet)
+                    └─▶ SwiftDataStore.perform { write(evidence:blob:) }
+                            └─▶ App Group store (group.com.stuff.where)
+```
+
+- **`SharedItemLoader`** takes one attachment per `NSItemProvider` that yields
+  bytes (so a multi-item share — the activation rule allows up to 20 — keeps them
+  all), preferring the most preview-friendly representation each registered:
+  PDF → image → concrete file (`.pkpass`, `.eml`, …) → text → URL (kept as its
+  string). A share with nothing loadable still composes as a metadata-only note.
+- **`ShareEvidenceModel`** holds the editable fields, classifies each attachment
+  with [`EvidenceContentType.classify`](../WhereCore/Sources/Evidence/EvidenceContentType+Classify.swift),
+  and persists one `Evidence` per attachment (all sharing the form's
+  kind/date/note) in a single transaction.
+- **`ShareEvidenceView`** is the compose form; kind names/symbols reuse
+  WhereUI's public `EvidenceKind` presentation helpers so they read identically
+  to the in-app "Add evidence" sheet. Extension-only chrome resolves through
+  `ShareStrings` from this target's own catalog.
+
+## Why write to the store directly
+
+The extension opens the store and writes through
+`SwiftDataStore.perform { … }` rather than going through
+`WhereServices`/`DayJournal`. Those assemble a live GPS ingestor, notification
+reconcilers, and widget publishing — machinery with no place in a short-lived
+share process. The commit pings persistent history, so the app — observing
+`.NSPersistentStoreRemoteChange` on its shared store — reconciles badges/widgets
+when it's next active and (in production) mirrors the new row to CloudKit.
+
+The extension opens `.localOnly` storage on purpose: it must not initialize
+CloudKit (it holds only the App Group entitlement, not iCloud), and the app's
+CloudKit container picks the write up from the shared store's history.
+
+## Installation
+
+`WhereShareExtension` is a Tuist app-extension target in
+[`Project.swift`](../../Project.swift) (bundle ID `com.stuff.where.share`),
+depending on **WhereCore**, **WhereUI**, and **LogKit**. The main **Where** app
+embeds the extension and shares the `group.com.stuff.where` App Group
+entitlement so both processes open the same SwiftData store.
+
+## Limitations
+
+- **No test bundle.** The build-and-write path is exercised indirectly by
+  **WhereCore** store tests and the **WhereUI** compose model; the loader and
+  view controller are thin glue over system APIs.
+- **In-app refresh is on the next foreground, not mid-scroll.** The app observes
+  `.NSPersistentStoreRemoteChange` for its on-disk store (both `.localOnly` debug
+  and `.cloudKit` release builds), so an extension write refreshes badges/lists
+  when the app is next active — no relaunch needed. It won't repaint while the
+  app is suspended behind the share sheet; Core Data delivers the change when the
+  app resumes.

@@ -77,4 +77,4 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
 (`PeriscopeToolsTests` bundle): models are driven directly over in-memory
 stores (`@_spi(Testing) PeriscopeStore.inMemory`), views host via
-`WhereTesting.show`. Run with `tuist test PeriscopeToolsTests`.
+`TestHostSupport.show`. Run with `tuist test PeriscopeToolsTests`.

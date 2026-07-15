@@ -10,11 +10,15 @@ struct PrimaryView: View {
     @State private var showingTimeline = false
     @State private var showingCalendar = false
     @State private var showingRecentActivity = false
+    @State private var showingEvidence = false
+    @State private var showingLoggedDays = false
     @State private var calendarFocus: CalendarFocus?
 
     /// Drives the region cards' tilt-reactive holographic sheen. Started/stopped
     /// with the view's lifecycle; a no-op on hardware without device motion.
     @State private var tilt = TiltProvider()
+
+    @Environment(\.stylesheet) private var stylesheet
 
     /// Identifies which region's calendar to present as a sheet. `Region` isn't
     /// `Identifiable`, and `.sheet(item:)` needs identity.
@@ -70,7 +74,26 @@ struct PrimaryView: View {
                         .accessibilityIdentifier("where_calendar_button")
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        YearSelector(report: report)
+                        Button {
+                            showingEvidence = true
+                        } label: {
+                            Label(
+                                Strings.primaryEvidence,
+                                systemImage: "paperclip",
+                            )
+                        }
+                        .accessibilityIdentifier("where_evidence_button")
+                    }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showingLoggedDays = true
+                        } label: {
+                            Label(
+                                Strings.primaryLoggedDays,
+                                systemImage: "calendar.badge.plus",
+                            )
+                        }
+                        .accessibilityIdentifier("where_logged_days_button")
                     }
                 }
         }
@@ -85,6 +108,12 @@ struct PrimaryView: View {
         .sheet(isPresented: $showingCalendar) {
             CalendarView(report: report)
         }
+        .sheet(isPresented: $showingEvidence) {
+            EvidenceListView(report: report)
+        }
+        .sheet(isPresented: $showingLoggedDays) {
+            LoggedDaysView(report: report)
+        }
         .sheet(item: $calendarFocus) { focus in
             CalendarView(focusedRegion: focus.region, report: report)
         }
@@ -97,8 +126,8 @@ struct PrimaryView: View {
     private var elevatedBackground: LinearGradient {
         LinearGradient(
             colors: [
-                Color(red: 0.07, green: 0.08, blue: 0.13),
-                Color(red: 0.02, green: 0.02, blue: 0.05),
+                stylesheet.palette.primary.backgroundTop,
+                stylesheet.palette.primary.backgroundBottom,
             ],
             startPoint: .top,
             endPoint: .bottom,
@@ -134,8 +163,8 @@ struct PrimaryView: View {
 
     private var content: some View {
         ScrollView {
-            GlassEffectContainer(spacing: UIConstants.Spacings.xxLarge) {
-                VStack(spacing: UIConstants.Spacings.xxLarge) {
+            GlassEffectContainer(spacing: stylesheet.spacing.xxLarge) {
+                VStack(spacing: stylesheet.spacing.xxLarge) {
                     ForEach(report.ranking.primary) { item in
                         Button {
                             calendarFocus = CalendarFocus(region: item.region)

@@ -111,11 +111,13 @@ private struct IssueRow: View {
     let report: YearReportModel
     let resolve: ResolveModel
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
         NavigationLink {
             destination
         } label: {
-            VStack(alignment: .leading, spacing: UIConstants.Spacings.xxSmall) {
+            VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                 Text(title)
                     .font(.headline)
                 if let subtitle {
@@ -124,7 +126,7 @@ private struct IssueRow: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .padding(.vertical, UIConstants.Spacings.xSmall)
+            .padding(.vertical, stylesheet.spacing.xSmall)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             if issue.isDismissible {
@@ -141,7 +143,7 @@ private struct IssueRow: View {
     private var destination: some View {
         switch issue.resolution {
             case let .backfill(range):
-                ManualDayEntryView(report: report, prefill: range)
+                ManualDayView(report: report, mode: .add(prefill: range))
             case let .relabelDay(day, suggested, _):
                 DayRelabelView(day: day, report: report, initialRegions: suggested)
             case .markTravelDay:
