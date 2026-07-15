@@ -27,6 +27,10 @@ struct SettingsView: View {
     @State private var showResetConfirmation = false
     @State private var showAppIcon = false
 
+    /// Backup export: the ready-to-share archive built up-front, revealed as a
+    /// `ShareLink` once the background export finishes.
+    @State private var exportedArchiveURL: URL?
+
     // Backup import: the picked file, the merge/replace choice, and the
     // success confirmation.
     @State private var showImporter = false
@@ -331,22 +335,41 @@ struct SettingsView: View {
 
     private var backupSection: some View {
         Section {
-            // `ShareLink` builds the archive lazily through `BackupArchiveFile`
-            // and presents the native share sheet (with its own export
-            // progress), so no custom `UIActivityViewController` is needed.
-            ShareLink(
-                item: backupArchiveFile,
-                preview: SharePreview(Strings.settingsBackupShareTitle),
-            ) {
-                Label(Strings.settingsBackupExport, systemImage: "square.and.arrow.up")
+            // The archive is built up-front on a background task (with an
+            // in-app "Exporting…" bar), then shared through a `ShareLink` to the
+            // ready file — so the share sheet opens instantly instead of sitting
+            // in the system's blocking "Preparing…" state.
+            Button {
+                runExport()
+            } label: {
+                if backup.backupState == .exporting {
+                    backupProgressLabel(
+                        Strings.settingsBackupExporting,
+                        systemImage: "square.and.arrow.up",
+                    )
+                } else {
+                    Label(Strings.settingsBackupExport, systemImage: "square.and.arrow.up")
+                }
             }
             .disabled(backup.backupState != .idle)
+
+            if backup.backupState == .idle, let url = exportedArchiveURL {
+                ShareLink(
+                    item: url,
+                    preview: SharePreview(Strings.settingsBackupShareTitle),
+                ) {
+                    Label(Strings.settingsBackupShare, systemImage: "square.and.arrow.up.on.square")
+                }
+            }
 
             Button {
                 showImporter = true
             } label: {
                 if backup.backupState == .importing {
-                    importProgressLabel
+                    backupProgressLabel(
+                        Strings.settingsBackupImporting,
+                        systemImage: "square.and.arrow.down",
+                    )
                 } else {
                     Label(Strings.settingsBackupImport, systemImage: "square.and.arrow.down")
                 }
@@ -359,24 +382,24 @@ struct SettingsView: View {
         }
     }
 
-    /// Determinate progress for an in-flight import, driven by
-    /// `backup.backupProgress` as the backup coordinator writes each row.
-    private var importProgressLabel: some View {
+    /// Determinate progress for an in-flight export or import, driven by
+    /// `backup.backupProgress` as the backup coordinator makes progress.
+    private func backupProgressLabel(_ title: String, systemImage: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Label(Strings.settingsBackupImporting, systemImage: "square.and.arrow.down")
+            Label(title, systemImage: systemImage)
             ProgressView(value: backup.backupProgress)
         }
     }
 
-    /// Lazily-built backup for `ShareLink`. The closure runs only when the
-    /// share sheet resolves the item; a failed export sets `backup.backupError`
-    /// (surfacing the alert) and throws to abort the share.
-    private var backupArchiveFile: BackupArchiveFile {
-        BackupArchiveFile { [backup] in
-            guard let url = await backup.exportBackup() else {
-                throw CocoaError(.fileWriteUnknown)
+    /// Build the archive in the background, then reveal the share row. Clearing
+    /// `exportedArchiveURL` first hides the stale share link — the coordinator
+    /// purges the previous export's directory when this new export starts.
+    private func runExport() {
+        exportedArchiveURL = nil
+        Task {
+            if let url = await backup.exportBackup() {
+                exportedArchiveURL = url
             }
-            return url
         }
     }
 

@@ -20,8 +20,8 @@ public final class BackupModel {
 
     public private(set) var backupState: BackupState = .idle
 
-    /// Fraction (`0...1`) of the in-flight import that has been written, for a
-    /// determinate progress bar. Reset to `0` whenever an import isn't running.
+    /// Fraction (`0...1`) of the in-flight export/import that has completed, for
+    /// a determinate progress bar. Reset to `0` whenever neither is running.
     public private(set) var backupProgress: Double = 0
 
     /// Last backup failure, surfaced as an alert. Mutable so the alert binding
@@ -48,14 +48,34 @@ public final class BackupModel {
     /// share sheet, or `nil` if the export failed (in which case `backupError` is
     /// set). The `BackupCoordinator` owns the temporary file's lifecycle — it
     /// reclaims the previous export's directory when the next export starts.
+    ///
+    /// Progress is streamed to `backupProgress` so the caller can show a
+    /// determinate "Exporting…" bar, using the same ordered-stream marshaling as
+    /// `importBackup` (see there for why).
     public func exportBackup() async -> URL? {
         backupState = .exporting
-        defer { backupState = .idle }
+        backupProgress = 0
+        defer {
+            backupState = .idle
+            backupProgress = 0
+        }
+
+        let (progress, continuation) = AsyncStream<Double>.makeStream()
+        let observer = Task { @MainActor [weak self] in
+            for await fraction in progress {
+                self?.backupProgress = fraction
+            }
+        }
+        defer { observer.cancel() }
+
         do {
-            let url = try await services.backup.exportBackup()
+            let url = try await services.backup.exportBackup { continuation.yield($0) }
+            continuation.finish()
+            await observer.value
             Self.logger.info("Exported backup archive")
             return url
         } catch {
+            continuation.finish()
             backupError = error.localizedDescription
             Self.logger.warning("Backup export failed: \(error.localizedDescription)")
             return nil

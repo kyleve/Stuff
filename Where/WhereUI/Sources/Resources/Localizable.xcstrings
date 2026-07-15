@@ -1733,6 +1733,17 @@
         }
       }
     },
+    "settings.backup.exporting" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exporting…"
+          }
+        }
+      }
+    },
     "settings.backup.footer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1839,6 +1850,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Replace all"
+          }
+        }
+      }
+    },
+    "settings.backup.share" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share backup"
           }
         }
       }

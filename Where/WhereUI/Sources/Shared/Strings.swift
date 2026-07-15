@@ -826,6 +826,16 @@ enum Strings {
         localized("settings.backup.export")
     }
 
+    static var settingsBackupExporting: String {
+        localized("settings.backup.exporting")
+    }
+
+    /// Label for the share row revealed once a background export has produced a
+    /// ready archive file.
+    static var settingsBackupShare: String {
+        localized("settings.backup.share")
+    }
+
     /// Title shown in the system share sheet preview for an exported backup.
     static var settingsBackupShareTitle: String {
         localized("settings.backup.shareTitle")

@@ -210,6 +210,22 @@ struct BackupCoordinatorTests {
         #expect(FileManager.default.fileExists(atPath: second.path))
     }
 
+    @Test func exportReportsProgressUpToCompletion() async throws {
+        let source = try Self.makeHarness()
+        try await Self.seed(source.store)
+
+        let recorder = ProgressRecorder()
+        let url = try await source.coordinator.exportBackup { fraction in
+            recorder.record(fraction)
+        }
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let fractions = recorder.fractions
+        #expect(!fractions.isEmpty)
+        #expect(fractions.allSatisfy { $0 > 0 && $0 <= 1 })
+        #expect(fractions.last == 1)
+    }
+
     @Test func importReportsProgressUpToCompletion() async throws {
         let source = try Self.makeHarness()
         try await Self.seed(source.store)
