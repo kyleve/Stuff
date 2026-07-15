@@ -58,8 +58,7 @@ public struct WidgetDataReader: Sendable {
         let calendarDay = CalendarDay(from: date, in: calendar)
         let year = calendarDay.year
         let interval = aggregator.yearInterval(year: year)
-        let dayRange = CalendarDay(year: year, month: 1, day: 1)
-            ... CalendarDay(year: year, month: 12, day: 31)
+        let dayRange = CalendarDay.yearRange(year)
         let samples = try await store.samples(in: interval)
         let manualDays = try await store.manualDays(in: dayRange)
         let report = aggregator.report(

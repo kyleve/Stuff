@@ -162,10 +162,9 @@ struct CalendarDayTests {
 
     // MARK: - Codable
 
-    @Test func codableEncodesAsISOString() throws {
+    @Test func codableRoundTrips() throws {
         let day = CalendarDay(year: 2026, month: 7, day: 14)
         let data = try JSONEncoder().encode(day)
-        #expect(String(decoding: data, as: UTF8.self) == "\"2026-07-14\"")
         #expect(try JSONDecoder().decode(CalendarDay.self, from: data) == day)
     }
 }

@@ -31,7 +31,12 @@ public struct CalendarDay: Hashable, Sendable, Codable, Comparable, CustomString
     /// decides the day boundaries).
     public init(from date: Date, in calendar: Calendar) {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
-        self.init(year: parts.year ?? 1, month: parts.month ?? 1, day: parts.day ?? 1)
+        // A calendar always resolves year/month/day for a concrete date; a `nil`
+        // is an impossible state, so trap rather than fabricate a bogus day.
+        guard let year = parts.year, let month = parts.month, let day = parts.day else {
+            preconditionFailure("Calendar returned no year/month/day for \(date)")
+        }
+        self.init(year: year, month: month, day: day)
     }
 
     /// Recover the calendar day a *legacy* start-of-day instant was meant to
@@ -112,21 +117,20 @@ public struct CalendarDay: Hashable, Sendable, Codable, Comparable, CustomString
         (lhs.year, lhs.month, lhs.day) < (rhs.year, rhs.month, rhs.day)
     }
 
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.singleValueContainer()
-        let iso = try container.decode(String.self)
-        guard let value = CalendarDay(iso: iso) else {
-            throw DecodingError.dataCorruptedError(
-                in: container,
-                debugDescription: "Invalid CalendarDay: \(iso)",
-            )
-        }
-        self = value
+    // `Codable` is compiler-synthesized over `year`/`month`/`day` — a
+    // `CalendarDay` is valid by construction, so there's nothing to validate or
+    // round-trip through a string on decode.
+
+    /// The last day of `year`. `CalendarDay` is Gregorian, so it is always
+    /// December 31.
+    public static func lastDay(ofYear year: Int) -> CalendarDay {
+        CalendarDay(year: year, month: 12, day: 31)
     }
 
-    public func encode(to encoder: any Encoder) throws {
-        var container = encoder.singleValueContainer()
-        try container.encode(description)
+    /// The inclusive `Jan 1 ... Dec 31` range of `year`, for scoping a year's
+    /// stored days.
+    public static func yearRange(_ year: Int) -> ClosedRange<CalendarDay> {
+        CalendarDay(year: year, month: 1, day: 1) ... lastDay(ofYear: year)
     }
 
     /// A fixed UTC Gregorian calendar for day arithmetic. `CalendarDay` is

@@ -193,8 +193,7 @@ public actor DayJournal {
 
     public func clearYear(_ year: Int) async throws {
         let interval = aggregator.yearInterval(year: year)
-        let dayRange = CalendarDay(year: year, month: 1, day: 1)
-            ... CalendarDay(year: year, month: 12, day: 31)
+        let dayRange = CalendarDay.yearRange(year)
         try await store.perform { try await store.clear(in: interval, manualDays: dayRange) }
         await reconcileAfterDayChange()
         Self.logger.info("Cleared year \(year)")

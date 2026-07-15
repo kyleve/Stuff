@@ -25,7 +25,7 @@ public struct MissingDaysDetector: DataIssueDetector {
             MissingDays.backlogCutoff(asOf: input.now, calendar: input.calendar)
         } else {
             // A past year runs through its final day.
-            CalendarDay(year: input.year, month: 12, day: 31)
+            CalendarDay.lastDay(ofYear: input.year)
         }
 
         return MissingDays.missingRanges(

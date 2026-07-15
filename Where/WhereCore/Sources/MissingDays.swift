@@ -39,7 +39,7 @@ public enum MissingDays {
         let start = CalendarDay(year: year, month: 1, day: 1)
         // Clamp the upper bound to this year so a `through` in a later year
         // doesn't pull next year's days into the result.
-        let last = min(through, CalendarDay(year: year, month: 12, day: 31))
+        let last = min(through, CalendarDay.lastDay(ofYear: year))
         guard start <= last else { return [] }
 
         return start

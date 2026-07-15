@@ -20,7 +20,7 @@ public struct ReportReader: Sendable {
 
     /// The inclusive `CalendarDay` range spanning `year`.
     func dayRange(for year: Int) -> ClosedRange<CalendarDay> {
-        CalendarDay(year: year, month: 1, day: 1) ... CalendarDay(year: year, month: 12, day: 31)
+        CalendarDay.yearRange(year)
     }
 
     /// Read everything in `year` and aggregate it into a snapshot-stable report.
