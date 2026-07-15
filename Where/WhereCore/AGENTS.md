@@ -16,15 +16,9 @@ internal shape.
 
 ## Scope & dependencies
 
-- **Pure Swift + Foundation + SwiftData + CoreLocation + FoundationModels**,
-  plus [`RegionKit`](../RegionKit) (region lookup) and
-  [`LogKit`](../../Shared/LogKit); `ZIPFoundation` backs the backup archive. It
+- Dependencies live in the root [`Package.swift`](../../Package.swift). It
   must **not** import SwiftUI or UIKit — if a behavior would still be correct
   without SwiftUI, it belongs here, not in `WhereUI`.
-- Library target in [`Package.swift`](../../Package.swift)
-  (`Where/WhereCore/Sources`); depended on by `WhereUI` and the `WhereWidgets`
-  extension. User-visible error strings ship in its own
-  `Sources/Resources/Localizable.xcstrings` (`bundle: .module`).
 
 ## Shape & invariants
 
@@ -78,6 +72,12 @@ internal shape.
   its cache on the same signal *and* is invalidated inline where a caller needs
   it provably fresh (see `WhereServices.reset()`), which is the deterministic
   half of that pair, not redundant with it.
+- **Post-write reconciliation is defined once.** Every write and import routes
+  through `DayJournal.reconcileAfterDayChange()` (or its widget-less subset
+  `reconcileIssueState()` for dismiss/restore paths) — never copy the reconcile
+  fan-out into a new write path. Cross-collaborator hooks take a single closure
+  wired at the composition root (`BackupCoordinator.onImport`), not an injected
+  list of reconcilers.
 - **`LocationSource` abstracts GPS.** Production is `CoreLocationSource` (Visits
   + significant-change); tests/previews use `ScriptedLocationSource`. The
   one-shot `requestCurrentLocation()` returns `nil` (never throws) when no fix
