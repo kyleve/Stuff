@@ -81,7 +81,9 @@ internal shape.
 - **`LocationSource` abstracts GPS.** Production is `CoreLocationSource` (Visits
   + significant-change); tests/previews use `ScriptedLocationSource`. The
   one-shot `requestCurrentLocation()` returns `nil` (never throws) when no fix
-  is available — it only stamps a manual entry's audit trail.
+  is available — it stamps a manual entry's audit trail and backs
+  `LocationIngestor.captureTodayIfNeeded(now:)`, which persists a fix for today
+  (via the normal ingest path) when the app opens on a day with no GPS sample.
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are
   `async throws` so the CloudKit-backed store can report I/O failure; a `catch`
   must log via `WhereLog.channel(_:)` (typed `Category`, PII-free) and leave

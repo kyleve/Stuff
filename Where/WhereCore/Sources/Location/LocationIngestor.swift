@@ -38,6 +38,12 @@ public actor LocationIngestor {
 
     private var ingestTask: Task<Void, Never>?
 
+    /// The in-flight one-shot capture spawned by `captureTodayIfNeeded(now:)`,
+    /// if any. Tracked so overlapping foreground / launch triggers coalesce onto
+    /// a single fix (single-flight) and so teardown can cancel it. Cleared when
+    /// the work completes.
+    private var captureTask: Task<Void, Never>?
+
     /// The persist the stream loop is currently awaiting, if any. Tracked so
     /// `quiesce()` can wait for an in-flight write to commit before a teardown
     /// wipes the store — gating alone can't, since a persist that already
@@ -91,6 +97,7 @@ public actor LocationIngestor {
 
     deinit {
         ingestTask?.cancel()
+        captureTask?.cancel()
     }
 
     /// Begin (or resume) GPS ingestion. Idempotent: a second call while
@@ -165,6 +172,10 @@ public actor LocationIngestor {
     public func quiesce() async {
         acceptsSamples = false
         isMonitoring = false
+        // Cancel any in-flight one-shot capture; even if its fix still lands
+        // after this, the `acceptsSamples` gate in `ingest(_:)` drops it.
+        captureTask?.cancel()
+        captureTask = nil
         await locationSource.stop()
         // Let an already-started persist (and any retry re-enqueue it performs)
         // settle first, then clear the backlog — so nothing re-adds after.
@@ -199,6 +210,55 @@ public actor LocationIngestor {
     /// `LocationSource` directly.
     public func currentLocation() async -> LocationSample? {
         await locationSource.requestCurrentLocation()
+    }
+
+    /// Fill in *today* with a best-effort one-shot GPS fix when the day has no
+    /// GPS sample yet, so opening the app on a fresh day doesn't leave the
+    /// calendar blank until passive monitoring (Visits / significant-change)
+    /// next fires. Non-blocking: the fix (which can take up to ~10s) runs on an
+    /// internal task so launch / foreground callers aren't held up — the
+    /// persisted sample refreshes readers via the store's change signal.
+    ///
+    /// Single-flight: a call while a capture is already in flight is a no-op.
+    /// Only a *GPS* sample suppresses the fix; a manual entry for today doesn't,
+    /// since it isn't a passive-tracking data point. Whether to attempt this at
+    /// all (the user's tracking intent + authorization) is the caller's gate;
+    /// this stays safe regardless because `requestCurrentLocation()` returns
+    /// `nil` when no fix is available.
+    public func captureTodayIfNeeded(now: Date) {
+        guard captureTask == nil else { return }
+        captureTask = Task { [weak self] in
+            await self?.performTodayCapture(now: now)
+            await self?.clearCaptureTask()
+        }
+    }
+
+    private func clearCaptureTask() {
+        captureTask = nil
+    }
+
+    /// The body of `captureTodayIfNeeded(now:)`, run on `captureTask`.
+    private func performTodayCapture(now: Date) async {
+        let startOfDay = calendar.startOfDay(for: now)
+        guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else {
+            Self.logger.warning("Could not compute today's interval for foreground capture")
+            return
+        }
+        let interval = DateInterval(start: startOfDay, end: endOfDay)
+        do {
+            let existing = try await store.samples(in: interval)
+            if existing.contains(where: \.source.isGPS) { return }
+        } catch {
+            // Fail closed: if today's samples can't be read we skip rather than
+            // risk logging a duplicate fix. Surfaced, not silently swallowed.
+            Self.logger.warning(
+                "Skipping foreground capture; could not read today's samples: \(error.localizedDescription)",
+            )
+            return
+        }
+        guard let sample = await locationSource.requestCurrentLocation() else { return }
+        Self.logger.info("Captured one-shot foreground location for today")
+        await ingest(sample)
     }
 
     /// The current location authorization status.

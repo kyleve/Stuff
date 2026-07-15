@@ -150,6 +150,7 @@ public final class WhereSession {
         await syncAuthorization()
         observeAuthorizationChanges()
         await reconcileTracking()
+        await captureTodayIfNeeded()
         await applyReminderConfiguration()
         await applySummaryConfiguration()
         await applyIssueAlertConfiguration()
@@ -166,6 +167,7 @@ public final class WhereSession {
     public func appBecameActive() async {
         await syncAuthorization()
         await reconcileTracking()
+        await captureTodayIfNeeded()
         await applyReminderConfiguration()
         await applySummaryConfiguration()
         await applyIssueAlertConfiguration()
@@ -245,6 +247,19 @@ public final class WhereSession {
             isTracking = false
             if wasTracking { Self.logger.info("Background tracking stopped") }
         }
+    }
+
+    /// Fill in today with a one-shot GPS fix if the day has no GPS sample yet,
+    /// so opening the app on a fresh morning doesn't leave the calendar blank
+    /// until passive tracking next fires. Gated on the user's tracking intent
+    /// and a usable authorization (When-In-Use is enough for a foreground fix —
+    /// notably the only way When-In-Use users get any data). The ingestor is
+    /// non-blocking and reconciles widgets / reminders + pings the read signal
+    /// on persist. A launch step (see `WhereLaunch.sequence`); also runs on
+    /// every foreground.
+    func captureTodayIfNeeded() async {
+        guard wantsTracking, authorizationStatus.allowsForegroundFix else { return }
+        await services.ingestor.captureTodayIfNeeded(now: now())
     }
 
     /// Explicitly (re)request location access, e.g. from the "Grant location

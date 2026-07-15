@@ -43,11 +43,13 @@ public protocol LocationSource: AnyObject, Sendable {
     /// Best-effort one-shot GPS fix for "where is the device *right now*".
     ///
     /// Unlike the passive `sampleStream` (Visits + significant-change, which can
-    /// be minutes stale), this actively asks for a fresh fix — used to stamp a
-    /// manual entry's audit trail with where it was made. Returns `nil` rather
-    /// than throwing when a fix can't be obtained (permission not granted,
-    /// timeout, or a location error): the capture is audit metadata, so an
-    /// absent fix is recorded honestly instead of blocking the entry.
+    /// be minutes stale), this actively asks for a fresh fix. Two callers use
+    /// it: stamping a manual entry's audit trail with where it was made, and
+    /// `LocationIngestor.captureTodayIfNeeded(now:)`, which persists a fix for
+    /// today when the app opens on a day that has no GPS sample yet. Returns
+    /// `nil` rather than throwing when a fix can't be obtained (permission not
+    /// granted, timeout, or a location error), so an absent fix is recorded
+    /// honestly instead of blocking the caller.
     func requestCurrentLocation() async -> LocationSample?
 
     /// The current authorization status, read on demand.

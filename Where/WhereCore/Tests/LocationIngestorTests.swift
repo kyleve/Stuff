@@ -99,6 +99,78 @@ struct LocationIngestorTests {
         #expect(await ingestor.currentLocation() == nil)
     }
 
+    @Test func captureTodayPersistsAndReportsFixWhenNoGPSSampleYet() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .whenInUse)
+        let recorder = OutcomeRecorder()
+        let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
+        source.setNextRequestedLocation(sample(at: "2026-03-15T08:05:00-07:00"))
+
+        // No monitoring started (the When-In-Use case): the foreground fix is
+        // the only way this user's data lands, and it still persists + reports.
+        await ingestor
+            .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
+
+        try await waitUntil { await (try? store.allSamples().count) == 1 }
+        #expect(await recorder.last?.liveSample != nil)
+    }
+
+    @Test func captureTodaySkipsWhenGPSSampleAlreadyExistsToday() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .whenInUse)
+        let recorder = OutcomeRecorder()
+        let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
+        // A passive GPS sample already covers today.
+        try await store
+            .perform { try await store.add(sample: sample(at: "2026-03-15T02:00:00-07:00")) }
+        source.setNextRequestedLocation(sample(at: "2026-03-15T08:05:00-07:00"))
+
+        await ingestor
+            .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
+
+        // The day is already covered, so no fix is taken. Give the capture task
+        // time to run and confirm it added nothing.
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(try await store.allSamples().count == 1)
+    }
+
+    @Test func captureTodayStillCapturesWhenOnlyManualSampleExistsToday() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .whenInUse)
+        let recorder = OutcomeRecorder()
+        let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
+        // A manual entry isn't a passive-tracking data point, so it must not
+        // suppress the GPS fix.
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-03-15T02:00:00-07:00"),
+                coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                horizontalAccuracy: 0,
+                source: .manual,
+            ))
+        }
+        source.setNextRequestedLocation(sample(at: "2026-03-15T08:05:00-07:00"))
+
+        await ingestor
+            .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
+
+        try await waitUntil { await (try? store.allSamples().count) == 2 }
+    }
+
+    @Test func captureTodaySkipsWhenSourceHasNoFix() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: .whenInUse)
+        let recorder = OutcomeRecorder()
+        let ingestor = Self.makeIngestor(store: store, source: source, recorder: recorder)
+        // No fix scripted → `requestCurrentLocation()` returns nil.
+
+        await ingestor
+            .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
+
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(try await store.allSamples().isEmpty)
+    }
+
     @Test func liveSampleIsPersistedAndReported() async throws {
         let store = try SwiftDataStore.inMemory()
         let source = ScriptedLocationSource(authorizationStatus: .always)
