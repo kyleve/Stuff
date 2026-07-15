@@ -16,9 +16,7 @@ extension PeriscopeStore {
     /// everyone's. (Full multi-process coordination — the reverse case of
     /// an app launch during a live extension session — is tracked in
     /// `Shared/Periscope/TODOs.md`.)
-    private static var isAppExtension: Bool {
-        Bundle.main.bundleURL.pathExtension == "appex"
-    }
+    private static let isAppExtension = Bundle.main.bundleURL.pathExtension == "appex"
 
     /// Ingest every prior session's journal under `Periscope-Journals/`.
     /// Runs before `startSession`, so recovered span begans participate in

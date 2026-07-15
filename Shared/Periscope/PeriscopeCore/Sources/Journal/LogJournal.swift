@@ -12,8 +12,11 @@ import os
 /// to OSLog, and the async path keeps delivering.
 @_spi(Testing) public final class LogJournal: Sendable {
     /// Total on-disk budget per session journal; beyond it the oldest
-    /// segment drops whole (flight-recorder posture).
-    static let byteBudget = 8 * 1024 * 1024
+    /// segment drops whole (flight-recorder posture). Generous on purpose:
+    /// journals live only until the next launch ingests and deletes them,
+    /// so the budget is a ceiling on pathological sessions, not a steady
+    /// state.
+    static let byteBudget = 300 * 1024 * 1024
 
     /// Records at this level or above `F_FULLFSYNC` before returning —
     /// kernel-panic durability for the direst records, milliseconds each,
@@ -71,7 +74,8 @@ import os
     }
 
     /// Close the underlying journal (tests; production journals live for
-    /// the process).
+    /// the process, and `Journal`'s own `deinit` closes the descriptor
+    /// when the last reference drops — no explicit teardown needed here).
     @_spi(Testing) public func close() {
         journal.close()
     }

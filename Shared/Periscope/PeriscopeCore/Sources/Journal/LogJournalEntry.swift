@@ -140,6 +140,12 @@ import Foundation
     case omitted(name: String, contentType: LogAttachment.ContentType, byteCount: Int)
 }
 
+// Hand-written rather than synthesized Codable, for two load-bearing
+// reasons: `LogAttachment`/`ContentType` don't conform (the content type
+// persists via its MIME string, matching the store), and synthesized enum
+// coding would freeze the *case names* into the wire format as nesting
+// (`{"inline":{"_0":…}}`) — a rename would silently break old journals.
+// The flat shape keeps the format independent of Swift-side naming.
 extension LogJournalAttachment: Codable {
     private enum CodingKeys: String, CodingKey {
         case name

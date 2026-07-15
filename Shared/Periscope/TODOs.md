@@ -19,6 +19,7 @@
 
 ## P1s (Should do)
 - fix: After initial merge, we should come back and update the UI to consume the Shared/Broadway design system tooling, eg a PeriscopeStylesheet for components and other recommendations.
+- feat: Journal attachments via external storage (PR #86 review). Instead of inlining blobs ≤64KB and omitting larger ones, write attachment bytes as files beside the journal segments (the entry referencing them by filename), clean them up with segment rotation and journal removal, and re-attach them at ingest. Removes the size cliff entirely — screenshots and payloads survive crashes too. Follow-up PR after #86.
 - feat: Multi-process store + journal coordination. Today only app processes ingest journals (extensions journal but never ingest, so an extension launch can't delete the live app's journal) — but the reverse hole remains: an app launching while an extension session is live would ingest and delete that *live* journal out from under its open descriptor, silently ending its recoverability. Needs a claim mechanism (e.g. a claim file the writer holds, or skip-directories-with-live-claims) designed alongside App Group store sharing — which the store doesn't support yet either (exclusive sequence counters, SwiftData container coordination).
 
 
