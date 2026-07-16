@@ -111,8 +111,11 @@ struct LocationIngestorTests {
         await ingestor
             .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
 
-        try await waitUntil { await (try? store.allSamples().count) == 1 }
-        #expect(await recorder.last?.liveSample != nil)
+        // The post-persist outcome is reported *after* the write commits, so
+        // wait on it directly rather than on the sample count — a count poll can
+        // observe the committed row before `onPersisted` records the outcome.
+        try await waitUntil { await recorder.last?.liveSample != nil }
+        #expect(try await store.allSamples().count == 1)
     }
 
     @Test func captureTodaySkipsWhenGPSSampleAlreadyExistsToday() async throws {
