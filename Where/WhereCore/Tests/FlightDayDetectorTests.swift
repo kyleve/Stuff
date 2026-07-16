@@ -47,6 +47,36 @@ struct FlightDayDetectorTests {
         #expect(peak > 300)
     }
 
+    /// Real-world regression (the July 14 export that didn't flag): CoreLocation
+    /// emits a Visit *and* a significant-change fix at the same instant, so a
+    /// mid-cruise waypoint has an exact-timestamp duplicate. The zero-duration
+    /// leg between them must not make that cruise fix read as "grounded" — the
+    /// day should still flag with `.other` removed.
+    @Test func flagsFlightWithDuplicateMidCruiseFixes() {
+        let date = Fixtures.calendarDay(2026, 7, 14)
+        let day = DayPresence(day: date, regions: [.newYork, .other, .california])
+        let samples = [
+            Fixtures.gpsSample(day: date, hoursAfterStart: 8.0, Self.jfk),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 8.5, Self.jfk),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 12.0, Self.jfk),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 13.5, Self.illinois),
+            // A Visit + significant-change at the same instant, mid-cruise.
+            Fixtures.gpsSample(day: date, hoursAfterStart: 15.0, Self.colorado, source: .gpsVisit),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 15.0, Self.colorado),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 16.5, Self.nevada, source: .gpsVisit),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 16.5, Self.nevada),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 17.5, Self.sfo),
+            Fixtures.gpsSample(day: date, hoursAfterStart: 18.0, Self.sfo),
+        ]
+        let issues = FlightDayDetector().detectIssues(in: Fixtures.input(
+            days: [day],
+            daySamples: [date: samples],
+        ))
+        #expect(issues.count == 1)
+        #expect(issues[0].keepRegions == [.newYork, .california])
+        #expect(issues[0].removedRegions == [.other])
+    }
+
     /// A flight with a genuine layover in an untracked region: even with two
     /// fly-over `.other` fixes, a real `.other` stop (dwell fixes in Chicago)
     /// keeps `.other` grounded, so nothing is removed and the day isn't flagged.

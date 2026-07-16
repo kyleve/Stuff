@@ -62,16 +62,17 @@ public struct FlightDayDetector: DataIssueDetector {
         samples: [LocationSample],
         attributor: any RegionAttributing,
     ) -> FlightDayIssue? {
-        guard samples.count >= 3 else { return nil }
+        let fixes = Self.coalescingSimultaneous(samples)
+        guard fixes.count >= 3 else { return nil }
 
-        // `flightLeg[i]` is the leg from `samples[i]` to `samples[i + 1]`.
-        var flightLeg = [Bool](repeating: false, count: samples.count - 1)
+        // `flightLeg[i]` is the leg from `fixes[i]` to `fixes[i + 1]`.
+        var flightLeg = [Bool](repeating: false, count: fixes.count - 1)
         var peakSpeedKMH = 0.0
         for index in flightLeg.indices {
-            let distanceMeters = samples[index].coordinate
-                .distance(to: samples[index + 1].coordinate)
-            let seconds = samples[index + 1].timestamp
-                .timeIntervalSince(samples[index].timestamp)
+            let distanceMeters = fixes[index].coordinate
+                .distance(to: fixes[index + 1].coordinate)
+            let seconds = fixes[index + 1].timestamp
+                .timeIntervalSince(fixes[index].timestamp)
             guard seconds > 0 else { continue }
             let speedKMH = distanceMeters / seconds * 3.6
             if speedKMH >= speedThresholdKMH, distanceMeters >= minLegDistanceKM * 1000 {
@@ -86,10 +87,10 @@ public struct FlightDayDetector: DataIssueDetector {
         var hasFlyOver: Set<Region> = []
         var hasGrounded: Set<Region> = []
         var flyOverCount = 0
-        for index in samples.indices {
+        for index in fixes.indices {
             let flightBefore = index > 0 && flightLeg[index - 1]
             let flightAfter = index < flightLeg.count && flightLeg[index]
-            let region = attributor.region(at: samples[index].coordinate)
+            let region = attributor.region(at: fixes[index].coordinate)
             if flightBefore, flightAfter {
                 hasFlyOver.insert(region)
                 flyOverCount += 1
@@ -115,5 +116,35 @@ public struct FlightDayDetector: DataIssueDetector {
             removedRegions: removedRegions,
             peakSpeedKMH: peakSpeedKMH,
         )
+    }
+
+    /// Fixes closer together in time than this are treated as one reading.
+    private static let minLegSeconds: TimeInterval = 1
+
+    /// Collapse runs of near-simultaneous fixes to a single, most-accurate
+    /// representative. CoreLocation routinely emits a `CLVisit` *and* a
+    /// significant-change update at the *same* instant, so a day's samples carry
+    /// exact-timestamp duplicates. A zero-duration leg between two such fixes has
+    /// no speed, so it isn't a flight leg — and left in, it breaks a fly-over
+    /// run: the cruise fix beside a duplicate reads as "grounded" (one adjacent
+    /// leg has no speed), its region stops looking spurious, and a real flight
+    /// goes unflagged. Collapsing by *time* (not distance) leaves genuine dwells
+    /// — fixes minutes apart at one spot — intact, so a real layover still
+    /// grounds its region.
+    private static func coalescingSimultaneous(_ samples: [LocationSample]) -> [LocationSample] {
+        var result: [LocationSample] = []
+        for sample in samples {
+            if let last = result.last,
+               sample.timestamp.timeIntervalSince(last.timestamp) < minLegSeconds
+            {
+                // Same instant as the representative — keep the more accurate fix.
+                if sample.horizontalAccuracy < last.horizontalAccuracy {
+                    result[result.count - 1] = sample
+                }
+            } else {
+                result.append(sample)
+            }
+        }
+        return result
     }
 }
