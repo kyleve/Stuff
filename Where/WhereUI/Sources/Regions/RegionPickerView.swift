@@ -19,6 +19,9 @@ struct RegionPickerView: View {
 
     @State private var mode: Mode = .map
     @State private var searchText = ""
+    /// Bumped whenever a map tap is ignored because the selection is full, to
+    /// drive the warning haptic.
+    @State private var capacityBumps = 0
     /// The loaded map geometry + a matching attributor for tap hit-testing. One
     /// `Result` so "loading" (`nil`), success, and failure can't be confused.
     @State private var mapData: Result<MapData, Error>?
@@ -32,13 +35,25 @@ struct RegionPickerView: View {
         VStack(spacing: stylesheet.spacing.medium) {
             modePicker
 
-            Text(Strings.regionPickerSelectionCount(
-                selected: model.selectionCount,
-                max: PrimaryRegionSelectionModel.maxSelection,
-            ))
-            .font(.subheadline.weight(.medium))
-            .foregroundStyle(.secondary)
-            .accessibilityAddTraits(.updatesFrequently)
+            VStack(spacing: stylesheet.spacing.xSmall) {
+                Text(Strings.regionPickerSelectionCount(
+                    selected: model.selectionCount,
+                    max: PrimaryRegionSelectionModel.maxSelection,
+                ))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+                .accessibilityAddTraits(.updatesFrequently)
+
+                if model.isAtCapacity {
+                    Text(Strings
+                        .regionPickerAtCapacity(max: PrimaryRegionSelectionModel.maxSelection))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                        .transition(.opacity)
+                }
+            }
+            .animation(stylesheet.motion.captionFade, value: model.isAtCapacity)
 
             switch mode {
                 case .map:
@@ -47,6 +62,9 @@ struct RegionPickerView: View {
                     listContent
             }
         }
+        // A capped tap on the map is otherwise silent (unlike the list, which
+        // disables rows), so signal it with a warning haptic.
+        .sensoryFeedback(.warning, trigger: capacityBumps)
         .task {
             if mapData == nil { await loadMap() }
         }
@@ -118,9 +136,13 @@ struct RegionPickerView: View {
     private func handleMapTap(at coordinate: CLLocationCoordinate2D, in data: MapData) {
         let region = data.attributor.region(at: Coordinate(coordinate))
         guard region != .other, model.available.contains(region) else { return }
-        // Ignore an add that would exceed the cap so a tap can't silently fail
-        // to register while still looking tappable.
-        guard model.canToggle(region) else { return }
+        guard model.canToggle(region) else {
+            // At capacity and tapping a new region — the list disables its rows
+            // to show this, but the map has no such affordance, so buzz instead
+            // of silently ignoring the tap.
+            capacityBumps += 1
+            return
+        }
         model.toggle(region)
     }
 

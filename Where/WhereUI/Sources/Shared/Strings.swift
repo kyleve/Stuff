@@ -408,6 +408,16 @@ enum Strings {
         )
     }
 
+    /// Shown when the selection is full, so an ignored tap on a new region reads
+    /// as "at capacity" rather than "unresponsive".
+    static func regionPickerAtCapacity(max: Int) -> String {
+        String(
+            localized: "regionPicker.atCapacity",
+            defaultValue: "That's the maximum of \(max) — deselect one to choose another.",
+            bundle: .module,
+        )
+    }
+
     static var regionPickerMapAccessibility: String {
         String(
             localized: "regionPicker.map.accessibility",
