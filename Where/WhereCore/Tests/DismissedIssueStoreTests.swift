@@ -3,80 +3,91 @@ import Testing
 import WhereCore
 
 struct DismissedIssueStoreTests {
+    private static let borderDrift = DataIssueID.borderDrift(
+        day: CalendarDay(year: 2026, month: 4, day: 1),
+    )
+    private static let abruptChange = DataIssueID.abruptChange(
+        earlier: CalendarDay(year: 2026, month: 1, day: 1),
+        later: CalendarDay(year: 2026, month: 1, day: 2),
+    )
+    private static let missingDays = DataIssueID.missingDays(
+        start: CalendarDay(year: 2026, month: 1, day: 5),
+    )
+
     @Test func setIssueDismissed_roundTrips() async throws {
         let store = try SwiftDataStore.inMemory()
-        let key = "borderDrift:1234567890"
+        let id = Self.borderDrift
 
         try await store.perform {
-            try await store.setIssueDismissed(true, key: key)
+            try await store.setIssueDismissed(true, id: id)
         }
-        var keys = try await store.dismissedIssueKeys()
-        #expect(keys == [key])
+        var ids = try await store.dismissedIssueIDs()
+        #expect(ids == [id])
 
         try await store.perform {
-            try await store.setIssueDismissed(false, key: key)
+            try await store.setIssueDismissed(false, id: id)
         }
-        keys = try await store.dismissedIssueKeys()
-        #expect(keys.isEmpty)
+        ids = try await store.dismissedIssueIDs()
+        #expect(ids.isEmpty)
     }
 
     @Test func setIssueDismissed_upsertIsIdempotent() async throws {
         let store = try SwiftDataStore.inMemory()
-        let key = "abruptChange:1:2"
+        let id = Self.abruptChange
 
         try await store.perform {
-            try await store.setIssueDismissed(true, key: key)
-            try await store.setIssueDismissed(true, key: key)
+            try await store.setIssueDismissed(true, id: id)
+            try await store.setIssueDismissed(true, id: id)
         }
-        let keys = try await store.dismissedIssueKeys()
-        #expect(keys == [key])
+        let ids = try await store.dismissedIssueIDs()
+        #expect(ids == [id])
     }
 
     @Test func clearAll_wipesDismissals() async throws {
         let store = try SwiftDataStore.inMemory()
         try await store.perform {
-            try await store.setIssueDismissed(true, key: "missingDays:1")
+            try await store.setIssueDismissed(true, id: Self.missingDays)
         }
         try await store.perform {
             try await store.clearAll()
         }
-        let keys = try await store.dismissedIssueKeys()
-        #expect(keys.isEmpty)
+        let ids = try await store.dismissedIssueIDs()
+        #expect(ids.isEmpty)
     }
 
-    @Test func allDismissedIssues_returnsKeysAndTimestamps() async throws {
+    @Test func allDismissedIssues_returnsIDsAndTimestamps() async throws {
         let store = try SwiftDataStore.inMemory()
         let when = Date(timeIntervalSince1970: 1_700_000_000)
         try await store.perform {
             try await store.restoreDismissedIssue(
-                DismissedIssue(key: "borderDrift:1700000000", dismissedAt: when),
+                DismissedIssue(id: Self.borderDrift, dismissedAt: when),
             )
         }
 
         let dismissed = try await store.allDismissedIssues()
-        #expect(dismissed == [DismissedIssue(key: "borderDrift:1700000000", dismissedAt: when)])
+        #expect(dismissed == [DismissedIssue(id: Self.borderDrift, dismissedAt: when)])
     }
 
-    @Test func restoreDismissedIssue_preservesTimestampAndUpsertsByKey() async throws {
+    @Test func restoreDismissedIssue_preservesTimestampAndUpsertsByID() async throws {
         let store = try SwiftDataStore.inMemory()
-        let key = "abruptChange:1:2"
+        let id = Self.abruptChange
         let original = Date(timeIntervalSince1970: 1_700_000_000)
         let replacement = Date(timeIntervalSince1970: 1_700_500_000)
 
         try await store.perform {
-            try await store.restoreDismissedIssue(DismissedIssue(key: key, dismissedAt: original))
+            try await store.restoreDismissedIssue(DismissedIssue(id: id, dismissedAt: original))
         }
         #expect(try await store.allDismissedIssues().first?.dismissedAt == original)
 
-        // Restoring the same key again upserts (no duplicate) and the imported
+        // Restoring the same id again upserts (no duplicate) and the imported
         // timestamp wins.
         try await store.perform {
             try await store.restoreDismissedIssue(DismissedIssue(
-                key: key,
+                id: id,
                 dismissedAt: replacement,
             ))
         }
         let dismissed = try await store.allDismissedIssues()
-        #expect(dismissed == [DismissedIssue(key: key, dismissedAt: replacement)])
+        #expect(dismissed == [DismissedIssue(id: id, dismissedAt: replacement)])
     }
 }

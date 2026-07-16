@@ -134,32 +134,6 @@ struct CalendarDayTests {
         )
     }
 
-    // MARK: - Legacy recovery
-
-    @Test func recoversNewYorkWrittenDayReadInPacific() {
-        // A day logged at midnight Eastern, now migrated on a Pacific device: a
-        // direct read lands on the previous day, the recovery init restores it.
-        let nyMidnight = WhereCoreTestSupport.iso("2026-02-08T05:00:00Z")
-        #expect(CalendarDay(from: nyMidnight, in: pacific) == CalendarDay(
-            year: 2026,
-            month: 2,
-            day: 7,
-        ))
-        #expect(
-            CalendarDay(recoveringLegacyStartOfDay: nyMidnight, in: pacific)
-                == CalendarDay(year: 2026, month: 2, day: 8),
-        )
-    }
-
-    @Test func recoveryLeavesSameZoneDaysUnchanged() {
-        // A day logged at midnight Pacific, migrated on a Pacific device.
-        let pacificMidnight = WhereCoreTestSupport.iso("2026-01-01T08:00:00Z")
-        #expect(
-            CalendarDay(recoveringLegacyStartOfDay: pacificMidnight, in: pacific)
-                == CalendarDay(year: 2026, month: 1, day: 1),
-        )
-    }
-
     // MARK: - Codable
 
     @Test func codableRoundTrips() throws {

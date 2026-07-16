@@ -470,8 +470,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// manual action (its note, its capture-time GPS), so even when regions
     /// can't be downgraded the audit trail tracks the latest edit.
     private static func resolved(incoming day: DayPresence, existing: SDManualDay) -> DayPresence {
-        guard existing.isAuthoritative ?? false, !day.isAuthoritative else { return day }
-        let existingRegions = Set((existing.regionRaws ?? []).compactMap { Region(rawValue: $0) })
+        guard existing.isAuthoritative, !day.isAuthoritative else { return day }
+        let existingRegions = Set(existing.regionRaws.compactMap { Region(rawValue: $0) })
         return DayPresence(
             day: day.day,
             regions: existingRegions.union(day.regions),
@@ -590,12 +590,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
-    public func dismissedIssueKeys() async throws -> Set<String> {
+    public func dismissedIssueIDs() async throws -> Set<DataIssueID> {
         let context = readContext()
         var descriptor = FetchDescriptor<SDDismissedIssue>()
         descriptor.includePendingChanges = true
-        let keys = try context.fetch(descriptor).compactMap(\.key)
-        return Set(keys)
+        let ids = try context.fetch(descriptor).compactMap { $0.toValue()?.id }
+        return Set(ids)
     }
 
     public func allDismissedIssues() async throws -> [DismissedIssue] {
@@ -609,8 +609,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
     }
 
-    public func setIssueDismissed(_ dismissed: Bool, key: String) async throws {
+    public func setIssueDismissed(_ dismissed: Bool, id: DataIssueID) async throws {
         let context = mutationContext()
+        let key = id.storeURL.absoluteString
         let descriptor = FetchDescriptor<SDDismissedIssue>(predicate: #Predicate { $0.key == key })
         let existing = try context.fetch(descriptor)
         if dismissed {
@@ -625,12 +626,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
     public func restoreDismissedIssue(_ issue: DismissedIssue) async throws {
         let context = mutationContext()
-        let key = issue.key
+        let key = issue.id.storeURL.absoluteString
         let descriptor = FetchDescriptor<SDDismissedIssue>(predicate: #Predicate { $0.key == key })
         if let record = try context.fetch(descriptor).first {
             record.dismissedAt = issue.dismissedAt
         } else {
-            context.insert(SDDismissedIssue(key: issue.key, dismissedAt: issue.dismissedAt))
+            context.insert(SDDismissedIssue(key: key, dismissedAt: issue.dismissedAt))
         }
     }
 
@@ -743,7 +744,9 @@ final class SDLocationSample {
     }
 
     func toValue() -> LocationSample? {
-        guard let id, let timestamp, let latitude, let longitude, let sourceRaw else { return nil }
+        guard let id, let timestamp, let latitude, let longitude, let horizontalAccuracy,
+              let sourceRaw
+        else { return nil }
         guard let source = SampleSource.fromDiscriminator(
             sourceRaw,
             evidenceId: evidenceId,
@@ -753,7 +756,7 @@ final class SDLocationSample {
             id: id,
             timestamp: timestamp,
             coordinate: Coordinate(latitude: latitude, longitude: longitude),
-            horizontalAccuracy: horizontalAccuracy ?? 0,
+            horizontalAccuracy: horizontalAccuracy,
             source: source,
         )
     }
@@ -821,20 +824,15 @@ final class SDEvidence {
 @Model
 final class SDManualDay {
     /// Canonical, timezone-independent identity: the day's `CalendarDay` ISO
-    /// string (`YYYY-MM-DD`). Nil on rows written before this column existed;
-    /// such rows read correctly via `toValue()`'s recovery from `dateKey`, and a
-    /// one-time backup export → replace-import rewrites them with a `dayKey`.
+    /// string (`YYYY-MM-DD`). Optional only because the CloudKit mirror requires
+    /// it; a row that somehow has no `dayKey` can't be placed on a day and is
+    /// dropped (fault-logged) by `toValue()`.
     var dayKey: String?
-    /// The original start-of-day instant this record was written with, kept for
-    /// information and as `toValue()`'s recovery source for a legacy `dayKey`-less
-    /// row. No longer the lookup key — `dayKey` is — and left untouched on new
-    /// writes, so it is nil for rows created after the `CalendarDay` cutover.
-    var dateKey: Date?
-    var regionRaws: [String]?
     /// Whether this manual day replaces (rather than unions with) GPS for its
-    /// date. Optional so the CloudKit mirror stays lightweight-migration-safe;
-    /// pre-existing rows decode as additive (`false`).
-    var isAuthoritative: Bool?
+    /// date. Defaults to `false` (additive) — a CloudKit-safe default that keeps
+    /// the column non-optional.
+    var isAuthoritative: Bool = false
+    var regionRaws: [String] = []
 
     // Audit metadata for a user-made entry (`ManualEntryAudit`). All optional so
     // the CloudKit mirror stays lightweight-migration-safe; rows written before
@@ -875,32 +873,18 @@ final class SDManualDay {
         guard let day = resolvedDay() else { return nil }
         return DayPresence(
             day: day,
-            regions: Set((regionRaws ?? []).compactMap { Region(rawValue: $0) }),
-            isAuthoritative: isAuthoritative ?? false,
+            regions: Set(regionRaws.compactMap { Region(rawValue: $0) }),
+            isAuthoritative: isAuthoritative,
             audit: auditValue(),
         )
     }
 
-    /// The record's `CalendarDay`: the persisted `dayKey` when present, else
-    /// recovered from a legacy `dateKey` instant. Legacy `dayKey`-less rows are
-    /// read through this recovery (in UTC, so it's timezone-stable and correct
-    /// for continental writers) until a one-time backup export → replace-import
-    /// rewrites them with a `dayKey`.
+    /// The record's `CalendarDay`, parsed from the persisted `dayKey`. Returns
+    /// `nil` for a row with no (or an unparseable) `dayKey` — an impossible
+    /// state for a row this build wrote, so the caller drops it.
     private func resolvedDay() -> CalendarDay? {
-        if let dayKey, let calendarDay = CalendarDay(iso: dayKey) {
-            return calendarDay
-        }
-        if let dateKey {
-            return CalendarDay(recoveringLegacyStartOfDay: dateKey, in: SDManualDay.utcCalendar)
-        }
-        return nil
+        dayKey.flatMap(CalendarDay.init(iso:))
     }
-
-    private static let utcCalendar: Calendar = {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
-        return calendar
-    }()
 
     private func auditValue() -> ManualEntryAudit? {
         guard let auditRecordedAt else { return nil }
@@ -927,6 +911,9 @@ final class SDManualDay {
 
 @Model
 final class SDDismissedIssue {
+    /// The dismissed issue's identity, stored as its `DataIssueID` `store://`
+    /// URL string (`id.storeURL.absoluteString`). A plain string column so
+    /// `#Predicate` dedup/upsert stays a real query.
     var key: String?
     var dismissedAt: Date?
 
@@ -938,8 +925,11 @@ final class SDDismissedIssue {
     }
 
     func toValue() -> DismissedIssue? {
-        guard let key, let dismissedAt else { return nil }
-        return DismissedIssue(key: key, dismissedAt: dismissedAt)
+        guard let key, let dismissedAt,
+              let url = URL(string: key),
+              let id = DataIssueID(storeURL: url)
+        else { return nil }
+        return DismissedIssue(id: id, dismissedAt: dismissedAt)
     }
 }
 

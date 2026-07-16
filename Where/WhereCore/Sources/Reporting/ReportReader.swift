@@ -63,8 +63,8 @@ public struct ReportReader: Sendable {
         return aggregator.representativeCoordinates(samples: samples, attributor: attributor)
     }
 
-    /// Every persisted dismissal key for data-resolution issues.
-    public func dismissedIssueKeys() async throws -> Set<String> {
-        try await store.dismissedIssueKeys()
+    /// Every persisted dismissed data-resolution issue id.
+    public func dismissedIssueIDs() async throws -> Set<DataIssueID> {
+        try await store.dismissedIssueIDs()
     }
 }
