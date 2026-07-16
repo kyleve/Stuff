@@ -9,96 +9,168 @@ public let defaultSnapshotPrecision: Float = 0.999
 /// sub-visible antialiasing / subpixel noise without hiding real regressions.
 public let defaultSnapshotPerceptualPrecision: Float = 0.98
 
-/// Renders a view controller to an image at its own size on the fixed CI
-/// simulator.
+/// How a snapshot resolves the size it renders at.
+public enum SnapshotSizing: Sendable {
+    /// Use the view controller's current frame (a fixed device viewport).
+    case fixed
+    /// Size to fit the content at a fixed width, measured *after* the content is
+    /// in the window and settled (so async `.task` loads are included, not a
+    /// placeholder).
+    case intrinsic(width: CGFloat)
+}
+
+/// Renders a view controller to an image on the fixed CI simulator.
 ///
 /// Overrides safe-area insets (default `.zero`) so the image is independent of the
-/// host device, disables animations and drains any in-flight animation, hides
-/// text-input cursors, and — for accessibility captures — wraps the content so the
-/// image is VoiceOver-annotated. The capture is taken through a tile-and-stitch
-/// wrapper so views taller/wider than ~2000pt (which UIKit otherwise renders
-/// blank) come out whole.
+/// host device, disables animations and drains any in-flight animation, lets
+/// async content settle, hides text-input cursors, and — for accessibility
+/// captures — wraps the content so the image is VoiceOver-annotated. The capture
+/// is taken through a tile-and-stitch wrapper so views taller/wider than ~2000pt
+/// (which UIKit otherwise renders blank) come out whole.
+///
+/// `async` is load-bearing, not a convenience: the settle phase must *suspend*
+/// (freeing the main actor) for SwiftUI `.task`-driven content to load — see
+/// ``settleContent(_:minDuration:maxDuration:)``. Callers assert on the returned
+/// image (``assertSnapshots(of:named:configurations:record:fileID:file:testName:line:column:)``
+/// does this) rather than through a synchronous `Snapshotting` pullback, which
+/// could never settle such content.
 ///
 /// Requires the StuffTestHost key window; call only from a hosted test bundle.
 @MainActor
 public func renderSnapshotImage(
     of viewController: UIViewController,
+    sizing: SnapshotSizing = .fixed,
     safeAreaInsets: UIEdgeInsets? = .zero,
     isAccessibility: Bool = false,
-    onAddedToWindow: @MainActor () -> Void = {},
-) -> UIImage {
-    func capture() -> UIImage {
-        guard let window = hostKeyWindow() else {
+) async -> UIImage {
+    func capture() async -> UIImage {
+        guard let window = hostKeyWindow(), let hostRoot = window.rootViewController else {
             preconditionFailure(
                 "SnapshotKitTesting requires the StuffTestHost key window. Run snapshot tests in a hosted bundle.",
             )
         }
 
-        let originalRoot = window.rootViewController
-        let originalFrame = window.frame
         let initialContentFrame = viewController.view.frame
         let animationsWereEnabled = UIView.areAnimationsEnabled
         UIView.setAnimationsEnabled(false)
         defer {
-            CATransaction.performWithoutAnimation { window.rootViewController = originalRoot }
-            window.frame = originalFrame
             viewController.view.frame = initialContentFrame
             UIView.setAnimationsEnabled(animationsWereEnabled)
         }
+
+        await resolveContentSize(
+            of: viewController,
+            sizing: sizing,
+            hostedIn: hostRoot,
+            window: window,
+        )
 
         let captureViewController: UIViewController = isAccessibility
             ? AccessibilitySnapshotViewController(wrapping: viewController)
             : viewController
         let wrappingViewController = SnapshotWrappingViewController(captureViewController)
 
-        window.frame.size = viewController.view.frame.size
-        CATransaction.performWithoutAnimation { window.rootViewController = wrappingViewController }
+        // Host inside the already-appeared StuffTestHost root VC. Adding a child VC
+        // (and its view) to an on-screen, appeared parent drives the real UIKit
+        // appearance lifecycle (verified: `viewWillAppear`/`viewDidAppear`/SwiftUI
+        // `onAppear` all fire through the containment forwarding — no manual
+        // `beginAppearanceTransition` needed).
+        hostChildForCapture(wrappingViewController, in: hostRoot)
+        defer { removeChildAfterCapture(wrappingViewController) }
 
+        wrappingViewController.view.setNeedsLayout()
+        CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
+        await settleContent(wrappingViewController.view)
+
+        // Parse accessibility only after the content has settled, so the
+        // annotation reflects the loaded/revealed state (not a placeholder), then
+        // re-lay-out at the size `parseAccessibility` sizes the wrapper to.
         if let accessibilityViewController =
             captureViewController as? AccessibilitySnapshotViewController
         {
             accessibilityViewController.parseAccessibility()
+            wrappingViewController.view.frame.size = accessibilityViewController.view.frame.size
+            wrappingViewController.view.setNeedsLayout()
+            CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
         }
-
-        wrappingViewController.view.setNeedsLayout()
-        CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
 
         viewController.view.hideTextInputCursors()
         drainInFlightAnimations()
-
-        onAddedToWindow()
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.001))
 
         return tileAndStitchImage(of: wrappingViewController)
     }
 
     if let safeAreaInsets {
-        return swizzle(safeAreaInsets: safeAreaInsets, for: viewController, operation: capture)
+        return await swizzle(
+            safeAreaInsets: safeAreaInsets,
+            for: viewController,
+            operation: capture,
+        )
     }
-    return capture()
+    return await capture()
 }
 
-extension Snapshotting where Value == UIViewController, Format == UIImage {
-    /// A snapshot strategy that renders a view controller through the SnapshotKit
-    /// pipeline (safe-area override, animation quiescing, cursor hiding, and — when
-    /// `isAccessibility` is set — VoiceOver annotation) at its own size on the
-    /// fixed CI simulator.
-    public static func snapshotKitImage(
-        precision: Float = defaultSnapshotPrecision,
-        perceptualPrecision: Float = defaultSnapshotPerceptualPrecision,
-        isAccessibility: Bool = false,
-        onAddedToWindow: @escaping @MainActor () -> Void = {},
-    ) -> Self {
-        SimplySnapshotting
-            .image(precision: precision, perceptualPrecision: perceptualPrecision, scale: nil)
-            .pullback { viewController in
-                MainActor.assumeIsolated {
-                    renderSnapshotImage(
-                        of: viewController,
-                        isAccessibility: isAccessibility,
-                        onAddedToWindow: onAddedToWindow,
-                    )
-                }
-            }
+/// Adds `child` (sized to its view's current frame) into the appeared host root
+/// via the full `addChild` → attach-view → `didMove` contract, so the child — and
+/// the SwiftUI content it hosts — runs its real appearance lifecycle.
+@MainActor
+private func hostChildForCapture(_ child: UIViewController, in hostRoot: UIViewController) {
+    hostRoot.addChild(child)
+    child.view.frame = CGRect(origin: .zero, size: child.view.frame.size)
+    hostRoot.view.addSubview(child.view)
+    child.didMove(toParent: hostRoot)
+}
+
+/// Tears down a controller hosted by ``hostChildForCapture(_:in:)``.
+@MainActor
+private func removeChildAfterCapture(_ child: UIViewController) {
+    child.willMove(toParent: nil)
+    child.view.removeFromSuperview()
+    child.removeFromParent()
+}
+
+/// For `.intrinsic` sizing, hosts the content at the target width with the full
+/// appearance lifecycle driven (so SwiftUI `.task` loads and finite time-based
+/// reveals run), lets it settle, then measures `sizeThatFits` and pins the frame —
+/// so a content-loading component is sized to its loaded content rather than an
+/// empty placeholder. `.fixed` sizing leaves the frame untouched.
+///
+/// The content is hosted through a throwaway wrapper added as a child of the
+/// appeared host root (not a bare subview): only a real appearance transition
+/// starts the content's `.task`/`onAppear`. The wrapper is torn down and the
+/// content detached before returning, so the caller can re-parent the same view
+/// controller into the capture wrapper.
+@MainActor
+private func resolveContentSize(
+    of viewController: UIViewController,
+    sizing: SnapshotSizing,
+    hostedIn hostRoot: UIViewController,
+    window: UIWindow,
+) async {
+    guard case let .intrinsic(width) = sizing else { return }
+
+    let probeHeight = max(window.bounds.height, 1)
+    viewController.view.frame = CGRect(x: 0, y: 0, width: width, height: probeHeight)
+
+    let probeWrapper = SnapshotWrappingViewController(viewController)
+    hostChildForCapture(probeWrapper, in: hostRoot)
+    probeWrapper.view.setNeedsLayout()
+    CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
+    await settleContent(probeWrapper.view)
+
+    var measured = viewController.view
+        .sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+    measured.width = width
+    if !measured.height.isFinite || measured.height <= 0 {
+        measured.height = 1
     }
+
+    // Detach the content VC from the probe wrapper first (so the caller can
+    // re-wrap it), then tear the probe wrapper down.
+    viewController.willMove(toParent: nil)
+    viewController.removeFromParent()
+    removeChildAfterCapture(probeWrapper)
+
+    viewController.view.frame = CGRect(origin: .zero, size: measured)
+    CATransaction.performWithoutAnimation(viewController.view.layoutIfNeeded)
 }

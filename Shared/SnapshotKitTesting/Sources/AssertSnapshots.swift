@@ -9,6 +9,10 @@ import UIKit
 /// each against a reference image named by the case name + the configuration's
 /// identifier. Records only missing images when the suite carries
 /// `.snapshots(record: .missing)`; existing-image mismatches always fail.
+///
+/// `async` because the render pipeline must suspend for SwiftUI `.task`-driven
+/// content to load before capture — see
+/// ``renderSnapshotImage(of:sizing:safeAreaInsets:isAccessibility:)``.
 @MainActor
 public func assertSnapshots(
     of provider: (some SnapshotProviding).Type,
@@ -18,9 +22,9 @@ public func assertSnapshots(
     testName: String = #function,
     line: UInt = #line,
     column: UInt = #column,
-) {
+) async {
     for snapshotCase in provider.snapshots {
-        assertSnapshots(
+        await assertSnapshots(
             of: snapshotCase.content,
             named: snapshotCase.name,
             configurations: snapshotCase.configurations,
@@ -47,7 +51,7 @@ public func assertSnapshots(
     testName: String = #function,
     line: UInt = #line,
     column: UInt = #column,
-) {
+) async {
     do {
         try waitFor { hostKeyWindow() != nil }
     } catch {
@@ -57,12 +61,26 @@ public func assertSnapshots(
 
     for configuration in configurations {
         let hostingController = makeHostingController(for: view, configuration: configuration)
+        let sizing: SnapshotSizing = switch configuration.device.size {
+            case .fixed:
+                .fixed
+            case let .intrinsic(maxWidth):
+                .intrinsic(width: maxWidth ?? UIScreen.main.bounds.width)
+        }
         let identifier = [name, configuration.identifier]
             .filter { !$0.isEmpty }
             .joined(separator: "_")
-        assertSnapshot(
+        let image = await renderSnapshotImage(
             of: hostingController,
-            as: .snapshotKitImage(isAccessibility: configuration.snapshotType == .accessibility),
+            sizing: sizing,
+            isAccessibility: configuration.snapshotType == .accessibility,
+        )
+        assertSnapshot(
+            of: image,
+            as: .image(
+                precision: defaultSnapshotPrecision,
+                perceptualPrecision: defaultSnapshotPerceptualPrecision,
+            ),
             named: identifier,
             record: record,
             fileID: fileID,
@@ -75,11 +93,13 @@ public func assertSnapshots(
 }
 
 /// Builds a hosting controller for `view` with the configuration's appearance
-/// traits applied and its frame resolved (fixed device size, or measured to fit a
-/// constrained width). Dynamic Type and color scheme are applied through the
-/// SwiftUI environment (so measurement reflects them) and mirrored onto UIKit
-/// trait overrides (for any embedded UIKit); increased contrast — which SwiftUI
-/// can't set — is a trait override only.
+/// traits applied and a starting frame set. Dynamic Type and color scheme are
+/// applied through the SwiftUI environment (so measurement reflects them) and
+/// mirrored onto UIKit trait overrides (for any embedded UIKit); increased
+/// contrast — which SwiftUI can't set — is a trait override only. Intrinsic
+/// components get only their width here; the pipeline measures their height after
+/// the content settles (which also lets finite time-based reveals — typewriter
+/// text, launch transitions — run to completion before the capture).
 @MainActor
 private func makeHostingController(
     for view: some View,
@@ -100,18 +120,9 @@ private func makeHostingController(
     switch configuration.device.size {
         case let .fixed(size):
             hostingController.view.frame = CGRect(origin: .zero, size: size)
-
         case let .intrinsic(maxWidth):
             let width = maxWidth ?? UIScreen.main.bounds.width
-            let constrained = CGSize(width: width, height: .greatestFiniteMagnitude)
             hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: 1)
-            hostingController.waitForStableSize(constrainedTo: constrained)
-            var measured = hostingController.view.sizeThatFits(constrained)
-            measured.width = width
-            if !measured.height.isFinite || measured.height <= 0 {
-                measured.height = 1
-            }
-            hostingController.view.frame = CGRect(origin: .zero, size: measured)
     }
 
     return hostingController

@@ -1,16 +1,29 @@
 import UIKit
 
-/// Swizzles `UIView.safeAreaInsets` for the duration of `operation` so a captured
-/// view controller sees `safeAreaInsets` (default `.zero`) instead of the host
-/// simulator's device insets. This decouples the image from the physical
-/// simulator (notch / home indicator) and still honors each view controller's
-/// `additionalSafeAreaInsets`. Unswizzled in all paths.
+/// Swizzles `UIView.safeAreaInsets` for the duration of `operation` so the
+/// captured view controller's **root** sees `safeAreaInsets` (default `.zero`)
+/// instead of the host simulator's device insets. This decouples the image from
+/// the physical simulator (notch / home indicator). Unswizzled in all paths.
+///
+/// Only the captured root and its ancestors (the capture scaffolding up to the
+/// window) report the override; views *inside* the hosted tree keep the native
+/// implementation. UIKit composes safe areas root-down, so the interior sees the
+/// zeroed device insets from our root **plus** everything legitimately layered on
+/// mid-tree — navigation-bar overlap, `safeAreaInset` accessories, a VC's
+/// `additionalSafeAreaInsets`. Two earlier designs failed here:
+///
+/// - Returning the override for **every** in-tree view erased those interior
+///   contributions, so scroll content laid out flush under floating bars (a
+///   summary screen crammed its text into the bar blur).
+/// - Geometrically re-deriving the root's safe rect per view produced phantom
+///   insets for translated content — a scroll container at offset y reported a
+///   y-point top inset and the visible region laid out empty (blank CalendarView).
 @MainActor
 func swizzle<Output>(
     safeAreaInsets: UIEdgeInsets,
     for viewController: UIViewController,
-    operation: () -> Output,
-) -> Output {
+    operation: () async -> Output,
+) async -> Output {
     _overrideSafeAreaInsets = safeAreaInsets
     _overrideViewController = viewController
     UIView.swizzleSafeAreaInsets()
@@ -19,7 +32,7 @@ func swizzle<Output>(
         _overrideViewController = nil
         UIView.unswizzleSafeAreaInsets()
     }
-    return operation()
+    return await operation()
 }
 
 @MainActor private var _overrideViewController: UIViewController?
@@ -49,67 +62,18 @@ extension UIView {
     }
 
     @objc private var snapshotKitOverriddenSafeAreaInsets: UIEdgeInsets {
-        guard let tested = _overrideViewController else {
+        guard let tested = _overrideViewController, let testedView = tested.view else {
             return _overrideSafeAreaInsets
         }
 
-        // The direct container of the tested view reports the raw override.
-        if subviews.contains(tested.view) {
+        // The captured root and the scaffolding above it report the override;
+        // everything inside the tree keeps the native implementation (which,
+        // after the method exchange, *is* `snapshotKitOverriddenSafeAreaInsets`)
+        // so interior contributions — bars, `safeAreaInset` accessories,
+        // `additionalSafeAreaInsets` — still compose on top of the zeroed base.
+        if self === testedView || testedView.isDescendant(of: self) {
             return _overrideSafeAreaInsets
         }
-
-        // A view outside any view-controller hierarchy just gets the override.
-        guard let owningViewController = snapshotKitOwningViewController else {
-            return _overrideSafeAreaInsets
-        }
-
-        var sourceView = owningViewController.view!
-        let isViewControllersView = sourceView === self
-
-        // For a view controller's own view, derive insets from its superview so
-        // additionalSafeAreaInsets can be layered on; otherwise use the owning
-        // view controller's view as the conversion source.
-        if isViewControllersView {
-            guard let superview else { return _overrideSafeAreaInsets }
-            sourceView = superview
-        }
-
-        let sourceSafeArea = sourceView.bounds.inset(by: sourceView.safeAreaInsets)
-        let safeArea = sourceView.convert(sourceSafeArea, to: self)
-
-        var insets = UIEdgeInsets(
-            top: max(0, safeArea.minY),
-            left: max(0, safeArea.minX),
-            bottom: max(0, bounds.maxY - safeArea.maxY),
-            right: max(0, bounds.maxX - safeArea.maxX),
-        )
-
-        if isViewControllersView {
-            insets = insets + owningViewController.additionalSafeAreaInsets
-        }
-
-        return insets
-    }
-
-    private var snapshotKitOwningViewController: UIViewController? {
-        var responder: UIResponder? = next
-        while let current = responder {
-            if let viewController = current as? UIViewController {
-                return viewController
-            }
-            responder = current.next
-        }
-        return nil
-    }
-}
-
-extension UIEdgeInsets {
-    fileprivate static func + (lhs: Self, rhs: Self) -> Self {
-        Self(
-            top: lhs.top + rhs.top,
-            left: lhs.left + rhs.left,
-            bottom: lhs.bottom + rhs.bottom,
-            right: lhs.right + rhs.right,
-        )
+        return snapshotKitOverriddenSafeAreaInsets
     }
 }
