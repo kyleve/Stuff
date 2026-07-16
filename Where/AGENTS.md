@@ -70,9 +70,10 @@ Rules the code enforces and agents must preserve:
   object's canonical `store://` identity — `DataIssueID.storeURL` for dismissals,
   and `WhereStoreID` (`store://days/…`, `store://years/…`, `store://evidence/…`,
   `store://samples/…`) for the other families — so inspect-by-object shares the
-  same key the store and backups use. RegionKit is the one exception: it's below
-  the app's `store://` convention and its regions are a bundled catalog, not
-  store rows, so `RegionAttributorLog` keeps a bare catalog-id `externalID`.
+  same key the store and backups use. **RegionKit** can't see the app's
+  `store://` types, so it owns a parallel `region://` scheme (`RegionURL`,
+  `Region.regionURL` → `region://regions/<id>`) and `RegionAttributorLog` keys on
+  that — a separate namespace, since regions are a bundled catalog, not store rows.
 - **Location comes through the `LocationSource` protocol** — production is
   `CoreLocationSource`; tests and previews use `ScriptedLocationSource`. Besides
   the passive `sampleStream`, it offers a best-effort one-shot

@@ -50,6 +50,13 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   root scope and one typed `LogEvent` per collaborator, emitted into
   `Periscope.shared`. RegionKit owns its own root scope, never `WhereLog`, but
   shares the process-wide store (the app wires the `PeriscopeStore` sink).
+- **Object identities are `region://` URLs** — `RegionURL` (RegionKit's local
+  analog of WhereCore's `StoreURL`) builds/parses `region://<collection>/<type>`
+  URLs, and `Region.regionURL` vends `region://regions/<id>`. Used to key a
+  `LogEvent.externalID` (see `RegionAttributorLog`) so inspect-by-object works
+  without RegionKit reaching up into the app's `store://` scheme — a separate,
+  intentionally parallel namespace. Distinct from `Region`'s bare-`rawValue`
+  `Codable`, which stays the persisted form.
 
 ## Testing
 

@@ -6,11 +6,11 @@ import PeriscopeCore
 /// `externalID` so the tooling can pull every event about one region.
 enum RegionAttributorLog: LogEvent {
     /// The manifest names a geometry file the bundle doesn't contain.
-    case missingGeometry(region: String)
+    case missingGeometry(region: Region)
     /// The region's GeoJSON decoded to zero polygons.
-    case emptyPolygons(region: String)
+    case emptyPolygons(region: Region)
     /// The region's GeoJSON failed to decode.
-    case decodeFailed(region: String, description: String)
+    case decodeFailed(region: Region, description: String)
     /// Finished loading polygons for `regionCount` regions.
     case loaded(regionCount: Int)
 
@@ -26,11 +26,11 @@ enum RegionAttributorLog: LogEvent {
     var message: String {
         switch self {
             case let .missingGeometry(region):
-                "Missing bundled GeoJSON for region \(region)"
+                "Missing bundled GeoJSON for region \(region.rawValue)"
             case let .emptyPolygons(region):
-                "Region \(region) decoded no polygons"
+                "Region \(region.rawValue) decoded no polygons"
             case let .decodeFailed(region, description):
-                "Failed to decode bundled GeoJSON for region \(region): \(description)"
+                "Failed to decode bundled GeoJSON for region \(region.rawValue): \(description)"
             case let .loaded(regionCount):
                 "Loaded region polygons for \(regionCount) region(s)"
         }
@@ -40,7 +40,7 @@ enum RegionAttributorLog: LogEvent {
         switch self {
             case let .missingGeometry(region), let .emptyPolygons(region),
                  let .decodeFailed(region, _):
-                region
+                region.regionURL.absoluteString
             case .loaded:
                 nil
         }

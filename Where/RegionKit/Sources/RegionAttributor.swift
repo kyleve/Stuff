@@ -108,14 +108,14 @@ public struct RegionAttributor: RegionAttributing {
         for region in regions {
             guard region != .other else { continue }
             guard let url = RegionCatalog.shared.geometryURL(for: region) else {
-                logger { .missingGeometry(region: region.rawValue) }
+                logger { .missingGeometry(region: region) }
                 assertionFailure("Missing bundled GeoJSON for region \(region.rawValue)")
                 continue
             }
             do {
                 let polygons = try GeoJSON.polygons(at: url)
                 guard !polygons.isEmpty else {
-                    logger { .emptyPolygons(region: region.rawValue) }
+                    logger { .emptyPolygons(region: region) }
                     assertionFailure("Region \(region.rawValue) decoded no polygons")
                     continue
                 }
@@ -123,7 +123,7 @@ public struct RegionAttributor: RegionAttributing {
             } catch {
                 logger(attachments: [.error(error, name: "decode-error")]) {
                     .decodeFailed(
-                        region: region.rawValue,
+                        region: region,
                         description: error.localizedDescription,
                     )
                 }

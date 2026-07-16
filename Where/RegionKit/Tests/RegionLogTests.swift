@@ -33,19 +33,29 @@ struct RegionLogTests {
     // MARK: - RegionAttributorLog
 
     @Test func attributorEventsCarryRegionAsExternalID() {
-        #expect(RegionAttributorLog.missingGeometry(region: "us-CA").externalID == "us-CA")
-        #expect(RegionAttributorLog.emptyPolygons(region: "canada").externalID == "canada")
+        // The region rides on externalID as its region:// identity (see
+        // RegionURLTests for the exact string).
         #expect(
-            RegionAttributorLog.decodeFailed(region: "us-NY", description: "x")
-                .externalID == "us-NY",
+            RegionAttributorLog.missingGeometry(region: .california)
+                .externalID == Region.california.regionURL.absoluteString,
+        )
+        #expect(
+            RegionAttributorLog.emptyPolygons(region: .canada)
+                .externalID == Region.canada.regionURL.absoluteString,
+        )
+        #expect(
+            RegionAttributorLog.decodeFailed(region: .newYork, description: "x")
+                .externalID == Region.newYork.regionURL.absoluteString,
         )
         #expect(RegionAttributorLog.loaded(regionCount: 2).externalID == nil)
     }
 
     @Test func attributorFaultsAndInfo() {
-        #expect(RegionAttributorLog.missingGeometry(region: "us-CA").level == .fault)
-        #expect(RegionAttributorLog.emptyPolygons(region: "us-CA").level == .fault)
-        #expect(RegionAttributorLog.decodeFailed(region: "us-CA", description: "x").level == .fault)
+        #expect(RegionAttributorLog.missingGeometry(region: .california).level == .fault)
+        #expect(RegionAttributorLog.emptyPolygons(region: .california).level == .fault)
+        #expect(
+            RegionAttributorLog.decodeFailed(region: .california, description: "x").level == .fault,
+        )
         #expect(RegionAttributorLog.loaded(regionCount: 2).level == .info)
     }
 
