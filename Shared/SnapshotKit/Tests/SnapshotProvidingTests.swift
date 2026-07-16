@@ -13,6 +13,7 @@ private struct SampleComponent: SnapshotProviding {
     }
 }
 
+@MainActor
 struct SnapshotProvidingTests {
     @Test func builderCollectsEveryCase() {
         let names = SampleComponent.snapshots.map(\.name)

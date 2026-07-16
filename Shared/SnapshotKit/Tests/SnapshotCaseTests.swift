@@ -2,6 +2,7 @@
 import SwiftUI
 import Testing
 
+@MainActor
 struct SnapshotCaseTests {
     @Test func idIsTheName() {
         let snapshotCase = SnapshotCase(name: "States", configurations: []) { Color.red }

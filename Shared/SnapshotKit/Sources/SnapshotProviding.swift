@@ -16,7 +16,7 @@ import SwiftUI
 /// }
 /// ```
 public protocol SnapshotProviding {
-    @SnapshotCaseBuilder static var snapshots: [SnapshotCase] { get }
+    @MainActor @SnapshotCaseBuilder static var snapshots: [SnapshotCase] { get }
 }
 
 extension SnapshotProviding {

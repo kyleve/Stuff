@@ -20,10 +20,11 @@ public struct SnapshotCase: Identifiable {
         name
     }
 
+    @MainActor
     public init(
         name: String,
         configurations: [SnapshotConfiguration],
-        @ViewBuilder content: () -> some View,
+        @ViewBuilder content: @MainActor () -> some View,
     ) {
         self.name = name
         self.configurations = configurations
