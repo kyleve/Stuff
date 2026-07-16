@@ -1,3 +1,4 @@
+import SnapshotKit
 import SwiftUI
 
 /// The Where launch screen shown for the whole launch: the user's selected app
@@ -19,9 +20,12 @@ import SwiftUI
 /// reconcile and no remount, so the pulse and radar run uninterrupted.
 ///
 /// Honors Reduce Motion: the pulse and the sweeping rings are pinned to a
-/// static frame, and the caption appears without a fade.
+/// static frame, and the caption appears without a fade. Snapshot captures
+/// (`\.isCapturingSnapshot`) likewise skip the pulse and freeze the rings at a
+/// canonical phase, so the never-settling motion renders deterministically.
 struct LaunchSplashView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
     @Environment(\.stylesheet) private var stylesheet
     @State private var pulsing = false
     @State private var showCaption: Bool
@@ -118,7 +122,7 @@ struct LaunchSplashView: View {
                     .scaleEffect(pulsing ? 1.3 : 0.85)
             }
             .onAppear {
-                guard !reduceMotion else { return }
+                guard !reduceMotion, !isCapturingSnapshot else { return }
                 withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
                     pulsing = true
                 }
@@ -131,7 +135,13 @@ struct LaunchSplashView: View {
 /// dissolves. Driven by a `TimelineView` clock and drawn in a `Canvas`, so
 /// there's no per-ring view state to keep in sync; pausing the clock (Reduce
 /// Motion) renders a single static frame of staggered rings.
+///
+/// Snapshot captures pause the clock *and* pin the phase to a constant — a
+/// paused `TimelineView` still reports the wall-clock pause time, which would
+/// leak run-dependent ring radii/opacities into the image.
 private struct RadarPingBackground: View {
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
+
     let animated: Bool
     var tint: Color = .white
 
@@ -141,9 +151,11 @@ private struct RadarPingBackground: View {
     private let maxOpacity: Double = 0.32
 
     var body: some View {
-        TimelineView(.animation(paused: !animated)) { timeline in
+        TimelineView(.animation(paused: !animated || isCapturingSnapshot)) { timeline in
             Canvas { context, size in
-                let now = timeline.date.timeIntervalSinceReferenceDate
+                let now = isCapturingSnapshot
+                    ? 0
+                    : timeline.date.timeIntervalSinceReferenceDate
                 let center = CGPoint(x: size.width / 2, y: size.height / 2)
                 let maxRadius = max(size.width, size.height) * 0.75
                 for index in 0 ..< ringCount {

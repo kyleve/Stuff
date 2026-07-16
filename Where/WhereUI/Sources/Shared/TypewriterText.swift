@@ -1,3 +1,4 @@
+import SnapshotKit
 import SwiftUI
 
 /// Reveals `text` one character at a time, the way conversational AI tools
@@ -7,7 +8,9 @@ import SwiftUI
 ///
 /// The full text is always exposed to assistive technologies (VoiceOver reads
 /// the whole summary, not the partial reveal), and Reduce Motion shows it all
-/// at once. Restarts cleanly when `text` changes.
+/// at once. Snapshot captures (`\.isCapturingSnapshot`) also render the final,
+/// fully revealed text — the reveal's end state. Restarts cleanly when `text`
+/// changes.
 struct TypewriterText: View {
     let text: String
     /// Base cadence between characters.
@@ -16,6 +19,7 @@ struct TypewriterText: View {
     var sentencePause: Duration = .milliseconds(340)
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
     @State private var revealedCount = 0
 
     var body: some View {
@@ -26,11 +30,11 @@ struct TypewriterText: View {
     }
 
     /// Walk the characters, revealing one per step and sleeping the scheduled
-    /// delay between them. Reduce Motion (and an empty string) reveal instantly.
-    /// Cancellation — the view went away or `text` changed — stops quietly; a
-    /// new `text` restarts this task from zero.
+    /// delay between them. Reduce Motion and snapshot capture (and an empty
+    /// string) reveal instantly. Cancellation — the view went away or `text`
+    /// changed — stops quietly; a new `text` restarts this task from zero.
     private func reveal(_ characters: [Character]) async {
-        guard !reduceMotion else {
+        guard !reduceMotion, !isCapturingSnapshot else {
             revealedCount = characters.count
             return
         }

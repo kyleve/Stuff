@@ -1,3 +1,4 @@
+import SnapshotKit
 import SwiftUI
 
 /// A calm "working" indicator that renders the user's selected app icon with a
@@ -7,9 +8,11 @@ import SwiftUI
 /// in-app wait such as generating the recent-activity summary rather than a
 /// full-screen launch.
 ///
-/// Honors Reduce Motion: the pulse pins to a static frame.
+/// Honors Reduce Motion: the pulse pins to a static frame. Snapshot captures
+/// (`\.isCapturingSnapshot`) pin it the same way.
 struct AppIconActivityIndicator: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
     @State private var pulsing = false
 
     /// Edge length of the rendered icon.
@@ -42,7 +45,7 @@ struct AppIconActivityIndicator: View {
                     .scaleEffect(pulsing ? 1.18 : 0.9)
             }
             .onAppear {
-                guard !reduceMotion else { return }
+                guard !reduceMotion, !isCapturingSnapshot else { return }
                 withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
                     pulsing = true
                 }
