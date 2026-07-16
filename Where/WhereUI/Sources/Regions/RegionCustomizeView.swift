@@ -196,7 +196,7 @@ struct RegionCustomizeView: View {
                 Button(Strings.onboardingBack, action: goBack)
             }
             ToolbarItem(placement: .principal) {
-                Text(Strings.regionCustomizeStep(current: index + 1, total: regions.count))
+                Text(Strings.regionCustomizeStep(current: effectiveIndex + 1, total: regions.count))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.secondary)
             }
@@ -206,19 +206,27 @@ struct RegionCustomizeView: View {
         }
     }
 
+    /// `index` clamped into range, so a stale/out-of-range value can never
+    /// strand the user — the empty state (`currentRegion == nil`) is reserved for
+    /// a genuinely empty selection, which the current flow never reaches.
+    private var effectiveIndex: Int {
+        guard !regions.isEmpty else { return 0 }
+        return min(max(index, 0), regions.count - 1)
+    }
+
     private var currentRegion: Region? {
-        regions.indices.contains(index) ? regions[index] : nil
+        regions.isEmpty ? nil : regions[effectiveIndex]
     }
 
     private var isLast: Bool {
-        index >= regions.count - 1
+        effectiveIndex >= regions.count - 1
     }
 
     private func goBack() {
-        if index == 0 {
+        if effectiveIndex == 0 {
             onBack()
         } else {
-            index -= 1
+            index = effectiveIndex - 1
         }
     }
 
@@ -226,7 +234,7 @@ struct RegionCustomizeView: View {
         if isLast {
             onFinish()
         } else {
-            index += 1
+            index = effectiveIndex + 1
         }
     }
 }
