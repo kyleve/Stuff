@@ -1,4 +1,5 @@
-import LogViewerUI
+import PeriscopeCore
+import PeriscopeTools
 import RegionKit
 import SwiftUI
 import TestHostSupport
@@ -228,20 +229,35 @@ struct ScreenHostingTests {
         }
     }
 
-    @Test func debugLogViewerHostsWithSharedStore() throws {
-        // The developer tools surface pushes this viewer over WhereLog's buffer.
+    @Test func periscopeViewerHostsOverTheLogStore() async throws {
+        // The developer tools surface pushes this viewer over the process-global
+        // Periscope store.
+        let store = try await PeriscopeStore.make(storage: .inMemory, session: .current())
         let rootView = NavigationStack {
-            LogViewer(configuration: LogViewerConfiguration(store: WhereLog.store, title: "Logs"))
+            PeriscopeViewer(store: store, title: "Logs")
         }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
-    @Test func developerToolsViewHosts() throws {
-        // Reads the logged-in session from the environment for the SwiftData
-        // inspector row; owns its own navigation stack for the pushed viewers.
+    @Test func openSpansViewHosts() throws {
+        // The open-spans monitor reads the shared system directly.
+        let rootView = NavigationStack {
+            OpenSpansView(system: .shared)
+        }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func developerToolsViewHosts() async throws {
+        // Reads the app model (for the log store) and the logged-in session (for
+        // the SwiftData inspector row) from the environment; owns its own
+        // navigation stack for the pushed viewers.
+        let store = try await PeriscopeStore.make(storage: .inMemory, session: .current())
         let rootView = DeveloperToolsView()
+            .environment(PreviewSupport.loadedModel(withLogStore: store))
             .environment(PreviewSupport.loadedSession())
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
@@ -252,6 +268,7 @@ struct ScreenHostingTests {
         // The floating overlay mounts (collapsed) with a session available for the
         // tools it can expand into.
         let rootView = DeveloperOverlay()
+            .environment(PreviewSupport.loadedModel())
             .environment(PreviewSupport.loadedSession())
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)

@@ -1,5 +1,6 @@
 #if DEBUG
     import Foundation
+    import PeriscopeCore
     import RegionKit
     @_spi(Testing) import WhereCore
 
@@ -322,6 +323,23 @@
         @MainActor
         public static func loadedModel() -> WhereModel {
             WhereModel(services: previewServices(), report: sampleReport(), selectedYear: year)
+        }
+
+        /// An in-memory Periscope log store for the developer-surface previews and
+        /// hosting tests — the same durable-sink type the app opens at launch,
+        /// but backed by memory so nothing touches disk.
+        @MainActor
+        public static func previewLogStore() async throws -> PeriscopeStore {
+            try await PeriscopeStore.make(storage: .inMemory, session: .current())
+        }
+
+        /// A `loadedModel()` with an in-memory log store attached, so the
+        /// developer tools' log-viewer and Log View Mode rows render.
+        @MainActor
+        public static func loadedModel(withLogStore store: PeriscopeStore) -> WhereModel {
+            let model = loadedModel()
+            model.attach(logStore: store)
+            return model
         }
 
         /// A widget snapshot built from the sample year totals, for widget
