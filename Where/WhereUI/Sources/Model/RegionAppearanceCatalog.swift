@@ -115,8 +115,11 @@ public enum RegionAppearanceCatalog {
             RegionAppearance(color: .red, emoji: "🍁", symbolName: "leaf.fill"),
         Region.europeanUnion.rawValue:
             RegionAppearance(color: .blue, emoji: "🇪🇺", symbolName: "star.fill"),
+        // `.other` keeps its original catch-all look; `location.magnifyingglass`
+        // isn't in the pickable `symbols` catalog, but a fallback default isn't
+        // constrained to the picker's options.
         Region.other.rawValue:
-            RegionAppearance(color: .teal, emoji: "🧭", symbolName: "mappin.circle.fill"),
+            RegionAppearance(color: .teal, emoji: "🧭", symbolName: "location.magnifyingglass"),
     ]
 
     /// A stable accent token derived from the region id, matching the order of
