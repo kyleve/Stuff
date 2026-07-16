@@ -89,6 +89,22 @@ struct PrimaryRegionSelectionModelTests {
         #expect(try await session.services.trackedRegions() == [.california])
     }
 
+    @Test func editingTheDefaultSetConvergesToUSOnly() async throws {
+        // A fresh install has no stored rows, so `primaryRegions()` returns the
+        // legacy default set (CA / NY / Canada / EU). Opening the editor drops
+        // the non-US regions from the selection, and saving unchanged removes
+        // them — the app is US-only now (documented behavior, not a bug).
+        let session = PreviewSupport.loadedSession()
+        let existing = try await session.services.primaryRegions()
+        #expect(Set(existing.map(\.region)) == SwiftDataStore.defaultTrackedRegions)
+
+        let model = PrimaryRegionSelectionModel(existing: existing)
+        #expect(Set(model.selectedRegions) == [.california, .newYork])
+
+        try await model.commit(using: session)
+        #expect(try await session.services.trackedRegions() == [.california, .newYork])
+    }
+
     @Test func commitUntracksRemovedRegions() async throws {
         let session = PreviewSupport.loadedSession()
         // Seed the store with two picks, then commit an edit that drops one.

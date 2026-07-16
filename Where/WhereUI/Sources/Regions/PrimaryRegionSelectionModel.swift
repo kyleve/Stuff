@@ -40,9 +40,14 @@ public final class PrimaryRegionSelectionModel {
 
     /// A picker seeded from the user's existing primary regions (Settings).
     /// Selection and drafts are restored so re-opening the editor shows the
-    /// current picks. Regions outside `available` (e.g. legacy non-US defaults)
-    /// are dropped from the selection — committing then removes them, since the
-    /// commit replaces the whole primary set with what's selected.
+    /// current picks.
+    ///
+    /// Regions outside `available` are dropped from the selection, so committing
+    /// removes them (the commit replaces the whole primary set with what's
+    /// selected). This is intentional: the app is US-only now, and the only
+    /// non-US regions a user can have are the legacy default set (Canada / the
+    /// EU, whose low-resolution polygons we no longer ship as pickable) — so a
+    /// fresh install that opens the editor and saves converges to the US picks.
     public init(
         existing: [PrimaryRegion],
         available: [Region] = PrimaryRegionSelectionModel.usRegions,
