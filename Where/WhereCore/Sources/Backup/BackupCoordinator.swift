@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 import RegionKit
 
 /// Owns backup export/import over the `BackupService` and the store, running a
@@ -56,7 +56,7 @@ public actor BackupCoordinator {
     /// (drop the issue-scan cache, reconcile the app-icon badge + issues
     /// notification, republish the widget snapshot).
     private let onImport: @Sendable () async -> Void
-    private static let logger = WhereLog.channel(.backupService)
+    private static let logger = WhereLog.backup(BackupCoordinatorLog.self)
 
     /// Staging directory of the most recent export. Each archive lands in its
     /// own temporary directory; the share sheet copies the file it needs out of
@@ -152,9 +152,7 @@ public actor BackupCoordinator {
         do {
             try FileManager.default.removeItem(at: previous)
         } catch {
-            Self.logger.warning(
-                "Failed to remove previous backup export directory: \(error.localizedDescription)",
-            )
+            Self.logger { .removePreviousExportFailed(description: error.localizedDescription) }
         }
     }
 

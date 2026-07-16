@@ -94,8 +94,10 @@ internal shape.
   loads tracked-region geometry, so `distanceToBoundary` is `nil` elsewhere.
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are
   `async throws` so the CloudKit-backed store can report I/O failure; a `catch`
-  must log via `WhereLog.channel(_:)` (typed `Category`, PII-free) and leave
-  state honest — never swallow into an empty default.
+  must log via a `WhereLog` typed `LogEvent` (PII-free, `.public`) and leave
+  state honest — never swallow into an empty default. Each collaborator emits
+  its own `LogEvent` under its scope (`WhereLog.<group>(SomeLog.self)` or
+  `WhereLog.root(SomeLog.self)`); errors ride as `LogAttachment.error(_:)`.
 
 ## Testing
 

@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 import RegionKit
 
 /// Owns the daily "log before the day ends" reminder intent and the
@@ -43,7 +43,7 @@ public actor ReminderReconciler {
     /// this many days.
     static let defaultWindowDays = 6
 
-    private static let logger = WhereLog.channel(.reminderReconciler)
+    private static let logger = WhereLog.reminders(ReminderReconcilerLog.self)
 
     init(
         scheduler: any LoggingReminderScheduling,
@@ -166,9 +166,9 @@ public actor ReminderReconciler {
                 ? today
                 : nil
         } catch {
-            Self.logger.error(
-                "Failed to reconcile logging reminders: \(error.localizedDescription)",
-            )
+            Self.logger(attachments: [.error(error, name: "reconcile-error")]) {
+                .reconcileFailed(description: error.localizedDescription)
+            }
         }
     }
 
@@ -191,9 +191,7 @@ public actor ReminderReconciler {
                 driftThresholdMeters: config.driftThresholdMeters,
             )
         } catch {
-            Self.logger.warning(
-                "Failed to scan data issues for badge: \(error.localizedDescription)",
-            )
+            Self.logger { .badgeScanFailed(description: error.localizedDescription) }
             return 0
         }
     }

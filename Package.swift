@@ -99,6 +99,7 @@ let package = Package(
             name: "WhereCore",
             dependencies: [
                 .target(name: "LogKit"),
+                .target(name: "PeriscopeCore"),
                 .target(name: "RegionKit"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],

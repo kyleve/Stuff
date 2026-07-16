@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 
 /// Owns live GPS ingestion: the location-monitoring lifecycle, the
 /// single-consumer sample stream, the retry queue (mirrored to a durable
@@ -84,7 +84,7 @@ public actor LocationIngestor {
     /// significant-change/Visits ingestion; tests inject a smaller cap.
     private let retryQueueCapacity: Int
 
-    private static let logger = WhereLog.channel(.locationIngestor)
+    private static let logger = WhereLog.location(LocationIngestorLog.self)
 
     init(
         store: any WhereStore,
@@ -125,14 +125,14 @@ public actor LocationIngestor {
         guard !isMonitoring else { return }
         isMonitoring = true
         await locationSource.start()
-        Self.logger.info("GPS monitoring started")
+        Self.logger { .monitoringStarted }
         // Seed the in-memory queue from the durable backlog once, so samples that
         // failed to persist in a prior launch get retried now.
         if !didLoadDurableBacklog {
             didLoadDurableBacklog = true
             let restored = await outbox.load()
             if !restored.isEmpty {
-                Self.logger.info("Restored \(restored.count) sample(s) from durable retry backlog")
+                Self.logger { .restoredBacklog(count: restored.count) }
             }
             retryQueue = restored + retryQueue
         }
@@ -164,7 +164,7 @@ public actor LocationIngestor {
         guard isMonitoring else { return }
         isMonitoring = false
         await locationSource.stop()
-        Self.logger.info("GPS monitoring stopped")
+        Self.logger { .monitoringStopped }
     }
 
     /// Stop ingestion and guarantee nothing else writes until the next
@@ -198,7 +198,7 @@ public actor LocationIngestor {
         // Clear the durable mirror too; the store is about to be erased, so the
         // backlog must not re-drain into it on the next launch.
         await outbox.save([])
-        Self.logger.info("GPS ingestion quiesced; retry backlog cleared")
+        Self.logger { .quiesced }
     }
 
     /// Whether GPS monitoring is currently active. Exposed so the view-model can
@@ -255,7 +255,7 @@ public actor LocationIngestor {
     private func performTodayCapture(now: Date) async {
         let startOfDay = calendar.startOfDay(for: now)
         guard let endOfDay = calendar.date(byAdding: .day, value: 1, to: startOfDay) else {
-            Self.logger.warning("Could not compute today's interval for foreground capture")
+            Self.logger { .todayIntervalUnavailable }
             return
         }
         let interval = DateInterval(start: startOfDay, end: endOfDay)
@@ -265,9 +265,7 @@ public actor LocationIngestor {
         } catch {
             // Fail closed: if today's samples can't be read we skip rather than
             // risk logging a duplicate fix. Surfaced, not silently swallowed.
-            Self.logger.warning(
-                "Skipping foreground capture; could not read today's samples: \(error.localizedDescription)",
-            )
+            Self.logger { .foregroundCaptureReadFailed(description: error.localizedDescription) }
             return
         }
         guard let sample = await locationSource.requestCurrentLocation() else { return }
@@ -277,7 +275,7 @@ public actor LocationIngestor {
         // `quiesce()` either sees `acceptsSamples == false` here (we skip) or sees
         // the handle already set (it awaits us) — never neither.
         guard acceptsSamples else { return }
-        Self.logger.info("Captured one-shot foreground location for today")
+        Self.logger { .capturedForegroundFix }
         // Persist via `processIngestedSample` on the capture's own handle rather
         // than `ingest(_:)`, so it never shares the stream loop's single
         // `inFlightIngest` slot. `quiesce()` awaits this handle independently.
@@ -336,9 +334,12 @@ public actor LocationIngestor {
             // via `os.Logger` rather than silently dropped. The stream keeps
             // running so a transient error doesn't stop tracking, and the sample
             // is queued for retry on the next save attempt.
-            Self.logger.error(
-                "Failed to persist GPS sample \(sample.id): \(error.localizedDescription)",
-            )
+            Self.logger(attachments: [.error(error, name: "persist-error")]) {
+                .persistFailed(
+                    sampleID: String(describing: sample.id),
+                    description: error.localizedDescription,
+                )
+            }
             enqueueForRetry(sample)
             await outbox.save(retryQueue)
         }
@@ -346,9 +347,7 @@ public actor LocationIngestor {
 
     private func enqueueForRetry(_ sample: LocationSample) {
         if retryQueue.count >= retryQueueCapacity {
-            Self.logger.warning(
-                "Retry queue at capacity (\(retryQueueCapacity)); dropping oldest queued GPS sample",
-            )
+            Self.logger { .retryQueueAtCapacity(capacity: retryQueueCapacity) }
             retryQueue.removeFirst()
         }
         retryQueue.append(sample)
@@ -367,16 +366,22 @@ public actor LocationIngestor {
                 try await store.perform { try await store.add(sample: sample) }
                 persistedDays.insert(calendar.startOfDay(for: sample.timestamp))
             } catch {
-                Self.logger.error(
-                    "Retry still failing for GPS sample \(sample.id): \(error.localizedDescription)",
-                )
+                Self.logger(attachments: [.error(error, name: "retry-error")]) {
+                    .retryStillFailing(
+                        sampleID: String(describing: sample.id),
+                        description: error.localizedDescription,
+                    )
+                }
                 enqueueForRetry(sample)
             }
         }
         if !persistedDays.isEmpty {
-            Self.logger.info(
-                "Drained retry backlog: persisted \(pending.count - retryQueue.count) sample(s) across \(persistedDays.count) day(s)",
-            )
+            Self.logger {
+                .drainedBacklog(
+                    sampleCount: pending.count - retryQueue.count,
+                    dayCount: persistedDays.count,
+                )
+            }
         }
         await outbox.save(retryQueue)
         return persistedDays

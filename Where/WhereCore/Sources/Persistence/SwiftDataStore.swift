@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 import RegionKit
 import SwiftData
 
@@ -151,9 +151,9 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// this is the supported entry point for production wiring in the
     /// app/UI layer.
     public static func make(storage: Storage = .default) throws -> SwiftDataStore {
-        let container = try makeContainer(storage: storage)
+        let container = try logger.measure(.open) { try makeContainer(storage: storage) }
         if storage == .inMemory {
-            logger.info("Opened SwiftData store (mode: \(storage))")
+            logger { .openedInMemory(mode: String(describing: storage)) }
         } else {
             // Log the resolved on-disk path and whether the App Group container
             // is actually reachable at runtime. If the App Group capability isn't
@@ -164,9 +164,13 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             let groupResolved = FileManager.default
                 .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier) != nil
             let url = container.configurations.first?.url.path(percentEncoded: false) ?? "unknown"
-            logger.info(
-                "Opened SwiftData store (mode: \(storage), appGroupResolved: \(groupResolved), url: \(url))",
-            )
+            logger {
+                .openedOnDisk(
+                    mode: String(describing: storage),
+                    appGroupResolved: groupResolved,
+                    url: url,
+                )
+            }
         }
         let store = SwiftDataStore(modelContainer: container)
         // On-disk stores live in a shared App Group container, so another process
@@ -224,7 +228,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         ]
     }
 
-    private static let logger = WhereLog.channel(.swiftDataStore)
+    private static let logger = WhereLog.root(SwiftDataStoreLog.self)
 
     /// Fans "committed data changed" pings to `changes()` subscribers. Fired
     /// once per outermost `perform` commit (see `perform`).
@@ -659,9 +663,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             }
         }
         if !unknown.isEmpty {
-            Self.logger.warning(
-                "Ignored \(unknown.count) unknown tracked-region id(s): \(unknown.sorted().joined(separator: ", "))",
-            )
+            Self.logger {
+                .ignoredUnknownTrackedRegions(
+                    count: unknown.count,
+                    ids: unknown.sorted().joined(separator: ", "),
+                )
+            }
         }
         return resolved
     }
@@ -699,9 +706,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     }
 
     private static func logFault<Record>(forCorrupt _: Record) {
-        logger.fault(
-            "Dropped corrupt SwiftData record of type \(String(describing: Record.self))",
-        )
+        logger { .droppedCorruptRecord(type: String(describing: Record.self)) }
     }
 }
 

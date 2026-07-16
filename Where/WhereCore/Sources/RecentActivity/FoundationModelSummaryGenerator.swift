@@ -1,6 +1,5 @@
 import Foundation
 import FoundationModels
-import LogKit
 
 /// On-device `ActivitySummaryGenerating` backed by Apple's Foundation Models.
 /// Runs entirely on device (no network, no data leaves the phone), which suits
@@ -8,8 +7,6 @@ import LogKit
 /// `ActivitySummaryUnavailableError` when the system model can't run so the UI
 /// can guide the user rather than showing a generic failure.
 public struct FoundationModelSummaryGenerator: ActivitySummaryGenerating {
-    private static let logger = WhereLog.channel(.recentActivitySummarizer)
-
     public init() {}
 
     public func summarize(_ input: RecentActivityInput) async throws -> String {

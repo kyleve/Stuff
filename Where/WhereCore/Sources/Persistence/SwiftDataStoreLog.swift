@@ -1,0 +1,45 @@
+import PeriscopeCore
+
+/// Structured events for `SwiftDataStore` — store open (with the resolved
+/// on-disk path / App Group state) and the data-integrity guards. A dropped
+/// corrupt record is a programmer error, so it logs at `.fault`.
+enum SwiftDataStoreLog: LogEvent {
+    /// Names the store's timed spans (`log.measure(.open) { … }`).
+    enum SpanName: Hashable {
+        case open
+    }
+
+    /// Opened an in-memory store (tests/previews).
+    case openedInMemory(mode: String)
+    /// Opened the on-disk store, reporting whether the App Group container
+    /// resolved and the resolved database URL.
+    case openedOnDisk(mode: String, appGroupResolved: Bool, url: String)
+    /// Ignored tracked-region ids the current catalog doesn't know (a store
+    /// written by a newer catalog version).
+    case ignoredUnknownTrackedRegions(count: Int, ids: String)
+    /// Dropped a record that failed to materialize into a domain value.
+    case droppedCorruptRecord(type: String)
+
+    static let eventName = "SwiftDataStore"
+
+    var level: LogLevel {
+        switch self {
+            case .openedInMemory, .openedOnDisk: .info
+            case .ignoredUnknownTrackedRegions: .warning
+            case .droppedCorruptRecord: .fault
+        }
+    }
+
+    var message: String {
+        switch self {
+            case let .openedInMemory(mode):
+                "Opened SwiftData store (mode: \(mode))"
+            case let .openedOnDisk(mode, appGroupResolved, url):
+                "Opened SwiftData store (mode: \(mode), appGroupResolved: \(appGroupResolved), url: \(url))"
+            case let .ignoredUnknownTrackedRegions(count, ids):
+                "Ignored \(count) unknown tracked-region id(s): \(ids)"
+            case let .droppedCorruptRecord(type):
+                "Dropped corrupt SwiftData record of type \(type)"
+        }
+    }
+}
