@@ -1,6 +1,6 @@
 import CoreLocation
 import LifecycleKit
-import LogKit
+import PeriscopeCore
 import SwiftUI
 import UIKit
 import UserNotifications
@@ -56,7 +56,7 @@ public enum LaunchStepID: String {
 /// async steps.
 @MainActor
 public enum WhereLaunch {
-    private static let logger = WhereLog.channel(.launch)
+    private static let logger = WhereLog.root(WhereLaunchLog.self)
 
     /// Maps the process's launch-time application state to the lifecycle reason
     /// the runner consumes. An `.active`/`.inactive` launch is a user-visible
@@ -97,7 +97,7 @@ public enum WhereLaunch {
     /// than in the app delegate) puts app-lifecycle wiring in one place.
     public static func makeLauncher(model: WhereModel, reason: LifecycleReason) -> LifecycleRunner {
         let bootstrap = WhereBootstrap()
-        logger.info("Lifecycle runner created (reason: \(reason))")
+        logger { .runnerCreated(reason: String(describing: reason)) }
         return LifecycleRunner(
             reason: reason,
             initializePrerequisites: {
@@ -209,7 +209,7 @@ public enum WhereLaunch {
 /// off the main actor and assembles the services from the two.
 @MainActor
 public final class WhereBootstrap {
-    private static let logger = WhereLog.channel(.launch)
+    private static let logger = WhereLog.root(WhereLaunchLog.self)
 
     private var locationSource: CoreLocationSource?
 
@@ -232,7 +232,7 @@ public final class WhereBootstrap {
         let store = try await Task.detached(priority: .userInitiated) {
             try SwiftDataStore.make()
         }.value
-        Self.logger.info("WhereServices assembled")
+        Self.logger { .servicesAssembled }
         return try await WhereServices.make(
             store: store,
             locationSource: source,

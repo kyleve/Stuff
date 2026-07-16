@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 import WhereCore
 
 /// View-scoped model for a single evidence record's detail: loads the
@@ -24,7 +24,7 @@ public final class EvidenceDetailModel {
     public private(set) var blobState: BlobState = .idle
 
     private let services: WhereServices
-    private static let logger = WhereLog.channel(.evidence)
+    private static let logger = WhereLog.evidence(EvidenceDetailModelLog.self)
 
     init(evidence: Evidence, services: WhereServices) {
         self.evidence = evidence
@@ -40,9 +40,12 @@ public final class EvidenceDetailModel {
             blobState = .loaded(blob)
         } catch {
             blobState = .failed(error.localizedDescription)
-            Self.logger.warning(
-                "Failed to load evidence blob for \(evidence.id): \(error.localizedDescription)",
-            )
+            Self.logger {
+                .blobLoadFailed(
+                    evidenceID: String(describing: evidence.id),
+                    description: error.localizedDescription,
+                )
+            }
         }
     }
 

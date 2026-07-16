@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 import WhereCore
 
 /// The long-lived, app-level model: the onboarding gate, the persisted
@@ -44,7 +44,7 @@ public final class WhereModel {
     /// (the scene loads from the store once it appears).
     let initialReport: YearReport?
 
-    private static let logger = WhereLog.channel(.model)
+    private static let logger = WhereLog.root(WhereModelLog.self)
 
     /// Whether first-run onboarding has been completed. Persisted so onboarding
     /// shows exactly once; the launch flow gates its onboarding step on this,
@@ -58,7 +58,7 @@ public final class WhereModel {
     /// user finishes the intro (after the permission prompt resolves).
     public func completeOnboarding() {
         hasOnboarded = true
-        Self.logger.info("Onboarding completed")
+        Self.logger { .onboardingCompleted }
     }
 
     public static var currentYear: Int {
@@ -129,7 +129,7 @@ public final class WhereModel {
             preferences: preferences,
             now: now,
         )
-        Self.logger.info("Started session (year: \(initialSelectedYear))")
+        Self.logger { .startedSession(year: initialSelectedYear) }
     }
 
     /// Drop the logged-in session (the services stay retained). Run by the
@@ -137,7 +137,7 @@ public final class WhereModel {
     /// fresh session over the erased store.
     public func endSession() {
         session = nil
-        Self.logger.info("Ended session")
+        Self.logger { .endedSession }
     }
 
     // MARK: - Reset / erase all
@@ -162,6 +162,6 @@ public final class WhereModel {
     /// again; the re-driven launch's fresh session reads those defaults back.
     public func resetPreferences() {
         preferences.reset()
-        Self.logger.info("Reset preferences to first-install defaults")
+        Self.logger { .resetPreferences }
     }
 }

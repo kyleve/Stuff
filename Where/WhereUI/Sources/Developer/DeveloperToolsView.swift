@@ -1,15 +1,12 @@
 #if DEBUG
     import LogViewerUI
-    import RegionKit
     import SwiftDataInspector
     import SwiftUI
     import WhereCore
 
-    /// The developer tools surface — the in-app log viewer over both process
-    /// buffers (`WhereLog` for the app/WhereCore facade and `RegionLog` for
-    /// RegionKit, merged chronologically), the generic SwiftData inspector (only
-    /// when the live session can vend a container — previews and non-SwiftData
-    /// fakes don't show it), and the region map.
+    /// The developer tools surface — the in-app log viewer, the generic
+    /// SwiftData inspector (only when the live session can vend a container —
+    /// previews and non-SwiftData fakes don't show it), and the region map.
     ///
     /// Owns its own `NavigationStack` so the generic viewers (which expect an
     /// ambient stack) work wherever it's hosted. It reads `WhereSession` as an
@@ -26,7 +23,7 @@
                     Section {
                         NavigationLink {
                             LogViewer(configuration: LogViewerConfiguration(
-                                stores: [WhereLog.store, RegionLog.store],
+                                store: WhereLog.store,
                                 title: Strings.developerLogsTitle,
                             ))
                         } label: {

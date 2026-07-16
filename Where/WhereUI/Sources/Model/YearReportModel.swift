@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 import RegionKit
 import WhereCore
 
@@ -95,7 +95,7 @@ public final class YearReportModel {
     /// the main actor, and `deinit` runs with no other live references.
     @ObservationIgnored private nonisolated(unsafe) var dataChangeTask: Task<Void, Never>?
 
-    private static let logger = WhereLog.channel(.session)
+    private static let logger = WhereLog.session(YearReportModelLog.self)
 
     /// Observed mirror of `preferences.driftThresholdMeters`, which isn't itself
     /// observable (`WherePreferences` is a plain defaults wrapper — callers that
@@ -252,7 +252,7 @@ public final class YearReportModel {
 
     public func select(year: Int) async {
         guard year != selectedYear else { return }
-        Self.logger.info("Selected year \(year)")
+        Self.logger { .selectedYear(year: year) }
         selectedYear = year
         // Drop the previous year's report so views fall back to their loading
         // state instead of rendering stale data under the new year's label.
@@ -289,9 +289,12 @@ public final class YearReportModel {
             guard requestedYear == selectedYear else { return }
             if evidenceDayKeys != keys { evidenceDayKeys = keys }
         } catch {
-            Self.logger.warning(
-                "Failed to load evidence day keys for \(requestedYear): \(error.localizedDescription)",
-            )
+            Self.logger {
+                .evidenceDayKeysLoadFailed(
+                    year: requestedYear,
+                    description: error.localizedDescription,
+                )
+            }
         }
     }
 
@@ -317,9 +320,7 @@ public final class YearReportModel {
         } catch {
             // Surface the failure and keep the last good count rather than
             // silently blanking the badge.
-            Self.logger.warning(
-                "Failed to scan for data issues: \(error.localizedDescription)",
-            )
+            Self.logger { .dataIssueScanFailed(description: error.localizedDescription) }
         }
     }
 
@@ -340,15 +341,16 @@ public final class YearReportModel {
             if changed { self.report = report }
             if loadState != .loaded { loadState = .loaded }
             if changed {
-                Self.logger
-                    .info("Year report loaded for \(requestedYear) (\(report.days.count) day(s))")
+                Self.logger {
+                    .reportLoaded(year: requestedYear, dayCount: report.days.count)
+                }
             }
         } catch {
             guard requestedYear == selectedYear else { return }
             loadState = .failed(.reportUnavailable(message: error.localizedDescription))
-            Self.logger.warning(
-                "Failed to load year report for \(requestedYear): \(error.localizedDescription)",
-            )
+            Self.logger {
+                .reportLoadFailed(year: requestedYear, description: error.localizedDescription)
+            }
         }
     }
 
@@ -430,9 +432,9 @@ public final class YearReportModel {
             try await services.journal.clearYear(selectedYear)
         } catch {
             loadState = .failed(.clearFailed(message: error.localizedDescription))
-            Self.logger.warning(
-                "Failed to clear year \(selectedYear): \(error.localizedDescription)",
-            )
+            Self.logger {
+                .clearYearFailed(year: selectedYear, description: error.localizedDescription)
+            }
         }
     }
 
@@ -451,9 +453,13 @@ public final class YearReportModel {
         do {
             return try await services.reports.locations(in: region, year: selectedYear)
         } catch {
-            Self.logger.warning(
-                "Failed to load locations for \(region.rawValue) in \(selectedYear): \(error.localizedDescription)",
-            )
+            Self.logger {
+                .locationsLoadFailed(
+                    region: region.rawValue,
+                    year: selectedYear,
+                    description: error.localizedDescription,
+                )
+            }
             return []
         }
     }
@@ -465,9 +471,12 @@ public final class YearReportModel {
         do {
             return try await services.reports.representativeCoordinates(for: selectedYear)
         } catch {
-            Self.logger.warning(
-                "Failed to load representative coordinates for \(selectedYear): \(error.localizedDescription)",
-            )
+            Self.logger {
+                .representativeCoordinatesLoadFailed(
+                    year: selectedYear,
+                    description: error.localizedDescription,
+                )
+            }
             return [:]
         }
     }
