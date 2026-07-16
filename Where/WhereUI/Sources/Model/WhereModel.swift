@@ -28,6 +28,15 @@ public final class WhereModel {
     /// `@Environment(WhereSession.self)`.
     public private(set) var session: WhereSession?
 
+    /// The process-global Periscope log store, opened at launch and attached to
+    /// `Periscope.shared` as its durable sink (see `WhereLaunch.bootstrapLogging`).
+    /// Held here — not on `WhereSession` — because logging spans the whole
+    /// process, not a login: it exists before the store opens and survives a
+    /// reset. `nil` until the bootstrap opens it, and in previews/tests, which
+    /// log only through the in-memory pipeline. The DEBUG developer surface reads
+    /// it to browse persisted history.
+    public private(set) var logStore: PeriscopeStore?
+
     /// The persisted user intent (onboarding, tracking, reminder/summary
     /// schedules). Owns the defaults keys and the `reset()` the erase flow runs;
     /// shared by reference with the `WhereSession` so both halves read/write the
@@ -105,6 +114,13 @@ public final class WhereModel {
     /// preview/test injected them up front.
     var hasServices: Bool {
         services != nil
+    }
+
+    /// Retain the process-global log store the launch bootstrap opened and
+    /// attached to `Periscope.shared`. Called once, off the launch critical
+    /// path, so the developer surface can browse persisted history.
+    public func attach(logStore: PeriscopeStore) {
+        self.logStore = logStore
     }
 
     /// Retain the service layer the launch's `open-store` step assembled (see

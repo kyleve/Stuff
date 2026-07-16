@@ -58,6 +58,47 @@ public enum LaunchStepID: String {
 public enum WhereLaunch {
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
+    /// How much log history the on-disk store keeps: two weeks. Older events are
+    /// pruned at launch so the database can't grow without bound.
+    private static let logRetention: TimeInterval = 14 * 24 * 60 * 60
+
+    /// Open the process-global Periscope store, attach it to `Periscope.shared`
+    /// as the durable sink, start the built-in ambient sources, and prune
+    /// history past `logRetention` — then hand the store to `model` so the DEBUG
+    /// developer surface can browse it.
+    ///
+    /// Runs off the launch critical path on its own task: opening the store
+    /// touches disk (and may run a lightweight migration), which must not block
+    /// `didFinishLaunching`. The OSLog sink already installed on
+    /// `Periscope.shared` covers the pre-attach window, and `add(sink:)` replays
+    /// every scope defined so far so the store resolves the records it sees.
+    ///
+    /// Degraded-but-handled on failure: if the store can't open, logging keeps
+    /// flowing through OSLog and the failure is recorded (with the error
+    /// attached) rather than crashing a launch over diagnostics.
+    ///
+    /// Called once from the app delegate at process launch.
+    public static func bootstrapLogging(model: WhereModel) {
+        Task {
+            do {
+                let store = try await PeriscopeStore.make(
+                    storage: .onDisk,
+                    session: .current(),
+                )
+                Periscope.shared.add(sink: store)
+                Periscope.shared.startDefaultAmbientSources()
+                model.attach(logStore: store)
+                let cutoff = Date().addingTimeInterval(-logRetention)
+                let pruned = try await store.pruneEvents(olderThan: cutoff)
+                logger { .loggingStoreReady(prunedEventCount: pruned) }
+            } catch {
+                logger(attachments: [.error(error, name: "open-error")]) {
+                    .loggingStoreUnavailable(description: String(describing: error))
+                }
+            }
+        }
+    }
+
     /// Maps the process's launch-time application state to the lifecycle reason
     /// the runner consumes. An `.active`/`.inactive` launch is a user-visible
     /// foreground launch; a `.background` launch state means iOS woke the
