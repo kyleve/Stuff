@@ -36,6 +36,14 @@ struct LocationAuthorizationTests {
         #expect(!LocationAuthorizationStatus.denied.allowsBackgroundTracking)
     }
 
+    @Test func allowsForegroundFixForAnyGrantedStatus() {
+        #expect(LocationAuthorizationStatus.always.allowsForegroundFix)
+        #expect(LocationAuthorizationStatus.whenInUse.allowsForegroundFix)
+        #expect(!LocationAuthorizationStatus.notDetermined.allowsForegroundFix)
+        #expect(!LocationAuthorizationStatus.denied.allowsForegroundFix)
+        #expect(!LocationAuthorizationStatus.restricted.allowsForegroundFix)
+    }
+
     @Test func isDeniedCoversDeniedAndRestricted() {
         #expect(LocationAuthorizationStatus.denied.isDenied)
         #expect(LocationAuthorizationStatus.restricted.isDenied)

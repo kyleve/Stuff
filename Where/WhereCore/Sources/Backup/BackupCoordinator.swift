@@ -74,11 +74,28 @@ public actor BackupCoordinator {
         self.onImport = onImport
     }
 
+    /// Fraction of the export the evidence-blob load accounts for. The load is
+    /// the only per-item loop we can subdivide, so it drives the determinate
+    /// leg; the opaque encode + zip that follows has no sub-progress, so we hold
+    /// here and jump to `1` once the archive file exists.
+    private static let exportBlobLoadFraction = 0.8
+
     /// Serialize the entire store (all four tables plus evidence blobs) to a
     /// `.zip` in a fresh temporary directory and return its URL, first purging
     /// the previous export's directory. The caller shares the file; the next
     /// export (or process exit) reclaims the disk.
-    public func exportBackup() async throws -> URL {
+    ///
+    /// `onProgress` is invoked with a fraction in `0...1` as the export
+    /// advances, throttled to whole-percent changes so a large export doesn't
+    /// flood the caller. Only the evidence-blob load reports incrementally (it's
+    /// the one per-item loop); the JSON encode + zip is a single opaque step, so
+    /// the fraction climbs to `exportBlobLoadFraction` during the load and then
+    /// jumps to `1` once the archive is written. It runs on this actor's
+    /// executor; a UI caller should marshal it back to the main actor (e.g. via
+    /// an `AsyncStream`).
+    public func exportBackup(
+        onProgress: @Sendable (Double) -> Void = { _ in },
+    ) async throws -> URL {
         purgePreviousExport()
 
         let samples = try await store.allSamples()
@@ -89,10 +106,16 @@ public actor BackupCoordinator {
         // in canonical order so the archive is stable.
         let trackedRegions = try await Region.inCanonicalOrder(store.trackedRegions())
         var blobs: [UUID: Data] = [:]
-        for item in evidence {
+        var lastPercent = -1
+        for (index, item) in evidence.enumerated() {
             if let blob = try await store.evidenceBlob(for: item.id) {
                 blobs[item.id] = blob
             }
+            let fraction = Double(index + 1) / Double(evidence.count) * Self.exportBlobLoadFraction
+            let percent = Int(fraction * 100)
+            guard percent != lastPercent else { continue }
+            lastPercent = percent
+            onProgress(fraction)
         }
         let backupService = backupService
         let url = try await Task.detached(priority: .utility) {
@@ -105,8 +128,18 @@ public actor BackupCoordinator {
                 blobs: blobs,
             )
         }.value
+        onProgress(1)
         previousExportDirectory = url.deletingLastPathComponent()
         return url
+    }
+
+    /// Delete the most recent export's staging directory now, rather than
+    /// lazily on the next export. For a caller that's finished offering the
+    /// archive — e.g. a UI that times out its "share" affordance — so the temp
+    /// file doesn't linger until the next export or process exit. A no-op when
+    /// there's nothing left to reclaim.
+    public func discardExport() {
+        purgePreviousExport()
     }
 
     /// Delete the previous export's staging directory if we still have one. A

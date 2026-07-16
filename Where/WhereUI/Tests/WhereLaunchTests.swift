@@ -1,5 +1,6 @@
 import Foundation
 import LifecycleKit
+import RegionKit
 import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
@@ -16,6 +17,20 @@ private func waitUntil(
 ) async throws {
     let deadline = ContinuousClock.now.advanced(by: timeout)
     while !predicate() {
+        if ContinuousClock.now >= deadline { throw WaitTimeout() }
+        try await Task.sleep(for: .milliseconds(1))
+    }
+}
+
+/// Async-predicate variant of `waitUntil`, for polling actor-isolated state
+/// (e.g. the store's sample count) that must be `await`ed.
+@MainActor
+private func waitUntilAsync(
+    timeout: Duration = .seconds(5),
+    _ predicate: () async -> Bool,
+) async throws {
+    let deadline = ContinuousClock.now.advanced(by: timeout)
+    while await !predicate() {
         if ContinuousClock.now >= deadline { throw WaitTimeout() }
         try await Task.sleep(for: .milliseconds(1))
     }
@@ -48,6 +63,35 @@ struct WhereLaunchTests {
         return WhereModel(services: services, preferences: preferences)
     }
 
+    /// Like `makeModel`, but returns the backing store and location source so a
+    /// test can script a one-shot fix and assert what the launch persisted.
+    private func makeModelAndStore(
+        status: LocationAuthorizationStatus = .always,
+        preferences: WherePreferences,
+    ) throws -> (WhereModel, SwiftDataStore, ScriptedLocationSource) {
+        let store = try SwiftDataStore.inMemory()
+        let source = ScriptedLocationSource(authorizationStatus: status)
+        let services = WhereServices(
+            store: store,
+            locationSource: source,
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        return (WhereModel(services: services, preferences: preferences), store, source)
+    }
+
+    /// A one-shot fix stamped "now" so it lands on today's calendar day.
+    private func todayFix() -> LocationSample {
+        LocationSample(
+            timestamp: Date(),
+            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+            horizontalAccuracy: 5,
+            source: .gpsSignificantChange,
+        )
+    }
+
     @Test func sequenceStepsRunInStartParityOrder() throws {
         // The work steps mirror WhereSession.start()'s order; the only insertion
         // is the onboarding gate.
@@ -58,6 +102,7 @@ struct WhereLaunchTests {
             .onboarding,
             .syncAuth,
             .reconcileTracking,
+            .captureToday,
             .reminders,
             .summary,
             .issueAlerts,
@@ -74,6 +119,43 @@ struct WhereLaunchTests {
         // .always authorization → the reconcile-tracking step resumed GPS,
         // proving the post-onboarding steps ran.
         #expect(model.session?.isTracking == true)
+    }
+
+    @Test func coldForegroundLaunchCapturesTodayWhenEmpty() async throws {
+        let (model, store, source) = try makeModelAndStore(
+            status: .always,
+            preferences: makePreferences(),
+        )
+        model.completeOnboarding()
+        source.setNextRequestedLocation(todayFix())
+
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        await launcher.run()
+        #expect(launcher.phase.isReady)
+
+        // The capture-today step logged today's fix (non-blocking, so wait for
+        // the persist to land).
+        try await waitUntilAsync { await (try? store.allSamples().count) == 1 }
+    }
+
+    @Test func backgroundLaunchSkipsCaptureToday() async throws {
+        // The capture-today step is foreground-only: a headless background
+        // relaunch is itself the passive location event, so it must not fire a
+        // fresh foreground fix even though authorization/intent would allow one.
+        let (model, store, source) = try makeModelAndStore(
+            status: .always,
+            preferences: makePreferences(),
+        )
+        model.completeOnboarding()
+        source.setNextRequestedLocation(todayFix())
+
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .background(.location))
+        await launcher.run()
+        #expect(launcher.phase.isReady)
+
+        // Skipped → nothing captured. (reconcile-tracking started monitoring but
+        // the scripted source emits no passive samples on its own.)
+        #expect(try await store.allSamples().isEmpty)
     }
 
     @Test func firstRunForegroundLaunchPresentsOnboarding() async throws {

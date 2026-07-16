@@ -31,6 +31,16 @@ public enum SampleSource: Sendable, Hashable, Codable {
         }
     }
 
+    /// Whether this sample came from GPS (passive Visits / significant-change,
+    /// or a one-shot foreground fix) rather than user-asserted manual or
+    /// evidence-derived data. Exhaustive so a new case forces a decision here.
+    public var isGPS: Bool {
+        switch self {
+            case .gpsVisit, .gpsSignificantChange: true
+            case .manual, .evidenceImplied: false
+        }
+    }
+
     /// `.evidenceImplied` only — the originating evidence's UUID. Returns
     /// `nil` for the other cases, so SwiftData can skip writing the column.
     public var evidenceId: UUID? {

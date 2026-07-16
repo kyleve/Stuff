@@ -75,8 +75,8 @@ struct ResolveModelTests {
         await resolve.dismiss(issue)
         #expect(!resolve.dataIssues.contains { $0.id == issue.id })
 
-        let keys = try await store.dismissedIssueKeys()
-        #expect(keys.contains(issue.id.storageKey))
+        let ids = try await store.dismissedIssueIDs()
+        #expect(ids.contains(issue.id))
     }
 
     /// End-to-end: seeded cruise-speed GPS fixes for one day surface a

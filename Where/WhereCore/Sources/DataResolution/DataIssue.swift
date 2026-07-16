@@ -28,29 +28,81 @@ public enum IssueResolution: Sendable, Hashable {
     )
 }
 
-public enum DataIssueID: Hashable, Sendable {
+public enum DataIssueID: Hashable, Sendable, WhereStoreURLCodable {
     case missingDays(start: CalendarDay)
     case borderDrift(day: CalendarDay)
     case abruptChange(earlier: CalendarDay, later: CalendarDay)
     case flightDay(day: CalendarDay)
 
-    /// Stable, device- and timezone-independent key for persisted dismissal and
-    /// `ForEach`. Keyed by the `CalendarDay` ISO string so a dismissal survives a
-    /// time-zone change instead of drifting onto a different day (the reason
-    /// dismissals used to reappear after travel). Caveat: the *key* is pinned to
-    /// its `CalendarDay`, but a GPS-derived issue's day is itself re-bucketed at
-    /// read time, so a GPS-only dismissal can still shift with the underlying day
-    /// — see the `CalendarDay` scope boundary in `WhereCore/AGENTS.md`.
-    public var storageKey: String {
+    private static let collection = "issues"
+
+    /// Stable, device- and timezone-independent identity, encoded as a single
+    /// `store://issues/<type>?<days>` URL for persisted dismissal, backup, and
+    /// `ForEach`. Each day is its `CalendarDay` ISO string so a dismissal
+    /// survives a time-zone change instead of drifting onto a different day (the
+    /// reason dismissals used to reappear after travel). Caveat: the *key* is
+    /// pinned to its `CalendarDay`, but a GPS-derived issue's day is itself
+    /// re-bucketed at read time, so a GPS-only dismissal can still shift with the
+    /// underlying day — see the `CalendarDay` scope boundary in
+    /// `WhereCore/AGENTS.md`.
+    public var storeURL: URL {
         switch self {
             case let .missingDays(start):
-                "missingDays:\(start)"
+                StoreURL.url(
+                    collection: Self.collection,
+                    type: "missingDays",
+                    items: ["start": start.description],
+                )
             case let .borderDrift(day):
-                "borderDrift:\(day)"
+                StoreURL.url(
+                    collection: Self.collection,
+                    type: "borderDrift",
+                    items: ["day": day.description],
+                )
             case let .abruptChange(earlier, later):
-                "abruptChange:\(earlier):\(later)"
+                StoreURL.url(
+                    collection: Self.collection,
+                    type: "abruptChange",
+                    items: ["earlier": earlier.description, "later": later.description],
+                )
             case let .flightDay(day):
-                "flightDay:\(day)"
+                StoreURL.url(
+                    collection: Self.collection,
+                    type: "flightDay",
+                    items: ["day": day.description],
+                )
+        }
+    }
+
+    public init?(storeURL url: URL) {
+        guard let parts = StoreURL.parts(of: url), parts.collection == Self.collection else {
+            return nil
+        }
+        switch parts.type {
+            case "missingDays":
+                guard let start = parts.value("start").flatMap(CalendarDay.init(iso:)) else {
+                    return nil
+                }
+                self = .missingDays(start: start)
+            case "borderDrift":
+                guard let day = parts.value("day").flatMap(CalendarDay.init(iso:)) else {
+                    return nil
+                }
+                self = .borderDrift(day: day)
+            case "abruptChange":
+                guard let earlier = parts.value("earlier").flatMap(CalendarDay.init(iso:)),
+                      let later = parts.value("later").flatMap(CalendarDay.init(iso:))
+                else {
+                    return nil
+                }
+                self = .abruptChange(earlier: earlier, later: later)
+            case "flightDay":
+                guard let day = parts.value("day").flatMap(CalendarDay.init(iso:)) else {
+                    return nil
+                }
+                self = .flightDay(day: day)
+            default:
+                return nil
         }
     }
 }

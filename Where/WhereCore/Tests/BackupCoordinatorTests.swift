@@ -43,7 +43,7 @@ struct BackupCoordinatorTests {
     private static let blob = Data("boarding-pass-pdf".utf8)
 
     private static let dismissal = DismissedIssue(
-        key: "borderDrift:1700000000",
+        id: .borderDrift(day: CalendarDay(year: 2026, month: 4, day: 1)),
         dismissedAt: Date(timeIntervalSince1970: 1_700_000_000),
     )
 
@@ -80,7 +80,7 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.allSamples() == source.store.allSamples())
         #expect(try await destination.store.allEvidence() == source.store.allEvidence())
         #expect(try await destination.store.allManualDays() == source.store.allManualDays())
-        // Dismissals come back verbatim (key + original timestamp).
+        // Dismissals come back verbatim (id + original timestamp).
         #expect(try await destination.store.allDismissedIssues() == source.store
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
@@ -123,7 +123,7 @@ struct BackupCoordinatorTests {
             // A preexisting dismissal that the file doesn't contain must be wiped
             // by `.replace` so the device mirrors the file exactly.
             try await destination.store.restoreDismissedIssue(DismissedIssue(
-                key: "missingDays:42",
+                id: .missingDays(start: CalendarDay(year: 2026, month: 1, day: 2)),
                 dismissedAt: Date(timeIntervalSince1970: 1),
             ))
         }
@@ -208,6 +208,37 @@ struct BackupCoordinatorTests {
 
         #expect(!FileManager.default.fileExists(atPath: firstDirectory.path))
         #expect(FileManager.default.fileExists(atPath: second.path))
+    }
+
+    @Test func discardExportDeletesTheExportDirectory() async throws {
+        let harness = try Self.makeHarness()
+        try await Self.seed(harness.store)
+
+        let url = try await harness.coordinator.exportBackup()
+        let directory = url.deletingLastPathComponent()
+        #expect(FileManager.default.fileExists(atPath: url.path))
+
+        await harness.coordinator.discardExport()
+        #expect(!FileManager.default.fileExists(atPath: directory.path))
+
+        // Idempotent: a second discard (nothing left to reclaim) is a no-op.
+        await harness.coordinator.discardExport()
+    }
+
+    @Test func exportReportsProgressUpToCompletion() async throws {
+        let source = try Self.makeHarness()
+        try await Self.seed(source.store)
+
+        let recorder = ProgressRecorder()
+        let url = try await source.coordinator.exportBackup { fraction in
+            recorder.record(fraction)
+        }
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let fractions = recorder.fractions
+        #expect(!fractions.isEmpty)
+        #expect(fractions.allSatisfy { $0 > 0 && $0 <= 1 })
+        #expect(fractions.last == 1)
     }
 
     @Test func importReportsProgressUpToCompletion() async throws {
