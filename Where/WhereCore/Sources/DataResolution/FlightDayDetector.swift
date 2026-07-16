@@ -11,8 +11,11 @@ import RegionKit
 /// `DataIssueInput.daySamples`:
 ///   1. A *leg* between consecutive fixes is a "flight leg" when its ground
 ///      speed is at least `speedThresholdKMH` **and** it spans at least
-///      `minLegDistanceKM` — the distance floor rejects a close pair whose tiny
-///      time delta manufactures a huge speed (GPS jitter, a teleport glitch).
+///      `minLegSeconds` — the duration floor rejects a close pair whose tiny
+///      time delta manufactures a huge speed (GPS jitter, a teleport glitch),
+///      without rejecting a densely-sampled cruise (significant-change fires
+///      every few minutes, so a real cruise leg is only ~70 km even though it's
+///      minutes long — a distance floor would wrongly drop those).
 ///   2. A fix is a *fly-over* point when the legs on **both** sides are flight
 ///      legs — a point you were only passing through. A leg's endpoints (the
 ///      take-off / landing fixes) have a flight leg on just one side, so they
@@ -32,18 +35,21 @@ public struct FlightDayDetector: DataIssueDetector {
     /// above sustained driving / rail and far below jet cruise (~800-900 km/h),
     /// so it separates the two with a wide margin.
     let speedThresholdKMH: Double
-    /// Minimum leg distance for a leg to count as flight, so a close pair with a
-    /// tiny time delta can't manufacture a flight-speed leg out of GPS jitter.
-    let minLegDistanceKM: Double
+    /// Minimum leg *duration* for a leg to count as flight, so a sub-minute GPS
+    /// glitch (a huge implied speed over a few seconds) can't manufacture a
+    /// flight leg. Cruise fixes arrive every few minutes, so real flight legs
+    /// clear this comfortably — and unlike a distance floor it doesn't drop a
+    /// densely-sampled cruise's short (~70 km) five-minute legs.
+    let minLegSeconds: TimeInterval
 
     public init() {
-        self.init(speedThresholdKMH: 300, minLegDistanceKM: 80)
+        self.init(speedThresholdKMH: 300, minLegSeconds: 60)
     }
 
     @_spi(Testing)
-    public init(speedThresholdKMH: Double, minLegDistanceKM: Double) {
+    public init(speedThresholdKMH: Double, minLegSeconds: TimeInterval) {
         self.speedThresholdKMH = speedThresholdKMH
-        self.minLegDistanceKM = minLegDistanceKM
+        self.minLegSeconds = minLegSeconds
     }
 
     public func detectIssues(in input: DataIssueInput) -> [FlightDayIssue] {
@@ -73,9 +79,9 @@ public struct FlightDayDetector: DataIssueDetector {
                 .distance(to: fixes[index + 1].coordinate)
             let seconds = fixes[index + 1].timestamp
                 .timeIntervalSince(fixes[index].timestamp)
-            guard seconds > 0 else { continue }
+            guard seconds >= minLegSeconds else { continue }
             let speedKMH = distanceMeters / seconds * 3.6
-            if speedKMH >= speedThresholdKMH, distanceMeters >= minLegDistanceKM * 1000 {
+            if speedKMH >= speedThresholdKMH {
                 flightLeg[index] = true
                 peakSpeedKMH = max(peakSpeedKMH, speedKMH)
             }
@@ -119,7 +125,7 @@ public struct FlightDayDetector: DataIssueDetector {
     }
 
     /// Fixes closer together in time than this are treated as one reading.
-    private static let minLegSeconds: TimeInterval = 1
+    private static let coalesceWindowSeconds: TimeInterval = 1
 
     /// Collapse runs of near-simultaneous fixes to a single, most-accurate
     /// representative. CoreLocation routinely emits a `CLVisit` *and* a
@@ -135,7 +141,7 @@ public struct FlightDayDetector: DataIssueDetector {
         var result: [LocationSample] = []
         for sample in samples {
             if let last = result.last,
-               sample.timestamp.timeIntervalSince(last.timestamp) < minLegSeconds
+               sample.timestamp.timeIntervalSince(last.timestamp) < coalesceWindowSeconds
             {
                 // Same instant as the representative — keep the more accurate fix.
                 if sample.horizontalAccuracy < last.horizontalAccuracy {
