@@ -594,7 +594,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         let context = readContext()
         var descriptor = FetchDescriptor<SDDismissedIssue>()
         descriptor.includePendingChanges = true
-        let ids = try context.fetch(descriptor).compactMap { $0.toValue()?.id }
+        let ids = try context.fetch(descriptor).compactMap { record -> DataIssueID? in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value?.id
+        }
         return Set(ids)
     }
 
