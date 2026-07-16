@@ -1,4 +1,3 @@
-import LogKit
 import PeriscopeCore
 
 /// Phantom root event naming the Where app's log scope tree. It is never
@@ -63,48 +62,5 @@ public enum WhereLog {
         case session
         case evidence
         case recentActivity
-    }
-
-    // MARK: Legacy LogKit facade
-
-    // Retained during the Periscope migration so not-yet-migrated call sites
-    // (WhereUI's developer log viewer, the app extensions) keep compiling.
-    // Removed, along with the LogKit dependency, once every consumer has moved
-    // to the Periscope tree above.
-
-    /// The subsystem every legacy Where log shares.
-    public static let subsystem = "com.stuff.where"
-
-    /// Process-wide buffer feeding the legacy in-app log viewer.
-    public static let store = LogStore()
-
-    public enum Category: String, CaseIterable, Sendable {
-        case backupService = "BackupService"
-        case dailySummaryReconciler = "DailySummaryReconciler"
-        case dailySummaryScheduler = "DailySummaryScheduler"
-        case dataIssueAlertReconciler = "DataIssueAlertReconciler"
-        case dataIssueAlertScheduler = "DataIssueAlertScheduler"
-        case dayJournal = "DayJournal"
-        case evidence = "Evidence"
-        case launch = "WhereLaunch"
-        case locationIngestor = "LocationIngestor"
-        case locationOutbox = "LocationOutbox"
-        case loggingReminderScheduler = "LoggingReminderScheduler"
-        case model = "WhereModel"
-        case recentActivitySummarizer = "RecentActivitySummarizer"
-        case regionAttribution = "RegionAttribution"
-        case reminderReconciler = "ReminderReconciler"
-        case session = "WhereSession"
-        case shareExtension = "WhereShareExtension"
-        case swiftDataStore = "SwiftDataStore"
-        case whereIntents = "WhereIntents"
-        case widgetRefresher = "WidgetRefresher"
-        case widgetSnapshotPublisher = "WidgetSnapshotPublisher"
-        case whereWidgets = "WhereWidgets"
-    }
-
-    /// A legacy logging channel for `category`, wired to the shared buffer.
-    public static func channel(_ category: Category) -> LogChannel {
-        LogChannel(subsystem: subsystem, category: category.rawValue, store: store)
     }
 }
