@@ -112,6 +112,26 @@ struct BackupServiceTests {
         #expect(result.blobs == blobs)
     }
 
+    @Test func archiveNameIsDateAndTimeStamped() throws {
+        let service = BackupService()
+        let url = try service.makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            blobs: [:],
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        // `Where Backup <yyyy-MM-dd> <HH.mm>.zip`. The time renders in the local
+        // time zone, so match the shape rather than a fixed instant.
+        let name = url.lastPathComponent
+        #expect(
+            name.wholeMatch(of: /Where Backup \d{4}-\d{2}-\d{2} \d{2}\.\d{2}\.zip/) != nil,
+            "Unexpected archive name: \(name)",
+        )
+    }
+
     @Test func authoritativeManualDaySurvivesArchiveRoundTrip() throws {
         let service = BackupService()
         let manualDays = [
