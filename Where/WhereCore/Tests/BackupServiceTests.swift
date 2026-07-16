@@ -166,6 +166,53 @@ struct BackupServiceTests {
         #expect(result.archive.trackedRegions == [.california, texas])
     }
 
+    @Test func primaryRegionAppearanceSurvivesArchiveRoundTrip() throws {
+        let service = BackupService()
+        let texas = try #require(Region(rawValue: "us-TX"))
+        let primary = [
+            PrimaryRegion(
+                region: .california,
+                appearance: RegionAppearance(
+                    color: .orange,
+                    emoji: "🌴",
+                    symbolName: "sun.max.fill",
+                ),
+                order: 0,
+            ),
+            PrimaryRegion(region: texas, appearance: nil, order: 1),
+        ]
+        let url = try service.makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            trackedRegions: primary.map(\.region),
+            primaryRegions: primary,
+            blobs: [:],
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let result = try service.readArchive(at: url)
+        #expect(result.archive.primaryRegions == primary)
+        // The bare-id list is still written for older readers.
+        #expect(result.archive.trackedRegions == [.california, texas])
+    }
+
+    @Test func legacyManifestWithoutPrimaryRegionsFallsBackToTrackedRegions() throws {
+        // A manifest predating `primaryRegions` recovers the region set from
+        // `trackedRegions`, with no picked appearance.
+        let json = #"""
+        {"formatVersion":2,"exportedAt":"2026-06-05T12:00:00Z","samples":[],"evidence":[],"manualDays":[],"trackedRegions":["us-CA"],"assets":[]}
+        """#
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        let archive = try decoder.decode(BackupArchive.self, from: Data(json.utf8))
+        #expect(archive.primaryRegions.isEmpty)
+        #expect(archive.resolvedPrimaryRegions == [
+            PrimaryRegion(region: .california, appearance: nil, order: 0),
+        ])
+    }
+
     @Test func legacyManifestWithoutTrackedRegionsDecodesAsEmpty() throws {
         // A manifest written before `trackedRegions` existed must decode to []
         // rather than failing (additive field, like `dismissedIssues`).

@@ -34,10 +34,19 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// keeps issues the user already dismissed dismissed. Absent in manifests
     /// written before this field existed; those decode to `[]`.
     public let dismissedIssues: [DismissedIssue]
-    /// The user's tracked regions at export time, so a restore carries the
-    /// region selection like any other data. Absent in manifests written before
-    /// this field existed; those decode to `[]`.
+    /// The user's tracked regions at export time (region ids only), so a restore
+    /// carries the region selection like any other data. Absent in manifests
+    /// written before this field existed; those decode to `[]`. Retained
+    /// alongside ``primaryRegions`` for cross-version compatibility — an older
+    /// reader that predates `primaryRegions` still recovers the region set from
+    /// here (without the picked looks).
     public let trackedRegions: [Region]
+    /// The user's primary regions at export time, each with its picked
+    /// ``RegionAppearance`` (color / emoji / icon) and pick order, so a restore
+    /// brings back the *look*, not just the region set. Additive: absent in
+    /// manifests written before it existed (those decode to `[]`, and the
+    /// importer falls back to ``trackedRegions``).
+    public let primaryRegions: [PrimaryRegion]
     /// One entry per evidence record that has blob bytes in the archive.
     /// Evidence without bytes simply has no entry here.
     public let assets: [BackupAssetEntry]
@@ -50,6 +59,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         manualDays: [DayPresence],
         dismissedIssues: [DismissedIssue] = [],
         trackedRegions: [Region] = [],
+        primaryRegions: [PrimaryRegion] = [],
         assets: [BackupAssetEntry],
     ) {
         self.formatVersion = formatVersion
@@ -59,7 +69,18 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         self.manualDays = manualDays
         self.dismissedIssues = dismissedIssues
         self.trackedRegions = trackedRegions
+        self.primaryRegions = primaryRegions
         self.assets = assets
+    }
+
+    /// The primary regions to restore: ``primaryRegions`` when present, else a
+    /// fallback built from ``trackedRegions`` (older archives) with no picked
+    /// appearance and their listed order.
+    public var resolvedPrimaryRegions: [PrimaryRegion] {
+        if !primaryRegions.isEmpty { return primaryRegions }
+        return trackedRegions.enumerated().map { index, region in
+            PrimaryRegion(region: region, appearance: nil, order: index)
+        }
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -70,12 +91,13 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         case manualDays
         case dismissedIssues
         case trackedRegions
+        case primaryRegions
         case assets
     }
 
     /// Custom decode (encode stays synthesized) so manifests written before
-    /// `dismissedIssues` / `trackedRegions` existed still import: the missing
-    /// keys decode to `[]` rather than throwing.
+    /// `dismissedIssues` / `trackedRegions` / `primaryRegions` existed still
+    /// import: the missing keys decode to `[]` rather than throwing.
     public init(from decoder: any Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         formatVersion = try container.decode(Int.self, forKey: .formatVersion)
@@ -87,6 +109,8 @@ public struct BackupArchive: Codable, Sendable, Hashable {
             .decodeIfPresent([DismissedIssue].self, forKey: .dismissedIssues) ?? []
         trackedRegions = try container
             .decodeIfPresent([Region].self, forKey: .trackedRegions) ?? []
+        primaryRegions = try container
+            .decodeIfPresent([PrimaryRegion].self, forKey: .primaryRegions) ?? []
         assets = try container.decode([BackupAssetEntry].self, forKey: .assets)
     }
 }

@@ -93,6 +93,7 @@ public struct BackupService: Sendable {
         manualDays: [DayPresence],
         dismissedIssues: [DismissedIssue] = [],
         trackedRegions: [Region] = [],
+        primaryRegions: [PrimaryRegion] = [],
         blobs: [UUID: Data],
         exportedAt: Date = Date(),
         archiveName: String? = nil,
@@ -124,6 +125,7 @@ public struct BackupService: Sendable {
             manualDays: manualDays,
             dismissedIssues: dismissedIssues,
             trackedRegions: trackedRegions,
+            primaryRegions: primaryRegions,
             assets: assetEntries,
         )
         let manifestData = try Self.makeEncoder().encode(archive)

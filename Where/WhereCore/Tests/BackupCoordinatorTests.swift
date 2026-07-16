@@ -154,6 +154,25 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.trackedRegions() == [.california, texas])
     }
 
+    @Test func importRestoresPickedRegionAppearance() async throws {
+        let source = try Self.makeHarness()
+        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
+        try await source.store.perform {
+            try await source.store.setPrimaryRegions([
+                PrimaryRegion(region: .california, appearance: caLook, order: 0),
+            ])
+        }
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let destination = try Self.makeHarness()
+        _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+
+        let restored = try await destination.store.primaryRegions()
+        #expect(restored.map(\.region) == [.california])
+        #expect(restored.first?.appearance == caLook)
+    }
+
     @Test func mergeImportUnionsTrackedRegionsWithTheExisting() async throws {
         let source = try Self.makeHarness()
         let texas = try #require(Region(rawValue: "us-TX"))

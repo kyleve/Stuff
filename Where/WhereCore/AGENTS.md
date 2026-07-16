@@ -35,11 +35,22 @@ internal shape.
   pings `changes()` — the single signal readers refresh from. The live
   `ModelContainer` is surfaced only for the read-only debug inspector.
 - **Primary regions *are* the tracked-region set.** The picked primary regions
-  (`primaryRegions()` / `setPrimaryRegion(_:id:order:)`) are the same
-  `SDTrackedRegion` rows `trackedRegions()` reads — picking scopes GPS
-  attribution *and* carries each region's `RegionAppearance` (color token /
-  emoji / SF Symbol) + pick order. `RegionAppearance` is data (WhereCore); the
-  token→`Color` mapping and option catalogs are presentation (`WhereUI`).
+  (`primaryRegions()` / `setPrimaryRegions(_:)`) are the same `SDTrackedRegion`
+  rows `trackedRegions()` reads — picking scopes GPS attribution *and* carries
+  each region's `RegionAppearance` (color token / emoji / SF Symbol) + pick
+  order. `RegionAppearance` is data (WhereCore); the token→`Color` mapping and
+  option catalogs are presentation (`WhereUI`).
+- **Backups mirror the persisted model — keep them lossless.** Any change to
+  persisted data (a new/changed `SD*` field, or a value type that crosses
+  `WhereStore`) must be reflected end-to-end in the backup so export/restore
+  never silently drops it: add it to `BackupArchive` (with a back-compatible
+  `init(from:)`), write it in `BackupService.makeArchiveFile`, read it back in
+  `BackupCoordinator.importBackup` for **both** `.replace` and `.merge`, and add
+  a round-trip test (`BackupServiceTests` for the archive, `BackupCoordinatorTests`
+  for the store round-trip). New archive fields are **additive**
+  (`decodeIfPresent` → default) and older keys stay put so a cross-version
+  restore still recovers what it can — see `primaryRegions` carried alongside the
+  legacy `trackedRegions` ids.
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (year-month-
   day) is the timezone-independent identity of a day, and it is what every
   *stored user record* and *day comparison* keys on: `DayPresence.day`,

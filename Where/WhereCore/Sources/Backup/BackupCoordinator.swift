@@ -102,9 +102,11 @@ public actor BackupCoordinator {
         let evidence = try await store.allEvidence()
         let manualDays = try await store.allManualDays()
         let dismissedIssues = try await store.allDismissedIssues()
-        // The resolved tracked set (the four when the user hasn't chosen yet),
-        // in canonical order so the archive is stable.
-        let trackedRegions = try await Region.inCanonicalOrder(store.trackedRegions())
+        // The user's primary regions with their picked looks + order (the
+        // resolved default set when they haven't chosen yet). `trackedRegions`
+        // carries the bare ids alongside it for older readers.
+        let primaryRegions = try await store.primaryRegions()
+        let trackedRegions = primaryRegions.map(\.region)
         var blobs: [UUID: Data] = [:]
         var lastPercent = -1
         for (index, item) in evidence.enumerated() {
@@ -125,6 +127,7 @@ public actor BackupCoordinator {
                 manualDays: manualDays,
                 dismissedIssues: dismissedIssues,
                 trackedRegions: trackedRegions,
+                primaryRegions: primaryRegions,
                 blobs: blobs,
             )
         }.value
@@ -221,20 +224,21 @@ public actor BackupCoordinator {
                 try await store.restoreDismissedIssue(dismissal)
                 report()
             }
-            // Tracked regions round-trip like any other data. On `.replace` the
-            // store was cleared above, so write the archive's set exactly; on
-            // `.merge` union it into the current set (reading the *resolved*
-            // current set first so a device on the implicit default four doesn't
-            // collapse to just the imported regions). A handful of rows, so
-            // they're not folded into the progress total.
-            let regionsToWrite: Set<Region> = if strategy == .merge {
-                try await store.trackedRegions().union(archive.trackedRegions)
+            // Primary regions (with their picked looks) round-trip like any
+            // other data. On `.replace` the store was cleared above, so write
+            // the archive's set exactly; on `.merge` union it into the current
+            // set (reading the *resolved* current set first so a device on the
+            // implicit default four doesn't collapse to just the imported ones),
+            // with the archive's appearance winning on overlap. `setPrimaryRegions`
+            // is a whole-set replace, so a merge builds the full merged list. A
+            // handful of rows, so they're not folded into the progress total.
+            let archivePrimary = archive.resolvedPrimaryRegions
+            let regionsToWrite: [PrimaryRegion] = if strategy == .merge {
+                try await Self.merge(archivePrimary, into: store.primaryRegions())
             } else {
-                Set(archive.trackedRegions)
+                archivePrimary
             }
-            for region in regionsToWrite {
-                try await store.setTrackedRegion(true, id: region.rawValue)
-            }
+            try await store.setPrimaryRegions(regionsToWrite)
         }
         // An import rewrites day data, so the badge / notification / widget
         // reconcile a day change runs has to follow it — these headless
@@ -248,7 +252,35 @@ public actor BackupCoordinator {
             evidenceCount: archive.evidence.count,
             manualDayCount: archive.manualDays.count,
             dismissedIssueCount: archive.dismissedIssues.count,
-            trackedRegionCount: archive.trackedRegions.count,
+            trackedRegionCount: archive.resolvedPrimaryRegions.count,
         )
+    }
+
+    /// Union `archive` primary regions into `current` for a `.merge` import:
+    /// current regions keep their order and come first, archive-only regions are
+    /// appended, and the archive's picked appearance wins on overlap (a `nil`
+    /// archive look never clobbers an existing customized one). Reindexed densely
+    /// for `setPrimaryRegions`.
+    private static func merge(
+        _ archive: [PrimaryRegion],
+        into current: [PrimaryRegion],
+    ) -> [PrimaryRegion] {
+        var appearances: [Region: RegionAppearance] = [:]
+        var order: [Region] = []
+        var seen: Set<Region> = []
+        func add(_ region: Region) {
+            if seen.insert(region).inserted { order.append(region) }
+        }
+        for entry in current {
+            add(entry.region)
+            if let appearance = entry.appearance { appearances[entry.region] = appearance }
+        }
+        for entry in archive {
+            add(entry.region)
+            if let appearance = entry.appearance { appearances[entry.region] = appearance }
+        }
+        return order.enumerated().map { index, region in
+            PrimaryRegion(region: region, appearance: appearances[region], order: index)
+        }
     }
 }

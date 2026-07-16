@@ -10,7 +10,7 @@ import RegionKit
 /// `appearance` is optional: a region can be tracked without a stored look yet
 /// (the out-of-the-box default set, or a legacy row), in which case the
 /// presentation layer falls back to a deterministic default style.
-public struct PrimaryRegion: Hashable, Sendable {
+public struct PrimaryRegion: Hashable, Sendable, Codable {
     public let region: Region
     public let appearance: RegionAppearance?
     public let order: Int
