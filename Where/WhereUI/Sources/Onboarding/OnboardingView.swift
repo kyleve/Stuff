@@ -127,43 +127,28 @@ public struct OnboardingView: View {
     // MARK: - Pick regions
 
     private var pickRegions: some View {
-        VStack(spacing: stylesheet.spacing.large) {
-            VStack(spacing: stylesheet.spacing.small) {
-                Text(Strings.onboardingRegionsTitle)
-                    .font(.title.bold())
-                    .multilineTextAlignment(.center)
-                Text(Strings.regionPickerSubtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-            }
-            .padding(.horizontal, stylesheet.spacing.xxxLarge)
-            .padding(.top, stylesheet.spacing.xxxLarge)
-
+        NavigationStack {
             RegionPickerView(model: selection)
-
-            Button {
-                phase = .customize
-            } label: {
-                Text(Strings.onboardingNext)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-            .disabled(!selection.hasSelection)
-            .padding(.horizontal, stylesheet.spacing.xxxLarge)
-            .padding(.bottom, stylesheet.spacing.xxxLarge)
+                .navigationTitle(Strings.onboardingRegionsTitle)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(Strings.onboardingNext) { phase = .customize }
+                            .disabled(!selection.hasSelection)
+                    }
+                }
         }
     }
 
     // MARK: - Customize
 
     private var customize: some View {
-        RegionCustomizeView(
-            model: selection,
-            onBack: { phase = .pickRegions },
-            onFinish: { phase = .location },
-        )
+        NavigationStack {
+            RegionCustomizeView(
+                model: selection,
+                onBack: { phase = .pickRegions },
+                onFinish: { phase = .location },
+            )
+        }
     }
 
     // MARK: - Location

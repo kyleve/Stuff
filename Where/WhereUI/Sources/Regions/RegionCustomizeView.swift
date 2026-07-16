@@ -155,10 +155,11 @@ struct RegionAppearanceEditor: View {
 }
 
 /// Steps through each picked region in pick order, editing its look with
-/// ``RegionAppearanceEditor``, with Back/Next controls. `onFinish` fires when
-/// the user advances past the last region; `onBack` fires when they go back
-/// before the first (so the onboarding flow can return to the picker). Used by
-/// onboarding; Settings edits a single region with the editor directly.
+/// ``RegionAppearanceEditor``. Back/Next (Done on the last region) live in the
+/// navigation bar, so the caller must place this inside a `NavigationStack`.
+/// `onFinish` fires when the user advances past the last region; `onBack` fires
+/// when they go back before the first (so onboarding returns to the picker and
+/// the Settings editor returns to its pick phase).
 struct RegionCustomizeView: View {
     @Bindable var model: PrimaryRegionSelectionModel
     var onBack: () -> Void = {}
@@ -173,18 +174,11 @@ struct RegionCustomizeView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        Group {
             if let region = currentRegion {
-                Text(Strings.regionCustomizeStep(current: index + 1, total: regions.count))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
-                    .padding(.top, stylesheet.spacing.small)
-
                 RegionAppearanceEditor(model: model, region: region)
                     .id(region)
                     .transition(.opacity)
-
-                controls
             } else {
                 // No selection to customize — nothing to step through.
                 ContentUnavailableView(
@@ -195,23 +189,25 @@ struct RegionCustomizeView: View {
             }
         }
         .animation(stylesheet.motion.captionFade, value: index)
-        .navigationTitle(Strings.regionCustomizeTitle)
+        .navigationTitle(currentRegion?.localizedName ?? Strings.regionCustomizeTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(Strings.onboardingBack, action: goBack)
+            }
+            ToolbarItem(placement: .principal) {
+                Text(Strings.regionCustomizeStep(current: index + 1, total: regions.count))
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button(isLast ? Strings.commonDone : Strings.onboardingNext, action: goNext)
+            }
+        }
     }
 
     private var currentRegion: Region? {
         regions.indices.contains(index) ? regions[index] : nil
-    }
-
-    private var controls: some View {
-        HStack(spacing: stylesheet.spacing.large) {
-            Button(Strings.onboardingBack, action: goBack)
-                .buttonStyle(.bordered)
-
-            Button(isLast ? Strings.commonDone : Strings.onboardingNext, action: goNext)
-                .buttonStyle(.borderedProminent)
-                .frame(maxWidth: .infinity)
-        }
-        .padding(stylesheet.spacing.large)
     }
 
     private var isLast: Bool {

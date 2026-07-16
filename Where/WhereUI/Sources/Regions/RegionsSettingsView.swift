@@ -8,7 +8,6 @@ import WhereCore
 struct RegionsSettingsView: View {
     @Environment(WhereSession.self) private var session
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.stylesheet) private var stylesheet
 
     /// The picker/customization model, built once the current picks load.
     @State private var model: PrimaryRegionSelectionModel?
@@ -30,19 +29,12 @@ struct RegionsSettingsView: View {
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                }
-            }
-            .navigationTitle(Strings.regionsManageTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(Strings.commonCancel) { dismiss() }
-                }
-                if let model, phase == .pick {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.commonSave) { save(model) }
-                            .disabled(!model.hasSelection || isSaving)
-                    }
+                        .navigationTitle(Strings.regionsManageTitle)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(Strings.commonCancel) { dismiss() }
+                            }
+                        }
                 }
             }
         }
@@ -53,22 +45,20 @@ struct RegionsSettingsView: View {
     private func content(_ model: PrimaryRegionSelectionModel) -> some View {
         switch phase {
             case .pick:
-                VStack(spacing: stylesheet.spacing.large) {
-                    RegionPickerView(model: model)
-
-                    Button {
-                        phase = .customize
-                    } label: {
-                        Text(Strings.regionCustomizeTitle)
-                            .frame(maxWidth: .infinity)
+                RegionPickerView(model: model)
+                    .navigationTitle(Strings.regionsManageTitle)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(Strings.commonCancel) { dismiss() }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button(Strings.onboardingNext) { phase = .customize }
+                                .disabled(!model.hasSelection)
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(!model.hasSelection)
-                    .padding(.horizontal, stylesheet.spacing.xxxLarge)
-                    .padding(.bottom, stylesheet.spacing.large)
-                }
             case .customize:
+                // `RegionCustomizeView` supplies its own Back/Done toolbar; Back
+                // returns to the pick phase, Done saves.
                 RegionCustomizeView(
                     model: model,
                     onBack: { phase = .pick },
