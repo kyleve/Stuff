@@ -97,9 +97,14 @@ public func assertSnapshots(
 /// applied through the SwiftUI environment (so measurement reflects them) and
 /// mirrored onto UIKit trait overrides (for any embedded UIKit); increased
 /// contrast — which SwiftUI can't set — is a trait override only. Intrinsic
-/// components get only their width here; the pipeline measures their height after
-/// the content settles (which also lets finite time-based reveals — typewriter
-/// text, launch transitions — run to completion before the capture).
+/// components get only their width here; the pipeline measures their height
+/// after the content settles.
+///
+/// SwiftUI transaction animations are disabled at the root: every state change
+/// in the hosted tree commits its end state instantly instead of animating, so
+/// finite time-based reveals no longer "run to completion" during settle — there
+/// is no mid-flight frame to catch. The settle loop remains for `.task`-driven
+/// async content, which still needs real suspension time to load.
 @MainActor
 private func makeHostingController(
     for view: some View,
@@ -108,6 +113,10 @@ private func makeHostingController(
     let styled = view
         .environment(\.colorScheme, configuration.colorScheme)
         .dynamicTypeSize(configuration.dynamicType)
+        .transaction {
+            $0.disablesAnimations = true
+            $0.animation = nil
+        }
     let hostingController = UIHostingController(rootView: styled)
     hostingController.view.backgroundColor = .clear
 
