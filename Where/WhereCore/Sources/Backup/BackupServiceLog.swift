@@ -44,7 +44,7 @@ enum BackupServiceLog: LogEvent {
 
     var externalID: String? {
         switch self {
-            case let .assetMissing(evidenceID): evidenceID
+            case let .assetMissing(evidenceID): WhereStoreID.evidence(evidenceID)
             case .wroteBackup: nil
         }
     }

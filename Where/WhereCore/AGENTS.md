@@ -62,7 +62,10 @@ internal shape.
   `Codable` and a stable SwiftData string key for free — never an ad-hoc
   `type:value` string or a hand-written keyed `Codable`. Build/parse with
   `StoreURL` so every conformer shares the `store://<collection>/<type>?<params>`
-  shape.
+  shape. Object families without a dedicated identity type (days, years,
+  evidence, samples) get their `store://` identity from `WhereStoreID`, used to
+  stamp Periscope `LogEvent.externalID`s so log inspect-by-object shares the
+  store's keys.
 - **No in-app data migration or legacy recovery.** A data-shape change is not
   migrated on read or at boot: `SD….toValue()` reads only the current shape and
   drops (fault-logs) a row it can't place — e.g. an `SDManualDay` with no

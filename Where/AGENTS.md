@@ -66,6 +66,13 @@ Rules the code enforces and agents must preserve:
   the DEBUG developer surface (`PeriscopeViewer`) shows every scope subtree in a
   single stream. Widgets, the share extension, and the intents surface run in
   their own processes, so their `Periscope.shared` stays OSLog-only (no store).
+  An event that concerns a store object stamps its `externalID` with the
+  object's canonical `store://` identity — `DataIssueID.storeURL` for dismissals,
+  and `WhereStoreID` (`store://days/…`, `store://years/…`, `store://evidence/…`,
+  `store://samples/…`) for the other families — so inspect-by-object shares the
+  same key the store and backups use. RegionKit is the one exception: it's below
+  the app's `store://` convention and its regions are a bundled catalog, not
+  store rows, so `RegionAttributorLog` keeps a bare catalog-id `externalID`.
 - **Location comes through the `LocationSource` protocol** — production is
   `CoreLocationSource`; tests and previews use `ScriptedLocationSource`. Besides
   the passive `sampleStream`, it offers a best-effort one-shot

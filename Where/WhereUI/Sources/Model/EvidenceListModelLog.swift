@@ -1,4 +1,5 @@
 import PeriscopeCore
+import WhereCore
 
 /// Structured events for `EvidenceListModel`. A read failure leaves the list in
 /// an honest error state, so it logs at `.warning`.
@@ -20,7 +21,7 @@ enum EvidenceListModelLog: LogEvent {
 
     var externalID: String? {
         switch self {
-            case let .loadFailed(year, _): String(year)
+            case let .loadFailed(year, _): WhereStoreID.year(year)
         }
     }
 }

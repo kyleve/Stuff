@@ -40,11 +40,11 @@ enum DayJournalLog: LogEvent {
         switch self {
             case let .addedManualDay(day, _), let .overrodeDay(day, _),
                  let .clearedManualDay(day):
-                day
+                WhereStoreID.day(day)
             case let .clearedYear(year):
-                String(year)
+                WhereStoreID.year(year)
             case let .wroteEvidence(id, _):
-                id
+                WhereStoreID.evidence(id)
             case .clearedManualDays, .backfilledManualDays, .erasedAllData:
                 nil
         }

@@ -1,4 +1,5 @@
 import PeriscopeCore
+import WhereCore
 
 /// Structured events for `AddEvidenceModel`, the compose form. A save records
 /// the evidence id (`externalID`); attachment-pick and save failures leave the
@@ -30,7 +31,7 @@ enum AddEvidenceModelLog: LogEvent {
 
     var externalID: String? {
         switch self {
-            case let .saved(evidenceID): evidenceID
+            case let .saved(evidenceID): WhereStoreID.evidence(evidenceID)
             case .attachmentPickFailed, .saveFailed: nil
         }
     }

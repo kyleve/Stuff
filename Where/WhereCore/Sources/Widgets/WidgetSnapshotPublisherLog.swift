@@ -26,7 +26,7 @@ enum WidgetSnapshotPublisherLog: LogEvent {
 
     var externalID: String? {
         switch self {
-            case let .published(day, _): day
+            case let .published(day, _): WhereStoreID.day(day)
             case .buildFailed: nil
         }
     }

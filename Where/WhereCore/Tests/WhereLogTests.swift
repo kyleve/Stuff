@@ -43,9 +43,13 @@ struct WhereLogTreeTests {
 /// stable persisted name, and `externalID` correlation.
 struct WhereLogEventTests {
     @Test func dayJournalStampsTheAffectedDayAsExternalID() {
+        // externalIDs are the canonical store:// identities (see WhereStoreIDTests
+        // for the exact URL strings), so inspect-by-object shares the store's keys.
         #expect(DayJournalLog.addedManualDay(day: "2026-06-05", regionCount: 2)
-            .externalID == "2026-06-05")
-        #expect(DayJournalLog.clearedYear(year: 2025).externalID == "2025")
+            .externalID == WhereStoreID.day("2026-06-05"))
+        #expect(DayJournalLog.clearedYear(year: 2025).externalID == WhereStoreID.year(2025))
+        #expect(DayJournalLog.wroteEvidence(id: "abc", hasBlob: true)
+            .externalID == WhereStoreID.evidence("abc"))
         #expect(DayJournalLog.erasedAllData.externalID == nil)
         #expect(DayJournalLog.addedManualDay(day: "d", regionCount: 2).level == .info)
     }
@@ -61,7 +65,7 @@ struct WhereLogEventTests {
     @Test func locationIngestorTracesSampleFailuresByID() {
         #expect(
             LocationIngestorLog.persistFailed(sampleID: "abc", description: "x")
-                .externalID == "abc",
+                .externalID == WhereStoreID.sample("abc"),
         )
         #expect(LocationIngestorLog.persistFailed(sampleID: "abc", description: "x")
             .level == .error)

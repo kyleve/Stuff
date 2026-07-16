@@ -60,7 +60,7 @@ enum LocationIngestorLog: LogEvent {
     var externalID: String? {
         switch self {
             case let .persistFailed(sampleID, _), let .retryStillFailing(sampleID, _):
-                sampleID
+                WhereStoreID.sample(sampleID)
             case .monitoringStarted, .monitoringStopped, .restoredBacklog, .quiesced,
                  .todayIntervalUnavailable, .foregroundCaptureReadFailed, .capturedForegroundFix,
                  .retryQueueAtCapacity, .drainedBacklog:

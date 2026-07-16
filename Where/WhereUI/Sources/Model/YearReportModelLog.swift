@@ -1,4 +1,5 @@
 import PeriscopeCore
+import WhereCore
 
 /// Structured events for `YearReportModel`. The affected year rides on
 /// `externalID`. A successful load is `.info`; read failures that leave a
@@ -51,7 +52,7 @@ enum YearReportModelLog: LogEvent {
                  let .reportLoadFailed(year, _), let .evidenceDayKeysLoadFailed(year, _),
                  let .clearYearFailed(year, _), let .locationsLoadFailed(_, year, _),
                  let .representativeCoordinatesLoadFailed(year, _):
-                String(year)
+                WhereStoreID.year(year)
             case .dataIssueScanFailed:
                 nil
         }
