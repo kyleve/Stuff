@@ -195,3 +195,7 @@ path.
 - Root rules apply: 1:1 test files, shared fixtures in `*TestSupport.swift`,
   wait for conditions rather than fixed delays, inject small limits via
   `@_spi(Testing)`.
+- How screens render is pinned by the matrixed image snapshots in
+  `WhereUISnapshotTests` (own scheme + CI job, not `Stuff-iOS-Tests`) — see
+  [`WhereUI/AGENTS.md`](WhereUI/AGENTS.md#testing). Don't add "hosts without
+  crashing" smoke tests for surfaces that bundle covers.

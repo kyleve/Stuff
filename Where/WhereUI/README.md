@@ -115,5 +115,15 @@ the happy path. See the feature
 Swift Testing in [`Tests/`](Tests) (`WhereUITests`), hosted in `StuffTestHost`
 and linking `TestHostSupport` (`show(_:perform:)`, `waitFor`). View models are
 driven against a `ScriptedLocationSource` + in-memory `SwiftDataStore` (never
-the on-disk/CloudKit store); hosting tests mount views for their key states.
-Internal types are reached via `@testable import WhereUI`.
+the on-disk/CloudKit store). Internal types are reached via
+`@testable import WhereUI`.
+
+How screens *look* is pinned separately: every top-level screen, widget, and
+app-flow surface has matrixed image snapshots (light/dark, Dynamic Type,
+iPhone/iPad, contrast, VoiceOver annotations) in
+[`SnapshotTests/`](SnapshotTests) (`WhereUISnapshotTests`), with reference
+images under `SnapshotTests/__Snapshots__/` in Git LFS. Each view declares its
+matrix via a `SnapshotProviding` conformance in
+[`Sources/Preview/`](Sources/Preview), shared with its `#Preview` cutsheet. The
+bundle has its own scheme and CI job; to re-record, delete the reference PNG
+and run the `WhereUISnapshotTests` scheme, then review and commit the image.
