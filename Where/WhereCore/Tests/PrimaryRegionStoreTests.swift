@@ -23,7 +23,7 @@ struct PrimaryRegionStoreTests {
         #expect(primary.map(\.order) == Array(0 ..< primary.count))
     }
 
-    private func primary(_ region: Region, _ appearance: RegionAppearance?, _ order: Int)
+    private func pick(_ region: Region, _ appearance: RegionAppearance?, _ order: Int)
         -> PrimaryRegion
     {
         PrimaryRegion(region: region, appearance: appearance, order: order)
@@ -36,8 +36,8 @@ struct PrimaryRegionStoreTests {
         let txLook = appearance(.red, "🤠", "star.fill")
         try await store.perform {
             try await store.setPrimaryRegions([
-                primary(.california, caLook, 0),
-                primary(texas, txLook, 1),
+                pick(.california, caLook, 0),
+                pick(texas, txLook, 1),
             ])
         }
 
@@ -53,10 +53,10 @@ struct PrimaryRegionStoreTests {
         let first = appearance(.orange, "🌴", "sun.max.fill")
         let second = appearance(.indigo, "🌉", "building.2.fill")
         try await store.perform {
-            try await store.setPrimaryRegions([primary(.california, first, 0)])
+            try await store.setPrimaryRegions([pick(.california, first, 0)])
         }
         try await store.perform {
-            try await store.setPrimaryRegions([primary(.california, second, 3)])
+            try await store.setPrimaryRegions([pick(.california, second, 3)])
         }
         let primary = try await store.primaryRegions()
         #expect(primary.count == 1)
@@ -69,14 +69,14 @@ struct PrimaryRegionStoreTests {
         let texas = try #require(Region(rawValue: "us-TX"))
         try await store.perform {
             try await store.setPrimaryRegions([
-                primary(.california, appearance(.orange, "🌴", "sun.max.fill"), 0),
-                primary(texas, appearance(.red, "🤠", "star.fill"), 1),
+                pick(.california, appearance(.orange, "🌴", "sun.max.fill"), 0),
+                pick(texas, appearance(.red, "🤠", "star.fill"), 1),
             ])
         }
         // Re-committing without California removes it by omission.
         try await store.perform {
             try await store.setPrimaryRegions([
-                primary(texas, appearance(.red, "🤠", "star.fill"), 0),
+                pick(texas, appearance(.red, "🤠", "star.fill"), 0),
             ])
         }
         #expect(try await store.primaryRegions().map(\.region) == [texas])
@@ -86,7 +86,7 @@ struct PrimaryRegionStoreTests {
     @Test func trackedWithoutAppearanceResolvesToNilLook() async throws {
         let store = try SwiftDataStore.inMemory()
         try await store.perform {
-            try await store.setPrimaryRegions([primary(.california, nil, 0)])
+            try await store.setPrimaryRegions([pick(.california, nil, 0)])
         }
         let primary = try await store.primaryRegions()
         #expect(primary.map(\.region) == [.california])
