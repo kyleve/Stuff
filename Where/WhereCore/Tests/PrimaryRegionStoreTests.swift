@@ -23,14 +23,22 @@ struct PrimaryRegionStoreTests {
         #expect(primary.map(\.order) == Array(0 ..< primary.count))
     }
 
-    @Test func upsertPersistsAppearanceAndOrder() async throws {
+    private func primary(_ region: Region, _ appearance: RegionAppearance?, _ order: Int)
+        -> PrimaryRegion
+    {
+        PrimaryRegion(region: region, appearance: appearance, order: order)
+    }
+
+    @Test func replacePersistsAppearanceAndOrder() async throws {
         let store = try SwiftDataStore.inMemory()
         let texas = try #require(Region(rawValue: "us-TX"))
         let caLook = appearance(.orange, "🌴", "sun.max.fill")
         let txLook = appearance(.red, "🤠", "star.fill")
         try await store.perform {
-            try await store.setPrimaryRegion(caLook, id: Region.california.rawValue, order: 0)
-            try await store.setPrimaryRegion(txLook, id: texas.rawValue, order: 1)
+            try await store.setPrimaryRegions([
+                primary(.california, caLook, 0),
+                primary(texas, txLook, 1),
+            ])
         }
 
         let primary = try await store.primaryRegions()
@@ -40,15 +48,15 @@ struct PrimaryRegionStoreTests {
         #expect(try await store.trackedRegions() == [.california, texas])
     }
 
-    @Test func upsertOverwritesAnExistingRowLook() async throws {
+    @Test func replaceOverwritesAnExistingRowLook() async throws {
         let store = try SwiftDataStore.inMemory()
         let first = appearance(.orange, "🌴", "sun.max.fill")
         let second = appearance(.indigo, "🌉", "building.2.fill")
         try await store.perform {
-            try await store.setPrimaryRegion(first, id: Region.california.rawValue, order: 0)
+            try await store.setPrimaryRegions([primary(.california, first, 0)])
         }
         try await store.perform {
-            try await store.setPrimaryRegion(second, id: Region.california.rawValue, order: 3)
+            try await store.setPrimaryRegions([primary(.california, second, 3)])
         }
         let primary = try await store.primaryRegions()
         #expect(primary.count == 1)
@@ -56,31 +64,29 @@ struct PrimaryRegionStoreTests {
         #expect(primary.first?.order == 3)
     }
 
-    @Test func removingAPrimaryRegionUntracksIt() async throws {
+    @Test func replaceRemovesOmittedRegions() async throws {
         let store = try SwiftDataStore.inMemory()
         let texas = try #require(Region(rawValue: "us-TX"))
         try await store.perform {
-            try await store.setPrimaryRegion(
-                appearance(.orange, "🌴", "sun.max.fill"),
-                id: Region.california.rawValue,
-                order: 0,
-            )
-            try await store.setPrimaryRegion(
-                appearance(.red, "🤠", "star.fill"),
-                id: texas.rawValue,
-                order: 1,
-            )
+            try await store.setPrimaryRegions([
+                primary(.california, appearance(.orange, "🌴", "sun.max.fill"), 0),
+                primary(texas, appearance(.red, "🤠", "star.fill"), 1),
+            ])
         }
+        // Re-committing without California removes it by omission.
         try await store.perform {
-            try await store.setTrackedRegion(false, id: Region.california.rawValue)
+            try await store.setPrimaryRegions([
+                primary(texas, appearance(.red, "🤠", "star.fill"), 0),
+            ])
         }
         #expect(try await store.primaryRegions().map(\.region) == [texas])
+        #expect(try await store.trackedRegions() == [texas])
     }
 
     @Test func trackedWithoutAppearanceResolvesToNilLook() async throws {
         let store = try SwiftDataStore.inMemory()
         try await store.perform {
-            try await store.setTrackedRegion(true, id: Region.california.rawValue)
+            try await store.setPrimaryRegions([primary(.california, nil, 0)])
         }
         let primary = try await store.primaryRegions()
         #expect(primary.map(\.region) == [.california])

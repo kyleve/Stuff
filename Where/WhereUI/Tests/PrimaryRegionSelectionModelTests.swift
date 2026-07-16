@@ -92,16 +92,18 @@ struct PrimaryRegionSelectionModelTests {
     @Test func commitUntracksRemovedRegions() async throws {
         let session = PreviewSupport.loadedSession()
         // Seed the store with two picks, then commit an edit that drops one.
-        try await session.services.setPrimaryRegion(
-            RegionAppearanceCatalog.defaultAppearance(for: .california),
-            id: Region.california.rawValue,
-            order: 0,
-        )
-        try await session.services.setPrimaryRegion(
-            RegionAppearanceCatalog.defaultAppearance(for: .newYork),
-            id: Region.newYork.rawValue,
-            order: 1,
-        )
+        try await session.services.setPrimaryRegions([
+            PrimaryRegion(
+                region: .california,
+                appearance: RegionAppearanceCatalog.defaultAppearance(for: .california),
+                order: 0,
+            ),
+            PrimaryRegion(
+                region: .newYork,
+                appearance: RegionAppearanceCatalog.defaultAppearance(for: .newYork),
+                order: 1,
+            ),
+        ])
 
         let existing = try await session.services.primaryRegions()
         let model = PrimaryRegionSelectionModel(existing: existing)

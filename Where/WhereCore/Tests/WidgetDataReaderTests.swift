@@ -43,9 +43,11 @@ struct WidgetDataReaderTests {
         let (reader, store) = try Self.makeReader()
         let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
         try await store.perform {
-            try await store.setPrimaryRegion(caLook, id: Region.california.rawValue, order: 0)
-            // A tracked region with no picked look contributes no appearance.
-            try await store.setPrimaryRegion(nil, id: Region.newYork.rawValue, order: 1)
+            try await store.setPrimaryRegions([
+                PrimaryRegion(region: .california, appearance: caLook, order: 0),
+                // A tracked region with no picked look contributes no appearance.
+                PrimaryRegion(region: .newYork, appearance: nil, order: 1),
+            ])
         }
 
         let snapshot = try await reader

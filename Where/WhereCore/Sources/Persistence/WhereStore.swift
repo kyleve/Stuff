@@ -118,12 +118,13 @@ public protocol WhereStore: Sendable {
     /// both survive a sync. Must run inside `perform { ... }`.
     func setTrackedRegion(_ tracked: Bool, id: String) async throws
 
-    /// Upsert a primary (tracked) region: ensure a row exists for `id`, then
-    /// store its `appearance` (clearing the stored look when `nil`) and pick
-    /// `order`. Adding is the primary-picker's write path — it both tracks the
-    /// region and records its look — while removal still goes through
-    /// ``setTrackedRegion(_:id:)`` with `false`. Must run inside `perform { ... }`.
-    func setPrimaryRegion(_ appearance: RegionAppearance?, id: String, order: Int?) async throws
+    /// Replace the entire primary set with `regions`: upsert a row per entry
+    /// (storing its `appearance` — cleared when `nil` — and pick `order`) and
+    /// delete every tracked row not in `regions`. The picker/customization
+    /// commit path — the ordered list fully describes the primary (tracked) set,
+    /// so removals happen by omission rather than a separate call. Must run
+    /// inside `perform { ... }`.
+    func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws
 }
 
 extension WhereStore {
@@ -153,12 +154,7 @@ extension WhereStore {
     /// fakes that don't exercise tracked-region persistence inherit the no-op.
     public func setTrackedRegion(_: Bool, id _: String) async throws {}
 
-    /// Default: a no-op. `SwiftDataStore` overrides this to persist the row plus
-    /// its appearance/order; test fakes that don't exercise persistence inherit
-    /// the no-op.
-    public func setPrimaryRegion(
-        _: RegionAppearance?,
-        id _: String,
-        order _: Int?,
-    ) async throws {}
+    /// Default: a no-op. `SwiftDataStore` overrides this to replace the persisted
+    /// rows; test fakes that don't exercise persistence inherit the no-op.
+    public func setPrimaryRegions(_: [PrimaryRegion]) async throws {}
 }

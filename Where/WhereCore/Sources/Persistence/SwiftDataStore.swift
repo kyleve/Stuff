@@ -743,29 +743,35 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return resolved
     }
 
-    public func setPrimaryRegion(
-        _ appearance: RegionAppearance?,
-        id: String,
-        order: Int?,
-    ) async throws {
+    public func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
         let context = mutationContext()
-        let descriptor = FetchDescriptor<SDTrackedRegion>(
-            predicate: #Predicate { $0.regionID == id },
-        )
-        let existing = try context.fetch(descriptor)
-        // Collapse any accidental duplicate rows to one (CloudKit can't enforce
-        // uniqueness), then upsert the row's membership + appearance + order.
-        let row: SDTrackedRegion
-        if let first = existing.first {
-            for extra in existing.dropFirst() {
-                context.delete(extra)
-            }
-            row = first
-        } else {
-            row = SDTrackedRegion(regionID: id)
-            context.insert(row)
+        let desiredIDs = Set(regions.map(\.region.rawValue))
+        // Delete every tracked row not in the desired set (and any row with a
+        // nil id, which we can't resolve) — removals happen by omission.
+        for row in try context.fetch(FetchDescriptor<SDTrackedRegion>()) {
+            if let id = row.regionID, desiredIDs.contains(id) { continue }
+            context.delete(row)
         }
-        row.apply(appearance: appearance, order: order)
+        // Upsert each desired region's row (membership + appearance + order),
+        // collapsing any accidental duplicate rows to one (CloudKit can't
+        // enforce uniqueness).
+        for entry in regions {
+            let id = entry.region.rawValue
+            let existing = try context.fetch(FetchDescriptor<SDTrackedRegion>(
+                predicate: #Predicate { $0.regionID == id },
+            ))
+            let row: SDTrackedRegion
+            if let first = existing.first {
+                for extra in existing.dropFirst() {
+                    context.delete(extra)
+                }
+                row = first
+            } else {
+                row = SDTrackedRegion(regionID: id)
+                context.insert(row)
+            }
+            row.apply(appearance: entry.appearance, order: entry.order)
+        }
     }
 
     private static func logFault<Record>(forCorrupt _: Record) {

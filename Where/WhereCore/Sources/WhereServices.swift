@@ -264,23 +264,13 @@ public struct WhereServices: Sendable {
         try await store.primaryRegions()
     }
 
-    /// Upsert a primary (tracked) region's appearance + pick order. The
-    /// picker/customization commit path; runs the write inside `perform`.
-    public func setPrimaryRegion(
-        _ appearance: RegionAppearance?,
-        id: String,
-        order: Int?,
-    ) async throws {
+    /// Replace the user's primary (tracked) regions with `regions` — the
+    /// picker/customization commit path. One `perform`, so the whole change
+    /// (upserts + removals-by-omission) is a single atomic transaction that
+    /// pings `changes()` once.
+    public func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
         try await store.perform {
-            try await store.setPrimaryRegion(appearance, id: id, order: order)
-        }
-    }
-
-    /// Remove a primary (tracked) region entirely. Runs the write inside
-    /// `perform`.
-    public func removePrimaryRegion(id: String) async throws {
-        try await store.perform {
-            try await store.setTrackedRegion(false, id: id)
+            try await store.setPrimaryRegions(regions)
         }
     }
 

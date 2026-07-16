@@ -27,10 +27,6 @@ public final class PrimaryRegionSelectionModel {
     /// ``RegionAppearanceCatalog/defaultAppearance(for:)`` until customized.
     private var drafts: [Region: RegionAppearance] = [:]
 
-    /// The regions tracked when the model was created, so the commit can
-    /// untrack the ones the user removed.
-    private let initialRegions: Set<Region>
-
     /// The US jurisdictions from the catalog, in canonical order — the default
     /// `available` set for the picker.
     public static var usRegions: [Region] {
@@ -40,19 +36,18 @@ public final class PrimaryRegionSelectionModel {
     /// A fresh picker with nothing selected (onboarding).
     public init(available: [Region] = PrimaryRegionSelectionModel.usRegions) {
         self.available = available
-        initialRegions = []
     }
 
     /// A picker seeded from the user's existing primary regions (Settings).
     /// Selection and drafts are restored so re-opening the editor shows the
-    /// current picks; regions outside `available` (e.g. legacy non-US defaults)
-    /// are still counted in `initialRegions` so the commit untracks them.
+    /// current picks. Regions outside `available` (e.g. legacy non-US defaults)
+    /// are dropped from the selection — committing then removes them, since the
+    /// commit replaces the whole primary set with what's selected.
     public init(
         existing: [PrimaryRegion],
         available: [Region] = PrimaryRegionSelectionModel.usRegions,
     ) {
         self.available = available
-        initialRegions = Set(existing.map(\.region))
         let offered = Set(available)
         selectedRegions = existing.map(\.region).filter { offered.contains($0) }
         var drafts: [Region: RegionAppearance] = [:]
@@ -117,21 +112,18 @@ public final class PrimaryRegionSelectionModel {
         drafts[region] = appearance
     }
 
-    /// Persist the selection: untrack removed regions, then upsert each picked
-    /// region's appearance and pick order. Runs each write through the services
-    /// layer (which owns the `perform` transaction). Throws on the first
-    /// failure so the caller can surface it — no partial success is hidden.
+    /// The picked regions as ordered ``PrimaryRegion`` values (pick order →
+    /// `order`), each carrying its current appearance draft.
+    public var desiredPrimaryRegions: [PrimaryRegion] {
+        selectedRegions.enumerated().map { index, region in
+            PrimaryRegion(region: region, appearance: appearance(for: region), order: index)
+        }
+    }
+
+    /// Persist the selection by replacing the primary set with it — one atomic
+    /// transaction (upserts + removals-by-omission). Throws on failure so the
+    /// caller can surface it; no partial success is hidden.
     public func commit(using session: WhereSession) async throws {
-        let selected = Set(selectedRegions)
-        for region in initialRegions where !selected.contains(region) {
-            try await session.services.removePrimaryRegion(id: region.rawValue)
-        }
-        for (index, region) in selectedRegions.enumerated() {
-            try await session.services.setPrimaryRegion(
-                appearance(for: region),
-                id: region.rawValue,
-                order: index,
-            )
-        }
+        try await session.services.setPrimaryRegions(desiredPrimaryRegions)
     }
 }
