@@ -10,7 +10,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 ## Scope & dependencies
 
-- **Pure Swift + Foundation**, plus [`LogKit`](../../Shared/LogKit). It must
+- **Pure Swift + Foundation**, plus
+  [`PeriscopeCore`](../../Shared/Periscope/PeriscopeCore) for logging. It must
   **not** import SwiftUI, UIKit, SwiftData, CoreLocation, or `WhereCore` — it is
   the lowest layer of the feature, and `WhereCore` depends on *it*, never the
   reverse.
@@ -45,9 +46,10 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 - **Missing/corrupt bundled geometry (or manifest) is a programmer error** — the
   loader logs a `fault` via `RegionLog` *and* `assertionFailure`s (debug),
   degrading to `.other`/an empty catalog in release rather than crashing.
-- **Logging goes through `RegionLog.channel(_:)`** (subsystem
-  `com.stuff.regionkit`), never `WhereLog` — RegionKit owns its own channel and
-  in-memory store.
+- **Logging goes through `RegionLog`** — a Periscope facade with a `"RegionKit"`
+  root scope and one typed `LogEvent` per collaborator, emitted into
+  `Periscope.shared`. RegionKit owns its own root scope, never `WhereLog`, but
+  shares the process-wide store (the app wires the `PeriscopeStore` sink).
 
 ## Testing
 

@@ -88,7 +88,7 @@ let package = Package(
         .target(
             name: "RegionKit",
             dependencies: [
-                .target(name: "LogKit"),
+                .target(name: "PeriscopeCore"),
             ],
             path: "Where/RegionKit/Sources",
             resources: [
@@ -116,6 +116,9 @@ let package = Package(
                 .target(name: "LifecycleKit"),
                 .target(name: "LogKit"),
                 .target(name: "LogViewerUI"),
+                .target(name: "PeriscopeCore"),
+                .target(name: "PeriscopeTools"),
+                .target(name: "PeriscopeUI"),
                 .target(name: "RegionKit"),
                 .target(name: "SwiftDataInspector"),
             ],
