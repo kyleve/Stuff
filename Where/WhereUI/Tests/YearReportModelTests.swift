@@ -293,6 +293,30 @@ struct YearReportModelTests {
         #expect(report.dataIssueScanInputs.driftThreshold == .km25)
     }
 
+    /// A manual "Find issues now" must re-key `dataIssueScanInputs` even though
+    /// year / report / threshold are unchanged, so an already-open Resolve list
+    /// reloads from the freshly-forced scan rather than keeping a stale one.
+    @Test func rescanForIssuesRekeysScanInputs() async throws {
+        let store = try TestStore()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        let report = YearReportModel(
+            services: services,
+            report: YearReport(year: 2026, days: [], totals: [:]),
+            selectedYear: 2026,
+            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+        )
+
+        let before = report.dataIssueScanInputs
+        await report.rescanForIssues()
+
+        #expect(report.dataIssueScanInputs != before)
+    }
+
     // MARK: - Store-change observer
 
     /// The write path no longer refreshes inline: a manual edit commits, the
