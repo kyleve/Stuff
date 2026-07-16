@@ -15,6 +15,17 @@
     public enum PreviewSupport {
         public static let year = 2026
 
+        /// Fixed "now" for previews and snapshots — midday (Pacific) in the middle
+        /// of the sample year, so "today" chrome (the calendar's current-day
+        /// highlight, formatted dates, missing-day math) renders identically
+        /// whenever a preview or snapshot runs. Snapshot references would
+        /// otherwise churn every real-world day.
+        public static let referenceNow: Date = {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: "America/Los_Angeles")!
+            return calendar.date(from: DateComponents(year: year, month: 7, day: 15, hour: 12))!
+        }()
+
         /// How many days each region gets in the sample data. CA/NY heavy so
         /// the primary/secondary split is obvious.
         static let spread: [RegionDays] = [
@@ -47,6 +58,9 @@
         }
 
         /// In-memory, no-op-backed services shared by every preview fixture.
+        /// Every scheduler seam is a no-op — the issue-alert one included, so the
+        /// launch sequence's `issue-alerts` step can't suspend on a real
+        /// `UNUserNotificationCenter` permission prompt in previews/tests.
         @MainActor
         public static func previewServices() -> WhereServices {
             WhereServices(
@@ -54,6 +68,7 @@
                 locationSource: ScriptedLocationSource(),
                 reminderScheduler: NoopLoggingReminderScheduler(),
                 summaryScheduler: NoopDailySummaryScheduler(),
+                issueAlertScheduler: NoopDataIssueAlertScheduler(),
                 widgetRefresher: NoopWidgetTimelineRefresher(),
             )
         }
@@ -77,7 +92,12 @@
         /// into `#Preview`.
         @MainActor
         public static func loadedYearReportModel() -> YearReportModel {
-            YearReportModel(services: previewServices(), report: sampleReport(), selectedYear: year)
+            YearReportModel(
+                services: previewServices(),
+                report: sampleReport(),
+                selectedYear: year,
+                now: { referenceNow },
+            )
         }
 
         /// An empty report model (in-memory services, no data) for empty-state
@@ -88,6 +108,7 @@
                 services: previewServices(),
                 report: YearReport(year: year, days: [], totals: [:]),
                 selectedYear: year,
+                now: { referenceNow },
             )
         }
 
@@ -110,6 +131,7 @@
                 services: previewServices(),
                 report: YearReport(year: year, days: days, totals: [.other: days.count]),
                 selectedYear: year,
+                now: { referenceNow },
             )
         }
 
@@ -318,10 +340,20 @@
         /// A ready-to-render app model with the sample report injected and
         /// in-memory services behind it (so its `session` is built up front and
         /// `MainTabs` seeds its `YearReportModel` with the sample report).
+        /// Pre-onboarded over in-memory preferences, so `RootView` renders the
+        /// logged-in UI and the host's real `UserDefaults` can't leak in.
         /// Synchronous, so it drops straight into `#Preview`.
         @MainActor
         public static func loadedModel() -> WhereModel {
-            WhereModel(services: previewServices(), report: sampleReport(), selectedYear: year)
+            let preferences = WherePreferences(store: InMemoryKeyValueStore())
+            preferences.hasOnboarded = true
+            return WhereModel(
+                services: previewServices(),
+                report: sampleReport(),
+                selectedYear: year,
+                preferences: preferences,
+                now: { referenceNow },
+            )
         }
 
         /// A widget snapshot built from the sample year totals, for widget
