@@ -60,6 +60,7 @@ extension UIView {
         guard bounds.width >= 1, bounds.height >= 1 else { return nil }
         let format = UIGraphicsImageRendererFormat()
         format.scale = 0.25
+        format.preferredRange = .standard
         let image = UIGraphicsImageRenderer(bounds: bounds, format: format).image { _ in
             drawHierarchy(in: bounds, afterScreenUpdates: true)
         }

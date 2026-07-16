@@ -38,6 +38,11 @@ final class SnapshotWrappingViewController: UIViewController {
 /// Captures the wrapping controller's content view in `tileDimension`-sized tiles
 /// and stitches them into one image, working around the oversized-view empty-image
 /// bug. For content within a single tile this is a single full-size capture.
+///
+/// Both renderers pin `preferredRange = .standard` (sRGB): the default extended
+/// range produces wide-gamut captures whose pixel values shift when flushed to
+/// PNG, which made the perceptual compare diff in-memory captures against
+/// on-disk references nondeterministically.
 @MainActor
 func tileAndStitchImage(of wrappingViewController: SnapshotWrappingViewController) -> UIImage {
     guard let contentView = wrappingViewController.content.view else {
@@ -45,6 +50,9 @@ func tileAndStitchImage(of wrappingViewController: SnapshotWrappingViewControlle
     }
     let frameView = wrappingViewController.view!
     frameView.addSubview(contentView)
+
+    let rendererFormat = UIGraphicsImageRendererFormat()
+    rendererFormat.preferredRange = .standard
 
     let contentSize = contentView.bounds.size
     var tileRect = CGRect.zero
@@ -64,9 +72,10 @@ func tileAndStitchImage(of wrappingViewController: SnapshotWrappingViewControlle
             contentView.frame.origin = CGPoint(x: -tileRect.minX, y: -tileRect.minY)
             CATransaction.performWithoutAnimation(frameView.layoutIfNeeded)
 
-            let tile = UIGraphicsImageRenderer(bounds: frameView.bounds).image { _ in
-                frameView.drawHierarchy(in: frameView.bounds, afterScreenUpdates: true)
-            }
+            let tile = UIGraphicsImageRenderer(bounds: frameView.bounds, format: rendererFormat)
+                .image { _ in
+                    frameView.drawHierarchy(in: frameView.bounds, afterScreenUpdates: true)
+                }
             row.append(tile)
             tileRect.origin.x += tileDimension
         }
@@ -76,7 +85,10 @@ func tileAndStitchImage(of wrappingViewController: SnapshotWrappingViewControlle
         tileRect.origin.y += tileDimension
     }
 
-    return UIGraphicsImageRenderer(bounds: CGRect(origin: .zero, size: contentSize)).image { _ in
+    return UIGraphicsImageRenderer(
+        bounds: CGRect(origin: .zero, size: contentSize),
+        format: rendererFormat,
+    ).image { _ in
         var drawPoint = CGPoint.zero
         for row in rows {
             for tile in row {

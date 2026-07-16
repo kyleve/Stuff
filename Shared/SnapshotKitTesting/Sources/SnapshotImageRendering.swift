@@ -41,6 +41,12 @@ public enum SnapshotSizing: Sendable {
 /// does this) rather than through a synchronous `Snapshotting` pullback, which
 /// could never settle such content.
 ///
+/// The returned image is round-tripped through PNG encoding before it's handed
+/// to the comparison: the perceptual compare must see byte-identical input to
+/// what's flushed to disk, or wide-gamut in-memory captures diff against sRGB
+/// PNG references even when the on-disk artifacts are pixel-identical (the
+/// in-memory-vs-on-disk deltaE flake).
+///
 /// Requires the StuffTestHost key window; call only from a hosted test bundle.
 @MainActor
 public func renderSnapshotImage(
@@ -110,7 +116,16 @@ public func renderSnapshotImage(
         viewController.view.hideTextInputCursors()
         drainInFlightAnimations()
 
-        return tileAndStitchImage(of: wrappingViewController)
+        let image = tileAndStitchImage(of: wrappingViewController)
+        // Round-trip through PNG bytes (preserving scale, which `UIImage(data:)`
+        // alone would reset to 1) so the compare and the disk artifact are the
+        // same bytes — see the doc comment above.
+        guard let pngData = image.pngData(),
+              let decoded = UIImage(data: pngData, scale: image.scale)
+        else {
+            preconditionFailure("Snapshot capture could not be PNG-encoded.")
+        }
+        return decoded
     }
 
     if let safeAreaInsets {
