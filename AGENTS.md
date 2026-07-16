@@ -375,27 +375,32 @@ prefix even when the comment is short or factual.
 ## Cursor Cloud specific instructions
 
 Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 26** with
-**Xcode 26+** and **Tuist** (macOS-only). Treat Linux as a partial dev
-environment: formatting and agent sync work; builds, tests, and running the
-**Where** app require macOS (as in CI on `macos-26`).
+**Xcode 26+** and **Tuist**. Treat Linux as a partial dev environment:
+formatting and agent sync work; **generating the Xcode project, building,
+testing, and running the Where app require macOS** (as in CI on `macos-26`) —
+there is no `xcodebuild`/`xcrun` toolchain on Linux.
+
+The startup update script pre-installs `mise` (in `~/.local/bin`, activated in
+`~/.bashrc`), the pinned tools from `.mise.toml` (`mise install`), and Ruby, so
+these commands are ready without any manual install.
 
 ### What works on Linux
 
 | Check | Command |
 |-------|---------|
-| Trust mise config | `mise trust` (once per clone) |
-| Install SwiftFormat | `mise install swiftformat@0.60.1` |
-| Format lint (CI `format` job equivalent) | `mise exec swiftformat -- swiftformat --lint .` |
-| Agent file sync | `./sync-agents` or `./sync-agents --install` |
+| Format lint (CI `format` job equivalent) | `mise exec swiftformat -- swiftformat --lint .` — or `./swiftformat --lint` |
+| Agent file sync | `./sync-agents` (generate CLAUDE.md) / `./sync-agents --install` (fetch external skills) |
 | Git hooks path | `git config core.hooksPath .githooks` (also done by `./ide`) |
-
-Install **Ruby** if missing (`apt-get install ruby`) — required by `sync-agents`.
 
 ### What does not work on Linux
 
-- **Tuist** (`mise install` / `mise install tuist` fails: `unsupported env: linux/amd64`)
-- `./ide`, `./swiftformat`, and the pre-commit hook — they call `mise exec -- …`, which tries to install **all** tools from `.mise.toml` including Tuist
-- `tuist test`, `tuist build`, iOS Simulator, and running the **Where** app
+- The Linux **Tuist** binary installs and runs (`mise install`, `tuist version`
+  work), but it is the server-oriented CLI: `tuist generate` is a
+  generation-*inspection* command group, **not** local Xcode-project
+  generation. So `./ide` / `./ide --no-open` fail at the `tuist generate` step
+  (`Unknown option '--no-open'`).
+- `tuist generate` (project), `tuist build`, `tuist test`, the iOS Simulator,
+  and running the **Where** app — all need macOS + Xcode, which the VM lacks.
 
 ### Full build & test (macOS only)
 
