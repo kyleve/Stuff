@@ -230,16 +230,16 @@ public actor DayJournal {
 
     // MARK: - Data resolution dismissals
 
-    public func dismissIssue(key: String) async throws {
-        try await store.perform { try await store.setIssueDismissed(true, key: key) }
+    public func dismissIssue(id: DataIssueID) async throws {
+        try await store.perform { try await store.setIssueDismissed(true, id: id) }
         // Dismissing removes the issue from the unresolved count, so the badge
         // and the "issues to resolve" notification both have to recount. No
         // widget publish: a dismissal doesn't change day data.
         await reconcileIssueState()
     }
 
-    public func restoreIssue(key: String) async throws {
-        try await store.perform { try await store.setIssueDismissed(false, key: key) }
+    public func restoreIssue(id: DataIssueID) async throws {
+        try await store.perform { try await store.setIssueDismissed(false, id: id) }
         await reconcileIssueState()
     }
 }

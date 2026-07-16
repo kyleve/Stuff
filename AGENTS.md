@@ -155,6 +155,15 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   and any `Hashable` converts to `AnyHashable` implicitly at the call site.
   (e.g. `LifecycleStep.id` is `AnyHashable`; the Where app keys its launch steps
   with the `LaunchStepID` enum, and `WherePreferences` keys with a `Keys` enum.)
+- Prefer compiler-**synthesized `Codable`** for domain and persisted types.
+  Reserve a hand-written conformance for two cases: (a) a single-value wire
+  shape — a bare id string or UUID rather than a wrapped object (e.g.
+  `Region` encodes as `"us-CA"`, not `{"rawValue":…}`); and (b) a composite
+  identity key, which should be a `store://` URL via Where's
+  `WhereStoreURLCodable` (parsed/built with `StoreURL`) — never an ad-hoc
+  joined `type:value` string. Don't hand-roll a keyed `Codable` to paper over
+  missing fields from an older shape; reshape the data instead (see the
+  no-in-app-migration rule in [`Where/WhereCore/AGENTS.md`](Where/WhereCore/AGENTS.md)).
 - Don't build closure-based `Binding(get:set:)` values in SwiftUI views; bind
   directly to observable state (`$model.foo`). For a derived binding (e.g.
   mapping an optional error to the `Bool` an `.alert` wants), expose a computed

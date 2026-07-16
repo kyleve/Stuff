@@ -100,7 +100,7 @@ public actor DataIssueScanner {
         let otherDayCoordinates = Dictionary(
             uniqueKeysWithValues: otherLocations.map { ($0.day, $0.points.map(\.coordinate)) },
         )
-        let dismissed = try await reportReader.dismissedIssueKeys()
+        let dismissed = try await reportReader.dismissedIssueIDs()
         let input = DataIssueInput(
             year: year,
             report: report,
@@ -114,7 +114,7 @@ public actor DataIssueScanner {
         let sorted = Self.sortIssues(
             detectors
                 .flatMap { $0.detectAnyIssues(in: input) }
-                .filter { !dismissed.contains($0.id.storageKey) },
+                .filter { !dismissed.contains($0.id) },
         )
         cache = CachedScan(
             year: year,
