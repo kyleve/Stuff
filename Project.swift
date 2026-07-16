@@ -318,6 +318,12 @@ let project = Project(
             sources: ["Shared/SwiftDataInspector/Tests/**"],
         ),
         unitTests(
+            name: "SnapshotKitTests",
+            bundleIdSuffix: "snapshotkit",
+            productDependency: "SnapshotKit",
+            sources: ["Shared/SnapshotKit/Tests/**"],
+        ),
+        unitTests(
             name: "RegionKitTests",
             bundleIdSuffix: "regionkit",
             productDependency: "RegionKit",
@@ -360,6 +366,21 @@ let project = Project(
             bundleIdSuffix: "whereintents",
             productDependency: "WhereIntents",
             sources: ["Where/WhereIntents/Tests/**"],
+        ),
+        // Image snapshot tests for WhereUI. Slow + LFS-backed, so this bundle
+        // runs in its own `snapshot` CI job (see .github/workflows/ci.yml) via
+        // its own `testScheme` below — it is deliberately NOT in the
+        // `Stuff-iOS-Tests` scheme, keeping image snapshots out of the main
+        // `test` job. Lists only `SnapshotKitTesting` in `extraPackageProducts`:
+        // `SnapshotKit` arrives transitively through WhereUI, so re-listing it
+        // (or any other WhereUI transitive) would land a duplicate copy — the
+        // same rule as WhereUITests above (see the root AGENTS.md "Targets" note).
+        unitTests(
+            name: "WhereUISnapshotTests",
+            bundleIdSuffix: "whereui.snapshot",
+            productDependency: "WhereUI",
+            sources: ["Where/WhereUI/SnapshotTests/**"],
+            extraPackageProducts: ["SnapshotKitTesting"],
         ),
         .target(
             name: "BroadwayCatalog",
@@ -439,6 +460,7 @@ let project = Project(
                 "PeriscopeUITests",
                 "PeriscopeToolsTests",
                 "SwiftDataInspectorTests",
+                "SnapshotKitTests",
                 "RegionKitTests",
                 "WhereCoreTests",
                 "WhereTests",
@@ -459,6 +481,7 @@ let project = Project(
                 "PeriscopeUITests",
                 "PeriscopeToolsTests",
                 "SwiftDataInspectorTests",
+                "SnapshotKitTests",
                 "RegionKitTests",
                 "WhereCoreTests",
                 "WhereTests",
@@ -478,10 +501,12 @@ let project = Project(
         testScheme(name: "PeriscopeUITests"),
         testScheme(name: "PeriscopeToolsTests"),
         testScheme(name: "SwiftDataInspectorTests"),
+        testScheme(name: "SnapshotKitTests"),
         testScheme(name: "RegionKitTests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
+        testScheme(name: "WhereUISnapshotTests"),
         testScheme(name: "WhereIntentsTests"),
         testScheme(name: "BroadwayCoreTests"),
         testScheme(name: "BroadwayUITests"),
