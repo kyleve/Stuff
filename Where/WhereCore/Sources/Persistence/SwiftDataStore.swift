@@ -313,19 +313,26 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// in-flight outermost `perform` completes. Reentrancy-safe: the
     /// `isTransacting` check and the waiter enqueue happen without an
     /// intervening `await`, so a releasing `endExclusive` can't slip between
-    /// them and drop the wakeup.
+    /// them and drop the wakeup. Ownership is handed directly to a woken waiter
+    /// (see `endExclusive`), so on resume it already owns the slot — no re-check
+    /// and no re-enqueue.
     private func beginExclusive() async {
-        while isTransacting {
+        if isTransacting {
             await withCheckedContinuation { transactionWaiters.append($0) }
+        } else {
+            isTransacting = true
         }
-        isTransacting = true
     }
 
-    /// Release the transaction slot and wake the next waiter, if any.
+    /// Release the transaction slot. With a waiter queued, ownership is handed
+    /// directly to the next one in FIFO order — `isTransacting` stays `true` so
+    /// no fresh caller can slip in ahead of it; otherwise the slot goes idle.
     private func endExclusive() {
-        isTransacting = false
-        guard !transactionWaiters.isEmpty else { return }
-        transactionWaiters.removeFirst().resume()
+        if transactionWaiters.isEmpty {
+            isTransacting = false
+        } else {
+            transactionWaiters.removeFirst().resume()
+        }
     }
 
     public func perform<T: Sendable>(
