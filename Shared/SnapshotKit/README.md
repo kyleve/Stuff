@@ -27,6 +27,15 @@ capture + comparison pipeline lives in the sibling
 - **`snapshotTraits(_:)`** — applies a configuration's traits to a view for the
   preview cutsheet (color scheme, Dynamic Type, and an increased-contrast trait
   override).
+- **`\.isCapturingSnapshot`** — an environment flag that is `true` while
+  `SnapshotKitTesting` captures the view (and in the preview cutsheet, which
+  mirrors the tests). A view may read it **only** to render a deterministic
+  end-state of motion — an animation's final frame, a canonical phase of a
+  looping indicator — never to change layout, content, or behavior. Views that
+  don't opt in are still settled by the pipeline's pixel-stability loop; the
+  flag exists for motion that never settles (`repeatForever`,
+  `TimelineView(.animation)`). It is bridged from a UIKit trait
+  (`SnapshotCaptureTrait`) so it crosses `UIHostingController` boundaries.
 
 ## Quick start
 

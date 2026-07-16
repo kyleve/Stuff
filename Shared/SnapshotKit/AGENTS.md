@@ -28,6 +28,12 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 - **`.accessibility` configs are preview-filtered.** `snapshotPreviews` drops
   them because VoiceOver annotations require the test-only library; they only
   render as snapshot tests. Don't "fix" previews to include them.
+- **`\.isCapturingSnapshot` is for motion end-states only.** The trait-bridged
+  environment flag (`SnapshotCaptureFlag.swift`) is set by the test pipeline
+  and the preview cutsheet; a view may read it only to freeze motion at a
+  deterministic phase — never to change layout, content, or behavior. It is a
+  UIKit trait bridge (not `@Entry`) so it reaches SwiftUI through the
+  re-hosting the capture pipeline does.
 - **Design-system-agnostic.** SnapshotKit never imports Broadway/WhereUI; the
   Broadway root wrap is a consumer concern (`WhereUI`'s `whereSnapshot(...)`).
 

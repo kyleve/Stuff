@@ -1,3 +1,4 @@
+import SnapshotKit
 import SnapshotTesting
 import TestHostSupport
 import UIKit
@@ -28,6 +29,11 @@ public enum SnapshotSizing: Sendable {
 /// is taken through a tile-and-stitch wrapper so views taller/wider than ~2000pt
 /// (which UIKit otherwise renders blank) come out whole.
 ///
+/// The captured controller gets `SnapshotCaptureTrait` overridden to `true`, so
+/// hosted SwiftUI content reads `\.isCapturingSnapshot` as `true` (via the
+/// trait-bridged key in `SnapshotKit`) and can render a deterministic end-state
+/// of motion that would otherwise never settle.
+///
 /// `async` is load-bearing, not a convenience: the settle phase must *suspend*
 /// (freeing the main actor) for SwiftUI `.task`-driven content to load — see
 /// ``settleContent(_:minDuration:maxDuration:)``. Callers assert on the returned
@@ -55,8 +61,15 @@ public func renderSnapshotImage(
         UIView.setAnimationsEnabled(false)
         defer {
             viewController.view.frame = initialContentFrame
+            viewController.traitOverrides.remove(SnapshotCaptureTrait.self)
             UIView.setAnimationsEnabled(animationsWereEnabled)
         }
+
+        // Set on the content controller itself (not a wrapper) so it survives
+        // re-hosting between the intrinsic-measurement probe and the capture
+        // wrapper; UIKit propagates it down the tree and the bridged key
+        // surfaces it to SwiftUI as `\.isCapturingSnapshot`.
+        viewController.traitOverrides[SnapshotCaptureTrait.self] = true
 
         await resolveContentSize(
             of: viewController,

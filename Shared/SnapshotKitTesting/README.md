@@ -27,6 +27,11 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
 - **Accessibility captures** — for `.accessibility` configurations, content is
   wrapped so the image is annotated with the VoiceOver reading order, labels,
   traits, and activation points.
+- **`\.isCapturingSnapshot`** — the pipeline overrides `SnapshotCaptureTrait`
+  on every captured controller, so SwiftUI content reads the SnapshotKit
+  environment flag as `true` and can freeze never-settling motion
+  (`repeatForever`, `TimelineView(.animation)`) at a deterministic phase. See
+  the contract on the property in `SnapshotKit`.
 
 ## Quick start
 

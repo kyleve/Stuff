@@ -49,6 +49,9 @@ extension SnapshotCase: View {
                         .foregroundStyle(.secondary)
                     framed(for: configuration)
                         .snapshotTraits(configuration)
+                        // Previews mirror what the tests capture, so each
+                        // variant renders its deterministic capture state.
+                        .environment(\.isCapturingSnapshot, true)
                 }
             }
         }

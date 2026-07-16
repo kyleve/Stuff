@@ -29,7 +29,11 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 - **Determinism is pinned.** Reference images are only valid for the fixed
   simulator/scale; the pipeline overrides safe-area insets and quiesces
   animations so the physical device insets and in-flight transitions don't leak
-  into the image.
+  into the image. It also sets `SnapshotCaptureTrait` on the captured
+  controller so views can read `\.isCapturingSnapshot` (SnapshotKit) and freeze
+  never-settling motion at a deterministic phase — set on the *content*
+  controller, not a wrapper, so it survives the intrinsic-measurement
+  re-hosting.
 - **Tile-and-stitch is load-bearing, not legacy.** UIKit still renders a blank
   image for views taller/wider than ~2000pt on the target toolchain (iOS 26.2 —
   verified by a probe during development, guarded by
