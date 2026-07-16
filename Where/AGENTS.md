@@ -51,15 +51,21 @@ Rules the code enforces and agents must preserve:
   refresh inline. The scene's `YearReportModel` subscribes while it's active;
   `DataIssueScanner` drops its cache on the same signal. Launch is driven by
   [`LifecycleKit`](../Shared/LifecycleKit) (see `WhereLaunch` in WhereUI).
-- **All logging goes through `WhereLog.channel(_:)`** with a typed
-  `WhereLog.Category` case, never a raw string. Messages log as `.public`, so
-  keep PII out. `info` = success of an important operation, `warning` =
-  degraded-but-handled, `error`/`fault` = outright failure; hot paths
-  (per-sample persist, widget throttle) stay quiet by design. **RegionKit** logs
-  through its own `RegionLog` facade (subsystem `com.stuff.regionkit`, separate
-  store) since it can't see `WhereLog`; the DEBUG developer log viewer is
-  configured with **both** buffers (`[WhereLog.store, RegionLog.store]`) so it
-  shows a single merged stream.
+- **All logging goes through [Periscope](../Shared/Periscope)** via the
+  `WhereLog` facade — a `"Where"` root `Log` scope with grouping scopes
+  (`location`, `reminders`, `backup`, `widgets`, `session`, `evidence`,
+  `recentActivity`) that each collaborator derives a typed `LogEvent` leaf from
+  (`WhereLog.<group>(SomeLog.self)` / `WhereLog.root(SomeLog.self)`), never a
+  raw string. Events log as `.public`, so keep PII out; catch-path events carry
+  a `LogAttachment.error(_:)`. `info` = success of an important operation,
+  `warning` = degraded-but-handled, `error`/`fault` = outright failure; hot
+  paths (per-sample persist, widget throttle) stay quiet by design. **RegionKit**
+  emits through its own `RegionLog` facade (a separate `"RegionKit"` root scope)
+  since it can't see `WhereLog`, but into the *same* process-wide
+  `Periscope.shared` — the app attaches one `PeriscopeStore` sink at launch, and
+  the DEBUG developer surface (`PeriscopeViewer`) shows every scope subtree in a
+  single stream. Widgets, the share extension, and the intents surface run in
+  their own processes, so their `Periscope.shared` stays OSLog-only (no store).
 - **Location comes through the `LocationSource` protocol** — production is
   `CoreLocationSource`; tests and previews use `ScriptedLocationSource`. Besides
   the passive `sampleStream`, it offers a best-effort one-shot
