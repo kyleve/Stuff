@@ -22,7 +22,6 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - Update deployment target to iOS 27; this allows us to use HistoryObserver for CloudKit/SwiftData over the notification.
 
 ## P0s (Must do)
-- Remove the `waitForOneRunloop` calls added to UI tests; it's a flake paradise.
 - Performance pass (How often is the app booting? Can we only do it on changes of say, 1km or more?)
 - Schedule local push notifications if we haven’t recorded for the day yet
 - Add snapshot images to a new test target
@@ -65,6 +64,7 @@ re-recording:
 # Completed issues
 
 ## P0s (Must do)
+- Remove the `waitForOneRunloop` calls added to UI tests; it's a flake paradise. (the hosting smoke tests that used it were superseded by `WhereUISnapshotTests` and deleted; the helper is gone from `TestHostSupport`)
 
 
 ## P1s (Should do)

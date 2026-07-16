@@ -162,6 +162,13 @@ struct StringsTests {
         #expect(Strings.developerCollapse == "Exit full screen")
     }
 
+    @Test func widgetStringsResolveToCatalogValues() {
+        #expect(Strings.widgetTodayTitle == "Today")
+        #expect(Strings.widgetTodayEmpty == "Nothing logged yet")
+        #expect(Strings.widgetYearTitle(year: 2026) == "Days in 2026")
+        #expect(Strings.widgetYearEmpty == "No days logged")
+    }
+
     @Test func regionMapStringsResolveToCatalogValues() {
         #expect(Strings.regionMapTitle == "Region Map")
         #expect(Strings.regionMapKindPicker == "Geometry")
