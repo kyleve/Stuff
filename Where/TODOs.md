@@ -52,6 +52,16 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - Add comments to strings in xcstrings files
 - Can we code-gen the strings.swift file somehow so we're not referencing the string keys manually?
 
+## Deferred snapshot-test flakiness
+Known nondeterminism in `WhereUISnapshotTests`, accepted for now — scattered
+failures in these areas are expected and shouldn't be papered over by blind
+re-recording:
+
+- fix: `debugLogViewer` snapshots render the live shared `WhereLog` buffer, so wall-clock timestamps and run-dependent log lines leak into the image. Needs a fixture — a viewer configured over injected/frozen log entries rather than the process's real buffer.
+- fix: Occasional ~20px vertical sheet-offset shift in iPad ax5 sheet captures (seen on `calendar.WithData_iPad_ax5`) — the sheet/scroll settling position varies between runs.
+- fix: Verify runs reported large in-memory CILabDeltaE mismatches while the on-disk failure artifacts were pixel-identical to the references — the in-memory captured image at compare time differed from what was flushed to disk. Root cause unknown; needs investigation before trusting tight perceptual tolerances.
+- fix: `root.LoggedIn` snapshots the empty state, not the seeded sample report: `MainTabs`' `activate()` re-pulls from the empty in-memory store, replacing the injected report. Making sample data survive requires seeding the store itself, not just injecting the report into the model.
+
 # Completed issues
 
 ## P0s (Must do)
