@@ -29,14 +29,16 @@ public struct DaysInRegionSnippetView: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     private var region: Region {
         snapshot.region
     }
 
     public var body: some View {
-        HStack(spacing: stylesheet.spacing.medium) {
-            Text(region.style.emoji)
+        let style = regionStyles.style(for: region)
+        return HStack(spacing: stylesheet.spacing.medium) {
+            Text(style.emoji)
                 // Semantic Dynamic Type face, matching TodayWidgetView's hero
                 // emoji — no hardcoded point size.
                 .font(.largeTitle)
@@ -44,7 +46,7 @@ public struct DaysInRegionSnippetView: View {
             VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
                 Text(snapshot.dayCount, format: .number)
                     .font(.system(.largeTitle, design: .rounded, weight: .bold))
-                    .foregroundStyle(region.style.tint)
+                    .foregroundStyle(style.tint)
                     .contentTransition(.numericText())
                 Text(caption)
                     .font(.subheadline)
@@ -103,6 +105,7 @@ public struct RegionsSnippetView: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     public var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
@@ -124,12 +127,13 @@ public struct RegionsSnippetView: View {
     private var chips: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             ForEach(regions, id: \.self) { region in
+                let style = regionStyles.style(for: region)
                 HStack(spacing: stylesheet.spacing.small) {
-                    Text(region.style.emoji)
+                    Text(style.emoji)
                         .accessibilityHidden(true)
                     Text(region.localizedName)
                         .font(.headline)
-                        .foregroundStyle(region.style.tint)
+                        .foregroundStyle(style.tint)
                 }
             }
         }
@@ -185,7 +189,7 @@ extension RegionsSnippetView {
         ) {
             Button("Log today here") {}
                 .buttonStyle(.borderedProminent)
-                .tint(Region.california.style.tint)
+                .tint(RegionStyle.fallbackStyle(for: .california).tint)
                 .frame(maxWidth: .infinity)
         }
         .whereBroadwayRoot()

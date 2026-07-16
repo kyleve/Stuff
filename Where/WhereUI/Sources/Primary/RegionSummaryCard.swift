@@ -37,13 +37,14 @@ struct RegionSummaryCard: View {
     /// static sheen.
     var tilt: TiltProvider?
 
-    /// An explicit style to render instead of the region's persisted
-    /// `region.style`. The region-customization screen passes the in-progress
+    /// An explicit style to render instead of resolving the region's look from
+    /// `\.regionStyles`. The region-customization screen passes the in-progress
     /// draft appearance so the card previews a pick before it's saved; every
-    /// other caller leaves it `nil` and gets the stored look.
+    /// other caller leaves it `nil` and gets the resolved look.
     var styleOverride: RegionStyle?
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     /// The resolved spec for this card's variant, read once so the rest of the
     /// view is a straight-line render with no `compact` branching.
@@ -52,7 +53,7 @@ struct RegionSummaryCard: View {
     }
 
     private var style: RegionStyle {
-        styleOverride ?? regionDays.region.style
+        styleOverride ?? regionStyles.style(for: regionDays.region)
     }
 
     private var cardShape: RoundedRectangle {

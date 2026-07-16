@@ -35,6 +35,9 @@ public struct DaysInRegionSnippetIntent: SnippetIntent {
             year: resolvedYear,
             dayCount: count,
         )
+        // Seed the region look from the user's picks so the snippet renders the
+        // chosen color/emoji/icon (the intent process has no app view root).
+        let regionStyles = try await RegionStyleResolver(primaryRegions: services.primaryRegions())
         // "Log today here" logs into the *current* year, so it can only change
         // this card's count when the card is showing the current year. Omit it
         // otherwise, rather than offer a button that appears to do nothing.
@@ -43,6 +46,7 @@ public struct DaysInRegionSnippetIntent: SnippetIntent {
                 snapshot: snapshot,
                 region: region,
                 canLogToday: isCurrentYear(resolvedYear),
+                regionStyles: regionStyles,
             ),
         )
     }
@@ -56,10 +60,11 @@ struct DaysInRegionInteractiveSnippet: View {
     let snapshot: DaysInRegionSnapshot
     let region: RegionEntity
     let canLogToday: Bool
+    let regionStyles: RegionStyleResolver
 
     var body: some View {
         content
-            .whereBroadwayRoot()
+            .whereBroadwayRoot(regionStyles: regionStyles)
     }
 
     @ViewBuilder private var content: some View {
@@ -76,7 +81,7 @@ struct DaysInRegionInteractiveSnippet: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(snapshot.region.style.tint)
+                .tint(regionStyles.style(for: snapshot.region).tint)
             }
         } else {
             DaysInRegionSnippetView(snapshot: snapshot)

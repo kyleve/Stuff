@@ -30,30 +30,12 @@ public struct RegionStyle: Sendable {
         )
     }
 
-    /// The region's look: the user's picked appearance if they've customized it
-    /// (via `RegionStyleRegistry`, seeded from the store), otherwise a stable
-    /// fallback — a small table of hand-tuned looks for the regions the app
-    /// shipped with, and an id-derived default for everything else.
-    public static func style(for region: Region) -> RegionStyle {
-        if let appearance = RegionStyleRegistry.shared.appearance(for: region) {
-            return RegionStyle(appearance)
-        }
-        return fallbackStyle(for: region)
-    }
-
     /// The look for a region with no user-picked appearance: the region's
     /// default ``RegionAppearance`` (a hand-tuned look for the regions the app
     /// shipped with, an id-derived default for everything else). Sharing
     /// `RegionAppearanceCatalog.defaultAppearance(for:)` keeps the fallback and
     /// the customization pre-fill in lockstep — a picked appearance always wins.
-    static func fallbackStyle(for region: Region) -> RegionStyle {
+    public static func fallbackStyle(for region: Region) -> RegionStyle {
         RegionStyle(RegionAppearanceCatalog.defaultAppearance(for: region))
-    }
-}
-
-extension Region {
-    /// Convenience accessor so views can write `region.style`.
-    public var style: RegionStyle {
-        RegionStyle.style(for: self)
     }
 }

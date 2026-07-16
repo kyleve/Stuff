@@ -51,12 +51,12 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   with: `TodayWidgetView`, `YearTotalsWidgetView`, and the accessory family
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
   `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot`.
-- **`RegionStyle`** — a region's symbol, emoji, and tint (read as
-  `region.style`); the per-region look shared across cards, calendar dots, and
-  timelines. It resolves the user's picked appearance from `RegionStyleRegistry`
-  (seeded from the store by `WhereSession`, and from the `WidgetSnapshot` in the
-  widget process), falling back to a deterministic default from
-  `RegionAppearanceCatalog`.
+- **`RegionStyle` / `RegionStyleResolver`** — a region's symbol, emoji, and
+  tint, shared across cards, calendar dots, and timelines. Views resolve it from
+  `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by
+  `whereBroadwayRoot(regionStyles:)` — from `WhereSession`'s live resolver in the
+  app, the `WidgetSnapshot` in the widget process, and services in App Intents —
+  falling back to a deterministic default from `RegionAppearanceCatalog`.
 - **`whereBroadwayRoot()`** — seeds the Broadway design-system context so
   descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.

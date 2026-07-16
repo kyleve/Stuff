@@ -24,6 +24,7 @@ struct RegionPickerView: View {
     @State private var mapData: Result<MapData, Error>?
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     private static let logger = WhereLog.channel(.regionAttribution)
 
@@ -85,7 +86,7 @@ struct RegionPickerView: View {
             Map(initialPosition: .region(unitedStatesRegion)) {
                 ForEach(data.outlines) { outline in
                     let selected = outline.region.map(model.isSelected) ?? false
-                    let tint = outline.region?.style.tint ?? .gray
+                    let tint = outline.region.map { regionStyles.style(for: $0).tint } ?? .gray
                     MapPolygon(coordinates: outline.coordinates.clLocationCoordinates)
                         .foregroundStyle(tint.opacity(
                             selected ? style.selectedFillOpacity : style.unselectedFillOpacity,
@@ -213,10 +214,12 @@ private struct RegionPickerRow: View {
     let isSelected: Bool
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     var body: some View {
-        HStack(spacing: stylesheet.spacing.medium) {
-            Text(region.style.emoji)
+        let style = regionStyles.style(for: region)
+        return HStack(spacing: stylesheet.spacing.medium) {
+            Text(style.emoji)
                 .accessibilityHidden(true)
             Text(region.localizedName)
                 .foregroundStyle(.primary)
@@ -224,7 +227,7 @@ private struct RegionPickerRow: View {
             if isSelected {
                 Image(systemName: "checkmark")
                     .fontWeight(.semibold)
-                    .foregroundStyle(region.style.tint)
+                    .foregroundStyle(style.tint)
             }
         }
         .contentShape(.rect)

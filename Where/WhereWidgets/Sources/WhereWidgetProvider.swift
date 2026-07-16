@@ -1,6 +1,5 @@
 import LogKit
 import WhereCore
-import WhereUI
 import WidgetKit
 
 struct WhereWidgetEntry: TimelineEntry {
@@ -51,11 +50,6 @@ struct WhereWidgetProvider: TimelineProvider {
         do {
             let store = try WidgetSnapshotStore.shared()
             if let snapshot = store.read() {
-                // The widget process has no `WhereSession` to seed the styling
-                // registry from the store, so feed it the picked appearances the
-                // snapshot carries — this is what makes `region.style` render the
-                // user's chosen color/emoji/icon in the widget.
-                RegionStyleRegistry.shared.replaceAll(snapshot.appearances)
                 return WhereWidgetEntry(date: now, snapshot: snapshot)
             }
             Self.logger.warning("No published widget snapshot; rendering empty state")

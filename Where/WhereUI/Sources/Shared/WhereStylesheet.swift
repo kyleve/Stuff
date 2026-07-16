@@ -704,8 +704,17 @@ extension View {
     /// directly — it already gets it through `WhereUI` (a dynamic framework), and
     /// a second copy would split Broadway's type-keyed environment metadata (see
     /// the root `AGENTS.md` "Targets" note).
-    public func whereBroadwayRoot() -> some View {
+    ///
+    /// Also seeds `\.regionStyles` so descendants resolve per-region looks
+    /// (`region` cards, calendar dots, widgets, snippets) from one place. The app
+    /// passes `WhereSession`'s live resolver, the widget process one built from
+    /// its `WidgetSnapshot`, and intents one from their services; the default
+    /// empty resolver yields fallback looks (previews, the region-map viewer).
+    public func whereBroadwayRoot(
+        regionStyles: RegionStyleResolver = .default,
+    ) -> some View {
         broadwayRoot(themes: WhereThemes.current)
+            .environment(\.regionStyles, regionStyles)
     }
 }
 

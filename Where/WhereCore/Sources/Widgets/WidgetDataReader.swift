@@ -21,10 +21,10 @@ public struct WidgetSnapshot: Hashable, Sendable, Codable {
     public let totals: [Region: Int]
     /// The user's picked appearances for their primary regions, carried across
     /// the App Group so the widget process can render each region's chosen
-    /// color/emoji/icon (it has no store access and no `WhereSession` to seed
-    /// `RegionStyleRegistry`). Empty for regions the user hasn't customized (and
-    /// for snapshots written before this field existed) — those fall back to the
-    /// default look.
+    /// color/emoji/icon (it has no store access and no `WhereSession`, so it
+    /// seeds its `RegionStyleResolver` from this). Empty for regions the user
+    /// hasn't customized (and for snapshots written before this field existed) —
+    /// those fall back to the default look.
     public let appearances: [Region: RegionAppearance]
 
     public init(

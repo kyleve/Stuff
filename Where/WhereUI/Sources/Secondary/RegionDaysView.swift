@@ -19,6 +19,7 @@ struct RegionDaysView: View {
     @State private var coordinatesByDay: [CalendarDay: [Coordinate]] = [:]
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     private var regionMap: WhereStylesheet.RegionMapStyle {
         stylesheet.regionMap
@@ -71,19 +72,19 @@ struct RegionDaysView: View {
     }
 
     private var map: some View {
-        Map(initialPosition: .automatic) {
+        let tint = regionStyles.style(for: region).tint
+        return Map(initialPosition: .automatic) {
             ForEach(pins) { pin in
                 if let radius = drawnUncertaintyRadius(for: pin) {
                     MapCircle(center: pin.coordinate, radius: radius)
-                        .foregroundStyle(region.style.tint
-                            .opacity(regionMap.uncertaintyFillOpacity))
+                        .foregroundStyle(tint.opacity(regionMap.uncertaintyFillOpacity))
                         .stroke(
-                            region.style.tint.opacity(regionMap.uncertaintyStrokeOpacity),
+                            tint.opacity(regionMap.uncertaintyStrokeOpacity),
                             lineWidth: regionMap.uncertaintyStrokeWidth,
                         )
                 }
                 Marker("", coordinate: pin.coordinate)
-                    .tint(region.style.tint)
+                    .tint(tint)
             }
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))

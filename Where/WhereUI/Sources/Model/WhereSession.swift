@@ -77,10 +77,16 @@ public final class WhereSession {
     /// access to race.
     @ObservationIgnored private nonisolated(unsafe) var authorizationTask: Task<Void, Never>?
 
-    /// Observes `dataChangeUpdates()` to keep `RegionStyleRegistry` in sync with
-    /// the store's picked region appearances. Same `nonisolated(unsafe)` rationale
-    /// as `authorizationTask` — only touched on the main actor except `deinit`.
+    /// Observes `dataChangeUpdates()` to keep ``regionStyles`` in sync with the
+    /// store's picked region appearances. Same `nonisolated(unsafe)` rationale as
+    /// `authorizationTask` — only touched on the main actor except `deinit`.
     @ObservationIgnored private nonisolated(unsafe) var regionStyleTask: Task<Void, Never>?
+
+    /// The user's picked region looks, resolved for the view environment (seeded
+    /// into `whereBroadwayRoot(regionStyles:)` by `RootView`). Loaded at launch
+    /// and kept live on every store change, so a Settings edit or a synced pick
+    /// from another device restyles the UI without a relaunch.
+    public private(set) var regionStyles: RegionStyleResolver = .default
 
     private static let logger = WhereLog.channel(.session)
 
@@ -241,15 +247,15 @@ public final class WhereSession {
         }
     }
 
-    /// Load the user's picked region appearances into `RegionStyleRegistry` so
-    /// `region.style` reflects them everywhere the UI renders a region. A launch
-    /// step (see `WhereLaunch.sequence`); also re-run on every store change via
-    /// `observeRegionStyleChanges()`. On failure the registry keeps its last good
-    /// map (honest degraded state) and the failure is logged.
+    /// Load the user's picked region appearances into ``regionStyles`` so the
+    /// UI resolves them everywhere it renders a region. A launch step (see
+    /// `WhereLaunch.sequence`); also re-run on every store change via
+    /// `observeRegionStyleChanges()`. On failure it keeps the last good resolver
+    /// (honest degraded state) and logs.
     func seedRegionStyles() async {
         do {
             let primary = try await services.primaryRegions()
-            RegionStyleRegistry.shared.replaceAll(from: primary)
+            regionStyles = RegionStyleResolver(primaryRegions: primary)
         } catch {
             Self.logger.warning("Failed to load region appearances for styling")
         }
@@ -257,7 +263,7 @@ public final class WhereSession {
 
     /// Subscribe to store changes (local commits + remote CloudKit imports) so a
     /// customized region's look stays live — a Settings edit or a synced pick on
-    /// another device reseeds `RegionStyleRegistry`. Idempotent.
+    /// another device reloads ``regionStyles``. Idempotent.
     func observeRegionStyleChanges() {
         guard regionStyleTask == nil else { return }
         let services = services

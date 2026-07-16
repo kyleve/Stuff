@@ -17,6 +17,7 @@ public struct YearTotalsWidgetView: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     private var ranked: [RegionDays] {
         snapshot.rankedTotals(maxRows: maxRows)
@@ -47,7 +48,7 @@ public struct YearTotalsWidgetView: View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             ForEach(ranked) { entry in
                 HStack(spacing: stylesheet.spacing.small) {
-                    Text(entry.region.style.emoji)
+                    Text(regionStyles.style(for: entry.region).emoji)
                         .font(.caption)
                         .accessibilityHidden(true)
                     Text(entry.region.localizedName)
@@ -58,7 +59,7 @@ public struct YearTotalsWidgetView: View {
                     Text(entry.days, format: .number)
                         .font(stylesheet.typography.widgetTotalNumber)
                         .monospacedDigit()
-                        .foregroundStyle(entry.region.style.tint)
+                        .foregroundStyle(regionStyles.style(for: entry.region).tint)
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(

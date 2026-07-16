@@ -68,12 +68,17 @@ owned by a single component on `Palette`, the few bespoke display faces on
 `RegionStyle` (not the stylesheet); adaptive system roles (`.secondary`) and
 `.accentColor` stay inline.
 
-`RegionStyle` is **data-driven**: `region.style` resolves the user's picked
-`RegionAppearance` from the process-wide `RegionStyleRegistry` (seeded from the
-store by `WhereSession` on launch + `changes()`, and from the `WidgetSnapshot`
-in the widget process), falling back to `RegionAppearanceCatalog.defaultAppearance(for:)`.
-The catalog also owns the selectable color/emoji/symbol option lists the picker
-shows. Don't reintroduce a hardcoded per-region look in a view.
+`RegionStyle` is **data-driven** and resolved through the environment: views
+read `@Environment(\.regionStyles)` (a `RegionStyleResolver`) and call
+`regionStyles.style(for: region)` — there is no global `region.style`. The
+resolver is seeded by `whereBroadwayRoot(regionStyles:)`: the app passes
+`WhereSession`'s live resolver (updated on launch + `changes()`), the widget
+process one built from its `WidgetSnapshot`, and App Intents snippets one from
+their services; the default empty resolver yields the fallback looks
+(`RegionAppearanceCatalog.defaultAppearance(for:)`) for previews and the
+region-map viewer. The catalog also owns the selectable color/emoji/symbol
+option lists the picker shows. Don't reintroduce a global accessor or a
+hardcoded per-region look in a view.
 
 ### Trait-aware tokens
 
