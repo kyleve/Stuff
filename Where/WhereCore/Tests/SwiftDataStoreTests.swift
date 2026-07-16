@@ -41,6 +41,45 @@ struct SwiftDataStoreTests {
         #expect(await firstPing(stream, within: .seconds(2)))
     }
 
+    /// Two (or more) *outermost* `perform` calls issued from independent tasks
+    /// must be serialized. Because `perform`'s block is `async` and the store is
+    /// an `actor`, naive reentrancy once let a concurrent top-level `perform`
+    /// observe the in-flight peer, take the nested-reuse branch, and then trap in
+    /// `mutationContext()` when the real owner cleared the peer out from under it
+    /// (the shipped crash). Every transaction must now run to completion one at a
+    /// time, and every write must commit.
+    @Test func concurrentOutermostPerformsSerializeAndAllCommit() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let observer = ConcurrencyObserver()
+        let count = 30
+
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            for index in 0 ..< count {
+                group.addTask {
+                    try await store.perform {
+                        await observer.enter()
+                        // Yield inside the transaction to widen the reentrancy
+                        // window the serialization gate must hold shut.
+                        await Task.yield()
+                        try await store.setManualDay(DayPresence(
+                            date: Date(timeIntervalSince1970: TimeInterval(index) * 86400),
+                            in: Self.calendar,
+                            regions: [.california],
+                        ))
+                        await observer.exit()
+                    }
+                }
+            }
+            try await group.waitForAll()
+        }
+
+        // No two transactions were ever in flight simultaneously...
+        #expect(await observer.maxConcurrent == 1)
+        // ...and every write committed (the old bug lost or crashed on writes).
+        let stored = try await store.allManualDays()
+        #expect(stored.count == count)
+    }
+
     @Test func rolledBackWriteDoesNotPingChanges() async throws {
         let store = try SwiftDataStore.inMemory()
         let stream = store.changes()
@@ -208,6 +247,23 @@ struct SwiftDataStoreTests {
         #expect(stored.first?.regions == [.california, .newYork])
         // ...but the newer audit wins.
         #expect(stored.first?.audit == laterAudit)
+    }
+}
+
+/// Tracks the peak number of concurrently-executing transaction blocks so a
+/// test can assert `perform` serialized them (peak of 1). `enter`/`exit`
+/// bracket the block body.
+private actor ConcurrencyObserver {
+    private var current = 0
+    private(set) var maxConcurrent = 0
+
+    func enter() {
+        current += 1
+        maxConcurrent = max(maxConcurrent, current)
+    }
+
+    func exit() {
+        current -= 1
     }
 }
 
