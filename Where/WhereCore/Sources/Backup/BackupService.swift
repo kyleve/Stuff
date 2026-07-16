@@ -34,8 +34,8 @@ public struct BackupService: Sendable {
         /// The zip opened but contained no `manifest.json` at its root — it
         /// is almost certainly not a Where backup.
         case manifestMissing
-        /// The manifest declares a `formatVersion` newer than this build can
-        /// read (the file was produced by a later app version).
+        /// The manifest declares a `formatVersion` this build can't read (it
+        /// must match `BackupArchive.currentFormatVersion` exactly).
         case unsupportedFormatVersion(Int)
 
         public var errorDescription: String? {
@@ -51,7 +51,7 @@ public struct BackupService: Sendable {
                         format: String(
                             localized: "backup.error.unsupportedFormatVersion",
                             defaultValue:
-                            "This backup was created by a newer version of Where (format %lld) and can't be imported.",
+                            "This backup was created by an incompatible version of Where (format %lld) and can't be imported.",
                             bundle: .module,
                         ),
                         version,
@@ -145,11 +145,14 @@ public struct BackupService: Sendable {
         return zipURL
     }
 
-    /// A human-friendly, email-ready filename like `Where Backup 2026-06-05.zip`.
+    /// A human-friendly, email-ready filename like
+    /// `Where Backup 2026-06-05 14.30.zip`. The time uses dots (not colons,
+    /// which are invalid in filenames) so two exports on the same day don't
+    /// collide.
     static func defaultArchiveName(for date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.dateFormat = "yyyy-MM-dd HH.mm"
         return "Where Backup \(formatter.string(from: date)).zip"
     }
 
@@ -173,7 +176,7 @@ public struct BackupService: Sendable {
         }
         let manifestData = try Data(contentsOf: manifestURL)
         let archive = try Self.makeDecoder().decode(BackupArchive.self, from: manifestData)
-        guard archive.formatVersion <= BackupArchive.currentFormatVersion else {
+        guard archive.formatVersion == BackupArchive.currentFormatVersion else {
             throw BackupError.unsupportedFormatVersion(archive.formatVersion)
         }
 

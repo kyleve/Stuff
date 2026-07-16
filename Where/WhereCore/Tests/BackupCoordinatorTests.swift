@@ -43,7 +43,7 @@ struct BackupCoordinatorTests {
     private static let blob = Data("boarding-pass-pdf".utf8)
 
     private static let dismissal = DismissedIssue(
-        key: "borderDrift:1700000000",
+        id: .borderDrift(day: CalendarDay(year: 2026, month: 4, day: 1)),
         dismissedAt: Date(timeIntervalSince1970: 1_700_000_000),
     )
 
@@ -80,7 +80,7 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.allSamples() == source.store.allSamples())
         #expect(try await destination.store.allEvidence() == source.store.allEvidence())
         #expect(try await destination.store.allManualDays() == source.store.allManualDays())
-        // Dismissals come back verbatim (key + original timestamp).
+        // Dismissals come back verbatim (id + original timestamp).
         #expect(try await destination.store.allDismissedIssues() == source.store
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
@@ -123,7 +123,7 @@ struct BackupCoordinatorTests {
             // A preexisting dismissal that the file doesn't contain must be wiped
             // by `.replace` so the device mirrors the file exactly.
             try await destination.store.restoreDismissedIssue(DismissedIssue(
-                key: "missingDays:42",
+                id: .missingDays(start: CalendarDay(year: 2026, month: 1, day: 2)),
                 dismissedAt: Date(timeIntervalSince1970: 1),
             ))
         }

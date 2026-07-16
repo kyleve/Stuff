@@ -232,7 +232,7 @@ public actor BackupCoordinator {
             // with the archive's appearance winning on overlap. `setPrimaryRegions`
             // is a whole-set replace, so a merge builds the full merged list. A
             // handful of rows, so they're not folded into the progress total.
-            let archivePrimary = archive.resolvedPrimaryRegions
+            let archivePrimary = archive.primaryRegions
             let regionsToWrite: [PrimaryRegion] = if strategy == .merge {
                 try await Self.merge(archivePrimary, into: store.primaryRegions())
             } else {
@@ -252,7 +252,7 @@ public actor BackupCoordinator {
             evidenceCount: archive.evidence.count,
             manualDayCount: archive.manualDays.count,
             dismissedIssueCount: archive.dismissedIssues.count,
-            trackedRegionCount: archive.resolvedPrimaryRegions.count,
+            trackedRegionCount: archive.primaryRegions.count,
         )
     }
 

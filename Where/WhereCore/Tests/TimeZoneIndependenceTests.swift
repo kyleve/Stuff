@@ -59,14 +59,20 @@ struct TimeZoneIndependenceTests {
         #expect(!missing.contains(feb8))
     }
 
-    @Test func dismissalKeyIsTimeZoneIndependent() {
-        // The same logical day yields the same dismissal key regardless of any
-        // calendar — dismissals no longer reappear after travel.
+    @Test func dismissalIDStoreURLIsTimeZoneIndependent() {
+        // The same logical day yields the same dismissal identity URL regardless
+        // of any calendar — dismissals no longer reappear after travel — and the
+        // URL round-trips back to the same id.
         let day = CalendarDay(year: 2026, month: 4, day: 1)
-        #expect(DataIssueID.borderDrift(day: day).storageKey == "borderDrift:2026-04-01")
+        let borderDrift = DataIssueID.borderDrift(day: day)
+        #expect(borderDrift.storeURL.absoluteString == "store://issues/borderDrift?day=2026-04-01")
+        #expect(DataIssueID(storeURL: borderDrift.storeURL) == borderDrift)
+
+        let abruptChange = DataIssueID.abruptChange(earlier: day, later: day.adding(days: 1))
         #expect(
-            DataIssueID.abruptChange(earlier: day, later: day.adding(days: 1)).storageKey
-                == "abruptChange:2026-04-01:2026-04-02",
+            abruptChange.storeURL.absoluteString
+                == "store://issues/abruptChange?earlier=2026-04-01&later=2026-04-02",
         )
+        #expect(DataIssueID(storeURL: abruptChange.storeURL) == abruptChange)
     }
 }

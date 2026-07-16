@@ -18,7 +18,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This backup was created by a newer version of Where (format %lld) and can't be imported."
+            "value" : "This backup was created by an incompatible version of Where (format %lld) and can't be imported."
           }
         }
       }

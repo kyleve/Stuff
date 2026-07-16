@@ -39,17 +39,6 @@ public struct CalendarDay: Hashable, Sendable, Codable, Comparable, CustomString
         self.init(year: year, month: month, day: day)
     }
 
-    /// Recover the calendar day a *legacy* start-of-day instant was meant to
-    /// represent, robust to the time zone it was written in. Legacy day keys were
-    /// midnight in the writer's zone; reading such an instant directly in a zone
-    /// west of the writer lands on the previous day, so we nudge ~12h toward local
-    /// noon before reading the components in `calendar`. Correct for every
-    /// realistic zone offset (best-effort only at the ±12h extremes). Used only by
-    /// the `CalendarDay` data migration.
-    public init(recoveringLegacyStartOfDay instant: Date, in calendar: Calendar) {
-        self.init(from: instant.addingTimeInterval(12 * 60 * 60), in: calendar)
-    }
-
     /// Parse the `YYYY-MM-DD` form produced by `description`. Returns `nil` for
     /// anything that isn't three correctly-padded fields *and* a real Gregorian
     /// date, so a corrupt persisted key (`2026-13-01`, `2026-02-31`) can't decode
