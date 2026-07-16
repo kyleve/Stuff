@@ -50,7 +50,7 @@ not back inline in a view.
 Group a component's whole appearance into one nested `Equatable` struct instead
 of adding loose properties to the top level. The existing groups —
 `CardStyle` / `CardStyles`, `CalendarStyle`, `AppIconStyle`, `TimelineStyle`,
-`RegionMapStyle` — are the template. To add one:
+`RegionMapStyle`, `RegionPickerStyle` — are the template. To add one:
 
 1. Define the struct in a `WhereStylesheet` extension with a doc comment saying
    which component it styles and any invariants; nest further structs for
@@ -67,6 +67,13 @@ owned by a single component on `Palette`, the few bespoke display faces on
 `Typography`, and animation tokens on `Motion`. Per-region tints stay in
 `RegionStyle` (not the stylesheet); adaptive system roles (`.secondary`) and
 `.accentColor` stay inline.
+
+`RegionStyle` is **data-driven**: `region.style` resolves the user's picked
+`RegionAppearance` from the process-wide `RegionStyleRegistry` (seeded from the
+store by `WhereSession` on launch + `changes()`, and from the `WidgetSnapshot`
+in the widget process), falling back to `RegionAppearanceCatalog.defaultAppearance(for:)`.
+The catalog also owns the selectable color/emoji/symbol option lists the picker
+shows. Don't reintroduce a hardcoded per-region look in a view.
 
 ### Trait-aware tokens
 

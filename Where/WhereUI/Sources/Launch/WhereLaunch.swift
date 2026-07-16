@@ -148,6 +148,8 @@ public enum WhereLaunch {
             LifecycleStep.work(LaunchStepID.syncAuth) { _ in
                 await model.session?.syncAuthorization()
                 model.session?.observeAuthorizationChanges()
+                await model.session?.seedRegionStyles()
+                model.session?.observeRegionStyleChanges()
             }
             LifecycleStep.work(LaunchStepID.reconcileTracking) { _ in
                 await model.session?.reconcileTracking()

@@ -70,6 +70,38 @@
             WhereSession(services: previewServices())
         }
 
+        // MARK: - Region picker / customization
+
+        /// A primary-region selection model seeded with a few US picks + looks,
+        /// for the picker/customization previews and tests.
+        @MainActor
+        public static func primaryRegionSelectionModel() -> PrimaryRegionSelectionModel {
+            let texas = Region(rawValue: "us-TX")
+            let existing: [PrimaryRegion] = [
+                PrimaryRegion(
+                    region: .california,
+                    appearance: RegionAppearance(
+                        color: .orange,
+                        emoji: "🌴",
+                        symbolName: "sun.max.fill",
+                    ),
+                    order: 0,
+                ),
+                PrimaryRegion(
+                    region: .newYork,
+                    appearance: RegionAppearance(
+                        color: .indigo,
+                        emoji: "🗽",
+                        symbolName: "building.2.fill",
+                    ),
+                    order: 1,
+                ),
+            ] + (texas.map {
+                [PrimaryRegion(region: $0, appearance: nil, order: 2)]
+            } ?? [])
+            return PrimaryRegionSelectionModel(existing: existing)
+        }
+
         // MARK: - Report models (scene / report + year views)
 
         /// A ready-to-render scene report model with the sample report injected

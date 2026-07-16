@@ -21,69 +21,33 @@ public struct RegionStyle: Sendable {
         self.tint = tint
     }
 
-    public static func style(for region: Region) -> RegionStyle {
-        bespokeStyles[region.rawValue] ?? defaultStyle(for: region)
-    }
-
-    /// Hand-tuned looks for the regions the app shipped with (and the `.other`
-    /// catch-all).
-    ///
-    /// TODO: Remove when user-chosen per-region styling lands — these bespoke
-    /// looks become user data (a picked emoji / symbol / tint). Deleting this
-    /// one table cleanly falls back to `defaultStyle(for:)`; nothing else here
-    /// hard-codes a region.
-    private static let bespokeStyles: [String: RegionStyle] = [
-        Region.california.rawValue: RegionStyle(
-            symbolName: "sun.max.fill",
-            emoji: "🌴",
-            tint: .orange,
-        ),
-        Region.newYork.rawValue: RegionStyle(
-            symbolName: "building.2.fill",
-            emoji: "🗽",
-            tint: .indigo,
-        ),
-        Region.canada.rawValue: RegionStyle(symbolName: "leaf.fill", emoji: "🍁", tint: .red),
-        Region.europeanUnion.rawValue: RegionStyle(
-            symbolName: "star.circle.fill",
-            emoji: "🇪🇺",
-            tint: .blue,
-        ),
-        Region.other.rawValue: RegionStyle(
-            symbolName: "location.magnifyingglass",
-            emoji: "🧭",
-            tint: .teal,
-        ),
-    ]
-
-    /// A stable default look for any region without a bespoke entry: a generic
-    /// map-pin symbol/emoji and a tint chosen deterministically from the id, so
-    /// the same region is always the same color across launches.
-    private static func defaultStyle(for region: Region) -> RegionStyle {
-        RegionStyle(
-            symbolName: "mappin.circle.fill",
-            emoji: "📍",
-            tint: defaultPalette[paletteIndex(for: region.rawValue)],
+    /// Build a style from a user-picked ``RegionAppearance`` (token → color).
+    public init(_ appearance: RegionAppearance) {
+        self.init(
+            symbolName: appearance.symbolName,
+            emoji: appearance.emoji,
+            tint: appearance.color.color,
         )
     }
 
-    private static let defaultPalette: [Color] = [
-        .orange,
-        .indigo,
-        .red,
-        .blue,
-        .teal,
-        .green,
-        .mint,
-        .cyan,
-        .purple,
-        .pink,
-        .brown,
-    ]
+    /// The region's look: the user's picked appearance if they've customized it
+    /// (via `RegionStyleRegistry`, seeded from the store), otherwise a stable
+    /// fallback — a small table of hand-tuned looks for the regions the app
+    /// shipped with, and an id-derived default for everything else.
+    public static func style(for region: Region) -> RegionStyle {
+        if let appearance = RegionStyleRegistry.shared.appearance(for: region) {
+            return RegionStyle(appearance)
+        }
+        return fallbackStyle(for: region)
+    }
 
-    private static func paletteIndex(for id: String) -> Int {
-        let sum = id.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
-        return sum % defaultPalette.count
+    /// The look for a region with no user-picked appearance: the region's
+    /// default ``RegionAppearance`` (a hand-tuned look for the regions the app
+    /// shipped with, an id-derived default for everything else). Sharing
+    /// `RegionAppearanceCatalog.defaultAppearance(for:)` keeps the fallback and
+    /// the customization pre-fill in lockstep — a picked appearance always wins.
+    static func fallbackStyle(for region: Region) -> RegionStyle {
+        RegionStyle(RegionAppearanceCatalog.defaultAppearance(for: region))
     }
 }
 

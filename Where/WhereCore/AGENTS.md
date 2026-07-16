@@ -34,6 +34,12 @@ internal shape.
   production `SwiftDataStore` traps otherwise), and each committed transaction
   pings `changes()` — the single signal readers refresh from. The live
   `ModelContainer` is surfaced only for the read-only debug inspector.
+- **Primary regions *are* the tracked-region set.** The picked primary regions
+  (`primaryRegions()` / `setPrimaryRegion(_:id:order:)`) are the same
+  `SDTrackedRegion` rows `trackedRegions()` reads — picking scopes GPS
+  attribution *and* carries each region's `RegionAppearance` (color token /
+  emoji / SF Symbol) + pick order. `RegionAppearance` is data (WhereCore); the
+  token→`Color` mapping and option catalogs are presentation (`WhereUI`).
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (year-month-
   day) is the timezone-independent identity of a day, and it is what every
   *stored user record* and *day comparison* keys on: `DayPresence.day`,

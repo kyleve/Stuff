@@ -26,9 +26,12 @@ one it belongs to rather than to a god-object:
   atomic transaction) and `changes()` emits once per commit and on a CloudKit
   remote import. `SwiftDataStore.make()` is the production, CloudKit-backed
   implementation; `SwiftDataStore.inMemory()` backs tests and previews. It also
-  holds the user's **tracked regions** (`trackedRegions()` /
-  `setTrackedRegion(_:id:)`) — one synced row per region, defaulting to the four
-  until the user chooses.
+  holds the user's **tracked / primary regions** (`trackedRegions()` /
+  `setTrackedRegion(_:id:)`, plus `primaryRegions()` / `setPrimaryRegion(_:id:order:)`
+  which surface and persist each region's picked `RegionAppearance` — color
+  token, emoji, SF Symbol — and pick order alongside the synced row) — one row
+  per region, defaulting to the four until the user chooses in the onboarding /
+  Settings region picker.
 - **`RegionAttribution`** — a live `RegionAttributing` built from the tracked
   regions that rebuilds on `changes()` (a local edit or a remote import), so the
   app + App Intents process attribute against the same synced set. Assemble

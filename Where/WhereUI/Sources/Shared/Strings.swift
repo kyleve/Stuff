@@ -332,6 +332,176 @@ enum Strings {
         String(localized: "onboarding.notNow", defaultValue: "Not Now", bundle: .module)
     }
 
+    static var onboardingBack: String {
+        String(localized: "onboarding.back", defaultValue: "Back", bundle: .module)
+    }
+
+    static var onboardingNext: String {
+        String(localized: "onboarding.next", defaultValue: "Next", bundle: .module)
+    }
+
+    static var onboardingRegionsTitle: String {
+        String(
+            localized: "onboarding.regions.title",
+            defaultValue: "Where do you spend your time?",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingLocationTitle: String {
+        String(
+            localized: "onboarding.location.title",
+            defaultValue: "Turn on location",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingLocationDescription: String {
+        String(
+            localized: "onboarding.location.description",
+            defaultValue: "Where uses background location to log the regions you pass through. You can change this anytime in Settings.",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Region picker
+
+    static var regionPickerTitle: String {
+        String(localized: "regionPicker.title", defaultValue: "Your regions", bundle: .module)
+    }
+
+    static var regionPickerSubtitle: String {
+        String(
+            localized: "regionPicker.subtitle",
+            defaultValue: "Pick up to 5 regions where you spend your time.",
+            bundle: .module,
+        )
+    }
+
+    static var regionPickerModeMap: String {
+        String(localized: "regionPicker.mode.map", defaultValue: "Map", bundle: .module)
+    }
+
+    static var regionPickerModeList: String {
+        String(localized: "regionPicker.mode.list", defaultValue: "List", bundle: .module)
+    }
+
+    /// Accessibility label for the map/list mode switch.
+    static var regionPickerModePicker: String {
+        String(localized: "regionPicker.mode.picker", defaultValue: "View", bundle: .module)
+    }
+
+    static var regionPickerSearchPrompt: String {
+        String(
+            localized: "regionPicker.search.prompt",
+            defaultValue: "Search regions",
+            bundle: .module,
+        )
+    }
+
+    /// "2 of 5 selected".
+    static func regionPickerSelectionCount(selected: Int, max: Int) -> String {
+        String(
+            localized: "regionPicker.selectionCount",
+            defaultValue: "\(selected) of \(max) selected",
+            bundle: .module,
+        )
+    }
+
+    static var regionPickerMapAccessibility: String {
+        String(
+            localized: "regionPicker.map.accessibility",
+            defaultValue: "Map for picking your regions",
+            bundle: .module,
+        )
+    }
+
+    static var regionPickerEmptyTitle: String {
+        String(
+            localized: "regionPicker.empty.title",
+            defaultValue: "No matching regions",
+            bundle: .module,
+        )
+    }
+
+    static var regionPickerLoadErrorTitle: String {
+        String(
+            localized: "regionPicker.loadError.title",
+            defaultValue: "Couldn't load the map",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Region customization
+
+    static var regionCustomizeTitle: String {
+        String(localized: "regionCustomize.title", defaultValue: "Make it yours", bundle: .module)
+    }
+
+    /// "Choose a look for California".
+    static func regionCustomizeSubtitle(region: String) -> String {
+        String(
+            localized: "regionCustomize.subtitle",
+            defaultValue: "Choose a look for \(region)",
+            bundle: .module,
+        )
+    }
+
+    static var regionCustomizeColor: String {
+        String(localized: "regionCustomize.color", defaultValue: "Color", bundle: .module)
+    }
+
+    static var regionCustomizeEmoji: String {
+        String(localized: "regionCustomize.emoji", defaultValue: "Emoji", bundle: .module)
+    }
+
+    static var regionCustomizeSymbol: String {
+        String(localized: "regionCustomize.symbol", defaultValue: "Icon", bundle: .module)
+    }
+
+    /// "Region 2 of 5".
+    static func regionCustomizeStep(current: Int, total: Int) -> String {
+        String(
+            localized: "regionCustomize.step",
+            defaultValue: "Region \(current) of \(total)",
+            bundle: .module,
+        )
+    }
+
+    static func regionColorAccessibility(_ token: RegionColorToken) -> String {
+        String(
+            localized: "regionCustomize.color.accessibility",
+            defaultValue: "Color \(token.rawValue)",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Region management (Settings)
+
+    static var regionsManageTitle: String {
+        String(localized: "regions.manage.title", defaultValue: "Your regions", bundle: .module)
+    }
+
+    static var settingsRegionsSection: String {
+        String(localized: "settings.regions.section", defaultValue: "Regions", bundle: .module)
+    }
+
+    static var settingsRegionsRow: String {
+        String(
+            localized: "settings.regions.row",
+            defaultValue: "Primary regions",
+            bundle: .module,
+        )
+    }
+
+    static var settingsRegionsEmpty: String {
+        String(localized: "settings.regions.empty", defaultValue: "None yet", bundle: .module)
+    }
+
+    static var commonSave: String {
+        String(localized: "common.save", defaultValue: "Save", bundle: .module)
+    }
+
     // MARK: Migration
 
     static var migrationTitle: String {

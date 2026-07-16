@@ -26,6 +26,7 @@ struct SettingsView: View {
     @State private var showClearConfirmation = false
     @State private var showResetConfirmation = false
     @State private var showAppIcon = false
+    @State private var showRegions = false
 
     /// Backup export: the ready-to-share archive built up-front, revealed as a
     /// `ShareLink` once the background export finishes.
@@ -56,6 +57,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 trackingSection
+                regionsSection
                 remindersSection
                 summarySection
                 issueAlertsSection
@@ -74,6 +76,9 @@ struct SettingsView: View {
             .task { await reminders.refreshNotificationAuthorization() }
             .sheet(isPresented: $showAppIcon) {
                 AppIconView()
+            }
+            .sheet(isPresented: $showRegions) {
+                RegionsSettingsView()
             }
             .alert(Strings.settingsPermissionAlertTitle, isPresented: $session.permissionDenied) {
                 Button(Strings.settingsPermissionAlertOpenSettings) { openSystemSettings() }
@@ -124,6 +129,22 @@ struct SettingsView: View {
             } message: { message in
                 Text(message)
             }
+        }
+    }
+
+    private var regionsSection: some View {
+        Section {
+            Button {
+                showRegions = true
+            } label: {
+                LabeledContent {
+                    Text(Strings.settingsRegionsRow)
+                        .foregroundStyle(.secondary)
+                } label: {
+                    Label(Strings.settingsRegionsSection, systemImage: "map.fill")
+                }
+            }
+            .tint(.primary)
         }
     }
 

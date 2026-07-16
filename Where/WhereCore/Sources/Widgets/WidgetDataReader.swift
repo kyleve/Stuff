@@ -19,12 +19,42 @@ public struct WidgetSnapshot: Hashable, Sendable, Codable {
     /// Day counts per region for `year` (a `YearReport.totals`). A day in
     /// two regions counts once for each.
     public let totals: [Region: Int]
+    /// The user's picked appearances for their primary regions, carried across
+    /// the App Group so the widget process can render each region's chosen
+    /// color/emoji/icon (it has no store access and no `WhereSession` to seed
+    /// `RegionStyleRegistry`). Empty for regions the user hasn't customized (and
+    /// for snapshots written before this field existed) — those fall back to the
+    /// default look.
+    public let appearances: [Region: RegionAppearance]
 
-    public init(day: Date, year: Int, dayRegions: Set<Region>, totals: [Region: Int]) {
+    public init(
+        day: Date,
+        year: Int,
+        dayRegions: Set<Region>,
+        totals: [Region: Int],
+        appearances: [Region: RegionAppearance] = [:],
+    ) {
         self.day = day
         self.year = year
         self.dayRegions = dayRegions
         self.totals = totals
+        self.appearances = appearances
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case day, year, dayRegions, totals, appearances
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        day = try container.decode(Date.self, forKey: .day)
+        year = try container.decode(Int.self, forKey: .year)
+        dayRegions = try container.decode(Set<Region>.self, forKey: .dayRegions)
+        totals = try container.decode([Region: Int].self, forKey: .totals)
+        // Additive: snapshots written before `appearances` existed decode to an
+        // empty map rather than failing (the widget then uses default looks).
+        appearances = try container
+            .decodeIfPresent([Region: RegionAppearance].self, forKey: .appearances) ?? [:]
     }
 }
 
@@ -70,11 +100,16 @@ public struct WidgetDataReader: Sendable {
         let dayRegions = report.days
             .first { $0.day == calendarDay }?
             .regions ?? []
+        var appearances: [Region: RegionAppearance] = [:]
+        for primary in try await store.primaryRegions() {
+            if let appearance = primary.appearance { appearances[primary.region] = appearance }
+        }
         return WidgetSnapshot(
             day: startOfDay,
             year: year,
             dayRegions: dayRegions,
             totals: report.totals,
+            appearances: appearances,
         )
     }
 }
