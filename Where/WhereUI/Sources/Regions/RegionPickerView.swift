@@ -17,7 +17,7 @@ struct RegionPickerView: View {
         case list
     }
 
-    @State private var mode: Mode = .map
+    @State private var mode: Mode = .list
     @State private var searchText = ""
     /// Bumped whenever a map tap is ignored because the selection is full, to
     /// drive the warning haptic.
@@ -65,8 +65,11 @@ struct RegionPickerView: View {
         // A capped tap on the map is otherwise silent (unlike the list, which
         // disables rows), so signal it with a warning haptic.
         .sensoryFeedback(.warning, trigger: capacityBumps)
-        .task {
-            if mapData == nil { await loadMap() }
+        // Parse region geometry lazily — only once Map mode is actually shown,
+        // so a user who stays in the default List never pays the ~52-file parse.
+        .task(id: mode) {
+            guard mode == .map, mapData == nil else { return }
+            await loadMap()
         }
     }
 
