@@ -1136,7 +1136,7 @@ enum Strings {
     static var manualRegionsUsedHeader: String {
         String(
             localized: "manual.regions.used.header",
-            defaultValue: "Already on this day",
+            defaultValue: "Already this year",
             bundle: .module,
         )
     }

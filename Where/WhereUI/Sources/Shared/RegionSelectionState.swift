@@ -23,19 +23,16 @@ final class RegionToggleItem: Identifiable {
 /// closure-based `Binding`.
 ///
 /// The full catalog is a long list, so the forms group it: the user's **tracked**
-/// regions first, then any **non-tracked regions this day already uses**, then
-/// **everything else** (collapsed). Membership in those groups is stable while
-/// the form is open — it keys off the *initial* selection and the tracked set
-/// (loaded once via ``applyTracked(_:)``), so toggling a row never makes it jump
-/// sections. Until the tracked set loads, ``trackedRegions`` is `nil` and callers
-/// fall back to the flat ``items`` list.
+/// regions first, then any **non-tracked regions used this year**, then
+/// **everything else** (collapsed). Membership is stable while the form is open —
+/// it keys off the tracked set + the year's used regions (loaded once via
+/// ``applyGrouping(tracked:usedThisYear:)``), so toggling a row never makes it
+/// jump sections. Until that loads, ``trackedRegions`` is `nil` and callers fall
+/// back to the flat ``items`` list. `.other` (the catch-all) always stays in the
+/// "everything else" group, never the used-this-year one.
 @Observable
 final class RegionSelectionState {
     var items: [RegionToggleItem]
-
-    /// The regions selected when the form opened, so the "already on this day"
-    /// group stays fixed as the user toggles.
-    private let initiallySelected: Set<Region>
 
     /// The user's tracked regions, loaded asynchronously by the form. `nil`
     /// until loaded — callers render the flat `items` list meanwhile.
@@ -43,6 +40,10 @@ final class RegionSelectionState {
 
     /// Tracked regions in pick order, for the tracked group's row order.
     private var trackedOrder: [Region] = []
+
+    /// Regions with days in the selected year (`.other` excluded), so a
+    /// non-tracked place the user has been this year is easy to reach.
+    private var usedThisYear: Set<Region> = []
 
     /// - Parameters:
     ///   - regions: the regions to offer as toggles, in order. Defaults to every
@@ -55,21 +56,21 @@ final class RegionSelectionState {
         items = regions.map {
             RegionToggleItem(region: $0, isOn: selectedRegions.contains($0))
         }
-        initiallySelected = selectedRegions
     }
 
     var selectedRegions: Set<Region> {
         Set(items.filter(\.isOn).map(\.region))
     }
 
-    /// Record the user's tracked/primary regions (in pick order) so the form can
-    /// group the toggles. Idempotent-friendly: the form loads once.
-    func applyTracked(_ primaryRegions: [PrimaryRegion]) {
-        trackedOrder = primaryRegions.map(\.region)
+    /// Record the tracked/primary regions (pick order) and the regions used in
+    /// the selected year so the form can group the toggles. The form loads once.
+    func applyGrouping(tracked: [PrimaryRegion], usedThisYear: Set<Region>) {
+        trackedOrder = tracked.map(\.region)
         trackedRegions = Set(trackedOrder)
+        self.usedThisYear = usedThisYear
     }
 
-    /// The tracked regions' rows, in pick order. Empty until ``applyTracked(_:)``.
+    /// The tracked regions' rows, in pick order. Empty until grouping loads.
     var trackedItems: [RegionToggleItem] {
         guard trackedRegions != nil else { return [] }
         let byRegion = Dictionary(
@@ -79,20 +80,23 @@ final class RegionSelectionState {
         return trackedOrder.compactMap { byRegion[$0] }
     }
 
-    /// Rows for regions this day already uses but the user doesn't track — the
-    /// initial selection minus the tracked set. Empty until loaded.
+    /// Rows for non-tracked regions used this year (never `.other`). Empty until
+    /// grouping loads.
     var usedItems: [RegionToggleItem] {
         guard let tracked = trackedRegions else { return [] }
-        return items
-            .filter { initiallySelected.contains($0.region) && !tracked.contains($0.region) }
+        return items.filter { isUsedThisYear($0.region, tracked: tracked) }
     }
 
-    /// Every remaining row — neither tracked nor already on this day. Falls back
-    /// to the full list until the tracked set loads.
+    /// Every remaining row — neither tracked nor used-this-year (plus `.other`).
+    /// Falls back to the full list until grouping loads.
     var otherItems: [RegionToggleItem] {
         guard let tracked = trackedRegions else { return items }
         return items
-            .filter { !tracked.contains($0.region) && !initiallySelected.contains($0.region) }
+            .filter { !tracked.contains($0.region) && !isUsedThisYear($0.region, tracked: tracked) }
+    }
+
+    private func isUsedThisYear(_ region: Region, tracked: Set<Region>) -> Bool {
+        region != .other && !tracked.contains(region) && usedThisYear.contains(region)
     }
 }
 

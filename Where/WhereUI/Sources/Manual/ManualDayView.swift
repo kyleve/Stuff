@@ -64,7 +64,7 @@ struct ManualDayView: View {
             }
         }
         .animation(.default, value: pending)
-        .task { await loadTrackedRegions() }
+        .task { await loadGrouping() }
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -250,15 +250,24 @@ struct ManualDayView: View {
         }
     }
 
-    /// Load the user's tracked/primary regions once so the region toggles can be
-    /// grouped (tracked / already-used / everything else). On failure the form
-    /// keeps the flat list rather than a broken grouping, and logs.
-    private func loadTrackedRegions() async {
+    /// Load the tracked/primary regions + the regions used this year once so the
+    /// toggles can be grouped (tracked / used-this-year / everything else). On
+    /// failure the form keeps the flat list rather than a broken grouping, and
+    /// logs. Expands the collapsed group when a currently-on region landed in it,
+    /// so an existing tag is never hidden.
+    private func loadGrouping() async {
         guard activeRegions.trackedRegions == nil else { return }
+        let usedThisYear = Set(
+            (report.report?.totals ?? [:]).filter { $0.value > 0 }.map(\.key),
+        )
         do {
-            try await activeRegions.applyTracked(report.services.primaryRegions())
+            let tracked = try await report.services.primaryRegions()
+            activeRegions.applyGrouping(tracked: tracked, usedThisYear: usedThisYear)
+            if activeRegions.otherItems.contains(where: \.isOn) {
+                showAllRegions = true
+            }
         } catch {
-            Self.logger.warning("Manual-day form couldn't load tracked regions for grouping")
+            Self.logger.warning("Manual-day form couldn't load regions for grouping")
         }
     }
 

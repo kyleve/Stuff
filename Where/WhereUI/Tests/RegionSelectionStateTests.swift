@@ -3,9 +3,9 @@ import Testing
 @testable import WhereCore
 @testable import WhereUI
 
-/// The manual-day / relabel region toggles group into tracked / already-used /
-/// everything-else once the tracked set loads, and membership stays stable as
-/// rows are toggled.
+/// The manual-day region toggles group into tracked / used-this-year /
+/// everything-else once grouping loads; `.other` always stays in the last group,
+/// and membership stays stable as rows are toggled.
 struct RegionSelectionStateTests {
     private func region(_ id: String) throws -> Region {
         try #require(Region(rawValue: id))
@@ -15,60 +15,65 @@ struct RegionSelectionStateTests {
         regions.enumerated().map { PrimaryRegion(region: $1, appearance: nil, order: $0) }
     }
 
-    @Test func flatUntilTrackedLoads() throws {
+    @Test func flatUntilGroupingLoads() throws {
         let texas = try region("us-TX")
         let state = RegionSelectionState(
             regions: [.california, .newYork, texas, .other],
             selectedRegions: [.newYork],
         )
-        // Before the tracked set loads, callers render the flat list.
         #expect(state.trackedRegions == nil)
         #expect(state.otherItems.map(\.region) == [.california, .newYork, texas, .other])
         #expect(state.trackedItems.isEmpty)
         #expect(state.usedItems.isEmpty)
     }
 
-    @Test func partitionsIntoTrackedUsedAndEverythingElse() throws {
+    @Test func partitionsIntoTrackedUsedThisYearAndEverythingElse() throws {
         let texas = try region("us-TX")
+        let florida = try region("us-FL")
         let state = RegionSelectionState(
-            regions: [.california, .newYork, texas, .other],
-            selectedRegions: [.newYork, .other],
+            regions: [.california, .newYork, texas, florida, .other],
+            selectedRegions: [],
         )
-        state.applyTracked(primary([.california, .newYork]))
+        // Used this year: TX (non-tracked) and .other — .other is excluded from
+        // the used group by design.
+        state.applyGrouping(
+            tracked: primary([.california, .newYork]),
+            usedThisYear: [texas, .other],
+        )
 
-        // Tracked first, in pick order.
         #expect(state.trackedItems.map(\.region) == [.california, .newYork])
-        // Non-tracked but already on this day.
-        #expect(state.usedItems.map(\.region) == [.other])
-        // Everything else.
-        #expect(state.otherItems.map(\.region) == [texas])
+        #expect(state.usedItems.map(\.region) == [texas])
+        // FL (never used) and .other (always here) fall to everything-else.
+        #expect(state.otherItems.map(\.region) == [florida, .other])
     }
 
-    @Test func trackedTakesPrecedenceOverUsed() {
-        let state = RegionSelectionState(
-            regions: [.california, .newYork, .other],
-            selectedRegions: [.california, .other],
-        )
-        state.applyTracked(primary([.california]))
-        // California is tracked *and* initially selected → tracked, not used.
-        #expect(state.trackedItems.map(\.region) == [.california])
-        #expect(state.usedItems.map(\.region) == [.other])
-    }
-
-    @Test func togglingDoesNotChangeSectionMembership() throws {
+    @Test func trackedTakesPrecedenceOverUsedThisYear() throws {
         let texas = try region("us-TX")
         let state = RegionSelectionState(
             regions: [.california, texas, .other],
             selectedRegions: [],
         )
-        state.applyTracked(primary([.california]))
-        #expect(state.otherItems.map(\.region) == [texas, .other])
+        // California is tracked *and* used this year → tracked, not used.
+        state.applyGrouping(tracked: primary([.california]), usedThisYear: [.california, texas])
+        #expect(state.trackedItems.map(\.region) == [.california])
+        #expect(state.usedItems.map(\.region) == [texas])
+    }
 
-        // Turn on a row in "everything else" — it stays there, and the overall
+    @Test func togglingDoesNotChangeSectionMembership() throws {
+        let texas = try region("us-TX")
+        let florida = try region("us-FL")
+        let state = RegionSelectionState(
+            regions: [.california, texas, florida, .other],
+            selectedRegions: [],
+        )
+        state.applyGrouping(tracked: primary([.california]), usedThisYear: [texas])
+        #expect(state.otherItems.map(\.region) == [florida, .other])
+
+        // Turn on a row in everything-else — it stays there, and the overall
         // selection reflects it.
-        let texasItem = try #require(state.otherItems.first { $0.region == texas })
-        texasItem.isOn = true
-        #expect(state.otherItems.map(\.region) == [texas, .other])
-        #expect(state.selectedRegions == [texas])
+        let floridaItem = try #require(state.otherItems.first { $0.region == florida })
+        floridaItem.isOn = true
+        #expect(state.otherItems.map(\.region) == [florida, .other])
+        #expect(state.selectedRegions == [florida])
     }
 }
