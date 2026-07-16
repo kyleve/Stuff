@@ -340,6 +340,26 @@ enum Strings {
         String(localized: "onboarding.next", defaultValue: "Next", bundle: .module)
     }
 
+    static var onboardingRestoreBackup: String {
+        String(
+            localized: "onboarding.restoreBackup",
+            defaultValue: "Restore from a backup",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingRestoreErrorTitle: String {
+        String(
+            localized: "onboarding.restoreError.title",
+            defaultValue: "Couldn't restore backup",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingRestoring: String {
+        String(localized: "onboarding.restoring", defaultValue: "Restoring…", bundle: .module)
+    }
+
     static var onboardingRegionsTitle: String {
         String(
             localized: "onboarding.regions.title",

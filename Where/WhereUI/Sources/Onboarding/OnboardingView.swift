@@ -1,5 +1,6 @@
 import LifecycleKit
 import SwiftUI
+import UniformTypeIdentifiers
 import WhereCore
 
 /// First-run onboarding, run as one interactive launch step. A short paged
@@ -37,6 +38,16 @@ public struct OnboardingView: View {
     @State private var page = 0
     @State private var selection = PrimaryRegionSelectionModel()
     @State private var isFinishing = false
+
+    // Restore-from-backup: the escape hatch that skips manual region setup.
+    @State private var showImporter = false
+    @State private var isRestoring = false
+    @State private var showRestoreError = false
+    @State private var restoreError: String?
+    /// Set once a backup restore succeeds, so the location-finale `finish` skips
+    /// committing the (empty) manual selection — which would otherwise wipe the
+    /// regions the restore just wrote.
+    @State private var didRestoreBackup = false
 
     private static let logger = WhereLog.channel(.model)
 
@@ -87,6 +98,20 @@ public struct OnboardingView: View {
                 .padding(.horizontal, stylesheet.spacing.xxxLarge)
                 .padding(.bottom, stylesheet.spacing.xxxLarge)
         }
+        .fileImporter(
+            isPresented: $showImporter,
+            allowedContentTypes: [.zip],
+            onCompletion: handleRestoreSelection,
+        )
+        .alert(
+            Strings.onboardingRestoreErrorTitle,
+            isPresented: $showRestoreError,
+            presenting: restoreError,
+        ) { _ in
+            Button(Strings.commonOK, role: .cancel) {}
+        } message: { message in
+            Text(message)
+        }
     }
 
     private func pageView(_ page: OnboardingPage) -> some View {
@@ -110,18 +135,29 @@ public struct OnboardingView: View {
     }
 
     private var introFooter: some View {
-        Button {
-            if page < pages.count - 1 {
-                withAnimation { page += 1 }
-            } else {
-                phase = .pickRegions
+        VStack(spacing: stylesheet.spacing.medium) {
+            Button {
+                if page < pages.count - 1 {
+                    withAnimation { page += 1 }
+                } else {
+                    phase = .pickRegions
+                }
+            } label: {
+                Text(Strings.onboardingContinue)
+                    .frame(maxWidth: .infinity)
             }
-        } label: {
-            Text(Strings.onboardingContinue)
-                .frame(maxWidth: .infinity)
+            .buttonStyle(.borderedProminent)
+            .controlSize(.large)
+
+            // Returning users can skip the manual setup by restoring a backup.
+            if isRestoring {
+                ProgressView(Strings.onboardingRestoring)
+            } else {
+                Button(Strings.onboardingRestoreBackup) { showImporter = true }
+                    .controlSize(.large)
+            }
         }
-        .buttonStyle(.borderedProminent)
-        .controlSize(.large)
+        .disabled(isRestoring)
     }
 
     // MARK: - Pick regions
@@ -204,15 +240,53 @@ public struct OnboardingView: View {
             if enableLocation {
                 await session.startTracking()
             }
-            do {
-                try await selection.commit(using: session)
-            } catch {
-                // Don't strand the user in onboarding on a write failure — log
-                // it and continue; they can re-pick in Settings.
-                Self.logger.warning("Failed to commit onboarding region picks")
+            // A restore already wrote the primary regions; committing the (empty)
+            // manual selection here would wipe them, so only commit the picks
+            // when the user came through the manual flow.
+            if !didRestoreBackup {
+                do {
+                    try await selection.commit(using: session)
+                } catch {
+                    // Don't strand the user in onboarding on a write failure —
+                    // log it and continue; they can re-pick in Settings.
+                    Self.logger.warning("Failed to commit onboarding region picks")
+                }
             }
             model.completeOnboarding()
             bridge.complete()
+        }
+    }
+
+    // MARK: - Restore from backup
+
+    private func handleRestoreSelection(_ result: Result<URL, Error>) {
+        switch result {
+            case let .success(url):
+                restore(from: url)
+            case let .failure(error):
+                restoreError = error.localizedDescription
+                showRestoreError = true
+        }
+    }
+
+    /// Import the chosen backup (a fresh install, so `.replace` mirrors the file
+    /// exactly), then skip the manual pick/customize steps straight to the
+    /// location ask. On failure, surface an alert and stay in the intro.
+    private func restore(from url: URL) {
+        guard !isRestoring else { return }
+        isRestoring = true
+        Task {
+            do {
+                _ = try await session.services.backup.importBackup(from: url, strategy: .replace)
+                didRestoreBackup = true
+                isRestoring = false
+                phase = .location
+            } catch {
+                isRestoring = false
+                restoreError = error.localizedDescription
+                showRestoreError = true
+                Self.logger.warning("Onboarding backup restore failed")
+            }
         }
     }
 }

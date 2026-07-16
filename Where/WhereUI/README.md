@@ -42,7 +42,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **`OnboardingView`** — the first-run flow, driven by a `LifecycleStepUIBridge`:
   a paged intro, then picking up to five primary US regions (map or searchable
   list) and giving each a look, then the location-permission ask. It commits the
-  picks as the tracked-region set + appearances before finishing.
+  picks as the tracked-region set + appearances before finishing. The intro also
+  offers **Restore from a backup**, which imports a backup (`.replace`) and skips
+  the manual pick/customize steps straight to the location ask.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and per-region color/emoji/icon customization,
   backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings
