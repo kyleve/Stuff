@@ -1,5 +1,6 @@
 import AppIntents
 import Foundation
+import PeriscopeCore
 import WhereCore
 
 /// "Summarize where I've been this week." — the on-device Foundation Models
@@ -22,7 +23,7 @@ public struct RecentActivitySummaryIntent: AppIntent {
         self.window = window
     }
 
-    private static let logger = WhereLog.channel(.whereIntents)
+    private static let logger = WhereLog.root(WhereIntentsLog.self)
 
     public func perform() async throws -> some IntentResult & ProvidesDialog {
         let services = try await IntentServices.shared.current()
@@ -37,9 +38,7 @@ public struct RecentActivitySummaryIntent: AppIntent {
         } catch let error as ActivitySummaryUnavailableError {
             // User-recoverable (Apple Intelligence off, model warming): surface
             // the reason in the dialog and log it — never a silent empty result.
-            Self.logger.warning(
-                "Recent-activity summary unavailable: \(String(describing: error.reason))",
-            )
+            Self.logger { .recentActivityUnavailable(reason: String(describing: error.reason)) }
             return .result(
                 dialog: IntentDialog("\(IntentStrings.recentActivityUnavailable(error.reason))"),
             )

@@ -131,7 +131,7 @@ let package = Package(
         .target(
             name: "WhereIntents",
             dependencies: [
-                .target(name: "LogKit"),
+                .target(name: "PeriscopeCore"),
                 .target(name: "RegionKit"),
                 .target(name: "WhereCore"),
                 .target(name: "WhereUI"),

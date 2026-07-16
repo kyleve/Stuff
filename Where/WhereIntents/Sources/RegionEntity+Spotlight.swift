@@ -1,5 +1,6 @@
 import AppIntents
 import CoreSpotlight
+import PeriscopeCore
 import RegionKit
 import WhereCore
 
@@ -13,17 +14,19 @@ extension RegionEntity: IndexedEntity {}
 /// (see the app's `AppDelegate`); indexing a handful of items is cheap and
 /// idempotent, and re-runs pick up any change to the tracked set.
 public enum RegionSpotlightIndexer {
-    private static let logger = WhereLog.channel(.whereIntents)
+    private static let logger = WhereLog.root(WhereIntentsLog.self)
 
     public static func indexRegions() async {
         do {
             let entities = try await RegionEntity.tracked(from: IntentServices.shared.current())
             try await CSSearchableIndex.default().indexAppEntities(entities)
-            logger.info("Indexed \(entities.count) region(s) for Spotlight")
+            logger { .spotlightIndexed(regionCount: entities.count) }
         } catch {
             // Degraded-but-handled: search integration is a nicety, so a failure
             // is logged and swallowed rather than surfaced to the user.
-            logger.warning("Failed to index regions for Spotlight: \(error)")
+            logger(attachments: [.error(error, name: "index-error")]) {
+                .spotlightIndexFailed(description: String(describing: error))
+            }
         }
     }
 }

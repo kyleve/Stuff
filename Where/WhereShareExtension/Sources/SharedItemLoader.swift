@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 import UniformTypeIdentifiers
 import WhereCore
 
@@ -28,7 +28,7 @@ struct SharedAttachment {
 /// non-`Sendable` providers are never sent across actors.
 @MainActor
 enum SharedItemLoader {
-    private static let logger = WhereLog.channel(.shareExtension)
+    private static let logger = WhereLog.root(ShareExtensionLog.self)
 
     /// Load every attachment the providers in `items` can produce, one per
     /// provider, in share order. Empty when nothing yields bytes (the compose
@@ -82,7 +82,7 @@ enum SharedItemLoader {
             }
         }
         guard let data else {
-            logger.warning("Failed to load shared \(type.identifier)")
+            logger { .attachmentLoadFailed(typeIdentifier: type.identifier) }
             return nil
         }
         return SharedAttachment(
@@ -110,7 +110,7 @@ enum SharedItemLoader {
             }
         }
         guard let string else {
-            logger.warning("Shared URL provider yielded no readable URL")
+            logger { .urlUnreadable }
             return nil
         }
         return SharedAttachment(

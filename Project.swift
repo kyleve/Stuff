@@ -129,7 +129,7 @@ let project = Project(
             resources: ["Where/WhereWidgets/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
-                .package(product: "LogKit"),
+                .package(product: "PeriscopeCore"),
                 .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
@@ -165,7 +165,7 @@ let project = Project(
             resources: ["Where/WhereShareExtension/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
-                .package(product: "LogKit"),
+                .package(product: "PeriscopeCore"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],

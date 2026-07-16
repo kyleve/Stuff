@@ -1,4 +1,4 @@
-import LogKit
+import PeriscopeCore
 import WhereCore
 import WidgetKit
 
@@ -14,7 +14,7 @@ struct WhereWidgetEntry: TimelineEntry {
 /// even if the app never wakes; the snapshot's data is refreshed by the app
 /// process after each committed write (see `WidgetTimelineRefreshing`).
 struct WhereWidgetProvider: TimelineProvider {
-    private static let logger = WhereLog.channel(.whereWidgets)
+    private static let logger = WhereLog.root(WhereWidgetsLog.self)
     private static let calendar = WidgetSnapshotFixtures.calendar
 
     func placeholder(in _: Context) -> WhereWidgetEntry {
@@ -52,9 +52,11 @@ struct WhereWidgetProvider: TimelineProvider {
             if let snapshot = store.read() {
                 return WhereWidgetEntry(date: now, snapshot: snapshot)
             }
-            Self.logger.warning("No published widget snapshot; rendering empty state")
+            Self.logger { .noPublishedSnapshot }
         } catch {
-            Self.logger.error("Widget App Group unavailable: \(error)")
+            Self.logger(attachments: [.error(error, name: "app-group-error")]) {
+                .appGroupUnavailable(description: String(describing: error))
+            }
         }
         return WhereWidgetEntry(
             date: now,
