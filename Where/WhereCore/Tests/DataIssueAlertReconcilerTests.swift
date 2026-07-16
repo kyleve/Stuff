@@ -130,7 +130,7 @@ struct DataIssueAlertReconcilerTests {
         #expect(!outstanding.isEmpty)
         for issue in outstanding {
             try await h.store.perform {
-                try await h.store.setIssueDismissed(true, key: issue.id.storageKey)
+                try await h.store.setIssueDismissed(true, id: issue.id)
             }
         }
         await h.scanner.invalidate()

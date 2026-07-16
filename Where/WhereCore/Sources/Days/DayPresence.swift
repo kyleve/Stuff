@@ -20,8 +20,7 @@ public struct DayPresence: Hashable, Sendable, Codable {
 
     /// Audit metadata for a *user-made* entry: when it was made, why, and where
     /// the device was at the time. `nil` for GPS-derived days and the
-    /// aggregator's own report-output days (which are never user entries) as
-    /// well as manual records written before this field existed.
+    /// aggregator's own report-output days (which are never user entries).
     public let audit: ManualEntryAudit?
 
     public init(
@@ -59,52 +58,4 @@ public struct DayPresence: Hashable, Sendable, Codable {
     public func startOfDay(in calendar: Calendar) -> Date {
         day.startOfDay(in: calendar)
     }
-
-    private enum CodingKeys: String, CodingKey {
-        case day
-        case date
-        case regions
-        case isAuthoritative
-        case audit
-    }
-
-    /// Custom decode so records and backup archives written before
-    /// `isAuthoritative` / `audit` existed (v1 manifests, pre-existing manual
-    /// days) decode as additive (non-authoritative) with no audit instead of
-    /// failing on the missing keys, and so pre-`CalendarDay` manifests that
-    /// stored an absolute `date` instant still import: the legacy instant is a
-    /// start-of-day in the writer's zone, so we recover its calendar day (see
-    /// `CalendarDay.init(recoveringLegacyStartOfDay:in:)`) using UTC — correct
-    /// for continental writers.
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        if let calendarDay = try container.decodeIfPresent(CalendarDay.self, forKey: .day) {
-            day = calendarDay
-        } else {
-            let legacyInstant = try container.decode(Date.self, forKey: .date)
-            day = CalendarDay(
-                recoveringLegacyStartOfDay: legacyInstant,
-                in: Self.legacyRecoveryCalendar,
-            )
-        }
-        regions = try container.decode(Set<Region>.self, forKey: .regions)
-        isAuthoritative = try container
-            .decodeIfPresent(Bool.self, forKey: .isAuthoritative) ?? false
-        audit = try container.decodeIfPresent(ManualEntryAudit.self, forKey: .audit)
-    }
-
-    public func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(day, forKey: .day)
-        try container.encode(regions, forKey: .regions)
-        try container.encode(isAuthoritative, forKey: .isAuthoritative)
-        try container.encodeIfPresent(audit, forKey: .audit)
-    }
-
-    /// UTC Gregorian calendar for the calendar-free legacy decode fallback.
-    private static let legacyRecoveryCalendar: Calendar = {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
-        return calendar
-    }()
 }

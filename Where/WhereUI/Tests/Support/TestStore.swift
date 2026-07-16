@@ -133,16 +133,16 @@ actor TestStore: WhereStore {
         try await backing.clearAll()
     }
 
-    func dismissedIssueKeys() async throws -> Set<String> {
-        try await backing.dismissedIssueKeys()
+    func dismissedIssueIDs() async throws -> Set<DataIssueID> {
+        try await backing.dismissedIssueIDs()
     }
 
     func allDismissedIssues() async throws -> [DismissedIssue] {
         try await backing.allDismissedIssues()
     }
 
-    func setIssueDismissed(_ dismissed: Bool, key: String) async throws {
-        try await backing.setIssueDismissed(dismissed, key: key)
+    func setIssueDismissed(_ dismissed: Bool, id: DataIssueID) async throws {
+        try await backing.setIssueDismissed(dismissed, id: id)
     }
 
     func restoreDismissedIssue(_ issue: DismissedIssue) async throws {

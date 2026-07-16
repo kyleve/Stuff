@@ -78,14 +78,14 @@ public final class ResolveModel {
     public func dismiss(_ issue: any DataIssue) async {
         guard issue.isDismissible else { return }
         do {
-            try await services.journal.dismissIssue(key: issue.id.storageKey)
+            try await services.journal.dismissIssue(id: issue.id)
             // Optimistically drop the row for instant feedback; the committed
             // write pings the store-change signal, so the scene's `YearReportModel`
             // recomputes the badge count a beat later.
             dataIssues.removeAll { $0.id == issue.id }
         } catch {
             Self.logger.warning(
-                "Failed to dismiss data issue \(issue.id.storageKey): \(error.localizedDescription)",
+                "Failed to dismiss data issue \(issue.id.storeURL): \(error.localizedDescription)",
             )
         }
     }

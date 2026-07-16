@@ -29,7 +29,9 @@ struct BackupModelTests {
             ),
             blob: Data("boarding-pass".utf8),
         )
-        try await services.journal.dismissIssue(key: "borderDrift:1700000000")
+        try await services.journal.dismissIssue(
+            id: .borderDrift(day: CalendarDay(year: 2026, month: 4, day: 1)),
+        )
     }
 
     @Test func exportThenImportRoundTripsThroughTheModel() async throws {
@@ -61,7 +63,7 @@ struct BackupModelTests {
         #expect(try await destinationStore.allEvidence() == sourceStore.allEvidence())
         #expect(try await destinationStore.allManualDays() == sourceStore.allManualDays())
         #expect(
-            try await destinationStore.dismissedIssueKeys() == sourceStore.dismissedIssueKeys(),
+            try await destinationStore.dismissedIssueIDs() == sourceStore.dismissedIssueIDs(),
         )
     }
 
