@@ -42,6 +42,10 @@ struct ManualDayView: View {
     @State private var deleteError = SaveErrorAlertState()
     @State private var showDeleteConfirmation = false
     @State private var pending: PendingWrite?
+    /// Whether the collapsed "more regions" group is expanded.
+    @State private var showAllRegions = false
+
+    private static let logger = WhereLog.channel(.model)
 
     init(report: YearReportModel, mode: Mode, showsCancelButton: Bool = false) {
         self.report = report
@@ -60,6 +64,7 @@ struct ManualDayView: View {
             }
         }
         .animation(.default, value: pending)
+        .task { await loadTrackedRegions() }
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -198,15 +203,62 @@ struct ManualDayView: View {
 
     // MARK: - Shared sections
 
+    @ViewBuilder
     private func regionsSection(_ regions: RegionSelectionState) -> some View {
-        Section {
-            ForEach(regions.items) { item in
-                RegionToggleRow(item: item)
+        if regions.trackedRegions == nil {
+            // Tracked set not loaded yet (or a preview without services): show
+            // the flat catalog list, matching the pre-grouping behavior.
+            Section {
+                ForEach(regions.items) { RegionToggleRow(item: $0) }
+            } header: {
+                Text(Strings.manualRegionsHeader)
+            } footer: {
+                Text(Strings.manualRegionsFooter)
             }
-        } header: {
-            Text(Strings.manualRegionsHeader)
-        } footer: {
-            Text(Strings.manualRegionsFooter)
+        } else {
+            if !regions.trackedItems.isEmpty {
+                Section {
+                    ForEach(regions.trackedItems) { RegionToggleRow(item: $0) }
+                } header: {
+                    Text(Strings.manualRegionsTrackedHeader)
+                } footer: {
+                    Text(Strings.manualRegionsFooter)
+                }
+            }
+            if !regions.usedItems.isEmpty {
+                Section {
+                    ForEach(regions.usedItems) { RegionToggleRow(item: $0) }
+                } header: {
+                    Text(Strings.manualRegionsUsedHeader)
+                }
+            }
+            Section {
+                DisclosureGroup(isExpanded: $showAllRegions) {
+                    ForEach(regions.otherItems) { RegionToggleRow(item: $0) }
+                } label: {
+                    Text(Strings.manualRegionsMore)
+                }
+            }
+        }
+    }
+
+    /// The region-selection state for the active mode.
+    private var activeRegions: RegionSelectionState {
+        switch fields {
+            case let .add(add): add.regions
+            case let .edit(edit): edit.regions
+        }
+    }
+
+    /// Load the user's tracked/primary regions once so the region toggles can be
+    /// grouped (tracked / already-used / everything else). On failure the form
+    /// keeps the flat list rather than a broken grouping, and logs.
+    private func loadTrackedRegions() async {
+        guard activeRegions.trackedRegions == nil else { return }
+        do {
+            try await activeRegions.applyTracked(report.services.primaryRegions())
+        } catch {
+            Self.logger.warning("Manual-day form couldn't load tracked regions for grouping")
         }
     }
 

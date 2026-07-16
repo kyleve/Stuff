@@ -1125,6 +1125,30 @@ enum Strings {
         localized("manual.regions.footer")
     }
 
+    static var manualRegionsTrackedHeader: String {
+        String(
+            localized: "manual.regions.tracked.header",
+            defaultValue: "Your regions",
+            bundle: .module,
+        )
+    }
+
+    static var manualRegionsUsedHeader: String {
+        String(
+            localized: "manual.regions.used.header",
+            defaultValue: "Already on this day",
+            bundle: .module,
+        )
+    }
+
+    static var manualRegionsMore: String {
+        String(
+            localized: "manual.regions.more",
+            defaultValue: "More regions",
+            bundle: .module,
+        )
+    }
+
     static var manualTitle: String {
         localized("manual.title")
     }
