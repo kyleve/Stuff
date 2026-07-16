@@ -99,6 +99,7 @@ let package = Package(
                 .target(name: "TestHostSupport"),
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
                 .product(name: "AccessibilitySnapshot", package: "AccessibilitySnapshot"),
+                .product(name: "AccessibilitySnapshotCore", package: "AccessibilitySnapshot"),
             ],
             path: "Shared/SnapshotKitTesting/Sources",
         ),

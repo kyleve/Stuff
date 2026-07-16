@@ -30,9 +30,16 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   simulator/scale; the pipeline overrides safe-area insets and quiesces
   animations so the physical device insets and in-flight transitions don't leak
   into the image.
-- The porting note for the rendering workarounds (safe-area override, size
-  stabilization, cursor hiding, accessibility wrapper) is recorded only here in
-  the repo — the source files carry no third-party attribution by request.
+- **Tile-and-stitch is load-bearing, not legacy.** UIKit still renders a blank
+  image for views taller/wider than ~2000pt on the target toolchain (iOS 26.2 —
+  verified by a probe during development, guarded by
+  `WhereUISnapshotTests.LargeViewCaptureTests`). Captures go through
+  `SnapshotWrappingViewController` + `tileAndStitchImage`; don't remove the
+  tiling on the assumption the bug is fixed without re-running that check.
+- The rendering workarounds (safe-area override, tile-and-stitch, size
+  stabilization, cursor hiding, animation quiescing, accessibility wrapper) are
+  adapted from a prior art snapshot library; that provenance is recorded only
+  here in the repo — the source files carry no third-party attribution by request.
 
 ## Testing
 
