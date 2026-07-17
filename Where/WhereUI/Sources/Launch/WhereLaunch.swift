@@ -223,21 +223,35 @@ public final class WhereBootstrap {
     }
 
     /// Resolve the process's canonical SwiftData store (opened on the
-    /// canonical-store vendor's executor, off the main actor the migration UI
+    /// canonical-store vendor's executor, off the main actor the splash
     /// renders on — and shared with the App Intents layer, so no second
     /// container ever races this open) and assemble the services from it and
     /// the prepared location source. Throws on persistence failure so the
     /// `open-store` step can surface it.
+    ///
+    /// A failure is logged here as well as thrown: when the failing drive has
+    /// been superseded (e.g. a foreground promotion cancelled it mid-open),
+    /// the runner deliberately discards its error instead of parking in
+    /// `.failed`, so without this line the failure would leave no trace
+    /// anywhere.
     public func makeServices() async throws -> WhereServices {
         let source = locationSource ?? CoreLocationSource()
         locationSource = nil
-        let store = try await SwiftDataStore.canonical()
-        Self.logger.info("WhereServices assembled")
-        return try await WhereServices.make(
-            store: store,
-            locationSource: source,
-            locationOutbox: FileLocationOutbox.applicationSupport(),
-        )
+        do {
+            let store = try await SwiftDataStore.canonical()
+            let services = try await WhereServices.make(
+                store: store,
+                locationSource: source,
+                locationOutbox: FileLocationOutbox.applicationSupport(),
+            )
+            Self.logger.info("WhereServices assembled")
+            return services
+        } catch {
+            Self.logger.error(
+                "Failed to assemble WhereServices: \(error.localizedDescription)",
+            )
+            throw error
+        }
     }
 }
 
