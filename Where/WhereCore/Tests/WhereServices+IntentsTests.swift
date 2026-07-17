@@ -1,12 +1,13 @@
 import Foundation
 import RegionKit
 import Testing
-@testable import WhereCore
+@_spi(Testing) @testable import WhereCore
 
 /// Covers the App Intents composition seam `WhereServices.makeForIntents` — the
-/// GPS-free stack an intent reads and writes through. The public
-/// `forIntents()` opens the real App Group store, so it isn't exercised here;
-/// this drives the same wiring against an in-memory store.
+/// GPS-free stack an intent reads and writes through — driven against an
+/// in-memory store. The public `forIntents()` resolves the process's canonical
+/// store (in-memory under tests); its sharing behavior is pinned by the
+/// serialized `WhereServicesForIntentsCanonicalTests` below.
 struct WhereServicesIntentsTests {
     @Test func stackWritesThroughJournalAndReadsBackThroughReports() async throws {
         let store = try SwiftDataStore.inMemory()
@@ -30,5 +31,35 @@ struct WhereServicesIntentsTests {
         // The idle source backs the ingestor, so a manual entry made from an
         // intent honestly records "no captured location" rather than a fix.
         #expect(await services.ingestor.currentLocation() == nil)
+    }
+}
+
+/// `forIntents()` must build over the process's *canonical* store — the same
+/// instance the app's launch opens — never a second container over the same
+/// store file (the fresh-install creation race this pins). Serialized because
+/// the canonical vendor is process-global state; each test resets it around
+/// its body, and under tests `Storage.default` is `.inMemory`, so nothing here
+/// touches disk.
+@Suite(.serialized)
+struct WhereServicesForIntentsCanonicalTests {
+    @Test func forIntentsSharesTheCanonicalStore() async throws {
+        await SwiftDataStore.resetCanonicalForTesting()
+        let canonical = try await SwiftDataStore.canonical()
+        let first = try await WhereServices.forIntents()
+        let second = try await WhereServices.forIntents()
+        #expect(first.modelContainer === canonical.inspectorContainer)
+        #expect(second.modelContainer === canonical.inspectorContainer)
+        await SwiftDataStore.resetCanonicalForTesting()
+    }
+
+    @Test func forIntentsOpensTheCanonicalStoreWhenItGoesFirst() async throws {
+        // An intent can fire before the app's open-store step (e.g. a Siri
+        // invocation launching the process); whoever resolves first creates
+        // the store, and the launch then reuses it.
+        await SwiftDataStore.resetCanonicalForTesting()
+        let services = try await WhereServices.forIntents()
+        let canonical = try await SwiftDataStore.canonical()
+        #expect(services.modelContainer === canonical.inspectorContainer)
+        await SwiftDataStore.resetCanonicalForTesting()
     }
 }
