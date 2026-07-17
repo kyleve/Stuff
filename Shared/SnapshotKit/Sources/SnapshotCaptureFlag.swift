@@ -43,6 +43,15 @@ extension EnvironmentValues {
     /// pipeline's pixel-stability settle loop remains the fallback for views
     /// that don't opt in; the flag exists for motion that never settles
     /// (`repeatForever` animations, `TimelineView(.animation)`).
+    ///
+    /// **The one carve-out:** externally-loaded, non-deterministic content —
+    /// live map tiles, remote images — may substitute a deterministic
+    /// placeholder of *identical layout* (same frame, same chrome), because no
+    /// settle window can make cache/network-dependent loading pixel-stable.
+    /// Keep the placeholder honest: the view's own chrome (markers, overlays,
+    /// legends) must still render for real; only the externally-loaded
+    /// substrate is substituted (see the Where app's `RegionMapView`).
+    /// Everything else must render real content.
     public var isCapturingSnapshot: Bool {
         get { self[IsCapturingSnapshotKey.self] }
         set { self[IsCapturingSnapshotKey.self] = newValue }

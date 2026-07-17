@@ -1,6 +1,7 @@
 import LogKit
 import MapKit
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -25,6 +26,7 @@ public struct RegionMapView: View {
     @State private var cameraPosition: MapCameraPosition = .automatic
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
 
     /// Public so the standalone `RegionViewer` app (a separate module) can
     /// present the same screen as the in-app developer overlay entry.
@@ -76,15 +78,32 @@ public struct RegionMapView: View {
         }
     }
 
+    /// Snapshot captures substitute the live `Map` with a deterministic
+    /// stand-in of identical layout: MapKit's tile/label loading is
+    /// asynchronous and cache/network-dependent, so no settle window can make
+    /// the real substrate pixel-stable. The view's own overlays (the region
+    /// polygons) still render for real — only the tile substrate is replaced —
+    /// per the `\.isCapturingSnapshot` carve-out for externally-loaded,
+    /// non-deterministic content (see SnapshotKit's `SnapshotCaptureFlag`).
     private func map(for outlines: [RegionOutline]) -> some View {
-        Map(position: $cameraPosition) {
-            ForEach(outlines) { outline in
-                MapPolygon(coordinates: outline.coordinates.clLocationCoordinates)
-                    .foregroundStyle(color(for: outline).opacity(0.25))
-                    .stroke(color(for: outline), lineWidth: 1.5)
+        Group {
+            if isCapturingSnapshot {
+                SnapshotMapStandIn(
+                    outlines: outlines,
+                    region: Self.enclosingRegion(of: outlines),
+                    color: color(for:),
+                )
+            } else {
+                Map(position: $cameraPosition) {
+                    ForEach(outlines) { outline in
+                        MapPolygon(coordinates: outline.coordinates.clLocationCoordinates)
+                            .foregroundStyle(color(for: outline).opacity(0.25))
+                            .stroke(color(for: outline), lineWidth: 1.5)
+                    }
+                }
+                .mapStyle(.standard(pointsOfInterest: .excludingAll))
             }
         }
-        .mapStyle(.standard(pointsOfInterest: .excludingAll))
         .frame(maxHeight: .infinity)
         .accessibilityLabel(Strings.regionMapMapAccessibility)
     }
@@ -195,18 +214,26 @@ public struct RegionMapView: View {
         cameraPosition = Self.cameraPosition(enclosing: outlines)
     }
 
-    /// A camera framed to `outlines` (with a little padding). Latitude
-    /// comes from `BoundingBox` (latitude never wraps); longitude from
-    /// `LongitudeSpan`, which is antimeridian-aware — so filtering to
-    /// Alaska frames the Aleutians tightly instead of zooming out to the
-    /// whole globe (its rings span ~+172° across 180° to ~−130°). Falls
-    /// back to `.automatic` when there's nothing to show.
+    /// A camera framed to `outlines` via ``enclosingRegion(of:)``. Falls back
+    /// to `.automatic` when there's nothing to show.
     private static func cameraPosition(enclosing outlines: [RegionOutline]) -> MapCameraPosition {
+        guard let region = enclosingRegion(of: outlines) else { return .automatic }
+        return .region(region)
+    }
+
+    /// The coordinate region framing `outlines` (with a little padding), or
+    /// `nil` when there's nothing to show. Latitude comes from `BoundingBox`
+    /// (latitude never wraps); longitude from `LongitudeSpan`, which is
+    /// antimeridian-aware — so filtering to Alaska frames the Aleutians
+    /// tightly instead of zooming out to the whole globe (its rings span
+    /// ~+172° across 180° to ~−130°). Shared by the live camera and the
+    /// snapshot stand-in, so both frame identically.
+    fileprivate static func enclosingRegion(of outlines: [RegionOutline]) -> MKCoordinateRegion? {
         guard let box = BoundingBox.enclosing(outlines),
               let longitude = LongitudeSpan.enclosing(
                   outlines.lazy.flatMap { $0.coordinates.lazy.map(\.longitude) },
               )
-        else { return .automatic }
+        else { return nil }
         let center = CLLocationCoordinate2D(
             latitude: (box.minLatitude + box.maxLatitude) / 2,
             longitude: longitude.center,
@@ -215,7 +242,7 @@ public struct RegionMapView: View {
             latitudeDelta: min(max((box.maxLatitude - box.minLatitude) * 1.3, 1), 170),
             longitudeDelta: min(max(longitude.degrees * 1.3, 1), 350),
         )
-        return .region(MKCoordinateRegion(center: center, span: span))
+        return MKCoordinateRegion(center: center, span: span)
     }
 
     // MARK: - Color
@@ -250,6 +277,64 @@ public struct RegionMapView: View {
     private static func paletteIndex(for title: String) -> Int {
         let sum = title.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
         return sum % palette.count
+    }
+}
+
+/// Deterministic stand-in for ``RegionMapView``'s live `Map` under snapshot
+/// capture: the same outlines, drawn with the same fill/stroke styling over a
+/// flat substrate, framed by the same enclosing-region math as the live
+/// camera — identical layout, none of MapKit's cache/network-dependent
+/// tile/label loading.
+///
+/// Coordinates project equirectangularly (a plain degrees-to-points scale
+/// around the region's center, longitude unwrapped across the antimeridian).
+/// That's not MapKit's Mercator, so shapes sit slightly differently than on
+/// the live map — fine for a capture stand-in whose job is a stable, honest
+/// rendering of the view's own overlays.
+private struct SnapshotMapStandIn: View {
+    let outlines: [RegionOutline]
+    /// The frame the live camera would use; `nil` (nothing to show) renders
+    /// just the substrate.
+    let region: MKCoordinateRegion?
+    let color: (RegionOutline) -> Color
+
+    var body: some View {
+        Canvas { context, size in
+            guard let region, size.width > 0, size.height > 0 else { return }
+            // MapKit fits a camera region so both spans are fully visible;
+            // the larger degrees-per-point axis sets the scale here too.
+            let degreesPerPoint = max(
+                region.span.longitudeDelta / size.width,
+                region.span.latitudeDelta / size.height,
+            )
+            guard degreesPerPoint > 0 else { return }
+
+            func point(for coordinate: Coordinate) -> CGPoint {
+                // Unwrap the longitude delta to [-180°, 180°) so a region
+                // straddling the antimeridian stays contiguous.
+                let deltaLongitude = (coordinate.longitude - region.center.longitude + 540)
+                    .truncatingRemainder(dividingBy: 360) - 180
+                return CGPoint(
+                    x: size.width / 2 + deltaLongitude / degreesPerPoint,
+                    y: size.height / 2
+                        + (region.center.latitude - coordinate.latitude) / degreesPerPoint,
+                )
+            }
+
+            for outline in outlines {
+                guard let first = outline.coordinates.first else { continue }
+                var path = Path()
+                path.move(to: point(for: first))
+                for coordinate in outline.coordinates.dropFirst() {
+                    path.addLine(to: point(for: coordinate))
+                }
+                path.closeSubpath()
+                let tint = color(outline)
+                context.fill(path, with: .color(tint.opacity(0.25)))
+                context.stroke(path, with: .color(tint), lineWidth: 1.5)
+            }
+        }
+        .background(Color(.secondarySystemBackground))
     }
 }
 
