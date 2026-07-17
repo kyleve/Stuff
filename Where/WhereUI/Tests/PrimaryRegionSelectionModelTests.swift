@@ -144,6 +144,32 @@ struct PrimaryRegionSelectionModelTests {
         #expect(try await session.services.trackedRegions() == [.california, .newYork])
     }
 
+    @Test func committingAnEmptySelectionWipesExplicitPicks() async throws {
+        // Regression guard for onboarding's restore path: committing an empty
+        // selection *replaces* (deletes) the primary rows, so the store reverts
+        // to the default set — i.e. the user's explicit (or just-restored) picks
+        // are erased. Onboarding therefore must not commit after a restore; it
+        // guards on `hasSelection`. This locks in the destructive behavior so the
+        // reason for the guard stays explicit.
+        let session = PreviewSupport.loadedSession()
+        try await session.services.setPrimaryRegions([
+            PrimaryRegion(
+                region: .california,
+                appearance: RegionAppearanceCatalog.defaultAppearance(for: .california),
+                order: 0,
+            ),
+        ])
+        #expect(try await session.services.trackedRegions() == [.california])
+
+        let model = PrimaryRegionSelectionModel()
+        #expect(!model.hasSelection)
+        try await model.commit(using: session)
+
+        // The explicit California pick is gone; with no rows, the store falls
+        // back to the default set.
+        #expect(try await session.services.trackedRegions() == SwiftDataStore.defaultTrackedRegions)
+    }
+
     @Test func commitUntracksRemovedRegions() async throws {
         let session = PreviewSupport.loadedSession()
         // Seed the store with two picks, then commit an edit that drops one.

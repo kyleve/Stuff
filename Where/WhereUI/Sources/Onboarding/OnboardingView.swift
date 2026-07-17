@@ -44,10 +44,6 @@ public struct OnboardingView: View {
     @State private var isRestoring = false
     @State private var showRestoreError = false
     @State private var restoreError: String?
-    /// Set once a backup restore succeeds, so the location-finale `finish` skips
-    /// committing the (empty) manual selection — which would otherwise wipe the
-    /// regions the restore just wrote.
-    @State private var didRestoreBackup = false
 
     private static let logger = WhereLog.channel(.model)
 
@@ -240,10 +236,14 @@ public struct OnboardingView: View {
             if enableLocation {
                 await session.startTracking()
             }
-            // A restore already wrote the primary regions; committing the (empty)
-            // manual selection here would wipe them, so only commit the picks
-            // when the user came through the manual flow.
-            if !didRestoreBackup {
+            // Only commit when the user actually picked regions in the manual
+            // flow. The restore path reaches here with an empty selection (it
+            // jumps intro → location), and committing empty would replace — i.e.
+            // wipe — the regions the restore just wrote. Guarding on `hasSelection`
+            // (rather than a "did restore" flag) makes that impossible: the
+            // manual flow can't reach `finish` empty (its Next is gated on a
+            // selection), so a non-empty selection is exactly "the user picked".
+            if selection.hasSelection {
                 do {
                     try await selection.commit(using: session)
                 } catch {
@@ -278,7 +278,6 @@ public struct OnboardingView: View {
         Task {
             do {
                 _ = try await session.services.backup.importBackup(from: url, strategy: .replace)
-                didRestoreBackup = true
                 isRestoring = false
                 phase = .location
             } catch {

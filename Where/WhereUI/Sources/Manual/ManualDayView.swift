@@ -241,6 +241,10 @@ struct ManualDayView: View {
     /// logs.
     private func loadGrouping() async {
         guard activeRegions.trackedRegions == nil else { return }
+        // "Used this year" is the *selected report year* — the year this form is
+        // reached for (logged-days list / relabel are per-report-year), so it
+        // matches the day being edited in practice. It only drives grouping
+        // order, not what gets saved.
         let usedThisYear = Set(
             (report.report?.totals ?? [:]).filter { $0.value > 0 }.map(\.key),
         )

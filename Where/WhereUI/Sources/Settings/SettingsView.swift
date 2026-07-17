@@ -138,9 +138,9 @@ struct SettingsView: View {
         }
     }
 
-    /// Regions with days in the selected year, so the region editor can surface
-    /// a "used this year" group. `.other` isn't a pickable region, so it's
-    /// dropped.
+    /// Regions with days in the selected report year, so the region editor can
+    /// surface a "used this year" group (grouping order only — it doesn't affect
+    /// what's saved). `.other` isn't a pickable region, so it's dropped.
     private var regionsUsedThisYear: Set<Region> {
         guard let totals = report.report?.totals else { return [] }
         return Set(totals.filter { $0.key != .other && $0.value > 0 }.map(\.key))
