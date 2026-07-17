@@ -80,9 +80,17 @@ shape (no `extraPackageProducts`; everything arrives transitively through
 WhereUI). Internal types are reached via `@testable import WhereIntents`.
 
 **Never call an intent's `perform()` in a test.** `perform()` resolves its
-`@Dependency` from the process-wide `AppDependencyManager` — in the shared
-test host nothing registers one (the resolution traps), or worse, another
-bundle's app-launch test may have registered a handoff the intent would
-silently ride. Test the read/write logic against injected services, and test
-the handoff itself on per-test `IntentServices` instances (see
-`IntentServicesTests`).
+`@Dependency` from the process-wide `AppDependencyManager` — in
+`StuffTestHost`-hosted bundles nothing registers one (the resolution traps),
+and in the app-hosted `WhereTests` process the host app's own launch *does*
+register a handoff over its in-memory store, which an intent would silently
+ride. Test the read/write logic against injected services, and test the
+handoff itself on per-test `IntentServices` instances (see
+`IntentServicesTests`). The registration→`@Dependency` plumbing itself is
+**not unit-testable**: the framework fatal-errors on any `@Dependency` access
+outside "the intent perform flow" (a probe was tried and trapped), so that
+seam is verified by invoking a Siri/Shortcuts intent on a device. Also don't
+add tests that construct an `AppDelegate` — each `didFinishLaunching`
+re-registers the handoff, and `AppDependencyManager`'s re-registration
+behavior is undocumented (the one existing launch test plus the host app's
+own launch is the tolerated known case).

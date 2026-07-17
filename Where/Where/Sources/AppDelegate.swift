@@ -40,6 +40,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // The provider-closure overload (not the autoclosure one) lets the
         // capture list carry the Sendable actor reference explicitly, without
         // touching `self` at resolution time.
+        //
+        // Note the registration→resolution plumbing is deliberately untested:
+        // `@Dependency` fatal-errors outside "the intent perform flow", so no
+        // in-process test can resolve it (a probe was tried and trapped) —
+        // verifying it means invoking a Siri/Shortcuts intent on a device.
+        // In production this runs exactly once per process. The app-hosted
+        // WhereTests bundle re-registers (host launch + the delegate-building
+        // test) and AppDependencyManager tolerates that, but the behavior is
+        // undocumented — don't add tests that build further AppDelegates.
         AppDependencyManager.shared
             .add(dependency: { [intentServices = self.intentServices] in intentServices })
         // A `.background` launch state means iOS woke us headless (replacing the
