@@ -34,44 +34,61 @@ internal shape.
   production `SwiftDataStore` traps otherwise), and each committed transaction
   pings `changes()` — the single signal readers refresh from. The live
   `ModelContainer` is surfaced only for the read-only debug inspector.
+  Each process opens its on-disk store **once** and injects it — the app's
+  launch opens it, and the App Intents stack shares it via
+  `WhereServices.forIntents(sharingStoreOf:)` — rather than a second caller
+  opening another container over the same file (concurrent first-launch
+  creation is how the launch once failed).
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (year-month-
   day) is the timezone-independent identity of a day, and it is what every
   *stored user record* and *day comparison* keys on: `DayPresence.day`,
   `SDManualDay.dayKey`, `RegionDayLocations.day`, `MissingDayRange`, the
-  missing-day / detector present-sets, and `DataIssueID.storageKey` (hence
-  persisted dismissals). A `Date` is an absolute instant, so persisting a day as
+  missing-day / detector present-sets, and `DataIssueID` (hence persisted
+  dismissals — a `DataIssueID` is identified by its `store://issues/…` URL over
+  `CalendarDay`s). A `Date` is an absolute instant, so persisting a day as
   one makes it drift onto a *different* day when the device changes time zones —
   the residency bug this exists to prevent. Reach for a `Date` only where you
   genuinely need an instant — bucketing a GPS `sample.timestamp` into a day
   (`CalendarDay(from:in:)` with the working calendar), calendar-grid geometry,
   sorting, or display — and derive it via `CalendarDay.startOfDay(in:)` /
   `DayPresence.startOfDay(in:)`; never store an instant as the key.
-  `SDManualDay.dateKey` is kept only as informational history and as
-  `toValue()`'s recovery source for a legacy `dayKey`-less row, not as a lookup
-  key. **Scope boundary:** this pins *stored user records* (manual days,
+  **Scope boundary:** this pins *stored user records* (manual days,
   dismissals) to a fixed day, but a GPS `sample.timestamp` is still bucketed into
   a `CalendarDay` by the *current* calendar at read time, so a GPS-derived day
   can still shift by one across a time-zone change — and with it a dismissed
-  *GPS-only* border-drift / abrupt-change issue (whose `storageKey` is that
-  re-bucketed day) can reappear. Only user-asserted records and their keys are
+  *GPS-only* border-drift / abrupt-change issue (whose id is that re-bucketed
+  day) can reappear. Only user-asserted records and their keys are
   travel-proof; travel-proofing GPS-derived detections would mean bucketing GPS
   by a fixed home zone, which we intentionally don't do ("where was I on this
   *local* day?").
-- **Pre-`CalendarDay` rows are read, not migrated.** There is no boot-time data
-  migration: a legacy `SDManualDay` (no `dayKey`) reads correctly via
-  `toValue()`'s recovery from `dateKey` (in UTC, so timezone-stable), and a
-  one-time backup **export → replace-import** rewrites such rows with a canonical
-  `dayKey`. Legacy *dismissal* keys (epoch, not ISO) are **not** recovered on
-  read, so a pre-`CalendarDay` dismissal can reappear until re-dismissed or fixed
-  in that export round-trip. This is deliberate for pre-release; the durable,
-  general successor (per-entity schema versioning) is tracked in
-  [`../TODOs.md`](../TODOs.md).
+- **Composite identity keys are `store://` URLs, not joined strings.** A value
+  whose identity is composite persists and round-trips as a single `store://`
+  URL via `WhereStoreURLCodable` (see `DataIssueID`), which hands the conformer
+  `Codable` and a stable SwiftData string key for free — never an ad-hoc
+  `type:value` string or a hand-written keyed `Codable`. Build/parse with
+  `StoreURL` so every conformer shares the `store://<collection>/<type>?<params>`
+  shape.
+- **No in-app data migration or legacy recovery.** A data-shape change is not
+  migrated on read or at boot: `SD….toValue()` reads only the current shape and
+  drops (fault-logs) a row it can't place — e.g. an `SDManualDay` with no
+  `dayKey`. The one-time path to reshape existing data is a backup **export →
+  transform → replace-import**, where the transform is
+  [`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb) (rekeys regions,
+  fills defaults, rewrites dismissal keys to `store://` URLs, resets the format
+  version). This is deliberate for pre-release; the durable, general successor
+  (per-entity schema versioning) is tracked in [`../TODOs.md`](../TODOs.md).
 - **Writes await their side effects.** `DayJournal` commits, then awaits the
   reminder reconcile + widget publish in sequence, so a reader on the next
   `changes()` ping never observes a half-applied write. `DataIssueScanner` drops
   its cache on the same signal *and* is invalidated inline where a caller needs
   it provably fresh (see `WhereServices.reset()`), which is the deterministic
   half of that pair, not redundant with it.
+- **Detectors read aggregated input; the speed-based one needs raw fixes.**
+  `DataIssueScanner` builds `DataIssueInput` from the `YearReport` plus
+  `daySamples` — per-day GPS fixes (`.gpsVisit` / `.gpsSignificantChange` only,
+  sorted by timestamp), the one field that keeps per-fix timestamps. Manual and
+  evidence-implied samples are excluded so `FlightDayDetector`'s speed math
+  isn't skewed by user-asserted timestamps.
 - **Post-write reconciliation is defined once.** Every write and import routes
   through `DayJournal.reconcileAfterDayChange()` (or its widget-less subset
   `reconcileIssueState()` for dismiss/restore paths) — never copy the reconcile
@@ -89,7 +106,7 @@ internal shape.
   merge; read as a `Set`, defaulting to the four when unset). `RegionAttribution`
   derives the attributor from them and rebuilds on `changes()`; assemble via the
   async `WhereServices.make(...)` (which reads the set) so the app and the App
-  Intents process (`WhereServices.forIntents()`, also async) attribute against
+  Intents layer (`WhereServices.forIntents()`, also async) attribute against
   the same synced set. Detection is naturally scoped to it — the attributor only
   loads tracked-region geometry, so `distanceToBoundary` is `nil` elsewhere.
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are

@@ -29,6 +29,10 @@ struct ScreenSnapshotTests {
         await assertSnapshots(of: ResolutionView.self)
     }
 
+    @Test func flightDayDetail() async {
+        await assertSnapshots(of: FlightDayDetailView.self)
+    }
+
     @Test func regionDays() async {
         await assertSnapshots(of: RegionDaysView.self)
     }

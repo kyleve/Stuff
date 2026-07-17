@@ -66,11 +66,11 @@ struct BackupServiceTests {
     private static func dismissedIssueFixtures() -> [DismissedIssue] {
         [
             DismissedIssue(
-                key: "borderDrift:1700000000",
+                id: .borderDrift(day: CalendarDay(year: 2026, month: 4, day: 1)),
                 dismissedAt: Date(timeIntervalSince1970: 1_700_000_000),
             ),
             DismissedIssue(
-                key: "missingDays:1700100000",
+                id: .missingDays(start: CalendarDay(year: 2026, month: 1, day: 5)),
                 dismissedAt: Date(timeIntervalSince1970: 1_700_100_000),
             ),
         ]
@@ -105,11 +105,31 @@ struct BackupServiceTests {
         #expect(result.archive.samples == samples)
         #expect(result.archive.evidence == evidence)
         #expect(result.archive.manualDays == manualDays)
-        // Dismissals round-trip verbatim, key and timestamp.
+        // Dismissals round-trip verbatim, id and timestamp.
         #expect(result.archive.dismissedIssues == dismissedIssues)
         // Only the evidence with bytes gets an asset; the other is metadata-only.
         #expect(result.archive.assets.map(\.evidenceId) == [Self.evidenceWithBlobId])
         #expect(result.blobs == blobs)
+    }
+
+    @Test func archiveNameIsDateAndTimeStamped() throws {
+        let service = BackupService()
+        let url = try service.makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            blobs: [:],
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        // `Where Backup <yyyy-MM-dd> <HH.mm>.zip`. The time renders in the local
+        // time zone, so match the shape rather than a fixed instant.
+        let name = url.lastPathComponent
+        #expect(
+            name.wholeMatch(of: /Where Backup \d{4}-\d{2}-\d{2} \d{2}\.\d{2}\.zip/) != nil,
+            "Unexpected archive name: \(name)",
+        )
     }
 
     @Test func authoritativeManualDaySurvivesArchiveRoundTrip() throws {
@@ -136,19 +156,6 @@ struct BackupServiceTests {
         #expect(result.archive.manualDays.first?.isAuthoritative == true)
     }
 
-    @Test func legacyManualDayWithoutAuthoritativeKeyDecodesAsAdditive() throws {
-        // Simulates a manifest written before `isAuthoritative` existed: the
-        // missing key must decode as additive rather than failing.
-        let json = #"{"date":"2026-07-04T00:00:00Z","regions":["us-NY"]}"#
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let decoded = try decoder.decode(DayPresence.self, from: Data(json.utf8))
-        #expect(decoded.isAuthoritative == false)
-        #expect(decoded.regions == [.newYork])
-        // A manifest predating audit must decode with no audit, not fail.
-        #expect(decoded.audit == nil)
-    }
-
     @Test func trackedRegionsSurviveArchiveRoundTrip() throws {
         let service = BackupService()
         let texas = try #require(Region(rawValue: "us-TX"))
@@ -164,19 +171,6 @@ struct BackupServiceTests {
 
         let result = try service.readArchive(at: url)
         #expect(result.archive.trackedRegions == [.california, texas])
-    }
-
-    @Test func legacyManifestWithoutTrackedRegionsDecodesAsEmpty() throws {
-        // A manifest written before `trackedRegions` existed must decode to []
-        // rather than failing (additive field, like `dismissedIssues`).
-        let json = #"""
-        {"formatVersion":1,"exportedAt":"2026-06-05T12:00:00Z","samples":[],"evidence":[],"manualDays":[],"assets":[]}
-        """#
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let archive = try decoder.decode(BackupArchive.self, from: Data(json.utf8))
-        #expect(archive.trackedRegions.isEmpty)
-        #expect(archive.dismissedIssues.isEmpty)
     }
 
     @Test func auditManualDaySurvivesArchiveRoundTrip() throws {
@@ -219,6 +213,7 @@ struct BackupServiceTests {
             evidence: Self.evidenceFixtures(),
             manualDays: Self.manualDayFixtures(),
             dismissedIssues: Self.dismissedIssueFixtures(),
+            trackedRegions: [.california, .newYork],
             assets: [BackupAssetEntry(
                 evidenceId: Self.evidenceWithBlobId,
                 filename: "assets/\(Self.evidenceWithBlobId.uuidString)",
@@ -234,38 +229,7 @@ struct BackupServiceTests {
         let decoded = try decoder.decode(BackupArchive.self, from: data)
 
         #expect(decoded == archive)
-    }
-
-    @Test func legacyManifestWithoutDismissedIssuesDecodesAsEmpty() throws {
-        // Simulates a manifest written before `dismissedIssues` existed: the
-        // missing key must decode as empty rather than failing the import.
-        let json = """
-        {"formatVersion":1,"exportedAt":"2023-11-14T22:13:20Z",\
-        "samples":[],"evidence":[],"manualDays":[],"assets":[]}
-        """
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let decoded = try decoder.decode(BackupArchive.self, from: Data(json.utf8))
-        #expect(decoded.dismissedIssues.isEmpty)
         #expect(decoded.formatVersion == 1)
-    }
-
-    @Test func legacyManifestWithDateKeyedManualDaysImports() throws {
-        // A pre-CalendarDay (v1) manifest keyed manual days by an absolute
-        // `date` instant. "2026-02-08T05:00:00Z" is midnight in New York; it
-        // must import as Feb 8 (not shift to Feb 7) — the exact bug this fix
-        // guards. The current reader accepts v1 and recovers the calendar day.
-        let json = """
-        {"formatVersion":1,"exportedAt":"2023-11-14T22:13:20Z","samples":[],\
-        "evidence":[],"manualDays":[{"date":"2026-02-08T05:00:00Z",\
-        "regions":["us-NY"],"isAuthoritative":false}],"assets":[]}
-        """
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        let decoded = try decoder.decode(BackupArchive.self, from: Data(json.utf8))
-        #expect(decoded.manualDays.count == 1)
-        #expect(decoded.manualDays.first?.day == CalendarDay(year: 2026, month: 2, day: 8))
-        #expect(decoded.manualDays.first?.regions == [.newYork])
     }
 
     @Test func readingAFileThatIsNotAZipThrows() throws {

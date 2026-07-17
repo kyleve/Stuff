@@ -16,6 +16,10 @@ public struct RecentActivitySummaryIntent: AppIntent {
     @Parameter(title: "Time Range")
     public var window: ActivityWindowAppEnum
 
+    /// The app-registered services handoff (see `IntentServices`); resolved by
+    /// the App Intents dependency container, never a singleton of ours.
+    @Dependency private var intentServices: IntentServices
+
     public init() {}
 
     public init(window: ActivityWindowAppEnum) {
@@ -25,7 +29,7 @@ public struct RecentActivitySummaryIntent: AppIntent {
     private static let logger = WhereLog.channel(.whereIntents)
 
     public func perform() async throws -> some IntentResult & ProvidesDialog {
-        let services = try await IntentServices.shared.current()
+        let services = try await intentServices.current()
         let reader = WhereIntentReader(services: services)
         do {
             let summary = try await reader.recentActivity(window.window)

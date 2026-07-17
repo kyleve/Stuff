@@ -48,6 +48,7 @@ public actor DataIssueScanner {
             MissingDaysDetector(),
             BorderDriftDetector(),
             AbruptLocationChangeDetector(),
+            FlightDayDetector(),
         ],
         // Defaults to an already-finished stream — *not* `AsyncStream { _ in }`,
         // which never yields or finishes and so would park the observation task
@@ -95,16 +96,13 @@ public actor DataIssueScanner {
             return cached.issues
         }
 
-        let report = try await reportReader.yearReport(for: year)
-        let otherLocations = try await reportReader.locations(in: .other, year: year)
-        let otherDayCoordinates = Dictionary(
-            uniqueKeysWithValues: otherLocations.map { ($0.day, $0.points.map(\.coordinate)) },
-        )
-        let dismissed = try await reportReader.dismissedIssueKeys()
+        let reads = try await reportReader.dataIssueReads(for: year)
+        let dismissed = try await reportReader.dismissedIssueIDs()
         let input = DataIssueInput(
             year: year,
-            report: report,
-            otherDayCoordinates: otherDayCoordinates,
+            report: reads.report,
+            otherDayCoordinates: reads.otherDayCoordinates,
+            daySamples: reads.daySamples,
             primaryRegions: primaryRegions,
             attributor: attributor,
             driftThresholdMeters: driftThresholdMeters,
@@ -114,7 +112,7 @@ public actor DataIssueScanner {
         let sorted = Self.sortIssues(
             detectors
                 .flatMap { $0.detectAnyIssues(in: input) }
-                .filter { !dismissed.contains($0.id.storageKey) },
+                .filter { !dismissed.contains($0.id) },
         )
         cache = CachedScan(
             year: year,

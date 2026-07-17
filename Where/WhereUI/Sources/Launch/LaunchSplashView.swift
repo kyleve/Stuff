@@ -19,6 +19,12 @@ import SwiftUI
 /// reassurance caption in after it's lingered a beat. There's no second view to
 /// reconcile and no remount, so the pulse and radar run uninterrupted.
 ///
+/// The caption's copy is deliberately launch-neutral ("Getting things ready…")
+/// — a slow launch may be a schema migration, a fresh install's very first
+/// store creation (which routinely outlives the caption delay), or plain
+/// slowness, and the splash can't tell which, so it never claims a specific
+/// cause.
+///
 /// Honors Reduce Motion: the pulse and the sweeping rings are pinned to a
 /// static frame, and the caption appears without a fade. Snapshot captures
 /// likewise skip the pulse (see ``MotionIsStatic``) and freeze the rings at a
@@ -69,7 +75,9 @@ struct LaunchSplashView: View {
         .background(splash.background)
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(showCaption ? Strings.migrationTitle : Strings.launchAccessibilityLabel)
+        .accessibilityLabel(
+            showCaption ? Strings.launchCaptionTitle : Strings.launchAccessibilityLabel,
+        )
         .task {
             try? await Task.sleep(for: Self.captionDelay)
             guard !Task.isCancelled else { return }
@@ -86,9 +94,9 @@ struct LaunchSplashView: View {
     /// light since the backdrop is always dark.
     private var caption: some View {
         VStack(spacing: stylesheet.spacing.small) {
-            Text(Strings.migrationTitle)
+            Text(Strings.launchCaptionTitle)
                 .font(.headline)
-            Text(Strings.migrationSubtitle)
+            Text(Strings.launchCaptionSubtitle)
                 .font(.subheadline)
                 .foregroundStyle(splash.captionSecondary)
         }

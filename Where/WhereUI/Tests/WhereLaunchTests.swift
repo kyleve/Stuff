@@ -1,6 +1,7 @@
 import Foundation
 import LifecycleKit
 import RegionKit
+import SwiftData
 import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
@@ -185,6 +186,75 @@ struct WhereLaunchTests {
         let task = Task { @MainActor in await launcher.run() }
         try await waitUntil { launcher.phase.isReady }
         await task.value
+        #expect(launcher.phase.isReady)
+    }
+
+    @Test func openStoreHandsTheSessionsServicesToTheOnServicesReadyHook() async throws {
+        // A model with services attached but no session yet — the app's shape
+        // when the open-store step runs (the preview/test init pre-builds the
+        // session, which would skip the step and the hook with it).
+        let store = try SwiftDataStore.inMemory()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        let model = WhereModel(preferences: makePreferences())
+        model.attach(services: services)
+        model.completeOnboarding()
+
+        var receivedContainers: [ModelContainer?] = []
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground) {
+            receivedContainers.append($0.modelContainer)
+        }
+        await launcher.run()
+
+        #expect(launcher.phase.isReady)
+        // The hook fired exactly once, with the session's service layer (same
+        // backing store) — the seam the app uses to install the App Intents
+        // stack over the launch's one store open.
+        #expect(receivedContainers.count == 1)
+        let receivedContainer = receivedContainers.first ?? nil
+        #expect(receivedContainer === store.inspectorContainer)
+    }
+
+    @Test func resetRelaunchHandsTheFreshSessionsServicesToTheHookAgain() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(authorizationStatus: .always),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+        let model = WhereModel(preferences: makePreferences())
+        model.attach(services: services)
+        model.completeOnboarding()
+
+        var hookFires = 0
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground) { _ in
+            hookFires += 1
+        }
+        await launcher.run()
+        #expect(hookFires == 1)
+
+        // The reset teardown drops the session and re-drives the launch; the
+        // rebuilt session (over the retained, erased services) must be handed
+        // to the hook again so consumers ride the fresh session. The cleared
+        // onboarding flag parks the relaunch on onboarding — resolve it as
+        // OnboardingView would.
+        let teardown = Task { @MainActor in
+            await launcher.teardown(WhereLaunch.resetSequence(for: model))
+        }
+        try await waitUntil { launcher.phase.isRunning(LaunchStepID.onboarding) }
+        #expect(hookFires == 2)
+        model.completeOnboarding()
+        launcher.phase.runningBridge?.complete()
+        await teardown.value
         #expect(launcher.phase.isReady)
     }
 

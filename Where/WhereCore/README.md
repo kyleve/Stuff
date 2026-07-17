@@ -25,7 +25,11 @@ one it belongs to rather than to a god-object:
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one
   atomic transaction) and `changes()` emits once per commit and on a CloudKit
   remote import. `SwiftDataStore.make()` is the production, CloudKit-backed
-  implementation; `SwiftDataStore.inMemory()` backs tests and previews. It also
+  implementation; `SwiftDataStore.inMemory()` backs tests and previews. Each
+  process opens its on-disk store **once** and injects it where it's needed —
+  in the app, the launch's `open-store` step opens it and the App Intents
+  stack shares it via `WhereServices.forIntents(sharingStoreOf:)` — so two
+  subsystems never race to create/open the same store file. It also
   holds the user's **tracked regions** (`trackedRegions()` /
   `setTrackedRegion(_:id:)`) — one synced row per region, defaulting to the four
   until the user chooses.
@@ -72,10 +76,12 @@ one it belongs to rather than to a god-object:
 ### Detection, notifications & the rest
 
 - **`DataIssueScanner`** + the `DataIssue` family (missing days, border drift,
-  abrupt change) — the "Resolve" tab's detections and their `IssueResolution`
-  fixes; dismissals persist under a stable, device- and timezone-independent
-  `storageKey` (a `CalendarDay` ISO string), so a dismissal doesn't reappear
-  after travel.
+  abrupt change, flight days) — the "Resolve" tab's detections and their
+  `IssueResolution` fixes; dismissals persist under a stable, device- and
+  timezone-independent `storageKey` (a `CalendarDay` ISO string), so a dismissal
+  doesn't reappear after travel. The `FlightDayDetector` reads the per-day GPS
+  fixes the scanner puts on `DataIssueInput.daySamples` (timestamped, GPS-only)
+  to spot cruise-speed points that added a spurious region.
 - **Reconcilers** — `ReminderReconciler` (daily logging reminder + app-icon
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").

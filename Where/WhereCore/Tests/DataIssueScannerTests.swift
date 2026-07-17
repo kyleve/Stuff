@@ -18,6 +18,10 @@ struct DataIssueScannerTests {
         ))!)
     }
 
+    private static func time(_ year: Int, _ month: Int, _ day: Int, _ hour: Int) -> Date {
+        calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour))!
+    }
+
     private func makeServices(now: @escaping @Sendable () -> Date) throws -> WhereServices {
         let store = try SwiftDataStore.inMemory()
         return WhereServices(
@@ -45,6 +49,52 @@ struct DataIssueScannerTests {
             now: now,
             scanInterval: scanInterval,
         )
+    }
+
+    /// The speed-based `FlightDayDetector` must ignore manual and
+    /// evidence-implied samples: their timestamps are user-asserted, so a speed
+    /// computed across them is meaningless. The exact coast-to-coast pattern
+    /// that flags as GPS produces no flight issue when recorded as manual /
+    /// evidence fixes (the scanner's `gpsSamplesByDay` filters them out).
+    @Test func flightDetectionIgnoresManualAndEvidenceSamples() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let fixedNow = Self.day(2026, 6, 15)
+        let scanner = makeScanner(store: store, now: { fixedNow })
+
+        let jfk = Coordinate(latitude: 40.6413, longitude: -73.7781)
+        let sfo = Coordinate(latitude: 37.6213, longitude: -122.3790)
+        let illinois = Coordinate(latitude: 40.29, longitude: -90.39)
+        let colorado = Coordinate(latitude: 39.53, longitude: -106.16)
+        let nevada = Coordinate(latitude: 38.68, longitude: -116.90)
+        let evidence = SampleSource.evidenceImplied(id: UUID(), kind: .other(nil))
+        let fixes: [(Int, Coordinate, SampleSource)] = [
+            (8, jfk, .manual),
+            (9, jfk, .manual),
+            (12, jfk, .manual),
+            (13, illinois, .manual),
+            (14, colorado, .manual),
+            (15, nevada, evidence),
+            (17, sfo, .manual),
+            (18, sfo, .manual),
+        ]
+        try await store.perform {
+            for (hour, coordinate, source) in fixes {
+                try await store.add(sample: LocationSample(
+                    timestamp: Self.time(2026, 3, 15, hour),
+                    coordinate: coordinate,
+                    horizontalAccuracy: 20,
+                    source: source,
+                ))
+            }
+        }
+
+        let issues = try await scanner.issues(
+            year: 2026,
+            primaryRegions: [.california, .newYork],
+            driftThresholdMeters: 10000,
+            force: true,
+        )
+        #expect(!issues.contains { $0.category == .flightDay })
     }
 
     @Test func issues_returnsSortedIssues() async throws {
@@ -78,7 +128,7 @@ struct DataIssueScannerTests {
             return
         }
 
-        try await services.journal.dismissIssue(key: issue.id.storageKey)
+        try await services.journal.dismissIssue(id: issue.id)
 
         let second = try await scanner.issues(
             year: 2026,
@@ -86,7 +136,7 @@ struct DataIssueScannerTests {
             driftThresholdMeters: 10000,
             force: true,
         )
-        #expect(second.allSatisfy { $0.id.storageKey != issue.id.storageKey })
+        #expect(second.allSatisfy { $0.id != issue.id })
     }
 
     /// Within the interval, a non-forced call serves the cached result even
@@ -104,8 +154,8 @@ struct DataIssueScannerTests {
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
-        let dismissedKey = try #require(first.first).id.storageKey
-        try await store.perform { try await store.setIssueDismissed(true, key: dismissedKey) }
+        let dismissedID = try #require(first.first).id
+        try await store.perform { try await store.setIssueDismissed(true, id: dismissedID) }
 
         // Within the interval: the cache is served, so the new dismissal is not
         // yet reflected.
@@ -116,7 +166,7 @@ struct DataIssueScannerTests {
             driftThresholdMeters: 10000,
         )
         #expect(cached.map(\.id) == first.map(\.id))
-        #expect(cached.contains { $0.id.storageKey == dismissedKey })
+        #expect(cached.contains { $0.id == dismissedID })
 
         // Past the interval: recomputes and drops the dismissed issue.
         clock.advance(by: 4 * 60 * 60)
@@ -125,7 +175,7 @@ struct DataIssueScannerTests {
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
-        #expect(!recomputed.contains { $0.id.storageKey == dismissedKey })
+        #expect(!recomputed.contains { $0.id == dismissedID })
     }
 
     @Test func issues_forceRecomputesWithinInterval() async throws {
@@ -138,8 +188,8 @@ struct DataIssueScannerTests {
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
-        let dismissedKey = try #require(first.first).id.storageKey
-        try await store.perform { try await store.setIssueDismissed(true, key: dismissedKey) }
+        let dismissedID = try #require(first.first).id
+        try await store.perform { try await store.setIssueDismissed(true, id: dismissedID) }
 
         // `force` ignores the throttle and reflects the dismissal immediately,
         // without advancing `now`.
@@ -149,7 +199,7 @@ struct DataIssueScannerTests {
             driftThresholdMeters: 10000,
             force: true,
         )
-        #expect(!forced.contains { $0.id.storageKey == dismissedKey })
+        #expect(!forced.contains { $0.id == dismissedID })
     }
 
     @Test func issues_recomputesWhenThresholdChanges() async throws {
@@ -162,8 +212,8 @@ struct DataIssueScannerTests {
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
-        let dismissedKey = try #require(first.first).id.storageKey
-        try await store.perform { try await store.setIssueDismissed(true, key: dismissedKey) }
+        let dismissedID = try #require(first.first).id
+        try await store.perform { try await store.setIssueDismissed(true, id: dismissedID) }
 
         // A different threshold is a cache-key miss, so it recomputes even
         // within the interval and without `force`.
@@ -172,7 +222,7 @@ struct DataIssueScannerTests {
             primaryRegions: [.california],
             driftThresholdMeters: 25000,
         )
-        #expect(!differentThreshold.contains { $0.id.storageKey == dismissedKey })
+        #expect(!differentThreshold.contains { $0.id == dismissedID })
     }
 
     /// A calendar-day rollover is a cache-key miss, so the scan recomputes even
@@ -191,8 +241,8 @@ struct DataIssueScannerTests {
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
-        let dismissedKey = try #require(first.first).id.storageKey
-        try await store.perform { try await store.setIssueDismissed(true, key: dismissedKey) }
+        let dismissedID = try #require(first.first).id
+        try await store.perform { try await store.setIssueDismissed(true, id: dismissedID) }
 
         // 40 min later it is the next calendar day but still well inside the 1h
         // throttle, so only the day-key miss can drive the recompute that drops
@@ -203,7 +253,7 @@ struct DataIssueScannerTests {
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
-        #expect(!nextDay.contains { $0.id.storageKey == dismissedKey })
+        #expect(!nextDay.contains { $0.id == dismissedID })
     }
 
     @Test func issues_recomputesWhenYearChanges() async throws {
@@ -240,8 +290,8 @@ struct DataIssueScannerTests {
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
-        let dismissedKey = try #require(first.first).id.storageKey
-        try await store.perform { try await store.setIssueDismissed(true, key: dismissedKey) }
+        let dismissedID = try #require(first.first).id
+        try await store.perform { try await store.setIssueDismissed(true, id: dismissedID) }
 
         await scanner.invalidate()
 
@@ -252,7 +302,7 @@ struct DataIssueScannerTests {
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
-        #expect(!afterInvalidate.contains { $0.id.storageKey == dismissedKey })
+        #expect(!afterInvalidate.contains { $0.id == dismissedID })
     }
 
     /// The original bug's fix at the scanner level: a committed store change
@@ -277,12 +327,12 @@ struct DataIssueScannerTests {
             primaryRegions: [.california],
             driftThresholdMeters: 10000,
         )
-        let dismissedKey = try #require(first.first).id.storageKey
+        let dismissedID = try #require(first.first).id
 
         // Commit through the journal exactly as a headless write would; this
         // pings `store.changes()`, which the scanner observes asynchronously to
         // drop its cache. No `force`, no `invalidate()` call, `now` unchanged.
-        try await services.journal.dismissIssue(key: dismissedKey)
+        try await services.journal.dismissIssue(id: dismissedID)
 
         try await waitUntil {
             let issues = try await scanner.issues(
@@ -290,7 +340,7 @@ struct DataIssueScannerTests {
                 primaryRegions: [.california],
                 driftThresholdMeters: 10000,
             )
-            return !issues.contains { $0.id.storageKey == dismissedKey }
+            return !issues.contains { $0.id == dismissedID }
         }
     }
 }

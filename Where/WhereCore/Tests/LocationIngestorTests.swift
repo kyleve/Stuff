@@ -111,8 +111,11 @@ struct LocationIngestorTests {
         await ingestor
             .captureTodayIfNeeded(now: WhereCoreTestSupport.iso("2026-03-15T08:00:00-07:00"))
 
-        try await waitUntil { await (try? store.allSamples().count) == 1 }
-        #expect(await recorder.last?.liveSample != nil)
+        // The post-persist outcome is reported *after* the write commits, so
+        // wait on it directly rather than on the sample count — a count poll can
+        // observe the committed row before `onPersisted` records the outcome.
+        try await waitUntil { await recorder.last?.liveSample != nil }
+        #expect(try await store.allSamples().count == 1)
     }
 
     @Test func captureTodaySkipsWhenGPSSampleAlreadyExistsToday() async throws {
@@ -572,16 +575,16 @@ private actor ToggleFailingStore: WhereStore {
         try await backing.clearAll()
     }
 
-    func dismissedIssueKeys() async throws -> Set<String> {
-        try await backing.dismissedIssueKeys()
+    func dismissedIssueIDs() async throws -> Set<DataIssueID> {
+        try await backing.dismissedIssueIDs()
     }
 
     func allDismissedIssues() async throws -> [DismissedIssue] {
         try await backing.allDismissedIssues()
     }
 
-    func setIssueDismissed(_ dismissed: Bool, key: String) async throws {
-        try await backing.setIssueDismissed(dismissed, key: key)
+    func setIssueDismissed(_ dismissed: Bool, id: DataIssueID) async throws {
+        try await backing.setIssueDismissed(dismissed, id: id)
     }
 
     func restoreDismissedIssue(_ issue: DismissedIssue) async throws {

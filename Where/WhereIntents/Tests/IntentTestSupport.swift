@@ -7,6 +7,22 @@ import Foundation
 /// GPS) but over `SwiftDataStore.inMemory()` and with no-op notification /
 /// widget side effects, plus a fixed Pacific calendar so day/year math is
 /// deterministic regardless of the host time zone.
+struct IntentWaitTimeout: Error {}
+
+/// Polls the async `predicate` until it holds or the timeout elapses, yielding
+/// between checks — condition-based waiting for actor-isolated state (e.g.
+/// `IntentServices.waiterCount`).
+func waitUntil(
+    timeout: Duration = .seconds(5),
+    _ predicate: () async -> Bool,
+) async throws {
+    let deadline = ContinuousClock.now.advanced(by: timeout)
+    while await !predicate() {
+        if ContinuousClock.now >= deadline { throw IntentWaitTimeout() }
+        try await Task.sleep(for: .milliseconds(1))
+    }
+}
+
 enum IntentTestSupport {
     static let pacific = TimeZone(identifier: "America/Los_Angeles")!
 

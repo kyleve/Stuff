@@ -72,6 +72,33 @@
         }
     }
 
+    extension FlightDayDetailView: SnapshotProviding {
+        /// The flight-day fixture pins its day to `referenceNow` (the source
+        /// file's `#Preview` uses `.now`, which would churn the reference
+        /// daily). The preview store seeds no raw samples, so the recorded-
+        /// points map stays out of the tree and the capture is deterministic.
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .screenDefaults) {
+                NavigationStack {
+                    FlightDayDetailView(
+                        issue: FlightDayIssue(
+                            day: DayPresence(
+                                date: PreviewSupport.referenceNow,
+                                in: .current,
+                                regions: [.newYork, .other, .california],
+                            ),
+                            keepRegions: [.newYork, .california],
+                            removedRegions: [.other],
+                            peakSpeedKMH: 880,
+                        ),
+                        report: PreviewSupport.loadedYearReportModel(),
+                        resolve: PreviewSupport.resolveModel(),
+                    )
+                }
+            }
+        }
+    }
+
     extension RegionDaysView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
             whereSnapshot(name: "WithData", configurations: .screenDefaults) {
