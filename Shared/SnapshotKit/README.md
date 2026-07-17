@@ -63,7 +63,11 @@ capture + comparison pipeline lives in the sibling
   and system controls whose rendering depends on wall-clock state (the compact
   `DatePicker`'s value capsule formats relative to *today's* date) — may
   substitute a deterministic placeholder of identical layout; the view's own
-  chrome (markers, overlays, legends, row titles) still renders for real. It is
+  chrome (markers, overlays, legends, row titles) still renders for real. The
+  same rationale covers wall-clock timers that flip visible state (whether one
+  has fired by capture time races the settle loop): under capture a view may
+  skip the timer and let an explicit per-case seam pin each state (the Where
+  launch splash's slow-launch caption). It is
   bridged from a UIKit trait (`SnapshotCaptureTrait`) so it crosses
   `UIHostingController` boundaries.
 

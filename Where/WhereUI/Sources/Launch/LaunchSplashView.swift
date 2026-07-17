@@ -27,10 +27,15 @@ import SwiftUI
 ///
 /// Honors Reduce Motion: the pulse and the sweeping rings are pinned to a
 /// static frame, and the caption appears without a fade. Snapshot captures
-/// likewise skip the pulse (see ``MotionIsStatic``) and freeze the rings at a
-/// canonical phase, so the never-settling motion renders deterministically.
+/// likewise skip the pulse (see ``MotionIsStatic``), freeze the rings at a
+/// canonical phase, and never start the slow-launch timer — whether the
+/// caption is visible under capture is decided solely by the explicit
+/// `previewShowsCaption` seam, never by how long the settle loop happens to
+/// take — so the never-settling motion and the wall-clock reveal both render
+/// deterministically.
 struct LaunchSplashView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
     @MotionIsStatic private var motionIsStatic
     @Environment(\.stylesheet) private var stylesheet
     @State private var pulsing = false
@@ -79,6 +84,13 @@ struct LaunchSplashView: View {
             showCaption ? Strings.launchCaptionTitle : Strings.launchAccessibilityLabel,
         )
         .task {
+            // Under snapshot capture the caption must be deterministic — shown
+            // iff the explicit `previewShowsCaption` seam says so — never a race
+            // between this wall-clock timer and the capture's settle loop. Both
+            // caption states have their own snapshot cases, so the timer adds
+            // nothing there. (Reduce Motion alone doesn't suppress it: those
+            // users still get the caption, just without the fade.)
+            guard !isCapturingSnapshot else { return }
             try? await Task.sleep(for: Self.captionDelay)
             guard !Task.isCancelled else { return }
             if reduceMotion {

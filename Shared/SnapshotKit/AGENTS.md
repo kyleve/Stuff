@@ -36,9 +36,11 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   deterministic phase — never to change layout, content, or behavior. The one
   carve-out (documented on the property): content no settle window can make
   deterministic — externally-loaded substrates, system controls that render
-  relative to wall-clock state — may substitute a placeholder of identical
-  layout. It is a UIKit trait bridge (not `@Entry`) so it reaches SwiftUI
-  through the re-hosting the capture pipeline does.
+  relative to wall-clock state, wall-clock timers that flip visible state
+  (skipped under capture; an explicit per-case seam pins each state) — may
+  substitute a placeholder of identical layout. It is a UIKit trait bridge
+  (not `@Entry`) so it reaches SwiftUI through the re-hosting the capture
+  pipeline does.
 - **Design-system-agnostic.** SnapshotKit never imports Broadway/WhereUI; the
   Broadway root wrap is a consumer concern (`WhereUI`'s `whereSnapshot(...)`).
 

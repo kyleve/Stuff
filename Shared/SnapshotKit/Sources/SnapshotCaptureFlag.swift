@@ -54,7 +54,14 @@ extension EnvironmentValues {
     /// legends, row titles) must still render for real; only the
     /// nondeterministic element is substituted (see the Where app's
     /// `RegionMapView` and `SnapshotDatePickerStandIn`).
-    /// Everything else must render real content.
+    ///
+    /// The same determinism rationale covers **wall-clock timers that flip
+    /// visible state**: whether such a timer has fired by capture time races
+    /// the settle loop's variable duration, so under capture a view may skip
+    /// the timer entirely and let an explicit per-case seam pin the state —
+    /// each state then gets its own snapshot case (see the Where app's launch
+    /// splash, whose slow-launch caption shows iff its `previewShowsCaption`
+    /// seam says so). Everything else must render real content.
     public var isCapturingSnapshot: Bool {
         get { self[IsCapturingSnapshotKey.self] }
         set { self[IsCapturingSnapshotKey.self] = newValue }
