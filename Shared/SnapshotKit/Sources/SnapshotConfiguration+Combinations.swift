@@ -11,12 +11,16 @@ extension SnapshotConfiguration {
         colorSchemes: [ColorScheme] = [],
         dynamicTypes: [DynamicTypeSize] = [],
         contrasts: [ColorSchemeContrast] = [],
+        layoutDirections: [LayoutDirection] = [],
+        legibilityWeights: [LegibilityWeight] = [],
         snapshotTypes: [SnapshotType] = [],
     ) -> [SnapshotConfiguration] {
         let devices = devices.isEmpty ? [.component] : devices
         let colorSchemes = colorSchemes.isEmpty ? [.light] : colorSchemes
         let dynamicTypes = dynamicTypes.isEmpty ? [.large] : dynamicTypes
         let contrasts = contrasts.isEmpty ? [.standard] : contrasts
+        let layoutDirections = layoutDirections.isEmpty ? [.leftToRight] : layoutDirections
+        let legibilityWeights = legibilityWeights.isEmpty ? [.regular] : legibilityWeights
         let snapshotTypes = snapshotTypes.isEmpty ? [.standard] : snapshotTypes
 
         var result: [SnapshotConfiguration] = []
@@ -24,16 +28,22 @@ extension SnapshotConfiguration {
             for colorScheme in colorSchemes {
                 for dynamicType in dynamicTypes {
                     for contrast in contrasts {
-                        for snapshotType in snapshotTypes {
-                            result.append(
-                                SnapshotConfiguration(
-                                    colorScheme: colorScheme,
-                                    dynamicType: dynamicType,
-                                    contrast: contrast,
-                                    device: device,
-                                    snapshotType: snapshotType,
-                                ),
-                            )
+                        for layoutDirection in layoutDirections {
+                            for legibilityWeight in legibilityWeights {
+                                for snapshotType in snapshotTypes {
+                                    result.append(
+                                        SnapshotConfiguration(
+                                            colorScheme: colorScheme,
+                                            dynamicType: dynamicType,
+                                            contrast: contrast,
+                                            layoutDirection: layoutDirection,
+                                            legibilityWeight: legibilityWeight,
+                                            device: device,
+                                            snapshotType: snapshotType,
+                                        ),
+                                    )
+                                }
+                            }
                         }
                     }
                 }

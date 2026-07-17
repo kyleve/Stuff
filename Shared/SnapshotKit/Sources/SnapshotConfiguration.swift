@@ -18,6 +18,10 @@ public struct SnapshotConfiguration: Hashable, Sendable {
     public var dynamicType: DynamicTypeSize
     /// The color-scheme contrast (standard / increased) to render with.
     public var contrast: ColorSchemeContrast
+    /// The layout direction (left-to-right / right-to-left) to render in.
+    public var layoutDirection: LayoutDirection
+    /// The legibility weight (regular / bold text) to render with.
+    public var legibilityWeight: LegibilityWeight
     /// The frame (size + name) to render into.
     public var device: Frame
     /// Whether this is a plain image or a VoiceOver-annotated accessibility image.
@@ -30,6 +34,8 @@ public struct SnapshotConfiguration: Hashable, Sendable {
         colorScheme: ColorScheme = .light,
         dynamicType: DynamicTypeSize = .large,
         contrast: ColorSchemeContrast = .standard,
+        layoutDirection: LayoutDirection = .leftToRight,
+        legibilityWeight: LegibilityWeight = .regular,
         device: Frame = .component,
         snapshotType: SnapshotType = .standard,
         name: String? = nil,
@@ -37,6 +43,8 @@ public struct SnapshotConfiguration: Hashable, Sendable {
         self.colorScheme = colorScheme
         self.dynamicType = dynamicType
         self.contrast = contrast
+        self.layoutDirection = layoutDirection
+        self.legibilityWeight = legibilityWeight
         self.device = device
         self.snapshotType = snapshotType
         self.name = name
@@ -51,6 +59,8 @@ public struct SnapshotConfiguration: Hashable, Sendable {
         if colorScheme == .dark { parts.append("dark") }
         if dynamicType != .large { parts.append(dynamicType.snapshotToken) }
         if contrast == .increased { parts.append("contrast") }
+        if layoutDirection == .rightToLeft { parts.append("rtl") }
+        if legibilityWeight == .bold { parts.append("bold") }
         if snapshotType == .accessibility { parts.append("accessibility") }
         return parts
     }
@@ -78,10 +88,34 @@ extension SnapshotConfiguration {
         public var name: String
         /// How the content is sized.
         public var size: SizeStrategy
+        /// Simulated device safe-area insets applied at capture. `.zero` (the
+        /// default) keeps images independent of any physical device's chrome;
+        /// a preset like ``iPhoneNotched`` opts a case into rendering under
+        /// notch/home-indicator insets.
+        public var safeAreaInsets: Insets
 
-        public init(name: String, size: SizeStrategy) {
+        public init(name: String, size: SizeStrategy, safeAreaInsets: Insets = .zero) {
             self.name = name
             self.size = size
+            self.safeAreaInsets = safeAreaInsets
+        }
+
+        /// Safe-area insets in points. A minimal `Hashable` value type so
+        /// ``Frame`` stays hashable (UIKit's `UIEdgeInsets` is not).
+        public struct Insets: Hashable, Sendable {
+            public var top: CGFloat
+            public var leading: CGFloat
+            public var bottom: CGFloat
+            public var trailing: CGFloat
+
+            public init(top: CGFloat, leading: CGFloat, bottom: CGFloat, trailing: CGFloat) {
+                self.top = top
+                self.leading = leading
+                self.bottom = bottom
+                self.trailing = trailing
+            }
+
+            public static let zero = Insets(top: 0, leading: 0, bottom: 0, trailing: 0)
         }
 
         /// A component frame: sized to fit its content, capped to a phone-width
@@ -112,6 +146,14 @@ extension SnapshotConfiguration {
         )
         /// A tablet screen frame (iPad Pro 11" portrait point size).
         public static let iPad = Frame(name: "iPad", size: .fixed(CGSize(width: 834, height: 1194)))
+        /// The iPhone frame with simulated device insets (Dynamic Island top,
+        /// home-indicator bottom), for cases that must prove layout under real
+        /// device chrome rather than the inset-free default.
+        public static let iPhoneNotched = Frame(
+            name: "iPhoneNotched",
+            size: .fixed(CGSize(width: 402, height: 874)),
+            safeAreaInsets: Insets(top: 47, leading: 0, bottom: 34, trailing: 0),
+        )
     }
 
     /// How a snapshot variant resolves its size.

@@ -14,7 +14,8 @@ capture + comparison pipeline lives in the sibling
 ## What's in the box
 
 - **`SnapshotConfiguration`** — one rendering variant: color scheme, Dynamic
-  Type size, contrast, a device `Frame`, and a `snapshotType` (`.standard` or
+  Type size, contrast, layout direction (`rtl` token), legibility weight (bold
+  text, `bold` token), a device `Frame`, and a `snapshotType` (`.standard` or
   `.accessibility`). `Hashable`, with an `identifier` (built from
   `identifierParts`) that **omits default axes** so common cases stay terse.
   Frames come in three sizing strategies: fixed device viewports (`.iPhone`,
@@ -23,7 +24,10 @@ capture + comparison pipeline lives in the sibling
   scrollable content renders in one image with nothing scrolling. Wrap
   *content*, not chrome: a greedy container with pinned chrome
   (`NavigationStack`) has no content-derived ideal height and collapses the
-  measurement to just that chrome.
+  measurement to just that chrome. A frame also carries `safeAreaInsets`
+  (default zero, keeping images device-independent); the `.iPhoneNotched`
+  preset simulates real device chrome (Dynamic Island top 47pt, home-indicator
+  bottom 34pt) for cases that must prove layout under it.
 - **`combinations(...)` + presets** (`.componentDefaults`, `.screenDefaults`) —
   expand a terse declaration into the full matrix.
 - **`SnapshotProviding`** — a type declares its variants via
@@ -43,8 +47,10 @@ capture + comparison pipeline lives in the sibling
   again before capture. The preview cutsheet ignores the hook (only the test
   pipeline can re-settle around it).
 - **`snapshotTraits(_:)`** — applies a configuration's traits to a view for the
-  preview cutsheet (color scheme, Dynamic Type, and an increased-contrast trait
-  override).
+  preview cutsheet (color scheme, Dynamic Type, layout direction, legibility
+  weight, and an increased-contrast trait override), so previews and test
+  captures stay in lockstep. Simulated frame insets are capture-only — a
+  preview can't fake safe areas.
 - **`\.isCapturingSnapshot`** — an environment flag that is `true` while
   `SnapshotKitTesting` captures the view (and in the preview cutsheet, which
   mirrors the tests). A view may read it **only** to render a deterministic

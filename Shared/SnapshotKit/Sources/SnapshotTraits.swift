@@ -5,14 +5,16 @@ extension View {
     /// Applies a ``SnapshotConfiguration``'s appearance traits to this view so a
     /// preview renders the way its snapshot will be captured.
     ///
-    /// Color scheme and Dynamic Type go through the SwiftUI environment; increased
-    /// contrast has no SwiftUI setter, so that variant is hosted once through a
-    /// UIKit trait override (which the hosting controller bridges back into the
-    /// content's `colorSchemeContrast`).
+    /// Color scheme, Dynamic Type, layout direction, and legibility weight go
+    /// through the SwiftUI environment; increased contrast has no SwiftUI setter,
+    /// so that variant is hosted once through a UIKit trait override (which the
+    /// hosting controller bridges back into the content's `colorSchemeContrast`).
     @ViewBuilder
     public func snapshotTraits(_ configuration: SnapshotConfiguration) -> some View {
         let base = environment(\.colorScheme, configuration.colorScheme)
             .dynamicTypeSize(configuration.dynamicType)
+            .environment(\.layoutDirection, configuration.layoutDirection)
+            .environment(\.legibilityWeight, configuration.legibilityWeight)
         if configuration.contrast == .increased {
             ContrastOverrideHost { base }
         } else {

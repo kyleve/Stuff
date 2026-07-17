@@ -105,6 +105,7 @@ public func assertSnapshots(
         let image = await renderSnapshotImage(
             of: hostingController,
             sizing: sizing,
+            safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
             isAccessibility: configuration.snapshotType == .accessibility,
             settle: settle,
             onReadyToSnapshot: onReadyToSnapshot,
@@ -213,12 +214,12 @@ private func simulatorMatchesSnapshotExpectations() -> Bool {
 }
 
 /// Builds a hosting controller for `view` with the configuration's appearance
-/// traits applied and a starting frame set. Dynamic Type and color scheme are
-/// applied through the SwiftUI environment (so measurement reflects them) and
-/// mirrored onto UIKit trait overrides (for any embedded UIKit); increased
-/// contrast — which SwiftUI can't set — is a trait override only. Intrinsic
-/// components get only their width here; the pipeline measures their height
-/// after the content settles.
+/// traits applied and a starting frame set. Dynamic Type, color scheme, layout
+/// direction, and legibility weight are applied through the SwiftUI environment
+/// (so measurement reflects them) and mirrored onto UIKit trait overrides (for
+/// any embedded UIKit); increased contrast — which SwiftUI can't set — is a
+/// trait override only. Intrinsic components get only their width here; the
+/// pipeline measures their height after the content settles.
 ///
 /// SwiftUI transaction animations are disabled at the root: every state change
 /// in the hosted tree commits its end state instantly instead of animating, so
@@ -233,6 +234,8 @@ private func makeHostingController(
     let styled = view
         .environment(\.colorScheme, configuration.colorScheme)
         .dynamicTypeSize(configuration.dynamicType)
+        .environment(\.layoutDirection, configuration.layoutDirection)
+        .environment(\.legibilityWeight, configuration.legibilityWeight)
         .transaction {
             $0.disablesAnimations = true
             $0.animation = nil
@@ -245,6 +248,8 @@ private func makeHostingController(
     hostingController.traitOverrides.preferredContentSizeCategory = traits
         .preferredContentSizeCategory
     hostingController.traitOverrides.accessibilityContrast = traits.accessibilityContrast
+    hostingController.traitOverrides.layoutDirection = traits.layoutDirection
+    hostingController.traitOverrides.legibilityWeight = traits.legibilityWeight
 
     switch configuration.device.size {
         case let .fixed(size):
