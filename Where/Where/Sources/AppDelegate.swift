@@ -40,11 +40,16 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // foreground-notification presenter; the rest (store open, etc.) runs as
         // async steps off this synchronous launch path.
         launcher = WhereLaunch.makeLauncher(model: model, reason: reason)
-        Task { await launcher.run() }
-        // Index the tracked regions into Spotlight so a search for a region name
-        // surfaces Where and its day-count query. Off the launch critical path;
-        // indexing five items is cheap and idempotent.
-        Task { await RegionSpotlightIndexer.indexRegions() }
+        Task {
+            await launcher.run()
+            // Index the tracked regions into Spotlight (a search for a region
+            // name surfaces Where and its day-count query) only after the launch
+            // drive finishes, so the intents stack resolves the canonical store
+            // the `open-store` step opened instead of assembling itself on the
+            // launch critical path. Indexing a handful of items is cheap and
+            // idempotent.
+            await RegionSpotlightIndexer.indexRegions()
+        }
         return true
     }
 }

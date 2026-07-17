@@ -3,18 +3,19 @@ import WhereCore
 /// A process-wide cache of the intent layer's `WhereServices`.
 ///
 /// Every App Intent resolves its services through `current()` rather than
-/// opening a fresh store per invocation. Two reasons:
+/// assembling a fresh stack per invocation. Two reasons:
 ///
-/// - **Cost:** `WhereServices.forIntents()` cold-opens the App Group SwiftData
-///   store; doing that on every query, action, and snippet reload is wasteful.
+/// - **Cost:** `WhereServices.forIntents()` derives its attribution from the
+///   store's tracked regions; re-assembling that on every query, action, and
+///   snippet reload is wasteful.
 /// - **Consistency:** a snippet's "Log today here" button (`LogDayIntent`) and
 ///   the subsequent snippet reload (`DaysInRegionSnippetIntent`) run in the same
-///   process. Sharing one store instance makes the write immediately visible on
-///   reload, so the count updates in place instead of racing cross-coordinator
-///   remote-change propagation.
+///   process. Sharing one stack makes the write immediately visible on reload.
 ///
-/// The store is opened lazily on first use and kept for the process lifetime,
-/// mirroring how the running app holds its own store.
+/// The backing store is the process's *canonical* `SwiftDataStore` — the same
+/// instance the app's launch opened (see `WhereServices.forIntents()`) — so an
+/// intent write pings the same `changes()` signal the running UI refreshes
+/// from, and no second container is ever opened over the app's store file.
 actor IntentServices {
     static let shared = IntentServices()
 

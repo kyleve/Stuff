@@ -222,16 +222,16 @@ public final class WhereBootstrap {
         locationSource = CoreLocationSource()
     }
 
-    /// Open the SwiftData store (on a detached task so a slow lightweight
-    /// migration runs off the main actor the migration UI renders on) and
-    /// assemble the services from it and the prepared location source.
-    /// Throws on persistence failure so the `open-store` step can surface it.
+    /// Resolve the process's canonical SwiftData store (opened on the
+    /// canonical-store vendor's executor, off the main actor the migration UI
+    /// renders on — and shared with the App Intents layer, so no second
+    /// container ever races this open) and assemble the services from it and
+    /// the prepared location source. Throws on persistence failure so the
+    /// `open-store` step can surface it.
     public func makeServices() async throws -> WhereServices {
         let source = locationSource ?? CoreLocationSource()
         locationSource = nil
-        let store = try await Task.detached(priority: .userInitiated) {
-            try SwiftDataStore.make()
-        }.value
+        let store = try await SwiftDataStore.canonical()
         Self.logger.info("WhereServices assembled")
         return try await WhereServices.make(
             store: store,

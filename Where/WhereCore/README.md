@@ -24,8 +24,13 @@ one it belongs to rather than to a god-object:
 - **`WhereStore`** — the value-type persistence boundary (a protocol; nothing
   crossing it is a SwiftData record). Mutations run inside `perform { … }` (one
   atomic transaction) and `changes()` emits once per commit and on a CloudKit
-  remote import. `SwiftDataStore.make()` is the production, CloudKit-backed
-  implementation; `SwiftDataStore.inMemory()` backs tests and previews. It also
+  remote import. `SwiftDataStore` is the production, CloudKit-backed
+  implementation — production wiring resolves the process's single shared
+  instance via `SwiftDataStore.canonical()` (the app launch and the App
+  Intents layer share it, so two subsystems never race to create/open the
+  same store file), while `make(storage:)` stays an ordinary factory for
+  deliberately independent opens and `SwiftDataStore.inMemory()` backs tests
+  and previews. It also
   holds the user's **tracked regions** (`trackedRegions()` /
   `setTrackedRegion(_:id:)`) — one synced row per region, defaulting to the four
   until the user chooses.
@@ -112,7 +117,7 @@ import WhereCore
 // previews use the synchronous `@_spi(Testing)` `init` instead (an explicit
 // attributor, default four) via `@_spi(Testing) import WhereCore`.
 let services = try await WhereServices.make(
-    store: try SwiftDataStore.make(),   // production; use .inMemory() in tests
+    store: try await SwiftDataStore.canonical(), // production; .inMemory() in tests
     locationSource: CoreLocationSource(),
 )
 

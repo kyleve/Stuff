@@ -250,6 +250,41 @@ struct SwiftDataStoreTests {
     }
 }
 
+/// `SwiftDataStore.canonical()` — the process-wide shared store production
+/// wiring resolves. Serialized because the vendor is deliberately
+/// process-global state; each test resets it around its body. Under tests
+/// `Storage.default` is `.inMemory`, so nothing here touches disk.
+@Suite(.serialized)
+struct SwiftDataStoreCanonicalTests {
+    /// Concurrent first callers get the *same* instance — the fresh-install
+    /// regression where two subsystems each built a container over the same
+    /// store file (and one threw creating it) can't recur through this path.
+    @Test func concurrentCallersShareOneStore() async throws {
+        await SwiftDataStore.resetCanonicalForTesting()
+        async let first = SwiftDataStore.canonical()
+        async let second = SwiftDataStore.canonical()
+        let (a, b) = try await (first, second)
+        #expect(a === b)
+        let later = try await SwiftDataStore.canonical()
+        #expect(later === a)
+        await SwiftDataStore.resetCanonicalForTesting()
+    }
+
+    /// The canonical store is a reuse default, not a lock-out: explicit
+    /// factories keep vending independent stores (debug tooling, tests).
+    @Test func explicitOpensStayIndependent() async throws {
+        await SwiftDataStore.resetCanonicalForTesting()
+        let canonical = try await SwiftDataStore.canonical()
+        let explicit = try SwiftDataStore.make(storage: .inMemory)
+        let inMemory = try SwiftDataStore.inMemory()
+        #expect(explicit !== canonical)
+        #expect(inMemory !== canonical)
+        let resolvedAgain = try await SwiftDataStore.canonical()
+        #expect(resolvedAgain === canonical)
+        await SwiftDataStore.resetCanonicalForTesting()
+    }
+}
+
 /// Tracks the peak number of concurrently-executing transaction blocks so a
 /// test can assert `perform` serialized them (peak of 1). `enter`/`exit`
 /// bracket the block body.

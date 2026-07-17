@@ -7,7 +7,8 @@ presents results as interactive snippet cards.
 Intents are thin adapters. They resolve a process-cached `WhereServices`
 (`IntentServices.shared`, backed by
 [`WhereServices.forIntents()`](../WhereCore/Sources/WhereServices+Intents.swift)
-— the shared App Group store, no GPS started via `WhereCore`'s
+— the process's canonical `SwiftDataStore`, shared with the running app; no
+GPS started via `WhereCore`'s
 `IdleLocationSource`), do their read/write through the existing collaborators
 (`reports`, `recentActivity`, `journal`) using a Gregorian calendar
 (`Calendar.whereIntents`, matching the domain's aggregation so year/day math
