@@ -28,6 +28,7 @@ public func assertSnapshots(
             of: snapshotCase.content,
             named: snapshotCase.name,
             configurations: snapshotCase.configurations,
+            settle: snapshotCase.settle,
             record: record,
             fileID: fileID,
             file: filePath,
@@ -45,6 +46,7 @@ public func assertSnapshots(
     of view: some View,
     named name: String,
     configurations: [SnapshotConfiguration],
+    settle: SnapshotSettle = .settled,
     record: SnapshotTestingConfiguration.Record? = nil,
     fileID: StaticString = #fileID,
     file filePath: StaticString = #filePath,
@@ -74,6 +76,7 @@ public func assertSnapshots(
             of: hostingController,
             sizing: sizing,
             isAccessibility: configuration.snapshotType == .accessibility,
+            settle: settle,
         )
         assertSnapshot(
             of: image,

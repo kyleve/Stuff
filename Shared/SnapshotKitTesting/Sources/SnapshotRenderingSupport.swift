@@ -1,5 +1,21 @@
+import SnapshotKit
 import SwiftUI
 import UIKit
+
+/// Runs the settle phase a case declared: `.settled` waits for pixel-stable
+/// renders (see ``settleContent(_:minDuration:maxDuration:)``); `.immediate`
+/// yields once — so a `.task` body that merely sets state synchronously still
+/// runs — and re-lays-out, skipping the digest-render loop entirely.
+@MainActor
+func settleForCapture(_ view: UIView, settle: SnapshotSettle) async {
+    switch settle {
+        case .settled:
+            await settleContent(view)
+        case .immediate:
+            await Task.yield()
+            CATransaction.performWithoutAnimation(view.layoutIfNeeded)
+    }
+}
 
 /// Suspends between render passes until the view's rendered content is stable —
 /// two consecutive low-resolution renders are pixel-identical — giving SwiftUI
@@ -22,28 +38,56 @@ import UIKit
 /// an animation is mid-flight. Bounded by `minDuration` (always waited, so a
 /// not-yet-scheduled `.task` still runs) and `maxDuration` (a view that never
 /// quiesces — e.g. a repeating pulse — doesn't hang the capture).
+///
+/// `minDuration` also covers async appearance work that starts *quiet* and lands
+/// late: the iOS 26 glass toolbar/tab bar adapts its material to the content
+/// behind it a few hundred ms after hosting, so a floor below that captures the
+/// pre-adaptation glass (seen on `primary`/`root` snapshots when the floor was
+/// 50ms).
+///
+/// Stability compares each pass against the **anchor** (first sample of the
+/// current quiet window), not just the previous pass, and requires the window to
+/// span `stableQuietDuration`: at a 16ms cadence a slow transition (a glass
+/// material crossfade) can quantize to zero between *adjacent* frames while
+/// still drifting across the window — the anchor comparison catches the drift.
 @MainActor
 func settleContent(
     _ view: UIView,
-    minDuration: TimeInterval = 0.05,
+    minDuration: TimeInterval = 0.25,
     maxDuration: TimeInterval = 2.5,
 ) async {
+    // How long the rendered pixels must stay byte-identical to the quiet
+    // window's anchor sample before the content counts as settled — matches the
+    // old 2-passes-at-60ms quiet window, now sampled densely.
+    let stableQuietDuration: TimeInterval = 0.12
+
     let start = Date()
     let minDeadline = start.addingTimeInterval(minDuration)
     let maxDeadline = start.addingTimeInterval(maxDuration)
-    var previousSample: Data?
+    var anchorSample: Data?
+    var anchorDate = Date()
     var stablePasses = 0
     while Date() < maxDeadline {
         do {
-            try await Task.sleep(for: .milliseconds(60))
+            try await Task.sleep(for: .milliseconds(16))
         } catch {
             break // Cancelled — stop settling; the capture proceeds as-is.
         }
         CATransaction.performWithoutAnimation(view.layoutIfNeeded)
         let sample = view.renderedContentSample()
-        stablePasses = sample != nil && sample == previousSample ? stablePasses + 1 : 0
-        previousSample = sample
-        if stablePasses >= 2, Date() >= minDeadline { break }
+        if sample != nil, sample == anchorSample {
+            stablePasses += 1
+        } else {
+            anchorSample = sample
+            anchorDate = Date()
+            stablePasses = 0
+        }
+        if stablePasses >= 2,
+           Date() >= anchorDate.addingTimeInterval(stableQuietDuration),
+           Date() >= minDeadline
+        {
+            break
+        }
     }
 }
 

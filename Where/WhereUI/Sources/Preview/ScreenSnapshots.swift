@@ -167,7 +167,7 @@
 
     extension AppIconView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Default", configurations: .screenDefaults) {
+            whereSnapshot(name: "Default", configurations: .screenDefaults, settle: .immediate) {
                 NavigationStack { AppIconView(model: .preview()) }
             }
         }

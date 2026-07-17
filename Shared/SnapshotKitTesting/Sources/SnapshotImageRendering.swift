@@ -24,7 +24,8 @@ public enum SnapshotSizing: Sendable {
 ///
 /// Overrides safe-area insets (default `.zero`) so the image is independent of the
 /// host device, disables animations and drains any in-flight animation, lets
-/// async content settle, hides text-input cursors, and — for accessibility
+/// async content settle (`settle` picks the mode — `.immediate` content skips
+/// the digest-render loop), hides text-input cursors, and — for accessibility
 /// captures — wraps the content so the image is VoiceOver-annotated. The capture
 /// is taken through a tile-and-stitch wrapper so views taller/wider than ~2000pt
 /// (which UIKit otherwise renders blank) come out whole.
@@ -54,6 +55,7 @@ public func renderSnapshotImage(
     sizing: SnapshotSizing = .fixed,
     safeAreaInsets: UIEdgeInsets? = .zero,
     isAccessibility: Bool = false,
+    settle: SnapshotSettle = .settled,
 ) async -> UIImage {
     func capture() async -> UIImage {
         guard let window = hostKeyWindow(), let hostRoot = window.rootViewController else {
@@ -80,6 +82,7 @@ public func renderSnapshotImage(
         await resolveContentSize(
             of: viewController,
             sizing: sizing,
+            settle: settle,
             hostedIn: hostRoot,
             window: window,
         )
@@ -99,7 +102,7 @@ public func renderSnapshotImage(
 
         wrappingViewController.view.setNeedsLayout()
         CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
-        await settleContent(wrappingViewController.view)
+        await settleForCapture(wrappingViewController.view, settle: settle)
 
         // Parse accessibility only after the content has settled, so the
         // annotation reflects the loaded/revealed state (not a placeholder), then
@@ -172,6 +175,7 @@ private func removeChildAfterCapture(_ child: UIViewController) {
 private func resolveContentSize(
     of viewController: UIViewController,
     sizing: SnapshotSizing,
+    settle: SnapshotSettle,
     hostedIn hostRoot: UIViewController,
     window: UIWindow,
 ) async {
@@ -184,7 +188,7 @@ private func resolveContentSize(
     hostChildForCapture(probeWrapper, in: hostRoot)
     probeWrapper.view.setNeedsLayout()
     CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
-    await settleContent(probeWrapper.view)
+    await settleForCapture(probeWrapper.view, settle: settle)
 
     var measured = viewController.view
         .sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))

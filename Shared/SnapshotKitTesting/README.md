@@ -23,7 +23,10 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
 - **The rendering pipeline** — a custom `Snapshotting<UIViewController, UIImage>`
   strategy that renders any view at any size on a single fixed simulator:
   safe-area-inset overriding, animation quiescing, text-cursor hiding, and a
-  size-stabilization pass for SwiftUI hosting controllers.
+  size-stabilization pass for SwiftUI hosting controllers. A case's
+  `SnapshotSettle` picks the settle phase: `.settled` (default) waits for
+  pixel-stable renders so `.task`-driven content loads; `.immediate` skips the
+  loop for content that's fully renderable after a layout pass.
 - **Accessibility captures** — for `.accessibility` configurations, content is
   wrapped so the image is annotated with the VoiceOver reading order, labels,
   traits, and activation points.

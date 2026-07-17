@@ -1,5 +1,16 @@
 import SwiftUI
 
+/// How a snapshot case's content reaches its capture-ready state.
+public enum SnapshotSettle: Sendable {
+    /// Wait for the rendered content to quiesce before capture, so `.task`-driven
+    /// async loads resolve first. The safe default.
+    case settled
+    /// The content is fully renderable after a layout pass: skip the settle loop.
+    /// A single task yield still runs, so a `.task` body that merely sets state
+    /// synchronously gets one shot — but nothing that needs real time will load.
+    case immediate
+}
+
 /// A named group of snapshot variants for a component: the configurations to
 /// render, and the content to render under each.
 ///
@@ -13,6 +24,8 @@ public struct SnapshotCase: Identifiable {
     public let name: String
     /// The configurations (appearance/frame/type variants) to render.
     public let configurations: [SnapshotConfiguration]
+    /// Whether the content needs the async settle loop before capture.
+    public let settle: SnapshotSettle
     /// The content rendered under each configuration.
     public let content: AnyView
 
@@ -24,10 +37,12 @@ public struct SnapshotCase: Identifiable {
     public init(
         name: String,
         configurations: [SnapshotConfiguration],
+        settle: SnapshotSettle = .settled,
         @ViewBuilder content: @MainActor () -> some View,
     ) {
         self.name = name
         self.configurations = configurations
+        self.settle = settle
         self.content = AnyView(content())
     }
 

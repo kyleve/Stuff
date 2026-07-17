@@ -11,9 +11,10 @@
     public func whereSnapshot(
         name: String,
         configurations: [SnapshotConfiguration],
+        settle: SnapshotSettle = .settled,
         @ViewBuilder content: @MainActor () -> some View,
     ) -> SnapshotCase {
-        SnapshotCase(name: name, configurations: configurations) {
+        SnapshotCase(name: name, configurations: configurations, settle: settle) {
             content().whereBroadwayRoot()
         }
     }

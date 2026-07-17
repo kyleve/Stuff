@@ -23,7 +23,10 @@ capture + comparison pipeline lives in the sibling
   `static var snapshots: [SnapshotCase]`.
 - **`SnapshotCase`** — a named group of configurations plus the content to
   render; it is also a `View`, so `snapshotPreviews` can render the whole matrix
-  as a scrollable cutsheet inside a `#Preview`.
+  as a scrollable cutsheet inside a `#Preview`. Its `settle` axis
+  (`SnapshotSettle`) declares whether the content needs the capture pipeline's
+  async settle loop (`.settled`, the default) or is fully renderable after a
+  layout pass (`.immediate` — skips the loop, so static content captures fast).
 - **`snapshotTraits(_:)`** — applies a configuration's traits to a view for the
   preview cutsheet (color scheme, Dynamic Type, and an increased-contrast trait
   override).

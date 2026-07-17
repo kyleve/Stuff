@@ -24,19 +24,27 @@
 
     extension TodayWidgetView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "SingleRegion", configurations: .componentDefaults) {
+            whereSnapshot(
+                name: "SingleRegion",
+                configurations: .componentDefaults,
+                settle: .immediate,
+            ) {
                 TodayWidgetView(snapshot: widgetSnapshot(
                     dayRegions: [.california],
                     totals: [.california: 132],
                 ))
             }
-            whereSnapshot(name: "MultiRegion", configurations: .componentLightDark) {
+            whereSnapshot(
+                name: "MultiRegion",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
                 TodayWidgetView(snapshot: widgetSnapshot(
                     dayRegions: [.california, .newYork],
                     totals: [.california: 132, .newYork: 41],
                 ))
             }
-            whereSnapshot(name: "Empty", configurations: .componentLightDark) {
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
                 TodayWidgetView(snapshot: widgetSnapshot(dayRegions: [], totals: [:]))
             }
         }
@@ -44,7 +52,7 @@
 
     extension YearTotalsWidgetView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Ranked", configurations: .componentDefaults) {
+            whereSnapshot(name: "Ranked", configurations: .componentDefaults, settle: .immediate) {
                 YearTotalsWidgetView(snapshot: widgetSnapshot(
                     dayRegions: [.california],
                     totals: [
@@ -56,7 +64,7 @@
                     ],
                 ))
             }
-            whereSnapshot(name: "Empty", configurations: .componentLightDark) {
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
                 YearTotalsWidgetView(snapshot: widgetSnapshot(dayRegions: [], totals: [:]))
             }
         }
@@ -64,13 +72,17 @@
 
     extension TodayInlineAccessoryView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Regions", configurations: .componentLightDark) {
+            whereSnapshot(
+                name: "Regions",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
                 TodayInlineAccessoryView(snapshot: widgetSnapshot(
                     dayRegions: [.california, .newYork],
                     totals: [.california: 132, .newYork: 41],
                 ))
             }
-            whereSnapshot(name: "Empty", configurations: .componentLightDark) {
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
                 TodayInlineAccessoryView(snapshot: widgetSnapshot(dayRegions: [], totals: [:]))
             }
         }
@@ -78,13 +90,17 @@
 
     extension TodayCircularAccessoryView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Regions", configurations: .componentLightDark) {
+            whereSnapshot(
+                name: "Regions",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
                 TodayCircularAccessoryView(snapshot: widgetSnapshot(
                     dayRegions: [.california, .newYork],
                     totals: [.california: 132, .newYork: 41],
                 ))
             }
-            whereSnapshot(name: "Empty", configurations: .componentLightDark) {
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
                 TodayCircularAccessoryView(snapshot: widgetSnapshot(dayRegions: [], totals: [:]))
             }
         }
@@ -92,13 +108,13 @@
 
     extension YearTotalsRectangularAccessoryView: SnapshotProviding {
         public static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Ranked", configurations: .componentLightDark) {
+            whereSnapshot(name: "Ranked", configurations: .componentLightDark, settle: .immediate) {
                 YearTotalsRectangularAccessoryView(snapshot: widgetSnapshot(
                     dayRegions: [.california],
                     totals: [.california: 132, .newYork: 41, .canada: 9, .other: 2],
                 ))
             }
-            whereSnapshot(name: "Empty", configurations: .componentLightDark) {
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
                 YearTotalsRectangularAccessoryView(snapshot: widgetSnapshot(
                     dayRegions: [],
                     totals: [:],

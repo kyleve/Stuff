@@ -9,6 +9,18 @@ struct SnapshotCaseTests {
         #expect(snapshotCase.id == "States")
     }
 
+    @Test func settleDefaultsToSettled() {
+        let snapshotCase = SnapshotCase(name: "States", configurations: []) { Color.red }
+        #expect(snapshotCase.settle == .settled)
+    }
+
+    @Test func settleStoresTheDeclaredMode() {
+        let snapshotCase = SnapshotCase(name: "States", configurations: [], settle: .immediate) {
+            Color.red
+        }
+        #expect(snapshotCase.settle == .immediate)
+    }
+
     @Test func previewConfigurationsExcludeAccessibilityCaptures() {
         let snapshotCase = SnapshotCase(
             name: "States",
