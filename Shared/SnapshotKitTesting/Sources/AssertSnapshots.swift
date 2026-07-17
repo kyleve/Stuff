@@ -23,6 +23,7 @@ public func assertSnapshots(
     line: UInt = #line,
     column: UInt = #column,
 ) async {
+    guard simulatorMatchesSnapshotExpectations() else { return }
     for snapshotCase in provider.snapshots {
         await assertSnapshots(
             of: snapshotCase.content,
@@ -54,6 +55,7 @@ public func assertSnapshots(
     line: UInt = #line,
     column: UInt = #column,
 ) async {
+    guard simulatorMatchesSnapshotExpectations() else { return }
     do {
         try waitFor { hostKeyWindow() != nil }
     } catch {
@@ -99,6 +101,56 @@ public func assertSnapshots(
             column: column,
         )
     }
+}
+
+/// Fails fast when the live simulator doesn't match the environment the
+/// reference images were recorded on.
+///
+/// The snapshot scheme's test action (see `testScheme` in `Project.swift`) pins
+/// the recording environment via `SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION`
+/// and `SNAPSHOT_EXPECTED_SCREEN_SCALE`. When those are present but don't match
+/// the live simulator, every image comparison would fail with confusing
+/// pixel diffs — so this records ONE clear issue naming the mismatch and the
+/// runner asserts nothing. When the expectation variables are absent (direct
+/// `renderSnapshotImage` callers, non-scheme invocations), the guard is inert.
+@MainActor
+private func simulatorMatchesSnapshotExpectations() -> Bool {
+    let environment = ProcessInfo.processInfo.environment
+    var mismatches: [String] = []
+
+    if let expectedRuntime = environment["SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION"] {
+        let actualRuntime = environment["SIMULATOR_RUNTIME_VERSION"] ?? "unknown"
+        if actualRuntime != expectedRuntime {
+            mismatches.append(
+                "references were recorded on simulator runtime \(expectedRuntime); this run is on \(actualRuntime)",
+            )
+        }
+    }
+
+    if let expectedScale = environment["SNAPSHOT_EXPECTED_SCREEN_SCALE"] {
+        let actualScale = Double(UIScreen.main.scale)
+        if Double(expectedScale) != actualScale {
+            mismatches.append(
+                """
+                references were recorded at \(expectedScale)x screen scale; \
+                this run is at \(actualScale.formatted())x
+                """,
+            )
+        }
+    }
+
+    guard mismatches.isEmpty else {
+        Issue.record(
+            """
+            Snapshot simulator mismatch: \(mismatches.joined(separator: "; ")). \
+            Every comparison would fail confusingly, so nothing was asserted. Run on the \
+            pinned simulator, or update the scheme's SNAPSHOT_EXPECTED_* test environment \
+            variables in Project.swift alongside re-recorded references.
+            """,
+        )
+        return false
+    }
+    return true
 }
 
 /// Builds a hosting controller for `view` with the configuration's appearance

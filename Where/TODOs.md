@@ -58,6 +58,7 @@ re-recording:
 
 - fix: Occasional ~20px vertical sheet-offset shift in iPad ax5 sheet captures (seen on `calendar.WithData_iPad_ax5`) — the sheet/scroll settling position varies between runs. (Likely the capture-time `scrollToCurrentMonth` scroll, skipped under capture since the snapshot-determinism pass — keep an eye out for recurrence before closing.)
 - fix: `root.LoggedIn` snapshots the empty state, not the seeded sample report: `MainTabs`' `activate()` re-pulls from the empty in-memory store, replacing the injected report. Making sample data survive requires seeding the store itself, not just injecting the report into the model.
+- fix: `root.LoggedIn` intermittently captures the iOS 26 glass toolbar/tab bar in its pre-adaptation state (light glass pills instead of the dark-adapted material — toolbar rows ~186–317, tab bar rows ~2373–2581 in the 3x image). Reproduced on an unmodified tree (1 in ~4 isolated `AppFlowSnapshotTests` runs, and once in a full-suite run); the settle loop's pixel-stability window doesn't always outlast the material adaptation. Same family as the `minDuration` floor note on `settleContent`.
 
 # Completed issues
 

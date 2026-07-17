@@ -54,12 +54,22 @@ func unitTests(
 }
 
 /// A shared scheme that builds and tests a single unit-test bundle.
-func testScheme(name: String) -> Scheme {
+/// `testEnvironmentVariables` are set on the test action, so they reach the
+/// test process (schemes without any keep an argument-less test action).
+func testScheme(
+    name: String,
+    testEnvironmentVariables: [String: EnvironmentVariable] = [:],
+) -> Scheme {
     .scheme(
         name: name,
         shared: true,
         buildAction: .buildAction(targets: ["\(name)"]),
-        testAction: .targets(["\(name)"]),
+        testAction: .targets(
+            ["\(name)"],
+            arguments: testEnvironmentVariables.isEmpty
+                ? nil
+                : .arguments(environmentVariables: testEnvironmentVariables),
+        ),
     )
 }
 
@@ -506,7 +516,17 @@ let project = Project(
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
-        testScheme(name: "WhereUISnapshotTests"),
+        // Pins the simulator the LFS reference images were recorded on. The
+        // `assertSnapshots` runner compares these against the live simulator
+        // and fails fast with one clear message on a mismatched runtime or
+        // screen scale — instead of hundreds of confusing image diffs.
+        testScheme(
+            name: "WhereUISnapshotTests",
+            testEnvironmentVariables: [
+                "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "26.2",
+                "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
+            ],
+        ),
         testScheme(name: "WhereIntentsTests"),
         testScheme(name: "BroadwayCoreTests"),
         testScheme(name: "BroadwayUITests"),
