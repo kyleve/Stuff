@@ -24,8 +24,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// reason is known) and handed to `RootView` via `WhereApp`.
     private(set) var launcher: LifecycleRunner!
 
-    private static let logger = WhereLog.channel(.launch)
-
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil,
@@ -43,23 +41,15 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // async steps off this synchronous launch path.
         // `onServicesReady` fires from the `open-store` step on every session
         // (re)start: derive the App Intents stack from the launch's services —
-        // same store instance, GPS-free — and install it, so the launch's open
-        // is the process's *only* store open and an intent can never race it
-        // with a second container over the same file (two containers racing to
-        // create it on a fresh install is how the launch once failed). Intents
-        // that fire earlier park in `IntentServices.current()` until this
-        // lands.
+        // same store, attribution, and clock; GPS-free — and install it, so
+        // the launch's open is the process's *only* store open and an intent
+        // can never race it with a second container over the same file (two
+        // containers racing to create it on a fresh install is how the launch
+        // once failed). Intents that fire earlier park in
+        // `IntentServices.current()` until this lands; the derivation can't
+        // fail, so nothing can strand them parked.
         launcher = WhereLaunch.makeLauncher(model: model, reason: reason) { services in
-            do {
-                let intentStack = try await WhereServices.forIntents(sharingStoreOf: services)
-                await IntentServices.shared.install(intentStack)
-            } catch {
-                // Degraded but handled: intents stay parked until the next
-                // session start installs a stack.
-                Self.logger.warning(
-                    "Failed to assemble store-sharing intent services: \(error.localizedDescription)",
-                )
-            }
+            await IntentServices.shared.install(.forIntents(sharingStoreOf: services))
         }
         Task {
             await launcher.run()

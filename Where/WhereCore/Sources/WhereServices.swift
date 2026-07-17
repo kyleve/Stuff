@@ -46,6 +46,17 @@ public struct WhereServices: Sendable {
     /// write origin (manual edit, live GPS, remote sync) funnels through.
     /// Plumbing, so it stays off the public surface.
     let store: any WhereStore
+    /// The attribution policy every collaborator was built with (in production
+    /// the live tracked-regions `RegionAttribution`). Retained so a derived
+    /// stack (`forIntents(sharingStoreOf:)`) shares the *same* attributor
+    /// rather than deriving a second live attribution over the same store.
+    let attributor: any RegionAttributing
+    /// The aggregation policy (calendar + time zone) the stack was built with,
+    /// retained so a derived stack buckets days identically.
+    let aggregator: DayAggregator
+    /// The clock the stack was built with, retained so a derived stack can't
+    /// diverge from an injected test/preview clock.
+    let now: @Sendable () -> Date
     /// The live SwiftData container when the backing store is the production
     /// `SwiftDataStore`; `nil` for non-SwiftData stores (e.g. test fakes).
     /// Surfaced only for read-only debug tooling (the SwiftData inspector) so
@@ -190,6 +201,9 @@ public struct WhereServices: Sendable {
         self.resolution = resolution
         self.recentActivity = recentActivity
         self.store = store
+        self.attributor = attributor
+        self.aggregator = aggregator
+        self.now = now
         modelContainer = (store as? SwiftDataStore)?.inspectorContainer
     }
 

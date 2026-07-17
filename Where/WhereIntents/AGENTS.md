@@ -75,3 +75,11 @@ Swift Testing in [`Tests/`](Tests) (`WhereIntentsTests`, hosted in
 `DayJournal` — never the on-disk store. Follows the WhereUITests dependency
 shape (no `extraPackageProducts`; everything arrives transitively through
 WhereUI). Internal types are reached via `@testable import WhereIntents`.
+
+**Never call an intent's `perform()` in a test.** `perform()` resolves
+`IntentServices.shared`, which parks until a stack is installed — in the
+shared test host nothing installs one (the test hangs to timeout), or worse,
+another bundle's app-launch test may have left a stale stack installed that
+the intent would silently ride. Test the read/write logic against injected
+services, and test the handoff itself on per-test `IntentServices` instances
+(see `IntentServicesTests`).

@@ -55,11 +55,8 @@ public final class WhereSession {
     /// The services every mutation funnels through. Non-optional: a session only
     /// exists once `WhereModel` has assembled the service layer. Exposed so
     /// `MainTabs` / the tabs can build their scoped models from the injected
-    /// coordinator — and `public` so the app's composition root can derive the
-    /// App Intents stack from the same service layer
-    /// (`WhereServices.forIntents(sharingStoreOf:)`), keeping one store open
-    /// per process by injection rather than a second container.
-    public let services: WhereServices
+    /// coordinator.
+    let services: WhereServices
 
     /// The persisted user intent (tracking, reminder/summary schedules) the
     /// coordinator applies at launch/foreground. Owned by `WhereModel` and shared

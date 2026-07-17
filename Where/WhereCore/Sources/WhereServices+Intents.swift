@@ -2,31 +2,37 @@ import Foundation
 
 extension WhereServices {
     /// Assemble the App Intents stack (Siri, Spotlight, Shortcuts — executing
-    /// in the app's own process) over the **same store `base` already holds**.
+    /// in the app's own process) over the **same store, live attribution,
+    /// aggregation calendar, and clock `base` already holds** — only the
+    /// location source differs (``IdleLocationSource``, so resolving an
+    /// intent never starts GPS).
     ///
-    /// This is the *only* way an intents stack is built, and it never opens a
-    /// store: the app's composition root derives it from the launch's services
-    /// and installs it into the intent layer's handoff (see `IntentServices`
-    /// in WhereIntents, wired through `WhereLaunch.makeLauncher`'s
-    /// `onServicesReady` hook) — so the launch's `open-store` step is the
-    /// process's one store open, an intent can never race it with a second
-    /// container over the same file, and an intent write pings the same
-    /// `changes()` signal the running UI refreshes from. Only the *store* is
-    /// shared — the stack wires ``IdleLocationSource``, so resolving an
-    /// intent never starts GPS.
-    public static func forIntents(
-        sharingStoreOf base: WhereServices,
-        now: @escaping @Sendable () -> Date = { Date() },
-    ) async throws -> WhereServices {
-        try await makeForIntents(store: base.store, now: now)
+    /// This is the *only* way an intents stack is built, and it is
+    /// deliberately synchronous and non-throwing: deriving from an assembled
+    /// service layer opens nothing and re-reads nothing, so the composition
+    /// hook that installs it (`WhereLaunch.makeLauncher`'s `onServicesReady`
+    /// → `IntentServices` in WhereIntents) has no failure path that could
+    /// strand parked intents behind a logged-and-dropped error. The launch's
+    /// `open-store` step stays the process's one store open, an intent can
+    /// never race it with a second container over the same file, and an
+    /// intent write pings the same `changes()` signal the running UI
+    /// refreshes from.
+    public static func forIntents(sharingStoreOf base: WhereServices) -> WhereServices {
+        WhereServices(
+            store: base.store,
+            locationSource: IdleLocationSource(),
+            attributor: base.attributor,
+            aggregator: base.aggregator,
+            now: base.now,
+        )
     }
 
-    /// Composition seam shared by `forIntents(sharingStoreOf:)` (production,
-    /// the launch's store) and unit tests (an in-memory store): wraps `store`
-    /// in the same GPS-free service stack an intent uses. `async` because it
-    /// derives the attributor from the store's tracked regions (via
-    /// ``make(store:locationSource:)``), so an intent attributes against the
-    /// same synced set the app does.
+    /// Test seam: wraps an in-memory `store` in the same GPS-free service
+    /// stack an intent uses. Unlike the production
+    /// `forIntents(sharingStoreOf:)` — which shares an assembled layer's
+    /// attributor — this derives one from the store's tracked regions (via
+    /// ``make(store:locationSource:)``, hence `async throws`), so a test can
+    /// seed tracked rows and observe the derived attribution.
     static func makeForIntents(
         store: any WhereStore,
         now: @escaping @Sendable () -> Date = { Date() },
