@@ -10,6 +10,11 @@ import UIKit
 /// hosting-controller boundary and the pipeline's re-hosting. The probe renders
 /// red unless it reads the flag as `true`; a green capture proves the flag
 /// crossed the pipeline into the SwiftUI environment.
+///
+/// This probe view is compiled into *this bundle* — the same image as the
+/// pipeline — so it can't detect the flag splitting across the WhereUI
+/// framework boundary; `SnapshotCaptureFlagProbeTests` covers that side with a
+/// WhereUI-defined probe.
 @MainActor
 struct SnapshotCaptureFlagTests {
     @Test func viewsReadTheCaptureFlagDuringCapture() async throws {

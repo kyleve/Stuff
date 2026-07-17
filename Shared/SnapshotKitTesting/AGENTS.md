@@ -13,6 +13,18 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   comparison engine + XCTest/Testing, so it is **only** consumed by
   `*SnapshotTests` bundles via `extraPackageProducts` — **never** a shipping app
   or `StuffTestHost`.
+- **The consuming bundle double-embeds `SnapshotKit`, tolerated and guarded.**
+  Listing this product in `extraPackageProducts` statically embeds its
+  dependency closure — including `SnapshotKit` — into the `.xctest`, while a
+  dynamic-framework dependency (WhereUI) carries its own copy: the
+  duplicate-type-metadata hazard from the root `AGENTS.md` "Targets" note,
+  with `\.isCapturingSnapshot` as the type-keyed cross-boundary lookup at
+  risk. There is no cleaner wiring (the pipeline must reach the bundle without
+  ever linking into the UI framework), the trait lookup demonstrably resolves
+  across both copies today, and
+  `WhereUISnapshotTests.SnapshotCaptureFlagProbeTests` fails loudly if the
+  copies ever split — see the WhereUISnapshotTests comment in
+  `Project.swift` for the full topology.
 - Re-exports `SnapshotKit` and `SnapshotTesting` so consumers need one import.
 - Library target in [`Package.swift`](../../Package.swift).
 
