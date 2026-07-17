@@ -23,8 +23,11 @@ project](#generating-the-xcode-project)).
 Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise),
 `sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`),
 `profile` (prints build/test hot spots — slowest build phases, slowest
-tests, and slow type-check sites; see `./profile --help`), and `icons`
-(adds/removes selectable app icons; see `./icons --help`).
+tests, and slow type-check sites; see `./profile --help`), `icons`
+(adds/removes selectable app icons; see `./icons --help`), and `flaky`
+(detects flaky tests by re-running the suite and tight-looping any test that
+ever fails, then writes the counts to `FLAKY_TESTS.md`; report-only, see
+`./flaky --help`).
 
 ### Managing app icons
 

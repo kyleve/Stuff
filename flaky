@@ -1,0 +1,425 @@
+#!/bin/bash
+set -euo pipefail
+
+# flaky — report-only flaky-test detector for Where's test suite.
+#
+# Flakiness rarely shows up in a single test pass, so this exercises the tests
+# along two independent dimensions and cross-references the results:
+#
+#   Phase 1 (suite):      run the whole `Stuff-iOS-Tests` scheme N times and
+#                         record per-test pass/fail across the runs. Any test
+#                         that fails in at least one run is a "suspect" (it
+#                         either raced with a sibling bundle or is genuinely
+#                         non-deterministic).
+#   Phase 2 (tight loop): re-run *only* the suspects, each on its own via
+#                         `-only-testing` with `-test-iterations M`
+#                         (a fresh process per iteration by default), to get a
+#                         reliable in-isolation flake count.
+#
+# A test is reported as flaky only when it produced *both* passes and failures
+# across everything we observed — a test that fails every time isn't flaky,
+# it's broken, and a test that passes every time isn't interesting. The counts
+# and a flake rate land in `FLAKY_TESTS.md` at the repo root (a separate weekly
+# Cursor automation runs this script to keep that file current).
+#
+# Report only: like `./profile`, flaky/failing tests never make this script
+# exit non-zero — only a genuine *build* failure does. It builds once
+# (`build-for-testing`) and reuses that build for every run via
+# `test-without-building`, and it runs `tuist generate --no-open` first so it
+# never steals focus by opening Xcode.
+#
+# macOS only (Tuist + iOS Simulator), matching CI on macos-26.
+
+SUITE_RUNS=10          # Phase 1: how many times to run the full suite
+ITERATIONS=50          # Phase 2: how many times to tight-loop each suspect
+DEVICE="iPhone 17"
+OS="26.2"
+SCHEME="Stuff-iOS-Tests"
+RELAUNCH="YES"         # fresh process per tight-loop iteration (-test-repetition-relaunch-enabled)
+UPDATE=true            # write FLAKY_TESTS.md (disable with --no-update)
+TOP=1000000            # cap on how many flaky tests to list in the report/doc
+
+usage() {
+    cat <<'USAGE'
+Usage: ./flaky [options]
+
+Detects flaky tests by running the suite repeatedly, then tight-looping the
+tests that ever failed. Writes the findings (with flake counts) to
+FLAKY_TESTS.md. Report only — it never fails on flaky tests.
+
+Options:
+  --suite-runs N       Times to run the whole suite in phase 1 (default: 10)
+  --iterations M       Times to tight-loop each suspect in phase 2 (default: 50)
+  --device NAME        Simulator device name (default: "iPhone 17")
+  --os VERSION         Simulator iOS version (default: "26.2")
+  --scheme NAME        Scheme to test (default: "Stuff-iOS-Tests")
+  --relaunch YES|NO    New process per tight-loop iteration (default: YES)
+  --no-update          Print the report but don't write FLAKY_TESTS.md
+  --top N              List at most N flaky tests (default: all)
+  -h, --help           Show this help
+
+Examples:
+  ./flaky
+  ./flaky --suite-runs 3 --iterations 20
+  ./flaky --no-update --top 10
+USAGE
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --suite-runs) shift; SUITE_RUNS="${1:?--suite-runs requires a value}" ;;
+        --iterations) shift; ITERATIONS="${1:?--iterations requires a value}" ;;
+        --device) shift; DEVICE="${1:?--device requires a value}" ;;
+        --os) shift; OS="${1:?--os requires a value}" ;;
+        --scheme) shift; SCHEME="${1:?--scheme requires a value}" ;;
+        --relaunch) shift; RELAUNCH="${1:?--relaunch requires YES or NO}" ;;
+        --no-update) UPDATE=false ;;
+        --top) shift; TOP="${1:?--top requires a value}" ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "error: unknown option '$1' (see ./flaky --help)" >&2; exit 1 ;;
+    esac
+    shift
+done
+
+cd "$(dirname "$0")"
+
+WORKSPACE="Stuff.xcworkspace"
+DESTINATION="platform=iOS Simulator,name=$DEVICE,OS=$OS"
+
+WORKDIR="${TMPDIR:-/tmp}/where-flaky"
+DERIVED="$WORKDIR/DerivedData"
+BUILD_LOG="$WORKDIR/build.log"
+SUITE_DIR="$WORKDIR/suite"
+TIGHT_DIR="$WORKDIR/tight"
+SUSPECTS="$WORKDIR/suspects.txt"
+SUITE_COUNTS="$WORKDIR/suite_counts.json"
+# The suite/tight run outputs are per-invocation; clear them so a re-run never
+# mixes in stale results. DerivedData is deliberately kept for a warm rebuild.
+rm -rf "$SUITE_DIR" "$TIGHT_DIR" "$SUSPECTS" "$SUITE_COUNTS"
+mkdir -p "$WORKDIR" "$SUITE_DIR" "$TIGHT_DIR"
+
+rule() { printf '%s\n' "============================================================"; }
+
+echo "==> Regenerating project (tuist generate --no-open)"
+mise exec -- tuist generate --no-open >/dev/null
+
+echo "==> Building for testing ($SCHEME) on $DEVICE / iOS $OS"
+set +e
+xcodebuild build-for-testing \
+    -workspace "$WORKSPACE" \
+    -scheme "$SCHEME" \
+    -destination "$DESTINATION" \
+    -derivedDataPath "$DERIVED" \
+    >"$BUILD_LOG" 2>&1
+build_status=$?
+set -e
+if [ "$build_status" -ne 0 ]; then
+    echo "error: build failed (exit $build_status). Tail of $BUILD_LOG:" >&2
+    tail -n 40 "$BUILD_LOG" >&2
+    exit "$build_status"
+fi
+
+# ---------------------------------------------------------------------------
+# Phase 1 — run the whole suite SUITE_RUNS times.
+# ---------------------------------------------------------------------------
+echo
+echo "==> Phase 1: running the full suite $SUITE_RUNS time(s)"
+for i in $(seq 1 "$SUITE_RUNS"); do
+    rb="$SUITE_DIR/run_$i.xcresult"
+    log="$SUITE_DIR/run_$i.log"
+    rm -rf "$rb"
+    echo "  - suite run $i/$SUITE_RUNS"
+    # Test failures are the whole point here, so don't let a non-zero exit abort
+    # the loop — we read the truth out of the .xcresult regardless.
+    set +e
+    xcodebuild test-without-building \
+        -workspace "$WORKSPACE" \
+        -scheme "$SCHEME" \
+        -destination "$DESTINATION" \
+        -derivedDataPath "$DERIVED" \
+        -resultBundlePath "$rb" \
+        >"$log" 2>&1
+    set -e
+    xcrun xcresulttool get test-results tests --path "$rb" >"$SUITE_DIR/run_$i.json" 2>>"$log" \
+        || echo "  warning: could not read results for suite run $i (see $log)" >&2
+done
+
+echo
+echo "==> Analyzing suite runs"
+# Build the suspect set (tests that failed in >=1 suite run) and per-test suite
+# counts. Best-effort parse: warn and continue if the xcresult schema shifts.
+SUITE_DIR="$SUITE_DIR" SUITE_RUNS="$SUITE_RUNS" SUSPECTS="$SUSPECTS" \
+SUITE_COUNTS="$SUITE_COUNTS" python3 - <<'PY'
+import glob, json, os, sys
+
+
+def walk(node, bundle, suites, cases):
+    nt = node.get('nodeType')
+    if nt == 'Unit test bundle':
+        bundle = node.get('name', bundle)
+    elif nt == 'Test Suite':
+        suites = suites + [node.get('name', '')]
+    if nt == 'Test Case':
+        ident = node.get('nodeIdentifier')
+        if not ident:
+            # Fall back to the suite chain + case name when there's no stable id.
+            parts = [s for s in suites if s] + [node.get('name', '?')]
+            ident = '/'.join(parts)
+        only = ident if (bundle in (None, '?') or ident.startswith(bundle + '/')) \
+            else f"{bundle}/{ident}"
+        cases.append((only, bundle, node.get('name', '?'),
+                      (node.get('result') or '').lower()))
+    for child in node.get('children', []):
+        walk(child, bundle, suites, cases)
+
+
+def main():
+    suite_dir = os.environ['SUITE_DIR']
+    stats = {}  # only-testing id -> {bundle, name, fails, seen}
+    files = sorted(glob.glob(os.path.join(suite_dir, 'run_*.json')))
+    if not files:
+        print("warning: no suite result files to analyze", file=sys.stderr)
+    for f in files:
+        try:
+            data = json.load(open(f))
+        except Exception as exc:
+            print(f"warning: couldn't read {f} ({exc})", file=sys.stderr)
+            continue
+        cases = []
+        for n in data.get('testNodes', []):
+            walk(n, '?', [], cases)
+        for only, bundle, name, result in cases:
+            rec = stats.setdefault(
+                only, {'bundle': bundle, 'name': name, 'fails': 0, 'seen': 0})
+            rec['seen'] += 1
+            if result == 'failed':
+                rec['fails'] += 1
+
+    suspects = sorted(k for k, v in stats.items() if v['fails'] > 0)
+    with open(os.environ['SUSPECTS'], 'w') as fh:
+        for s in suspects:
+            fh.write(s + '\n')
+    with open(os.environ['SUITE_COUNTS'], 'w') as fh:
+        json.dump(stats, fh)
+
+    print(f"  {len(stats)} distinct tests seen across the suite runs")
+    print(f"  {len(suspects)} suspect(s) failed at least once")
+
+
+main()
+PY
+
+# `grep -c` prints 0 *and* exits non-zero on no match, which would trip the
+# `|| ...` fallback into appending a second count; count non-blank lines with
+# awk instead so an empty/absent suspects file cleanly yields 0.
+SUSPECT_COUNT=$(awk 'NF' "$SUSPECTS" 2>/dev/null | wc -l | tr -d '[:space:]')
+SUSPECT_COUNT=${SUSPECT_COUNT:-0}
+
+# ---------------------------------------------------------------------------
+# Phase 2 — tight-loop each suspect in isolation.
+# ---------------------------------------------------------------------------
+if [ "$SUSPECT_COUNT" -gt 0 ]; then
+    echo
+    echo "==> Phase 2: tight-looping $SUSPECT_COUNT suspect(s) $ITERATIONS time(s) each"
+    i=0
+    while IFS= read -r id; do
+        [ -z "$id" ] && continue
+        i=$((i + 1))
+        rb="$TIGHT_DIR/tight_$i.xcresult"
+        log="$TIGHT_DIR/tight_$i.log"
+        rm -rf "$rb"
+        echo "  - [$i/$SUSPECT_COUNT] $id"
+        printf '%s\n' "$id" >"$TIGHT_DIR/tight_$i.id"
+        set +e
+        xcodebuild test-without-building \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -destination "$DESTINATION" \
+            -derivedDataPath "$DERIVED" \
+            -only-testing:"$id" \
+            -test-iterations "$ITERATIONS" \
+            -test-repetition-relaunch-enabled "$RELAUNCH" \
+            -resultBundlePath "$rb" \
+            >"$log" 2>&1
+        set -e
+        xcrun xcresulttool get test-results tests --path "$rb" \
+            >"$TIGHT_DIR/tight_$i.tests.json" 2>>"$log" || true
+        xcrun xcresulttool get test-results summary --path "$rb" \
+            >"$TIGHT_DIR/tight_$i.summary.json" 2>>"$log" || true
+    done <"$SUSPECTS"
+else
+    echo
+    echo "==> Phase 2: skipped (no suspects from phase 1)"
+fi
+
+# ---------------------------------------------------------------------------
+# Aggregate + report + write FLAKY_TESTS.md.
+# ---------------------------------------------------------------------------
+echo
+rule
+echo "FLAKY TEST REPORT"
+rule
+SUITE_COUNTS="$SUITE_COUNTS" TIGHT_DIR="$TIGHT_DIR" SUITE_RUNS="$SUITE_RUNS" \
+ITERATIONS="$ITERATIONS" TOP="$TOP" UPDATE="$UPDATE" DEVICE="$DEVICE" OS="$OS" \
+RELAUNCH="$RELAUNCH" python3 - <<'PY'
+import glob, json, os, re, sys
+from datetime import datetime, timezone
+
+
+def collect_case_results(node, out):
+    """Append the lowercased result of every Test Case leaf under `node`."""
+    if node.get('nodeType') == 'Test Case':
+        out.append((node.get('result') or '').lower())
+    for child in node.get('children', []):
+        collect_case_results(child, out)
+
+
+def tight_counts(idx, tight_dir):
+    """Return (failures, total) for one tight-loop run.
+
+    Prefer the per-iteration case nodes (each repetition shows up as its own
+    Test Case), and fall back to the summary's pass/fail totals if the tree
+    collapsed the repetitions into a single node.
+    """
+    results = []
+    tests_json = os.path.join(tight_dir, f'tight_{idx}.tests.json')
+    if os.path.exists(tests_json):
+        try:
+            data = json.load(open(tests_json))
+            for n in data.get('testNodes', []):
+                collect_case_results(n, results)
+        except Exception as exc:
+            print(f"warning: couldn't read {tests_json} ({exc})", file=sys.stderr)
+    if len(results) >= 2:
+        return sum(1 for r in results if r == 'failed'), len(results)
+
+    summary_json = os.path.join(tight_dir, f'tight_{idx}.summary.json')
+    if os.path.exists(summary_json):
+        try:
+            s = json.load(open(summary_json))
+            failed = int(s.get('failedTests') or 0)
+            passed = int(s.get('passedTests') or 0)
+            total = failed + passed
+            if total > 0:
+                return failed, total
+        except Exception as exc:
+            print(f"warning: couldn't read {summary_json} ({exc})", file=sys.stderr)
+
+    # Single case node with no usable summary: report what little we saw.
+    if results:
+        return sum(1 for r in results if r == 'failed'), len(results)
+    return 0, 0
+
+
+def main():
+    suite_runs = int(os.environ['SUITE_RUNS'])
+    iterations = int(os.environ['ITERATIONS'])
+    top = int(os.environ['TOP'])
+    tight_dir = os.environ['TIGHT_DIR']
+
+    try:
+        suite = json.load(open(os.environ['SUITE_COUNTS']))
+    except Exception as exc:
+        print(f"warning: couldn't read suite counts ({exc})", file=sys.stderr)
+        suite = {}
+
+    # Map each tight-loop run back to its test id.
+    tight = {}  # id -> (fails, total)
+    for idf in glob.glob(os.path.join(tight_dir, 'tight_*.id')):
+        m = re.search(r'tight_(\d+)\.id$', idf)
+        if not m:
+            continue
+        tid = open(idf).read().strip()
+        tight[tid] = tight_counts(m.group(1), tight_dir)
+
+    rows = []
+    for tid, rec in suite.items():
+        k = rec['fails']            # suite failures
+        seen = rec['seen']          # suite runs that actually executed this test
+        j, t = tight.get(tid, (0, 0))  # tight-loop failures / total
+        combined_fail = k + j
+        combined_pass = (seen - k) + (t - j)
+        # Flaky == genuinely non-deterministic: it both passed and failed.
+        if combined_fail <= 0 or combined_pass <= 0:
+            continue
+        suite_rate = k / suite_runs if suite_runs else 0.0
+        rates = [suite_rate]
+        if t > 0:
+            rates.append(j / t)
+        flake_rate = sum(rates) / len(rates)
+        rows.append({
+            'id': tid,
+            'bundle': rec['bundle'],
+            'name': rec['name'],
+            'suite_fail': k,
+            'suite_runs': suite_runs,
+            'tight_fail': j,
+            'tight_total': t,
+            'flake_rate': flake_rate,
+        })
+
+    rows.sort(key=lambda r: (-r['flake_rate'], -r['suite_fail'], r['id']))
+    shown = rows[:top]
+
+    def tight_cell(r):
+        return f"{r['tight_fail']}/{r['tight_total']}" if r['tight_total'] else "n/a"
+
+    if shown:
+        print(f"{len(rows)} flaky test(s) detected"
+              + (f" (showing top {top})" if len(rows) > top else "") + ":")
+        print()
+        for r in shown:
+            print(f"  {r['flake_rate'] * 100:5.1f}%  suite {r['suite_fail']}/{r['suite_runs']}"
+                  f"  tight {tight_cell(r)}  {r['id']}")
+    else:
+        print("No flaky tests detected.")
+
+    if os.environ['UPDATE'] != 'true':
+        return
+
+    now = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
+    lines = []
+    lines.append("# Flaky tests")
+    lines.append("")
+    lines.append("<!-- Generated by ./flaky — do not hand-edit. Re-run ./flaky to refresh. -->")
+    lines.append("")
+    lines.append(f"_Last run: {now} · suite runs: {suite_runs} · tight-loop "
+                 f"iterations: {iterations} · relaunch: {os.environ['RELAUNCH']} · "
+                 f"destination: {os.environ['DEVICE']} / iOS {os.environ['OS']}._")
+    lines.append("")
+    lines.append("A test is listed here only when it produced **both** passes and "
+                 "failures across the")
+    lines.append("suite runs and the per-test tight loop — i.e. it is genuinely "
+                 "non-deterministic.")
+    lines.append("Tests that always pass, or that always fail (broken, not flaky), "
+                 "are omitted.")
+    lines.append("The flake rate averages the suite failure rate and the tight-loop "
+                 "failure rate.")
+    lines.append("")
+    lines.append("## Detected flaky tests")
+    lines.append("")
+    if shown:
+        lines.append("| Test | Bundle | Suite fails | Tight-loop fails | Flake rate |")
+        lines.append("|------|--------|-------------|------------------|------------|")
+        for r in shown:
+            lines.append(
+                f"| `{r['id']}` | {r['bundle']} | {r['suite_fail']}/{r['suite_runs']} "
+                f"| {tight_cell(r)} | {r['flake_rate'] * 100:.0f}% |")
+        if len(rows) > top:
+            lines.append("")
+            lines.append(f"_(+{len(rows) - top} more not shown; raise `--top` to list them.)_")
+    else:
+        lines.append("None detected in the latest run.")
+    lines.append("")
+
+    with open("FLAKY_TESTS.md", "w") as fh:
+        fh.write("\n".join(lines))
+    print()
+    print("Wrote FLAKY_TESTS.md")
+
+
+main()
+PY
+
+echo
+echo "Logs and result bundles: $WORKDIR"
