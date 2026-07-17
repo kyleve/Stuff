@@ -18,11 +18,25 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 
 ## Invariants an agent can't re-derive
 
-- **The rendering pipeline is a single strategy, not per-call code.** All
-  captures (standard and accessibility) flow through the same
-  `Snapshotting<UIViewController, UIImage>` so a config's traits/size/type are the
-  only thing that varies. Accessibility is just a `snapshotType`, wrapped before
-  the same capture — not a separate path.
+- **The rendering pipeline is a single function, not per-call code.** All
+  captures (standard and accessibility) flow through the same async
+  `renderSnapshotImage(...)` so a config's traits/size/type are the only thing
+  that varies; callers assert on the returned image (its `async` is
+  load-bearing — a synchronous `Snapshotting` pullback could never settle
+  `.task`-driven content). Accessibility is just a `snapshotType`, wrapped
+  before the same capture — not a separate path.
+- **The compare sees on-disk bytes.** Every capture is round-tripped through
+  PNG encoding before comparison so the perceptual diff runs on exactly what's
+  flushed to disk — removing it re-opens the wide-gamut in-memory vs. sRGB
+  reference flake (see `renderSnapshotImage`'s doc).
+- **The runner fails fast, once, on setup problems.** A simulator that doesn't
+  match the scheme's `SNAPSHOT_EXPECTED_*` pins, or two variants that would
+  share one reference name, records a single clear issue and asserts nothing —
+  never hundreds of confusing pixel diffs.
+- **Captures are single-tenant per process.** Every test renders into the one
+  `StuffTestHost` key window and the settle phase suspends, so xcodebuild
+  parallel testing corrupts captures (verified; see the snapshot job comment in
+  `.github/workflows/ci.yml`) — keep the suite serial.
 - **Rendering runs in the host key window.** It requires `StuffTestHost`'s window
   (via `TestHostSupport.hostKeyWindow()`); it is not usable from a non-hosted
   bundle.

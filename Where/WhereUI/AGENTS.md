@@ -133,4 +133,7 @@ declares its matrix once via a `SnapshotProviding` conformance in
 and CI job, deliberately outside `Stuff-iOS-Tests` (see `Project.swift`). To
 re-record a reference, delete the PNG under `SnapshotTests/__Snapshots__/`
 (LFS-tracked) and run the scheme — the suites record `.missing`, and a
-recording run fails by design so it can't pass as green.
+recording run fails by design so it can't pass as green. (Bulk re-records
+after an intentional UI change can instead forward
+`TEST_RUNNER_SNAPSHOT_RECORD=failed` — see the
+[SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording).)

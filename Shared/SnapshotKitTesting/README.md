@@ -19,10 +19,14 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   type (or an inline view + configurations), it expands `snapshots × configurations`,
   maps each `SnapshotConfiguration` to a frame size + `UITraitCollection`, renders
   through the pipeline, and asserts each against a reference image named by the
-  config's `identifier`.
-- **The rendering pipeline** — a custom `Snapshotting<UIViewController, UIImage>`
-  strategy that renders any view at any size on a single fixed simulator:
-  safe-area-inset overriding, animation quiescing, text-cursor hiding, and a
+  config's `identifier`. It fails fast — with one clear issue, asserting
+  nothing — when the live simulator doesn't match the scheme's
+  `SNAPSHOT_EXPECTED_*` pins or when two variants would collide on one
+  reference name.
+- **The rendering pipeline** — an async `renderSnapshotImage(...)` that renders
+  any view at any size on a single fixed simulator: safe-area-inset overriding
+  (zero by default; a frame's `safeAreaInsets`, e.g. `.iPhoneNotched`,
+  simulates device chrome), animation quiescing, text-cursor hiding, and a
   size-stabilization pass for SwiftUI hosting controllers. A case's
   `SnapshotSettle` picks the settle phase: `.settled` (default) waits for
   pixel-stable renders so `.task`-driven content loads;

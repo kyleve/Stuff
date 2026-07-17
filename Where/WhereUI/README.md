@@ -120,7 +120,7 @@ the on-disk/CloudKit store). Internal types are reached via
 
 How screens *look* is pinned separately: every top-level screen, widget, and
 app-flow surface has matrixed image snapshots (light/dark, Dynamic Type,
-iPhone/iPad, contrast, VoiceOver annotations) in
+iPhone/iPad, contrast, right-to-left, bold text, VoiceOver annotations) in
 [`SnapshotTests/`](SnapshotTests) (`WhereUISnapshotTests`), with reference
 images under `SnapshotTests/__Snapshots__/` in Git LFS. Each view declares its
 matrix via a `SnapshotProviding` conformance in
