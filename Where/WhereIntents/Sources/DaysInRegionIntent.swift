@@ -20,6 +20,10 @@ public struct DaysInRegionIntent: AppIntent {
     @Parameter(title: "Year")
     public var year: Int?
 
+    /// The app-registered services handoff (see `IntentServices`); resolved by
+    /// the App Intents dependency container, never a singleton of ours.
+    @Dependency private var intentServices: IntentServices
+
     public init() {}
 
     public init(region: RegionEntity, year: Int? = nil) {
@@ -28,7 +32,7 @@ public struct DaysInRegionIntent: AppIntent {
     }
 
     public func perform() async throws -> some IntentResult & ReturnsValue<Int> & ProvidesDialog {
-        let services = try await IntentServices.shared.current()
+        let services = try await intentServices.current()
         let resolvedYear = year ?? Calendar.whereIntents.component(.year, from: Date())
         let count = try await WhereIntentReader(services: services)
             .dayCount(in: region.region, year: resolvedYear)

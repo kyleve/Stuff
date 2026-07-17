@@ -7,7 +7,8 @@ import Testing
 /// stack, parks until one is installed (never self-assembling a store — the
 /// launch's open must stay the process's only one), honors cancellation while
 /// parked, and a later install replaces the cached stack. Each test builds its
-/// own `IntentServices`, so nothing here touches the `shared` instance.
+/// own `IntentServices` — the app-registered instance (see `AppDelegate` /
+/// `AppDependencyManager`) is never touched.
 struct IntentServicesTests {
     private func makeStack() throws -> WhereServices {
         try IntentTestSupport.services(store: SwiftDataStore.inMemory())

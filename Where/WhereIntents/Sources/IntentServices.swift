@@ -1,11 +1,13 @@
 import WhereCore
 
-/// The process-wide handoff of the intent layer's `WhereServices`.
+/// The handoff of the intent layer's `WhereServices`.
 ///
-/// Every App Intent resolves its services through `current()`. App Intents are
-/// instantiated by the system, so this is the one static seam the layer needs
-/// — but it never *creates* services (or a store) itself: the app's
-/// composition root derives a store-sharing stack from the launch's services
+/// The app's composition root (`AppDelegate`) **owns the one instance** and
+/// registers it with the App Intents framework's dependency container
+/// (`AppDependencyManager`); every App Intent and entity query resolves it
+/// with `@Dependency` and calls `current()` — there is no singleton of ours.
+/// The handoff never *creates* services (or a store) itself: the launch
+/// derives a store-sharing stack from its services
 /// (`WhereServices.forIntents(sharingStoreOf:)`, wired through
 /// `WhereLaunch.makeLauncher`'s `onServicesReady` hook) and hands it to
 /// `install(_:)`. That makes the launch's `open-store` step the process's
@@ -23,8 +25,6 @@ import WhereCore
 /// launch, the reset relaunch — replacing the cached stack, so intents always
 /// ride the current session's store instance.
 public actor IntentServices {
-    public static let shared = IntentServices()
-
     private var installed: WhereServices?
 
     /// Intents parked in `current()` awaiting installation, keyed so a
@@ -32,7 +32,10 @@ public actor IntentServices {
     private var waiters: [Int: CheckedContinuation<WhereServices, any Error>] = [:]
     private var nextWaiterID = 0
 
-    init() {}
+    /// Create the instance the composition root owns (and tests build
+    /// per-test); the app registers it with `AppDependencyManager` in
+    /// `didFinishLaunching`, before the system can deliver an intent.
+    public init() {}
 
     /// Install the store-sharing stack the app's composition root derived from
     /// the launch's services, resuming any parked intents. Idempotent per

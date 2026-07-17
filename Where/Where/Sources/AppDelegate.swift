@@ -1,3 +1,4 @@
+import AppIntents
 import CoreLocation
 import LifecycleKit
 import UIKit
@@ -20,6 +21,12 @@ import WhereUI
 final class AppDelegate: NSObject, UIApplicationDelegate {
     let model = WhereModel()
 
+    /// The intent layer's services handoff, owned here — the composition root
+    /// — and registered with the App Intents dependency container below, so
+    /// intents resolve it via `@Dependency` (no singleton of ours). The launch
+    /// installs the store-sharing stack into it via `onServicesReady`.
+    let intentServices = IntentServices()
+
     /// The launch engine, built in `didFinishLaunching` (where the launch
     /// reason is known) and handed to `RootView` via `WhereApp`.
     private(set) var launcher: LifecycleRunner!
@@ -28,6 +35,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil,
     ) -> Bool {
+        // Register the handoff before anything async: the system only delivers
+        // intents once launching finishes, so `@Dependency` can always resolve.
+        // Bound to a local because `add(dependency:)` takes an escaping
+        // autoclosure (a bare property reference would demand `self.`, which
+        // SwiftFormat's redundantSelf rule strips right back out).
+        let intentServices = intentServices
+        AppDependencyManager.shared.add(dependency: intentServices)
         // A `.background` launch state means iOS woke us headless (replacing the
         // deprecated `launchOptions[.location]` check); authorization tells us
         // whether that could have been the location wake we register for.
@@ -48,8 +62,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // once failed). Intents that fire earlier park in
         // `IntentServices.current()` until this lands; the derivation can't
         // fail, so nothing can strand them parked.
-        launcher = WhereLaunch.makeLauncher(model: model, reason: reason) { services in
-            await IntentServices.shared.install(.forIntents(sharingStoreOf: services))
+        launcher = WhereLaunch.makeLauncher(model: model, reason: reason) { [intentServices] in
+            await intentServices.install(.forIntents(sharingStoreOf: $0))
         }
         Task {
             await launcher.run()
@@ -57,7 +71,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             // name surfaces Where and its day-count query) through the stack
             // installed above, off the launch critical path. Indexing a
             // handful of items is cheap and idempotent.
-            await RegionSpotlightIndexer.indexRegions()
+            await RegionSpotlightIndexer.indexRegions(resolving: intentServices)
         }
         return true
     }

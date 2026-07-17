@@ -30,18 +30,21 @@ layering, localization, and the WhereUI duplicate-metadata rule).
 - **Intents never start GPS.** `WhereServices.forIntents()` wires
   `IdleLocationSource`; a manual entry logged from an intent records a
   `ManualEntryAudit` with a "Logged with Siri" note and no captured location.
-- **Resolve services through `IntentServices.shared`; intents never open a
-  store.** The launch's `open-store` step is the process's *only* store open:
-  it hands the session's services to the app's composition root
+- **Resolve services through the `@Dependency`-injected `IntentServices`;
+  intents never open a store.** The app's `AppDelegate` owns the one
+  `IntentServices` instance and registers it with `AppDependencyManager` in
+  `didFinishLaunching` (there is no singleton of ours); every intent and
+  entity query declares `@Dependency private var intentServices:
+  IntentServices`. The launch's `open-store` step is the process's *only*
+  store open: it hands the session's services to the composition root
   (`WhereLaunch.makeLauncher`'s `onServicesReady` hook), which derives the
   store-sharing intents stack (`WhereServices.forIntents(sharingStoreOf:)`)
-  and installs it via `IntentServices.shared.install(_:)` — re-fired on retry
-  and reset relaunches. Intents run over the same store instance the app
-  opened, so a `LogDayIntent` write pings the same `changes()` signal the
-  running UI refreshes from (and is immediately visible when the day-count
-  snippet reloads). An intent that fires before installation **parks** in
-  `current()` (cancellation-aware) rather than assembling its own stack —
-  there is deliberately no self-open fallback.
+  and installs it — re-fired on retry and reset relaunches. Intents run over
+  the same store instance the app opened, so a `LogDayIntent` write pings the
+  same `changes()` signal the running UI refreshes from (and is immediately
+  visible when the day-count snippet reloads). An intent that fires before
+  installation **parks** in `current()` (cancellation-aware) rather than
+  assembling its own stack — there is deliberately no self-open fallback.
 - **Use `Calendar.whereIntents` for all year/day math**, never `Calendar.current`
   — it's Gregorian in the current time zone, matching `DayAggregator()`, so a
   spoken "this year" lines up with the aggregated report even on a non-Gregorian
@@ -76,10 +79,10 @@ Swift Testing in [`Tests/`](Tests) (`WhereIntentsTests`, hosted in
 shape (no `extraPackageProducts`; everything arrives transitively through
 WhereUI). Internal types are reached via `@testable import WhereIntents`.
 
-**Never call an intent's `perform()` in a test.** `perform()` resolves
-`IntentServices.shared`, which parks until a stack is installed — in the
-shared test host nothing installs one (the test hangs to timeout), or worse,
-another bundle's app-launch test may have left a stale stack installed that
-the intent would silently ride. Test the read/write logic against injected
-services, and test the handoff itself on per-test `IntentServices` instances
-(see `IntentServicesTests`).
+**Never call an intent's `perform()` in a test.** `perform()` resolves its
+`@Dependency` from the process-wide `AppDependencyManager` — in the shared
+test host nothing registers one (the resolution traps), or worse, another
+bundle's app-launch test may have registered a handoff the intent would
+silently ride. Test the read/write logic against injected services, and test
+the handoff itself on per-test `IntentServices` instances (see
+`IntentServicesTests`).

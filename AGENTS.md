@@ -292,13 +292,15 @@ injection made that state impossible to spell rather than merely unlikely.
   reset hook to test something is the smell; injected dependencies get
   hermetic per-test instances instead.
 - **When the platform instantiates the consumer** (App Intents, extension
-  principal classes) and constructor injection can't reach it, keep the one
-  unavoidable static seam a **handoff, not a factory**: the composition root
-  *installs* the value it created (`IntentServices.install(_:)`), early
-  callers **await** installation (`current()` parks, cancellation-aware), and
-  the seam never creates the resource itself. A "create it myself" fallback —
-  however unlikely to run — quietly reintroduces the duplicate the design
-  exists to prevent.
+  principal classes) and constructor injection can't reach it, use the
+  platform's own DI seam rather than minting a singleton: the composition
+  root creates the value and registers it (`AppDependencyManager.shared.add`
+  in `didFinishLaunching`; intents resolve it with `@Dependency`). And keep
+  that seam a **handoff, not a factory**: the root *installs* what it created
+  (`IntentServices.install(_:)`), early callers **await** installation
+  (`current()` parks, cancellation-aware), and the seam never creates the
+  resource itself. A "create it myself" fallback — however unlikely to run —
+  quietly reintroduces the duplicate the design exists to prevent.
 - **Derive, don't re-derive.** A stack built from an existing layer reuses
   what that layer already computed (the store, the live attributor, the
   injected clock) rather than re-reading it. That keeps derivation synchronous
