@@ -167,12 +167,15 @@ private func environmentRecordMode() -> SnapshotTestingConfiguration.Record? {
 /// reference images were recorded on.
 ///
 /// The snapshot scheme's test action (see `testScheme` in `Project.swift`) pins
-/// the recording environment via `SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION`
-/// and `SNAPSHOT_EXPECTED_SCREEN_SCALE`. When those are present but don't match
-/// the live simulator, every image comparison would fail with confusing
-/// pixel diffs — so this records ONE clear issue naming the mismatch and the
-/// runner asserts nothing. When the expectation variables are absent (direct
-/// `renderSnapshotImage` callers, non-scheme invocations), the guard is inert.
+/// the recording environment via `SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION`,
+/// `SNAPSHOT_EXPECTED_SCREEN_SCALE`, and `SNAPSHOT_EXPECTED_TIMEZONE` (the
+/// timezone the scheme's `TZ` variable pins — references bake wall-clock
+/// dates/times into pixels, so this also verifies the `TZ` pin reached the
+/// test process). When those are present but don't match the live simulator,
+/// every image comparison would fail with confusing pixel diffs — so this
+/// records ONE clear issue naming the mismatch and the runner asserts nothing.
+/// When the expectation variables are absent (direct `renderSnapshotImage`
+/// callers, non-scheme invocations), the guard is inert.
 @MainActor
 private func simulatorMatchesSnapshotExpectations() -> Bool {
     let environment = ProcessInfo.processInfo.environment
@@ -194,6 +197,19 @@ private func simulatorMatchesSnapshotExpectations() -> Bool {
                 """
                 references were recorded at \(expectedScale)x screen scale; \
                 this run is at \(actualScale.formatted())x
+                """,
+            )
+        }
+    }
+
+    if let expectedTimeZone = environment["SNAPSHOT_EXPECTED_TIMEZONE"] {
+        let actualTimeZone = TimeZone.current.identifier
+        if actualTimeZone != expectedTimeZone {
+            mismatches.append(
+                """
+                references were recorded in the \(expectedTimeZone) timezone \
+                (wall-clock dates/times are baked into the pixels); this run is in \
+                \(actualTimeZone) — is the scheme's TZ pin missing?
                 """,
             )
         }

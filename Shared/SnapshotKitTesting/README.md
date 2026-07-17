@@ -99,3 +99,6 @@ unknown values keep the default plain output.
   `StuffTestHost`, reached via `TestHostSupport`).
 - Device/OS-pinned: reference images are captured on a fixed simulator (this
   repo's CI uses iPhone 17 / iOS 26.2).
+- Timezone-pinned: references bake wall-clock dates/times into pixels, so the
+  snapshot scheme pins `TZ` (and the runner verifies it via
+  `SNAPSHOT_EXPECTED_TIMEZONE`) — see `testScheme` in `Project.swift`.

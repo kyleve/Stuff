@@ -516,15 +516,23 @@ let project = Project(
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
-        // Pins the simulator the LFS reference images were recorded on. The
-        // `assertSnapshots` runner compares these against the live simulator
-        // and fails fast with one clear message on a mismatched runtime or
-        // screen scale — instead of hundreds of confusing image diffs.
+        // Pins the environment the LFS reference images were recorded on. The
+        // `assertSnapshots` runner compares the SNAPSHOT_EXPECTED_* values
+        // against the live simulator and fails fast with one clear message on
+        // a mismatched runtime, screen scale, or timezone — instead of
+        // hundreds of confusing image diffs. TZ pins the test process's
+        // timezone itself: several references bake Pacific wall-clock
+        // dates/times into the image (widget day labels, log-viewer
+        // timestamps), so an unpinned UTC CI runner would shift every
+        // date-rendering snapshot. SNAPSHOT_EXPECTED_TIMEZONE is the guard
+        // that verifies the TZ pin actually reached the test process.
         testScheme(
             name: "WhereUISnapshotTests",
             testEnvironmentVariables: [
                 "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "26.2",
                 "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
+                "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
+                "TZ": "America/Los_Angeles",
             ],
         ),
         testScheme(name: "WhereIntentsTests"),
