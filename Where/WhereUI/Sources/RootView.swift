@@ -95,12 +95,16 @@ public struct RootView: View {
         // foreground and build the heavy `TabView` for a launch nobody sees,
         // defeating the headless path. The `.onChange` below handles the later
         // background→foreground transition; this initial check covers a launch
-        // that is already active when the view first appears.
+        // that is already active when the view first appears — and it must run
+        // *before* awaiting `run()`: when the scene arrives already active,
+        // `.onChange` never fires, and promoting only after `run()` returns
+        // would leave the user staring at the empty background surface for the
+        // entire (possibly slow) headless drive instead of the splash.
         .task {
-            await launcher.run()
             if scenePhase == .active {
                 await launcher.enterForeground()
             }
+            await launcher.run()
         }
         .onChange(of: scenePhase) { _, newPhase in
             guard newPhase == .active else { return }
