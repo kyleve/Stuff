@@ -44,13 +44,16 @@ extension EnvironmentValues {
     /// that don't opt in; the flag exists for motion that never settles
     /// (`repeatForever` animations, `TimelineView(.animation)`).
     ///
-    /// **The one carve-out:** externally-loaded, non-deterministic content —
-    /// live map tiles, remote images — may substitute a deterministic
-    /// placeholder of *identical layout* (same frame, same chrome), because no
-    /// settle window can make cache/network-dependent loading pixel-stable.
+    /// **The one carve-out:** content whose rendering no settle window can
+    /// make deterministic — externally-loaded substrates (live map tiles,
+    /// remote images) and system controls whose rendering depends on
+    /// wall-clock state (the compact `DatePicker` formats its value capsule
+    /// relative to *today's* date) — may substitute a deterministic
+    /// placeholder of *identical layout* (same frame, same chrome).
     /// Keep the placeholder honest: the view's own chrome (markers, overlays,
-    /// legends) must still render for real; only the externally-loaded
-    /// substrate is substituted (see the Where app's `RegionMapView`).
+    /// legends, row titles) must still render for real; only the
+    /// nondeterministic element is substituted (see the Where app's
+    /// `RegionMapView` and `SnapshotDatePickerStandIn`).
     /// Everything else must render real content.
     public var isCapturingSnapshot: Bool {
         get { self[IsCapturingSnapshotKey.self] }

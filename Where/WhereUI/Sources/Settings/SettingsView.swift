@@ -1,4 +1,5 @@
 import LifecycleKit
+import SnapshotKit
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -22,6 +23,10 @@ struct SettingsView: View {
     @Environment(WhereSession.self) private var session
     @Environment(\.openURL) private var openURL
     @Environment(\.lifecycleRunner) private var runner
+    /// Snapshot captures substitute the compact time pickers' value capsules
+    /// with a deterministic stand-in — the live capsule's rendering depends on
+    /// real-world clock state (see `SnapshotDatePickerStandIn`).
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
 
     @State private var showClearConfirmation = false
     @State private var showResetConfirmation = false
@@ -183,11 +188,18 @@ struct SettingsView: View {
             }
 
             if reminders.remindersEnabled {
-                DatePicker(
-                    Strings.settingsReminderTime,
-                    selection: $reminders.reminderTimeOfDay,
-                    displayedComponents: .hourAndMinute,
-                )
+                if isCapturingSnapshot {
+                    SnapshotDatePickerStandIn(
+                        title: Strings.settingsReminderTime,
+                        selection: .timeOfDay(reminders.reminderTimeOfDay),
+                    )
+                } else {
+                    DatePicker(
+                        Strings.settingsReminderTime,
+                        selection: $reminders.reminderTimeOfDay,
+                        displayedComponents: .hourAndMinute,
+                    )
+                }
 
                 if !reminders.notificationsAuthorized {
                     Button {
@@ -219,11 +231,18 @@ struct SettingsView: View {
             }
 
             if reminders.summaryEnabled {
-                DatePicker(
-                    Strings.settingsSummaryTime,
-                    selection: $reminders.summaryTimeOfDay,
-                    displayedComponents: .hourAndMinute,
-                )
+                if isCapturingSnapshot {
+                    SnapshotDatePickerStandIn(
+                        title: Strings.settingsSummaryTime,
+                        selection: .timeOfDay(reminders.summaryTimeOfDay),
+                    )
+                } else {
+                    DatePicker(
+                        Strings.settingsSummaryTime,
+                        selection: $reminders.summaryTimeOfDay,
+                        displayedComponents: .hourAndMinute,
+                    )
+                }
 
                 if !reminders.notificationsAuthorized {
                     Button {

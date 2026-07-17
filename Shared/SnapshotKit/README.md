@@ -49,12 +49,14 @@ capture + comparison pipeline lives in the sibling
   looping indicator — never to change layout, content, or behavior. Views that
   don't opt in are still settled by the pipeline's pixel-stability loop; the
   flag exists for motion that never settles (`repeatForever`,
-  `TimelineView(.animation)`). One carve-out: externally-loaded,
-  non-deterministic content (live map tiles, remote images) may substitute a
-  deterministic placeholder of identical layout — the view's own chrome
-  (markers, overlays, legends) still renders for real; only the
-  externally-loaded substrate is substituted. It is bridged from a UIKit trait
-  (`SnapshotCaptureTrait`) so it crosses `UIHostingController` boundaries.
+  `TimelineView(.animation)`). One carve-out: content no settle window can make
+  deterministic — externally-loaded substrates (live map tiles, remote images)
+  and system controls whose rendering depends on wall-clock state (the compact
+  `DatePicker`'s value capsule formats relative to *today's* date) — may
+  substitute a deterministic placeholder of identical layout; the view's own
+  chrome (markers, overlays, legends, row titles) still renders for real. It is
+  bridged from a UIKit trait (`SnapshotCaptureTrait`) so it crosses
+  `UIHostingController` boundaries.
 
 ## Quick start
 
