@@ -84,10 +84,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return popover
     }
 
-    /// Shows the current-cycle dollar amount beside the icon while spend is
-    /// loaded, and nothing (icon only) otherwise.
+    /// Shows the current-cycle dollar amount beside the icon, always — a `$—`
+    /// placeholder until the first fetch lands — so the item is easy to spot.
     private func updateTitle() {
-        let title = session.statusTitle
-        statusItem?.button?.title = title == "—" ? "" : " \(title)"
+        statusItem?.button?.title = " \(session.statusTitle)"
     }
 }

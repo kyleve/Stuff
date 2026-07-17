@@ -50,14 +50,15 @@ final class LedgerSession {
         services.loginItemError
     }
 
-    /// The status-bar title: the current-cycle dollar amount when loaded, a
-    /// placeholder otherwise. Observed by the app delegate.
+    /// The status-bar title: the current-cycle dollar amount once loaded, and a
+    /// `$—` placeholder until then (so the item always shows something findable
+    /// in the menu bar). Observed by the app delegate.
     var statusTitle: String {
         switch services.loadState {
             case let .loaded(snapshot):
                 CurrencyFormat.dollars(snapshot.currentCycleDollars)
             case .idle, .loading, .failed:
-                "—"
+                "$—"
         }
     }
 
