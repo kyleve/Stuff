@@ -33,10 +33,18 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   match the scheme's `SNAPSHOT_EXPECTED_*` pins, or two variants that would
   share one reference name, records a single clear issue and asserts nothing —
   never hundreds of confusing pixel diffs.
-- **Captures are single-tenant per process.** Every test renders into the one
-  `StuffTestHost` key window and the settle phase suspends, so xcodebuild
-  parallel testing corrupts captures (verified; see the snapshot job comment in
-  `.github/workflows/ci.yml`) — keep the suite serial.
+- **Captures are single-tenant per process, enforced by `SnapshotCaptureLock`.**
+  Every capture holds process-global state (the safe-area swizzle + override
+  globals, the animations flag, the one `StuffTestHost` key window) across the
+  settle phase's suspensions, so interleaved captures corrupt each other
+  (verified — in-process parallel scheduling produced 24+ spurious mismatches;
+  see the snapshot job comment in `.github/workflows/ci.yml`).
+  `renderSnapshotImage` serializes captures through a FIFO `@MainActor` mutex,
+  and the safe-area swizzle is depth-counted so unbalanced pairs can't flip the
+  method-exchange parity (guarded by
+  `WhereUISnapshotTests.ConcurrentCaptureTests`). Nested captures — a hook
+  rendering another snapshot — trap. Keep the suite serial anyway: concurrent
+  scheduling now degrades to queued-serial rather than corrupt, gaining nothing.
 - **Rendering runs in the host key window.** It requires `StuffTestHost`'s window
   (via `TestHostSupport.hostKeyWindow()`); it is not usable from a non-hosted
   bundle.

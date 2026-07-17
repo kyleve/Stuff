@@ -27,7 +27,11 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   any view at any size on a single fixed simulator: safe-area-inset overriding
   (zero by default; a frame's `safeAreaInsets`, e.g. `.iPhoneNotched`,
   simulates device chrome), animation quiescing, text-cursor hiding, and a
-  size-stabilization pass for SwiftUI hosting controllers. A case's
+  size-stabilization pass for SwiftUI hosting controllers. Captures serialize
+  process-wide through an internal FIFO mutex — the pipeline holds
+  process-global state (the safe-area swizzle, the animations flag, the one
+  host window) across its suspensions, so a concurrent call queues behind the
+  in-flight capture instead of corrupting it. A case's
   `SnapshotSettle` picks the settle phase: `.settled` (default) waits for
   pixel-stable renders so `.task`-driven content loads;
   `.settledAtLeast(minDuration:)` raises the loop's minimum window for async

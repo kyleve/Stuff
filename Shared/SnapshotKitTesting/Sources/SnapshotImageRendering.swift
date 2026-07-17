@@ -49,6 +49,12 @@ public enum SnapshotSizing: Sendable {
 /// does this) rather than through a synchronous `Snapshotting` pullback, which
 /// could never settle such content.
 ///
+/// Captures are serialized process-wide through ``SnapshotCaptureLock``: the
+/// pipeline holds process-global state (the safe-area swizzle, the animations
+/// flag, the one host window) across those suspensions, so a concurrent call
+/// queues behind the in-flight capture instead of corrupting it. Re-entering
+/// from within a capture (a hook rendering another snapshot) traps.
+///
 /// The returned image is round-tripped through PNG encoding before it's handed
 /// to the comparison: the perceptual compare must see byte-identical input to
 /// what's flushed to disk, or wide-gamut in-memory captures diff against sRGB
@@ -64,6 +70,30 @@ public func renderSnapshotImage(
     isAccessibility: Bool = false,
     settle: SnapshotSettle = .settled,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
+) async -> UIImage {
+    await SnapshotCaptureLock.withLock {
+        await renderSnapshotImageLocked(
+            of: viewController,
+            sizing: sizing,
+            safeAreaInsets: safeAreaInsets,
+            isAccessibility: isAccessibility,
+            settle: settle,
+            onReadyToSnapshot: onReadyToSnapshot,
+        )
+    }
+}
+
+/// The capture body of
+/// ``renderSnapshotImage(of:sizing:safeAreaInsets:isAccessibility:settle:onReadyToSnapshot:)``,
+/// run while holding ``SnapshotCaptureLock``.
+@MainActor
+private func renderSnapshotImageLocked(
+    of viewController: UIViewController,
+    sizing: SnapshotSizing,
+    safeAreaInsets: UIEdgeInsets?,
+    isAccessibility: Bool,
+    settle: SnapshotSettle,
+    onReadyToSnapshot: (@MainActor () async -> Void)?,
 ) async -> UIImage {
     func capture() async -> UIImage {
         guard let window = hostKeyWindow(), let hostRoot = window.rootViewController else {

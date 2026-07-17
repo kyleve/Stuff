@@ -38,12 +38,28 @@ func swizzle<Output>(
 @MainActor private var _overrideViewController: UIViewController?
 @MainActor private var _overrideSafeAreaInsets: UIEdgeInsets = .zero
 
+/// How many `swizzleSafeAreaInsets()` calls are outstanding. The method
+/// exchange is a parity toggle, so a nested or unbalanced call pair would
+/// silently *unswizzle* for the outer caller and leave the exchange flipped for
+/// everything after — depth-counting makes only the 0↔1 transitions exchange
+/// implementations. (The override globals above are still last-writer-wins;
+/// `SnapshotCaptureLock` is what keeps captures from nesting at all.)
+@MainActor private var _swizzleDepth = 0
+
 extension UIView {
     fileprivate static func swizzleSafeAreaInsets() {
+        _swizzleDepth += 1
+        guard _swizzleDepth == 1 else { return }
         exchangeSafeAreaImplementations()
     }
 
     fileprivate static func unswizzleSafeAreaInsets() {
+        precondition(
+            _swizzleDepth > 0,
+            "Unbalanced safe-area unswizzle — every unswizzle must pair with a prior swizzle.",
+        )
+        _swizzleDepth -= 1
+        guard _swizzleDepth == 0 else { return }
         exchangeSafeAreaImplementations()
     }
 
