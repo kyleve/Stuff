@@ -5,10 +5,12 @@ manual day logging to **Siri**, **Spotlight**, and the **Shortcuts app**, and
 presents results as interactive snippet cards.
 
 Intents are thin adapters. They resolve a process-cached `WhereServices`
-(`IntentServices.shared` — after launch the app injects a stack built with
+(`IntentServices.shared` — the app's launch installs a stack built with
 [`WhereServices.forIntents(sharingStoreOf:)`](../WhereCore/Sources/WhereServices+Intents.swift)
-over the same `SwiftDataStore` the app opened; no GPS started via `WhereCore`'s
-`IdleLocationSource`), do their read/write through the existing collaborators
+over the same `SwiftDataStore` it opened, and an intent that fires earlier
+waits for that install rather than opening its own store; no GPS started via
+`WhereCore`'s `IdleLocationSource`), do their read/write through the existing
+collaborators
 (`reports`, `recentActivity`, `journal`) using a Gregorian calendar
 (`Calendar.whereIntents`, matching the domain's aggregation so year/day math
 lines up), and render with [`WhereUI`](../WhereUI/) snippet views. The

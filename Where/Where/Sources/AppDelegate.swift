@@ -41,30 +41,28 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // (so a queued location event isn't lost) and registers the
         // foreground-notification presenter; the rest (store open, etc.) runs as
         // async steps off this synchronous launch path.
-        launcher = WhereLaunch.makeLauncher(model: model, reason: reason)
+        // `onServicesReady` fires from the `open-store` step on every session
+        // (re)start: derive the App Intents stack from the launch's services —
+        // same store instance, GPS-free — and install it, so the launch's open
+        // is the process's *only* store open and an intent can never race it
+        // with a second container over the same file (two containers racing to
+        // create it on a fresh install is how the launch once failed). Intents
+        // that fire earlier park in `IntentServices.current()` until this
+        // lands.
+        launcher = WhereLaunch.makeLauncher(model: model, reason: reason) { services in
+            do {
+                let intentStack = try await WhereServices.forIntents(sharingStoreOf: services)
+                await IntentServices.shared.install(intentStack)
+            } catch {
+                // Degraded but handled: intents stay parked until the next
+                // session start installs a stack.
+                Self.logger.warning(
+                    "Failed to assemble store-sharing intent services: \(error.localizedDescription)",
+                )
+            }
+        }
         Task {
             await launcher.run()
-            // The launch's `open-store` step made the process's one store
-            // open. Derive the App Intents stack from those services — same
-            // store instance, GPS-free — and install it, so an intent never
-            // opens a second container over the app's store file (two
-            // containers racing to create it on a fresh install is how the
-            // launch once failed). Skipped if the launch failed (no session);
-            // intents then self-assemble their fallback stack.
-            if let services = model.session?.services {
-                do {
-                    let intentStack = try await WhereServices.forIntents(
-                        sharingStoreOf: services,
-                    )
-                    await IntentServices.shared.install(intentStack)
-                } catch {
-                    // Degraded but handled: intents fall back to opening their
-                    // own `.localOnly` container.
-                    Self.logger.warning(
-                        "Failed to assemble store-sharing intent services: \(error.localizedDescription)",
-                    )
-                }
-            }
             // Index the tracked regions into Spotlight (a search for a region
             // name surfaces Where and its day-count query) through the stack
             // installed above, off the launch critical path. Indexing a

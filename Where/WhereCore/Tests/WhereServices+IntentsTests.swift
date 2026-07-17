@@ -5,9 +5,9 @@ import Testing
 
 /// Covers the App Intents composition seams — `makeForIntents` (the GPS-free
 /// stack an intent reads and writes through) and `forIntents(sharingStoreOf:)`
-/// (the store-sharing stack the app's composition root installs after launch)
-/// — driven against in-memory stores. The fallback `forIntents()` opens the
-/// real App Group store, so it isn't exercised here.
+/// (the store-sharing stack the app's composition root derives from the
+/// launch's services and installs into the intent layer) — driven against
+/// in-memory stores.
 struct WhereServicesIntentsTests {
     @Test func stackWritesThroughJournalAndReadsBackThroughReports() async throws {
         let store = try SwiftDataStore.inMemory()

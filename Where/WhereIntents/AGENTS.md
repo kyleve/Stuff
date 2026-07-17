@@ -30,16 +30,18 @@ layering, localization, and the WhereUI duplicate-metadata rule).
 - **Intents never start GPS.** `WhereServices.forIntents()` wires
   `IdleLocationSource`; a manual entry logged from an intent records a
   `ManualEntryAudit` with a "Logged with Siri" note and no captured location.
-- **Resolve services through `IntentServices.shared`, not `forIntents()`
-  directly.** It caches one `WhereServices` per process. The app's composition
-  root (`AppDelegate`) injects a store-sharing stack after launch —
-  `WhereServices.forIntents(sharingStoreOf:)` over the session's services —
-  via `IntentServices.shared.install(_:)`, so intents run over the same store
-  instance the app opened (no second container over the app's store file), and
-  a `LogDayIntent` write pings the same `changes()` signal the running UI
-  refreshes from (and is immediately visible when the day-count snippet
-  reloads). Only an intent racing app startup self-assembles the fallback
-  `forIntents()` stack (`.localOnly` over the App Group store).
+- **Resolve services through `IntentServices.shared`; intents never open a
+  store.** The launch's `open-store` step is the process's *only* store open:
+  it hands the session's services to the app's composition root
+  (`WhereLaunch.makeLauncher`'s `onServicesReady` hook), which derives the
+  store-sharing intents stack (`WhereServices.forIntents(sharingStoreOf:)`)
+  and installs it via `IntentServices.shared.install(_:)` — re-fired on retry
+  and reset relaunches. Intents run over the same store instance the app
+  opened, so a `LogDayIntent` write pings the same `changes()` signal the
+  running UI refreshes from (and is immediately visible when the day-count
+  snippet reloads). An intent that fires before installation **parks** in
+  `current()` (cancellation-aware) rather than assembling its own stack —
+  there is deliberately no self-open fallback.
 - **Use `Calendar.whereIntents` for all year/day math**, never `Calendar.current`
   — it's Gregorian in the current time zone, matching `DayAggregator()`, so a
   spoken "this year" lines up with the aggregated report even on a non-Gregorian

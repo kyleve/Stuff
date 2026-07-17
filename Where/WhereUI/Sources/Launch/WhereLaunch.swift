@@ -95,7 +95,18 @@ public enum WhereLaunch {
     /// services, and the foreground-notification presenter is registered so a
     /// reminder fired while Where is open still shows. Keeping both here (rather
     /// than in the app delegate) puts app-lifecycle wiring in one place.
-    public static func makeLauncher(model: WhereModel, reason: LifecycleReason) -> LifecycleRunner {
+    ///
+    /// `onServicesReady` fires from the `open-store` step every time a session
+    /// is (re)started over the assembled services — first launch, a retry
+    /// after a failed launch, and the reset relaunch. The app uses it to hand
+    /// the service layer to consumers WhereUI can't see (deriving and
+    /// installing the App Intents stack — see the app's `AppDelegate`);
+    /// previews and tests omit it.
+    public static func makeLauncher(
+        model: WhereModel,
+        reason: LifecycleReason,
+        onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
+    ) -> LifecycleRunner {
         let bootstrap = WhereBootstrap()
         logger.info("Lifecycle runner created (reason: \(reason))")
         return LifecycleRunner(
@@ -104,7 +115,11 @@ public enum WhereLaunch {
                 bootstrap.prepareLocation()
                 ForegroundNotificationPresenter.install()
             },
-            sequence: sequence(for: model, bootstrap: bootstrap),
+            sequence: sequence(
+                for: model,
+                bootstrap: bootstrap,
+                onServicesReady: onServicesReady,
+            ),
         )
     }
 
@@ -113,12 +128,14 @@ public enum WhereLaunch {
     /// are the foreground-only `open-store` presentation and the `onboarding`
     /// gate, neither of which `start()` models.
     ///
-    /// `bootstrap` assembles the services in the `open-store` step; callers
-    /// that only inspect the step list (the parity test) can rely on the
-    /// default.
+    /// `bootstrap` assembles the services in the `open-store` step, and
+    /// `onServicesReady` fires there whenever a session is (re)started (see
+    /// `makeLauncher`); callers that only inspect the step list (the parity
+    /// test) can rely on the defaults.
     public static func sequence(
         for model: WhereModel,
         bootstrap: WhereBootstrap = WhereBootstrap(),
+        onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LifecycleSteps {
         LifecycleSteps {
             // Open the store, assemble the services, and create the session.
@@ -135,6 +152,13 @@ public enum WhereLaunch {
                     try await model.attach(services: bootstrap.makeServices())
                 }
                 model.startSession()
+                // Hand the (re)started session's service layer to the app's
+                // composition hook before any later step — or the UI — runs,
+                // so consumers awaiting it (parked App Intents) resume against
+                // this session's store.
+                if let session = model.session {
+                    await onServicesReady(session.services)
+                }
             }
 
             // First run only. `LifecycleStep.interactive` defaults to
