@@ -57,15 +57,15 @@ failures in these areas are expected and shouldn't be papered over by blind
 re-recording:
 
 - fix: `debugLogViewer` snapshots render the live shared `WhereLog` buffer, so wall-clock timestamps and run-dependent log lines leak into the image. Needs a fixture — a viewer configured over injected/frozen log entries rather than the process's real buffer.
-- fix: `regionMap` snapshots capture a live MapKit `Map`, whose tile/label loading is asynchronous and cache/network-dependent — no settle window can make it deterministic (labels fade in whenever MapKit finishes). The settle-loop diet made the capture consistently land in the labels-not-yet-loaded state (byte-identical across runs locally), and the references are recorded at that state, but a run where tiles load unusually fast could still catch the label fade. A real fix would freeze the map under capture (e.g. a deterministic placeholder behind `\.isCapturingSnapshot`) at the cost of no longer snapshotting real polygon rendering.
-- fix: Occasional ~20px vertical sheet-offset shift in iPad ax5 sheet captures (seen on `calendar.WithData_iPad_ax5`) — the sheet/scroll settling position varies between runs.
-- fix: Verify runs reported large in-memory CILabDeltaE mismatches while the on-disk failure artifacts were pixel-identical to the references — the in-memory captured image at compare time differed from what was flushed to disk. Root cause unknown; needs investigation before trusting tight perceptual tolerances.
+- fix: `regionMap` snapshots capture a live MapKit `Map`, whose tile/label/overlay loading is asynchronous and cache/network-dependent — no settle window can make it deterministic (labels fade in and overlay tiles complete whenever MapKit finishes). The settle-loop diet made the capture consistently land in the labels-not-yet-loaded state (byte-identical across runs locally), and the references are recorded at that state, but a run where tiles load unusually fast could still catch the label fade. A real fix would freeze the map under capture (e.g. a deterministic placeholder behind `\.isCapturingSnapshot`) at the cost of no longer snapshotting real polygon rendering.
+- fix: Occasional ~20px vertical sheet-offset shift in iPad ax5 sheet captures (seen on `calendar.WithData_iPad_ax5`) — the sheet/scroll settling position varies between runs. (Likely the capture-time `scrollToCurrentMonth` scroll, skipped under capture since the snapshot-determinism pass — keep an eye out for recurrence before closing.)
 - fix: `root.LoggedIn` snapshots the empty state, not the seeded sample report: `MainTabs`' `activate()` re-pulls from the empty in-memory store, replacing the injected report. Making sample data survive requires seeding the store itself, not just injecting the report into the model.
 
 # Completed issues
 
 ## P0s (Must do)
 - Remove the `waitForOneRunloop` calls added to UI tests; it's a flake paradise. (the hosting smoke tests that used it were superseded by `WhereUISnapshotTests` and deleted; the helper is gone from `TestHostSupport`)
+- fix: Verify runs reported large in-memory CILabDeltaE mismatches while the on-disk failure artifacts were pixel-identical to the references. Root cause found: `UIGraphicsImageRenderer`'s default extended-range format produced wide-gamut (16-bit Display P3) in-memory captures that the perceptual compare diffed against 8-bit sRGB PNG references. Fixed by pinning `preferredRange = .standard` on every capture renderer and round-tripping the capture through `pngData()` before comparing, so the compare sees exactly the on-disk bytes.
 
 
 ## P1s (Should do)
