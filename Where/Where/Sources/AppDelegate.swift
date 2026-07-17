@@ -37,11 +37,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         // Register the handoff before anything async: the system only delivers
         // intents once launching finishes, so `@Dependency` can always resolve.
-        // Bound to a local because `add(dependency:)` takes an escaping
-        // autoclosure (a bare property reference would demand `self.`, which
-        // SwiftFormat's redundantSelf rule strips right back out).
-        let intentServices = intentServices
-        AppDependencyManager.shared.add(dependency: intentServices)
+        // The provider-closure overload (not the autoclosure one) lets the
+        // capture list carry the Sendable actor reference explicitly, without
+        // touching `self` at resolution time.
+        AppDependencyManager.shared
+            .add(dependency: { [intentServices = self.intentServices] in intentServices })
         // A `.background` launch state means iOS woke us headless (replacing the
         // deprecated `launchOptions[.location]` check); authorization tells us
         // whether that could have been the location wake we register for.
