@@ -81,6 +81,50 @@ struct ReportReaderTests {
         #expect(representative[.california] != nil)
     }
 
+    /// The scan's one-read bundle: `report`, `.other` day coordinates, and the
+    /// GPS `daySamples` all come from a single year-samples read and stay
+    /// consistent — and the GPS-only `daySamples` drops a manual coordinate.
+    @Test func dataIssueReadsBuildsAllProjectionsFromOneRead() async throws {
+        let (reader, store) = try Self.makeReader()
+        let sf = Coordinate(latitude: 37.7749, longitude: -122.4194) // California
+        let midOcean = Coordinate(latitude: 0, longitude: -160) // .other
+        try await store.perform {
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"),
+                coordinate: sf,
+                horizontalAccuracy: 0,
+                source: .gpsSignificantChange,
+            ))
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-03-16T12:00:00-07:00"),
+                coordinate: midOcean,
+                horizontalAccuracy: 0,
+                source: .gpsSignificantChange,
+            ))
+            // A manual coordinate must not feed the speed-based day samples.
+            try await store.add(sample: LocationSample(
+                timestamp: WhereCoreTestSupport.iso("2026-03-15T18:00:00-07:00"),
+                coordinate: sf,
+                horizontalAccuracy: 0,
+                source: .manual,
+            ))
+        }
+
+        let reads = try await reader.dataIssueReads(for: 2026)
+
+        #expect(reads.report.totals[.california] == 1)
+        #expect(reads.report.totals[.other] == 1)
+
+        let march16 = CalendarDay(year: 2026, month: 3, day: 16)
+        #expect(reads.otherDayCoordinates[march16]?.isEmpty == false)
+
+        // March 15 had a GPS fix and a manual one; only the GPS fix is kept.
+        let march15 = CalendarDay(year: 2026, month: 3, day: 15)
+        let day15 = reads.daySamples.samples(on: march15)
+        #expect(day15.count == 1)
+        #expect(day15.first?.source == .gpsSignificantChange)
+    }
+
     @Test func yearIntervalCoversTheRequestedYear() throws {
         let (reader, _) = try Self.makeReader()
         let interval = reader.yearInterval(year: 2026)

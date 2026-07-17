@@ -315,6 +315,10 @@ struct SettingsView: View {
             Text(Strings.settingsResolutionFooter)
         }
         .animation(.default, value: isScanningForIssues)
+        // The shown count is for the current year at the current threshold;
+        // drop it once either changes so it can't linger as a stale result.
+        .onChange(of: report.selectedYear) { lastScanIssueCount = nil }
+        .onChange(of: report.driftThreshold) { lastScanIssueCount = nil }
     }
 
     /// Force a fresh data-issue scan past the ~3h throttle, then surface the

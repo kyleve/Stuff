@@ -1737,26 +1737,28 @@ enum Strings {
         )
     }
 
-    /// Result of a manual "Find issues now" scan. Handles 0 / 1 / many
-    /// explicitly so the count reads correctly without a catalog plural rule.
+    /// Result of a manual "Find issues now" scan — the current unresolved count
+    /// for the year (not a "newly found" delta), worded as present state.
+    /// Handles 0 / 1 / many explicitly so the count reads correctly without a
+    /// catalog plural rule.
     static func settingsFindIssuesResult(count: Int) -> String {
         switch count {
             case 0:
                 String(
                     localized: "settings.findIssues.result.none",
-                    defaultValue: "No issues found",
+                    defaultValue: "No issues to resolve",
                     bundle: .module,
                 )
             case 1:
                 String(
                     localized: "settings.findIssues.result.one",
-                    defaultValue: "Found 1 issue to resolve",
+                    defaultValue: "1 issue to resolve",
                     bundle: .module,
                 )
             default:
                 String(
                     localized: "settings.findIssues.result.many",
-                    defaultValue: "Found \(count) issues to resolve",
+                    defaultValue: "\(count) issues to resolve",
                     bundle: .module,
                 )
         }
