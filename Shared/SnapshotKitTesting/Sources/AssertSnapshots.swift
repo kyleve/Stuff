@@ -24,7 +24,21 @@ public func assertSnapshots(
     column: UInt = #column,
 ) async {
     guard simulatorMatchesSnapshotExpectations() else { return }
-    for snapshotCase in provider.snapshots {
+    let snapshots = provider.snapshots
+    let duplicates = duplicateSnapshotIdentifiers(in: snapshots)
+    guard duplicates.isEmpty else {
+        Issue.record(
+            """
+            Duplicate snapshot identifiers in \(provider): \
+            \(duplicates.joined(separator: ", ")). Two variants would share one \
+            reference image — whichever records first, the other silently compares \
+            against it — so nothing was asserted. Rename the colliding cases or \
+            differentiate their configurations.
+            """,
+        )
+        return
+    }
+    for snapshotCase in snapshots {
         await assertSnapshots(
             of: snapshotCase.content,
             named: snapshotCase.name,
@@ -77,9 +91,7 @@ public func assertSnapshots(
                 // renders the whole scrollable content.
                 .intrinsic(width: width)
         }
-        let identifier = [name, configuration.identifier]
-            .filter { !$0.isEmpty }
-            .joined(separator: "_")
+        let identifier = fullSnapshotIdentifier(caseName: name, configuration: configuration)
         let image = await renderSnapshotImage(
             of: hostingController,
             sizing: sizing,
