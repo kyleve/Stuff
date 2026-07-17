@@ -53,7 +53,9 @@ enum DataIssueDetectorFixtures {
             year: year,
             report: YearReport(year: year, days: days, totals: totals),
             otherDayCoordinates: otherDayCoordinates,
-            daySamples: daySamples,
+            // Flatten to exercise the real `DaySamples` grouping (GPS-only,
+            // re-bucketed by the fixtures calendar the sample timestamps use).
+            daySamples: DaySamples(samples: daySamples.values.flatMap(\.self), calendar: calendar),
             primaryRegions: primaryRegions,
             attributor: RegionAttributor.shared,
             driftThresholdMeters: driftThresholdMeters,

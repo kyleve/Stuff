@@ -96,21 +96,13 @@ public actor DataIssueScanner {
             return cached.issues
         }
 
-        let report = try await reportReader.yearReport(for: year)
-        let otherLocations = try await reportReader.locations(in: .other, year: year)
-        let otherDayCoordinates = Dictionary(
-            uniqueKeysWithValues: otherLocations.map { ($0.day, $0.points.map(\.coordinate)) },
-        )
-        let daySamples = try await Self.gpsSamplesByDay(
-            reportReader.samples(inYear: year),
-            calendar: calendar,
-        )
+        let reads = try await reportReader.dataIssueReads(for: year)
         let dismissed = try await reportReader.dismissedIssueIDs()
         let input = DataIssueInput(
             year: year,
-            report: report,
-            otherDayCoordinates: otherDayCoordinates,
-            daySamples: daySamples,
+            report: reads.report,
+            otherDayCoordinates: reads.otherDayCoordinates,
+            daySamples: reads.daySamples,
             primaryRegions: primaryRegions,
             attributor: attributor,
             driftThresholdMeters: driftThresholdMeters,
@@ -160,27 +152,6 @@ public actor DataIssueScanner {
     /// Drop the cache so the next `issues(...)` recomputes regardless of throttle.
     public func invalidate() {
         cache = nil
-    }
-
-    /// Group passive GPS fixes by start-of-day (in `calendar`), each day's
-    /// samples sorted ascending by timestamp, for the speed-based detectors.
-    /// Manual and evidence-implied samples are dropped: their timestamps are
-    /// user-asserted, so a speed computed across them would be meaningless.
-    private static func gpsSamplesByDay(
-        _ samples: [LocationSample],
-        calendar: Calendar,
-    ) -> [CalendarDay: [LocationSample]] {
-        var byDay: [CalendarDay: [LocationSample]] = [:]
-        for sample in samples {
-            switch sample.source {
-                case .gpsVisit, .gpsSignificantChange:
-                    byDay[CalendarDay(from: sample.timestamp, in: calendar), default: []]
-                        .append(sample)
-                case .manual, .evidenceImplied:
-                    continue
-            }
-        }
-        return byDay.mapValues { $0.sorted { $0.timestamp < $1.timestamp } }
     }
 
     private static func sortIssues(_ issues: [any DataIssue]) -> [any DataIssue] {

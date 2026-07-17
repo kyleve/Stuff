@@ -36,12 +36,34 @@ public struct ReportReader: Sendable {
         )
     }
 
-    /// Every persisted `LocationSample` recorded during `year`, unaggregated, so
-    /// callers that need per-fix timestamps (the speed-based `FlightDayDetector`
-    /// via `DataIssueScanner`) can walk the raw stream rather than the collapsed
-    /// `YearReport`. Ordering is the store's; callers that need chronology sort.
-    public func samples(inYear year: Int) async throws -> [LocationSample] {
-        try await store.samples(in: aggregator.yearInterval(year: year))
+    /// Everything a data-issue scan needs from a **single** year-samples read:
+    /// the aggregated `report`, the `.other` day coordinates border-drift checks
+    /// use, and the raw GPS fixes (lazily grouped in `DaySamples`) the
+    /// speed-based detector walks. Reads the year's samples once, so the scanner
+    /// no longer fetches them three times over (report + `.other` locations +
+    /// raw); the `DaySamples` grouping is itself deferred until a detector asks.
+    public func dataIssueReads(for year: Int) async throws -> DataIssueReads {
+        let samples = try await store.samples(in: aggregator.yearInterval(year: year))
+        let manuals = try await store.manualDays(in: dayRange(for: year))
+        let report = aggregator.report(
+            for: year,
+            samples: samples,
+            manualDays: manuals,
+            attributor: attributor,
+        )
+        let otherLocations = aggregator.locations(
+            in: .other,
+            samples: samples,
+            attributor: attributor,
+        )
+        let otherDayCoordinates = Dictionary(
+            uniqueKeysWithValues: otherLocations.map { ($0.day, $0.points.map(\.coordinate)) },
+        )
+        return DataIssueReads(
+            report: report,
+            otherDayCoordinates: otherDayCoordinates,
+            daySamples: DaySamples(samples: samples, calendar: aggregator.calendar),
+        )
     }
 
     /// The manual-day records (backfills and authoritative overrides) the user
@@ -88,5 +110,23 @@ public struct ReportReader: Sendable {
     /// Every persisted dismissed data-resolution issue id.
     public func dismissedIssueIDs() async throws -> Set<DataIssueID> {
         try await store.dismissedIssueIDs()
+    }
+}
+
+/// The one-read bundle `DataIssueScanner` builds a `DataIssueInput` from, so the
+/// scan reads the year's samples once rather than per projection.
+public struct DataIssueReads: Sendable {
+    public let report: YearReport
+    public let otherDayCoordinates: [CalendarDay: [Coordinate]]
+    public let daySamples: DaySamples
+
+    public init(
+        report: YearReport,
+        otherDayCoordinates: [CalendarDay: [Coordinate]],
+        daySamples: DaySamples,
+    ) {
+        self.report = report
+        self.otherDayCoordinates = otherDayCoordinates
+        self.daySamples = daySamples
     }
 }

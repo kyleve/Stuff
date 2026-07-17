@@ -21,13 +21,12 @@ public struct DataIssueInput: Sendable {
     public let year: Int
     public let report: YearReport
     public let otherDayCoordinates: [CalendarDay: [Coordinate]]
-    /// Passive GPS fixes for the year keyed by `CalendarDay`, each day's samples
-    /// sorted ascending by timestamp. Only `.gpsVisit` / `.gpsSignificantChange`
-    /// sources are included — manual and evidence-implied samples carry
-    /// user-asserted timestamps that would produce meaningless speeds — so a
-    /// speed-based detector (`FlightDayDetector`) can walk consecutive fixes.
-    /// Unlike `report` / `otherDayCoordinates` these retain per-fix timestamps.
-    public let daySamples: [CalendarDay: [LocationSample]]
+    /// The year's passive GPS fixes, queryable per day, for a speed-based
+    /// detector (`FlightDayDetector`) that needs per-fix timestamps the
+    /// aggregated `report` has collapsed away. Lazy and memoized (see
+    /// `DaySamples`), so a scan whose detectors never consult it does no
+    /// grouping work.
+    public let daySamples: DaySamples
     public let primaryRegions: [Region]
     public let attributor: any RegionAttributing
     public let driftThresholdMeters: Double
@@ -38,7 +37,7 @@ public struct DataIssueInput: Sendable {
         year: Int,
         report: YearReport,
         otherDayCoordinates: [CalendarDay: [Coordinate]],
-        daySamples: [CalendarDay: [LocationSample]],
+        daySamples: DaySamples,
         primaryRegions: [Region],
         attributor: any RegionAttributing,
         driftThresholdMeters: Double,
