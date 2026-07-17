@@ -6,9 +6,11 @@ let package = Package(
     defaultLocalization: "en",
     platforms: [
         .iOS(.v26),
+        .macOS(.v26),
     ],
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
+        .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "JournalKit", targets: ["JournalKit"]),
         .library(name: "LogKit", targets: ["LogKit"]),
@@ -32,6 +34,13 @@ let package = Package(
         .target(
             name: "StuffCore",
             path: "Shared/StuffCore/Sources",
+        ),
+        .target(
+            name: "LedgerCore",
+            dependencies: [
+                .target(name: "LogKit"),
+            ],
+            path: "Ledger/LedgerCore/Sources",
         ),
         .target(
             name: "LifecycleKit",
