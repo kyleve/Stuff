@@ -1,0 +1,26 @@
+# SnapshotKitTesting todos
+
+## Usage
+- Tag issues with conventional commit semantics: feat, fix, refactor, perf, test, docs
+	- Eg "- fix: Surface the settle-loop timeout"
+- Nest tasks that depend on other tasks.
+- Don't delete completed tasks, move them to the "Completed issues" section at the bottom.
+
+# Open issues
+
+## P1s (Should do)
+- fix: The settle loop times out silently — when content never reaches pixel stability, `settleContent`'s `while Date() < maxDeadline` loop (`Sources/SnapshotRenderingSupport.swift`) simply exits and the capture proceeds with a mid-animation frame: no log, no `Issue`, no return value distinguishes "settled" from "gave up after 2.5s", and the full `maxDuration` is silently burned per capture × configuration. Per the repo's error-handling rule, "degraded but handled" belongs at warning, not hidden — and an un-frozen animation recording an arbitrary phase is the direct on-ramp back to the flaky-reference class this framework exists to kill. Fix: have `settleContent` return whether it stabilized, and surface a non-fatal warning (or `Issue.record` with a comment) from `renderSnapshotImage` when it didn't. (From the July 2026 snapshot-testing PR review.)
+- fix: Accessibility-parse failures kill the whole host process instead of failing one test — all four `parseAccessibility()` catch arms in `Sources/AccessibilitySnapshotViewController.swift` use `preconditionFailure`, but at least `containedViewExceedsMaximumSize` and `containedViewHasZeroSize` are reachable from ordinary test-author declarations (a large `.fullContent` frame with `snapshotType: .accessibility`, or a view that measures to zero) — user-level failures per the repo's "distinguish user failures from programmer errors" rule. Because all tests share one `StuffTestHost` process, one oversized accessibility case crashes the entire suite run on CI, with the diagnosis buried in a crash report. Fix: convert the declarable cases to a recorded `Issue` (returning a failure the caller skips), keeping `preconditionFailure` only for the genuinely impossible arms. (From the July 2026 snapshot-testing PR review.)
+- test: Close the missing regression coverage for load-bearing pipeline behaviors. (From the July 2026 snapshot-testing PR review.)
+	- Nonzero safe-area preset: `ConcurrentCaptureTests` now pixel-probes the swizzle's nonzero branch (20pt override through `renderSnapshotImage`), but the `iPhoneNotched` preset still has no coverage flowing through `assertSnapshots`' config mapping — no test or reference image exercises `SnapshotConfiguration.device.safeAreaInsets` end to end.
+	- `fullContent` lazy-container iteration: the fixed-point measurement loop (`Sources/SnapshotImageRendering.swift`, `resolveContentSize`) exists for lazy stacks that under-report until rows materialize, but `LargeViewCaptureTests` uses only non-lazy content (converges on pass 1) — neither the multi-iteration path nor the 10-iteration cap has coverage, so a toolchain change to `LazyVStack` estimation would regress "year cut off mid-October" undetected except via the app-side `calendar.FullYear` reference.
+	- Env parsing is untestable as written: `simulatorMatchesSnapshotExpectations`, `environmentRecordMode`, and `environmentDiffTool` (`Sources/AssertSnapshots.swift`) read `ProcessInfo` directly and are `private` — zero tests, no seam to inject an environment dictionary. The record-mode-typo path ("must not quietly assert") deserves a test.
+	- Tile seams: `LargeViewCaptureTests` probes at unit-y 0.1/0.9 of 800pt and 3000pt views, so a stitching error localized at the 2000pt seam (or a view exactly 2000pt tall — the single-tile/threshold edge) would pass. A probe pair straddling y = 2000 would pin it.
+
+## P2s (Nice to have)
+- fix: Cancellation mid-settle proceeds to capture and assert — `settleContent`'s sleep `catch` breaks out of the loop (`Sources/SnapshotRenderingSupport.swift`) and a cancelled test (e.g. a future time-limit trait) captures half-settled content, recording a spurious image mismatch on top of the cancellation. Check `Task.isCancelled` after the loop and skip the assert to keep cancelled tests clean. (From the July 2026 snapshot-testing PR review.)
+- refactor: Drop the unused `AccessibilitySnapshot` umbrella product dependency (root `Package.swift`, SnapshotKitTesting target) — only `AccessibilitySnapshotCore` is imported; the umbrella product just widens the statically-embedded closure of the consuming test bundle. (From the July 2026 snapshot-testing PR review.)
+- refactor: Replace wall-clock `Date()` deadlines in `settleContent` and `drainInFlightAnimations` (`Sources/SnapshotRenderingSupport.swift`) with `ContinuousClock` — the modern, suspension-proof way to measure elapsed time per the concurrency skill. Behavior-neutral cleanup. (From the July 2026 snapshot-testing PR review.)
+- fix: The duplicate-identifier guard only protects the provider overload of `assertSnapshots` (`Sources/AssertSnapshots.swift`) — the inline `assertSnapshots(of:named:configurations:)` overload accepts a `configurations` array containing duplicates and silently compares the second against the first's recording. Run the same guard over `[SnapshotCase(name:configurations:)]` there. (From the July 2026 snapshot-testing PR review.)
+
+# Completed issues
