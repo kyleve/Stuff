@@ -332,25 +332,26 @@ enum Strings {
         String(localized: "onboarding.notNow", defaultValue: "Not Now", bundle: .module)
     }
 
-    // MARK: Migration
+    // MARK: Launch
 
-    static var migrationTitle: String {
+    /// Title of the splash's slow-launch caption. Deliberately launch-neutral
+    /// — a slow launch may be a schema migration, a fresh install's very first
+    /// store creation, or plain slowness, and the splash can't tell which.
+    static var launchCaptionTitle: String {
         String(
-            localized: "migration.title",
-            defaultValue: "Updating your data…",
+            localized: "launch.caption.title",
+            defaultValue: "Getting things ready…",
             bundle: .module,
         )
     }
 
-    static var migrationSubtitle: String {
+    static var launchCaptionSubtitle: String {
         String(
-            localized: "migration.subtitle",
+            localized: "launch.caption.subtitle",
             defaultValue: "This only takes a moment.",
             bundle: .module,
         )
     }
-
-    // MARK: Launch
 
     /// Spoken by VoiceOver while the launch splash is on screen (the icon and
     /// radar animation are decorative and hidden from accessibility).

@@ -18,11 +18,11 @@ import SwiftUI
 /// reassurance caption in after it's lingered a beat. There's no second view to
 /// reconcile and no remount, so the pulse and radar run uninterrupted.
 ///
-/// The caption's copy is "Updating your data…", so callers suppress it via
-/// `showsDataCaption: false` for a launch with no data to update — a first
-/// install (whose very first store creation routinely outlives the caption
-/// delay) or the post-reset relaunch. The radar pulse alone carries "working"
-/// there.
+/// The caption's copy is deliberately launch-neutral ("Getting things ready…")
+/// — a slow launch may be a schema migration, a fresh install's very first
+/// store creation (which routinely outlives the caption delay), or plain
+/// slowness, and the splash can't tell which, so it never claims a specific
+/// cause.
 ///
 /// Honors Reduce Motion: the pulse and the sweeping rings are pinned to a
 /// static frame, and the caption appears without a fade.
@@ -31,9 +31,6 @@ struct LaunchSplashView: View {
     @Environment(\.stylesheet) private var stylesheet
     @State private var pulsing = false
     @State private var showCaption: Bool
-
-    /// Whether the slow-launch caption may appear at all; see the type doc.
-    private let showsDataCaption: Bool
 
     private var splash: WhereStylesheet.Palette.Splash {
         stylesheet.palette.splash
@@ -47,18 +44,9 @@ struct LaunchSplashView: View {
     /// `UIApplication.shared.alternateIconName` in `body` (on the main actor).
     private let injectedPreviewImageName: String?
 
-    /// - Parameters:
-    ///   - showsDataCaption: whether the "Updating your data…" caption may fade
-    ///     in on a slow launch. Pass `false` for a launch with no data to
-    ///     update (first run); see the type doc.
-    ///   - previewShowsCaption: preview/test seam to render the slow-launch
-    ///     caption immediately instead of waiting out `captionDelay`.
-    init(
-        showsDataCaption: Bool = true,
-        previewImageName: String? = nil,
-        previewShowsCaption: Bool = false,
-    ) {
-        self.showsDataCaption = showsDataCaption
+    /// - Parameter previewShowsCaption: preview/test seam to render the slow-
+    ///   launch caption immediately instead of waiting out `captionDelay`.
+    init(previewImageName: String? = nil, previewShowsCaption: Bool = false) {
         injectedPreviewImageName = previewImageName
         _showCaption = State(initialValue: previewShowsCaption)
     }
@@ -83,9 +71,10 @@ struct LaunchSplashView: View {
         .background(splash.background)
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(showCaption ? Strings.migrationTitle : Strings.launchAccessibilityLabel)
+        .accessibilityLabel(
+            showCaption ? Strings.launchCaptionTitle : Strings.launchAccessibilityLabel,
+        )
         .task {
-            guard showsDataCaption else { return }
             try? await Task.sleep(for: Self.captionDelay)
             guard !Task.isCancelled else { return }
             if reduceMotion {
@@ -101,9 +90,9 @@ struct LaunchSplashView: View {
     /// light since the backdrop is always dark.
     private var caption: some View {
         VStack(spacing: stylesheet.spacing.small) {
-            Text(Strings.migrationTitle)
+            Text(Strings.launchCaptionTitle)
                 .font(.headline)
-            Text(Strings.migrationSubtitle)
+            Text(Strings.launchCaptionSubtitle)
                 .font(.subheadline)
                 .foregroundStyle(splash.captionSecondary)
         }

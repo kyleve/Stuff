@@ -12,7 +12,7 @@ import WhereCore
 /// the launch/reset parity tests a single source of truth.
 public enum LaunchStepID: String {
     /// Open the SwiftData store, assemble the services, and build the session.
-    /// The foreground-only migration UI hangs off this step.
+    /// The splash's slow-launch caption most often shows during this step.
     case openStore = "open-store"
     /// First-run onboarding gate. Foreground-only, so a headless background
     /// relaunch skips it.
@@ -127,10 +127,8 @@ public enum WhereLaunch {
             // we never spin up a real store + CoreLocation behind it; the
             // session is then (re)created from the retained layer. Opening may
             // run a lightweight migration; there's no separate UI for it — the
-            // launch splash (shown throughout) fades in its own "taking a
-            // moment" caption when any launch phase runs long (suppressed
-            // until onboarding has completed — a first run has no data to
-            // update; see `LaunchSplashView`).
+            // launch splash (shown throughout) fades in its own launch-neutral
+            // "taking a moment" caption when any launch phase runs long.
             LifecycleStep.work(LaunchStepID.openStore) { _ in
                 guard model.session == nil else { return }
                 if !model.hasServices {

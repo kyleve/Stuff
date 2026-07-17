@@ -44,13 +44,7 @@ public struct RootView: View {
                 launcher,
                 transition: revealTransition,
                 animation: revealAnimation,
-                // The splash's slow-launch caption reads "Updating your data…"
-                // — allow it only once onboarding has completed. Before that
-                // (first install, post-reset relaunch) there is no data to
-                // update, and a fresh install's very first store creation
-                // routinely outlives the caption delay. Read live so the
-                // post-reset relaunch (which clears the flag) suppresses it too.
-                splash: { LaunchSplashView(showsDataCaption: model.hasOnboarded) },
+                splash: { LaunchSplashView() },
                 failure: { LifecycleFailureView(failure: $0, retry: $1) },
             ) {
                 // At `.ready` the session is always present; `MainTabs` owns the
