@@ -149,6 +149,7 @@
             let start = calendar.date(from: DateComponents(year: year, month: 3, day: 1))!
             let day2 = calendar.date(byAdding: .day, value: 1, to: start)!
             let day3 = calendar.date(byAdding: .day, value: 2, to: start)!
+            let day4 = calendar.date(byAdding: .day, value: 3, to: start)!
             let startDay = CalendarDay(from: start, in: calendar)
             return [
                 MissingDaysIssue(range: MissingDayRange(
@@ -164,6 +165,16 @@
                 AbruptChangeIssue(
                     earlierDay: DayPresence(date: day2, in: calendar, regions: [.california]),
                     laterDay: DayPresence(date: day3, in: calendar, regions: [.newYork]),
+                ),
+                FlightDayIssue(
+                    day: DayPresence(
+                        date: day4,
+                        in: calendar,
+                        regions: [.newYork, .other, .california],
+                    ),
+                    keepRegions: [.newYork, .california],
+                    removedRegions: [.other],
+                    peakSpeedKMH: 880,
                 ),
             ]
         }

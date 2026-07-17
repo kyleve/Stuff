@@ -21,6 +21,12 @@ public struct DataIssueInput: Sendable {
     public let year: Int
     public let report: YearReport
     public let otherDayCoordinates: [CalendarDay: [Coordinate]]
+    /// The year's passive GPS fixes, queryable per day, for a speed-based
+    /// detector (`FlightDayDetector`) that needs per-fix timestamps the
+    /// aggregated `report` has collapsed away. Lazy and memoized (see
+    /// `DaySamples`), so a scan whose detectors never consult it does no
+    /// grouping work.
+    public let daySamples: DaySamples
     public let primaryRegions: [Region]
     public let attributor: any RegionAttributing
     public let driftThresholdMeters: Double
@@ -31,6 +37,7 @@ public struct DataIssueInput: Sendable {
         year: Int,
         report: YearReport,
         otherDayCoordinates: [CalendarDay: [Coordinate]],
+        daySamples: DaySamples,
         primaryRegions: [Region],
         attributor: any RegionAttributing,
         driftThresholdMeters: Double,
@@ -40,6 +47,7 @@ public struct DataIssueInput: Sendable {
         self.year = year
         self.report = report
         self.otherDayCoordinates = otherDayCoordinates
+        self.daySamples = daySamples
         self.primaryRegions = primaryRegions
         self.attributor = attributor
         self.driftThresholdMeters = driftThresholdMeters

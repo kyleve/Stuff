@@ -26,6 +26,7 @@ struct AbruptChangeDetailView: View {
                             day: payload.earlier,
                             report: report,
                             initialRegions: payload.suggested,
+                            reason: .travelDay,
                         )
                     } label: {
                         Text(Strings.resolutionAbruptDetailRelabelEarlier)
@@ -39,6 +40,7 @@ struct AbruptChangeDetailView: View {
                             day: payload.later,
                             report: report,
                             initialRegions: payload.suggested,
+                            reason: .travelDay,
                         )
                     } label: {
                         Text(Strings.resolutionAbruptDetailRelabelLater)

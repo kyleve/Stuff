@@ -127,6 +127,25 @@ struct ScreenHostingTests {
         }
     }
 
+    @Test func flightDayDetailViewHosts() throws {
+        let issue = FlightDayIssue(
+            day: DayPresence(date: .now, in: .current, regions: [.newYork, .other, .california]),
+            keepRegions: [.newYork, .california],
+            removedRegions: [.other],
+            peakSpeedKMH: 880,
+        )
+        let rootView = NavigationStack {
+            FlightDayDetailView(
+                issue: issue,
+                report: PreviewSupport.loadedYearReportModel(),
+                resolve: PreviewSupport.resolveModel(),
+            )
+        }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
     @Test func recentActivitySummaryViewHostsEachState() throws {
         for state in [
             RecentActivityModel.LoadState.loaded("You were in California, then New York."),

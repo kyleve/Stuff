@@ -78,6 +78,12 @@ internal shape.
   its cache on the same signal *and* is invalidated inline where a caller needs
   it provably fresh (see `WhereServices.reset()`), which is the deterministic
   half of that pair, not redundant with it.
+- **Detectors read aggregated input; the speed-based one needs raw fixes.**
+  `DataIssueScanner` builds `DataIssueInput` from the `YearReport` plus
+  `daySamples` — per-day GPS fixes (`.gpsVisit` / `.gpsSignificantChange` only,
+  sorted by timestamp), the one field that keeps per-fix timestamps. Manual and
+  evidence-implied samples are excluded so `FlightDayDetector`'s speed math
+  isn't skewed by user-asserted timestamps.
 - **Post-write reconciliation is defined once.** Every write and import routes
   through `DayJournal.reconcileAfterDayChange()` (or its widget-less subset
   `reconcileIssueState()` for dismiss/restore paths) — never copy the reconcile

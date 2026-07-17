@@ -36,6 +36,36 @@ public struct ReportReader: Sendable {
         )
     }
 
+    /// Everything a data-issue scan needs from a **single** year-samples read:
+    /// the aggregated `report`, the `.other` day coordinates border-drift checks
+    /// use, and the raw GPS fixes (lazily grouped in `DaySamples`) the
+    /// speed-based detector walks. Reads the year's samples once, so the scanner
+    /// no longer fetches them three times over (report + `.other` locations +
+    /// raw); the `DaySamples` grouping is itself deferred until a detector asks.
+    public func dataIssueReads(for year: Int) async throws -> DataIssueReads {
+        let samples = try await store.samples(in: aggregator.yearInterval(year: year))
+        let manuals = try await store.manualDays(in: dayRange(for: year))
+        let report = aggregator.report(
+            for: year,
+            samples: samples,
+            manualDays: manuals,
+            attributor: attributor,
+        )
+        let otherLocations = aggregator.locations(
+            in: .other,
+            samples: samples,
+            attributor: attributor,
+        )
+        let otherDayCoordinates = Dictionary(
+            uniqueKeysWithValues: otherLocations.map { ($0.day, $0.points.map(\.coordinate)) },
+        )
+        return DataIssueReads(
+            report: report,
+            otherDayCoordinates: otherDayCoordinates,
+            daySamples: DaySamples(samples: samples, calendar: aggregator.calendar),
+        )
+    }
+
     /// The manual-day records (backfills and authoritative overrides) the user
     /// asserted for `year`, so the "logged days" management screen can list,
     /// edit, and delete them. Unlike `yearReport`, these are the raw user
@@ -54,6 +84,20 @@ public struct ReportReader: Sendable {
         return aggregator.locations(in: region, samples: samples, attributor: attributor)
     }
 
+    /// The recorded points for a single calendar `day`, grouped by the region
+    /// they attribute to, so the "Fix this day" screen and the flight-day detail
+    /// view can map every point of a multi-region day at once. Reads only that
+    /// day's samples (a half-open [start-of-day, next-day) window). Manual
+    /// overlays don't contribute coordinates (see `DayAggregator`).
+    public func locations(onDay day: CalendarDay) async throws -> [Region: [RegionDayPoint]] {
+        let start = day.startOfDay(in: aggregator.calendar)
+        guard let end = aggregator.calendar.date(byAdding: .day, value: 1, to: start) else {
+            return [:]
+        }
+        let samples = try await store.samples(in: DateInterval(start: start, end: end))
+        return aggregator.pointsByRegion(onDay: day, samples: samples, attributor: attributor)
+    }
+
     /// One representative coordinate per region for `year` — the most heavily
     /// sampled spot in each — so the Elsewhere cards can show a "where" teaser
     /// with a single geocode per region.
@@ -66,5 +110,23 @@ public struct ReportReader: Sendable {
     /// Every persisted dismissed data-resolution issue id.
     public func dismissedIssueIDs() async throws -> Set<DataIssueID> {
         try await store.dismissedIssueIDs()
+    }
+}
+
+/// The one-read bundle `DataIssueScanner` builds a `DataIssueInput` from, so the
+/// scan reads the year's samples once rather than per projection.
+public struct DataIssueReads: Sendable {
+    public let report: YearReport
+    public let otherDayCoordinates: [CalendarDay: [Coordinate]]
+    public let daySamples: DaySamples
+
+    public init(
+        report: YearReport,
+        otherDayCoordinates: [CalendarDay: [Coordinate]],
+        daySamples: DaySamples,
+    ) {
+        self.report = report
+        self.otherDayCoordinates = otherDayCoordinates
+        self.daySamples = daySamples
     }
 }
