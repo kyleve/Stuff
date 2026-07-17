@@ -157,22 +157,10 @@ public final class PrimaryRegionSelectionModel {
         isGrouped = true
     }
 
-    /// "Your regions": the picks at open, in pick order (stable).
-    public var groupedYourRegions: [Region] {
-        let offered = Set(available)
-        return initialSelection.filter { offered.contains($0) }
-    }
-
-    /// "Used this year": offered regions used this year that weren't already in
-    /// "Your regions", in catalog order.
-    public var groupedUsedThisYear: [Region] {
-        let picked = Set(initialSelection)
-        return available.filter { usedThisYear.contains($0) && !picked.contains($0) }
-    }
-
-    /// "More regions": everything else, in catalog order.
-    public var groupedOther: [Region] {
-        let picked = Set(initialSelection)
-        return available.filter { !usedThisYear.contains($0) && !picked.contains($0) }
+    /// The shared three-way grouping of the offered regions — your picks at open
+    /// (the stable reference set), used-this-year, everything else. Valid once
+    /// ``isGrouped`` is true. Internal: the grouping type is a WhereUI detail.
+    var grouping: RegionGrouping {
+        RegionGrouping(available: available, primary: initialSelection, usedThisYear: usedThisYear)
     }
 }

@@ -22,8 +22,6 @@ struct RegionPickerView: View {
     /// Bumped whenever a map tap is ignored because the selection is full, to
     /// drive the warning haptic.
     @State private var capacityBumps = 0
-    /// Whether the grouped list's collapsed "More regions" section is expanded.
-    @State private var showAllRegions = false
     /// The loaded map geometry + a matching attributor for tap hit-testing. One
     /// `Result` so "loading" (`nil`), success, and failure can't be confused.
     @State private var mapData: Result<MapData, Error>?
@@ -174,43 +172,19 @@ struct RegionPickerView: View {
         .disabled(!model.canToggle(region))
     }
 
-    /// Expand "More regions" up front when there's nothing in the groups above
-    /// it (e.g. no picks and no history), so the list never opens fully collapsed.
-    private func expandMoreIfNoGroupsAbove() {
-        if model.isGrouped, model.groupedYourRegions.isEmpty, model.groupedUsedThisYear.isEmpty {
-            showAllRegions = true
-        }
-    }
-
     private var listContent: some View {
         List {
-            // Grouped (Settings) shows your-regions / used-this-year / more;
-            // onboarding and any active search fall back to a flat list.
+            // Grouped (Settings) shows your-regions / used-this-year / more via
+            // the shared sections; onboarding and any active search fall back to
+            // a flat list.
             if model.isGrouped, !isSearching {
-                if !model.groupedYourRegions.isEmpty {
-                    Section(Strings.regionPickerSectionYours) {
-                        ForEach(model.groupedYourRegions, id: \.self, content: regionRow)
-                    }
-                }
-                if !model.groupedUsedThisYear.isEmpty {
-                    Section(Strings.regionPickerSectionUsedThisYear) {
-                        ForEach(model.groupedUsedThisYear, id: \.self, content: regionRow)
-                    }
-                }
-                Section {
-                    DisclosureGroup(isExpanded: $showAllRegions) {
-                        ForEach(model.groupedOther, id: \.self, content: regionRow)
-                    } label: {
-                        Text(Strings.regionPickerSectionMore)
-                    }
-                }
+                GroupedRegionSections(grouping: model.grouping, row: regionRow)
             } else {
                 ForEach(filteredRegions, id: \.self, content: regionRow)
             }
         }
         .listStyle(.plain)
         .searchable(text: $searchText, prompt: Strings.regionPickerSearchPrompt)
-        .task { expandMoreIfNoGroupsAbove() }
         .overlay {
             if isSearching, filteredRegions.isEmpty {
                 ContentUnavailableView.search(text: searchText)

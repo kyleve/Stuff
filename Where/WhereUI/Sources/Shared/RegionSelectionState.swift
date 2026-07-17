@@ -70,33 +70,27 @@ final class RegionSelectionState {
         self.usedThisYear = usedThisYear
     }
 
-    /// The tracked regions' rows, in pick order. Empty until grouping loads.
-    var trackedItems: [RegionToggleItem] {
-        guard trackedRegions != nil else { return [] }
-        let byRegion = Dictionary(
-            items.map { ($0.region, $0) },
-            uniquingKeysWith: { first, _ in first },
+    /// Whether the toggles are grouped yet (the tracked set has loaded). Until
+    /// then callers render the flat ``items`` list.
+    var isGrouped: Bool {
+        trackedRegions != nil
+    }
+
+    /// The shared three-way grouping of the offered regions — tracked (as the
+    /// stable reference set), used-this-year, everything else. Valid once
+    /// ``isGrouped`` is true.
+    var grouping: RegionGrouping {
+        RegionGrouping(
+            available: items.map(\.region),
+            primary: trackedOrder,
+            usedThisYear: usedThisYear,
         )
-        return trackedOrder.compactMap { byRegion[$0] }
     }
 
-    /// Rows for non-tracked regions used this year (never `.other`). Empty until
-    /// grouping loads.
-    var usedItems: [RegionToggleItem] {
-        guard let tracked = trackedRegions else { return [] }
-        return items.filter { isUsedThisYear($0.region, tracked: tracked) }
-    }
-
-    /// Every remaining row — neither tracked nor used-this-year (plus `.other`).
-    /// Falls back to the full list until grouping loads.
-    var otherItems: [RegionToggleItem] {
-        guard let tracked = trackedRegions else { return items }
-        return items
-            .filter { !tracked.contains($0.region) && !isUsedThisYear($0.region, tracked: tracked) }
-    }
-
-    private func isUsedThisYear(_ region: Region, tracked: Set<Region>) -> Bool {
-        region != .other && !tracked.contains(region) && usedThisYear.contains(region)
+    /// The toggle row for `region`, or `nil` if it isn't offered — so the grouped
+    /// sections can bind their `Region`-keyed rows back to the live toggle state.
+    func item(for region: Region) -> RegionToggleItem? {
+        items.first { $0.region == region }
     }
 }
 

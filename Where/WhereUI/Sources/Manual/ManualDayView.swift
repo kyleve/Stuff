@@ -42,8 +42,6 @@ struct ManualDayView: View {
     @State private var deleteError = SaveErrorAlertState()
     @State private var showDeleteConfirmation = false
     @State private var pending: PendingWrite?
-    /// Whether the collapsed "more regions" group is expanded.
-    @State private var showAllRegions = false
 
     private static let logger = WhereLog.channel(.model)
 
@@ -205,7 +203,18 @@ struct ManualDayView: View {
 
     @ViewBuilder
     private func regionsSection(_ regions: RegionSelectionState) -> some View {
-        if regions.trackedRegions == nil {
+        if regions.isGrouped {
+            // Your regions / Used this year / More — the shared grouped sections,
+            // with day-membership toggles as the row.
+            GroupedRegionSections(
+                grouping: regions.grouping,
+                yoursFooter: Strings.manualRegionsFooter,
+            ) { region in
+                if let item = regions.item(for: region) {
+                    RegionToggleRow(item: item)
+                }
+            }
+        } else {
             // Tracked set not loaded yet (or a preview without services): show
             // the flat catalog list, matching the pre-grouping behavior.
             Section {
@@ -214,30 +223,6 @@ struct ManualDayView: View {
                 Text(Strings.manualRegionsHeader)
             } footer: {
                 Text(Strings.manualRegionsFooter)
-            }
-        } else {
-            if !regions.trackedItems.isEmpty {
-                Section {
-                    ForEach(regions.trackedItems) { RegionToggleRow(item: $0) }
-                } header: {
-                    Text(Strings.manualRegionsTrackedHeader)
-                } footer: {
-                    Text(Strings.manualRegionsFooter)
-                }
-            }
-            if !regions.usedItems.isEmpty {
-                Section {
-                    ForEach(regions.usedItems) { RegionToggleRow(item: $0) }
-                } header: {
-                    Text(Strings.manualRegionsUsedHeader)
-                }
-            }
-            Section {
-                DisclosureGroup(isExpanded: $showAllRegions) {
-                    ForEach(regions.otherItems) { RegionToggleRow(item: $0) }
-                } label: {
-                    Text(Strings.manualRegionsMore)
-                }
             }
         }
     }
@@ -253,8 +238,7 @@ struct ManualDayView: View {
     /// Load the tracked/primary regions + the regions used this year once so the
     /// toggles can be grouped (tracked / used-this-year / everything else). On
     /// failure the form keeps the flat list rather than a broken grouping, and
-    /// logs. Expands the collapsed group when a currently-on region landed in it,
-    /// so an existing tag is never hidden.
+    /// logs.
     private func loadGrouping() async {
         guard activeRegions.trackedRegions == nil else { return }
         let usedThisYear = Set(
@@ -263,9 +247,6 @@ struct ManualDayView: View {
         do {
             let tracked = try await report.services.primaryRegions()
             activeRegions.applyGrouping(tracked: tracked, usedThisYear: usedThisYear)
-            if activeRegions.otherItems.contains(where: \.isOn) {
-                showAllRegions = true
-            }
         } catch {
             Self.logger.warning("Manual-day form couldn't load regions for grouping")
         }

@@ -438,28 +438,22 @@ enum Strings {
         )
     }
 
-    static var regionPickerSectionYours: String {
-        String(
-            localized: "regionPicker.section.yours",
-            defaultValue: "Your regions",
-            bundle: .module,
-        )
+    // MARK: Region grouping (shared by the manual-day form + primary picker)
+
+    static var regionGroupYours: String {
+        String(localized: "regionGroup.yours", defaultValue: "Your regions", bundle: .module)
     }
 
-    static var regionPickerSectionUsedThisYear: String {
+    static var regionGroupUsedThisYear: String {
         String(
-            localized: "regionPicker.section.usedThisYear",
+            localized: "regionGroup.usedThisYear",
             defaultValue: "Used this year",
             bundle: .module,
         )
     }
 
-    static var regionPickerSectionMore: String {
-        String(
-            localized: "regionPicker.section.more",
-            defaultValue: "More regions",
-            bundle: .module,
-        )
+    static var regionGroupMore: String {
+        String(localized: "regionGroup.more", defaultValue: "More regions", bundle: .module)
     }
 
     static var regionPickerMapAccessibility: String {
@@ -1147,30 +1141,6 @@ enum Strings {
 
     static var manualRegionsFooter: String {
         localized("manual.regions.footer")
-    }
-
-    static var manualRegionsTrackedHeader: String {
-        String(
-            localized: "manual.regions.tracked.header",
-            defaultValue: "Your regions",
-            bundle: .module,
-        )
-    }
-
-    static var manualRegionsUsedHeader: String {
-        String(
-            localized: "manual.regions.used.header",
-            defaultValue: "Already this year",
-            bundle: .module,
-        )
-    }
-
-    static var manualRegionsMore: String {
-        String(
-            localized: "manual.regions.more",
-            defaultValue: "More regions",
-            bundle: .module,
-        )
     }
 
     static var manualTitle: String {

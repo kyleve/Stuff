@@ -89,9 +89,9 @@ struct PrimaryRegionSelectionModelTests {
         model.applyGrouping(usedThisYear: [.newYork])
 
         #expect(model.isGrouped)
-        #expect(model.groupedYourRegions == [.california])
-        #expect(model.groupedUsedThisYear == [.newYork])
-        #expect(model.groupedOther == [texas, florida])
+        #expect(model.grouping.primary == [.california])
+        #expect(model.grouping.usedThisYear == [.newYork])
+        #expect(model.grouping.other == [texas, florida])
     }
 
     @Test func groupingIsStableWhileToggling() throws {
@@ -106,9 +106,9 @@ struct PrimaryRegionSelectionModelTests {
         model.toggle(.newYork)
         model.toggle(.california)
         // Section membership is keyed on the picks at open, so rows don't jump.
-        #expect(model.groupedYourRegions == [.california])
-        #expect(model.groupedUsedThisYear == [.newYork])
-        #expect(model.groupedOther == [texas])
+        #expect(model.grouping.primary == [.california])
+        #expect(model.grouping.usedThisYear == [.newYork])
+        #expect(model.grouping.other == [texas])
         // ...but the live selection reflects the toggles.
         #expect(model.selectedRegions == [.newYork])
     }
