@@ -74,6 +74,14 @@ mode after an intentional UI change), `missing` (only absent references), and
 explicit `record:` argument to `assertSnapshots` wins, then `SNAPSHOT_RECORD`,
 then the suite trait. Review the recorded images, then commit.
 
+## Diffing failures
+
+Failure messages print the reference and failed-capture file URLs by default.
+To get a ready-to-run [Kaleidoscope](https://kaleidoscope.app) command instead,
+forward `SNAPSHOT_DIFF_TOOL=ksdiff` the same way
+(`TEST_RUNNER_SNAPSHOT_DIFF_TOOL=ksdiff mise exec -- tuist test …`). Absent or
+unknown values keep the default plain output.
+
 ## Requirements
 
 - Runs in a hosted test bundle (needs a host app window; in this repo that's

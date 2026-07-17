@@ -80,8 +80,10 @@ public func assertSnapshots(
     // The explicit parameter wins; the environment override (forwarded as
     // TEST_RUNNER_SNAPSHOT_RECORD on the command line) beats the suite trait,
     // so a re-record run needs no source edits. `nil` falls through to the
-    // suite's `.snapshots(record:)` trait.
+    // suite's `.snapshots(record:)` trait. The diff tool is env-only
+    // (TEST_RUNNER_SNAPSHOT_DIFF_TOOL); `nil` keeps the default plain output.
     let resolvedRecord = record ?? environmentRecordMode()
+    let resolvedDiffTool = environmentDiffTool()
 
     for configuration in configurations {
         let hostingController = makeHostingController(for: view, configuration: configuration)
@@ -104,7 +106,7 @@ public func assertSnapshots(
             isAccessibility: configuration.snapshotType == .accessibility,
             settle: settle,
         )
-        withSnapshotTesting(record: resolvedRecord) {
+        withSnapshotTesting(record: resolvedRecord, diffTool: resolvedDiffTool) {
             assertSnapshot(
                 of: image,
                 as: .image(
@@ -119,6 +121,20 @@ public func assertSnapshots(
                 column: column,
             )
         }
+    }
+}
+
+/// The diff tool forwarded through the test environment: `SNAPSHOT_DIFF_TOOL`
+/// (reaching the test process as `TEST_RUNNER_SNAPSHOT_DIFF_TOOL=…`). `ksdiff`
+/// maps to the Kaleidoscope tool; absent or unknown values keep the default
+/// plain file-URL output — the diff tool only shapes failure messages, so an
+/// unknown value degrading to the default is harmless, unlike a record-mode
+/// typo.
+private func environmentDiffTool() -> SnapshotTestingConfiguration.DiffTool? {
+    guard let value = ProcessInfo.processInfo.environment["SNAPSHOT_DIFF_TOOL"] else { return nil }
+    switch value {
+        case "ksdiff": return .ksdiff
+        default: return nil
     }
 }
 
