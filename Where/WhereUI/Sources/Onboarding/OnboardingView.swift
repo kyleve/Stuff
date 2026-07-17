@@ -79,7 +79,19 @@ public struct OnboardingView: View {
 
     // MARK: - Intro
 
+    @ViewBuilder
     private var intro: some View {
+        if isRestoring {
+            // A backup restore is a whole-screen blocking wait, so show the
+            // shared app-icon loading treatment (as first-load / scan / summary
+            // do) rather than an inline spinner.
+            AppIconLoadingView(caption: Strings.onboardingRestoring)
+        } else {
+            introPages
+        }
+    }
+
+    private var introPages: some View {
         VStack(spacing: stylesheet.spacing.xxxLarge) {
             TabView(selection: $page) {
                 ForEach(pages.indices, id: \.self) { index in
@@ -145,15 +157,11 @@ public struct OnboardingView: View {
             .buttonStyle(.borderedProminent)
             .controlSize(.large)
 
-            // Returning users can skip the manual setup by restoring a backup.
-            if isRestoring {
-                ProgressView(Strings.onboardingRestoring)
-            } else {
-                Button(Strings.onboardingRestoreBackup) { showImporter = true }
-                    .controlSize(.large)
-            }
+            // Returning users can skip the manual setup by restoring a backup;
+            // the restore's progress replaces the intro with the loading view.
+            Button(Strings.onboardingRestoreBackup) { showImporter = true }
+                .controlSize(.large)
         }
-        .disabled(isRestoring)
     }
 
     // MARK: - Pick regions
