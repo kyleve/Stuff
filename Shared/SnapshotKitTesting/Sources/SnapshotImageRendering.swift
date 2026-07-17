@@ -166,6 +166,14 @@ private func removeChildAfterCapture(_ child: UIViewController) {
 /// so a content-loading component is sized to its loaded content rather than an
 /// empty placeholder. `.fixed` sizing leaves the frame untouched.
 ///
+/// The measurement iterates to a fixed point: a lazy container (`LazyVStack` in
+/// a `ScrollView`) reports an *estimated* content height until its rows
+/// materialize, and rows only materialize once the viewport reaches them — a
+/// single measurement of a full-content scroll capture would cut the year off
+/// mid-October. Growing the frame to each estimate and re-laying-out
+/// materializes more rows and refines the next measurement; non-lazy content is
+/// stable on the first pass, so it measures exactly as before.
+///
 /// The content is hosted through a throwaway wrapper added as a child of the
 /// appeared host root (not a bare subview): only a real appearance transition
 /// starts the content's `.task`/`onAppear`. The wrapper is torn down and the
@@ -190,11 +198,24 @@ private func resolveContentSize(
     CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
     await settleForCapture(probeWrapper.view, settle: settle)
 
-    var measured = viewController.view
-        .sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
-    measured.width = width
-    if !measured.height.isFinite || measured.height <= 0 {
-        measured.height = 1
+    func measureContent() -> CGSize {
+        var measured = viewController.view
+            .sizeThatFits(CGSize(width: width, height: .greatestFiniteMagnitude))
+        measured.width = width
+        if !measured.height.isFinite || measured.height <= 0 {
+            measured.height = 1
+        }
+        return measured
+    }
+
+    var measured = measureContent()
+    for _ in 0 ..< 10 {
+        viewController.view.frame = CGRect(origin: .zero, size: measured)
+        probeWrapper.view.frame.size = measured
+        CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
+        let remeasured = measureContent()
+        if abs(remeasured.height - measured.height) < 0.5 { break }
+        measured = remeasured
     }
 
     // Detach the content VC from the probe wrapper first (so the caller can

@@ -17,6 +17,13 @@ capture + comparison pipeline lives in the sibling
   Type size, contrast, a device `Frame`, and a `snapshotType` (`.standard` or
   `.accessibility`). `Hashable`, with an `identifier` (built from
   `identifierParts`) that **omits default axes** so common cases stay terse.
+  Frames come in three sizing strategies: fixed device viewports (`.iPhone`,
+  `.iPad`), the intrinsic `.component` frame, and `.fullContent(name:width:)` —
+  fixed width, height measured from the settled content, so the whole
+  scrollable content renders in one image with nothing scrolling. Wrap
+  *content*, not chrome: a greedy container with pinned chrome
+  (`NavigationStack`) has no content-derived ideal height and collapses the
+  measurement to just that chrome.
 - **`combinations(...)` + presets** (`.componentDefaults`, `.screenDefaults`) —
   expand a terse declaration into the full matrix.
 - **`SnapshotProviding`** — a type declares its variants via

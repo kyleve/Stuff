@@ -87,6 +87,24 @@ extension SnapshotConfiguration {
         /// A component frame: sized to fit its content, capped to a phone-width
         /// maximum so a component without an intrinsic width still measures.
         public static let component = Frame(name: "", size: .intrinsic(maxWidth: 402))
+        /// A full-content frame: fixed width, height measured from the settled
+        /// content — the whole scrollable content renders in one image, nothing
+        /// scrolls. A `ScrollView` measured this way reports its content height,
+        /// so wrapping scrollable content captures every row (lazy stacks
+        /// materialize fully — at full-content height every row is visible).
+        ///
+        /// **Wrap content, not chrome.** Greedy containers with pinned chrome
+        /// (`NavigationStack`, a sheet with a pinned picker) have no
+        /// content-derived ideal height and collapse the measurement to just
+        /// that chrome — pass the scrollable content itself, without the
+        /// navigation wrapper.
+        ///
+        /// `name` is the identifier token for the frame (conventionally
+        /// `fullHeight`); it must stay stable once references are recorded.
+        public static func fullContent(name: String, width: CGFloat) -> Frame {
+            Frame(name: name, size: .fullContent(width: width))
+        }
+
         /// A phone screen frame (iPhone 17 point size).
         public static let iPhone = Frame(
             name: "iPhone",
@@ -102,6 +120,9 @@ extension SnapshotConfiguration {
         case intrinsic(maxWidth: CGFloat?)
         /// A fixed point size (a device viewport).
         case fixed(CGSize)
+        /// A fixed width with the height measured from the settled content, so
+        /// scrollable content renders whole (see ``Frame/fullContent(name:width:)``).
+        case fullContent(width: CGFloat)
     }
 }
 

@@ -17,8 +17,6 @@ struct CalendarView: View {
     let report: YearReportModel
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
 
     @State private var timelineTarget: TimelineMonthTarget?
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
@@ -138,12 +136,35 @@ struct CalendarView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
+        CalendarYearGrid(months: months, focusedRegion: focusedRegion) { month in
+            timelineTarget = TimelineMonthTarget(startOfMonth: month.startOfMonth)
+        }
+    }
+}
+
+/// The scrollable year-of-months grid inside ``CalendarView``: one
+/// ``MonthGridView`` per month in a lazy stack, auto-scrolled to today's month
+/// when viewing the current year. Split from ``CalendarView`` so the
+/// full-content snapshot case can capture the scrollable content without the
+/// enclosing `NavigationStack`, whose pinned chrome defeats content
+/// measurement (see `Frame.fullContent`).
+struct CalendarYearGrid: View {
+    let months: [CalendarMonth]
+    /// The region the calendar is focused on, if any — see ``CalendarView``.
+    var focusedRegion: Region?
+    /// Called when a day is tapped, with the month it belongs to.
+    let onSelectDay: (CalendarMonth) -> Void
+
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
+
+    var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
                     ForEach(months) { month in
                         MonthGridView(month: month, focusedRegion: focusedRegion) { _ in
-                            timelineTarget = TimelineMonthTarget(startOfMonth: month.startOfMonth)
+                            onSelectDay(month)
                         }
                         .id(month.id)
                     }
@@ -151,7 +172,7 @@ struct CalendarView: View {
                 .padding()
             }
             .onAppear {
-                scrollToCurrentMonth(proxy, months: months)
+                scrollToCurrentMonth(proxy)
             }
         }
     }
@@ -162,7 +183,7 @@ struct CalendarView: View {
     /// `LazyVStack` depends on how much lazy content has been measured, so a
     /// capture-time scroll is nondeterministic — snapshots capture the
     /// deterministic top-of-year state instead.
-    private func scrollToCurrentMonth(_ proxy: ScrollViewProxy, months: [CalendarMonth]) {
+    private func scrollToCurrentMonth(_ proxy: ScrollViewProxy) {
         guard !isCapturingSnapshot,
               let targetID = months.first(where: \.isCurrentMonth)?.id else { return }
         DispatchQueue.main.async {

@@ -162,6 +162,40 @@
             whereSnapshot(name: "WithData", configurations: .screenDefaults) {
                 CalendarView(report: PreviewSupport.loadedYearReportModel())
             }
+            // The whole sample year in one image: the full-content frame
+            // measures the scroll view's content height, so all 12 lazy months
+            // materialize and nothing scrolls. Wraps `CalendarYearGrid` — the
+            // scrollable content — not `CalendarView` itself, whose
+            // `NavigationStack` chrome defeats content measurement (see
+            // `Frame.fullContent`).
+            whereSnapshot(
+                name: "FullYear",
+                configurations: [
+                    SnapshotConfiguration(device: .fullContent(name: "fullHeight", width: 402)),
+                ],
+            ) {
+                CalendarYearGrid(months: fullYearMonths(), focusedRegion: nil) { _ in }
+            }
+        }
+
+        /// The sample year's month grids, laid out synchronously (fixture
+        /// failure is a programmer error, not a state to render).
+        private static func fullYearMonths() -> [CalendarMonth] {
+            let report = PreviewSupport.loadedYearReportModel()
+            guard let yearReport = report.report else {
+                preconditionFailure("The loaded preview fixture must carry a year report.")
+            }
+            do {
+                return try yearReport.calendarMonths(
+                    calendar: report.calendar,
+                    referenceDate: report.referenceDate,
+                    missingDates: report.missingDayKeys,
+                    evidenceDays: report.evidenceDayKeys,
+                    focusedRegion: nil,
+                )
+            } catch {
+                preconditionFailure("The sample year failed to lay out calendar months: \(error)")
+            }
         }
     }
 

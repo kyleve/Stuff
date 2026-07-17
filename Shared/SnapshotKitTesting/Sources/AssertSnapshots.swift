@@ -68,6 +68,12 @@ public func assertSnapshots(
                 .fixed
             case let .intrinsic(maxWidth):
                 .intrinsic(width: maxWidth ?? UIScreen.main.bounds.width)
+            case let .fullContent(width):
+                // Same measured-height pipeline as `.intrinsic`: a `ScrollView`
+                // measured under the unbounded proposal reports its content
+                // height (guarded by `LargeViewCaptureTests`), so the capture
+                // renders the whole scrollable content.
+                .intrinsic(width: width)
         }
         let identifier = [name, configuration.identifier]
             .filter { !$0.isEmpty }
@@ -134,6 +140,8 @@ private func makeHostingController(
             hostingController.view.frame = CGRect(origin: .zero, size: size)
         case let .intrinsic(maxWidth):
             let width = maxWidth ?? UIScreen.main.bounds.width
+            hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: 1)
+        case let .fullContent(width):
             hostingController.view.frame = CGRect(x: 0, y: 0, width: width, height: 1)
     }
 
