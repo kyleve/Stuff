@@ -56,12 +56,14 @@ Known nondeterminism in `WhereUISnapshotTests`, accepted for now — scattered
 failures in these areas are expected and shouldn't be papered over by blind
 re-recording:
 
-- fix: `debugLogViewer` snapshots render the live shared `WhereLog` buffer, so wall-clock timestamps and run-dependent log lines leak into the image. Needs a fixture — a viewer configured over injected/frozen log entries rather than the process's real buffer.
 - fix: `regionMap` snapshots capture a live MapKit `Map`, whose tile/label/overlay loading is asynchronous and cache/network-dependent — no settle window can make it deterministic (labels fade in and overlay tiles complete whenever MapKit finishes). The settle-loop diet made the capture consistently land in the labels-not-yet-loaded state (byte-identical across runs locally), and the references are recorded at that state, but a run where tiles load unusually fast could still catch the label fade. A real fix would freeze the map under capture (e.g. a deterministic placeholder behind `\.isCapturingSnapshot`) at the cost of no longer snapshotting real polygon rendering.
 - fix: Occasional ~20px vertical sheet-offset shift in iPad ax5 sheet captures (seen on `calendar.WithData_iPad_ax5`) — the sheet/scroll settling position varies between runs. (Likely the capture-time `scrollToCurrentMonth` scroll, skipped under capture since the snapshot-determinism pass — keep an eye out for recurrence before closing.)
 - fix: `root.LoggedIn` snapshots the empty state, not the seeded sample report: `MainTabs`' `activate()` re-pulls from the empty in-memory store, replacing the injected report. Making sample data survive requires seeding the store itself, not just injecting the report into the model.
 
 # Completed issues
+
+## Deferred snapshot-test flakiness
+- fix: `debugLogViewer` snapshots render the live shared `WhereLog` buffer, so wall-clock timestamps and run-dependent log lines leak into the image. (Resolved: the snapshot renders a frozen fixture `LogStore` — fixed entries with timestamps pinned around `PreviewSupport.referenceNow`, seeded through the production store's `@_spi(Testing)` record seam — instead of the process's real buffer.)
 
 ## P0s (Must do)
 - Remove the `waitForOneRunloop` calls added to UI tests; it's a flake paradise. (the hosting smoke tests that used it were superseded by `WhereUISnapshotTests` and deleted; the helper is gone from `TestHostSupport`)
