@@ -21,6 +21,22 @@ struct SnapshotCaseTests {
         #expect(snapshotCase.settle == .immediate)
     }
 
+    @Test func onReadyToSnapshotDefaultsToNil() {
+        let snapshotCase = SnapshotCase(name: "States", configurations: []) { Color.red }
+        #expect(snapshotCase.onReadyToSnapshot == nil)
+    }
+
+    @Test func onReadyToSnapshotStoresTheDeclaredHook() async {
+        var hookRan = false
+        let snapshotCase = SnapshotCase(
+            name: "States",
+            configurations: [],
+            onReadyToSnapshot: { hookRan = true },
+        ) { Color.red }
+        await snapshotCase.onReadyToSnapshot?()
+        #expect(hookRan)
+    }
+
     @Test func previewConfigurationsExcludeAccessibilityCaptures() {
         let snapshotCase = SnapshotCase(
             name: "States",

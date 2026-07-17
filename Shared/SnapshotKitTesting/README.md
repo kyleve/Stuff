@@ -26,7 +26,11 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   size-stabilization pass for SwiftUI hosting controllers. A case's
   `SnapshotSettle` picks the settle phase: `.settled` (default) waits for
   pixel-stable renders so `.task`-driven content loads; `.immediate` skips the
-  loop for content that's fully renderable after a layout pass.
+  loop for content that's fully renderable after a layout pass. A case's
+  optional `onReadyToSnapshot` hook runs after that settle and before the
+  accessibility parse / capture — the deterministic point to focus a field or
+  trigger a presented state — and its effects are settled again before the
+  image is taken.
 - **Accessibility captures** — for `.accessibility` configurations, content is
   wrapped so the image is annotated with the VoiceOver reading order, labels,
   traits, and activation points.

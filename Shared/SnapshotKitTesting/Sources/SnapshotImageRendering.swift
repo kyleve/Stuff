@@ -35,6 +35,13 @@ public enum SnapshotSizing: Sendable {
 /// trait-bridged key in `SnapshotKit`) and can render a deterministic end-state
 /// of motion that would otherwise never settle.
 ///
+/// `onReadyToSnapshot` (a case's pre-capture hook) runs once, after the content
+/// has settled and before the accessibility parse / cursor hiding / capture —
+/// the deterministic point to focus a field or trigger a presented state. Its
+/// effects are settled again (with the same `settle` mode) so they're committed
+/// in the image. For `.intrinsic` sizing the content is measured *before* the
+/// hook runs, so a hook must not change the content's ideal size.
+///
 /// `async` is load-bearing, not a convenience: the settle phase must *suspend*
 /// (freeing the main actor) for SwiftUI `.task`-driven content to load — see
 /// ``settleContent(_:minDuration:maxDuration:)``. Callers assert on the returned
@@ -56,6 +63,7 @@ public func renderSnapshotImage(
     safeAreaInsets: UIEdgeInsets? = .zero,
     isAccessibility: Bool = false,
     settle: SnapshotSettle = .settled,
+    onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
 ) async -> UIImage {
     func capture() async -> UIImage {
         guard let window = hostKeyWindow(), let hostRoot = window.rootViewController else {
@@ -103,6 +111,16 @@ public func renderSnapshotImage(
         wrappingViewController.view.setNeedsLayout()
         CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
         await settleForCapture(wrappingViewController.view, settle: settle)
+
+        // The pre-capture hook sees fully settled content, then its own
+        // effects (a focused field, a presented state) are settled before the
+        // accessibility parse and capture below reflect them.
+        if let onReadyToSnapshot {
+            await onReadyToSnapshot()
+            wrappingViewController.view.setNeedsLayout()
+            CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
+            await settleForCapture(wrappingViewController.view, settle: settle)
+        }
 
         // Parse accessibility only after the content has settled, so the
         // annotation reflects the loaded/revealed state (not a placeholder), then

@@ -44,6 +44,7 @@ public func assertSnapshots(
             named: snapshotCase.name,
             configurations: snapshotCase.configurations,
             settle: snapshotCase.settle,
+            onReadyToSnapshot: snapshotCase.onReadyToSnapshot,
             record: record,
             fileID: fileID,
             file: filePath,
@@ -62,6 +63,7 @@ public func assertSnapshots(
     named name: String,
     configurations: [SnapshotConfiguration],
     settle: SnapshotSettle = .settled,
+    onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
     record: SnapshotTestingConfiguration.Record? = nil,
     fileID: StaticString = #fileID,
     file filePath: StaticString = #filePath,
@@ -105,6 +107,7 @@ public func assertSnapshots(
             sizing: sizing,
             isAccessibility: configuration.snapshotType == .accessibility,
             settle: settle,
+            onReadyToSnapshot: onReadyToSnapshot,
         )
         withSnapshotTesting(record: resolvedRecord, diffTool: resolvedDiffTool) {
             assertSnapshot(

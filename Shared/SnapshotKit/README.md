@@ -34,6 +34,11 @@ capture + comparison pipeline lives in the sibling
   (`SnapshotSettle`) declares whether the content needs the capture pipeline's
   async settle loop (`.settled`, the default) or is fully renderable after a
   layout pass (`.immediate` — skips the loop, so static content captures fast).
+  An optional `onReadyToSnapshot` hook runs in the capture pipeline after the
+  content has settled and just before the image is taken — the deterministic
+  point to focus a field or trigger a presented state; its effects are settled
+  again before capture. The preview cutsheet ignores the hook (only the test
+  pipeline can re-settle around it).
 - **`snapshotTraits(_:)`** — applies a configuration's traits to a view for the
   preview cutsheet (color scheme, Dynamic Type, and an increased-contrast trait
   override).

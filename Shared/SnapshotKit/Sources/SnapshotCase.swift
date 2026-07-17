@@ -26,6 +26,12 @@ public struct SnapshotCase: Identifiable {
     public let configurations: [SnapshotConfiguration]
     /// Whether the content needs the async settle loop before capture.
     public let settle: SnapshotSettle
+    /// Runs in the capture pipeline after the content has settled and before
+    /// the image is taken — the deterministic point to focus a field or trigger
+    /// a presented state. Its effects are settled again before capture. `nil`
+    /// for content that renders as declared; the preview cutsheet ignores it
+    /// (only the test pipeline can re-settle around it).
+    public let onReadyToSnapshot: (@MainActor () async -> Void)?
     /// The content rendered under each configuration.
     public let content: AnyView
 
@@ -38,11 +44,13 @@ public struct SnapshotCase: Identifiable {
         name: String,
         configurations: [SnapshotConfiguration],
         settle: SnapshotSettle = .settled,
+        onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
         @ViewBuilder content: @MainActor () -> some View,
     ) {
         self.name = name
         self.configurations = configurations
         self.settle = settle
+        self.onReadyToSnapshot = onReadyToSnapshot
         self.content = AnyView(content())
     }
 
