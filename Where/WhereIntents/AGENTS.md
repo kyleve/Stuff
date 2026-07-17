@@ -30,12 +30,21 @@ layering, localization, and the WhereUI duplicate-metadata rule).
 - **Intents never start GPS.** `WhereServices.forIntents()` wires
   `IdleLocationSource`; a manual entry logged from an intent records a
   `ManualEntryAudit` with a "Logged with Siri" note and no captured location.
-- **Resolve services through `IntentServices.shared`, not `forIntents()`
-  directly.** It caches one `WhereServices` per process so repeated intent runs
-  and snippet reloads share a single App Group store (`.localOnly`, matching the
-  share extension) — which also makes a `LogDayIntent` write immediately visible
-  when the day-count snippet reloads. The running app observes the write via
-  `.NSPersistentStoreRemoteChange`.
+- **Resolve services through the `@Dependency`-injected `IntentServices`;
+  intents never open a store.** The app's `AppDelegate` owns the one
+  `IntentServices` instance and registers it with `AppDependencyManager` in
+  `didFinishLaunching` (there is no singleton of ours); every intent and
+  entity query declares `@Dependency private var intentServices:
+  IntentServices`. The launch's `open-store` step is the process's *only*
+  store open: it hands the session's services to the composition root
+  (`WhereLaunch.makeLauncher`'s `onServicesReady` hook), which derives the
+  store-sharing intents stack (`WhereServices.forIntents(sharingStoreOf:)`)
+  and installs it — re-fired on retry and reset relaunches. Intents run over
+  the same store instance the app opened, so a `LogDayIntent` write pings the
+  same `changes()` signal the running UI refreshes from (and is immediately
+  visible when the day-count snippet reloads). An intent that fires before
+  installation **parks** in `current()` (cancellation-aware) rather than
+  assembling its own stack — there is deliberately no self-open fallback.
 - **Use `Calendar.whereIntents` for all year/day math**, never `Calendar.current`
   — it's Gregorian in the current time zone, matching `DayAggregator()`, so a
   spoken "this year" lines up with the aggregated report even on a non-Gregorian
@@ -69,3 +78,19 @@ Swift Testing in [`Tests/`](Tests) (`WhereIntentsTests`, hosted in
 `DayJournal` — never the on-disk store. Follows the WhereUITests dependency
 shape (no `extraPackageProducts`; everything arrives transitively through
 WhereUI). Internal types are reached via `@testable import WhereIntents`.
+
+**Never call an intent's `perform()` in a test.** `perform()` resolves its
+`@Dependency` from the process-wide `AppDependencyManager` — in
+`StuffTestHost`-hosted bundles nothing registers one (the resolution traps),
+and in the app-hosted `WhereTests` process the host app's own launch *does*
+register a handoff over its in-memory store, which an intent would silently
+ride. Test the read/write logic against injected services, and test the
+handoff itself on per-test `IntentServices` instances (see
+`IntentServicesTests`). The registration→`@Dependency` plumbing itself is
+**not unit-testable**: the framework fatal-errors on any `@Dependency` access
+outside "the intent perform flow" (a probe was tried and trapped), so that
+seam is verified by invoking a Siri/Shortcuts intent on a device. Also don't
+add tests that construct an `AppDelegate` — each `didFinishLaunching`
+re-registers the handoff, and `AppDependencyManager`'s re-registration
+behavior is undocumented (the one existing launch test plus the host app's
+own launch is the tolerated known case).

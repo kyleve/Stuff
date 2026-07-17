@@ -236,6 +236,13 @@ public final class LifecycleRunner {
         } catch is CancellationError {
             return .cancelled
         } catch {
+            // A superseded drive can still throw a *real* error from its
+            // in-flight step (the work isn't required to be cancellation-
+            // responsive). The superseding drive owns `phase` now, so a dying
+            // drive must report `.cancelled` rather than clobber the new
+            // drive's state with `.failed` — the new drive re-runs the step
+            // and surfaces its own outcome.
+            guard !Task.isCancelled else { return .cancelled }
             phase = .failed(LifecycleFailure(stepID: step.id, error: error))
             return .failed
         }

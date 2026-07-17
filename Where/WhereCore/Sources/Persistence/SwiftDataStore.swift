@@ -167,8 +167,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// (defaulting to the build/test-aware `Storage.default`) and wraps
     /// it in a `SwiftDataStore`. The `@ModelActor`-generated
     /// `init(modelContainer:)` is not reachable from other modules, so
-    /// this is the supported entry point for production wiring in the
-    /// app/UI layer.
+    /// this is the supported entry point for opening a store.
+    ///
+    /// Each process opens its on-disk store **once** and injects it where
+    /// it's needed — in the app, the launch's `open-store` step opens it and
+    /// the App Intents stack shares it via
+    /// `WhereServices.forIntents(sharingStoreOf:)` — rather than a second
+    /// caller opening another container over the same file (two containers
+    /// racing to *create* the store on a fresh install is how the launch
+    /// once failed with `SwiftDataError`).
     public static func make(storage: Storage = .default) throws -> SwiftDataStore {
         let container = try makeContainer(storage: storage)
         if storage == .inMemory {
@@ -219,6 +226,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             store.startObservingRemoteChanges(remoteChangeSource)
             return store
         }
+
     #endif
 
     /// The live model container, re-exposed for read-only debug tooling (the

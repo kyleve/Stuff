@@ -34,6 +34,11 @@ internal shape.
   production `SwiftDataStore` traps otherwise), and each committed transaction
   pings `changes()` — the single signal readers refresh from. The live
   `ModelContainer` is surfaced only for the read-only debug inspector.
+  Each process opens its on-disk store **once** and injects it — the app's
+  launch opens it, and the App Intents stack shares it via
+  `WhereServices.forIntents(sharingStoreOf:)` — rather than a second caller
+  opening another container over the same file (concurrent first-launch
+  creation is how the launch once failed).
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (year-month-
   day) is the timezone-independent identity of a day, and it is what every
   *stored user record* and *day comparison* keys on: `DayPresence.day`,
@@ -101,7 +106,7 @@ internal shape.
   merge; read as a `Set`, defaulting to the four when unset). `RegionAttribution`
   derives the attributor from them and rebuilds on `changes()`; assemble via the
   async `WhereServices.make(...)` (which reads the set) so the app and the App
-  Intents process (`WhereServices.forIntents()`, also async) attribute against
+  Intents layer (`WhereServices.forIntents()`, also async) attribute against
   the same synced set. Detection is naturally scoped to it — the attributor only
   loads tracked-region geometry, so `distanceToBoundary` is `nil` elsewhere.
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are

@@ -14,11 +14,15 @@ public struct TodayRegionsIntent: AppIntent {
         "See which regions today counts for so far.",
     )
 
+    /// The app-registered services handoff (see `IntentServices`); resolved by
+    /// the App Intents dependency container, never a singleton of ours.
+    @Dependency private var intentServices: IntentServices
+
     public init() {}
 
     @MainActor
     public func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
-        let services = try await IntentServices.shared.current()
+        let services = try await intentServices.current()
         let regions = try await WhereIntentReader(services: services).todayRegions()
         let ordered = orderedRegions(regions)
         return .result(
