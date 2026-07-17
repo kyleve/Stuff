@@ -66,6 +66,29 @@ public struct DayAggregator: Sendable {
             .sorted { $0.day < $1.day }
     }
 
+    /// Group the recorded points that fell on `day` by the region they
+    /// attribute to, keeping each raw point (coordinate + horizontal accuracy).
+    /// Unlike `locations(in:)`, which projects one region across the whole year,
+    /// this covers *every* region a single day touched — so the "Fix this day"
+    /// screen and the flight-day detail view can plot all of a day's points at
+    /// once (e.g. a flight's origin, fly-over, and destination in one map).
+    /// Like `locations(in:)` it reflects recorded points, not manual overlays.
+    public func pointsByRegion(
+        onDay day: CalendarDay,
+        samples: [LocationSample],
+        attributor: any RegionAttributing,
+    ) -> [Region: [RegionDayPoint]] {
+        var byRegion: [Region: [RegionDayPoint]] = [:]
+        for sample in samples where CalendarDay(from: sample.timestamp, in: calendar) == day {
+            let region = attributor.region(at: sample.coordinate)
+            byRegion[region, default: []].append(RegionDayPoint(
+                coordinate: sample.coordinate,
+                horizontalAccuracy: sample.horizontalAccuracy,
+            ))
+        }
+        return byRegion
+    }
+
     /// One representative coordinate per region: the point inside the most
     /// heavily sampled ~5km cell for that region. Lets the Elsewhere cards show
     /// a single "where" teaser (e.g. the city you spent the most time in)

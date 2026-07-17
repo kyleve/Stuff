@@ -75,10 +75,12 @@ one it belongs to rather than to a god-object:
 ### Detection, notifications & the rest
 
 - **`DataIssueScanner`** + the `DataIssue` family (missing days, border drift,
-  abrupt change) — the "Resolve" tab's detections and their `IssueResolution`
-  fixes; dismissals persist under a stable, device- and timezone-independent
-  `storageKey` (a `CalendarDay` ISO string), so a dismissal doesn't reappear
-  after travel.
+  abrupt change, flight days) — the "Resolve" tab's detections and their
+  `IssueResolution` fixes; dismissals persist under a stable, device- and
+  timezone-independent `storageKey` (a `CalendarDay` ISO string), so a dismissal
+  doesn't reappear after travel. The `FlightDayDetector` reads the per-day GPS
+  fixes the scanner puts on `DataIssueInput.daySamples` (timestamped, GPS-only)
+  to spot cruise-speed points that added a spurious region.
 - **Reconcilers** — `ReminderReconciler` (daily logging reminder + app-icon
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").

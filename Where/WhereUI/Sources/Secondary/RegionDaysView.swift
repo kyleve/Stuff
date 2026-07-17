@@ -1,4 +1,3 @@
-import MapKit
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -13,17 +12,11 @@ struct RegionDaysView: View {
     let report: YearReportModel
 
     /// Raw per-day coordinates for this region, loaded asynchronously from the
-    /// store. Drives the map pins and each row's representative point. Empty
-    /// until loaded (and in previews/tests, which seed no raw samples).
-    @State private var pins: [MapPin] = []
+    /// store. `mapPoints` drives the map pins; `coordinatesByDay` feeds each
+    /// row's representative point. Empty until loaded (and in previews/tests,
+    /// which seed no raw samples).
+    @State private var mapPoints: [RecordedMapPoint] = []
     @State private var coordinatesByDay: [CalendarDay: [Coordinate]] = [:]
-
-    @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.regionStyles) private var regionStyles
-
-    private var regionMap: WhereStylesheet.RegionMapStyle {
-        stylesheet.regionMap
-    }
 
     private var days: [DayPresence] {
         report.days(in: region)
@@ -50,7 +43,13 @@ struct RegionDaysView: View {
             locations.map { ($0.day, $0.points.map(\.coordinate)) },
             uniquingKeysWith: { first, _ in first },
         )
-        pins = MapPin.deduplicated(from: locations.flatMap(\.points))
+        mapPoints = locations.flatMap(\.points).map {
+            RecordedMapPoint(
+                coordinate: $0.coordinate,
+                horizontalAccuracy: $0.horizontalAccuracy,
+                region: region,
+            )
+        }
     }
 
     @ViewBuilder
@@ -63,45 +62,12 @@ struct RegionDaysView: View {
             }
         } else {
             VStack(spacing: 0) {
-                if !pins.isEmpty {
-                    map
+                if !mapPoints.isEmpty {
+                    RecordedPointsMap(points: mapPoints)
                 }
                 dayList
             }
         }
-    }
-
-    private var map: some View {
-        let tint = regionStyles.style(for: region).tint
-        return Map(initialPosition: .automatic) {
-            ForEach(pins) { pin in
-                if let radius = drawnUncertaintyRadius(for: pin) {
-                    MapCircle(center: pin.coordinate, radius: radius)
-                        .foregroundStyle(tint.opacity(regionMap.uncertaintyFillOpacity))
-                        .stroke(
-                            tint.opacity(regionMap.uncertaintyStrokeOpacity),
-                            lineWidth: regionMap.uncertaintyStrokeWidth,
-                        )
-                }
-                Marker("", coordinate: pin.coordinate)
-                    .tint(tint)
-            }
-        }
-        .mapStyle(.standard(pointsOfInterest: .excludingAll))
-        .frame(height: regionMap.height)
-        .accessibilityLabel(Strings.secondaryRegionMapAccessibility)
-    }
-
-    /// Radius in meters to draw for a pin's GPS uncertainty, or `nil` when the
-    /// fix is precise enough that a circle would just clutter the map. The cap
-    /// is deliberately generous so the user sees close to the real radius (the
-    /// translucent fill keeps the map readable underneath); it only reins in a
-    /// pathologically coarse fix so it can't zoom the auto-framed map way out.
-    private func drawnUncertaintyRadius(for pin: MapPin) -> CLLocationDistance? {
-        let minimumVisible = 25.0
-        let maximumDrawn = 3000.0
-        guard pin.horizontalAccuracy > minimumVisible else { return nil }
-        return min(pin.horizontalAccuracy, maximumDrawn)
     }
 
     private var dayList: some View {
@@ -119,45 +85,6 @@ struct RegionDaysView: View {
             }
         }
         .accessibilityIdentifier("where_region_days_list")
-    }
-}
-
-/// A map annotation for one recorded point, with its GPS uncertainty radius.
-/// Points are de-duplicated onto a coarse grid so a day's jitter collapses to a
-/// single pin and the map isn't carpeted with overlapping markers.
-private struct MapPin: Identifiable {
-    let id: Int
-    let coordinate: CLLocationCoordinate2D
-    let horizontalAccuracy: CLLocationDistance
-
-    /// ~0.01° (~1 km) buckets, capped so a very dense region stays responsive.
-    /// When several points land in one bucket the most accurate (smallest
-    /// radius) wins, so the pin sits on the best fix and the drawn uncertainty
-    /// circle reflects it rather than a coarse outlier.
-    static func deduplicated(from points: [RegionDayPoint], limit: Int = 250) -> [MapPin] {
-        var bestByBucket: [Int: RegionDayPoint] = [:]
-        var bucketOrder: [Int] = []
-        for point in points {
-            let latBucket = Int((point.coordinate.latitude * 100).rounded())
-            let lngBucket = Int((point.coordinate.longitude * 100).rounded())
-            let bucket = latBucket &* 100_000 &+ lngBucket
-            if let existing = bestByBucket[bucket] {
-                if point.horizontalAccuracy < existing.horizontalAccuracy {
-                    bestByBucket[bucket] = point
-                }
-            } else {
-                bestByBucket[bucket] = point
-                bucketOrder.append(bucket)
-            }
-        }
-        return bucketOrder.prefix(limit).enumerated().compactMap { index, bucket in
-            guard let point = bestByBucket[bucket] else { return nil }
-            return MapPin(
-                id: index,
-                coordinate: point.coordinate.clLocationCoordinate,
-                horizontalAccuracy: point.horizontalAccuracy,
-            )
-        }
     }
 }
 
