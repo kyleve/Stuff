@@ -209,7 +209,11 @@ def main():
 main()
 PY
 
-SUSPECT_COUNT=$(grep -c . "$SUSPECTS" 2>/dev/null || echo 0)
+# `grep -c` prints 0 *and* exits non-zero on no match, which would trip the
+# `|| ...` fallback into appending a second count; count non-blank lines with
+# awk instead so an empty/absent suspects file cleanly yields 0.
+SUSPECT_COUNT=$(awk 'NF' "$SUSPECTS" 2>/dev/null | wc -l | tr -d '[:space:]')
+SUSPECT_COUNT=${SUSPECT_COUNT:-0}
 
 # ---------------------------------------------------------------------------
 # Phase 2 — tight-loop each suspect in isolation.
