@@ -34,10 +34,11 @@ internal shape.
   production `SwiftDataStore` traps otherwise), and each committed transaction
   pings `changes()` — the single signal readers refresh from. The live
   `ModelContainer` is surfaced only for the read-only debug inspector.
-  Production wiring (the app launch, App Intents) resolves the one shared
-  store via `SwiftDataStore.canonical()` rather than opening a second
-  container over the same file; `make(storage:)` stays an ordinary factory
-  for deliberately independent opens.
+  Each process opens its on-disk store **once** and injects it — the app's
+  launch opens it, and the App Intents stack shares it via
+  `WhereServices.forIntents(sharingStoreOf:)` — rather than a second caller
+  opening another container over the same file (concurrent first-launch
+  creation is how the launch once failed).
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (year-month-
   day) is the timezone-independent identity of a day, and it is what every
   *stored user record* and *day comparison* keys on: `DayPresence.day`,

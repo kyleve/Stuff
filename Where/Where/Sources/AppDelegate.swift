@@ -24,6 +24,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// reason is known) and handed to `RootView` via `WhereApp`.
     private(set) var launcher: LifecycleRunner!
 
+    private static let logger = WhereLog.channel(.launch)
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil,
@@ -42,12 +44,31 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         launcher = WhereLaunch.makeLauncher(model: model, reason: reason)
         Task {
             await launcher.run()
+            // The launch's `open-store` step made the process's one store
+            // open. Derive the App Intents stack from those services — same
+            // store instance, GPS-free — and install it, so an intent never
+            // opens a second container over the app's store file (two
+            // containers racing to create it on a fresh install is how the
+            // launch once failed). Skipped if the launch failed (no session);
+            // intents then self-assemble their fallback stack.
+            if let services = model.session?.services {
+                do {
+                    let intentStack = try await WhereServices.forIntents(
+                        sharingStoreOf: services,
+                    )
+                    await IntentServices.shared.install(intentStack)
+                } catch {
+                    // Degraded but handled: intents fall back to opening their
+                    // own `.localOnly` container.
+                    Self.logger.warning(
+                        "Failed to assemble store-sharing intent services: \(error.localizedDescription)",
+                    )
+                }
+            }
             // Index the tracked regions into Spotlight (a search for a region
-            // name surfaces Where and its day-count query) only after the launch
-            // drive finishes, so the intents stack resolves the canonical store
-            // the `open-store` step opened instead of assembling itself on the
-            // launch critical path. Indexing a handful of items is cheap and
-            // idempotent.
+            // name surfaces Where and its day-count query) through the stack
+            // installed above, off the launch critical path. Indexing a
+            // handful of items is cheap and idempotent.
             await RegionSpotlightIndexer.indexRegions()
         }
         return true

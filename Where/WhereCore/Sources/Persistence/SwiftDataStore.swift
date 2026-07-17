@@ -163,15 +163,19 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         return SwiftDataStore(modelContainer: container)
     }
 
-    /// Independent-open factory: builds a fresh store for the given storage
-    /// mode (defaulting to the build/test-aware `Storage.default`) and wraps
-    /// it in a `SwiftDataStore`, with no registration side effects. Production
-    /// wiring resolves the process's shared instance via `canonical()`
-    /// instead; call this only where an *independent* container is the point —
-    /// a sibling process over the App Group store (the share extension), debug
-    /// tooling, or tests. The `@ModelActor`-generated `init(modelContainer:)`
-    /// is not reachable from other modules, so this is the open seam those
-    /// callers use.
+    /// App-wiring factory: builds a store for the given storage mode
+    /// (defaulting to the build/test-aware `Storage.default`) and wraps
+    /// it in a `SwiftDataStore`. The `@ModelActor`-generated
+    /// `init(modelContainer:)` is not reachable from other modules, so
+    /// this is the supported entry point for opening a store.
+    ///
+    /// Each process opens its on-disk store **once** and injects it where
+    /// it's needed — in the app, the launch's `open-store` step opens it and
+    /// the App Intents stack shares it via
+    /// `WhereServices.forIntents(sharingStoreOf:)` — rather than a second
+    /// caller opening another container over the same file (two containers
+    /// racing to *create* the store on a fresh install is how the launch
+    /// once failed with `SwiftDataError`).
     public static func make(storage: Storage = .default) throws -> SwiftDataStore {
         let container = try makeContainer(storage: storage)
         if storage == .inMemory {
@@ -223,29 +227,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             return store
         }
 
-        /// Drops the process's canonical store so each canonical-store test
-        /// runs its own get-or-create from a clean slate.
-        @_spi(Testing)
-        public static func resetCanonicalForTesting() async {
-            await CanonicalStoreVendor.shared.reset()
-        }
     #endif
-
-    /// The process's *canonical* store: the single `Storage.default` store
-    /// production wiring shares — the app launch's `open-store` step and the
-    /// App Intents layer both resolve it — opened on the first call and reused
-    /// for the process's lifetime.
-    ///
-    /// Sharing one instance means two subsystems can never race to *create*
-    /// the same on-disk store file (the fresh-install failure mode where two
-    /// concurrent `ModelContainer`s both tried to create it and one threw),
-    /// and every in-process reader/writer shares one `changes()` signal. This
-    /// is a reuse default, not a lock-out: a deliberately independent open
-    /// (debug tooling, tests) keeps using `make(storage:)` / `inMemory()`,
-    /// which stay ordinary factories with no registration side effects.
-    public static func canonical() async throws -> SwiftDataStore {
-        try await CanonicalStoreVendor.shared.resolve()
-    }
 
     /// The live model container, re-exposed for read-only debug tooling (the
     /// SwiftData inspector). The `@ModelActor`-synthesized `modelContainer` is
@@ -804,32 +786,6 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             "Dropped corrupt SwiftData record of type \(String(describing: Record.self))",
         )
     }
-}
-
-/// Serializes get-or-create of the process's canonical store (see
-/// `SwiftDataStore.canonical()`). An actor so two concurrent first callers
-/// queue on the executor instead of both building a container over the same
-/// store file — the body has no suspension between the check and the store,
-/// so reentrancy can't double-create.
-private actor CanonicalStoreVendor {
-    static let shared = CanonicalStoreVendor()
-
-    private var store: SwiftDataStore?
-
-    private init() {}
-
-    func resolve() throws -> SwiftDataStore {
-        if let store { return store }
-        let opened = try SwiftDataStore.make(storage: .default)
-        store = opened
-        return opened
-    }
-
-    #if DEBUG
-        func reset() {
-            store = nil
-        }
-    #endif
 }
 
 // MARK: - SwiftData models (internal)

@@ -222,12 +222,16 @@ public final class WhereBootstrap {
         locationSource = CoreLocationSource()
     }
 
-    /// Resolve the process's canonical SwiftData store (opened on the
-    /// canonical-store vendor's executor, off the main actor the splash
-    /// renders on — and shared with the App Intents layer, so no second
-    /// container ever races this open) and assemble the services from it and
-    /// the prepared location source. Throws on persistence failure so the
-    /// `open-store` step can surface it.
+    /// Open the SwiftData store (on a detached task so a slow open or first
+    /// creation runs off the main actor the splash renders on) and assemble
+    /// the services from it and the prepared location source. Throws on
+    /// persistence failure so the `open-store` step can surface it.
+    ///
+    /// This is the app process's **one** store open — everything else shares
+    /// the instance by injection (the App Intents stack derives from these
+    /// services via `WhereServices.forIntents(sharingStoreOf:)`; see the
+    /// app's `AppDelegate`), so no second container ever races this one over
+    /// the same store file.
     ///
     /// A failure is logged here as well as thrown: when the failing drive has
     /// been superseded (e.g. a foreground promotion cancelled it mid-open),
@@ -238,7 +242,9 @@ public final class WhereBootstrap {
         let source = locationSource ?? CoreLocationSource()
         locationSource = nil
         do {
-            let store = try await SwiftDataStore.canonical()
+            let store = try await Task.detached(priority: .userInitiated) {
+                try SwiftDataStore.make()
+            }.value
             let services = try await WhereServices.make(
                 store: store,
                 locationSource: source,

@@ -31,12 +31,15 @@ layering, localization, and the WhereUI duplicate-metadata rule).
   `IdleLocationSource`; a manual entry logged from an intent records a
   `ManualEntryAudit` with a "Logged with Siri" note and no captured location.
 - **Resolve services through `IntentServices.shared`, not `forIntents()`
-  directly.** It caches one `WhereServices` per process, and the backing store
-  is the process's *canonical* `SwiftDataStore` (`SwiftDataStore.canonical()`)
-  — the same instance the app's launch opened — so intents never open a second
-  container over the app's store file, and a `LogDayIntent` write pings the
-  same `changes()` signal the running UI refreshes from (and is immediately
-  visible when the day-count snippet reloads).
+  directly.** It caches one `WhereServices` per process. The app's composition
+  root (`AppDelegate`) injects a store-sharing stack after launch —
+  `WhereServices.forIntents(sharingStoreOf:)` over the session's services —
+  via `IntentServices.shared.install(_:)`, so intents run over the same store
+  instance the app opened (no second container over the app's store file), and
+  a `LogDayIntent` write pings the same `changes()` signal the running UI
+  refreshes from (and is immediately visible when the day-count snippet
+  reloads). Only an intent racing app startup self-assembles the fallback
+  `forIntents()` stack (`.localOnly` over the App Group store).
 - **Use `Calendar.whereIntents` for all year/day math**, never `Calendar.current`
   — it's Gregorian in the current time zone, matching `DayAggregator()`, so a
   spoken "this year" lines up with the aggregated report even on a non-Gregorian
