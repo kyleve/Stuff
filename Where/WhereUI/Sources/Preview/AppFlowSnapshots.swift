@@ -30,8 +30,15 @@
     }
 
     extension RootView: SnapshotProviding {
+        /// The raised settle floor outlasts the iOS 26 glass toolbar/tab bar
+        /// material adaptation, which starts quiet a few hundred ms after
+        /// hosting and otherwise intermittently captures pre-adaptation.
         public static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "LoggedIn", configurations: .phoneLightDark) {
+            whereSnapshot(
+                name: "LoggedIn",
+                configurations: .phoneLightDark,
+                settle: .settledAtLeast(minDuration: 1.0),
+            ) {
                 let model = PreviewSupport.loadedModel()
                 RootView(
                     model: model,

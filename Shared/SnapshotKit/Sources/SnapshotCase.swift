@@ -1,10 +1,17 @@
 import SwiftUI
 
 /// How a snapshot case's content reaches its capture-ready state.
-public enum SnapshotSettle: Sendable {
+public enum SnapshotSettle: Equatable, Sendable {
     /// Wait for the rendered content to quiesce before capture, so `.task`-driven
     /// async loads resolve first. The safe default.
     case settled
+    /// ``settled`` with a raised minimum settle window. For content whose async
+    /// appearance work starts *quiet* and lands after the default floor — the
+    /// iOS 26 glass toolbar/tab bar adapts its material to the content behind it
+    /// a few hundred ms after hosting, which no pixel-stability check can
+    /// anticipate before it starts. The floor is paid on every capture of the
+    /// case, so reserve it for cases that host such chrome.
+    case settledAtLeast(minDuration: TimeInterval)
     /// The content is fully renderable after a layout pass: skip the settle loop.
     /// A single task yield still runs, so a `.task` body that merely sets state
     /// synchronously gets one shot — but nothing that needs real time will load.

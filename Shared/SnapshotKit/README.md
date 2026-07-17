@@ -34,6 +34,9 @@ capture + comparison pipeline lives in the sibling
   (`SnapshotSettle`) declares whether the content needs the capture pipeline's
   async settle loop (`.settled`, the default) or is fully renderable after a
   layout pass (`.immediate` — skips the loop, so static content captures fast).
+  `.settledAtLeast(minDuration:)` is `.settled` with a raised minimum window,
+  for async appearance work that starts quiet and lands after the default floor
+  (the iOS 26 glass toolbar/tab bar material adaptation).
   An optional `onReadyToSnapshot` hook runs in the capture pipeline after the
   content has settled and just before the image is taken — the deterministic
   point to focus a field or trigger a presented state; its effects are settled

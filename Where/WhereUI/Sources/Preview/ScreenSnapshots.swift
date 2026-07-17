@@ -10,8 +10,15 @@
     // the Broadway root so trait-aware stylesheet tokens resolve.
 
     extension PrimaryView: SnapshotProviding {
+        /// The raised settle floor on `Loaded` outlasts the iOS 26 glass toolbar
+        /// material adaptation (seen pre-adaptation once on `Loaded_iPhone`) —
+        /// same mechanism as `RootView.LoggedIn`.
         public static var snapshots: [SnapshotCase] {
-            whereSnapshot(name: "Loaded", configurations: .screenDefaults) {
+            whereSnapshot(
+                name: "Loaded",
+                configurations: .screenDefaults,
+                settle: .settledAtLeast(minDuration: 1.0),
+            ) {
                 PrimaryView(report: PreviewSupport.loadedYearReportModel())
             }
             whereSnapshot(name: "ElsewhereOnly", configurations: .phoneLightDark) {

@@ -3,14 +3,25 @@ import SwiftUI
 import UIKit
 
 /// Runs the settle phase a case declared: `.settled` waits for pixel-stable
-/// renders (see ``settleContent(_:minDuration:maxDuration:)``); `.immediate`
-/// yields once — so a `.task` body that merely sets state synchronously still
-/// runs — and re-lays-out, skipping the digest-render loop entirely.
+/// renders (see ``settleContent(_:minDuration:maxDuration:)``);
+/// `.settledAtLeast` is the same loop with a raised `minDuration` floor (for
+/// quiet-starting async chrome like the glass toolbar's material adaptation);
+/// `.immediate` yields once — so a `.task` body that merely sets state
+/// synchronously still runs — and re-lays-out, skipping the digest-render loop
+/// entirely.
 @MainActor
 func settleForCapture(_ view: UIView, settle: SnapshotSettle) async {
     switch settle {
         case .settled:
             await settleContent(view)
+        case let .settledAtLeast(minDuration):
+            // Keep the hang budget for never-quiescing content above the raised
+            // floor, so the minimum is always honored.
+            await settleContent(
+                view,
+                minDuration: minDuration,
+                maxDuration: max(2.5, minDuration + 2.5),
+            )
         case .immediate:
             await Task.yield()
             CATransaction.performWithoutAnimation(view.layoutIfNeeded)

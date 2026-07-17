@@ -25,7 +25,10 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   safe-area-inset overriding, animation quiescing, text-cursor hiding, and a
   size-stabilization pass for SwiftUI hosting controllers. A case's
   `SnapshotSettle` picks the settle phase: `.settled` (default) waits for
-  pixel-stable renders so `.task`-driven content loads; `.immediate` skips the
+  pixel-stable renders so `.task`-driven content loads;
+  `.settledAtLeast(minDuration:)` raises the loop's minimum window for async
+  appearance work that starts quiet and lands after the default floor (the
+  iOS 26 glass toolbar/tab bar material adaptation); `.immediate` skips the
   loop for content that's fully renderable after a layout pass. A case's
   optional `onReadyToSnapshot` hook runs after that settle and before the
   accessibility parse / capture — the deterministic point to focus a field or

@@ -21,6 +21,17 @@ struct SnapshotCaseTests {
         #expect(snapshotCase.settle == .immediate)
     }
 
+    @Test func settleStoresARaisedMinimumWindow() {
+        let snapshotCase = SnapshotCase(
+            name: "States",
+            configurations: [],
+            settle: .settledAtLeast(minDuration: 1.0),
+        ) {
+            Color.red
+        }
+        #expect(snapshotCase.settle == .settledAtLeast(minDuration: 1.0))
+    }
+
     @Test func onReadyToSnapshotDefaultsToNil() {
         let snapshotCase = SnapshotCase(name: "States", configurations: []) { Color.red }
         #expect(snapshotCase.onReadyToSnapshot == nil)
