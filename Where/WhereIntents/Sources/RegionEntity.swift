@@ -43,8 +43,8 @@ public struct RegionEntity: AppEntity, Identifiable, Sendable {
 
     /// The user's tracked regions as entities, in the catalog's canonical order
     /// — the "pick a region" menu and the Spotlight index. Takes `services` so
-    /// it's testable; the zero-argument query and indexer resolve the process
-    /// services (`IntentServices.shared`).
+    /// it's testable; the query resolves the app-registered handoff via
+    /// `@Dependency`, and the Spotlight indexer receives it from the app.
     static func tracked(from services: WhereServices) async throws -> [RegionEntity] {
         let regions = try await services.trackedRegions()
         return Region.inCanonicalOrder(regions).map(RegionEntity.init)
@@ -56,6 +56,10 @@ public struct RegionEntity: AppEntity, Identifiable, Sendable {
 /// tracked — it just reports 0), while `suggestedEntities()` offers the user's
 /// **tracked** set as the menu.
 public struct RegionEntityQuery: EntityQuery {
+    /// The app-registered services handoff (see `IntentServices`); resolved by
+    /// the App Intents dependency container, never a singleton of ours.
+    @Dependency private var intentServices: IntentServices
+
     public init() {}
 
     public func entities(for identifiers: [RegionEntity.ID]) async throws -> [RegionEntity] {
@@ -65,6 +69,6 @@ public struct RegionEntityQuery: EntityQuery {
     }
 
     public func suggestedEntities() async throws -> [RegionEntity] {
-        try await RegionEntity.tracked(from: IntentServices.shared.current())
+        try await RegionEntity.tracked(from: intentServices.current())
     }
 }

@@ -23,8 +23,11 @@ project](#generating-the-xcode-project)).
 Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise),
 `sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`),
 `profile` (prints build/test hot spots — slowest build phases, slowest
-tests, and slow type-check sites; see `./profile --help`), and `icons`
-(adds/removes selectable app icons; see `./icons --help`).
+tests, and slow type-check sites; see `./profile --help`), `icons`
+(adds/removes selectable app icons; see `./icons --help`), and `flaky`
+(detects flaky tests by re-running the suite and tight-looping any test that
+ever fails, then writes the counts to `FLAKY_TESTS.md`; report-only, see
+`./flaky --help`).
 
 ### Managing app icons
 
@@ -270,6 +273,51 @@ Smells that signal a missing type:
   with associated values.
 - **Stringly-typed status or flags** (`status == "active"`) — use a typed enum,
   per the identifier/keys convention above.
+
+### Composition: create once, inject down
+
+**A shared resource is created exactly once, at the composition root, and
+reaches every consumer by injection** — init parameters, explicit call-site
+arguments, or a composition hook — never by re-resolving a global. The Where
+app's SwiftData store is the template: the launch's `open-store` step performs
+the process's *only* store open, `WhereServices` carries it (plus the
+attribution and clock policies derived from it) to every collaborator, and the
+App Intents stack is derived *from* those services
+(`WhereServices.forIntents(sharingStoreOf:)`) via `WhereLaunch.makeLauncher`'s
+`onServicesReady` hook. Two subsystems independently "opening the same store"
+is how a fresh install once raced two `ModelContainer`s into a launch failure;
+injection made that state impossible to spell rather than merely unlikely.
+
+- **No singletons or static get-or-create registries** for anything that can
+  be injected. A global hides the dependency edge, invites exactly the
+  double-create race injection prevents, and forces tests to share — and
+  carefully reset — process-wide state. Needing `@Suite(.serialized)` plus a
+  reset hook to test something is the smell; injected dependencies get
+  hermetic per-test instances instead.
+- **When the platform instantiates the consumer** (App Intents, extension
+  principal classes) and constructor injection can't reach it, use the
+  platform's own DI seam rather than minting a singleton: the composition
+  root creates the value and registers it (`AppDependencyManager.shared.add`
+  in `didFinishLaunching`; intents resolve it with `@Dependency`). And keep
+  that seam a **handoff, not a factory**: the root *installs* what it created
+  (`IntentServices.install(_:)`), early callers **await** installation
+  (`current()` parks, cancellation-aware), and the seam never creates the
+  resource itself. A "create it myself" fallback — however unlikely to run —
+  quietly reintroduces the duplicate the design exists to prevent.
+- **Derive, don't re-derive.** A stack built from an existing layer reuses
+  what that layer already computed (the store, the live attributor, the
+  injected clock) rather than re-reading it. That keeps derivation synchronous
+  and non-throwing — wiring it can't fail into a half-composed state — and a
+  derived stack can't drift from its base (duplicate change subscriptions,
+  diverging clocks).
+- **Re-fire composition hooks wherever the lifecycle re-creates the thing.**
+  `onServicesReady` fires on every session (re)start — first launch, retry
+  after a failed launch, the reset relaunch — so consumers always hold the
+  current instance, never the first one.
+
+This is [Modeling state](#modeling-state) applied to ownership and lifetime:
+one owner, created in one place, with the illegal wirings (two owners, zero
+owners, a stale copy) unrepresentable.
 
 ## Generating the Xcode project
 

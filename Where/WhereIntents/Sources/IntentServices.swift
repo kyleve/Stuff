@@ -1,31 +1,91 @@
 import WhereCore
 
-/// A process-wide cache of the intent layer's `WhereServices`.
+/// The handoff of the intent layer's `WhereServices`.
 ///
-/// Every App Intent resolves its services through `current()` rather than
-/// opening a fresh store per invocation. Two reasons:
+/// The app's composition root (`AppDelegate`) **owns the one instance** and
+/// registers it with the App Intents framework's dependency container
+/// (`AppDependencyManager`); every App Intent and entity query resolves it
+/// with `@Dependency` and calls `current()` — there is no singleton of ours.
+/// The handoff never *creates* services (or a store) itself: the launch
+/// derives a store-sharing stack from its services
+/// (`WhereServices.forIntents(sharingStoreOf:)`, wired through
+/// `WhereLaunch.makeLauncher`'s `onServicesReady` hook) and hands it to
+/// `install(_:)`. That makes the launch's `open-store` step the process's
+/// *only* store open — an intent can never race it with a second container
+/// over the same store file (the fresh-install creation race), and an intent
+/// write pings the same `changes()` signal the running UI refreshes from.
 ///
-/// - **Cost:** `WhereServices.forIntents()` cold-opens the App Group SwiftData
-///   store; doing that on every query, action, and snippet reload is wasteful.
-/// - **Consistency:** a snippet's "Log today here" button (`LogDayIntent`) and
-///   the subsequent snippet reload (`DaysInRegionSnippetIntent`) run in the same
-///   process. Sharing one store instance makes the write immediately visible on
-///   reload, so the count updates in place instead of racing cross-coordinator
-///   remote-change propagation.
+/// An intent that fires before the launch has installed the stack (e.g. a
+/// Siri invocation racing app startup, or a launch parked in its failure
+/// state) **suspends** in `current()` until installation lands — it does not
+/// fall back to opening its own store. The wait honors task cancellation, and
+/// the system's intent time limit bounds it if the launch never recovers.
 ///
-/// The store is opened lazily on first use and kept for the process lifetime,
-/// mirroring how the running app holds its own store.
-actor IntentServices {
-    static let shared = IntentServices()
+/// Installation re-fires on every session (re)start — retry after a failed
+/// launch, the reset relaunch — replacing the cached stack, so intents always
+/// ride the current session's store instance.
+public actor IntentServices {
+    private var installed: WhereServices?
 
-    private var cached: WhereServices?
+    /// Intents parked in `current()` awaiting installation, keyed so a
+    /// cancelled waiter can remove exactly itself.
+    private var waiters: [Int: CheckedContinuation<WhereServices, any Error>] = [:]
+    private var nextWaiterID = 0
 
-    func current() async throws -> WhereServices {
-        if let cached {
-            return cached
+    /// Create the instance the composition root owns (and tests build
+    /// per-test); the app registers it with `AppDependencyManager` in
+    /// `didFinishLaunching`, before the system can deliver an intent.
+    public init() {}
+
+    /// Install the store-sharing stack the app's composition root derived from
+    /// the launch's services, resuming any parked intents. Idempotent per
+    /// stack; a later install (a fresh session after reset) replaces the
+    /// cached one.
+    public func install(_ services: WhereServices) {
+        installed = services
+        let parked = waiters
+        waiters = [:]
+        for continuation in parked.values {
+            continuation.resume(returning: services)
         }
-        let services = try await WhereServices.forIntents()
-        cached = services
-        return services
     }
+
+    /// The installed stack, suspending until the launch installs one. Throws
+    /// only `CancellationError`, when the awaiting intent's task is cancelled
+    /// while parked.
+    func current() async throws -> WhereServices {
+        if let installed {
+            return installed
+        }
+        let id = nextWaiterID
+        nextWaiterID += 1
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                // The handler below may have already run (cancellation raced
+                // the park); resume immediately rather than parking a waiter
+                // nobody will clean up.
+                if Task.isCancelled {
+                    continuation.resume(throwing: CancellationError())
+                } else {
+                    waiters[id] = continuation
+                }
+            }
+        } onCancel: {
+            Task { await self.cancelWaiter(id) }
+        }
+    }
+
+    private func cancelWaiter(_ id: Int) {
+        guard let continuation = waiters.removeValue(forKey: id) else { return }
+        continuation.resume(throwing: CancellationError())
+    }
+
+    #if DEBUG
+        /// Test probe: how many intents are parked awaiting installation, so a
+        /// test can wait for the park (a condition, not a timing guess) before
+        /// installing or cancelling.
+        var waiterCount: Int {
+            waiters.count
+        }
+    #endif
 }

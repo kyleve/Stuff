@@ -1,3 +1,4 @@
+import AppIntents
 import CoreLocation
 import LifecycleKit
 import UIKit
@@ -20,6 +21,12 @@ import WhereUI
 final class AppDelegate: NSObject, UIApplicationDelegate {
     let model = WhereModel()
 
+    /// The intent layer's services handoff, owned here — the composition root
+    /// — and registered with the App Intents dependency container below, so
+    /// intents resolve it via `@Dependency` (no singleton of ours). The launch
+    /// installs the store-sharing stack into it via `onServicesReady`.
+    let intentServices = IntentServices()
+
     /// The launch engine, built in `didFinishLaunching` (where the launch
     /// reason is known) and handed to `RootView` via `WhereApp`.
     private(set) var launcher: LifecycleRunner!
@@ -28,6 +35,22 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil,
     ) -> Bool {
+        // Register the handoff before anything async: the system only delivers
+        // intents once launching finishes, so `@Dependency` can always resolve.
+        // The provider-closure overload (not the autoclosure one) lets the
+        // capture list carry the Sendable actor reference explicitly, without
+        // touching `self` at resolution time.
+        //
+        // Note the registration→resolution plumbing is deliberately untested:
+        // `@Dependency` fatal-errors outside "the intent perform flow", so no
+        // in-process test can resolve it (a probe was tried and trapped) —
+        // verifying it means invoking a Siri/Shortcuts intent on a device.
+        // In production this runs exactly once per process. The app-hosted
+        // WhereTests bundle re-registers (host launch + the delegate-building
+        // test) and AppDependencyManager tolerates that, but the behavior is
+        // undocumented — don't add tests that build further AppDelegates.
+        AppDependencyManager.shared
+            .add(dependency: { [intentServices = self.intentServices] in intentServices })
         // A `.background` launch state means iOS woke us headless (replacing the
         // deprecated `launchOptions[.location]` check); authorization tells us
         // whether that could have been the location wake we register for.
@@ -39,12 +62,26 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // (so a queued location event isn't lost) and registers the
         // foreground-notification presenter; the rest (store open, etc.) runs as
         // async steps off this synchronous launch path.
-        launcher = WhereLaunch.makeLauncher(model: model, reason: reason)
-        Task { await launcher.run() }
-        // Index the tracked regions into Spotlight so a search for a region name
-        // surfaces Where and its day-count query. Off the launch critical path;
-        // indexing five items is cheap and idempotent.
-        Task { await RegionSpotlightIndexer.indexRegions() }
+        // `onServicesReady` fires from the `open-store` step on every session
+        // (re)start: derive the App Intents stack from the launch's services —
+        // same store, attribution, and clock; GPS-free — and install it, so
+        // the launch's open is the process's *only* store open and an intent
+        // can never race it with a second container over the same file (two
+        // containers racing to create it on a fresh install is how the launch
+        // once failed). Intents that fire earlier park in
+        // `IntentServices.current()` until this lands; the derivation can't
+        // fail, so nothing can strand them parked.
+        launcher = WhereLaunch.makeLauncher(model: model, reason: reason) { [intentServices] in
+            await intentServices.install(.forIntents(sharingStoreOf: $0))
+        }
+        Task {
+            await launcher.run()
+            // Index the tracked regions into Spotlight (a search for a region
+            // name surfaces Where and its day-count query) through the stack
+            // installed above, off the launch critical path. Indexing a
+            // handful of items is cheap and idempotent.
+            await RegionSpotlightIndexer.indexRegions(resolving: intentServices)
+        }
         return true
     }
 }

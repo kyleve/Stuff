@@ -12,7 +12,7 @@ import WhereCore
 /// the launch/reset parity tests a single source of truth.
 public enum LaunchStepID: String {
     /// Open the SwiftData store, assemble the services, and build the session.
-    /// The foreground-only migration UI hangs off this step.
+    /// The splash's slow-launch caption most often shows during this step.
     case openStore = "open-store"
     /// First-run onboarding gate. Foreground-only, so a headless background
     /// relaunch skips it.
@@ -95,7 +95,18 @@ public enum WhereLaunch {
     /// services, and the foreground-notification presenter is registered so a
     /// reminder fired while Where is open still shows. Keeping both here (rather
     /// than in the app delegate) puts app-lifecycle wiring in one place.
-    public static func makeLauncher(model: WhereModel, reason: LifecycleReason) -> LifecycleRunner {
+    ///
+    /// `onServicesReady` fires from the `open-store` step every time a session
+    /// is (re)started over the assembled services — first launch, a retry
+    /// after a failed launch, and the reset relaunch. The app uses it to hand
+    /// the service layer to consumers WhereUI can't see (deriving and
+    /// installing the App Intents stack — see the app's `AppDelegate`);
+    /// previews and tests omit it.
+    public static func makeLauncher(
+        model: WhereModel,
+        reason: LifecycleReason,
+        onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
+    ) -> LifecycleRunner {
         let bootstrap = WhereBootstrap()
         logger.info("Lifecycle runner created (reason: \(reason))")
         return LifecycleRunner(
@@ -104,7 +115,11 @@ public enum WhereLaunch {
                 bootstrap.prepareLocation()
                 ForegroundNotificationPresenter.install()
             },
-            sequence: sequence(for: model, bootstrap: bootstrap),
+            sequence: sequence(
+                for: model,
+                bootstrap: bootstrap,
+                onServicesReady: onServicesReady,
+            ),
         )
     }
 
@@ -113,12 +128,14 @@ public enum WhereLaunch {
     /// are the foreground-only `open-store` presentation and the `onboarding`
     /// gate, neither of which `start()` models.
     ///
-    /// `bootstrap` assembles the services in the `open-store` step; callers
-    /// that only inspect the step list (the parity test) can rely on the
-    /// default.
+    /// `bootstrap` assembles the services in the `open-store` step, and
+    /// `onServicesReady` fires there whenever a session is (re)started (see
+    /// `makeLauncher`); callers that only inspect the step list (the parity
+    /// test) can rely on the defaults.
     public static func sequence(
         for model: WhereModel,
         bootstrap: WhereBootstrap = WhereBootstrap(),
+        onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LifecycleSteps {
         LifecycleSteps {
             // Open the store, assemble the services, and create the session.
@@ -127,14 +144,21 @@ public enum WhereLaunch {
             // we never spin up a real store + CoreLocation behind it; the
             // session is then (re)created from the retained layer. Opening may
             // run a lightweight migration; there's no separate UI for it — the
-            // launch splash (shown throughout) fades in its own "taking a
-            // moment" caption when any launch phase runs long.
+            // launch splash (shown throughout) fades in its own launch-neutral
+            // "taking a moment" caption when any launch phase runs long.
             LifecycleStep.work(LaunchStepID.openStore) { _ in
                 guard model.session == nil else { return }
                 if !model.hasServices {
                     try await model.attach(services: bootstrap.makeServices())
                 }
                 model.startSession()
+                // Hand the (re)started session's service layer to the app's
+                // composition hook before any later step — or the UI — runs,
+                // so consumers awaiting it (parked App Intents) resume against
+                // this session's store.
+                if let session = model.session {
+                    await onServicesReady(session.services)
+                }
             }
 
             // First run only. `LifecycleStep.interactive` defaults to
@@ -224,22 +248,42 @@ public final class WhereBootstrap {
         locationSource = CoreLocationSource()
     }
 
-    /// Open the SwiftData store (on a detached task so a slow lightweight
-    /// migration runs off the main actor the migration UI renders on) and
-    /// assemble the services from it and the prepared location source.
-    /// Throws on persistence failure so the `open-store` step can surface it.
+    /// Open the SwiftData store (on a detached task so a slow open or first
+    /// creation runs off the main actor the splash renders on) and assemble
+    /// the services from it and the prepared location source. Throws on
+    /// persistence failure so the `open-store` step can surface it.
+    ///
+    /// This is the app process's **one** store open — everything else shares
+    /// the instance by injection (the App Intents stack derives from these
+    /// services via `WhereServices.forIntents(sharingStoreOf:)`; see the
+    /// app's `AppDelegate`), so no second container ever races this one over
+    /// the same store file.
+    ///
+    /// A failure is logged here as well as thrown: when the failing drive has
+    /// been superseded (e.g. a foreground promotion cancelled it mid-open),
+    /// the runner deliberately discards its error instead of parking in
+    /// `.failed`, so without this line the failure would leave no trace
+    /// anywhere.
     public func makeServices() async throws -> WhereServices {
         let source = locationSource ?? CoreLocationSource()
         locationSource = nil
-        let store = try await Task.detached(priority: .userInitiated) {
-            try SwiftDataStore.make()
-        }.value
-        Self.logger.info("WhereServices assembled")
-        return try await WhereServices.make(
-            store: store,
-            locationSource: source,
-            locationOutbox: FileLocationOutbox.applicationSupport(),
-        )
+        do {
+            let store = try await Task.detached(priority: .userInitiated) {
+                try SwiftDataStore.make()
+            }.value
+            let services = try await WhereServices.make(
+                store: store,
+                locationSource: source,
+                locationOutbox: FileLocationOutbox.applicationSupport(),
+            )
+            Self.logger.info("WhereServices assembled")
+            return services
+        } catch {
+            Self.logger.error(
+                "Failed to assemble WhereServices: \(error.localizedDescription)",
+            )
+            throw error
+        }
     }
 }
 
