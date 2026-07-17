@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -17,6 +18,7 @@ struct CalendarView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
 
     @State private var timelineTarget: TimelineMonthTarget?
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
@@ -155,8 +157,14 @@ struct CalendarView: View {
     }
 
     /// When viewing the current year, scrolls the grid to today's month.
+    ///
+    /// Skipped under snapshot capture: the landing offset of a scroll over a
+    /// `LazyVStack` depends on how much lazy content has been measured, so a
+    /// capture-time scroll is nondeterministic — snapshots capture the
+    /// deterministic top-of-year state instead.
     private func scrollToCurrentMonth(_ proxy: ScrollViewProxy, months: [CalendarMonth]) {
-        guard let targetID = months.first(where: \.isCurrentMonth)?.id else { return }
+        guard !isCapturingSnapshot,
+              let targetID = months.first(where: \.isCurrentMonth)?.id else { return }
         DispatchQueue.main.async {
             proxy.scrollTo(targetID, anchor: .top)
         }
