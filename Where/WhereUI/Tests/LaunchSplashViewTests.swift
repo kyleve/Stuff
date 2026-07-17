@@ -20,4 +20,14 @@ struct LaunchSplashViewTests {
             #expect(hosted.view != nil)
         }
     }
+
+    /// The first-run variant (`showsDataCaption: false` — no data to update,
+    /// so the "Updating your data…" caption never arms) still renders.
+    @Test func firstRunSplashWithoutDataCaptionRenders() throws {
+        let view = LaunchSplashView(showsDataCaption: false, previewImageName: "AppIconClassic")
+        try show(UIHostingController(rootView: view)) { hosted in
+            waitForOneRunloop()
+            #expect(hosted.view != nil)
+        }
+    }
 }

@@ -128,7 +128,9 @@ public enum WhereLaunch {
             // session is then (re)created from the retained layer. Opening may
             // run a lightweight migration; there's no separate UI for it — the
             // launch splash (shown throughout) fades in its own "taking a
-            // moment" caption when any launch phase runs long.
+            // moment" caption when any launch phase runs long (suppressed
+            // until onboarding has completed — a first run has no data to
+            // update; see `LaunchSplashView`).
             LifecycleStep.work(LaunchStepID.openStore) { _ in
                 guard model.session == nil else { return }
                 if !model.hasServices {
