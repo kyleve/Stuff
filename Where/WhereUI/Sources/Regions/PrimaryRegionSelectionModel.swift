@@ -27,6 +27,20 @@ public final class PrimaryRegionSelectionModel {
     /// ``RegionAppearanceCatalog/defaultAppearance(for:)`` until customized.
     private var drafts: [Region: RegionAppearance] = [:]
 
+    /// The picks when the model was created — the stable "Your regions" group
+    /// (so a row doesn't jump between sections as it's toggled). Empty for the
+    /// onboarding picker.
+    private var initialSelection: [Region] = []
+
+    /// Regions with days in the selected year (from the report), used only to
+    /// surface a "used this year" group in the grouped (Settings) list.
+    private var usedThisYear: Set<Region> = []
+
+    /// Whether the list groups into your-regions / used-this-year / everything-
+    /// else. Off by default (onboarding shows the flat searchable list); Settings
+    /// turns it on via ``applyGrouping(usedThisYear:)``.
+    public private(set) var isGrouped = false
+
     /// The US jurisdictions from the catalog, in canonical order — the default
     /// `available` set for the picker.
     public static var usRegions: [Region] {
@@ -55,6 +69,7 @@ public final class PrimaryRegionSelectionModel {
         self.available = available
         let offered = Set(available)
         selectedRegions = existing.map(\.region).filter { offered.contains($0) }
+        initialSelection = selectedRegions
         var drafts: [Region: RegionAppearance] = [:]
         for entry in existing {
             if let appearance = entry.appearance { drafts[entry.region] = appearance }
@@ -130,5 +145,34 @@ public final class PrimaryRegionSelectionModel {
     /// caller can surface it; no partial success is hidden.
     public func commit(using session: WhereSession) async throws {
         try await session.services.setPrimaryRegions(desiredPrimaryRegions)
+    }
+
+    // MARK: - Grouping (Settings list)
+
+    /// Turn on the grouped list, sourcing the "used this year" group from the
+    /// selected year's regions. The your-regions group stays keyed on the picks
+    /// at open (``initialSelection``), so rows don't jump while editing.
+    public func applyGrouping(usedThisYear: Set<Region>) {
+        self.usedThisYear = usedThisYear
+        isGrouped = true
+    }
+
+    /// "Your regions": the picks at open, in pick order (stable).
+    public var groupedYourRegions: [Region] {
+        let offered = Set(available)
+        return initialSelection.filter { offered.contains($0) }
+    }
+
+    /// "Used this year": offered regions used this year that weren't already in
+    /// "Your regions", in catalog order.
+    public var groupedUsedThisYear: [Region] {
+        let picked = Set(initialSelection)
+        return available.filter { usedThisYear.contains($0) && !picked.contains($0) }
+    }
+
+    /// "More regions": everything else, in catalog order.
+    public var groupedOther: [Region] {
+        let picked = Set(initialSelection)
+        return available.filter { !usedThisYear.contains($0) && !picked.contains($0) }
     }
 }

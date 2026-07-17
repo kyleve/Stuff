@@ -438,6 +438,30 @@ enum Strings {
         )
     }
 
+    static var regionPickerSectionYours: String {
+        String(
+            localized: "regionPicker.section.yours",
+            defaultValue: "Your regions",
+            bundle: .module,
+        )
+    }
+
+    static var regionPickerSectionUsedThisYear: String {
+        String(
+            localized: "regionPicker.section.usedThisYear",
+            defaultValue: "Used this year",
+            bundle: .module,
+        )
+    }
+
+    static var regionPickerSectionMore: String {
+        String(
+            localized: "regionPicker.section.more",
+            defaultValue: "More regions",
+            bundle: .module,
+        )
+    }
+
     static var regionPickerMapAccessibility: String {
         String(
             localized: "regionPicker.map.accessibility",

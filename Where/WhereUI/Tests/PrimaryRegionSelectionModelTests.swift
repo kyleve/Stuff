@@ -74,6 +74,45 @@ struct PrimaryRegionSelectionModelTests {
         #expect(model.appearance(for: tx) == look)
     }
 
+    @Test func ungroupedByDefault() {
+        let model = PrimaryRegionSelectionModel()
+        #expect(!model.isGrouped)
+    }
+
+    @Test func groupsIntoYourRegionsUsedThisYearAndMore() throws {
+        let texas = try region("us-TX")
+        let florida = try region("us-FL")
+        let model = PrimaryRegionSelectionModel(
+            existing: [PrimaryRegion(region: .california, appearance: nil, order: 0)],
+            available: [.california, .newYork, texas, florida],
+        )
+        model.applyGrouping(usedThisYear: [.newYork])
+
+        #expect(model.isGrouped)
+        #expect(model.groupedYourRegions == [.california])
+        #expect(model.groupedUsedThisYear == [.newYork])
+        #expect(model.groupedOther == [texas, florida])
+    }
+
+    @Test func groupingIsStableWhileToggling() throws {
+        let texas = try region("us-TX")
+        let model = PrimaryRegionSelectionModel(
+            existing: [PrimaryRegion(region: .california, appearance: nil, order: 0)],
+            available: [.california, .newYork, texas],
+        )
+        model.applyGrouping(usedThisYear: [.newYork])
+
+        // Add NY (from "used this year") and remove CA (from "your regions").
+        model.toggle(.newYork)
+        model.toggle(.california)
+        // Section membership is keyed on the picks at open, so rows don't jump.
+        #expect(model.groupedYourRegions == [.california])
+        #expect(model.groupedUsedThisYear == [.newYork])
+        #expect(model.groupedOther == [texas])
+        // ...but the live selection reflects the toggles.
+        #expect(model.selectedRegions == [.newYork])
+    }
+
     @Test func commitPersistsPicksAsTrackedRegionsWithAppearance() async throws {
         let session = PreviewSupport.loadedSession()
         let model = PrimaryRegionSelectionModel()

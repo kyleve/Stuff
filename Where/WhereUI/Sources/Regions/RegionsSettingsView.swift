@@ -1,3 +1,4 @@
+import RegionKit
 import SwiftUI
 import WhereCore
 
@@ -6,6 +7,10 @@ import WhereCore
 /// current picks, lets you add/remove (up to the cap) and re-style each, and
 /// commits on Save.
 struct RegionsSettingsView: View {
+    /// Regions with days in the selected year, so the picker can surface a
+    /// "used this year" group. Passed by `SettingsView` from the report.
+    var usedThisYear: Set<Region> = []
+
     @Environment(WhereSession.self) private var session
     @Environment(\.dismiss) private var dismiss
 
@@ -69,14 +74,18 @@ struct RegionsSettingsView: View {
 
     private func loadIfNeeded() async {
         guard model == nil else { return }
+        let built: PrimaryRegionSelectionModel
         do {
             let existing = try await session.services.primaryRegions()
-            model = PrimaryRegionSelectionModel(existing: existing)
+            built = PrimaryRegionSelectionModel(existing: existing)
         } catch {
             Self.logger.warning("Failed to load primary regions for editing")
             // Fall back to an empty picker rather than a stuck spinner.
-            model = PrimaryRegionSelectionModel()
+            built = PrimaryRegionSelectionModel()
         }
+        // Group the list (Your regions / Used this year / More) — Settings only.
+        built.applyGrouping(usedThisYear: usedThisYear)
+        model = built
     }
 
     private func save(_ model: PrimaryRegionSelectionModel) {
