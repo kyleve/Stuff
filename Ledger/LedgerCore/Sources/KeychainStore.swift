@@ -15,9 +15,9 @@ public struct KeychainError: LocalizedError, Equatable, Sendable {
     }
 }
 
-/// Stores a single secret string (Ledger's Admin API key) securely. The seam
-/// is a protocol so tests use an in-memory fake — the real Keychain isn't
-/// available in a hostless test process without a signed, entitled host.
+/// Stores a single secret string (a pasted Cursor session token) securely.
+/// The seam is a protocol so tests use an in-memory fake — the real Keychain
+/// isn't available in a hostless test process without a signed, entitled host.
 public protocol KeychainStore: Sendable {
     /// The stored secret, or `nil` when nothing is stored. Throws
     /// ``KeychainError`` on an unexpected Keychain failure (a missing item is
@@ -39,8 +39,8 @@ public struct SystemKeychainStore: KeychainStore {
     private let account: String
 
     /// Defaults to the app's bundle-style service and a fixed account name;
-    /// there is only ever one secret (the Admin API key).
-    public init(service: String = "com.stuff.ledger", account: String = "admin-api-key") {
+    /// there is only ever one secret (a pasted session token).
+    public init(service: String = "com.stuff.ledger", account: String = "session-token") {
         self.service = service
         self.account = account
     }

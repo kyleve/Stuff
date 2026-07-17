@@ -118,18 +118,17 @@ private struct GeneralSettingsPane: SettingsPane {
     }
 }
 
-/// Account settings: the team-member email and the Admin API key (stored in the
-/// Keychain). Both commit explicitly on Save so a half-typed value can't leak
-/// out by navigating away.
+/// Account settings: how Ledger authenticates to the Cursor dashboard. It
+/// auto-detects the session from your local Cursor app; a pasted token is an
+/// optional override for when that isn't available (or has expired).
 private struct AccountSettingsPane: SettingsPane {
     static let title = "Account"
     static let icon = "person.crop.circle"
 
     let session: LedgerSession
 
-    @State private var emailDraft: String = ""
-    @State private var keyDraft: String = ""
-    @State private var keyError: String?
+    @State private var tokenDraft: String = ""
+    @State private var tokenError: String?
 
     init(session: LedgerSession) {
         self.session = session
@@ -137,35 +136,42 @@ private struct AccountSettingsPane: SettingsPane {
 
     var body: some View {
         Form {
-            Section("Team member") {
-                TextField("Email", text: $emailDraft, prompt: Text("you@company.com"))
-                    .textContentType(.username)
-                Button("Save Email") { saveEmail() }
-                    .disabled(emailDraft.trimmingCharacters(in: .whitespaces)
-                        == (session.settings.teamMemberEmail ?? ""))
-                Text("Ledger shows the spend for this member of your Cursor team.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Section("Cursor session") {
+                if session.hasManualToken {
+                    Label("Using a pasted session token", systemImage: "key.fill")
+                        .foregroundStyle(.secondary)
+                } else if session.autoTokenAvailable {
+                    Label("Using your signed-in Cursor session", systemImage: "checkmark.seal.fill")
+                        .foregroundStyle(.green)
+                } else {
+                    Label(
+                        "No Cursor session found — sign in to Cursor, or paste a token below",
+                        systemImage: "exclamationmark.triangle.fill",
+                    )
+                    .foregroundStyle(.orange)
+                }
             }
 
-            Section("Admin API key") {
-                SecureField("Admin API key", text: $keyDraft, prompt: Text(
-                    session.hasAPIKey ? "•••••••• (stored)" : "Paste your Admin API key",
+            Section("Session token (optional)") {
+                SecureField("Session token", text: $tokenDraft, prompt: Text(
+                    session.hasManualToken ? "•••••••• (stored)" : "Paste WorkosCursorSessionToken",
                 ))
                 HStack {
-                    Button(session.hasAPIKey ? "Update Key" : "Save Key") { saveKey() }
-                        .disabled(keyDraft.trimmingCharacters(in: .whitespaces).isEmpty)
-                    if session.hasAPIKey {
-                        Button("Clear Key", role: .destructive) { clearKey() }
+                    Button(session.hasManualToken ? "Update Token" : "Save Token") { saveToken() }
+                        .disabled(tokenDraft.trimmingCharacters(in: .whitespaces).isEmpty)
+                    if session.hasManualToken {
+                        Button("Clear Token", role: .destructive) { clearToken() }
                     }
                 }
-                if let keyError {
-                    Label(keyError, systemImage: "xmark.octagon.fill")
+                if let tokenError {
+                    Label(tokenError, systemImage: "xmark.octagon.fill")
                         .font(.callout)
                         .foregroundStyle(.red)
                 }
                 Text(
-                    "Stored securely in your Keychain. Create a key in the Cursor dashboard (Admin API).",
+                    "Only needed if auto-detect fails. Stored securely in your Keychain. Copy the "
+                        +
+                        "WorkosCursorSessionToken cookie from cursor.com (DevTools › Application › Cookies).",
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -173,34 +179,25 @@ private struct AccountSettingsPane: SettingsPane {
         }
         .formStyle(.grouped)
         .navigationTitle(Self.title)
-        .onAppear {
-            emailDraft = session.settings.teamMemberEmail ?? ""
+    }
+
+    private func saveToken() {
+        do {
+            try session.setManualToken(tokenDraft)
+            tokenDraft = ""
+            tokenError = nil
+        } catch {
+            tokenError = "Couldn't save the token: \(error.localizedDescription)"
         }
     }
 
-    private func saveEmail() {
-        let trimmed = emailDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        session.settings.teamMemberEmail = trimmed.isEmpty ? nil : trimmed
-        session.refresh()
-    }
-
-    private func saveKey() {
+    private func clearToken() {
         do {
-            try session.setAPIKey(keyDraft)
-            keyDraft = ""
-            keyError = nil
+            try session.clearManualToken()
+            tokenDraft = ""
+            tokenError = nil
         } catch {
-            keyError = "Couldn't save the key: \(error.localizedDescription)"
-        }
-    }
-
-    private func clearKey() {
-        do {
-            try session.clearAPIKey()
-            keyDraft = ""
-            keyError = nil
-        } catch {
-            keyError = "Couldn't clear the key: \(error.localizedDescription)"
+            tokenError = "Couldn't clear the token: \(error.localizedDescription)"
         }
     }
 }

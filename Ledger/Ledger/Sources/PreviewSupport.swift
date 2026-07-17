@@ -2,38 +2,49 @@
     import Foundation
     @_spi(Testing) import LedgerCore
 
-    /// Preview fixtures. Sessions are backed by an in-memory Keychain and a
-    /// scripted spend provider — they never touch the real Keychain, the
-    /// network, or `~/Library/Application Support`.
+    /// Preview fixtures. Sessions are backed by a stub token source and a
+    /// scripted dashboard provider — they never read the real Cursor state,
+    /// touch the network, or write Application Support.
     @MainActor
     enum PreviewSupport {
-        /// A session already showing a member's spend.
+        /// A session already showing spend.
         static func loadedSession() -> LedgerSession {
-            let member = MemberSpend(
-                userId: "user_preview",
-                name: "Preview User",
-                email: "you@company.com",
-                spendCents: 4212,
-                includedSpendCents: 8000,
-                overallSpendCents: 12212,
-                fastPremiumRequests: 143,
-            )
+            let provider = ScriptedDashboardProvider(.success(
+                summary: .fixture(
+                    onDemandCents: 315_609,
+                    membershipType: "ultra",
+                    includedUsed: 40000,
+                    includedLimit: 40000,
+                ),
+                invoiceCentsByMonth: [
+                    1: 120_000,
+                    2: 98000,
+                    3: 210_000,
+                    4: 175_000,
+                    5: 260_000,
+                    6: 288_000,
+                ],
+            ))
             let session = session(
-                provider: ScriptedSpendProvider(member: member),
-                email: member.email,
+                provider: provider,
+                autoToken: SessionToken(cookieValue: "user_preview::jwt"),
             )
             session.refresh()
             return session
         }
 
-        private static func session(provider: any SpendProvider, email: String?) -> LedgerSession {
+        private static func session(
+            provider: any DashboardProvider,
+            autoToken: SessionToken?,
+        ) -> LedgerSession {
             let base = FileManager.default.temporaryDirectory
                 .appendingPathComponent("LedgerPreview-\(UUID().uuidString)")
             let store = LedgerConfigStore(directory: base)
-            try? store.save(LedgerConfiguration(teamMemberEmail: email, refreshInterval: 900))
+            try? store.save(LedgerConfiguration(refreshInterval: 900))
             let services = LedgerServices(
                 configStore: store,
-                keychain: InMemoryKeychainStore(secret: "preview-key"),
+                keychain: InMemoryKeychainStore(),
+                tokenSource: StubTokenSource(token: autoToken),
                 provider: provider,
                 loginItem: LoginItemController(),
             )

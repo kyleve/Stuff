@@ -1,25 +1,19 @@
 import Foundation
 
-/// Everything Ledger persists as JSON: the team-member email and the refresh
-/// interval. The Admin API key is deliberately absent — it lives in the
-/// Keychain, never in this plaintext file.
+/// Everything Ledger persists as JSON: just the refresh interval. Identity
+/// comes from the Cursor session token (auto-detected or pasted), and any
+/// pasted token lives in the Keychain — never in this plaintext file.
 public struct LedgerConfiguration: Codable, Equatable, Sendable {
-    /// The team member whose spend to display; `nil` until the user sets it.
-    public var teamMemberEmail: String?
     /// Seconds between automatic refreshes.
     public var refreshInterval: TimeInterval
 
-    public init(teamMemberEmail: String?, refreshInterval: TimeInterval) {
-        self.teamMemberEmail = teamMemberEmail
+    public init(refreshInterval: TimeInterval) {
         self.refreshInterval = refreshInterval
     }
 
-    /// The configuration a fresh install starts from: no email yet, refreshing
-    /// every 15 minutes.
-    public static let initial = LedgerConfiguration(
-        teamMemberEmail: nil,
-        refreshInterval: 15 * 60,
-    )
+    /// The configuration a fresh install starts from: refreshing every 15
+    /// minutes.
+    public static let initial = LedgerConfiguration(refreshInterval: 15 * 60)
 }
 
 /// Loads and saves the ``LedgerConfiguration`` JSON file.

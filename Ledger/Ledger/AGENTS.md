@@ -26,8 +26,10 @@ build system, formatting, and global conventions. Read that first.
 - `LedgerSession` — the thin `@Observable` facade over `LedgerServices`: views
   read its mirrored state and call its intent methods (`refresh`, `setAPIKey`,
   …); it owns the Core root.
-- `SpendView` — the popover; renders the single `LoadState`.
-- `SettingsView` — a System-Settings-style sidebar (General + Account panes).
+- `SpendView` — the popover; renders the single `LoadState` (this cycle +
+  year-to-date).
+- `SettingsView` — a System-Settings-style sidebar (General + Account panes);
+  Account shows the auto-detect status and an optional pasted-token override.
 - `CurrencyFormat` — the one place spend is formatted as USD.
 
 ## Invariants
@@ -35,10 +37,10 @@ build system, formatting, and global conventions. Read that first.
 - **The menu-bar title is driven by observation, not polling.** Keep the
   `Observations({ session.statusTitle })` loop as the update path; don't add a
   timer that reads the title.
-- **Credentials commit explicitly.** The Account pane's email and API-key
-  fields save on an explicit button, and the key goes straight to the Keychain
-  via `session.setAPIKey` — never mirror it into `@AppStorage` or the config
-  JSON.
+- **Auth is mostly zero-config.** Ledger auto-detects the Cursor session; the
+  Account pane's token field is an *optional override* that commits on an
+  explicit button and goes straight to the Keychain via `session.setManualToken`
+  — never mirror it into `@AppStorage` or the config JSON.
 - **No `Binding(get:set:)`.** Bind to the observable session/settings; use
   local `@State` drafts for the explicit-commit fields.
 

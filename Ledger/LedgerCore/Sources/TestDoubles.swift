@@ -1,15 +1,15 @@
 #if DEBUG
     import Foundation
 
-    /// A ``SpendProvider`` that returns a scripted outcome instead of hitting
+    /// A ``DashboardProvider`` that returns scripted results instead of hitting
     /// the network — used by unit tests and SwiftUI previews. Lives in the
     /// module (behind `@_spi(Testing)` + `#if DEBUG`) so both callers share one
     /// double that conforms to the production protocol.
     @_spi(Testing)
-    public struct ScriptedSpendProvider: SpendProvider {
+    public struct ScriptedDashboardProvider: DashboardProvider {
         public enum Outcome: Sendable {
-            case success(SpendResponse)
-            case failure(SpendProviderError)
+            case success(summary: UsageSummary, invoiceCentsByMonth: [Int: Int])
+            case failure(DashboardError)
         }
 
         private let outcome: Outcome
@@ -18,16 +18,47 @@
             self.outcome = outcome
         }
 
-        /// Convenience: succeed with a single member for `email`.
-        public init(member: MemberSpend) {
-            outcome = .success(SpendResponse(teamMemberSpend: [member]))
+        /// Convenience: a successful summary with no prior-month invoices.
+        public init(summary: UsageSummary) {
+            outcome = .success(summary: summary, invoiceCentsByMonth: [:])
         }
 
-        public func fetchSpend(apiKey _: String) async throws -> SpendResponse {
+        public func usageSummary(token _: SessionToken) async throws -> UsageSummary {
             switch outcome {
-                case let .success(response): response
+                case let .success(summary, _): summary
                 case let .failure(error): throw error
             }
+        }
+
+        public func monthlyInvoice(
+            month: Int,
+            year _: Int,
+            token _: SessionToken,
+        ) async throws -> MonthlyInvoice {
+            switch outcome {
+                case let .success(_, invoiceCentsByMonth):
+                    let cents = invoiceCentsByMonth[month] ?? 0
+                    return MonthlyInvoice(items: cents == 0 ? nil : [.init(
+                        description: "m\(month)",
+                        cents: cents,
+                    )])
+                case let .failure(error):
+                    throw error
+            }
+        }
+    }
+
+    /// A ``SessionTokenSource`` that returns a fixed token (or none), so
+    /// auto-detection is testable without reading a real `state.vscdb`.
+    @_spi(Testing)
+    public struct StubTokenSource: SessionTokenSource {
+        private let token: SessionToken?
+        public init(token: SessionToken?) {
+            self.token = token
+        }
+
+        public func currentToken() -> SessionToken? {
+            token
         }
     }
 
@@ -59,6 +90,34 @@
         public func remove() throws {
             if let failure { throw failure }
             lock.withLock { secret = nil }
+        }
+    }
+
+    extension UsageSummary {
+        /// A minimal summary for previews/tests.
+        public static func fixture(
+            onDemandCents: Int,
+            membershipType: String = "pro",
+            includedUsed: Int = 0,
+            includedLimit: Int? = nil,
+            cycleStart: String = "2026-07-04T18:16:08.000Z",
+            cycleEnd: String = "2026-08-04T18:16:08.000Z",
+        ) -> UsageSummary {
+            UsageSummary(
+                billingCycleStart: cycleStart,
+                billingCycleEnd: cycleEnd,
+                membershipType: membershipType,
+                individualUsage: .init(
+                    onDemand: .init(enabled: true, used: onDemandCents, limit: nil, remaining: nil),
+                    plan: .init(
+                        enabled: true,
+                        used: includedUsed,
+                        limit: includedLimit,
+                        remaining: nil,
+                        breakdown: nil,
+                    ),
+                ),
+            )
         }
     }
 #endif

@@ -1,10 +1,10 @@
 import LedgerCore
 import SwiftUI
 
-/// The menu-bar popover: the current billing cycle's Cursor spend, plus a
-/// footer with Refresh, Settings, and Quit. Renders the single
-/// ``LedgerServices/LoadState`` — spinner, error, or value — so the three
-/// states can never overlap.
+/// The menu-bar popover: the current billing cycle's Cursor spend and the
+/// year-to-date total, plus a footer with Refresh, Settings, and Quit. Renders
+/// the single ``LedgerServices/LoadState`` — spinner, error, or value — so the
+/// three states can never overlap.
 struct SpendView: View {
     @Bindable var session: LedgerSession
 
@@ -37,8 +37,8 @@ struct SpendView: View {
         switch session.loadState {
             case .idle, .loading:
                 placeholder
-            case let .loaded(member):
-                loaded(member)
+            case let .loaded(snapshot):
+                loaded(snapshot)
             case let .failed(error):
                 failure(error)
         }
@@ -54,25 +54,34 @@ struct SpendView: View {
         .frame(height: 60)
     }
 
-    private func loaded(_ member: MemberSpend) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("This cycle")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(CurrencyFormat.full(member.totalDollars))
-                .font(.system(size: 34, weight: .semibold, design: .rounded))
-                .monospacedDigit()
-
-            VStack(alignment: .leading, spacing: 4) {
-                if let included = member.includedDollars {
-                    breakdownRow("Included usage", CurrencyFormat.full(included))
-                }
-                breakdownRow("On-demand", CurrencyFormat.full(member.onDemandDollars))
-                if let requests = member.fastPremiumRequests {
-                    breakdownRow("Usage-based requests", requests.formatted())
+    private func loaded(_ snapshot: SpendSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("This cycle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(CurrencyFormat.dollars(snapshot.currentCycleDollars))
+                    .font(.system(size: 34, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                if let range = cycleRange(snapshot) {
+                    Text(range)
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
                 }
             }
-            .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 4) {
+                breakdownRow("This year", CurrencyFormat.dollars(snapshot.yearToDateDollars))
+                if let used = snapshot.includedUsedDollars,
+                   let limit = snapshot.includedLimitDollars
+                {
+                    breakdownRow(
+                        "Included usage",
+                        "\(CurrencyFormat.dollars(used)) / \(CurrencyFormat.dollars(limit))",
+                    )
+                }
+                breakdownRow("Plan", snapshot.membershipType.capitalized)
+            }
 
             if let updated = session.lastUpdated {
                 Text("Updated \(updated.formatted(date: .omitted, time: .shortened))")
@@ -93,12 +102,18 @@ struct SpendView: View {
         .font(.callout)
     }
 
+    private func cycleRange(_ snapshot: SpendSnapshot) -> String? {
+        guard let start = snapshot.cycleStart, let end = snapshot.cycleEnd else { return nil }
+        let formatter = Date.FormatStyle.dateTime.month(.abbreviated).day()
+        return "\(start.formatted(formatter)) – \(end.formatted(formatter))"
+    }
+
     private func failure(_ error: LedgerServices.LoadError) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(error.message, systemImage: "exclamationmark.triangle.fill")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            if error == .missingCredentials || error == .memberNotFound {
+            if error == .missingCredentials || error == .notAuthenticated {
                 SettingsLink {
                     Text("Open Settings")
                 }

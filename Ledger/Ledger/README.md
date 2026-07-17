@@ -2,8 +2,8 @@
 
 A macOS **menu bar app** that shows your current-cycle Cursor spend at a
 glance. The status item displays the cycle-to-date dollar amount; clicking it
-opens a popover with the breakdown (included usage, on-demand, usage-based
-requests) and a Refresh button.
+opens a popover with this cycle's spend, a year-to-date total, the included-usage
+breakdown, and your plan.
 
 All behavior lives in [`LedgerCore`](../LedgerCore); this target is the thin
 SwiftUI/AppKit shell.
@@ -21,36 +21,39 @@ dollar-sign icon with the amount beside it once loaded) and shows no Dock icon
 
 ## Setup
 
-Open **Settings** (the gear in the popover, or Cmd-,) and fill in the
-**Account** pane:
+If you're signed in to the Cursor app, **there's nothing to configure** — Ledger
+auto-detects your session from Cursor's local state. The Account pane shows
+"Using your signed-in Cursor session".
 
-- **Team member email** — the member of your Cursor team whose spend to show.
-- **Admin API key** — created in the Cursor dashboard (Admin API). It's stored
-  in your **Keychain**, never on disk in plaintext.
+If auto-detect can't find a session (or it expired), paste a token in
+**Settings › Account**: on `cursor.com`, open DevTools › Application › Cookies,
+copy `WorkosCursorSessionToken`, and paste it. It's stored in your Keychain and
+overrides auto-detect until you clear it.
 
-The **General** pane has *Launch Ledger at login* (via `SMAppService`); if
-macOS needs you to approve the login item, the pane links straight to System
-Settings.
+The **General** pane has *Launch Ledger at login* (via `SMAppService`), with a
+shortcut to System Settings if macOS needs you to approve the login item.
 
 ## What it shows
 
-- **Menu-bar title** — the current billing cycle's total spend, updated
+- **Menu-bar title** — the current billing cycle's usage-based spend, refreshed
   automatically (every 15 minutes) and whenever you open the popover.
-- **Popover** — the cycle total, an included-usage / on-demand breakdown, the
-  usage-based request count, and when it last updated. On an error (missing
-  credentials, unknown email, a rejected key, a network failure) it explains
-  what to fix and offers a shortcut to Settings.
+- **Popover** — this cycle's spend and date range, a **year-to-date** total,
+  included-usage used/limit, your plan tier, and when it last updated. On an
+  error (no session, an expired session, a network failure) it explains what to
+  fix and offers a shortcut to Settings.
 
 ## Design notes
 
-- The status item and popover are **AppKit** (`NSStatusItem` + `NSPopover`),
-  not `MenuBarExtra`: the menu-bar title mirrors observable model state via an
+- The status item and popover are **AppKit** (`NSStatusItem` + `NSPopover`), not
+  `MenuBarExtra`: the menu-bar title mirrors observable model state via an
   `Observations` loop, which the AppKit path drives reliably. (The old Foreman
   menu-bar app landed on the same pattern for the same reason.)
-- **Only the current cycle** is shown — the Cursor Admin API exposes no
-  per-user historical spend, and Ledger keeps no local history.
+- Data comes from Cursor's **undocumented dashboard API** (the same endpoints
+  the website calls), so it can change without notice.
 
 ## Limitations
 
-- Requires a Cursor **Admin API key**, which is a team/enterprise capability.
-- The Admin API returns spend for the **current billing cycle only**.
+- Reuses your Cursor **web session**; when it expires you re-open Cursor (or
+  paste a fresh token).
+- On a plan with usage-based pricing off, the `$` figures reflect the value of
+  included compute, not money owed.

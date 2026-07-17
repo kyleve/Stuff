@@ -4,98 +4,123 @@ import Testing
 
 @MainActor
 struct LedgerServicesTests {
+    /// A fixed "now" in July 2026 (month 7), UTC, so prior-month invoice fetches
+    /// (months 1..6) are deterministic.
+    private func julyCalendarAndNow() -> (Calendar, @Sendable () -> Date) {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let now = calendar.date(from: DateComponents(year: 2026, month: 7, day: 15))!
+        return (calendar, { now })
+    }
+
     private func makeServices(
-        provider: any SpendProvider = ScriptedSpendProvider(.failure(.network("unused"))),
-        keychainSecret: String? = nil,
-        email: String? = nil,
+        provider: any DashboardProvider = ScriptedDashboardProvider(.failure(.network("unused"))),
+        manualToken: String? = nil,
+        autoToken: SessionToken? = nil,
     ) -> LedgerServices {
+        let (calendar, now) = julyCalendarAndNow()
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("LedgerServicesTests-\(UUID().uuidString)")
         let store = LedgerConfigStore(directory: directory)
-        try? store.save(LedgerConfiguration(teamMemberEmail: email, refreshInterval: 900))
         return LedgerServices(
             configStore: store,
-            keychain: InMemoryKeychainStore(secret: keychainSecret),
+            keychain: InMemoryKeychainStore(secret: manualToken),
+            tokenSource: StubTokenSource(token: autoToken),
             provider: provider,
             loginItem: LoginItemController(backend: LoginItemRecorder()),
+            calendar: calendar,
+            now: now,
         )
     }
 
     @Test func startsIdle() {
-        let services = makeServices()
-        #expect(services.loadState == .idle)
+        #expect(makeServices().loadState == .idle)
     }
 
-    @Test func failsWithMissingCredentialsWhenNoEmail() async {
-        let services = makeServices(keychainSecret: "key", email: nil)
+    @Test func failsWithMissingCredentialsWhenNoTokenAnywhere() async {
+        let services = makeServices(autoToken: nil)
         await services.refresh()
         #expect(services.loadState == .failed(.missingCredentials))
     }
 
-    @Test func failsWithMissingCredentialsWhenNoKey() async {
-        let services = makeServices(keychainSecret: nil, email: "me@company.com")
-        await services.refresh()
-        #expect(services.loadState == .failed(.missingCredentials))
-    }
-
-    @Test func loadsTheMatchingMember() async {
-        let member = SpendFixture.member(email: "me@company.com", overallSpendCents: 4200)
+    @Test func loadsUsingTheAutoDetectedToken() async {
+        let provider = ScriptedDashboardProvider(.success(
+            summary: .fixture(
+                onDemandCents: 5000,
+                membershipType: "ultra",
+                includedUsed: 40000,
+                includedLimit: 40000,
+            ),
+            invoiceCentsByMonth: [1: 100, 2: 200, 3: 300, 4: 400, 5: 500, 6: 600],
+        ))
         let services = makeServices(
-            provider: ScriptedSpendProvider(member: member),
-            keychainSecret: "key",
-            email: "ME@company.com",
+            provider: provider,
+            autoToken: SessionToken(cookieValue: "auto::jwt"),
         )
         await services.refresh()
 
-        #expect(services.loadState == .loaded(member))
+        guard case let .loaded(snapshot) = services.loadState else {
+            Issue.record("expected loaded, got \(services.loadState)")
+            return
+        }
+        #expect(snapshot.currentCycleCents == 5000)
+        // Year-to-date = prior months (1..6 = 2100) + current cycle live (5000).
+        #expect(snapshot.yearToDateCents == 2100 + 5000)
+        #expect(snapshot.membershipType == "ultra")
         #expect(services.lastUpdated != nil)
     }
 
-    @Test func failsWithMemberNotFoundWhenNoEmailMatches() async {
-        let provider = ScriptedSpendProvider(member: SpendFixture
-            .member(email: "someone@company.com"))
-        let services = makeServices(
-            provider: provider,
-            keychainSecret: "key",
-            email: "me@company.com",
-        )
+    @Test func loadsUsingAPastedTokenWhenNoAutoToken() async {
+        let jwt = DashboardFixture.jwt(sub: "auth0|user_PASTE")
+        let provider = ScriptedDashboardProvider(summary: .fixture(onDemandCents: 999))
+        let services = makeServices(provider: provider, manualToken: jwt, autoToken: nil)
+        #expect(services.hasManualToken)
+
         await services.refresh()
-        #expect(services.loadState == .failed(.memberNotFound))
+        guard case let .loaded(snapshot) = services.loadState else {
+            Issue.record("expected loaded, got \(services.loadState)")
+            return
+        }
+        #expect(snapshot.currentCycleCents == 999)
     }
 
-    @Test func mapsHTTPErrors() async {
+    @Test func mapsNotAuthenticated() async {
         let services = makeServices(
-            provider: ScriptedSpendProvider(.failure(.http(401))),
-            keychainSecret: "bad-key",
-            email: "me@company.com",
+            provider: ScriptedDashboardProvider(.failure(.notAuthenticated)),
+            autoToken: SessionToken(cookieValue: "auto::jwt"),
         )
         await services.refresh()
-        #expect(services.loadState == .failed(.http(401)))
+        #expect(services.loadState == .failed(.notAuthenticated))
     }
 
     @Test func mapsNetworkErrors() async {
         let services = makeServices(
-            provider: ScriptedSpendProvider(.failure(.network("offline"))),
-            keychainSecret: "key",
-            email: "me@company.com",
+            provider: ScriptedDashboardProvider(.failure(.network("offline"))),
+            autoToken: SessionToken(cookieValue: "auto::jwt"),
         )
         await services.refresh()
         #expect(services.loadState == .failed(.network("offline")))
     }
 
-    @Test func setAndClearAPIKeyTracksHasAPIKey() throws {
+    @Test func tracksManualTokenPresence() throws {
         let services = makeServices()
-        #expect(!services.hasAPIKey)
+        #expect(!services.hasManualToken)
 
-        try services.setAPIKey("new-key")
-        #expect(services.hasAPIKey)
+        try services.setManualToken(DashboardFixture.jwt(sub: "auth0|user_X"))
+        #expect(services.hasManualToken)
 
-        try services.clearAPIKey()
-        #expect(!services.hasAPIKey)
+        try services.clearManualToken()
+        #expect(!services.hasManualToken)
     }
 
-    @Test func the401MessageMentionsTheKey() {
-        #expect(LedgerServices.LoadError.http(401).message.contains("401"))
-        #expect(LedgerServices.LoadError.missingCredentials.message.contains("Settings"))
+    @Test func reportsAutoTokenAvailability() {
+        #expect(makeServices(autoToken: nil).autoTokenAvailable == false)
+        #expect(makeServices(autoToken: SessionToken(cookieValue: "a::b"))
+            .autoTokenAvailable == true)
+    }
+
+    @Test func errorMessagesAreActionable() {
+        #expect(LedgerServices.LoadError.missingCredentials.message.contains("Cursor"))
+        #expect(LedgerServices.LoadError.notAuthenticated.message.contains("expired"))
     }
 }

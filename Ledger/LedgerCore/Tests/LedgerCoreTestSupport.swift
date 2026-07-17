@@ -40,57 +40,60 @@ final class LoginItemRecorder: LoginItemBackend {
 /// A stand-in error for login-item failure injection.
 struct LoginItemTestError: Error {}
 
-enum SpendFixture {
-    /// Builds a member with the fields tests care about; the rest default.
-    static func member(
-        email: String,
-        spendCents: Double = 0,
-        includedSpendCents: Double? = nil,
-        overallSpendCents: Double? = nil,
-        fastPremiumRequests: Int? = nil,
-    ) -> MemberSpend {
-        MemberSpend(
-            userId: "user_\(email)",
-            name: email,
-            email: email,
-            spendCents: spendCents,
-            includedSpendCents: includedSpendCents,
-            overallSpendCents: overallSpendCents,
-            fastPremiumRequests: fastPremiumRequests,
-        )
+enum DashboardFixture {
+    /// Builds a signed-looking JWT (unsigned; only the payload matters) whose
+    /// `sub` is `sub`. base64url, no padding.
+    static func jwt(sub: String) -> String {
+        func segment(_ object: [String: Any]) -> String {
+            let data = try! JSONSerialization.data(withJSONObject: object)
+            return data.base64EncodedString()
+                .replacingOccurrences(of: "+", with: "-")
+                .replacingOccurrences(of: "/", with: "_")
+                .replacingOccurrences(of: "=", with: "")
+        }
+        return "\(segment(["alg": "HS256"])).\(segment(["sub": sub])).signature"
     }
 
-    /// A realistic `/teams/spend` response body, including fields Ledger does
-    /// not model (they must be ignored, not fail decoding).
-    static let responseJSON = """
+    /// A trimmed but realistic `/api/usage-summary` body.
+    static let usageSummaryJSON = """
     {
-      "teamMemberSpend": [
-        {
-          "userId": "user_ABC",
-          "name": "Alex Admin",
-          "email": "alex@company.com",
-          "role": "owner",
-          "spendCents": 4212.5,
-          "includedSpendCents": 8000.0,
-          "overallSpendCents": 12212.5,
-          "fastPremiumRequests": 143,
-          "profilePictureUrl": null,
-          "monthlyLimitDollars": null,
-          "hardLimitOverrideDollars": 0
+      "billingCycleStart": "2026-07-04T18:16:08.000Z",
+      "billingCycleEnd": "2026-08-04T18:16:08.000Z",
+      "membershipType": "ultra",
+      "limitType": "user",
+      "isUnlimited": false,
+      "individualUsage": {
+        "plan": {
+          "enabled": true,
+          "used": 40000,
+          "limit": 40000,
+          "remaining": 0,
+          "breakdown": { "included": 40000, "bonus": 12158, "total": 52158 }
         },
-        {
-          "userId": "user_DEF",
-          "name": "Blair Member",
-          "email": "blair@company.com",
-          "role": "member",
-          "spendCents": 0,
-          "includedSpendCents": 150.75,
-          "fastPremiumRequests": 2
-        }
+        "onDemand": { "enabled": true, "used": 315609, "limit": null, "remaining": null }
+      },
+      "teamUsage": {}
+    }
+    """
+
+    /// A `get-monthly-invoice` body with two itemized lines.
+    static let monthlyInvoiceJSON = """
+    {
+      "items": [
+        { "description": "88 calls to claude-fable-5-thinking-xhigh ($828.11)", "cents": 82811 },
+        { "description": "90 calls to claude-opus-4-8-thinking-high ($334.92)", "cents": 33492 }
       ],
-      "totalMembers": 2,
-      "totalPages": 1,
-      "subscriptionCycleStart": 1708992000000
+      "periodStartMs": "1785542400000",
+      "periodEndMs": "1788220800000"
+    }
+    """
+
+    /// A sparse invoice (current month, nothing billed yet).
+    static let emptyInvoiceJSON = """
+    {
+      "pricingDescription": { "id": "abc" },
+      "periodStartMs": "1785542400000",
+      "periodEndMs": "1788220800000"
     }
     """
 }

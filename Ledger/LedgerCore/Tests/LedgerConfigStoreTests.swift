@@ -20,10 +20,7 @@ struct LedgerConfigStoreTests {
         let (store, directory) = makeStore()
         defer { try? FileManager.default.removeItem(at: directory) }
 
-        let configuration = LedgerConfiguration(
-            teamMemberEmail: "me@company.com",
-            refreshInterval: 300,
-        )
+        let configuration = LedgerConfiguration(refreshInterval: 300)
         try store.save(configuration)
         #expect(try store.load() == configuration)
     }

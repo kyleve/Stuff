@@ -5,7 +5,7 @@ import Observation
 /// Thin app-side facade over the LedgerCore model tree. Views read the
 /// observable ``LedgerServices`` state (and bind its settings) directly; this
 /// class owns the root and forwards the few app-level intents (launch, refresh,
-/// quit teardown, credential edits).
+/// quit teardown, token edits).
 @MainActor
 @Observable
 final class LedgerSession {
@@ -21,13 +21,17 @@ final class LedgerSession {
         services.lastUpdated
     }
 
-    /// Whether an Admin API key is stored (drives the Settings key field).
-    var hasAPIKey: Bool {
-        services.hasAPIKey
+    /// Whether a token was pasted (a manual override) vs. auto-detected.
+    var hasManualToken: Bool {
+        services.hasManualToken
     }
 
-    /// Settings; `SettingsView` binds these observable properties (persistence
-    /// happens in Core).
+    /// Whether a token can be auto-detected from the local Cursor app.
+    var autoTokenAvailable: Bool {
+        services.autoTokenAvailable
+    }
+
+    /// Settings; `SettingsView` binds these observable properties.
     var settings: LedgerSettings {
         services.settings
     }
@@ -38,23 +42,20 @@ final class LedgerSession {
         set { services.startsAtLogin = newValue }
     }
 
-    /// The login item is registered but awaiting approval in System Settings.
     var loginItemNeedsApproval: Bool {
         services.loginItemNeedsApproval
     }
 
-    /// The most recent login-item failure (shown in the General settings pane).
     var loginItemError: String? {
         services.loginItemError
     }
 
     /// The status-bar title: the current-cycle dollar amount when loaded, a
-    /// placeholder otherwise. Observed by the app delegate to keep the menu bar
-    /// current.
+    /// placeholder otherwise. Observed by the app delegate.
     var statusTitle: String {
         switch services.loadState {
-            case let .loaded(member):
-                CurrencyFormat.compact(member.totalDollars)
+            case let .loaded(snapshot):
+                CurrencyFormat.dollars(snapshot.currentCycleDollars)
             case .idle, .loading, .failed:
                 "—"
         }
@@ -68,38 +69,35 @@ final class LedgerSession {
         self.init(services: LedgerServices())
     }
 
-    /// First fetch and periodic refresh. Called once at app launch.
     func start() {
         services.start()
     }
 
-    /// Stops the periodic refresh; the app's quit path.
     func stop() {
         services.stop()
     }
 
-    /// Fetches spend now (popover open, manual Refresh, after a credential edit).
+    /// Fetches spend now (popover open, manual Refresh, after a token edit).
     func refresh() {
         Task { await services.refresh() }
     }
 
-    /// Stores (or clears, for an empty string) the Admin API key, then refreshes.
-    func setAPIKey(_ key: String) throws {
-        try services.setAPIKey(key)
+    /// Stores (or clears, for an empty string) a pasted session token, then refreshes.
+    func setManualToken(_ token: String) throws {
+        try services.setManualToken(token)
         refresh()
     }
 
-    /// Removes the stored Admin API key.
-    func clearAPIKey() throws {
-        try services.clearAPIKey()
+    /// Removes any pasted token (falls back to auto-detection), then refreshes.
+    func clearManualToken() throws {
+        try services.clearManualToken()
+        refresh()
     }
 
-    /// Re-reads the login-item status from the OS.
     func refreshLoginItemStatus() {
         services.refreshLoginItemStatus()
     }
 
-    /// Opens System Settings › General › Login Items (to approve a pending item).
     func openSystemSettingsLoginItems() {
         services.openSystemSettingsLoginItems()
     }
