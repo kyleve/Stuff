@@ -77,6 +77,12 @@ public func assertSnapshots(
         return
     }
 
+    // The explicit parameter wins; the environment override (forwarded as
+    // TEST_RUNNER_SNAPSHOT_RECORD on the command line) beats the suite trait,
+    // so a re-record run needs no source edits. `nil` falls through to the
+    // suite's `.snapshots(record:)` trait.
+    let resolvedRecord = record ?? environmentRecordMode()
+
     for configuration in configurations {
         let hostingController = makeHostingController(for: view, configuration: configuration)
         let sizing: SnapshotSizing = switch configuration.device.size {
@@ -98,21 +104,43 @@ public func assertSnapshots(
             isAccessibility: configuration.snapshotType == .accessibility,
             settle: settle,
         )
-        assertSnapshot(
-            of: image,
-            as: .image(
-                precision: defaultSnapshotPrecision,
-                perceptualPrecision: defaultSnapshotPerceptualPrecision,
-            ),
-            named: identifier,
-            record: record,
-            fileID: fileID,
-            file: filePath,
-            testName: testName,
-            line: line,
-            column: column,
-        )
+        withSnapshotTesting(record: resolvedRecord) {
+            assertSnapshot(
+                of: image,
+                as: .image(
+                    precision: defaultSnapshotPrecision,
+                    perceptualPrecision: defaultSnapshotPerceptualPrecision,
+                ),
+                named: identifier,
+                fileID: fileID,
+                file: filePath,
+                testName: testName,
+                line: line,
+                column: column,
+            )
+        }
     }
+}
+
+/// The record mode forwarded through the test environment: `SNAPSHOT_RECORD`
+/// set to `all`, `failed`, `missing`, or `never` (reaching the test process as
+/// `TEST_RUNNER_SNAPSHOT_RECORD=…` on a tuist/xcodebuild command line — see the
+/// module README for the re-record flow). `nil` when the variable is absent. An
+/// unrecognized value records an issue rather than silently falling back to the
+/// suite default — a typo'd re-record run must not quietly assert instead.
+@MainActor
+private func environmentRecordMode() -> SnapshotTestingConfiguration.Record? {
+    guard let value = ProcessInfo.processInfo.environment["SNAPSHOT_RECORD"] else { return nil }
+    guard let record = SnapshotTestingConfiguration.Record(rawValue: value) else {
+        Issue.record(
+            """
+            Unrecognized SNAPSHOT_RECORD value "\(value)" — use "all", "failed", \
+            "missing", or "never".
+            """,
+        )
+        return nil
+    }
+    return record
 }
 
 /// Fails fast when the live simulator doesn't match the environment the

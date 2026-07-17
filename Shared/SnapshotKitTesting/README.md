@@ -51,9 +51,28 @@ struct MyBadgeSnapshotTests {
 
 Reference images are written next to the test file under `__Snapshots__/` and
 are stored in Git LFS (see the root `.gitattributes`). Recording a new image is
-a failure by design, so a run that records can't be mistaken for a pass — record
-with the suite trait `@Suite(.snapshots(record: .missing))` (or `.all` to
-refresh), review the images, then commit.
+a failure by design, so a run that records can't be mistaken for a pass.
+
+## Recording
+
+The suite trait sets the baseline mode (`@Suite(.snapshots(record: .missing))`
+records only images that don't exist yet). To re-record without editing source,
+forward a `SNAPSHOT_RECORD` environment variable into the test process —
+xcodebuild passes any `TEST_RUNNER_`-prefixed variable through, so in this repo
+(verified working):
+
+```bash
+TEST_RUNNER_SNAPSHOT_RECORD=failed mise exec -- tuist test WhereUISnapshotTests \
+  --no-selective-testing -- \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
+```
+
+Values map onto `SnapshotTestingConfiguration.Record`: `all` (rewrite
+everything), `failed` (rewrite only failing comparisons — the usual re-record
+mode after an intentional UI change), `missing` (only absent references), and
+`never` (record nothing; missing references fail — CI-style). Precedence: an
+explicit `record:` argument to `assertSnapshots` wins, then `SNAPSHOT_RECORD`,
+then the suite trait. Review the recorded images, then commit.
 
 ## Requirements
 

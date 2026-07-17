@@ -125,5 +125,15 @@ iPhone/iPad, contrast, VoiceOver annotations) in
 images under `SnapshotTests/__Snapshots__/` in Git LFS. Each view declares its
 matrix via a `SnapshotProviding` conformance in
 [`Sources/Preview/`](Sources/Preview), shared with its `#Preview` cutsheet. The
-bundle has its own scheme and CI job; to re-record, delete the reference PNG
-and run the `WhereUISnapshotTests` scheme, then review and commit the image.
+bundle has its own scheme and CI job; to re-record after an intentional UI
+change, forward the record mode into the test process (see the
+[SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)
+for the mode values):
+
+```bash
+TEST_RUNNER_SNAPSHOT_RECORD=failed mise exec -- tuist test WhereUISnapshotTests \
+  --no-selective-testing -- \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
+```
+
+then review and commit the images.
