@@ -67,6 +67,15 @@ jobs:
       # Image snapshots are slow and LFS-backed, so they run in their own job via
       # the standalone `WhereUISnapshotTests` scheme (declared in Project.swift)
       # rather than the aggregate `Stuff-iOS-Tests` scheme the `test` job uses.
+      #
+      # Deliberately NOT `-parallel-testing-enabled`: the capture pipeline is
+      # single-tenant — every test renders into the one StuffTestHost key
+      # window, and settle loops suspend, so parallel scheduling interleaves
+      # tests mid-capture and corrupts each other's images. Verified locally
+      # (Xcode 26/iOS 26.2, both worker-count spellings): xcodebuild put all
+      # 45 tests on one simulator clone anyway, ran suites concurrently in
+      # that one host process, produced 24+ spurious image mismatches, and
+      # was ~1.2–3x SLOWER than the serial run (407s/1004s vs ~330s).
       - name: Snapshot Tests (iOS)
         run: mise exec -- tuist test WhereUISnapshotTests --no-selective-testing -- -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
       - name: Collect snapshot diagnostics
