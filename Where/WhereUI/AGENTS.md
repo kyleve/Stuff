@@ -22,6 +22,11 @@ extended, and how its snapshot suites are organized (see
   metadata and the stylesheet would stop resolving across the boundary. This
   is why `whereBroadwayRoot()` lives here rather than being called as
   `broadwayRoot` at each site.
+- Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
+  typewriter reveals) must consult the shared `@MotionIsStatic` helper
+  ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))
+  for its static end-state — never hand-roll the
+  `\.accessibilityReduceMotion` + `\.isCapturingSnapshot` pair.
 
 ## Design system — `WhereStylesheet`
 

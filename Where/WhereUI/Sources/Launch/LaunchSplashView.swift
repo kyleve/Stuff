@@ -21,11 +21,11 @@ import SwiftUI
 ///
 /// Honors Reduce Motion: the pulse and the sweeping rings are pinned to a
 /// static frame, and the caption appears without a fade. Snapshot captures
-/// (`\.isCapturingSnapshot`) likewise skip the pulse and freeze the rings at a
+/// likewise skip the pulse (see ``MotionIsStatic``) and freeze the rings at a
 /// canonical phase, so the never-settling motion renders deterministically.
 struct LaunchSplashView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
+    @MotionIsStatic private var motionIsStatic
     @Environment(\.stylesheet) private var stylesheet
     @State private var pulsing = false
     @State private var showCaption: Bool
@@ -53,7 +53,7 @@ struct LaunchSplashView: View {
         let imageName = injectedPreviewImageName ?? AppIconCatalog.liveSelectedPreviewImageName()
         ZStack {
             background
-            RadarPingBackground(animated: !reduceMotion, tint: splash.iconGlow)
+            RadarPingBackground(tint: splash.iconGlow)
             icon(named: imageName)
 
             if showCaption {
@@ -122,7 +122,7 @@ struct LaunchSplashView: View {
                     .scaleEffect(pulsing ? 1.3 : 0.85)
             }
             .onAppear {
-                guard !reduceMotion, !isCapturingSnapshot else { return }
+                guard !motionIsStatic else { return }
                 withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
                     pulsing = true
                 }
@@ -133,16 +133,17 @@ struct LaunchSplashView: View {
 /// Concentric "sonar" rings that expand outward from the center and fade as
 /// they grow, staggered so a new ring sets off before the previous one
 /// dissolves. Driven by a `TimelineView` clock and drawn in a `Canvas`, so
-/// there's no per-ring view state to keep in sync; pausing the clock (Reduce
-/// Motion) renders a single static frame of staggered rings.
+/// there's no per-ring view state to keep in sync; pausing the clock (static
+/// motion — see ``MotionIsStatic``) renders a single static frame of
+/// staggered rings.
 ///
-/// Snapshot captures pause the clock *and* pin the phase to a constant — a
-/// paused `TimelineView` still reports the wall-clock pause time, which would
-/// leak run-dependent ring radii/opacities into the image.
+/// Snapshot captures additionally pin the phase to a constant — a paused
+/// `TimelineView` still reports the wall-clock pause time, which would leak
+/// run-dependent ring radii/opacities into the image.
 private struct RadarPingBackground: View {
+    @MotionIsStatic private var motionIsStatic
     @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
 
-    let animated: Bool
     var tint: Color = .white
 
     private let ringCount = 4
@@ -151,7 +152,7 @@ private struct RadarPingBackground: View {
     private let maxOpacity: Double = 0.32
 
     var body: some View {
-        TimelineView(.animation(paused: !animated || isCapturingSnapshot)) { timeline in
+        TimelineView(.animation(paused: motionIsStatic)) { timeline in
             Canvas { context, size in
                 let now = isCapturingSnapshot
                     ? 0
