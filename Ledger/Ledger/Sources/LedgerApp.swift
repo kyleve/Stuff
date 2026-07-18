@@ -68,7 +68,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             popover.performClose(nil)
             return
         }
-        session.refresh()
+        // Don't fetch on open — the periodic refresh loop keeps both the title
+        // and the popover current; opening just shows the latest state. Use the
+        // popover's Refresh button to force an immediate fetch.
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         // The popover's own window must become key for text fields / buttons to
         // take input reliably.

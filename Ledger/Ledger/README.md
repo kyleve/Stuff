@@ -36,11 +36,13 @@ shortcut to System Settings if macOS needs you to approve the login item.
 ## What it shows
 
 - **Menu-bar title** — the current billing cycle's usage-based spend, refreshed
-  automatically (every 15 minutes) and whenever you open the popover.
+  automatically every 15 minutes. Opening the popover just shows the latest
+  fetched state; it doesn't trigger a network request.
 - **Popover** — this cycle's spend and date range, a **year-to-date** total,
-  included-usage used/limit, your plan tier, and when it last updated. On an
-  error (no session, an expired session, a network failure) it explains what to
-  fix and offers a shortcut to Settings.
+  included-usage used/limit, your plan tier, and when it last updated. A
+  **Refresh** button forces an immediate fetch. On an error (no session, an
+  expired session, a network failure) it explains what to fix and offers a
+  shortcut to Settings.
 
 ## Design notes
 

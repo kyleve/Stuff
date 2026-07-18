@@ -78,7 +78,7 @@ final class LedgerSession {
         services.stop()
     }
 
-    /// Fetches spend now (popover open, manual Refresh, after a token edit).
+    /// Fetches spend now (the manual Refresh button, or after a token edit).
     func refresh() {
         Task { await services.refresh() }
     }
