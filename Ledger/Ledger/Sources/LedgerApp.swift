@@ -1,12 +1,11 @@
 import AppKit
 import LedgerCore
-import Observation
 import SwiftUI
 
-/// The status item and popover are AppKit (not `MenuBarExtra`) on purpose:
-/// the menu-bar title mirrors observable model state on every change, and the
-/// AppKit `NSStatusItem` + `Observations` loop drives that reliably (the same
-/// reason the old Foreman app landed here). See the module README.
+/// The status item and popover are AppKit (not `MenuBarExtra`) on purpose (the
+/// same reason the old Foreman app landed here). The status item hosts a small
+/// SwiftUI `MenuBarLabel` so the amount gets the numeric-text roll-over and
+/// updates itself from the observable session. See the module README.
 @main
 struct LedgerApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
@@ -26,30 +25,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var statusItem: NSStatusItem?
     private var popover: NSPopover?
-    private var titleTask: Task<Void, Never>?
 
     func applicationDidFinishLaunching(_: Notification) {
         session.start()
 
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.target = self
-        item.button?.action = #selector(togglePopover)
-        item.button?.image = NSImage(
-            systemSymbolName: "dollarsign.circle",
-            accessibilityDescription: "Cursor spend",
-        )
-        item.button?.imagePosition = .imageLeading
         statusItem = item
+        guard let button = item.button else { return }
+        button.target = self
+        button.action = #selector(togglePopover)
+        button.setAccessibilityTitle("Cursor spend")
 
-        updateTitle()
-        // AppKit owns the title, so keeping it current is a plain loop: the
-        // stdlib Observations sequence yields after every change to the
-        // derived status title (no SwiftUI invalidation involved).
-        titleTask = Task { [weak self, session] in
-            for await _ in Observations({ @MainActor in session.statusTitle }) {
-                self?.updateTitle()
-            }
-        }
+        // Host the SwiftUI label inside the status button. It's click-through
+        // (see ClickThroughHostingView) so the button still receives the click
+        // that toggles the popover, and the label sizes the (variable-length)
+        // item via its Auto Layout constraints.
+        let label = ClickThroughHostingView(rootView: MenuBarLabel(session: session))
+        label.translatesAutoresizingMaskIntoConstraints = false
+        button.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.leadingAnchor.constraint(equalTo: button.leadingAnchor),
+            label.trailingAnchor.constraint(equalTo: button.trailingAnchor),
+            label.topAnchor.constraint(equalTo: button.topAnchor),
+            label.bottomAnchor.constraint(equalTo: button.bottomAnchor),
+        ])
     }
 
     /// Stop the refresh loop on quit.
@@ -85,10 +84,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         )
         return popover
     }
+}
 
-    /// Shows the current-cycle dollar amount beside the icon, always — a `$—`
-    /// placeholder until the first fetch lands — so the item is easy to spot.
-    private func updateTitle() {
-        statusItem?.button?.title = " \(session.statusTitle)"
+/// An `NSHostingView` that never claims mouse hits, so the SwiftUI content it
+/// draws is display-only and the enclosing status-item button keeps receiving
+/// the click that toggles the popover.
+private final class ClickThroughHostingView<Content: View>: NSHostingView<Content> {
+    override func hitTest(_: NSPoint) -> NSView? {
+        nil
+    }
+
+    required init(rootView: Content) {
+        super.init(rootView: rootView)
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) {
+        fatalError("not used")
     }
 }

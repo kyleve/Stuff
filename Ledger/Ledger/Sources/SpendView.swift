@@ -63,6 +63,8 @@ struct SpendView: View {
                 Text(CurrencyFormat.dollars(snapshot.currentCycleDollars))
                     .font(.system(size: 34, weight: .semibold, design: .rounded))
                     .monospacedDigit()
+                    .contentTransition(.numericText(value: snapshot.currentCycleDollars))
+                    .animation(.default, value: snapshot.currentCycleDollars)
                 if let range = cycleRange(snapshot) {
                     Text(range)
                         .font(.caption2)
