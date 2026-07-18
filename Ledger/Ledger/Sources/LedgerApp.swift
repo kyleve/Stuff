@@ -38,9 +38,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Host the SwiftUI label inside the status button. It's click-through
         // (see ClickThroughHostingView) so the button still receives the click
-        // that toggles the popover, and the label sizes the (variable-length)
-        // item via its Auto Layout constraints.
-        let label = ClickThroughHostingView(rootView: MenuBarLabel(session: session))
+        // that toggles the popover. A variable-length item doesn't auto-size to
+        // a hosted view, so the label reports its width and we set the item's
+        // length to match (otherwise the amount is clipped to just the icon).
+        let label =
+            ClickThroughHostingView(rootView: MenuBarLabel(session: session) { [weak self] width in
+                self?.statusItem?.length = ceil(width)
+            })
         label.translatesAutoresizingMaskIntoConstraints = false
         button.addSubview(label)
         NSLayoutConstraint.activate([
