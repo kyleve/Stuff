@@ -23,12 +23,10 @@ generates the Xcode project:
 ./ide --bootstrap
 ```
 
-After bootstrap, add mise activation to your shell once so `mise` and the
-pinned tools are on `PATH` in new terminals:
-
-```bash
-echo 'eval "$(mise activate zsh)"' >> ~/.zshrc
-```
+When bootstrap installs `mise`, it also adds `mise activate` to your shell rc
+(zsh/bash) so `mise` and the pinned tools are on `PATH` in new terminals —
+restart your shell (or `source ~/.zshrc`) afterwards. On other shells, add
+activation manually per the [mise docs](https://mise.jdx.dev/getting-started.html).
 
 On subsequent runs (mise already installed), just regenerate:
 

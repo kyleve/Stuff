@@ -55,6 +55,37 @@ find_mise() {
     done
 }
 
+# Idempotently add `mise activate` to the user's shell rc so mise and the pinned
+# tools land on PATH in new interactive shells. This is a convenience only —
+# ./ide and the git hooks resolve mise directly (see find_mise), so nothing
+# breaks without it. Only touches a known rc (zsh/bash), never duplicates the
+# line, and prints a manual note for other shells.
+ensure_mise_activation() {
+    local shell_name rc activate_line
+    shell_name="$(basename "${SHELL:-}")"
+    case "$shell_name" in
+        zsh)
+            rc="$HOME/.zshrc"
+            activate_line='eval "$(mise activate zsh)"'
+            ;;
+        bash)
+            rc="$HOME/.bashrc"
+            activate_line='eval "$(mise activate bash)"'
+            ;;
+        *)
+            echo "note: add mise activation to your shell's rc so mise is on PATH in new shells (https://mise.jdx.dev/getting-started.html)"
+            return
+            ;;
+    esac
+
+    if [ -f "$rc" ] && grep -q "mise activate" "$rc"; then
+        return
+    fi
+
+    printf '\n# Added by ./ide --bootstrap: put mise (and the pinned tools) on PATH\n%s\n' "$activate_line" >>"$rc"
+    echo "==> added mise activation to $rc (restart your shell or run: source $rc)"
+}
+
 # One-shot machine setup: verify Xcode, install mise, install the pinned tools.
 # Must run before anything that shells out to mise.
 if [ "$BOOTSTRAP" = true ]; then
@@ -80,7 +111,7 @@ EOF
     if [ -z "$(find_mise)" ]; then
         echo "==> installing mise"
         curl -fsSL https://mise.run | sh
-        echo "note: add 'eval \"\$(mise activate zsh)\"' to your ~/.zshrc so mise works in new shells"
+        ensure_mise_activation
     fi
 
     MISE="$(find_mise)"
