@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+#
+# Build Ledger in Release and install it to /Applications so it runs standalone
+# (no Xcode needed). Usage:
+#
+#   Ledger/install            build, install to /Applications, and launch
+#   Ledger/install --no-open  build and install, but don't launch
+#   Ledger/install --help     show this help
+#
+# The app is ad-hoc code-signed, so it works without an Apple Developer account;
+# it's built locally (no quarantine), so Gatekeeper won't block it.
+
+set -euo pipefail
+
+APP_NAME="Ledger"
+DEST="/Applications/${APP_NAME}.app"
+OPEN_AFTER=1
+
+for arg in "$@"; do
+    case "$arg" in
+        --no-open) OPEN_AFTER=0 ;;
+        -h | --help)
+            sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $arg (try --help)" >&2
+            exit 2
+            ;;
+    esac
+done
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+DERIVED="$(mktemp -d)"
+trap 'rm -rf "$DERIVED"' EXIT
+
+echo "==> Generating the Xcode project"
+mise exec -- tuist generate --no-open >/dev/null
+
+echo "==> Building ${APP_NAME} (Release)"
+# Build straight through xcodebuild (not `tuist build`) so we control the
+# DerivedData path and can find the product. Ad-hoc signing keeps it
+# account-free while still satisfying SMAppService (launch-at-login) + Keychain.
+mise exec -- xcodebuild \
+    -workspace "Stuff.xcworkspace" \
+    -scheme "${APP_NAME}" \
+    -configuration Release \
+    -destination 'generic/platform=macOS' \
+    -derivedDataPath "$DERIVED" \
+    CODE_SIGN_IDENTITY="-" \
+    CODE_SIGNING_REQUIRED=NO \
+    CODE_SIGNING_ALLOWED=YES \
+    build
+
+BUILT="${DERIVED}/Build/Products/Release/${APP_NAME}.app"
+if [ ! -d "$BUILT" ]; then
+    echo "error: build product not found at ${BUILT}" >&2
+    exit 1
+fi
+
+echo "==> Installing to ${DEST}"
+# Quit any running copy (e.g. an Xcode-launched one) so the replace succeeds.
+osascript -e "tell application \"${APP_NAME}\" to quit" >/dev/null 2>&1 || true
+rm -rf "$DEST"
+cp -R "$BUILT" "$DEST"
+
+echo "==> Installed ${APP_NAME} to ${DEST}"
+if [ "$OPEN_AFTER" -eq 1 ]; then
+    open "$DEST"
+    echo "==> Launched. Look for the \$ amount in your menu bar."
+fi

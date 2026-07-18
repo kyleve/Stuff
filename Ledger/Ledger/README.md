@@ -19,6 +19,20 @@ or run the `Ledger` scheme from Xcode. The app lives in the menu bar (a
 dollar-sign icon with the amount beside it once loaded) and shows no Dock icon
 (`LSUIElement`). It keeps running until you quit it from the popover.
 
+### Install to /Applications
+
+To run it standalone (no Xcode), use the install script — it builds a Release
+build, installs it to `/Applications`, and launches it:
+
+```bash
+Ledger/install            # build, install to /Applications, and launch
+Ledger/install --no-open  # build and install without launching
+```
+
+The app is ad-hoc code-signed (no Apple Developer account needed) and built
+locally (no Gatekeeper quarantine). Re-run it to update your installed copy; it
+quits any running instance first.
+
 ## Setup
 
 If you're signed in to the Cursor app, **there's nothing to configure** — Ledger
