@@ -74,21 +74,63 @@ struct SpendView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 breakdownRow("This year", CurrencyFormat.dollars(snapshot.yearToDateDollars))
-                if let used = snapshot.includedUsedDollars,
-                   let limit = snapshot.includedLimitDollars
-                {
-                    breakdownRow(
-                        "Included usage",
-                        "\(CurrencyFormat.dollars(used)) / \(CurrencyFormat.dollars(limit))",
-                    )
-                }
                 breakdownRow("Plan", snapshot.membershipType.capitalized)
+            }
+
+            if let fraction = snapshot.includedFractionUsed {
+                includedUsage(fraction, messages: snapshot.usageMessages)
+            }
+
+            if !snapshot.topModels.isEmpty {
+                topModels(snapshot.topModels)
             }
 
             if let updated = session.lastUpdated {
                 Text("Updated \(updated.formatted(date: .omitted, time: .shortened))")
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private func includedUsage(_ fraction: Double, messages: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("Included usage")
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text(fraction.formatted(.percent.precision(.fractionLength(0))))
+                    .monospacedDigit()
+            }
+            .font(.callout)
+            ProgressView(value: min(max(fraction, 0), 1))
+            ForEach(messages, id: \.self) { message in
+                Text(message)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+        }
+    }
+
+    private func topModels(_ models: [ModelShare]) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Top models this cycle")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            ForEach(models) { model in
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack {
+                        Text(model.name)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Spacer()
+                        Text(model.fraction.formatted(.percent.precision(.fractionLength(0))))
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                    .font(.caption)
+                    ProgressView(value: min(max(model.fraction, 0), 1))
+                }
             }
         }
     }

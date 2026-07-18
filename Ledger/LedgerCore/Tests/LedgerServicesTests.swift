@@ -84,6 +84,46 @@ struct LedgerServicesTests {
         #expect(snapshot.currentCycleCents == 999)
     }
 
+    @Test func loadsTopModelsAsShares() async {
+        let provider = ScriptedDashboardProvider(
+            .success(summary: .fixture(onDemandCents: 5000), invoiceCentsByMonth: [:]),
+            aggregated: .fixture(["a": 75, "b": 25]),
+        )
+        let services = makeServices(
+            provider: provider,
+            autoToken: SessionToken(cookieValue: "auto::jwt"),
+        )
+        await services.refresh()
+
+        guard case let .loaded(snapshot) = services.loadState else {
+            Issue.record("expected loaded, got \(services.loadState)")
+            return
+        }
+        #expect(snapshot.topModels.map(\.name) == ["a", "b"])
+        #expect(snapshot.topModels.first?.fraction == 0.75)
+    }
+
+    @Test func stillLoadsWhenPerModelFetchFails() async {
+        // The per-model breakdown is best-effort: its failure must not blank
+        // the headline.
+        let provider = ScriptedDashboardProvider(
+            .success(summary: .fixture(onDemandCents: 5000), invoiceCentsByMonth: [:]),
+            aggregatedFailure: .http(500),
+        )
+        let services = makeServices(
+            provider: provider,
+            autoToken: SessionToken(cookieValue: "auto::jwt"),
+        )
+        await services.refresh()
+
+        guard case let .loaded(snapshot) = services.loadState else {
+            Issue.record("expected loaded, got \(services.loadState)")
+            return
+        }
+        #expect(snapshot.currentCycleCents == 5000)
+        #expect(snapshot.topModels.isEmpty)
+    }
+
     @Test func mapsNotAuthenticated() async {
         let services = makeServices(
             provider: ScriptedDashboardProvider(.failure(.notAuthenticated)),

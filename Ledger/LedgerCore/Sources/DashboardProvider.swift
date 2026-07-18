@@ -20,6 +20,9 @@ public protocol DashboardProvider: Sendable {
     func usageSummary(token: SessionToken) async throws -> UsageSummary
     /// The itemized invoice for a given month (`month` is 1-based) and year.
     func monthlyInvoice(month: Int, year: Int, token: SessionToken) async throws -> MonthlyInvoice
+    /// Per-model usage aggregated over `[startDate, endDate]`.
+    func aggregatedUsage(startDate: Date, endDate: Date, token: SessionToken) async throws
+        -> AggregatedUsage
 }
 
 /// The production ``DashboardProvider``: the same undocumented endpoints the
@@ -66,6 +69,26 @@ public struct CursorDashboardAPI: DashboardProvider {
             body: body,
         )
         return try await send(request, decoding: MonthlyInvoice.self)
+    }
+
+    public func aggregatedUsage(
+        startDate: Date,
+        endDate: Date,
+        token: SessionToken,
+    ) async throws -> AggregatedUsage {
+        // `teamId: -1` selects individual usage; dates are epoch milliseconds.
+        let body = try JSONSerialization.data(withJSONObject: [
+            "teamId": -1,
+            "startDate": Int(startDate.timeIntervalSince1970 * 1000),
+            "endDate": Int(endDate.timeIntervalSince1970 * 1000),
+        ])
+        let request = makeRequest(
+            path: "/api/dashboard/get-aggregated-usage-events",
+            method: "POST",
+            token: token,
+            body: body,
+        )
+        return try await send(request, decoding: AggregatedUsage.self)
     }
 
     private func makeRequest(

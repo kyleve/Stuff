@@ -1,7 +1,8 @@
 import Foundation
 
-/// The spend figures Ledger renders, distilled from the usage summary and the
-/// year's monthly invoices into one value the UI binds to. All money is cents.
+/// The spend figures Ledger renders, distilled from the usage summary, the
+/// year's monthly invoices, and the per-model aggregation into one value the UI
+/// binds to. All money is cents.
 public struct SpendSnapshot: Equatable, Sendable {
     /// Usage-based spend for the current billing cycle (live, from the usage
     /// summary).
@@ -14,10 +15,14 @@ public struct SpendSnapshot: Equatable, Sendable {
     public var cycleEnd: Date?
     /// Plan tier (`"pro"`, `"ultra"`, …).
     public var membershipType: String
-    /// Included-allowance usage this cycle, in cents (when reported).
-    public var includedUsedCents: Int?
-    /// The included allowance in cents (when reported).
-    public var includedLimitCents: Int?
+    /// Fraction (0...1) of the included allowance used this cycle, when known.
+    public var includedFractionUsed: Double?
+    /// The dashboard's own status lines (e.g. "You've used 21% of your included
+    /// total usage"), for display verbatim.
+    public var usageMessages: [String]
+    /// Top models by usage this cycle, as relative shares (dollar-free — see
+    /// ``AggregatedUsage``). Empty when the per-model fetch is unavailable.
+    public var topModels: [ModelShare]
 
     public init(
         currentCycleCents: Int,
@@ -25,16 +30,18 @@ public struct SpendSnapshot: Equatable, Sendable {
         cycleStart: Date?,
         cycleEnd: Date?,
         membershipType: String,
-        includedUsedCents: Int?,
-        includedLimitCents: Int?,
+        includedFractionUsed: Double?,
+        usageMessages: [String],
+        topModels: [ModelShare],
     ) {
         self.currentCycleCents = currentCycleCents
         self.yearToDateCents = yearToDateCents
         self.cycleStart = cycleStart
         self.cycleEnd = cycleEnd
         self.membershipType = membershipType
-        self.includedUsedCents = includedUsedCents
-        self.includedLimitCents = includedLimitCents
+        self.includedFractionUsed = includedFractionUsed
+        self.usageMessages = usageMessages
+        self.topModels = topModels
     }
 
     public var currentCycleDollars: Double {
@@ -43,13 +50,5 @@ public struct SpendSnapshot: Equatable, Sendable {
 
     public var yearToDateDollars: Double {
         Double(yearToDateCents) / 100
-    }
-
-    public var includedUsedDollars: Double? {
-        includedUsedCents.map { Double($0) / 100 }
-    }
-
-    public var includedLimitDollars: Double? {
-        includedLimitCents.map { Double($0) / 100 }
     }
 }

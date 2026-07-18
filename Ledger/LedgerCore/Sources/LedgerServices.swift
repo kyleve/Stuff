@@ -189,6 +189,7 @@ public final class LedgerServices {
                 year: year,
                 token: token,
             )
+            let models = await topModels(cycleStart: summary.cycleStart, token: token)
 
             guard generation == requestGeneration else { return }
             let snapshot = SpendSnapshot(
@@ -200,8 +201,9 @@ public final class LedgerServices {
                 cycleStart: summary.cycleStart,
                 cycleEnd: summary.cycleEnd,
                 membershipType: summary.membershipType,
-                includedUsedCents: summary.individualUsage.plan.used,
-                includedLimitCents: summary.individualUsage.plan.limit,
+                includedFractionUsed: summary.includedFractionUsed,
+                usageMessages: summary.usageMessages,
+                topModels: models,
             )
             loadState = .loaded(snapshot)
             lastUpdated = now()
@@ -235,6 +237,25 @@ public final class LedgerServices {
                 total += cents
             }
             return total
+        }
+    }
+
+    /// The top models by usage for the current cycle, as relative shares.
+    /// Best-effort: the per-model breakdown is supplementary, so a failure (or
+    /// an unknown cycle start) logs and yields an empty list rather than
+    /// failing the whole load.
+    private func topModels(cycleStart: Date?, token: SessionToken) async -> [ModelShare] {
+        guard let cycleStart else { return [] }
+        do {
+            let usage = try await provider.aggregatedUsage(
+                startDate: cycleStart,
+                endDate: now(),
+                token: token,
+            )
+            return usage.topModels(limit: 5)
+        } catch {
+            Self.logger.warning("Couldn't load per-model usage: \(error.localizedDescription)")
+            return []
         }
     }
 

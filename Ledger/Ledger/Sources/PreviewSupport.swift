@@ -9,22 +9,35 @@
     enum PreviewSupport {
         /// A session already showing spend.
         static func loadedSession() -> LedgerSession {
-            let provider = ScriptedDashboardProvider(.success(
-                summary: .fixture(
-                    onDemandCents: 315_609,
-                    membershipType: "ultra",
-                    includedUsed: 40000,
-                    includedLimit: 40000,
+            let provider = ScriptedDashboardProvider(
+                .success(
+                    summary: .fixture(
+                        onDemandCents: 315_609,
+                        membershipType: "ultra",
+                        includedUsed: 40000,
+                        includedLimit: 40000,
+                        totalPercentUsed: 20.9,
+                        messages: [
+                            "You've used 21% of your included total usage",
+                            "You've used 100% of your included API usage",
+                        ],
+                    ),
+                    invoiceCentsByMonth: [
+                        1: 120_000,
+                        2: 98000,
+                        3: 210_000,
+                        4: 175_000,
+                        5: 260_000,
+                        6: 288_000,
+                    ],
                 ),
-                invoiceCentsByMonth: [
-                    1: 120_000,
-                    2: 98000,
-                    3: 210_000,
-                    4: 175_000,
-                    5: 260_000,
-                    6: 288_000,
-                ],
-            ))
+                aggregated: .fixture([
+                    "claude-opus-4-8-thinking-xhigh": 28929,
+                    "claude-fable-5-thinking-xhigh": 21082,
+                    "composer-2.5-fast": 8008,
+                    "github_bugbot": 606,
+                ]),
+            )
             let session = session(
                 provider: provider,
                 autoToken: SessionToken(cookieValue: "user_preview::jwt"),

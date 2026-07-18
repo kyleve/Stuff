@@ -12,8 +12,9 @@ lives in the [`Ledger`](../Ledger) app target and binds this tree directly.
   (`state.vscdb` → `cursorAuth/accessToken`), or a value you **paste** into
   Settings (stored in the Keychain, which overrides auto-detect).
 - Calls `GET /api/usage-summary` for the current cycle's dates, plan type, and
-  live usage-based spend, and `POST /api/dashboard/get-monthly-invoice` for each
-  prior month of the year.
+  live usage-based spend, `POST /api/dashboard/get-monthly-invoice` for each
+  prior month of the year, and `POST /api/dashboard/get-aggregated-usage-events`
+  for the per-model breakdown (best-effort).
 - Reduces it all to one observable `LoadState` (`idle` / `loading` /
   `loaded(SpendSnapshot)` / `failed(LoadError)`).
 
@@ -55,6 +56,12 @@ auto-token", surfaced as `LoadError.missingCredentials`.
 - **This year** = the sum of the prior months' `get-monthly-invoice` totals plus
   the current cycle's live figure (the current month's invoice lags until
   charges post, so the live number stands in for it).
+
+- **Top models** = `get-aggregated-usage-events` over the cycle window, shown as
+  each model's **share** of that endpoint's total. This is deliberately
+  dollar-free: its `totalCostCents` measures compute differently from the billed
+  on-demand figure, so it must not be presented as spend. Best-effort — a
+  failure logs and yields an empty list rather than failing the whole load.
 
 All money is cents. Note: on a plan with usage-based pricing off, these `$`
 figures reflect included-compute value, not money owed.

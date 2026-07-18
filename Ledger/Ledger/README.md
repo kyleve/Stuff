@@ -39,10 +39,16 @@ shortcut to System Settings if macOS needs you to approve the login item.
   automatically every 15 minutes. Opening the popover just shows the latest
   fetched state; it doesn't trigger a network request.
 - **Popover** — this cycle's spend and date range, a **year-to-date** total,
-  included-usage used/limit, your plan tier, and when it last updated. A
+  your plan tier, an **included-usage** progress bar (with Cursor's own status
+  lines), **top models this cycle** as usage shares, and when it last updated. A
   **Refresh** button forces an immediate fetch. On an error (no session, an
   expired session, a network failure) it explains what to fix and offers a
   shortcut to Settings.
+
+The per-model rows are shown as **relative shares**, not dollars: the dashboard's
+per-model figure (`get-aggregated-usage-events`) measures compute differently
+from the billed on-demand headline, so showing its dollars alongside the
+headline would look like they don't add up.
 
 ## Design notes
 

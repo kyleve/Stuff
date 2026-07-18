@@ -13,14 +13,26 @@
         }
 
         private let outcome: Outcome
+        private let aggregated: AggregatedUsage
+        /// When set, only `aggregatedUsage` throws it — exercises the
+        /// best-effort per-model path (summary/invoices still succeed).
+        private let aggregatedFailure: DashboardError?
 
-        public init(_ outcome: Outcome) {
+        public init(
+            _ outcome: Outcome,
+            aggregated: AggregatedUsage = AggregatedUsage(aggregations: [], totalCostCents: 0),
+            aggregatedFailure: DashboardError? = nil,
+        ) {
             self.outcome = outcome
+            self.aggregated = aggregated
+            self.aggregatedFailure = aggregatedFailure
         }
 
         /// Convenience: a successful summary with no prior-month invoices.
         public init(summary: UsageSummary) {
             outcome = .success(summary: summary, invoiceCentsByMonth: [:])
+            aggregated = AggregatedUsage(aggregations: [], totalCostCents: 0)
+            aggregatedFailure = nil
         }
 
         public func usageSummary(token _: SessionToken) async throws -> UsageSummary {
@@ -45,6 +57,16 @@
                 case let .failure(error):
                     throw error
             }
+        }
+
+        public func aggregatedUsage(
+            startDate _: Date,
+            endDate _: Date,
+            token _: SessionToken,
+        ) async throws -> AggregatedUsage {
+            if let aggregatedFailure { throw aggregatedFailure }
+            if case let .failure(error) = outcome { throw error }
+            return aggregated
         }
     }
 
@@ -100,10 +122,12 @@
             membershipType: String = "pro",
             includedUsed: Int = 0,
             includedLimit: Int? = nil,
+            totalPercentUsed: Double? = nil,
+            messages: [String] = [],
             cycleStart: String = "2026-07-04T18:16:08.000Z",
             cycleEnd: String = "2026-08-04T18:16:08.000Z",
         ) -> UsageSummary {
-            UsageSummary(
+            var summary = UsageSummary(
                 billingCycleStart: cycleStart,
                 billingCycleEnd: cycleEnd,
                 membershipType: membershipType,
@@ -115,8 +139,23 @@
                         limit: includedLimit,
                         remaining: nil,
                         breakdown: nil,
+                        totalPercentUsed: totalPercentUsed,
                     ),
                 ),
+            )
+            summary.autoModelSelectedDisplayMessage = messages.first
+            summary.namedModelSelectedDisplayMessage = messages.count > 1 ? messages[1] : nil
+            return summary
+        }
+    }
+
+    extension AggregatedUsage {
+        /// A per-model aggregation from `[model: costCents]` pairs.
+        public static func fixture(_ modelCents: KeyValuePairs<String, Double>) -> AggregatedUsage {
+            let models = modelCents.map { ModelUsage(modelIntent: $0.key, totalCents: $0.value) }
+            return AggregatedUsage(
+                aggregations: models,
+                totalCostCents: models.reduce(0) { $0 + $1.totalCents },
             )
         }
     }

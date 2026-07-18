@@ -12,7 +12,7 @@ per-type detail.
 LedgerServices ── LedgerSettings (refresh interval)
        ├────────── SessionTokenSource ── CursorLocalTokenSource (state.vscdb, read-only)
        ├────────── KeychainStore (a pasted token override)
-       ├────────── DashboardProvider ── CursorDashboardAPI (/api/usage-summary, get-monthly-invoice)
+       ├────────── DashboardProvider ── CursorDashboardAPI (usage-summary, get-monthly-invoice, get-aggregated-usage-events)
        └────────── LoginItemController (SMAppService)
 ```
 
@@ -48,6 +48,12 @@ build system, formatting, and global conventions. Read that first.
   live cycle figure.** The current month's invoice lags until charges post, so
   the live usage-summary number stands in for it — don't double-count by also
   summing the current month's (sparse) invoice.
+- **Per-model usage is a dollar-free share, and best-effort.**
+  `get-aggregated-usage-events`' `totalCostCents` measures compute differently
+  from the billed on-demand figure (they don't reconcile), so `ModelShare`
+  carries only a fraction — never present it as spend next to the headline. A
+  failure to fetch it logs a warning and yields no models; it must not fail the
+  whole load.
 - **Failures are observable, never swallowed.** Transport/HTTP/decode failures
   become a typed `DashboardError`, mapped into `LoadState.failed(LoadError)` and
   logged; 401 maps to `.notAuthenticated` (expired session). A stale response
