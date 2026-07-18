@@ -1,10 +1,10 @@
 # Swift Module Audit Report
 
-Read-only review of all **15 SPM library targets**, **6 Tuist app/extension targets**, and the **BroadwayCatalog** showcase app (~298 source / ~182 test Swift files). No code was changed.
+Read-only review of all **15 SPM library targets**, **6 Tuist app/extension targets**, and the **BroadwayCatalog** showcase app (~308 source / ~189 test Swift files). No code was changed.
 
-**Date:** July 17, 2026  
+**Date:** July 18, 2026  
 **Method:** Parallel read-only subagent passes per module group; findings merged and spot-checked against source.  
-**Prior audit:** June 23, 2026 (11 targets, ~178 files).  
+**Prior audit:** July 17, 2026 (~298 source / ~182 test files).  
 **Follow-ups:** See [TODO](#todo) for actionable checklist items.
 
 ---
@@ -15,8 +15,8 @@ Read-only review of all **15 SPM library targets**, **6 Tuist app/extension targ
 |----------|------:|
 | Critical | 0 |
 | High | 3 |
-| Medium | 38 |
-| Low | 52 |
+| Medium | 39 |
+| Low | 51 |
 | **Total** | **93** |
 
 | Category | Count |
@@ -29,7 +29,7 @@ Read-only review of all **15 SPM library targets**, **6 Tuist app/extension targ
 | localization | 5 |
 | docs | 2 |
 
-**Overall:** The codebase has roughly doubled in size since the June audit and gained substantial new surface area (Broadway, Periscope, RegionKit, WhereIntents, share extension, TestHostSupport). Most June audit quick-wins landed — backup import reconciliation, LogViewerUI caching, SwiftDataInspector pagination, TestHostSupport split, module docs, and many convention fixes are done. The strongest **remaining** themes are **daily-summary notification staleness** after data changes, the **tracking-toggle race** in WhereUI, a **residual LifecycleKit phase race** during `minVisible` cancellation, and **thin test coverage** on several extension/app shells and glue files.
+**Overall:** Since the July 17 audit, region-picking onboarding (#95) added primary-region customization, appearance catalogs, and backup v2 `primaryRegions` round-trip — but also exposed a **reconcile fan-out gap** on `setPrimaryRegions`. Fresh-install launch (#99) fixed store double-open and superseded-drive `.failed` clobbering, and added `IntentServices` handoff tests — the **residual `minVisible` cancel race** and **launch-reason misdetection** remain. The strongest **remaining** themes are **daily-summary notification staleness** after data changes, the **tracking-toggle race** in WhereUI, **widget/summary staleness after appearance-only region edits**, and **thin test coverage** on several extension/app shells and glue files.
 
 ---
 
@@ -40,13 +40,13 @@ Read-only review of all **15 SPM library targets**, **6 Tuist app/extension targ
 | 1 | **high** | WhereCore | `DailySummaryReconciler.reconcile()` is never called from GPS ingest, journal writes, or backup import — notification body can stay stale until foreground re-`configure` |
 | 2 | **high** | WhereUI | Tracking toggle race — rapid on/off spawns unserialized `Task`s; slow `startTracking()` can finish after a later `stopTracking()` |
 | 3 | **high** | LifecycleKit | Residual cancel-during-`minVisible` race — superseded drive can still reach `.ready` before the new drive completes |
-| 4 | **medium** | WhereCore | `DayJournal.ingest(_:)` / bulk ingest paths publish widgets but skip reminder/issue reconcile (test/bulk paths only; live GPS goes through `LocationIngestor`) |
-| 5 | **medium** | PeriscopeCore | Multi-process journal ingest race when app and extension share a store — tracked in `Shared/Periscope/TODOs.md` |
-| 6 | **medium** | WhereIntents | Individual `AppIntent.perform()` bodies and `IntentServices` process cache untested despite README implying intent-level coverage |
-| 7 | **medium** | WhereShareExtension | `ShareEvidenceModel.buildPendingEvidence()` is testable but has no test bundle |
-| 8 | **medium** | RegionKit | `GeoJSON` decoder paths (unsupported geometry, malformed coordinates) untested |
-| 9 | **medium** | WhereUI | Duplicated load-state UI across Primary / Secondary / Calendar tabs — no shared `ReportLoadGate` |
-| 10 | **medium** | WhereCore | Durable outbox save failure can drop queued GPS samples on relaunch |
+| 4 | **medium** | WhereCore | `setPrimaryRegions(_:)` commits appearance changes but skips widget/reminder/summary reconcile — widget snapshot can stay stale until next publish |
+| 5 | **medium** | WhereCore | `DayJournal.ingest(_:)` / bulk ingest paths publish widgets but skip reminder/issue reconcile (test/bulk paths only; live GPS goes through `LocationIngestor`) |
+| 6 | **medium** | PeriscopeCore | Multi-process journal ingest race when app and extension share a store — tracked in `Shared/Periscope/TODOs.md` |
+| 7 | **medium** | WhereIntents | Individual `AppIntent.perform()` bodies untested — `IntentServices` handoff now covered; `perform()` still seam-only per module docs |
+| 8 | **medium** | WhereShareExtension | `ShareEvidenceModel.buildPendingEvidence()` is testable but has no test bundle |
+| 9 | **medium** | RegionKit | `GeoJSON` decoder paths (unsupported geometry, malformed coordinates) untested |
+| 10 | **medium** | WhereUI | Duplicated load-state UI across Primary / Secondary / Calendar tabs — no shared `ReportLoadGate` |
 
 ---
 
@@ -54,7 +54,7 @@ Read-only review of all **15 SPM library targets**, **6 Tuist app/extension targ
 
 ### Reconciliation mostly unified (WhereCore)
 
-Since June, backup import and day-mutating writes funnel through `DayJournal.reconcileAfterDayChange()` → scanner invalidate, reminders, issue alerts, widgets. **Daily summary** remains the outlier — it only refreshes on launch/foreground `configure` and settings edits, not on data changes.
+Since June, backup import and day-mutating writes funnel through `DayJournal.reconcileAfterDayChange()` → scanner invalidate, reminders, issue alerts, widgets. **Daily summary** remains the outlier — it only refreshes on launch/foreground `configure` and settings edits, not on data changes. **`setPrimaryRegions(_:)`** (region-picking onboarding) also skips the fan-out — appearance edits update in-app styling via `store.changes()` but can leave widget snapshots and summary notification bodies stale until the next publish.
 
 ### Extension/app targets defer tests to libraries
 
@@ -74,7 +74,7 @@ PeriscopeTools row components, RegionKit GeoJSON, Broadway UIKit helpers, WhereI
 
 ### Infrastructure is in good shape
 
-LifecycleKit cancel-and-drain during `minVisible` **hang** is fixed; LogViewerUI caching fixed; SwiftDataInspector pagination/lazy rendering fixed; WhereTesting split into dependency-free `TestHostSupport` + `@_spi(Testing) InMemoryKeyValueStore` in WhereCore; all library targets now ship `README.md` + `AGENTS.md`.
+LifecycleKit superseded-drive **throw-during-promotion** no longer clobbers `phase` with `.failed` (#99); the residual **cancel-during-`minVisible` → `.ready`** race remains. LogViewerUI caching fixed; SwiftDataInspector pagination/lazy rendering fixed; WhereTesting split into dependency-free `TestHostSupport` + `@_spi(Testing) InMemoryKeyValueStore` in WhereCore; all library targets now ship `README.md` + `AGENTS.md`. Fresh-install launch (#99) enforces one store open per process via injection and adds `IntentServices` handoff tests.
 
 ### Evidence compose duplication
 
@@ -89,6 +89,7 @@ Summary buckets — every open TODO below is tagged **`quick-win`** or **`needs-
 ### Quick wins (localized, low-risk)
 
 - Add `DailySummaryReconciler.reconcile()` to the unified post-day-change fan-out + regression test
+- Route `setPrimaryRegions(_:)` through `reconcileAfterDayChange()` (or a widget-only publish) + regression test
 - Add LifecycleKit regression test for superseding drive during `minVisible` hold
 - Add SwiftDataInspector test for bare `PersistentIdentifier` relationship slots
 - Add `GeoJSONTests.swift` with malformed/unsupported fixture snippets
@@ -126,9 +127,11 @@ Actionable follow-ups from this audit. Items marked `[x]` were open in the June 
 
 - [ ] **WhereCore** — Call `DailySummaryReconciler.reconcile()` from the unified post-day-change fan-out (GPS ingest hook, `reconcileAfterDayChange()`, backup `onImport`) (**high**, bug, **needs-design** — extend fan-out vs. document foreground-only policy)
 - [ ] **WhereCore** — Add test: mutate data → summary notification body updates without re-`configure` (**high**, test, **quick-win** — pairs with item above)
+- [ ] **WhereCore** — Route `setPrimaryRegions(_:)` through `reconcileAfterDayChange()` (or at minimum `widgets.publish()`) so appearance edits refresh widget snapshot and summary (**medium**, bug, **needs-design** — new from region-picking onboarding #95)
+- [ ] **WhereCore** — Add test: `setPrimaryRegions` appearance change → widget snapshot reflects new colors without waiting for throttle (**medium**, test, **quick-win** — pairs with item above)
 - [ ] **WhereUI** — Serialize `WhereSession.trackingEnabled` mutations (cancel/coalesce in-flight start/stop tasks) (**high**, bug, **needs-design**)
 - [ ] **WhereUI** — Split toggle binding: `wantsTracking` for intent vs `isTracking` for effective GPS state (**high**, bug, **needs-design** — pairs with tracking serialization)
-- [ ] **LifecycleKit** — After cancel during `minVisible`, check `Task.isCancelled` in `runStep`/`hold()` so superseded drive cannot set `phase = .ready` (**high**, bug, **needs-design**)
+- [ ] **LifecycleKit** — After cancel during `minVisible`, check `Task.isCancelled` in `runStep`/`hold()` so superseded drive cannot set `phase = .ready` (**high**, bug, **needs-design** — partial fix in #99 covers throw-during-supersede, not hold-window completion)
 - [ ] **LifecycleKit** — Add test superseding drive during `minVisible` (teardown/enterForeground while hold is active) (**high**, test, **quick-win**)
 
 ### Medium priority — WhereCore
@@ -147,7 +150,7 @@ Actionable follow-ups from this audit. Items marked `[x]` were open in the June 
 - [ ] **WhereUI** — Extract shared `ReportLoadGate` for duplicated load-state UI across tabs (**medium**, duplication, **needs-design**)
 - [ ] **WhereUI** — Extract shared region-selection form logic from `ManualDayView` / `DayRelabelView` (**medium**, duplication, **needs-design** — partial: shared subviews exist)
 - [ ] **WhereUI** — Batch or cap concurrent geocoding in `RegionDaysView` day rows (**medium**, performance, **needs-design**)
-- [ ] **WhereUI** — Make `SecondaryView.loadPlaceNames()` cancellation-aware (generation token / `.task(id:)`) (**medium**, bug, **needs-design**)
+- [x] **WhereUI** — Make `SecondaryView.loadPlaceNames()` cancellation-aware (generation token / `.task(id:)`) (**medium**, bug, **needs-design**) — *fixed via `.task(id: report.report)` + `Task.isCancelled` guard*
 - [ ] **WhereUI** — Replace `Calendar.current` with report/injected Gregorian calendar in year/day math (**medium**, convention, **quick-win**)
 - [ ] **WhereUI** — Remove `waitForOneRunloop()` from UI tests (**medium**, test, **quick-win** — also in `Where/TODOs.md` P0)
 - [x] **WhereUI** — Replace closure `Binding(get:set:)` save-error alerts (**medium**, convention, **quick-win**)
@@ -158,8 +161,8 @@ Actionable follow-ups from this audit. Items marked `[x]` were open in the June 
 
 - [ ] **SwiftDataInspector** — Add test for bare `PersistentIdentifier` to-one relationship resolution (**medium**, test, **quick-win**)
 - [ ] **SwiftDataInspector** — Split monolithic test file; optional hosted UI smoke tests (**medium**, test, **needs-design**)
-- [ ] **WhereIntents** — Add `perform()` tests per intent or update README to reflect seam-only coverage (**medium**, test, **quick-win**)
-- [ ] **WhereIntents** — Test `IntentServices` process-wide cache (**medium**, test, **quick-win**)
+- [ ] **WhereIntents** — Add `perform()` tests per intent or update README to reflect seam-only coverage (**medium**, test, **quick-win** — `perform()` untestable via `@Dependency` per module docs; seam tests are the ceiling)
+- [x] **WhereIntents** — Test `IntentServices` process-wide cache (**medium**, test, **quick-win**) — *fixed in #99: `IntentServicesTests` covers install/park/cancel/replace on hermetic instances*
 - [ ] **WhereShareExtension** — Add `ShareEvidenceModelTests` (**medium**, test, **quick-win**)
 - [ ] **RegionKit** — Add `GeoJSONTests.swift` (**medium**, test, **quick-win**)
 - [ ] **BroadwayUI** — Fix nested `BRootViewController` duplicate trait observers (**medium**, bug, **needs-design** — latent; not used in Where today)
@@ -193,8 +196,8 @@ Actionable follow-ups from this audit. Items marked `[x]` were open in the June 
 
 | Effort | Open | Done (since June) |
 |--------|-----:|------------------:|
-| **quick-win** | ~18 | ~90 |
-| **needs-design** | ~22 | ~10 |
+| **quick-win** | ~17 | ~91 |
+| **needs-design** | ~23 | ~10 |
 
 Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for items to discuss or spec before coding.
 
@@ -202,7 +205,7 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 
 ## Per-module findings
 
-### WhereCore (12 open / many fixed)
+### WhereCore (13 open / many fixed)
 
 **High**
 
@@ -214,6 +217,7 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 
 | Category | Location | Issue | Suggestion |
 |----------|----------|-------|------------|
+| bug | `WhereServices.setPrimaryRegions(_:)` | Appearance-only region edits skip widget/reminder/summary reconcile | Route through `reconcileAfterDayChange()` or at minimum `widgets.publish()`; test snapshot refresh |
 | bug | `DayJournal.swift` — `ingest(_:)`, bulk ingest | Widget publish without reminder/issue reconcile | Route through reconcile or document test-only scope |
 | bug | `LocationOutbox.swift` — `save(_:)` | Outbox save failure → relaunch sample loss | Degraded-state handling + relaunch test |
 | bug | `LocationIngestor.swift` — retry queue eviction | Silent drop at capacity with warning only | User-visible degradation or policy doc |
@@ -229,13 +233,13 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 | convention | `WidgetSnapshotStore.read()` | `try?` hides decode failures | Log at `warning` on app write path |
 | test | ~68 source files | Strict 1:1 test mapping not followed | Integration suites cover most paths; document or split |
 
-**Verified OK:** Backup import → reminders/badge/widgets via `reconcileAfterDayChange`; GPS ingest → throttled reminder reconcile; summary format strings; `BackupError` localization; `WhereStore.perform` boundary; enum switches with `@unknown default`; post-write fan-out single owner in `DayJournal`.
+**Verified OK:** Backup import → reminders/badge/widgets via `reconcileAfterDayChange`; GPS ingest → throttled reminder reconcile; summary format strings; `BackupError` localization; `WhereStore.perform` boundary; enum switches with `@unknown default`; post-write fan-out single owner in `DayJournal`; backup v2 `primaryRegions` round-trip (#95); `PrimaryRegion` / `RegionAppearance` model + tests.
 
-**Files:** 68 source / 55 test · README ✓ · AGENTS ✓
+**Files:** 70 source / 57 test · README ✓ · AGENTS ✓
 
 ---
 
-### WhereUI (10 open / many fixed)
+### WhereUI (9 open / many fixed)
 
 **High**
 
@@ -251,7 +255,6 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 | duplication | `ManualDayView`, `DayRelabelView` | Parallel form chrome despite shared subviews | Shared form model or subview |
 | convention | `ManualDayView`, `PresenceTimelineView`, `RegionSummaryCard` | `Calendar.current` for year/day math | Use report Gregorian calendar |
 | performance | `RegionDaysView` — `DayRow` | Per-row geocode `.task` | Prefetch unique coordinates |
-| bug | `SecondaryView.loadPlaceNames()` | Stale geocode after year switch | Cancellation token / `.task(id:)` |
 | test | UI tests | `waitForOneRunloop()` flake risk | Predicate polling |
 
 **Low**
@@ -262,13 +265,13 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 | performance | `RegionSummaryCard` Canvas | Many concentric rings | Profile before optimizing |
 | localization | `IntentSnippets` preview button | Hardcoded English in snippet preview | Route through `Strings` if shipped |
 
-**Verified OK:** `SaveErrorAlertState` replaces closure bindings; `YearReportModel.LoadState` modeling; scene-scoped refresh; `#Preview` coverage; `ScreenHostingTests` for manual/relabel; Core logic stays in models/services.
+**Verified OK:** `SaveErrorAlertState` replaces closure bindings; `YearReportModel.LoadState` modeling; scene-scoped refresh; `#Preview` coverage; `ScreenHostingTests` for manual/relabel; Core logic stays in models/services; region-picking onboarding + `RegionAppearanceCatalog` / `RegionStyleResolver` (#95); `SecondaryView.loadPlaceNames()` cancellation via `.task(id:)` + guard.
 
-**Files:** 76 source / 31 test · README ✓ · AGENTS ✓
+**Files:** 84 source / 35 test · README ✓ · AGENTS ✓
 
 ---
 
-### LifecycleKit (2 open / cancel hang fixed)
+### LifecycleKit (2 open / throw-during-supersede fixed)
 
 **High / medium**
 
@@ -277,7 +280,7 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 | bug | `LifecycleRunner.runStep` → `ActivePresentation.hold()` | Cancel during `minVisible` can still return `.completed`; superseded drive may set `.ready` | Check `Task.isCancelled` after hold; gate terminal phase on active drive |
 | test | `LifecycleRunnerTests` | No supersede-during-hold regression | Add teardown/enterForeground mid-hold test |
 
-**Verified OK:** Cancel-and-drain no longer blocks full `minVisible` window; fuzz tests; duplicate step ID fail-fast; module localization; background→foreground container test.
+**Verified OK:** Cancel-and-drain no longer blocks full `minVisible` window; fuzz tests; duplicate step ID fail-fast; module localization; background→foreground container test; superseded drive whose step throws reports `.cancelled` instead of clobbering promoted drive's `phase` (#99).
 
 **Files:** 9 source / 10 test · README ✓ · AGENTS ✓
 
@@ -358,13 +361,13 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 
 ---
 
-### WhereIntents (4 open)
+### WhereIntents (3 open)
 
-**Medium:** No `perform()` tests; `IntentServices` cache untested. **Low:** `LogTripIntent` not in shortcuts provider; `LogDayIntent` default day uses `Date()` vs calendar consistency; Spotlight indexer untested.
+**Medium:** No `perform()` tests (framework `@Dependency` seam untestable in-process per module docs). **Low:** `LogTripIntent` not in shortcuts provider; `LogDayIntent` default day uses `Date()` vs calendar consistency; Spotlight indexer untested.
 
-**Verified OK:** Reader/writer seams well tested; duplicate-linking discipline via WhereUI only.
+**Verified OK:** Reader/writer seams well tested; duplicate-linking discipline via WhereUI only; `IntentServices` handoff install/park/cancel/replace covered by `IntentServicesTests` (#99); `forIntents(sharingStoreOf:)` shares store/clock (#99).
 
-**Files:** 16/8 · README ✓ · AGENTS ✓
+**Files:** 16/9 · README ✓ · AGENTS ✓
 
 ---
 
@@ -418,9 +421,9 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 | PeriscopeUI | `Shared/Periscope/PeriscopeUI/` | 1 | 2 | ✓ | ✓ |
 | PeriscopeTools | `Shared/Periscope/PeriscopeTools/` | 15 | 13 | ✓ | ✓ |
 | RegionKit | `Where/RegionKit/` | 9 | 6 | ✓ | ✓ |
-| WhereCore | `Where/WhereCore/` | 68 | 55 | ✓ | ✓ |
-| WhereUI | `Where/WhereUI/` | 76 | 31 | ✓ | ✓ |
-| WhereIntents | `Where/WhereIntents/` | 16 | 8 | ✓ | ✓ |
+| WhereCore | `Where/WhereCore/` | 70 | 57 | ✓ | ✓ |
+| WhereUI | `Where/WhereUI/` | 84 | 35 | ✓ | ✓ |
+| WhereIntents | `Where/WhereIntents/` | 16 | 9 | ✓ | ✓ |
 
 ### Tuist app / extension targets
 
@@ -433,7 +436,21 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 | StuffTestHost | `Shared/StuffTestHost/` | 2 | 0 | ✓ | ✓ |
 | BroadwayCatalog | `Shared/Broadway/BroadwayCatalog/` | 2 | 1 | ✓ | ✓ |
 
-**Totals:** ~298 source · ~182 test Swift files across the tree.
+**Totals:** ~308 source · ~189 test Swift files across the tree.
+
+---
+
+## Changes since July 17, 2026 audit
+
+| Area | July 17 state | July 18 state |
+|------|---------------|---------------|
+| File count | ~298 / ~182 | ~308 / ~189 |
+| Region picking | Not shipped | Onboarding + settings picker, `PrimaryRegion`/`RegionAppearance`, backup v2, `RegionStyleResolver` (#95) |
+| `setPrimaryRegions` fan-out | N/A | New gap — appearance edits skip widget/reminder/summary reconcile |
+| Fresh-install launch | Store double-open race | One store per process via injection; prompt foreground promotion (#99) |
+| LifecycleKit supersede | Residual `.ready` race only | Throw-during-supersede no longer clobbers `phase` (#99); `minVisible` race remains |
+| IntentServices tests | Cache untested | `IntentServicesTests` + `forIntents` sharing tests (#99) |
+| SecondaryView geocode | Stale after year switch | Fixed via `.task(id:)` + cancellation guard |
 
 ---
 
