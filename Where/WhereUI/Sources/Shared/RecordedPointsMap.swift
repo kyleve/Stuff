@@ -24,6 +24,7 @@ struct RecordedPointsMap: View {
     let points: [RecordedMapPoint]
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     private var regionMap: WhereStylesheet.RegionMapStyle {
         stylesheet.regionMap
@@ -32,17 +33,17 @@ struct RecordedPointsMap: View {
     var body: some View {
         Map(initialPosition: .automatic) {
             ForEach(pins) { pin in
+                let tint = regionStyles.style(for: pin.region).tint
                 if let radius = drawnUncertaintyRadius(for: pin) {
                     MapCircle(center: pin.coordinate, radius: radius)
-                        .foregroundStyle(pin.region.style.tint
-                            .opacity(regionMap.uncertaintyFillOpacity))
+                        .foregroundStyle(tint.opacity(regionMap.uncertaintyFillOpacity))
                         .stroke(
-                            pin.region.style.tint.opacity(regionMap.uncertaintyStrokeOpacity),
+                            tint.opacity(regionMap.uncertaintyStrokeOpacity),
                             lineWidth: regionMap.uncertaintyStrokeWidth,
                         )
                 }
                 Marker("", coordinate: pin.coordinate)
-                    .tint(pin.region.style.tint)
+                    .tint(tint)
             }
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))

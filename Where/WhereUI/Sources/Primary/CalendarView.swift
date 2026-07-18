@@ -263,6 +263,7 @@ private struct MonthFooter: View {
     var focusedRegion: Region?
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     private var calendar: WhereStylesheet.CalendarStyle {
         stylesheet.calendar
@@ -281,7 +282,7 @@ private struct MonthFooter: View {
         let isFocused = tally.region == focusedRegion
         return HStack(spacing: calendar.month.footerRowSpacing) {
             Circle()
-                .fill(tally.region.style.tint)
+                .fill(regionStyles.style(for: tally.region).tint)
                 .frame(
                     width: calendar.dotSize,
                     height: calendar.dotSize,
@@ -311,6 +312,7 @@ private struct DayCell: View {
     let day: CalendarDayCell
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     private var calendar: WhereStylesheet.CalendarStyle {
         stylesheet.calendar
@@ -352,7 +354,7 @@ private struct DayCell: View {
             HStack(spacing: calendar.dayContentSpacing) {
                 ForEach(day.regions, id: \.self) { region in
                     Circle()
-                        .fill(region.style.tint)
+                        .fill(regionStyles.style(for: region).tint)
                         .frame(
                             width: calendar.dotSize,
                             height: calendar.dotSize,

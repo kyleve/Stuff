@@ -39,14 +39,26 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ### Reusable views & styling
 
-- **`OnboardingView`** — the first-run flow, driven by a `LifecycleStepUIBridge`.
+- **`OnboardingView`** — the first-run flow, driven by a `LifecycleStepUIBridge`:
+  a paged intro, then picking up to five primary US regions (map or searchable
+  list) and giving each a look, then the location-permission ask. It commits the
+  picks as the tracked-region set + appearances before finishing. The intro also
+  offers **Restore from a backup**, which imports a backup (`.replace`) and skips
+  the manual pick/customize steps straight to the location ask.
+- **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
+  picker (segmented map/list) and per-region color/emoji/icon customization,
+  backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings
+  `RegionsSettingsView` editor.
 - **Widget views** — the shared renderers the **WhereWidgets** extension draws
   with: `TodayWidgetView`, `YearTotalsWidgetView`, and the accessory family
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
   `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot`.
-- **`RegionStyle`** — a region's symbol, emoji, and tint (read as
-  `region.style`); the per-region look shared across cards, calendar dots, and
-  timelines.
+- **`RegionStyle` / `RegionStyleResolver`** — a region's symbol, emoji, and
+  tint, shared across cards, calendar dots, and timelines. Views resolve it from
+  `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by
+  `whereBroadwayRoot(regionStyles:)` — from `WhereSession`'s live resolver in the
+  app, the `WidgetSnapshot` in the widget process, and services in App Intents —
+  falling back to a deterministic default from `RegionAppearanceCatalog`.
 - **`whereBroadwayRoot()`** — seeds the Broadway design-system context so
   descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.

@@ -77,6 +77,17 @@ public final class WhereSession {
     /// access to race.
     @ObservationIgnored private nonisolated(unsafe) var authorizationTask: Task<Void, Never>?
 
+    /// Observes `dataChangeUpdates()` to keep ``regionStyles`` in sync with the
+    /// store's picked region appearances. Same `nonisolated(unsafe)` rationale as
+    /// `authorizationTask` — only touched on the main actor except `deinit`.
+    @ObservationIgnored private nonisolated(unsafe) var regionStyleTask: Task<Void, Never>?
+
+    /// The user's picked region looks, resolved for the view environment (seeded
+    /// into `whereBroadwayRoot(regionStyles:)` by `RootView`). Loaded at launch
+    /// and kept live on every store change, so a Settings edit or a synced pick
+    /// from another device restyles the UI without a relaunch.
+    public private(set) var regionStyles: RegionStyleResolver = .default
+
     private static let logger = WhereLog.channel(.session)
 
     /// The authorization the degradation warning was last evaluated against.
@@ -136,6 +147,7 @@ public final class WhereSession {
     /// until the next status change resumes it.
     deinit {
         authorizationTask?.cancel()
+        regionStyleTask?.cancel()
     }
 
     /// Sync authorization, resume tracking if appropriate, apply the reminder /
@@ -149,6 +161,8 @@ public final class WhereSession {
     public func start() async {
         await syncAuthorization()
         observeAuthorizationChanges()
+        await seedRegionStyles()
+        observeRegionStyleChanges()
         await reconcileTracking()
         await captureTodayIfNeeded()
         await applyReminderConfiguration()
@@ -229,6 +243,34 @@ public final class WhereSession {
                 authorizationStatus = status
                 warnIfAuthorizationDegraded()
                 await reconcileTracking()
+            }
+        }
+    }
+
+    /// Load the user's picked region appearances into ``regionStyles`` so the
+    /// UI resolves them everywhere it renders a region. A launch step (see
+    /// `WhereLaunch.sequence`); also re-run on every store change via
+    /// `observeRegionStyleChanges()`. On failure it keeps the last good resolver
+    /// (honest degraded state) and logs.
+    func seedRegionStyles() async {
+        do {
+            let primary = try await services.primaryRegions()
+            regionStyles = RegionStyleResolver(primaryRegions: primary)
+        } catch {
+            Self.logger.warning("Failed to load region appearances for styling")
+        }
+    }
+
+    /// Subscribe to store changes (local commits + remote CloudKit imports) so a
+    /// customized region's look stays live — a Settings edit or a synced pick on
+    /// another device reloads ``regionStyles``. Idempotent.
+    func observeRegionStyleChanges() {
+        guard regionStyleTask == nil else { return }
+        let services = services
+        regionStyleTask = Task { @MainActor [weak self] in
+            for await _ in services.dataChangeUpdates() {
+                guard let self else { break }
+                await seedRegionStyles()
             }
         }
     }

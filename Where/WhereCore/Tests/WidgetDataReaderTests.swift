@@ -36,6 +36,39 @@ struct WidgetDataReaderTests {
         #expect(snapshot.year == 2026)
         #expect(snapshot.dayRegions.isEmpty)
         #expect(snapshot.totals.isEmpty)
+        #expect(snapshot.appearances.isEmpty)
+    }
+
+    @Test func snapshotCarriesPickedRegionAppearances() async throws {
+        let (reader, store) = try Self.makeReader()
+        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
+        try await store.perform {
+            try await store.setPrimaryRegions([
+                PrimaryRegion(region: .california, appearance: caLook, order: 0),
+                // A tracked region with no picked look contributes no appearance.
+                PrimaryRegion(region: .newYork, appearance: nil, order: 1),
+            ])
+        }
+
+        let snapshot = try await reader
+            .snapshot(asOf: WhereCoreTestSupport.iso("2026-03-15T12:00:00-07:00"))
+
+        #expect(snapshot.appearances == [.california: caLook])
+    }
+
+    @Test func snapshotAppearancesSurviveCodableRoundTrip() throws {
+        let look = RegionAppearance(color: .indigo, emoji: "🗽", symbolName: "building.2.fill")
+        let snapshot = WidgetSnapshot(
+            day: WhereCoreTestSupport.iso("2026-03-15T00:00:00-07:00"),
+            year: 2026,
+            dayRegions: [.newYork],
+            totals: [.newYork: 3],
+            appearances: [.newYork: look],
+        )
+        let data = try JSONEncoder().encode(snapshot)
+        let decoded = try JSONDecoder().decode(WidgetSnapshot.self, from: data)
+        #expect(decoded == snapshot)
+        #expect(decoded.appearances == [.newYork: look])
     }
 
     @Test func samplesAndManualDaysRollUpLikeTheYearReport() async throws {

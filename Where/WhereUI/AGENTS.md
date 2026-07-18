@@ -56,7 +56,7 @@ not back inline in a view.
 Group a component's whole appearance into one nested `Equatable` struct instead
 of adding loose properties to the top level. The existing groups —
 `CardStyle` / `CardStyles`, `CalendarStyle`, `AppIconStyle`, `TimelineStyle`,
-`RegionMapStyle` — are the template. To add one:
+`RegionMapStyle`, `RegionPickerStyle` — are the template. To add one:
 
 1. Define the struct in a `WhereStylesheet` extension with a doc comment saying
    which component it styles and any invariants; nest further structs for
@@ -73,6 +73,18 @@ owned by a single component on `Palette`, the few bespoke display faces on
 `Typography`, and animation tokens on `Motion`. Per-region tints stay in
 `RegionStyle` (not the stylesheet); adaptive system roles (`.secondary`) and
 `.accentColor` stay inline.
+
+`RegionStyle` is **data-driven** and resolved through the environment: views
+read `@Environment(\.regionStyles)` (a `RegionStyleResolver`) and call
+`regionStyles.style(for: region)` — there is no global `region.style`. The
+resolver is seeded by `whereBroadwayRoot(regionStyles:)`: the app passes
+`WhereSession`'s live resolver (updated on launch + `changes()`), the widget
+process one built from its `WidgetSnapshot`, and App Intents snippets one from
+their services; the default empty resolver yields the fallback looks
+(`RegionAppearanceCatalog.defaultAppearance(for:)`) for previews and the
+region-map viewer. The catalog also owns the selectable color/emoji/symbol
+option lists the picker shows. Don't reintroduce a global accessor or a
+hardcoded per-region look in a view.
 
 ### Trait-aware tokens
 

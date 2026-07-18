@@ -271,6 +271,23 @@ public struct WhereServices: Sendable {
         try await store.trackedRegions()
     }
 
+    /// The user's primary (tracked) regions with their picked appearance and
+    /// order — the store's ``PrimaryRegion`` rows. Drives the region picker /
+    /// customization UI and seeds the presentation layer's region styling.
+    public func primaryRegions() async throws -> [PrimaryRegion] {
+        try await store.primaryRegions()
+    }
+
+    /// Replace the user's primary (tracked) regions with `regions` — the
+    /// picker/customization commit path. One `perform`, so the whole change
+    /// (upserts + removals-by-omission) is a single atomic transaction that
+    /// pings `changes()` once.
+    public func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
+        try await store.perform {
+            try await store.setPrimaryRegions(regions)
+        }
+    }
+
     /// Return the services to a clean slate for the app's "erase all data &
     /// reset" teardown: quiesce GPS ingestion (stop monitoring, refuse further
     /// samples, await any in-flight write, and drop the retry backlog) so

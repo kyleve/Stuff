@@ -15,7 +15,13 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// readers can't understand, so an importer can refuse a file it doesn't
     /// know how to read instead of silently dropping data (see
     /// `BackupService.readArchive`, which rejects any other version).
-    public static let currentFormatVersion = 1
+    ///
+    /// v2 adds `primaryRegions` (each tracked region's picked appearance + pick
+    /// order). There's no in-app decode fallback for a pre-v2 archive — it's
+    /// reshaped out of band by `Tools/upgrade-backup.rb` (which synthesizes
+    /// `primaryRegions` from `trackedRegions`), matching the module's
+    /// no-migration-on-read rule (see `AGENTS.md`).
+    public static let currentFormatVersion = 2
 
     public let formatVersion: Int
     public let exportedAt: Date
@@ -25,9 +31,15 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// Data-resolution dismissals (issue id + when dismissed), so a restore
     /// keeps issues the user already dismissed dismissed.
     public let dismissedIssues: [DismissedIssue]
-    /// The user's tracked regions at export time, so a restore carries the
-    /// region selection like any other data.
+    /// The user's tracked regions at export time (region ids only), so a restore
+    /// carries the region selection. Retained alongside ``primaryRegions`` as the
+    /// bare-id list `upgrade-backup.rb` and the import summary count read.
     public let trackedRegions: [Region]
+    /// The user's primary regions at export time, each with its picked
+    /// ``RegionAppearance`` (color / emoji / icon) and pick order, so a restore
+    /// brings back the *look*, not just the region set. Import restores from
+    /// this; `trackedRegions` is the derived id list.
+    public let primaryRegions: [PrimaryRegion]
     /// One entry per evidence record that has blob bytes in the archive.
     /// Evidence without bytes simply has no entry here.
     public let assets: [BackupAssetEntry]
@@ -40,6 +52,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         manualDays: [DayPresence],
         dismissedIssues: [DismissedIssue],
         trackedRegions: [Region],
+        primaryRegions: [PrimaryRegion],
         assets: [BackupAssetEntry],
     ) {
         self.formatVersion = formatVersion
@@ -49,6 +62,7 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         self.manualDays = manualDays
         self.dismissedIssues = dismissedIssues
         self.trackedRegions = trackedRegions
+        self.primaryRegions = primaryRegions
         self.assets = assets
     }
 }

@@ -173,6 +173,38 @@ struct BackupServiceTests {
         #expect(result.archive.trackedRegions == [.california, texas])
     }
 
+    @Test func primaryRegionAppearanceSurvivesArchiveRoundTrip() throws {
+        let service = BackupService()
+        let texas = try #require(Region(rawValue: "us-TX"))
+        let primary = [
+            PrimaryRegion(
+                region: .california,
+                appearance: RegionAppearance(
+                    color: .orange,
+                    emoji: "🌴",
+                    symbolName: "sun.max.fill",
+                ),
+                order: 0,
+            ),
+            PrimaryRegion(region: texas, appearance: nil, order: 1),
+        ]
+        let url = try service.makeArchiveFile(
+            samples: [],
+            evidence: [],
+            manualDays: [],
+            trackedRegions: primary.map(\.region),
+            primaryRegions: primary,
+            blobs: [:],
+            exportedAt: Self.exportDate,
+        )
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let result = try service.readArchive(at: url)
+        #expect(result.archive.primaryRegions == primary)
+        // The bare-id list is written alongside for the summary count.
+        #expect(result.archive.trackedRegions == [.california, texas])
+    }
+
     @Test func auditManualDaySurvivesArchiveRoundTrip() throws {
         let service = BackupService()
         let manualDays = [
@@ -214,6 +246,18 @@ struct BackupServiceTests {
             manualDays: Self.manualDayFixtures(),
             dismissedIssues: Self.dismissedIssueFixtures(),
             trackedRegions: [.california, .newYork],
+            primaryRegions: [
+                PrimaryRegion(
+                    region: .california,
+                    appearance: RegionAppearance(
+                        color: .orange,
+                        emoji: "🌴",
+                        symbolName: "sun.max.fill",
+                    ),
+                    order: 0,
+                ),
+                PrimaryRegion(region: .newYork, appearance: nil, order: 1),
+            ],
             assets: [BackupAssetEntry(
                 evidenceId: Self.evidenceWithBlobId,
                 filename: "assets/\(Self.evidenceWithBlobId.uuidString)",
@@ -229,7 +273,7 @@ struct BackupServiceTests {
         let decoded = try decoder.decode(BackupArchive.self, from: data)
 
         #expect(decoded == archive)
-        #expect(decoded.formatVersion == 1)
+        #expect(decoded.formatVersion == 2)
     }
 
     @Test func readingAFileThatIsNotAZipThrows() throws {

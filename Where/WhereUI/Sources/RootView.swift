@@ -115,8 +115,11 @@ public struct RootView: View {
         }
         // Seed the Broadway context at the app root so descendants resolve
         // `WhereStylesheet` (via `@Environment(\.stylesheet)`) against the live
-        // system traits and the app's themes.
-        .whereBroadwayRoot()
+        // system traits and the app's themes, plus the session's live region
+        // styles (`\.regionStyles`) so cards/calendar/onboarding render the
+        // user's picked looks. `.default` before the session exists (splash) and
+        // reactive after, since reading `session.regionStyles` tracks it.
+        .whereBroadwayRoot(regionStyles: model.session?.regionStyles ?? .default)
     }
 
     /// How the launch splash gives way to the app once the runner is `.ready`:

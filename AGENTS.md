@@ -23,8 +23,11 @@ project](#generating-the-xcode-project)).
 Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise),
 `sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`),
 `profile` (prints build/test hot spots — slowest build phases, slowest
-tests, and slow type-check sites; see `./profile --help`), and `icons`
-(adds/removes selectable app icons; see `./icons --help`).
+tests, and slow type-check sites; see `./profile --help`), `icons`
+(adds/removes selectable app icons; see `./icons --help`), and `flaky`
+(detects flaky tests by re-running the suite and tight-looping any test that
+ever fails, then writes the counts to `FLAKY_TESTS.md`; report-only, see
+`./flaky --help`).
 
 ### Managing app icons
 
@@ -384,6 +387,25 @@ work end to end without re-asking per comment.
 - **Deferred feedback gets filed, never dropped.** If a comment is deliberately
   not addressed, record it somewhere durable (the module's `TODOs.md` or the
   review-tracking file) and reply linking where it's tracked.
+
+## Keeping the PR description current
+
+A PR's title and description are the durable record of what it does — keep them
+matching the branch, not just the first commit.
+
+- **When the PR changes beyond a small bug fix, update the description in the
+  same turn you push.** New behavior, a new/changed public API or data model, a
+  migration, a scope change, a follow-up feature, or review fixes that alter the
+  approach all warrant refreshing the body (and the title if the scope shifted).
+  A trivial fix — a typo, a one-line bug fix, a test tweak that doesn't change
+  what the PR is — doesn't.
+- **Reflect the end state, not a changelog of the conversation.** Describe what
+  the PR now does; note notable decisions/trade-offs and testing. Don't leave a
+  stale body that only describes the initial commit.
+- **Preserve human edits.** If someone edited the title/description in the
+  GitHub UI, fold your update into theirs rather than overwriting — only correct
+  what's now inaccurate.
+- Use the PR tooling when it works; otherwise `gh pr edit <n> --body-file`.
 
 ## Debugging build/test/CI failures
 

@@ -45,6 +45,8 @@ struct ManualDayView: View {
     @State private var showDeleteConfirmation = false
     @State private var pending: PendingWrite?
 
+    private static let logger = WhereLog.channel(.model)
+
     init(report: YearReportModel, mode: Mode, showsCancelButton: Bool = false) {
         self.report = report
         self.showsCancelButton = showsCancelButton
@@ -62,6 +64,7 @@ struct ManualDayView: View {
             }
         }
         .animation(.default, value: pending)
+        .task { await loadGrouping() }
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -222,15 +225,58 @@ struct ManualDayView: View {
 
     // MARK: - Shared sections
 
+    @ViewBuilder
     private func regionsSection(_ regions: RegionSelectionState) -> some View {
-        Section {
-            ForEach(regions.items) { item in
-                RegionToggleRow(item: item)
+        if regions.isGrouped {
+            // Your regions / Used this year / More — the shared grouped sections,
+            // with day-membership toggles as the row.
+            GroupedRegionSections(
+                grouping: regions.grouping,
+                yoursFooter: Strings.manualRegionsFooter,
+            ) { region in
+                if let item = regions.item(for: region) {
+                    RegionToggleRow(item: item)
+                }
             }
-        } header: {
-            Text(Strings.manualRegionsHeader)
-        } footer: {
-            Text(Strings.manualRegionsFooter)
+        } else {
+            // Tracked set not loaded yet (or a preview without services): show
+            // the flat catalog list, matching the pre-grouping behavior.
+            Section {
+                ForEach(regions.items) { RegionToggleRow(item: $0) }
+            } header: {
+                Text(Strings.manualRegionsHeader)
+            } footer: {
+                Text(Strings.manualRegionsFooter)
+            }
+        }
+    }
+
+    /// The region-selection state for the active mode.
+    private var activeRegions: RegionSelectionState {
+        switch fields {
+            case let .add(add): add.regions
+            case let .edit(edit): edit.regions
+        }
+    }
+
+    /// Load the tracked/primary regions + the regions used this year once so the
+    /// toggles can be grouped (tracked / used-this-year / everything else). On
+    /// failure the form keeps the flat list rather than a broken grouping, and
+    /// logs.
+    private func loadGrouping() async {
+        guard activeRegions.trackedRegions == nil else { return }
+        // "Used this year" is the *selected report year* — the year this form is
+        // reached for (logged-days list / relabel are per-report-year), so it
+        // matches the day being edited in practice. It only drives grouping
+        // order, not what gets saved.
+        let usedThisYear = Set(
+            (report.report?.totals ?? [:]).filter { $0.value > 0 }.map(\.key),
+        )
+        do {
+            let tracked = try await report.services.primaryRegions()
+            activeRegions.applyGrouping(tracked: tracked, usedThisYear: usedThisYear)
+        } catch {
+            Self.logger.warning("Manual-day form couldn't load regions for grouping")
         }
     }
 
