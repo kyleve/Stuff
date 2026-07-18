@@ -7,14 +7,25 @@
     /// (and preview cutsheet) capture without each author repeating the root
     /// wrapper. Use this instead of `SnapshotCase(...)` directly when authoring
     /// WhereUI ``SnapshotProviding`` conformances.
+    ///
+    /// `onReadyToSnapshot` passes through to ``SnapshotCase``: the capture
+    /// pipeline runs it after the content settles and re-settles its effects —
+    /// the seam for a deterministic completion signal (e.g. awaiting a launch
+    /// runner's drive) that pixel stability alone can't provide.
     @MainActor
     public func whereSnapshot(
         name: String,
         configurations: [SnapshotConfiguration],
         settle: SnapshotSettle = .settled,
+        onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
         @ViewBuilder content: @MainActor () -> some View,
     ) -> SnapshotCase {
-        SnapshotCase(name: name, configurations: configurations, settle: settle) {
+        SnapshotCase(
+            name: name,
+            configurations: configurations,
+            settle: settle,
+            onReadyToSnapshot: onReadyToSnapshot,
+        ) {
             content().whereBroadwayRoot()
         }
     }
