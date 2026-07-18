@@ -1,3 +1,12 @@
 [tools]
 tuist = "4.200.5"
 swiftformat = "0.60.1"
+ruby = "3.4.10"
+
+[settings]
+# Use mise's precompiled Ruby binaries instead of building from source with
+# ruby-build. Source builds need a full C toolchain plus libyaml/openssl and
+# routinely fail (e.g. the `psych` extension), which would break `./ide
+# --bootstrap` on a fresh Mac. Precompiled is fast and self-contained (and
+# becomes mise's default in 2026.8.0).
+ruby.compile = false

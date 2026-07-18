@@ -16,4 +16,5 @@ if [ -n "$staged" ]; then
 fi
 
 # Sync AGENTS.md + .agents/skills → CLAUDE.md + .claude/skills.
-./sync-agents --git-add
+# Run under mise so the pinned Ruby is used regardless of shell activation.
+mise exec -- ./sync-agents --git-add
