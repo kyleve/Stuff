@@ -61,8 +61,17 @@ if [ ! -d "$BUILT" ]; then
 fi
 
 echo "==> Installing to ${DEST}"
-# Quit any running copy (e.g. an Xcode-launched one) so the replace succeeds.
+# Quit any running copy (an Xcode-launched one, or a previously installed one)
+# so the replace is clean. `quit` is asynchronous, so wait for the installed
+# binary to actually exit before replacing it, then force-kill as a fallback.
+INSTALLED_BIN="${DEST}/Contents/MacOS/${APP_NAME}"
 osascript -e "tell application \"${APP_NAME}\" to quit" >/dev/null 2>&1 || true
+for _ in $(seq 1 50); do
+    pgrep -f "$INSTALLED_BIN" >/dev/null 2>&1 || break
+    sleep 0.1
+done
+pkill -f "$INSTALLED_BIN" 2>/dev/null || true
+
 rm -rf "$DEST"
 cp -R "$BUILT" "$DEST"
 
