@@ -225,6 +225,7 @@ let project = Project(
                 "CFBundlePackageType": .string("APPL"),
                 "CFBundleShortVersionString": .string("1.0"),
                 "CFBundleVersion": .string("1"),
+                "LSApplicationCategoryType": .string("public.app-category.developer-tools"),
                 "LSMinimumSystemVersion": .string("$(MACOSX_DEPLOYMENT_TARGET)"),
                 "LSUIElement": .boolean(true),
                 "NSPrincipalClass": .string("NSApplication"),
