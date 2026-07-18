@@ -30,9 +30,12 @@ one it belongs to rather than to a god-object:
   in the app, the launch's `open-store` step opens it and the App Intents
   stack shares it via `WhereServices.forIntents(sharingStoreOf:)` — so two
   subsystems never race to create/open the same store file. It also
-  holds the user's **tracked regions** (`trackedRegions()` /
-  `setTrackedRegion(_:id:)`) — one synced row per region, defaulting to the four
-  until the user chooses.
+  holds the user's **tracked / primary regions** (`trackedRegions()` /
+  `setTrackedRegion(_:id:)`, plus `primaryRegions()` / `setPrimaryRegions(_:)`
+  which surface and persist each region's picked `RegionAppearance` — color
+  token, emoji, SF Symbol — and pick order alongside the synced rows) — one row
+  per region, defaulting to the four until the user chooses in the onboarding /
+  Settings region picker.
 - **`RegionAttribution`** — a live `RegionAttributing` built from the tracked
   regions that rebuilds on `changes()` (a local edit or a remote import), so the
   app + App Intents process attribute against the same synced set. Assemble

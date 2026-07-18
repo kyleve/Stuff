@@ -173,6 +173,29 @@ struct WhereStylesheetTests {
         #expect(regionMap.uncertaintyStrokeWidth == 1)
     }
 
+    @Test func regionPickerStyle() {
+        let picker = style.regionPicker
+        #expect(picker.mapCornerRadius == 12)
+        #expect(picker.selectedFillOpacity == 0.55)
+        #expect(picker.unselectedFillOpacity == 0.12)
+        #expect(picker.selectedStrokeOpacity == 0.9)
+        #expect(picker.unselectedStrokeOpacity == 0.35)
+        #expect(picker.selectedStrokeWidth == 2)
+        #expect(picker.unselectedStrokeWidth == 1)
+        #expect(picker.colorSwatchSize == 40)
+        #expect(picker.colorSwatchSelectionRing == 3)
+        #expect(picker.colorSwatchMinWidth == 44)
+        #expect(picker.glyphTileSize == 48)
+        #expect(picker.glyphTileMinWidth == 52)
+        #expect(picker.glyphCornerRadius == 6)
+        #expect(picker.glyphSelectionStrokeWidth == 2)
+        #expect(picker.glyphSelectedBackgroundOpacity == 0.2)
+        #expect(picker.mapCenterLatitude == 39.5)
+        #expect(picker.mapCenterLongitude == -98.35)
+        #expect(picker.mapSpanLatitude == 45)
+        #expect(picker.mapSpanLongitude == 55)
+    }
+
     @Test func evidenceStyle() {
         let evidence = style.evidence
         #expect(evidence.previewCornerRadius == 22)

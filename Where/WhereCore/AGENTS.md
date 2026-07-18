@@ -39,6 +39,26 @@ internal shape.
   `WhereServices.forIntents(sharingStoreOf:)` — rather than a second caller
   opening another container over the same file (concurrent first-launch
   creation is how the launch once failed).
+- **Primary regions *are* the tracked-region set.** The picked primary regions
+  (`primaryRegions()` / `setPrimaryRegions(_:)`) are the same `SDTrackedRegion`
+  rows `trackedRegions()` reads — picking scopes GPS attribution *and* carries
+  each region's `RegionAppearance` (color token / emoji / SF Symbol) + pick
+  order. `RegionAppearance` is data (WhereCore); the token→`Color` mapping and
+  option catalogs are presentation (`WhereUI`).
+- **Backups mirror the persisted model — keep them lossless.** Any change to
+  persisted data (a new/changed `SD*` field, or a value type that crosses
+  `WhereStore`) must be reflected end-to-end in the backup so export/restore
+  never silently drops it: add it to `BackupArchive`, write it in
+  `BackupService.makeArchiveFile`, read it back in `BackupCoordinator.importBackup`
+  for **both** `.replace` and `.merge`, and add a round-trip test
+  (`BackupServiceTests` for the archive, `BackupCoordinatorTests` for the store
+  round-trip). The archive is **strict synthesized `Codable`** — no in-code
+  legacy decode. A shape change **bumps `BackupArchive.currentFormatVersion`**
+  (`readArchive` rejects any other version) and is handled out of band by
+  extending [`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb), per the
+  no-migration-on-read rule below. Example: v2 added `primaryRegions` (per-region
+  picked appearance + pick order), the tool synthesizes it from the legacy
+  `trackedRegions` ids, and import restores looks from it.
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (year-month-
   day) is the timezone-independent identity of a day, and it is what every
   *stored user record* and *day comparison* keys on: `DayPresence.day`,

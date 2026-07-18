@@ -19,6 +19,7 @@ struct WhereStylesheet: BStylesheet {
     var appIcon = AppIconStyle.standard
     var timeline = TimelineStyle.standard
     var regionMap = RegionMapStyle.standard
+    var regionPicker = RegionPickerStyle.standard
     var evidence = EvidenceStyle.standard
     var palette = Palette.standard
     var motion = Motion.standard
@@ -455,6 +456,69 @@ extension WhereStylesheet {
     }
 }
 
+// MARK: - Region picker / customization
+
+extension WhereStylesheet {
+    /// Style for the primary-region picker (`RegionPickerView`) and per-region
+    /// customization (`RegionAppearanceEditor`): the selectable-state map fills,
+    /// the color swatch and emoji/symbol tile geometry, and the default US map
+    /// framing. Generic spacing (grid gaps, section stacks) still comes from
+    /// ``Spacing``. The camera is stored as raw degrees so the stylesheet stays
+    /// MapKit-free; the view assembles the `MKCoordinateRegion`.
+    struct RegionPickerStyle: Equatable {
+        /// Corner radius of the map's rounded container.
+        var mapCornerRadius: CGFloat
+        /// Polygon fill opacity for a selected vs unselected state.
+        var selectedFillOpacity: Double
+        var unselectedFillOpacity: Double
+        /// Polygon stroke opacity + width for a selected vs unselected state.
+        var selectedStrokeOpacity: Double
+        var unselectedStrokeOpacity: Double
+        var selectedStrokeWidth: CGFloat
+        var unselectedStrokeWidth: CGFloat
+        /// Diameter of a color swatch and the width of its selection ring.
+        var colorSwatchSize: CGFloat
+        var colorSwatchSelectionRing: CGFloat
+        /// Minimum grid cell width for the color swatches.
+        var colorSwatchMinWidth: CGFloat
+        /// Edge of an emoji/symbol tile and its minimum grid cell width.
+        var glyphTileSize: CGFloat
+        var glyphTileMinWidth: CGFloat
+        /// Corner radius and selection stroke width of a glyph tile.
+        var glyphCornerRadius: CGFloat
+        var glyphSelectionStrokeWidth: CGFloat
+        /// Background tint opacity of a selected glyph tile.
+        var glyphSelectedBackgroundOpacity: Double
+        /// Default map camera framing the contiguous US (raw degrees).
+        var mapCenterLatitude: Double
+        var mapCenterLongitude: Double
+        var mapSpanLatitude: Double
+        var mapSpanLongitude: Double
+
+        static let standard = RegionPickerStyle(
+            mapCornerRadius: 12,
+            selectedFillOpacity: 0.55,
+            unselectedFillOpacity: 0.12,
+            selectedStrokeOpacity: 0.9,
+            unselectedStrokeOpacity: 0.35,
+            selectedStrokeWidth: 2,
+            unselectedStrokeWidth: 1,
+            colorSwatchSize: 40,
+            colorSwatchSelectionRing: 3,
+            colorSwatchMinWidth: 44,
+            glyphTileSize: 48,
+            glyphTileMinWidth: 52,
+            glyphCornerRadius: 6,
+            glyphSelectionStrokeWidth: 2,
+            glyphSelectedBackgroundOpacity: 0.2,
+            mapCenterLatitude: 39.5,
+            mapCenterLongitude: -98.35,
+            mapSpanLatitude: 45,
+            mapSpanLongitude: 55,
+        )
+    }
+}
+
 // MARK: - Evidence
 
 extension WhereStylesheet {
@@ -640,8 +704,17 @@ extension View {
     /// directly — it already gets it through `WhereUI` (a dynamic framework), and
     /// a second copy would split Broadway's type-keyed environment metadata (see
     /// the root `AGENTS.md` "Targets" note).
-    public func whereBroadwayRoot() -> some View {
+    ///
+    /// Also seeds `\.regionStyles` so descendants resolve per-region looks
+    /// (`region` cards, calendar dots, widgets, snippets) from one place. The app
+    /// passes `WhereSession`'s live resolver, the widget process one built from
+    /// its `WidgetSnapshot`, and intents one from their services; the default
+    /// empty resolver yields fallback looks (previews, the region-map viewer).
+    public func whereBroadwayRoot(
+        regionStyles: RegionStyleResolver = .default,
+    ) -> some View {
         broadwayRoot(themes: WhereThemes.current)
+            .environment(\.regionStyles, regionStyles)
     }
 }
 
