@@ -43,15 +43,16 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-# Resolve the mise binary: prefer one already on PATH, otherwise the location
-# the official installer drops it ($HOME/.local/bin/mise). Prints nothing when
-# mise is unavailable, so callers can treat an empty result as "not found".
+# Resolve the mise binary: prefer one already on PATH, otherwise the common
+# install locations (the official installer's $HOME/.local/bin, Homebrew). This
+# lets bootstrap work before `mise activate` is in the user's shell. Prints
+# nothing when mise is unavailable, so callers treat an empty result as
+# "not found".
 find_mise() {
-    if command -v mise >/dev/null 2>&1; then
-        command -v mise
-    elif [ -x "$HOME/.local/bin/mise" ]; then
-        echo "$HOME/.local/bin/mise"
-    fi
+    command -v mise 2>/dev/null && return
+    for candidate in "$HOME/.local/bin/mise" /opt/homebrew/bin/mise /usr/local/bin/mise; do
+        [ -x "$candidate" ] && { echo "$candidate"; return; }
+    done
 }
 
 # One-shot machine setup: verify Xcode, install mise, install the pinned tools.

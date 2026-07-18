@@ -1,6 +1,24 @@
 #!/bin/bash
 set -euo pipefail
 
+# Resolve mise without relying on shell activation — a fresh `./ide --bootstrap`
+# may not have added `mise activate` to the user's rc yet, but this hook shells
+# out to mise for both SwiftFormat and sync-agents. Mirror ./ide's find_mise.
+find_mise() {
+    command -v mise 2>/dev/null && return
+    for candidate in "$HOME/.local/bin/mise" /opt/homebrew/bin/mise /usr/local/bin/mise; do
+        [ -x "$candidate" ] && { echo "$candidate"; return; }
+    done
+}
+MISE="$(find_mise)"
+if [ -z "$MISE" ]; then
+    echo "pre-commit: mise not found — run ./ide --bootstrap to set up this machine." >&2
+    exit 1
+fi
+# Shim so the `mise …` call sites below resolve to the found binary regardless
+# of PATH. Defined after find_mise runs, so it can't shadow the real lookup.
+mise() { "$MISE" "$@"; }
+
 # Format staged Swift files in-place, then re-stage them.
 # Note: this formats working-tree content, not the staged blob.
 # Partially-staged files will be fully re-staged after formatting.
