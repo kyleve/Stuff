@@ -97,9 +97,10 @@ public struct LifecycleRunnerProxy: Sendable {
 /// removal transition over the *entering* destination (a scale-up-and-fade
 /// reveal, say) instead of being clipped to a pop behind it.
 ///
-/// For a background launch, the container renders nothing at all (iOS never
-/// shows UI for a headless relaunch and reclaims memory aggressively), so
-/// `content` is never constructed even once the runner reaches `.ready`.
+/// For a launch that builds no view tree (`.background`, or an `.undetermined`
+/// one not yet promoted), the container renders nothing at all (iOS never shows
+/// UI for a headless relaunch and reclaims memory aggressively), so `content`
+/// is never constructed even once the runner reaches `.ready`.
 public struct LifecycleContainer<Content: View, Splash: View, Failure: View>: View {
     private let runner: LifecycleRunner
     private let transition: AnyTransition
@@ -130,7 +131,7 @@ public struct LifecycleContainer<Content: View, Splash: View, Failure: View>: Vi
 
     public var body: some View {
         Group {
-            if runner.reason.isBackground {
+            if runner.reason.buildsNoViewTree {
                 EmptyView()
             } else {
                 phaseContent

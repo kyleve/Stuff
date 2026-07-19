@@ -93,10 +93,10 @@ struct LifecycleContainerTests {
         let runner = LifecycleRunner(reason: .background(.location), sequence: LifecycleSteps {})
         await runner.run()
         #expect(runner.phase.isReady)
-        #expect(runner.reason.isBackground)
+        #expect(runner.reason.buildsNoViewTree)
 
         await runner.enterForeground()
-        #expect(!runner.reason.isBackground)
+        #expect(!runner.reason.buildsNoViewTree)
         #expect(runner.phase.isReady)
 
         let container = LifecycleContainer(runner) {

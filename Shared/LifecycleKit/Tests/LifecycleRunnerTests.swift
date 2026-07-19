@@ -78,13 +78,35 @@ struct LifecycleRunnerForegroundPromotionTests {
         await runner.run()
         // The headless background drive ran only the unrestricted step.
         #expect(executed == ["store"])
-        #expect(runner.reason.isBackground)
+        #expect(runner.reason.buildsNoViewTree)
 
         await runner.enterForeground()
         // Promotion re-drives from the top: the (idempotent) unrestricted step
         // runs again and the foreground-only step now runs too.
         #expect(executed == ["store", "store", "onboarding"])
-        #expect(!runner.reason.isBackground)
+        #expect(!runner.reason.buildsNoViewTree)
+        #expect(runner.phase.isReady)
+    }
+
+    @Test func undeterminedLaunchRunsBackgroundStepsThenPromotesToForeground() async {
+        var executed: [String] = []
+        let runner = LifecycleRunner(reason: .undetermined, sequence: LifecycleSteps {
+            LifecycleStep.work("store") { _ in executed.append("store") }
+            LifecycleStep
+                .work("onboarding", modes: .foreground) { _ in executed.append("onboarding") }
+        })
+        await runner.run()
+        // Undetermined gates to the background-safe subset: the foreground-only
+        // step is skipped and the host builds no view tree.
+        #expect(executed == ["store"])
+        #expect(runner.reason.buildsNoViewTree)
+
+        await runner.enterForeground()
+        // A scene activated: the launch resolves to foreground, the
+        // foreground-only step runs, and the launch reaches ready.
+        #expect(executed.contains("onboarding"))
+        #expect(!runner.reason.buildsNoViewTree)
+        #expect(runner.reason == .userForeground)
         #expect(runner.phase.isReady)
     }
 
@@ -111,11 +133,11 @@ struct LifecycleRunnerForegroundPromotionTests {
         // must not drain to `.ready` while still headless — there is no UI to
         // resolve it.
         try await Task.sleep(for: .milliseconds(50))
-        #expect(runner.reason.isBackground)
+        #expect(runner.reason.buildsNoViewTree)
         #expect(runner.phase.isRunning("wait"))
 
         let promote = Task { @MainActor in await runner.enterForeground() }
-        try await waitUntil { !runner.reason.isBackground }
+        try await waitUntil { !runner.reason.buildsNoViewTree }
         runner.phase.runningBridge?.complete()
         await runTask.value
         await promote.value
@@ -150,7 +172,7 @@ struct LifecycleRunnerForegroundPromotionTests {
         await promote.value
 
         #expect(maxInFlight == 1)
-        #expect(!runner.reason.isBackground)
+        #expect(!runner.reason.buildsNoViewTree)
         #expect(runner.phase.isReady)
     }
 
@@ -193,7 +215,7 @@ struct LifecycleRunnerForegroundPromotionTests {
         try await waitUntil { runner.phase.isRunning("store") }
 
         let promote = Task { @MainActor in await runner.enterForeground() }
-        try await waitUntil { !runner.reason.isBackground }
+        try await waitUntil { !runner.reason.buildsNoViewTree }
 
         // Let the superseded drive's step throw now that the promotion owns
         // the phase, and wait for the promoted drive to reach the gated

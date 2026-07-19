@@ -267,7 +267,7 @@ struct WhereLaunchTests {
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .background(.location))
         await launcher.run()
         #expect(launcher.phase.isReady)
-        #expect(launcher.reason.isBackground)
+        #expect(launcher.reason.buildsNoViewTree)
         // The minimal background steps still ran (reconcile-tracking resumed GPS).
         #expect(model.session?.isTracking == true)
     }

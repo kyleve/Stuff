@@ -54,9 +54,10 @@ public final class LifecycleRunner {
 
     private var state: State
 
-    /// Why the app launched this time. A headless background launch can be
-    /// promoted to a foreground one via `enterForeground()`; the container
-    /// observes this to stop rendering `EmptyView()` and start building real UI.
+    /// Why the app launched this time. A not-yet-foreground launch (`.background`
+    /// or `.undetermined`) can be promoted to a foreground one via
+    /// `enterForeground()`; the container observes this to stop rendering
+    /// `EmptyView()` and start building real UI.
     public var reason: LifecycleReason {
         state.reason
     }
@@ -96,15 +97,18 @@ public final class LifecycleRunner {
         }
     }
 
-    /// Promote a headless background launch to a foreground one and re-drive
-    /// the sequence so foreground-only steps (e.g. onboarding) now run. No-op
-    /// for a runner that already launched in the foreground.
+    /// Promote a not-yet-foreground launch (`.background` or `.undetermined`) to
+    /// a foreground one and re-drive the sequence so foreground-only steps (e.g.
+    /// onboarding) now run. No-op for a runner that already launched in the
+    /// foreground.
     ///
     /// Call this from the root view's `.task`: it fires only once a window
-    /// exists, which is exactly when a background launch has become a
-    /// user-visible one.
+    /// exists, which is exactly when a background/undetermined launch has become
+    /// a user-visible one. The re-drive skips steps that already completed (see
+    /// `completedStepIDs`), so a work step serviced during the headless drive
+    /// isn't run a second time.
     public func enterForeground() async {
-        guard reason.isBackground else { return }
+        guard reason != .userForeground else { return }
         await drive(reason: .userForeground, from: 0)
     }
 
