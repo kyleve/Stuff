@@ -78,6 +78,12 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
   `begin(for:)`, longest running first, with ticking ages, lifetimes, and
   scope paths. Reads the system (open spans are live state, not store
   history); push it from a developer menu.
+- **`SpanTreeView(store:)`** — the durable span tree: the store's
+  `SpanBegan`/`SpanEnded` pairs nested by time containment (a span inside
+  another's lifetime becomes its child) with durations and exit chips, each
+  drilling into the span's detail. Distinct from `OpenSpansView` (live,
+  in-flight) — this reads the store, so it shows finished spans. Reachable
+  from the viewer's Logs toolbar, and usable standalone.
 
 ## Design system
 

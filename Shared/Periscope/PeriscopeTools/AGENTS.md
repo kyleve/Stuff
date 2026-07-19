@@ -11,7 +11,8 @@ the build system, formatting, and global conventions. Read that first.
 ## Layout
 
 `Sources/` groups one directory per tool — `Viewer/`, `Tracer/`, `Alerts/`,
-`InspectMode/`, `Spans/`, `Hierarchy/` (the scope-tree browser) — plus
+`InspectMode/`, `Spans/` (`OpenSpansView` for live spans, `SpanTreeView` for
+the durable store's span tree), `Hierarchy/` (the scope-tree browser) — plus
 `Components/` for the display pieces they share (event rows, the shared
 `LogEventList`, detail view, level/exit display extensions) and `Styling/` for
 the design system (`PeriscopeStylesheet`). Tests stay flat, named 1:1 with

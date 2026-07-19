@@ -69,6 +69,13 @@ public struct PeriscopeViewer: View {
                     filterMenu
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SpanTreeView(store: store)
+                    } label: {
+                        Label("Span Tree", systemImage: "stopwatch")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     exportButton
                 }
             }
