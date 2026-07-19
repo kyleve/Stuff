@@ -74,10 +74,6 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   `WhereUISnapshotTests.LargeViewCaptureTests`). Captures go through
   `SnapshotWrappingViewController` + `tileAndStitchImage`; don't remove the
   tiling on the assumption the bug is fixed without re-running that check.
-- The rendering workarounds (safe-area override, tile-and-stitch, size
-  stabilization, cursor hiding, animation quiescing, accessibility wrapper) are
-  adapted from a prior art snapshot library; that provenance is recorded only
-  here in the repo — the source files carry no third-party attribution by request.
 
 ## Testing
 

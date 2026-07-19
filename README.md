@@ -26,7 +26,7 @@ mise install
 
 Run tests with `mise exec -- tuist test` (or open the generated workspace in Xcode). CI pins an iOS Simulator destination so the full suite stays consistent.
 
-To see where build and test time goes, run `./profile` — it prints the slowest build phases, the slowest tests (per bundle), and any slow type-check sites. It only reports, it never fails; see `./profile --help` for flags (`--build-only`/`--tests-only`, `--device`/`--os`, `--top`, thresholds).
+To see where build and test time goes, run `./profile` — it prints the slowest build phases, the slowest tests (per bundle), and any slow type-check sites. It only reports, it never fails; see `./profile --help` for flags (`--build-only`/`--tests-only`, `--no-snapshots`, `--device`/`--os`, `--top`, thresholds).
 
 To hunt down flaky tests, run `./flaky` — it runs the whole suite several times, then tight-loops (in isolation) any test that ever failed, and records the tests that both pass and fail (with flake counts) in [`FLAKY_TESTS.md`](FLAKY_TESTS.md). Like `./profile` it's report-only; see `./flaky --help` for flags (`--suite-runs`, `--iterations`, `--device`/`--os`, `--no-update`, `--top`).
 
