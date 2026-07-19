@@ -89,10 +89,11 @@ public struct RootView: View {
         // so this is a no-op there; in previews/tests it's what drives the
         // launch.
         //
-        // Promote a background launch only once the scene is genuinely active.
-        // SwiftUI may build this view (and run `.task`) for a scene that iOS
-        // connected in the background; promoting then would flip the launcher to
-        // foreground and build the heavy `TabView` for a launch nobody sees,
+        // Promote the launch (`.undetermined` from the app delegate, or a
+        // genuine `.background` relaunch) only once the scene is genuinely
+        // active. SwiftUI may build this view (and run `.task`) for a scene that
+        // iOS connected in the background; promoting then would flip the launcher
+        // to foreground and build the heavy `TabView` for a launch nobody sees,
         // defeating the headless path. The `.onChange` below handles the later
         // background→foreground transition; this initial check covers a launch
         // that is already active when the view first appears — and it must run
