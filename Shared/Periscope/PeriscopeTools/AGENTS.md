@@ -73,10 +73,12 @@ use `PeriscopeStylesheet.default`.
   begin/end pairs) and, on each `changes()` ping, fetch only events past the
   highest `sequence` they've merged via `LogQuery.afterSequence` — never a
   full-store re-read. The merge re-filters on `sequence` so it stays
-  idempotent if `run()` restarts over already-seen events. This trades exact
-  reflection of deletions (retention prune / clear, neither wired into the
-  live app) for bounded per-commit work; a store swap makes the hosting view
-  build a fresh model, resetting the watermark.
+  idempotent if `run()` restarts over already-seen events. This bounds the
+  per-commit *fetch* by what the commit added (the in-memory forest/tree
+  rebuild is still O(accumulated); see TODOs) and trades exact reflection of
+  deletions (retention prune / clear, neither wired into the live app) for
+  it; a store swap makes the hosting view build a fresh model, resetting the
+  watermark.
 - **Tool views rebind on in-place input swaps** — each view's `.task(id:)`
   is keyed on store identity plus its other inputs and rebuilds the model
   when they change; a new identity-relevant input must join the key, or
