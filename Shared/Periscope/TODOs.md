@@ -29,6 +29,7 @@
 # Completed issues
 
 ## Ambient change filtering
+- refactor: Notification-based ambient sources observe via target/selector (`NotificationAmbientSource`, an `NSObject` base) and tear down with `removeObserver(self)` — replacing `AmbientObserverTokens` and its token juggling. The base owns the logger and register/remove; subclasses just list `observedNames` and map a notification to an event (a restart removes-before-re-adds, so it never doubles).
 - refactor: Ambient sources are reference types (`final class`) that own their observation *and* any last-state needed to filter no-op updates before logging. `NetworkPathAmbientSource` keeps the last description it emitted and drops `NWPathMonitor`'s duplicate, change-agnostic callbacks (interface reordering, `isExpensive`/`isConstrained` flips, DNS/gateway churn) that used to flood the ambient log — only *consecutive* duplicates drop (genuine Wi-Fi ↔ cellular flapping still logs), and a (re)start/stop resets the filter so current connectivity re-reports. Notification-based sources stay un-deduped on purpose (their notifications post only on real transitions; repeated memory warnings are each distinct). Replaces the earlier standalone `NetworkPathChangeFilter` with state owned by the source itself.
 
 ## Crash durability (design loop 1)

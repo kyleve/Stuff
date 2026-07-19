@@ -12,30 +12,23 @@ private final class ImmediateSource: AmbientEventSource {
     func stop() {}
 }
 
-/// Observes a test-unique notification through `AmbientObserverTokens`, so
-/// stop/restart semantics can be asserted without cross-talk from other
+/// Observes a test-unique notification through `NotificationAmbientSource`,
+/// so stop/restart semantics can be asserted without cross-talk from other
 /// tests posting process-global system notifications.
-private final class NotificationSource: AmbientEventSource {
+private final class NotificationSource: NotificationAmbientSource {
     let name: Notification.Name
-    private let tokens = AmbientObserverTokens()
 
     init(name: Notification.Name) {
         self.name = name
+        super.init()
     }
 
-    func start(log: Log<AmbientEvent>) {
-        let token = NotificationCenter.default.addObserver(
-            forName: name,
-            object: nil,
-            queue: nil,
-        ) { _ in
-            log { AmbientEvent(kind: AmbientKind("test-kind"), value: "fired") }
-        }
-        tokens.replace(with: [token])
+    override var observedNames: [Notification.Name] {
+        [name]
     }
 
-    func stop() {
-        tokens.removeAll()
+    override func event(for _: Notification) -> AmbientEvent? {
+        AmbientEvent(kind: AmbientKind("test-kind"), value: "fired")
     }
 }
 
