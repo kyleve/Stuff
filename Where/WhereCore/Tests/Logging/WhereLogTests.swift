@@ -58,7 +58,11 @@ struct WhereLogEventTests {
         #expect(SwiftDataStoreLog.droppedCorruptRecord(type: "SDEvidence").level == .fault)
         #expect(SwiftDataStoreLog.openedInMemory(mode: "inMemory").level == .info)
         #expect(
-            SwiftDataStoreLog.ignoredUnknownTrackedRegions(count: 1, ids: "zz").level == .warning,
+            SwiftDataStoreLog.ignoredUnknownTrackedRegions(ids: ["zz"]).level == .warning,
+        )
+        #expect(
+            SwiftDataStoreLog.ignoredUnknownTrackedRegions(ids: ["us-CA", "us-NY"])
+                .message.contains("us-CA, us-NY"),
         )
     }
 

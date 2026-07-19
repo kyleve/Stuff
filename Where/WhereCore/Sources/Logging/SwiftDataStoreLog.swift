@@ -15,11 +15,12 @@ enum SwiftDataStoreLog: LogEvent {
     /// resolved and the resolved database URL.
     case openedOnDisk(mode: String, appGroupResolved: Bool, url: String)
     /// Ignored tracked-region ids the current catalog doesn't know (a store
-    /// written by a newer catalog version).
-    case ignoredUnknownTrackedRegions(count: Int, ids: String)
+    /// written by a newer catalog version). The ids persist as a structured
+    /// list; formatting is done at display time (see `message`).
+    case ignoredUnknownTrackedRegions(ids: [String])
     /// Ignored primary-region ids the current catalog doesn't know (a store
     /// written by a newer catalog version).
-    case ignoredUnknownPrimaryRegions(count: Int, ids: String)
+    case ignoredUnknownPrimaryRegions(ids: [String])
     /// Dropped a record that failed to materialize into a domain value.
     case droppedCorruptRecord(type: String)
 
@@ -39,10 +40,10 @@ enum SwiftDataStoreLog: LogEvent {
                 "Opened SwiftData store (mode: \(mode))"
             case let .openedOnDisk(mode, appGroupResolved, url):
                 "Opened SwiftData store (mode: \(mode), appGroupResolved: \(appGroupResolved), url: \(url))"
-            case let .ignoredUnknownTrackedRegions(count, ids):
-                "Ignored \(count) unknown tracked-region id(s): \(ids)"
-            case let .ignoredUnknownPrimaryRegions(count, ids):
-                "Ignored \(count) unknown primary-region id(s): \(ids)"
+            case let .ignoredUnknownTrackedRegions(ids):
+                "Ignored \(ids.count) unknown tracked-region id(s): \(ids.joined(separator: ", "))"
+            case let .ignoredUnknownPrimaryRegions(ids):
+                "Ignored \(ids.count) unknown primary-region id(s): \(ids.joined(separator: ", "))"
             case let .droppedCorruptRecord(type):
                 "Dropped corrupt SwiftData record of type \(type)"
         }

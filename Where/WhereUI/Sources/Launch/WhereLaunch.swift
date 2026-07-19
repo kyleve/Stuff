@@ -58,9 +58,10 @@ public enum LaunchStepID: String {
 public enum WhereLaunch {
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
-    /// How much log history the on-disk store keeps: two weeks. Older events are
-    /// pruned at launch so the database can't grow without bound.
-    private static let logRetention: TimeInterval = 14 * 24 * 60 * 60
+    /// How much log history the on-disk store keeps: 100 days. Older events are
+    /// pruned at launch so the database can't grow without bound. (A size cap to
+    /// bound heavy-logging devices within the window is tracked in `Where/TODOs.md`.)
+    private static let logRetention: TimeInterval = 100 * 24 * 60 * 60
 
     /// Open the process-global Periscope store, attach it to `Periscope.shared`
     /// as the durable sink, start the built-in ambient sources, and prune
@@ -72,6 +73,13 @@ public enum WhereLaunch {
     /// `didFinishLaunching`. The OSLog sink already installed on
     /// `Periscope.shared` covers the pre-attach window, and `add(sink:)` replays
     /// every scope defined so far so the store resolves the records it sees.
+    /// (Fully closing that pre-attach window — a bootstrap journal from process
+    /// start — is tracked as a P0 in `Shared/Periscope/TODOs.md`.)
+    ///
+    /// Once the store is attached the developer surface can browse it
+    /// immediately: `.loggingStoreReady` fires right after `add(sink:)`, and
+    /// retention pruning runs *after* that on its own task, since trimming old
+    /// history isn't a readiness prerequisite.
     ///
     /// Degraded-but-handled on failure: if the store can't open, logging keeps
     /// flowing through OSLog and the failure is recorded (with the error
@@ -80,20 +88,36 @@ public enum WhereLaunch {
     /// Called once from the app delegate at process launch.
     public static func bootstrapLogging(model: WhereModel) {
         Task {
+            let store: PeriscopeStore
             do {
-                let store = try await PeriscopeStore.make(
-                    storage: .onDisk,
-                    session: .current(),
-                )
-                Periscope.shared.add(sink: store)
-                Periscope.shared.startDefaultAmbientSources()
-                model.attach(logStore: store)
-                let cutoff = Date().addingTimeInterval(-logRetention)
-                let pruned = try await store.pruneEvents(olderThan: cutoff)
-                logger { .loggingStoreReady(prunedEventCount: pruned) }
+                store = try await PeriscopeStore.make(storage: .onDisk, session: .current())
             } catch {
                 logger(attachments: [.error(error, name: "open-error")]) {
                     .loggingStoreUnavailable(description: String(describing: error))
+                }
+                return
+            }
+            Periscope.shared.add(sink: store)
+            Periscope.shared.startDefaultAmbientSources()
+            model.attach(logStore: store)
+            logger { .loggingStoreReady }
+            pruneHistory(in: store)
+        }
+    }
+
+    /// Trim log history past `logRetention` on its own task, so it never delays
+    /// `.loggingStoreReady`. The actual prune runs on the store actor (off the
+    /// main thread); a failure is degraded-but-handled — the store keeps its
+    /// last good history and stays usable, it just isn't trimmed this launch.
+    private static func pruneHistory(in store: PeriscopeStore) {
+        Task {
+            do {
+                let cutoff = Date().addingTimeInterval(-logRetention)
+                let pruned = try await store.pruneEvents(olderThan: cutoff)
+                logger { .historyPruned(prunedEventCount: pruned) }
+            } catch {
+                logger(attachments: [.error(error, name: "prune-error")]) {
+                    .historyPruneFailed(description: String(describing: error))
                 }
             }
         }

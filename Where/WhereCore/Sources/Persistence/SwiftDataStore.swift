@@ -747,10 +747,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
         if !unknown.isEmpty {
             Self.logger {
-                .ignoredUnknownTrackedRegions(
-                    count: unknown.count,
-                    ids: unknown.sorted().joined(separator: ", "),
-                )
+                .ignoredUnknownTrackedRegions(ids: unknown.sorted())
             }
         }
         return resolved
@@ -827,10 +824,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         }
         if !unknown.isEmpty {
             Self.logger {
-                .ignoredUnknownPrimaryRegions(
-                    count: unknown.count,
-                    ids: unknown.sorted().joined(separator: ", "),
-                )
+                .ignoredUnknownPrimaryRegions(ids: unknown.sorted())
             }
         }
         return resolved
