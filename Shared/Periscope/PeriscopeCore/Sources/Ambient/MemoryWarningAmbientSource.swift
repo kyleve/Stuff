@@ -4,24 +4,13 @@
 
     /// Logs system memory warnings at `.warning` — the classic missing
     /// context when diagnosing a jetsam-adjacent crash.
-    public struct MemoryWarningAmbientSource: AmbientEventSource {
-        private let tokens = AmbientObserverTokens()
-
-        public init() {}
-
-        public func start(log: Log<AmbientEvent>) {
-            let token = NotificationCenter.default.addObserver(
-                forName: UIApplication.didReceiveMemoryWarningNotification,
-                object: nil,
-                queue: nil,
-            ) { _ in
-                log { AmbientEvent(kind: .memory, value: "warning", level: .warning) }
-            }
-            tokens.replace(with: [token])
+    public final class MemoryWarningAmbientSource: NotificationAmbientSource {
+        override public var observedNames: [Notification.Name] {
+            [UIApplication.didReceiveMemoryWarningNotification]
         }
 
-        public func stop() {
-            tokens.removeAll()
+        override public func event(for _: Notification) -> AmbientEvent? {
+            AmbientEvent(kind: .memory, value: "warning", level: .warning)
         }
     }
 #endif
