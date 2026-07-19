@@ -91,6 +91,38 @@ struct PeriscopeStylesheetTests {
         #expect(resolved.row.comfortable.messageLineLimit == 4)
         #expect(resolved.row.compact.messageLineLimit == 2)
     }
+
+    @Test func densityDisplayNames() {
+        #expect(PeriscopeStylesheet.Density.comfortable.displayName == "Comfortable")
+        #expect(PeriscopeStylesheet.Density.compact.displayName == "Compact")
+    }
+
+    @Test func persistedDensityDefaultsToCompactWhenUnset() {
+        withEphemeralDefaults { defaults in
+            #expect(PeriscopeStylesheet.Density.load(from: defaults) == .compact)
+        }
+    }
+
+    @Test func persistedDensityRoundTrips() {
+        withEphemeralDefaults { defaults in
+            PeriscopeStylesheet.Density.comfortable.save(to: defaults)
+            #expect(PeriscopeStylesheet.Density.load(from: defaults) == .comfortable)
+            PeriscopeStylesheet.Density.compact.save(to: defaults)
+            #expect(PeriscopeStylesheet.Density.load(from: defaults) == .compact)
+        }
+    }
+
+    /// Runs `body` against a throwaway `UserDefaults` suite so the test never
+    /// touches the shared standard domain.
+    private func withEphemeralDefaults(_ body: (UserDefaults) -> Void) {
+        let suiteName = "periscope.tools.tests.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            Issue.record("Could not create an ephemeral UserDefaults suite.")
+            return
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        body(defaults)
+    }
 }
 
 /// Covers the PeriscopeTools glue: `EnvironmentValues.stylesheet` resolves a

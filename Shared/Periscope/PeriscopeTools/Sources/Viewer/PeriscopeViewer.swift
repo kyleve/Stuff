@@ -11,20 +11,32 @@ import SwiftUI
 public struct PeriscopeViewer: View {
     private let store: PeriscopeStore
     private let title: String
+    private let defaults: UserDefaults
     @State private var model: PeriscopeViewerModel
     @State private var export: NDJSONExport?
     @State private var exportFailed = false
+    @State private var density: PeriscopeStylesheet.Density
 
     public init(store: PeriscopeStore, title: String = "Logs") {
+        self.init(store: store, title: title, defaults: .standard)
+    }
+
+    init(store: PeriscopeStore, title: String, defaults: UserDefaults) {
         self.store = store
         self.title = title
+        self.defaults = defaults
         _model = State(initialValue: PeriscopeViewerModel(store: store))
+        _density = State(initialValue: .load(from: defaults))
     }
 
     public var body: some View {
         @Bindable var model = model
         content
             .navigationTitle(title)
+            .environment(\.logRowDensity, density)
+            .onChange(of: density) { _, newValue in
+                newValue.save(to: defaults)
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     filterMenu
@@ -130,6 +142,12 @@ public struct PeriscopeViewer: View {
                 Text("All Events").tag(SpanExit.Mode?.none)
                 ForEach(SpanExit.Mode.allCases, id: \.self) { mode in
                     Text(mode.displayName).tag(SpanExit.Mode?.some(mode))
+                }
+            }
+            Divider()
+            Picker("Row Density", selection: $density) {
+                ForEach(PeriscopeStylesheet.Density.allCases, id: \.self) { density in
+                    Text(density.displayName).tag(density)
                 }
             }
         } label: {

@@ -61,6 +61,27 @@ extension PeriscopeStylesheet {
     enum Density: String, CaseIterable, Hashable {
         case comfortable
         case compact
+
+        /// Capitalized label for the density picker.
+        var displayName: String {
+            rawValue.capitalized
+        }
+
+        /// UserDefaults key backing the viewer's persisted density preference.
+        static let defaultsKey = "periscope.tools.rowDensity"
+
+        /// The persisted preference, defaulting to ``compact`` so the tooling
+        /// reads dense out of the box (the roomier ``comfortable`` is the raw
+        /// environment fallback for rootless contexts — previews, isolated
+        /// rows — not the seeded surfaces).
+        static func load(from defaults: UserDefaults) -> Self {
+            defaults.string(forKey: defaultsKey).flatMap(Self.init(rawValue:)) ?? .compact
+        }
+
+        /// Persist this density as the preference.
+        func save(to defaults: UserDefaults) {
+            defaults.set(rawValue, forKey: Self.defaultsKey)
+        }
     }
 
     /// The one-line event summary's geometry and truncation, for one density.

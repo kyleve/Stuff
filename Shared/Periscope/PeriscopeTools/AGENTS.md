@@ -38,7 +38,11 @@ use `PeriscopeStylesheet.default`.
   root; nesting under an app root simply re-seeds from the same system traits.
 - **Row density** (`comfortable` / `compact`) is a `RowStyle` axis resolved via
   `stylesheet.row[density]`; the active density rides the `\.logRowDensity`
-  environment value, which the viewer seeds from a persisted preference.
+  environment value. The viewer (and inspector sheet) seed it from a
+  `UserDefaults`-persisted preference (`Density.load`/`save`), which defaults to
+  `compact` — the roomier `comfortable` is only the raw environment fallback for
+  rootless contexts (previews, isolated rows). The viewer's filter menu carries
+  the picker and writes the choice back on change.
 - **Color decisions live in `Palette`**, not on `LogLevel` / `SpanExit.Mode` —
   `tint(forLevel:)` bands by severity so custom levels inherit a sensible color.
 - Because PeriscopeTools links Broadway as a **static** library it can seed
