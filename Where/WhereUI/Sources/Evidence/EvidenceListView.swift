@@ -146,6 +146,9 @@ private struct EvidenceRow: View {
         .accessibilityLabel(
             Strings.evidenceRowAccessibility(kind: evidence.kind, date: evidence.capturedAt),
         )
+        // Log View Mode: reveal an inspect badge that opens this archive's
+        // evidence-scope events. A no-op in release.
+        .debugLogInspectable(WhereLog.evidence)
     }
 }
 

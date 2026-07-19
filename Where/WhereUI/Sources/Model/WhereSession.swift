@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 #if DEBUG
     import SwiftDataInspector
 #endif
@@ -77,7 +77,18 @@ public final class WhereSession {
     /// access to race.
     @ObservationIgnored private nonisolated(unsafe) var authorizationTask: Task<Void, Never>?
 
-    private static let logger = WhereLog.channel(.session)
+    /// Observes `dataChangeUpdates()` to keep ``regionStyles`` in sync with the
+    /// store's picked region appearances. Same `nonisolated(unsafe)` rationale as
+    /// `authorizationTask` — only touched on the main actor except `deinit`.
+    @ObservationIgnored private nonisolated(unsafe) var regionStyleTask: Task<Void, Never>?
+
+    /// The user's picked region looks, resolved for the view environment (seeded
+    /// into `whereBroadwayRoot(regionStyles:)` by `RootView`). Loaded at launch
+    /// and kept live on every store change, so a Settings edit or a synced pick
+    /// from another device restyles the UI without a relaunch.
+    public private(set) var regionStyles: RegionStyleResolver = .default
+
+    private static let logger = WhereLog.session(WhereSessionLog.self)
 
     /// The authorization the degradation warning was last evaluated against.
     /// `syncAuthorization()` runs on every foreground, so warning only on a
@@ -136,6 +147,7 @@ public final class WhereSession {
     /// until the next status change resumes it.
     deinit {
         authorizationTask?.cancel()
+        regionStyleTask?.cancel()
     }
 
     /// Sync authorization, resume tracking if appropriate, apply the reminder /
@@ -149,6 +161,8 @@ public final class WhereSession {
     public func start() async {
         await syncAuthorization()
         observeAuthorizationChanges()
+        await seedRegionStyles()
+        observeRegionStyleChanges()
         await reconcileTracking()
         await captureTodayIfNeeded()
         await applyReminderConfiguration()
@@ -205,13 +219,11 @@ public final class WhereSession {
             case .always, .notDetermined:
                 break
             case .whenInUse:
-                Self.logger.warning(
-                    "Location authorized for When-In-Use only; background tracking unavailable",
-                )
+                Self.logger { .whenInUseOnly }
             case .denied, .restricted:
-                Self.logger.warning(
-                    "Location access \(authorizationStatus); background tracking unavailable",
-                )
+                Self.logger {
+                    .locationAccessDenied(status: String(describing: authorizationStatus))
+                }
         }
     }
 
@@ -233,6 +245,36 @@ public final class WhereSession {
         }
     }
 
+    /// Load the user's picked region appearances into ``regionStyles`` so the
+    /// UI resolves them everywhere it renders a region. A launch step (see
+    /// `WhereLaunch.sequence`); also re-run on every store change via
+    /// `observeRegionStyleChanges()`. On failure it keeps the last good resolver
+    /// (honest degraded state) and logs.
+    func seedRegionStyles() async {
+        do {
+            let primary = try await services.primaryRegions()
+            regionStyles = RegionStyleResolver(primaryRegions: primary)
+        } catch {
+            Self.logger(attachments: [.error(error, name: "region-styles-error")]) {
+                .regionStylesLoadFailed(description: error.localizedDescription)
+            }
+        }
+    }
+
+    /// Subscribe to store changes (local commits + remote CloudKit imports) so a
+    /// customized region's look stays live — a Settings edit or a synced pick on
+    /// another device reloads ``regionStyles``. Idempotent.
+    func observeRegionStyleChanges() {
+        guard regionStyleTask == nil else { return }
+        let services = services
+        regionStyleTask = Task { @MainActor [weak self] in
+            for await _ in services.dataChangeUpdates() {
+                guard let self else { break }
+                await seedRegionStyles()
+            }
+        }
+    }
+
     /// Start or stop GPS ingestion so it matches the user's intent and the
     /// current authorization. Tracking only runs with Always authorization. A
     /// launch step (see `WhereLaunch.sequence`).
@@ -241,11 +283,11 @@ public final class WhereSession {
         if wantsTracking, authorizationStatus.allowsBackgroundTracking {
             await services.ingestor.start()
             isTracking = true
-            if !wasTracking { Self.logger.info("Background tracking started") }
+            if !wasTracking { Self.logger { .backgroundTrackingStarted } }
         } else {
             await services.ingestor.stop()
             isTracking = false
-            if wasTracking { Self.logger.info("Background tracking stopped") }
+            if wasTracking { Self.logger { .backgroundTrackingStopped } }
         }
     }
 
@@ -277,7 +319,7 @@ public final class WhereSession {
         await syncAuthorization()
         await reconcileTracking()
         if authorizationStatus.allowsBackgroundTracking {
-            Self.logger.info("Location permission granted (\(authorizationStatus))")
+            Self.logger { .permissionGranted(status: String(describing: authorizationStatus)) }
         }
     }
 
@@ -297,7 +339,7 @@ public final class WhereSession {
         await syncAuthorization()
         await reconcileTracking()
         if authorizationStatus.allowsBackgroundTracking {
-            Self.logger.info("Tracking enabled with background authorization")
+            Self.logger { .trackingEnabled }
         }
     }
 
@@ -305,7 +347,7 @@ public final class WhereSession {
         wantsTracking = false
         await services.ingestor.stop()
         isTracking = false
-        Self.logger.info("Stopped background tracking")
+        Self.logger { .stoppedBackgroundTracking }
     }
 
     /// Push the persisted reminder intent to the reminder reconciler and warn if
@@ -327,7 +369,7 @@ public final class WhereSession {
         let authorized = await services.reminders.isAuthorized()
         if enabled, !authorized {
             if !warnedRemindersUnauthorized {
-                Self.logger.warning("Logging reminders enabled but notifications not authorized")
+                Self.logger { .remindersUnauthorized }
                 warnedRemindersUnauthorized = true
             }
         } else {
@@ -345,7 +387,7 @@ public final class WhereSession {
         let authorized = await services.reminders.isAuthorized()
         if enabled, !authorized {
             if !warnedSummaryUnauthorized {
-                Self.logger.warning("Daily summary enabled but notifications not authorized")
+                Self.logger { .summaryUnauthorized }
                 warnedSummaryUnauthorized = true
             }
         } else {
@@ -368,7 +410,7 @@ public final class WhereSession {
         let authorized = await services.reminders.isAuthorized()
         if enabled, !authorized {
             if !warnedIssueAlertsUnauthorized {
-                Self.logger.warning("Issue alerts enabled but notifications not authorized")
+                Self.logger { .issueAlertsUnauthorized }
                 warnedIssueAlertsUnauthorized = true
             }
         } else {
@@ -388,7 +430,7 @@ public final class WhereSession {
     public func eraseSession() async throws {
         try await services.reset()
         isTracking = false
-        Self.logger.info("Erased session and reset state")
+        Self.logger { .erasedSession }
     }
 
     /// Drives the background-tracking `Toggle`. Reads the live `isTracking`

@@ -146,6 +146,12 @@ struct StringsTests {
         #expect(Strings.developerTitle == "Developer")
         #expect(Strings.developerLogsLink == "Logs")
         #expect(Strings.developerLogsTitle == "Logs")
+        #expect(Strings.developerOpenSpansLink == "Open spans")
+        #expect(Strings.developerLogViewMode == "Log View Mode")
+        #expect(
+            Strings.developerLogViewModeFooter
+                == "Reveal an inspect badge on tagged views to open their recent logs.",
+        )
         #expect(Strings.developerInspectorLink == "SwiftData Inspector")
         #expect(Strings.developerInspectorTitle == "SwiftData")
         #expect(Strings.developerRegionMapLink == "Region map")

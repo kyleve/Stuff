@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 
 /// A coordinate-to-`Region` lookup engine. Abstracted as a protocol so callers
 /// can hold either an immutable ``RegionAttributor`` snapshot or a live,
@@ -95,9 +95,9 @@ public struct RegionAttributor: RegionAttributing {
         return entry.polygons.map { $0.distanceToBoundary(from: coordinate) }.min()
     }
 
-    /// `RegionLog` channel — surfaces missing/unparseable bundled resources as
+    /// `RegionLog` logger — surfaces missing/unparseable bundled resources as
     /// Console.app faults alongside the debug-build `assertionFailure`.
-    private static let logger = RegionLog.channel(.attributor)
+    private static let logger = RegionLog.attributor
 
     /// Loads the exterior-ring polygons for each region from its bundled
     /// per-region GeoJSON. Missing/corrupt geometry is a programmer error: it's
@@ -108,29 +108,31 @@ public struct RegionAttributor: RegionAttributing {
         for region in regions {
             guard region != .other else { continue }
             guard let url = RegionCatalog.shared.geometryURL(for: region) else {
-                logger.fault("Missing bundled GeoJSON for region \(region.rawValue)")
+                logger { .missingGeometry(region: region) }
                 assertionFailure("Missing bundled GeoJSON for region \(region.rawValue)")
                 continue
             }
             do {
                 let polygons = try GeoJSON.polygons(at: url)
                 guard !polygons.isEmpty else {
-                    logger.fault("Region \(region.rawValue) decoded no polygons")
+                    logger { .emptyPolygons(region: region) }
                     assertionFailure("Region \(region.rawValue) decoded no polygons")
                     continue
                 }
                 entries.append(RegionPolygons(region: region, polygons: polygons))
             } catch {
-                logger
-                    .fault(
-                        "Failed to decode bundled GeoJSON for region \(region.rawValue): \(error.localizedDescription)",
+                logger(attachments: [.error(error, name: "decode-error")]) {
+                    .decodeFailed(
+                        region: region,
+                        description: error.localizedDescription,
                     )
+                }
                 assertionFailure(
                     "Failed to decode bundled GeoJSON for region \(region.rawValue): \(error)",
                 )
             }
         }
-        logger.info("Loaded region polygons for \(entries.count) region(s)")
+        logger { .loaded(regionCount: entries.count) }
         return entries
     }
 }

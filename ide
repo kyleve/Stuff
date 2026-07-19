@@ -8,12 +8,16 @@ git config core.hooksPath .githooks
 # Gitignored, machine-local mise config that overrides/extends .mise.toml.
 LOCAL_MISE=".mise.local.toml"
 
+BOOTSTRAP=false
 INSTALL=false
 OPEN=true
 TEAM_ID=""
 
 while [ $# -gt 0 ]; do
     case "$1" in
+        --bootstrap|--setup)
+            BOOTSTRAP=true
+            ;;
         -i|--install)
             INSTALL=true
             ;;
@@ -39,6 +43,94 @@ while [ $# -gt 0 ]; do
     shift
 done
 
+# Resolve the mise binary: prefer one already on PATH, otherwise the common
+# install locations (the official installer's $HOME/.local/bin, Homebrew). This
+# lets bootstrap work before `mise activate` is in the user's shell. Prints
+# nothing when mise is unavailable, so callers treat an empty result as
+# "not found".
+find_mise() {
+    command -v mise 2>/dev/null && return
+    for candidate in "$HOME/.local/bin/mise" /opt/homebrew/bin/mise /usr/local/bin/mise; do
+        [ -x "$candidate" ] && { echo "$candidate"; return; }
+    done
+}
+
+# Idempotently add `mise activate` to the user's shell rc so mise and the pinned
+# tools land on PATH in new interactive shells. This is a convenience only —
+# ./ide and the git hooks resolve mise directly (see find_mise), so nothing
+# breaks without it. Only touches a known rc (zsh/bash), never duplicates the
+# line, and prints a manual note for other shells.
+ensure_mise_activation() {
+    local shell_name rc activate_line
+    shell_name="$(basename "${SHELL:-}")"
+    case "$shell_name" in
+        zsh)
+            rc="$HOME/.zshrc"
+            activate_line='eval "$(mise activate zsh)"'
+            ;;
+        bash)
+            rc="$HOME/.bashrc"
+            activate_line='eval "$(mise activate bash)"'
+            ;;
+        *)
+            echo "note: add mise activation to your shell's rc so mise is on PATH in new shells (https://mise.jdx.dev/getting-started.html)"
+            return
+            ;;
+    esac
+
+    if [ -f "$rc" ] && grep -q "mise activate" "$rc"; then
+        return
+    fi
+
+    printf '\n# Added by ./ide --bootstrap: put mise (and the pinned tools) on PATH\n%s\n' "$activate_line" >>"$rc"
+    echo "==> added mise activation to $rc (restart your shell or run: source $rc)"
+}
+
+# One-shot machine setup: verify Xcode, install mise, install the pinned tools.
+# Must run before anything that shells out to mise.
+if [ "$BOOTSTRAP" = true ]; then
+    # Xcode must be a full Xcode.app (not just the Command Line Tools) and
+    # runnable — Tuist can't operate against the CLT alone. We check-and-instruct
+    # rather than install: Xcode is a large, interactive App Store download.
+    xcode_path="$(xcode-select -p 2>/dev/null || true)"
+    if [ -z "$xcode_path" ] || [[ "$xcode_path" == *CommandLineTools* ]] || ! xcodebuild -version >/dev/null 2>&1; then
+        cat >&2 <<'EOF'
+error: a full Xcode installation is required (Tuist can't run against the Command Line Tools alone).
+
+Fix it, then re-run ./ide --bootstrap:
+  1. Install Xcode from the App Store (or https://developer.apple.com/download).
+  2. sudo xcode-select -s /Applications/Xcode.app
+  3. sudo xcodebuild -runFirstLaunch
+  4. sudo xcodebuild -license accept
+EOF
+        exit 1
+    fi
+
+    # Install mise (self-contained official installer — no Homebrew needed) if
+    # it isn't already available.
+    if [ -z "$(find_mise)" ]; then
+        echo "==> installing mise"
+        curl -fsSL https://mise.run | sh
+        ensure_mise_activation
+    fi
+
+    MISE="$(find_mise)"
+    if [ -z "$MISE" ]; then
+        echo "error: mise installation failed; install it manually from https://mise.jdx.dev" >&2
+        exit 1
+    fi
+
+    # Install the pinned tools (Tuist, SwiftFormat, Ruby) from .mise.toml.
+    echo "==> mise install"
+    "$MISE" install
+fi
+
+MISE="$(find_mise)"
+if [ -z "$MISE" ]; then
+    echo "error: mise not found — run ./ide --bootstrap first to set up this machine." >&2
+    exit 1
+fi
+
 # Persist the Apple Developer Team ID into the gitignored .mise.local.toml so
 # Project.swift can read TUIST_DEVELOPMENT_TEAM and stamp DEVELOPMENT_TEAM into
 # the generated project — no re-picking your team in Xcode after every
@@ -46,21 +138,21 @@ done
 # TOML: `mise set` creates the file and the [env] table as needed.
 if [ -n "$TEAM_ID" ]; then
     echo "==> mise set TUIST_DEVELOPMENT_TEAM=$TEAM_ID (in $LOCAL_MISE)"
-    mise set --file "$LOCAL_MISE" "TUIST_DEVELOPMENT_TEAM=$TEAM_ID"
+    "$MISE" set --file "$LOCAL_MISE" "TUIST_DEVELOPMENT_TEAM=$TEAM_ID"
 fi
 
 if [ "$INSTALL" = true ]; then
     echo "==> tuist install"
-    mise exec -- tuist install
+    "$MISE" exec -- tuist install
 fi
 
 echo "==> sync-agents --install"
-./sync-agents --install
+"$MISE" exec -- ./sync-agents --install
 
 if [ "$OPEN" = true ]; then
     echo "==> tuist generate"
-    mise exec -- tuist generate
+    "$MISE" exec -- tuist generate
 else
     echo "==> tuist generate --no-open"
-    mise exec -- tuist generate --no-open
+    "$MISE" exec -- tuist generate --no-open
 fi

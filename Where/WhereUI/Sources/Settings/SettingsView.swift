@@ -1,4 +1,6 @@
 import LifecycleKit
+import PeriscopeCore
+import RegionKit
 import SwiftUI
 import UIKit
 import UniformTypeIdentifiers
@@ -26,6 +28,7 @@ struct SettingsView: View {
     @State private var showClearConfirmation = false
     @State private var showResetConfirmation = false
     @State private var showAppIcon = false
+    @State private var showRegions = false
 
     // "Find issues now": a manual, force-past-the-throttle data-issue scan and
     // its result (issue count) shown until the next scan.
@@ -61,6 +64,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 trackingSection
+                regionsSection
                 remindersSection
                 summarySection
                 issueAlertsSection
@@ -79,6 +83,9 @@ struct SettingsView: View {
             .task { await reminders.refreshNotificationAuthorization() }
             .sheet(isPresented: $showAppIcon) {
                 AppIconView()
+            }
+            .sheet(isPresented: $showRegions) {
+                RegionsSettingsView(usedThisYear: regionsUsedThisYear)
             }
             .alert(Strings.settingsPermissionAlertTitle, isPresented: $session.permissionDenied) {
                 Button(Strings.settingsPermissionAlertOpenSettings) { openSystemSettings() }
@@ -129,6 +136,30 @@ struct SettingsView: View {
             } message: { message in
                 Text(message)
             }
+        }
+    }
+
+    /// Regions with days in the selected report year, so the region editor can
+    /// surface a "used this year" group (grouping order only — it doesn't affect
+    /// what's saved). `.other` isn't a pickable region, so it's dropped.
+    private var regionsUsedThisYear: Set<Region> {
+        guard let totals = report.report?.totals else { return [] }
+        return Set(totals.filter { $0.key != .other && $0.value > 0 }.map(\.key))
+    }
+
+    private var regionsSection: some View {
+        Section {
+            Button {
+                showRegions = true
+            } label: {
+                LabeledContent {
+                    Text(Strings.settingsRegionsRow)
+                        .foregroundStyle(.secondary)
+                } label: {
+                    Label(Strings.settingsRegionsSection, systemImage: "map.fill")
+                }
+            }
+            .tint(.primary)
         }
     }
 
@@ -431,6 +462,9 @@ struct SettingsView: View {
         .task(id: exportedArchiveURL) {
             await expireExportIfNeeded()
         }
+        // Log View Mode: reveal an inspect badge for backup export/import
+        // events on this section. A no-op in release.
+        .debugLogInspectable(WhereLog.session(BackupModelLog.self))
     }
 
     /// Determinate progress for an in-flight export or import, driven by

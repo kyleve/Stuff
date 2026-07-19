@@ -71,6 +71,15 @@ extension Region {
     public var localizedName: String {
         RegionCatalog.shared.localizedName(for: self)
     }
+
+    /// Stable `region://regions/<id>` identity, built with ``RegionURL``, for
+    /// logging/tooling correlation (e.g. a Periscope `LogEvent.externalID`) so
+    /// every event about one region shares a namespaced key. Distinct from the
+    /// bare-`rawValue` `Codable` used for storage — this is the tooling
+    /// identity, not the persisted form.
+    public var regionURL: URL {
+        RegionURL.url(collection: "regions", type: rawValue, items: [:])
+    }
 }
 
 // MARK: - Well-known regions

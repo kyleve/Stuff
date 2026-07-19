@@ -1,6 +1,11 @@
 import LifecycleKit
+import PeriscopeUI
 import SwiftUI
 import WhereCore
+#if DEBUG
+    import PeriscopeCore
+    import PeriscopeTools
+#endif
 
 /// The app's root: the launch sequence gated in front of a Liquid Glass tab bar
 /// over the four top-level screens (Primary, Elsewhere, Resolve, Settings).
@@ -20,6 +25,16 @@ public struct RootView: View {
         /// handed to the sibling `DeveloperOverlay` so its button rests clear of the
         /// tab bar. Zero when logged out (no tab bar in the tree).
         @State private var developerTabBarInset: CGFloat = 0
+        /// Periscope's "log view mode" mirror, built once the launch bootstrap has
+        /// opened the log store. Injected into the environment so
+        /// `debugLogInspectable(_:)` badges across the app can reveal their scopes;
+        /// the developer overlay binds its toggle to it.
+        @State private var inspector: PeriscopeInspector?
+        /// Watches the shared pipeline for `.warning`+ records and shows them as
+        /// in-app toasts while developing. Retained for the process; started once
+        /// the store is available.
+        @State private var alerter: PeriscopeAlerter?
+        @State private var toastCenter = DeveloperToastCenter()
     #endif
     private let launcher: LifecycleRunner
 
@@ -67,57 +82,71 @@ public struct RootView: View {
             // DEBUG-only and compiled out of release entirely.
             #if DEBUG
                 DeveloperOverlay(tabBarInset: developerTabBarInset)
+                // High-severity log toasts float above everything, including the
+                // developer overlay, so a warning/error is visible wherever it fires.
+                DeveloperToastOverlay(center: toastCenter)
             #endif
         }
         #if DEBUG
         .onPreferenceChange(DeveloperTabBarInsetKey.self) { developerTabBarInset = $0 }
+            .environment(\.periscopeInspector, inspector)
+            .task { configureDeveloperLogging() }
+            .onChange(of: model.logStore.map(ObjectIdentifier.init)) { _, _ in
+                configureDeveloperLogging()
+            }
         #endif
-        .environment(model)
-        // The logged-in session appears once `open-store` builds it. Injected
-        // as an optional `Observable`, so the `TabView`'s `@Environment(WhereSession.self)`
-        // views resolve it (they only render at `.ready`, by which point it's
-        // present) and re-inject when a reset rebuilds it. The DEBUG developer
-        // overlay reads it optionally — it can appear before login, where the
-        // SwiftData inspector row simply hides.
-        .environment(model.session)
-        // Settings' "Erase all data & reset" runs the teardown through the
-        // `LifecycleRunner` that `LifecycleContainer` publishes into the
-        // environment, which wipes data + preferences and re-drives the launch
-        // sequence back to onboarding.
-        //
-        // `run()` is idempotent: in the app the delegate already kicked it off,
-        // so this is a no-op there; in previews/tests it's what drives the
-        // launch.
-        //
-        // Promote the launch (`.undetermined` from the app delegate, or a
-        // genuine `.background` relaunch) only once the scene is genuinely
-        // active. SwiftUI may build this view (and run `.task`) for a scene that
-        // iOS connected in the background; promoting then would flip the launcher
-        // to foreground and build the heavy `TabView` for a launch nobody sees,
-        // defeating the headless path. The `.onChange` below handles the later
-        // background→foreground transition; this initial check covers a launch
-        // that is already active when the view first appears — and it must run
-        // *before* awaiting `run()`: when the scene arrives already active,
-        // `.onChange` never fires, and promoting only after `run()` returns
-        // would leave the user staring at the empty background surface for the
-        // entire (possibly slow) headless drive instead of the splash.
-        .task {
-            if scenePhase == .active {
-                await launcher.enterForeground()
+            // Seed the app's root logging context so any view that logs freeform via
+            // `\.logContext` emits under the "Where" scope rather than a bare root.
+            .logContext(WhereLog.root)
+            .environment(model)
+            // The logged-in session appears once `open-store` builds it. Injected
+            // as an optional `Observable`, so the `TabView`'s `@Environment(WhereSession.self)`
+            // views resolve it (they only render at `.ready`, by which point it's
+            // present) and re-inject when a reset rebuilds it. The DEBUG developer
+            // overlay reads it optionally — it can appear before login, where the
+            // SwiftData inspector row simply hides.
+            .environment(model.session)
+            // Settings' "Erase all data & reset" runs the teardown through the
+            // `LifecycleRunner` that `LifecycleContainer` publishes into the
+            // environment, which wipes data + preferences and re-drives the launch
+            // sequence back to onboarding.
+            //
+            // `run()` is idempotent: in the app the delegate already kicked it off,
+            // so this is a no-op there; in previews/tests it's what drives the
+            // launch.
+            //
+            // Promote the launch (`.undetermined` from the app delegate, or a
+            // genuine `.background` relaunch) only once the scene is genuinely
+            // active. SwiftUI may build this view (and run `.task`) for a scene that
+            // iOS connected in the background; promoting then would flip the launcher
+            // to foreground and build the heavy `TabView` for a launch nobody sees,
+            // defeating the headless path. The `.onChange` below handles the later
+            // background→foreground transition; this initial check covers a launch
+            // that is already active when the view first appears — and it must run
+            // *before* awaiting `run()`: when the scene arrives already active,
+            // `.onChange` never fires, and promoting only after `run()` returns
+            // would leave the user staring at the empty background surface for the
+            // entire (possibly slow) headless drive instead of the splash.
+            .task {
+                if scenePhase == .active {
+                    await launcher.enterForeground()
+                }
+                await launcher.run()
             }
-            await launcher.run()
-        }
-        .onChange(of: scenePhase) { _, newPhase in
-            guard newPhase == .active else { return }
-            Task {
-                await launcher.enterForeground()
-                await model.session?.appBecameActive()
+            .onChange(of: scenePhase) { _, newPhase in
+                guard newPhase == .active else { return }
+                Task {
+                    await launcher.enterForeground()
+                    await model.session?.appBecameActive()
+                }
             }
-        }
-        // Seed the Broadway context at the app root so descendants resolve
-        // `WhereStylesheet` (via `@Environment(\.stylesheet)`) against the live
-        // system traits and the app's themes.
-        .whereBroadwayRoot()
+            // Seed the Broadway context at the app root so descendants resolve
+            // `WhereStylesheet` (via `@Environment(\.stylesheet)`) against the live
+            // system traits and the app's themes, plus the session's live region
+            // styles (`\.regionStyles`) so cards/calendar/onboarding render the
+            // user's picked looks. `.default` before the session exists (splash) and
+            // reactive after, since reading `session.regionStyles` tracks it.
+            .whereBroadwayRoot(regionStyles: model.session?.regionStyles ?? .default)
     }
 
     /// How the launch splash gives way to the app once the runner is `.ready`:
@@ -137,6 +166,26 @@ public struct RootView: View {
     private var revealAnimation: Animation {
         reduceMotion ? stylesheet.motion.reducedReveal : stylesheet.motion.reveal
     }
+
+    #if DEBUG
+        /// Build the log-view-mode inspector and start the toast alerter once the
+        /// launch bootstrap has opened the process-global store. Idempotent: it's
+        /// driven from both the initial `.task` (fixtures that inject a store up
+        /// front) and an `.onChange` (the app, where the store opens off the
+        /// launch path), and does nothing until the store exists or after it's
+        /// wired once.
+        private func configureDeveloperLogging() {
+            guard inspector == nil, let store = model.logStore else { return }
+            inspector = PeriscopeInspector(system: .shared, store: store)
+            let alerter = PeriscopeAlerter(
+                system: .shared,
+                threshold: .warning,
+                handler: DeveloperToastAlertHandler(center: toastCenter),
+            )
+            alerter.start()
+            self.alerter = alerter
+        }
+    #endif
 }
 
 #if DEBUG

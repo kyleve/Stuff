@@ -39,6 +39,26 @@ internal shape.
   `WhereServices.forIntents(sharingStoreOf:)` — rather than a second caller
   opening another container over the same file (concurrent first-launch
   creation is how the launch once failed).
+- **Primary regions *are* the tracked-region set.** The picked primary regions
+  (`primaryRegions()` / `setPrimaryRegions(_:)`) are the same `SDTrackedRegion`
+  rows `trackedRegions()` reads — picking scopes GPS attribution *and* carries
+  each region's `RegionAppearance` (color token / emoji / SF Symbol) + pick
+  order. `RegionAppearance` is data (WhereCore); the token→`Color` mapping and
+  option catalogs are presentation (`WhereUI`).
+- **Backups mirror the persisted model — keep them lossless.** Any change to
+  persisted data (a new/changed `SD*` field, or a value type that crosses
+  `WhereStore`) must be reflected end-to-end in the backup so export/restore
+  never silently drops it: add it to `BackupArchive`, write it in
+  `BackupService.makeArchiveFile`, read it back in `BackupCoordinator.importBackup`
+  for **both** `.replace` and `.merge`, and add a round-trip test
+  (`BackupServiceTests` for the archive, `BackupCoordinatorTests` for the store
+  round-trip). The archive is **strict synthesized `Codable`** — no in-code
+  legacy decode. A shape change **bumps `BackupArchive.currentFormatVersion`**
+  (`readArchive` rejects any other version) and is handled out of band by
+  extending [`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb), per the
+  no-migration-on-read rule below. Example: v2 added `primaryRegions` (per-region
+  picked appearance + pick order), the tool synthesizes it from the legacy
+  `trackedRegions` ids, and import restores looks from it.
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (year-month-
   day) is the timezone-independent identity of a day, and it is what every
   *stored user record* and *day comparison* keys on: `DayPresence.day`,
@@ -67,7 +87,10 @@ internal shape.
   `Codable` and a stable SwiftData string key for free — never an ad-hoc
   `type:value` string or a hand-written keyed `Codable`. Build/parse with
   `StoreURL` so every conformer shares the `store://<collection>/<type>?<params>`
-  shape.
+  shape. Object families without a dedicated identity type (days, years,
+  evidence, samples) get their `store://` identity from `WhereStoreID`, used to
+  stamp Periscope `LogEvent.externalID`s so log inspect-by-object shares the
+  store's keys.
 - **No in-app data migration or legacy recovery.** A data-shape change is not
   migrated on read or at boot: `SD….toValue()` reads only the current shape and
   drops (fault-logs) a row it can't place — e.g. an `SDManualDay` with no
@@ -111,8 +134,13 @@ internal shape.
   loads tracked-region geometry, so `distanceToBoundary` is `nil` elsewhere.
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are
   `async throws` so the CloudKit-backed store can report I/O failure; a `catch`
-  must log via `WhereLog.channel(_:)` (typed `Category`, PII-free) and leave
-  state honest — never swallow into an empty default.
+  must log via a `WhereLog` typed `LogEvent` (PII-free, `.public`) and leave
+  state honest — never swallow into an empty default. Each collaborator emits
+  its own `LogEvent` under its scope (`WhereLog.<group>(SomeLog.self)` or
+  `WhereLog.root(SomeLog.self)`); errors ride as `LogAttachment.error(_:)`. The
+  `WhereLog` facade and every `*Log.swift` event type live together in
+  `Sources/Logging/` (not beside their collaborator), so the module's logging
+  vocabulary sits in one place.
 
 ## Testing
 

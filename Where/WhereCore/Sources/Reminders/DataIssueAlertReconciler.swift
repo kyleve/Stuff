@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 
 /// Owns the "you have issues to resolve" notification intent and the
 /// reconciliation that keeps that notification in sync with the current year's
@@ -21,7 +21,7 @@ public actor DataIssueAlertReconciler {
         var driftThresholdMeters = Double(DriftThreshold.default.rawValue)
     }
 
-    private static let logger = WhereLog.channel(.dataIssueAlertReconciler)
+    private static let logger = WhereLog.reminders(DataIssueAlertReconcilerLog.self)
 
     init(
         scheduler: any DataIssueAlertScheduling,
@@ -72,9 +72,9 @@ public actor DataIssueAlertReconciler {
                 body: Self.body(count: count),
             )
         } catch {
-            Self.logger.error(
-                "Failed to reconcile issue alerts: \(error.localizedDescription)",
-            )
+            Self.logger(attachments: [.error(error, name: "reconcile-error")]) {
+                .reconcileFailed(description: error.localizedDescription)
+            }
         }
     }
 

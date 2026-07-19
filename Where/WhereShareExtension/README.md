@@ -51,7 +51,7 @@ CloudKit container picks the write up from the shared store's history.
 
 `WhereShareExtension` is a Tuist app-extension target in
 [`Project.swift`](../../Project.swift) (bundle ID `com.stuff.where.share`),
-depending on **WhereCore**, **WhereUI**, and **LogKit**. The main **Where** app
+depending on **WhereCore**, **WhereUI**, and **PeriscopeCore**. The main **Where** app
 embeds the extension and shares the `group.com.stuff.where` App Group
 entitlement so both processes open the same SwiftData store.
 

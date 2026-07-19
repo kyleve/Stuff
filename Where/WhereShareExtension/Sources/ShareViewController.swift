@@ -1,4 +1,4 @@
-import LogKit
+import PeriscopeCore
 import SwiftUI
 import UIKit
 import WhereCore
@@ -8,7 +8,7 @@ import WhereCore
 /// `UIHostingController` and bridges its save/cancel actions to the extension
 /// request lifecycle.
 final class ShareViewController: UIViewController {
-    private static let logger = WhereLog.channel(.shareExtension)
+    private static let logger = WhereLog.root(ShareExtensionLog.self)
 
     /// The embedded SwiftUI host, re-framed to fill our bounds each layout pass.
     private var host: UIHostingController<ShareEvidenceView>?
@@ -17,7 +17,7 @@ final class ShareViewController: UIViewController {
         super.viewDidLoad()
 
         let items = (extensionContext?.inputItems as? [NSExtensionItem]) ?? []
-        Self.logger.info("Share extension opened with \(items.count) item(s)")
+        Self.logger { .opened(itemCount: items.count) }
 
         let model = ShareEvidenceModel(items: items)
         let root = ShareEvidenceView(

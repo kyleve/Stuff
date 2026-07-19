@@ -13,6 +13,8 @@ public struct TodayInlineAccessoryView: View {
         self.snapshot = snapshot
     }
 
+    @Environment(\.regionStyles) private var regionStyles
+
     private var regions: [Region] {
         snapshot.orderedDayRegions
     }
@@ -21,7 +23,7 @@ public struct TodayInlineAccessoryView: View {
         if let first = regions.first {
             Label(
                 regions.map(\.localizedName).joined(separator: " · "),
-                systemImage: first.style.symbolName,
+                systemImage: regionStyles.style(for: first).symbolName,
             )
         } else {
             Label(Strings.widgetTodayEmpty, systemImage: "location.slash")
@@ -39,6 +41,8 @@ public struct TodayCircularAccessoryView: View {
         self.snapshot = snapshot
     }
 
+    @Environment(\.regionStyles) private var regionStyles
+
     private var regions: [Region] {
         snapshot.orderedDayRegions
     }
@@ -47,8 +51,11 @@ public struct TodayCircularAccessoryView: View {
         ZStack {
             AccessoryWidgetBackground()
             VStack(spacing: 0) {
-                Image(systemName: regions.first?.style.symbolName ?? "location.slash")
-                    .font(.title3)
+                Image(
+                    systemName: regions.first
+                        .map { regionStyles.style(for: $0).symbolName } ?? "location.slash",
+                )
+                .font(.title3)
                 if regions.count > 1 {
                     Text(verbatim: "+\(regions.count - 1)")
                         .font(.caption2.weight(.semibold))

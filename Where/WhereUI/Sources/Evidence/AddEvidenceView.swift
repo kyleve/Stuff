@@ -1,3 +1,4 @@
+import PeriscopeCore
 import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
@@ -75,6 +76,9 @@ struct AddEvidenceView: View {
             } message: { message in
                 Text(message)
             }
+            // Log View Mode: reveal an inspect badge for this compose form's
+            // events (attachment-pick / save). A no-op in release.
+            .debugLogInspectable(WhereLog.evidence(AddEvidenceModelLog.self))
         }
     }
 

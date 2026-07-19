@@ -1,5 +1,6 @@
 import Foundation
 import LifecycleKit
+@_spi(Testing) import PeriscopeCore
 import RegionKit
 import SwiftData
 import TestHostSupport
@@ -217,6 +218,17 @@ struct WhereLaunchTests {
         try await waitUntil { launcher.phase.isReady }
         await task.value
         #expect(launcher.phase.isReady)
+    }
+
+    @Test func attachingLogStoreExposesItOnTheModel() async throws {
+        // The launch bootstrap opens the process-global store off the critical
+        // path and hands it to the model so the developer surface can browse it.
+        // A fresh model has none until then.
+        let model = try makeModel(preferences: makePreferences())
+        #expect(model.logStore == nil)
+        let store = try await PeriscopeStore.inMemory(session: .current())
+        model.attach(logStore: store)
+        #expect(model.logStore === store)
     }
 
     @Test func openStoreHandsTheSessionsServicesToTheOnServicesReadyHook() async throws {

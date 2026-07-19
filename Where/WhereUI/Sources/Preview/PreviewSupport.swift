@@ -1,5 +1,6 @@
 #if DEBUG
     import Foundation
+    import PeriscopeCore
     import RegionKit
     @_spi(Testing) import WhereCore
 
@@ -68,6 +69,38 @@
         @MainActor
         public static func loadedSession() -> WhereSession {
             WhereSession(services: previewServices())
+        }
+
+        // MARK: - Region picker / customization
+
+        /// A primary-region selection model seeded with a few US picks + looks,
+        /// for the picker/customization previews and tests.
+        @MainActor
+        public static func primaryRegionSelectionModel() -> PrimaryRegionSelectionModel {
+            let texas = Region(rawValue: "us-TX")
+            let existing: [PrimaryRegion] = [
+                PrimaryRegion(
+                    region: .california,
+                    appearance: RegionAppearance(
+                        color: .orange,
+                        emoji: "🌴",
+                        symbolName: "sun.max.fill",
+                    ),
+                    order: 0,
+                ),
+                PrimaryRegion(
+                    region: .newYork,
+                    appearance: RegionAppearance(
+                        color: .indigo,
+                        emoji: "🗽",
+                        symbolName: "building.2.fill",
+                    ),
+                    order: 1,
+                ),
+            ] + (texas.map {
+                [PrimaryRegion(region: $0, appearance: nil, order: 2)]
+            } ?? [])
+            return PrimaryRegionSelectionModel(existing: existing)
         }
 
         // MARK: - Report models (scene / report + year views)
@@ -333,6 +366,23 @@
         @MainActor
         public static func loadedModel() -> WhereModel {
             WhereModel(services: previewServices(), report: sampleReport(), selectedYear: year)
+        }
+
+        /// An in-memory Periscope log store for the developer-surface previews and
+        /// hosting tests — the same durable-sink type the app opens at launch,
+        /// but backed by memory so nothing touches disk.
+        @MainActor
+        public static func previewLogStore() async throws -> PeriscopeStore {
+            try await PeriscopeStore.make(storage: .inMemory, session: .current())
+        }
+
+        /// A `loadedModel()` with an in-memory log store attached, so the
+        /// developer tools' log-viewer and Log View Mode rows render.
+        @MainActor
+        public static func loadedModel(withLogStore store: PeriscopeStore) -> WhereModel {
+            let model = loadedModel()
+            model.attach(logStore: store)
+            return model
         }
 
         /// A widget snapshot built from the sample year totals, for widget

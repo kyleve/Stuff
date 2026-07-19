@@ -16,6 +16,7 @@ public struct TodayWidgetView: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     private var regions: [Region] {
         snapshot.orderedDayRegions
@@ -54,15 +55,16 @@ public struct TodayWidgetView: View {
     /// The common case — one region so far today — gets the full passport
     /// treatment: big emoji, serif uppercase name in the region's tint.
     private func heroRegion(_ region: Region) -> some View {
-        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
-            Text(region.style.emoji)
+        let style = regionStyles.style(for: region)
+        return VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
+            Text(style.emoji)
                 .font(.largeTitle)
                 .accessibilityHidden(true)
             Text(region.localizedName)
                 .font(stylesheet.typography.widgetHeroRegion)
                 .textCase(.uppercase)
                 .tracking(1)
-                .foregroundStyle(region.style.tint)
+                .foregroundStyle(style.tint)
                 .lineLimit(2)
                 .minimumScaleFactor(0.6)
         }
@@ -72,13 +74,14 @@ public struct TodayWidgetView: View {
     private var regionList: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             ForEach(regions, id: \.self) { region in
+                let style = regionStyles.style(for: region)
                 HStack(spacing: stylesheet.spacing.small) {
-                    Text(region.style.emoji)
+                    Text(style.emoji)
                         .font(.caption)
                         .accessibilityHidden(true)
                     Text(region.localizedName)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(region.style.tint)
+                        .foregroundStyle(style.tint)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 }
