@@ -82,6 +82,48 @@ struct PeriscopeStoreTests {
         #expect(events.map(\.message) == ["mid"])
     }
 
+    @Test func afterSequenceFetchesOnlyNewerEvents() async throws {
+        let (store, root, _, _) = try await makeStore()
+        await store.write([
+            makeRecord("first", date: date(1), scopes: [root.id]),
+            makeRecord("second", date: date(2), scopes: [root.id]),
+            makeRecord("third", date: date(3), scopes: [root.id]),
+        ])
+
+        // The middle event's sequence is the cursor: only strictly-newer
+        // events (higher sequence) come back — the cursor event itself does
+        // not repeat.
+        let all = try await store.events(matching: LogQuery())
+        let cursor = try #require(all.first { $0.message == "second" }).sequence
+
+        var query = LogQuery()
+        query.afterSequence = cursor
+        let newer = try await store.events(matching: query)
+        #expect(newer.map(\.message) == ["third"])
+    }
+
+    @Test func afterSequenceCombinesWithOtherFilters() async throws {
+        let (store, root, _, _) = try await makeStore()
+        await store.write([
+            makeRecord("old-info", level: .info, date: date(1), scopes: [root.id]),
+            makeRecord("old-error", level: .error, date: date(2), scopes: [root.id]),
+        ])
+        let firstBatch = try await store.events(matching: LogQuery())
+        let cursor = try #require(firstBatch.map(\.sequence).max())
+
+        await store.write([
+            makeRecord("new-info", level: .info, date: date(3), scopes: [root.id]),
+            makeRecord("new-error", level: .error, date: date(4), scopes: [root.id]),
+        ])
+
+        // Newer-than-cursor AND at least warning: only the new error.
+        var query = LogQuery()
+        query.afterSequence = cursor
+        query.minimumLevel = .warning
+        let events = try await store.events(matching: query)
+        #expect(events.map(\.message) == ["new-error"])
+    }
+
     @Test func eventNameFilters() async throws {
         let (store, root, _, _) = try await makeStore()
         await store.write([

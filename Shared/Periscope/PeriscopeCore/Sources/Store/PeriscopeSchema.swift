@@ -14,6 +14,7 @@ import SwiftData
 final class SDLogEvent {
     #Index<SDLogEvent>(
         [\.date],
+        [\.sequence],
         [\.severity],
         [\.eventName],
         [\.sessionID],
@@ -25,7 +26,9 @@ final class SDLogEvent {
     var eventID: UUID
     var date: Date
     /// Store-assigned monotonic insertion order — breaks ties between
-    /// events in the same millisecond so "newest first" stays stable.
+    /// events in the same millisecond so "newest first" stays stable, and
+    /// indexed so a live viewer's incremental `LogQuery.afterSequence`
+    /// cursor ("everything appended since I last looked") is a range seek.
     var sequence: Int
     var severity: Int
     var levelName: String
