@@ -33,18 +33,12 @@ the build system, formatting, and global conventions. Read that first.
   many-to-many (links), and scopes keep their parent chain.
 - **Custom levels are values, not cases.** `LogLevel` is a struct ordered by
   `severity`; never switch exhaustively over "all" levels.
-- **Ambient sources are reference types that own their filter state.** The
-  built-ins are `final class`es: a source owns its observation (tokens,
-  monitors) *and* any last-state it needs to decide whether an update is
-  worth logging. `NetworkPathAmbientSource` logs **change-only** — it keeps
-  the last description it emitted and drops `NWPathMonitor`'s duplicate,
-  change-agnostic callbacks (interface reordering, `isExpensive`/
-  `isConstrained` flips, DNS/gateway churn), which otherwise flood the log;
-  only *consecutive* duplicates drop (genuine flapping still logs) and a
-  (re)start/stop resets the filter so current connectivity re-reports.
-  Notification-based sources are **not** deduped — their notifications only
-  post on real transitions, and repeated memory warnings are each a
-  distinct event, not a duplicate to swallow.
+- **Ambient sources log change-only where the signal is chatty.**
+  `NetworkPathAmbientSource` keeps its last description and drops
+  `NWPathMonitor`'s duplicate, change-agnostic callbacks (which otherwise
+  flood the log); notification-based sources are deliberately *not* deduped
+  — their notifications post only on real transitions, and repeated memory
+  warnings are each a distinct event, not a duplicate to swallow.
 - **Sink failures never propagate or vanish** — the store logs them to
   OSLog, counts them, and persists a synthetic `StoreWriteFailed` marker
   for the lost batch; the pipeline reports drops with a synthetic

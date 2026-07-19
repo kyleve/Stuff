@@ -6,15 +6,13 @@ import os
 /// airplane-mode-style transitions, and interface changes (Wi-Fi ↔
 /// cellular).
 ///
-/// A reference type: it owns its observation *and* the last description it
-/// logged, so it can filter `NWPathMonitor`'s frequent, change-agnostic
-/// updates down to real transitions before emitting. The monitor re-fires
-/// on churn that maps to the same coarse description — interface
-/// reordering, `isExpensive`/`isConstrained` flips, DNS/gateway changes,
-/// routine path re-evaluation — and logging each callback would flood the
-/// ambient log with duplicate `network:` entries. Only *consecutive*
-/// duplicates are dropped, so genuine flapping (Wi-Fi ↔ cellular) still
-/// logs; a (re)start re-reports current connectivity.
+/// `NWPathMonitor` re-fires on churn that maps to the same coarse
+/// description — interface reordering, `isExpensive`/`isConstrained` flips,
+/// DNS/gateway changes, routine path re-evaluation — so logging every
+/// callback floods the log with duplicate `network:` entries. This keeps
+/// the last description it emitted and logs **change-only**: only
+/// *consecutive* duplicates are dropped, so genuine flapping (Wi-Fi ↔
+/// cellular) still logs; a (re)start re-reports current connectivity.
 public final class NetworkPathAmbientSource: AmbientEventSource {
     /// The running monitor plus the last description emitted, guarded
     /// together so a restart can swap the monitor and reset the filter
