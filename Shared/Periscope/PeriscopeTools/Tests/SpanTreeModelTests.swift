@@ -72,6 +72,54 @@ struct SpanTreeModelTests {
         #expect(openNode.duration == nil)
     }
 
+    /// A span whose end coincides with the next span's begin is a sibling,
+    /// not a child — the containment stack pops on `<=`, so touching spans
+    /// don't nest.
+    @Test func endAdjacentToTheNextBeginStaysASibling() async throws {
+        let (store, root, _, _) = try await makeSeededStore()
+        let first = SpanID()
+        let second = SpanID()
+        await store.write([
+            spanBegan(first, name: "first", at: date(0), scope: root.id),
+            spanEnded(first, name: "first", at: date(1), duration: .seconds(1), scope: root.id),
+            // Begins exactly when `first` ended.
+            spanBegan(second, name: "second", at: date(1), scope: root.id),
+            spanEnded(second, name: "second", at: date(2), duration: .seconds(1), scope: root.id),
+        ])
+
+        let model = SpanTreeModel(store: store)
+        await model.load()
+
+        guard case let .loaded(tree) = model.state else {
+            Issue.record("Expected a loaded tree, got \(model.state)")
+            return
+        }
+        #expect(tree.map(\.name) == ["first", "second"])
+        #expect(tree.allSatisfy { $0.children == nil })
+    }
+
+    /// A `SpanEnded` with no matching `SpanBegan` (e.g. its begin was pruned
+    /// or dropped) is ignored rather than appearing as a phantom node.
+    @Test func ignoresAnEndWithoutAMatchingBegin() async throws {
+        let (store, root, _, _) = try await makeSeededStore()
+        let real = SpanID()
+        let orphanEnd = SpanID()
+        await store.write([
+            spanBegan(real, name: "real", at: date(0), scope: root.id),
+            spanEnded(real, name: "real", at: date(1), duration: .seconds(1), scope: root.id),
+            spanEnded(orphanEnd, name: "ghost", at: date(2), duration: .seconds(1), scope: root.id),
+        ])
+
+        let model = SpanTreeModel(store: store)
+        await model.load()
+
+        guard case let .loaded(tree) = model.state else {
+            Issue.record("Expected a loaded tree, got \(model.state)")
+            return
+        }
+        #expect(tree.map(\.name) == ["real"])
+    }
+
     @Test func loadsEmptyWhenNoSpansRecorded() async throws {
         let (store, root, _, _) = try await makeSeededStore()
         await store.write([makeRecord("not a span", date: date(0), scopes: [root.id])])
@@ -139,5 +187,38 @@ struct SpanTreeModelTests {
             return !node.isOpen && node.duration == .seconds(1)
         }
         #expect(closed)
+    }
+
+    /// Restarting `run()` re-loads over spans already accumulated, but the
+    /// sequence-filtered merge is idempotent: a span isn't listed twice.
+    @Test func restartingRunDoesNotDuplicateSpans() async throws {
+        let (store, root, _, _) = try await makeSeededStore()
+        let model = SpanTreeModel(store: store)
+
+        let first = Task { await model.run() }
+        let a = SpanID()
+        await store.write([
+            spanBegan(a, name: "a", at: date(0), scope: root.id),
+            spanEnded(a, name: "a", at: date(1), duration: .seconds(1), scope: root.id),
+        ])
+        _ = await waitUntil {
+            guard case let .loaded(tree) = model.state else { return false }
+            return tree.map(\.name) == ["a"]
+        }
+        first.cancel()
+
+        let second = Task { await model.run() }
+        defer { second.cancel() }
+        let b = SpanID()
+        await store.write([
+            spanBegan(b, name: "b", at: date(2), scope: root.id),
+            spanEnded(b, name: "b", at: date(3), duration: .seconds(1), scope: root.id),
+        ])
+
+        let both = await waitUntil {
+            guard case let .loaded(tree) = model.state else { return false }
+            return tree.map(\.name) == ["a", "b"]
+        }
+        #expect(both)
     }
 }

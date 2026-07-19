@@ -92,6 +92,16 @@ struct PeriscopeStylesheetTests {
         #expect(resolved.row.compact.messageLineLimit == 2)
     }
 
+    /// A large but *non-accessibility* size stays on the default line limits —
+    /// only accessibility sizes bump them, so this pins the boundary.
+    @Test func keepsDefaultLineLimitsBelowAccessibilitySizes() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.contentSizeCategory = .extraExtraExtraLarge
+        let resolved = try context.stylesheets.get(PeriscopeStylesheet.self)
+        #expect(resolved.row.comfortable.messageLineLimit == 3)
+        #expect(resolved.row.compact.messageLineLimit == 1)
+    }
+
     @Test func densityDisplayNames() {
         #expect(PeriscopeStylesheet.Density.comfortable.displayName == "Comfortable")
         #expect(PeriscopeStylesheet.Density.compact.displayName == "Compact")
@@ -108,6 +118,15 @@ struct PeriscopeStylesheetTests {
             PeriscopeStylesheet.Density.comfortable.save(to: defaults)
             #expect(PeriscopeStylesheet.Density.load(from: defaults) == .comfortable)
             PeriscopeStylesheet.Density.compact.save(to: defaults)
+            #expect(PeriscopeStylesheet.Density.load(from: defaults) == .compact)
+        }
+    }
+
+    /// A stored value that no longer maps to a case (an old/corrupt key)
+    /// falls back to the default rather than trapping.
+    @Test func persistedDensityFallsBackWhenTheStoredValueIsUnknown() {
+        withEphemeralDefaults { defaults in
+            defaults.set("bogus", forKey: PeriscopeStylesheet.Density.defaultsKey)
             #expect(PeriscopeStylesheet.Density.load(from: defaults) == .compact)
         }
     }

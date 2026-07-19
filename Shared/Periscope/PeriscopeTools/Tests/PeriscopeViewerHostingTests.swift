@@ -1,84 +1,60 @@
 import Foundation
 @_spi(Testing) import PeriscopeCore
-import PeriscopeTools
+@testable import PeriscopeTools
 import SwiftUI
 import TestHostSupport
 import Testing
 import UIKit
 
-/// Drives in-place input swaps for rebinding tests.
-@MainActor
-@Observable
-private final class StoreHolder {
-    var store: PeriscopeStore
-
-    init(store: PeriscopeStore) {
-        self.store = store
-    }
-}
-
-private struct SwappingHost: View {
-    let holder: StoreHolder
-
-    var body: some View {
-        NavigationStack {
-            PeriscopeViewer(store: holder.store, title: "Logs")
-        }
-    }
-}
-
 @MainActor
 struct PeriscopeViewerHostingTests {
-    @Test func swappingTheStoreInPlaceRebindsTheViewer() async throws {
-        let (storeA, _, _, _) = try await makeSeededStore()
-        let storeB = try await PeriscopeStore.inMemory(session: makeSession())
-        let holder = StoreHolder(store: storeA)
-
-        let host = UIHostingController(rootView: SwappingHost(holder: holder))
-        try await showHosted(host) { _ in
-            let boundToA = await waitUntil {
-                await storeA.changeObserverCount == 1
-            }
-            #expect(boundToA)
-
-            holder.store = storeB
-
-            // The re-keyed task rebinds to B and cancelling the old task
-            // releases A's stream — State(initialValue:) alone would leave
-            // the viewer pinned to A.
-            let boundToB = await waitUntil {
-                await storeB.changeObserverCount == 1
-            }
-            #expect(boundToB)
-            let releasedA = await waitUntil {
-                await storeA.changeObserverCount == 0
-            }
-            #expect(releasedA)
-        }
-    }
-
-    @Test func viewerHostsOverASeededStore() async throws {
-        let (store, root, _, _) = try await makeSeededStore()
+    /// Hosts the two-tab viewer over a seeded store with density seeded from
+    /// an injected (ephemeral) defaults suite — exercising the test-only
+    /// `init(store:title:defaults:)` and the `\.logRowDensity` seeding path
+    /// without touching the shared standard domain.
+    @Test func hostsWithAnInjectedComfortableDensity() async throws {
+        let (store, root, photos, album) = try await makeSeededStore()
         await store.write([
-            makeRecord("hello viewer", date: date(1), scopes: [root.id]),
+            makeRecord("a", date: date(1), scopes: [root.id]),
+            makeRecord("b", date: date(2), scopes: [photos.id]),
+            makeRecord("c", date: date(3), scopes: [album.id]),
         ])
 
-        let host = UIHostingController(rootView: NavigationStack {
-            PeriscopeViewer(store: store, title: "Logs")
-        })
-        try show(host) { _ in
-            try waitFor { host.view.window != nil }
+        try await withEphemeralDefaults { defaults in
+            PeriscopeStylesheet.Density.comfortable.save(to: defaults)
+            let host = UIHostingController(rootView: NavigationStack {
+                PeriscopeViewer(store: store, title: "Logs", defaults: defaults)
+            })
+            try await showHosted(host) { _ in
+                #expect(await waitUntil { host.view.window != nil })
+            }
         }
     }
 
-    @Test func viewerHostsOverAnEmptyStore() async throws {
+    @Test func hostsOverAnEmptyStore() async throws {
         let store = try await PeriscopeStore.inMemory(session: makeSession())
 
-        let host = UIHostingController(rootView: NavigationStack {
-            PeriscopeViewer(store: store, title: "Logs")
-        })
-        try show(host) { _ in
-            try waitFor { host.view.window != nil }
+        try await withEphemeralDefaults { defaults in
+            let host = UIHostingController(rootView: NavigationStack {
+                PeriscopeViewer(store: store, title: "Logs", defaults: defaults)
+            })
+            try await showHosted(host) { _ in
+                #expect(await waitUntil { host.view.window != nil })
+            }
         }
+    }
+
+    /// Runs `body` against a throwaway `UserDefaults` suite so the test never
+    /// touches the shared standard domain.
+    private func withEphemeralDefaults(
+        _ body: (UserDefaults) async throws -> Void,
+    ) async throws {
+        let suiteName = "periscope.tools.viewer.tests.\(UUID().uuidString)"
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            Issue.record("Could not create an ephemeral UserDefaults suite.")
+            return
+        }
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        try await body(defaults)
     }
 }

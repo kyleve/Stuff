@@ -150,4 +150,59 @@ struct LogHierarchyModelTests {
         }
         #expect(total)
     }
+
+    /// A scope whose parent was never defined is surfaced as a root live, and
+    /// its events still count — the missing-parent handling isn't only a
+    /// static `buildForest` concern.
+    @Test func liveTreatsAScopeWithAMissingParentAsARoot() async throws {
+        let store = try await PeriscopeStore.inMemory(session: makeSession())
+        let ghost = LogScope.root(named: "ghost")
+        let child = ghost.child(named: "child")
+        // Only the child is defined — its parent isn't in the store.
+        await store.defineScopes([child])
+
+        let model = LogHierarchyModel(store: store)
+        let running = Task { await model.run() }
+        defer { running.cancel() }
+
+        await store.write([makeRecord("orphaned", date: date(1), scopes: [child.id])])
+
+        let shown = await waitUntil {
+            guard case let .loaded(forest) = model.state else { return false }
+            return forest.map(\.name) == ["child"]
+                && forest.first?.subtreeCount == 1
+                && forest.first?.children == nil
+        }
+        #expect(shown)
+    }
+
+    /// Restarting `run()` (e.g. the view reappears) re-loads over events
+    /// already merged, but the sequence-filtered merge is idempotent: counts
+    /// reflect the true total, never doubled.
+    @Test func restartingRunDoesNotDoubleCount() async throws {
+        let (store, root, _, _) = try await makeSeededStore()
+        let model = LogHierarchyModel(store: store)
+
+        let first = Task { await model.run() }
+        await store.write([
+            makeRecord("a", date: date(1), scopes: [root.id]),
+            makeRecord("b", date: date(2), scopes: [root.id]),
+        ])
+        _ = await waitUntil {
+            guard case let .loaded(forest) = model.state else { return false }
+            return forest.first?.subtreeCount == 2
+        }
+        first.cancel()
+
+        // Restart the live loop on the same model, then commit one more event.
+        let second = Task { await model.run() }
+        defer { second.cancel() }
+        await store.write([makeRecord("c", date: date(3), scopes: [root.id])])
+
+        let total = await waitUntil {
+            guard case let .loaded(forest) = model.state else { return false }
+            return forest.first?.subtreeCount == 3
+        }
+        #expect(total)
+    }
 }
