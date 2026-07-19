@@ -1,4 +1,5 @@
 import Observation
+import PeriscopeCore
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -43,7 +44,7 @@ struct ManualDayView: View {
     @State private var showDeleteConfirmation = false
     @State private var pending: PendingWrite?
 
-    private static let logger = WhereLog.channel(.model)
+    private static let logger = WhereLog.session(ManualDayViewLog.self)
 
     init(report: YearReportModel, mode: Mode, showsCancelButton: Bool = false) {
         self.report = report
@@ -111,6 +112,9 @@ struct ManualDayView: View {
                 Text(message)
             }
         }
+        // Log View Mode: reveal an inspect badge for the manual-day form's
+        // events (region grouping load). A no-op in release.
+        .debugLogInspectable(WhereLog.session(ManualDayViewLog.self))
     }
 
     // MARK: - Mode-specific content
@@ -252,7 +256,9 @@ struct ManualDayView: View {
             let tracked = try await report.services.primaryRegions()
             activeRegions.applyGrouping(tracked: tracked, usedThisYear: usedThisYear)
         } catch {
-            Self.logger.warning("Manual-day form couldn't load regions for grouping")
+            Self.logger(attachments: [.error(error, name: "grouping-error")]) {
+                .regionGroupingLoadFailed(description: error.localizedDescription)
+            }
         }
     }
 

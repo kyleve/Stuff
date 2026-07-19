@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 
 /// A durable backlog of GPS samples that failed to persist, so a transient
 /// store outage (SwiftData/CloudKit) that *outlives the process* doesn't
@@ -37,7 +37,7 @@ public struct NoOpLocationOutbox: LocationOutbox {
 public actor FileLocationOutbox: LocationOutbox {
     private let fileURL: URL
 
-    private static let logger = WhereLog.channel(.locationOutbox)
+    private static let logger = WhereLog.location(LocationOutboxLog.self)
 
     public init(fileURL: URL) {
         self.fileURL = fileURL
@@ -55,9 +55,7 @@ public actor FileLocationOutbox: LocationOutbox {
             appropriateFor: nil,
             create: true,
         ) else {
-            logger.warning(
-                "No Application Support directory; using in-memory retry queue (backlog won't survive relaunch)",
-            )
+            logger { .noApplicationSupport }
             return NoOpLocationOutbox()
         }
         return FileLocationOutbox(fileURL: directory.appending(path: "location-retry-outbox.json"))
@@ -70,9 +68,9 @@ public actor FileLocationOutbox: LocationOutbox {
         } catch {
             // A decode failure means a corrupt or stale-format file; drop it
             // rather than crash-looping on every launch.
-            Self.logger.error(
-                "Dropping unreadable location retry backlog: \(error.localizedDescription)",
-            )
+            Self.logger(attachments: [.error(error, name: "read-error")]) {
+                .droppedUnreadableBacklog(description: error.localizedDescription)
+            }
             return []
         }
     }
@@ -86,9 +84,9 @@ public actor FileLocationOutbox: LocationOutbox {
             let data = try JSONEncoder().encode(samples)
             try data.write(to: fileURL, options: .atomic)
         } catch {
-            Self.logger.error(
-                "Failed to persist location retry backlog: \(error.localizedDescription)",
-            )
+            Self.logger(attachments: [.error(error, name: "persist-error")]) {
+                .persistBacklogFailed(description: error.localizedDescription)
+            }
         }
     }
 }

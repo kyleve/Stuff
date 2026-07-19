@@ -1,3 +1,4 @@
+import PeriscopeCore
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -24,7 +25,7 @@ struct RegionsSettingsView: View {
         case customize
     }
 
-    private static let logger = WhereLog.channel(.model)
+    private static let logger = WhereLog.session(RegionsSettingsViewLog.self)
 
     var body: some View {
         NavigationStack {
@@ -44,6 +45,9 @@ struct RegionsSettingsView: View {
             }
         }
         .task { await loadIfNeeded() }
+        // Log View Mode: reveal an inspect badge for the region-editor events. A
+        // no-op in release.
+        .debugLogInspectable(WhereLog.session(RegionsSettingsViewLog.self))
     }
 
     @ViewBuilder
@@ -79,7 +83,9 @@ struct RegionsSettingsView: View {
             let existing = try await session.services.primaryRegions()
             built = PrimaryRegionSelectionModel(existing: existing)
         } catch {
-            Self.logger.warning("Failed to load primary regions for editing")
+            Self.logger(attachments: [.error(error, name: "load-error")]) {
+                .primaryRegionsLoadFailed(description: error.localizedDescription)
+            }
             // Fall back to an empty picker rather than a stuck spinner.
             built = PrimaryRegionSelectionModel()
         }
@@ -95,7 +101,9 @@ struct RegionsSettingsView: View {
             do {
                 try await model.commit(using: session)
             } catch {
-                Self.logger.warning("Failed to save primary region edits")
+                Self.logger(attachments: [.error(error, name: "save-error")]) {
+                    .primaryRegionsSaveFailed(description: error.localizedDescription)
+                }
             }
             dismiss()
         }

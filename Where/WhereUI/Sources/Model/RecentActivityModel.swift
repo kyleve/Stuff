@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 import WhereCore
 
 /// View-scoped model for the "last 24 hours" on-device summary. Mirrors the
@@ -31,7 +31,7 @@ public final class RecentActivityModel {
     public var window: RecentActivityWindow = .day
 
     private let services: WhereServices
-    private static let logger = WhereLog.channel(.recentActivitySummarizer)
+    private static let logger = WhereLog.recentActivity(RecentActivityModelLog.self)
 
     init(services: WhereServices) {
         self.services = services
@@ -51,14 +51,10 @@ public final class RecentActivityModel {
             }
         } catch let error as ActivitySummaryUnavailableError {
             loadState = .unavailable(error.reason)
-            Self.logger.warning(
-                "Recent-activity summary unavailable: \(String(describing: error.reason))",
-            )
+            Self.logger { .summaryUnavailable(reason: String(describing: error.reason)) }
         } catch {
             loadState = .failed(error.localizedDescription)
-            Self.logger.warning(
-                "Recent-activity summary failed: \(error.localizedDescription)",
-            )
+            Self.logger { .summaryFailed(description: error.localizedDescription) }
         }
     }
 

@@ -1,4 +1,5 @@
 import LifecycleKit
+import PeriscopeCore
 import RegionKit
 import SwiftUI
 import UIKit
@@ -461,6 +462,9 @@ struct SettingsView: View {
         .task(id: exportedArchiveURL) {
             await expireExportIfNeeded()
         }
+        // Log View Mode: reveal an inspect badge for backup export/import
+        // events on this section. A no-op in release.
+        .debugLogInspectable(WhereLog.session(BackupModelLog.self))
     }
 
     /// Determinate progress for an in-flight export or import, driven by

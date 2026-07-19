@@ -1,4 +1,5 @@
 import LifecycleKit
+import PeriscopeCore
 import SwiftUI
 import UniformTypeIdentifiers
 import WhereCore
@@ -45,7 +46,7 @@ public struct OnboardingView: View {
     @State private var showRestoreError = false
     @State private var restoreError: String?
 
-    private static let logger = WhereLog.channel(.model)
+    private static let logger = WhereLog.session(OnboardingViewLog.self)
 
     public init(bridge: LifecycleStepUIBridge) {
         self.bridge = bridge
@@ -75,6 +76,9 @@ public struct OnboardingView: View {
             .ignoresSafeArea(),
         )
         .animation(stylesheet.motion.reducedReveal, value: phase)
+        // Log View Mode: reveal an inspect badge for onboarding events (region
+        // commit / backup restore). A no-op in release.
+        .debugLogInspectable(WhereLog.session(OnboardingViewLog.self))
     }
 
     // MARK: - Intro
@@ -257,7 +261,9 @@ public struct OnboardingView: View {
                 } catch {
                     // Don't strand the user in onboarding on a write failure —
                     // log it and continue; they can re-pick in Settings.
-                    Self.logger.warning("Failed to commit onboarding region picks")
+                    Self.logger(attachments: [.error(error, name: "commit-error")]) {
+                        .regionCommitFailed(description: error.localizedDescription)
+                    }
                 }
             }
             model.completeOnboarding()
@@ -292,7 +298,9 @@ public struct OnboardingView: View {
                 isRestoring = false
                 restoreError = error.localizedDescription
                 showRestoreError = true
-                Self.logger.warning("Onboarding backup restore failed")
+                Self.logger(attachments: [.error(error, name: "restore-error")]) {
+                    .backupRestoreFailed(description: error.localizedDescription)
+                }
             }
         }
     }

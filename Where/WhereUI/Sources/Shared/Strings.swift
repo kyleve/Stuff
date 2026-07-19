@@ -695,6 +695,22 @@ enum Strings {
         localized("developer.logsTitle")
     }
 
+    static var developerOpenSpansLink: String {
+        String(localized: "developer.openSpansLink", defaultValue: "Open spans", bundle: .module)
+    }
+
+    static var developerLogViewMode: String {
+        String(localized: "developer.logViewMode", defaultValue: "Log View Mode", bundle: .module)
+    }
+
+    static var developerLogViewModeFooter: String {
+        String(
+            localized: "developer.logViewMode.footer",
+            defaultValue: "Reveal an inspect badge on tagged views to open their recent logs.",
+            bundle: .module,
+        )
+    }
+
     static var developerInspectorLink: String {
         localized("developer.inspectorLink")
     }

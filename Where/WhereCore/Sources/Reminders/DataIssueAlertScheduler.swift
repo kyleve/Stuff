@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 import UserNotifications
 
 /// Schedules the single local notification that nudges the user to open the
@@ -65,7 +65,7 @@ public final class UserNotificationDataIssueAlertScheduler: DataIssueAlertSchedu
 
     /// One repeating notification, so a single stable identifier is enough.
     private static let identifier = "com.stuff.where.data-issues"
-    private static let logger = WhereLog.channel(.dataIssueAlertScheduler)
+    private static let logger = WhereLog.reminders(DataIssueAlertSchedulerLog.self)
 
     public init(center: UNUserNotificationCenter = .current()) {
         self.center = UNUserNotificationCenterAdapter(center: center)
@@ -79,9 +79,7 @@ public final class UserNotificationDataIssueAlertScheduler: DataIssueAlertSchedu
         do {
             return try await center.requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
-            Self.logger.error(
-                "Notification authorization request failed: \(error.localizedDescription)",
-            )
+            Self.logger { .authorizationRequestFailed(description: error.localizedDescription) }
             return false
         }
     }
@@ -113,15 +111,11 @@ public final class UserNotificationDataIssueAlertScheduler: DataIssueAlertSchedu
             case .authorized, .provisional, .ephemeral:
                 break
             case .notDetermined, .denied:
-                Self.logger.warning(
-                    "Issue alerts enabled but notification authorization not granted; alert disabled",
-                )
+                Self.logger { .authorizationNotGranted }
                 await removeAllOwned()
                 return
             @unknown default:
-                Self.logger.warning(
-                    "Issue alerts enabled but notification authorization status is unknown; alert disabled",
-                )
+                Self.logger { .authorizationUnknown }
                 await removeAllOwned()
                 return
         }
@@ -163,13 +157,13 @@ public final class UserNotificationDataIssueAlertScheduler: DataIssueAlertSchedu
         )
         do {
             try await center.add(request)
-            Self.logger.info(
-                "Scheduled issue alert at \(String(format: "%02d:%02d", time.hour, time.minute))",
-            )
+            Self.logger {
+                .scheduled(time: String(format: "%02d:%02d", time.hour, time.minute))
+            }
         } catch {
-            Self.logger.error(
-                "Failed to schedule issue alert: \(error.localizedDescription)",
-            )
+            Self.logger(attachments: [.error(error, name: "schedule-error")]) {
+                .scheduleFailed(description: error.localizedDescription)
+            }
         }
     }
 

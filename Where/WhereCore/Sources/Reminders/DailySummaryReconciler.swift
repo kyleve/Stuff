@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 import RegionKit
 
 /// Owns the daily summary recap intent and the reconciliation that recomputes
@@ -22,7 +22,7 @@ public actor DailySummaryReconciler {
     /// body stays short.
     static let defaultRegionLimit = 3
 
-    private static let logger = WhereLog.channel(.dailySummaryReconciler)
+    private static let logger = WhereLog.reminders(DailySummaryReconcilerLog.self)
 
     init(
         scheduler: any DailySummaryScheduling,
@@ -68,9 +68,9 @@ public actor DailySummaryReconciler {
                 body: summaryBody(for: report),
             )
         } catch {
-            Self.logger.error(
-                "Failed to reconcile daily summary: \(error.localizedDescription)",
-            )
+            Self.logger(attachments: [.error(error, name: "reconcile-error")]) {
+                .reconcileFailed(description: error.localizedDescription)
+            }
         }
     }
 

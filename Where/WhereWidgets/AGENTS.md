@@ -11,9 +11,11 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 - **Tuist app-extension target** ([`Project.swift`](../../Project.swift),
   bundle ID `com.stuff.where.widgets`), depending on **WhereCore**,
-  **WhereUI**, **RegionKit**, and **LogKit**.
+  **WhereUI**, **RegionKit**, and **PeriscopeCore**.
 - Must **not** import SwiftData, open the user's store, or duplicate
   aggregation logic — the app publishes; the extension only reads and renders.
+- Logs via the `WhereLog` facade (typed `WhereWidgetsLog` events); as a
+  separate WidgetKit process its `Periscope.shared` is OSLog-only (no store).
 - No test bundle; behavior is covered from **WhereCore** and **WhereUI**.
 
 ## Refresh contract

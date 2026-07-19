@@ -87,7 +87,10 @@ internal shape.
   `Codable` and a stable SwiftData string key for free — never an ad-hoc
   `type:value` string or a hand-written keyed `Codable`. Build/parse with
   `StoreURL` so every conformer shares the `store://<collection>/<type>?<params>`
-  shape.
+  shape. Object families without a dedicated identity type (days, years,
+  evidence, samples) get their `store://` identity from `WhereStoreID`, used to
+  stamp Periscope `LogEvent.externalID`s so log inspect-by-object shares the
+  store's keys.
 - **No in-app data migration or legacy recovery.** A data-shape change is not
   migrated on read or at boot: `SD….toValue()` reads only the current shape and
   drops (fault-logs) a row it can't place — e.g. an `SDManualDay` with no
@@ -131,8 +134,13 @@ internal shape.
   loads tracked-region geometry, so `distanceToBoundary` is `nil` elsewhere.
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are
   `async throws` so the CloudKit-backed store can report I/O failure; a `catch`
-  must log via `WhereLog.channel(_:)` (typed `Category`, PII-free) and leave
-  state honest — never swallow into an empty default.
+  must log via a `WhereLog` typed `LogEvent` (PII-free, `.public`) and leave
+  state honest — never swallow into an empty default. Each collaborator emits
+  its own `LogEvent` under its scope (`WhereLog.<group>(SomeLog.self)` or
+  `WhereLog.root(SomeLog.self)`); errors ride as `LogAttachment.error(_:)`. The
+  `WhereLog` facade and every `*Log.swift` event type live together in
+  `Sources/Logging/` (not beside their collaborator), so the module's logging
+  vocabulary sits in one place.
 
 ## Testing
 

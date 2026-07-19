@@ -7,7 +7,7 @@
     /// then a change event per toggle — VoiceOver, Switch Control, Reduce
     /// Motion, and friends often explain "it behaves differently for this
     /// user".
-    public struct AccessibilityAmbientSource: AmbientEventSource {
+    public final class AccessibilityAmbientSource: NotificationAmbientSource {
         /// One observed setting: display name, change notification, and
         /// current-state accessor (UIAccessibility statics are main-actor).
         private struct Setting {
@@ -59,36 +59,33 @@
             ),
         ]
 
-        private let tokens = AmbientObserverTokens()
+        override public var observedNames: [Notification.Name] {
+            Self.settings.map(\.notification)
+        }
 
-        public init() {}
-
-        public func start(log: Log<AmbientEvent>) {
-            tokens.replace(with: Self.settings.map { setting in
-                NotificationCenter.default.addObserver(
-                    forName: setting.notification,
-                    object: nil,
-                    queue: .main,
-                ) { _ in
-                    MainActor.assumeIsolated {
-                        let state = setting.isEnabled() ? "on" : "off"
-                        log {
-                            AmbientEvent(kind: .accessibility, value: "\(setting.name): \(state)")
-                        }
-                    }
-                }
-            })
+        override public func started() {
+            // Reads run on the main actor (UIAccessibility statics are
+            // main-isolated); logging is async, so a hop is fine.
             Task { @MainActor in
                 let enabled = Self.settings.filter { $0.isEnabled() }.map(\.name)
                 let summary = enabled.isEmpty
                     ? "none enabled"
                     : "enabled: \(enabled.joined(separator: ", "))"
-                log { AmbientEvent(kind: .accessibility, value: summary) }
+                emit(AmbientEvent(kind: .accessibility, value: summary))
             }
         }
 
-        public func stop() {
-            tokens.removeAll()
+        override public func receive(_ notification: Notification) {
+            // Selector delivery isn't guaranteed on the main thread; hop
+            // there to read the main-isolated UIAccessibility state.
+            // Capture only the name — `Notification` isn't `Sendable`.
+            let name = notification.name
+            Task { @MainActor in
+                guard let setting = Self.settings.first(where: { $0.notification == name })
+                else { return }
+                let state = setting.isEnabled() ? "on" : "off"
+                emit(AmbientEvent(kind: .accessibility, value: "\(setting.name): \(state)"))
+            }
         }
     }
 #endif

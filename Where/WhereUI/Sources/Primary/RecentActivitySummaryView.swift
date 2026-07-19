@@ -1,3 +1,4 @@
+import PeriscopeCore
 import SwiftUI
 import WhereCore
 
@@ -54,6 +55,9 @@ struct RecentActivitySummaryView: View {
                     Task { await model.load() }
                 }
         }
+        // Log View Mode: reveal an inspect badge for recent-activity summary
+        // events. A no-op in release.
+        .debugLogInspectable(WhereLog.recentActivity(RecentActivityModelLog.self))
     }
 
     /// Segmented control for the summary window, pinned under the navigation

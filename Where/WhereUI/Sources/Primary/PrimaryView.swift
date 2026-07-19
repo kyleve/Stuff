@@ -1,3 +1,4 @@
+import PeriscopeCore
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -117,6 +118,9 @@ struct PrimaryView: View {
         .sheet(item: $calendarFocus) { focus in
             CalendarView(focusedRegion: focus.region, report: report)
         }
+        // Log View Mode: reveal an inspect badge for the year-report events
+        // backing this screen. A no-op in release.
+        .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
     }
 
     /// A deep, near-black gradient that makes the Primary tab read like a

@@ -1,5 +1,5 @@
-import LogKit
 import MapKit
+import PeriscopeCore
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -153,8 +153,9 @@ public struct RegionMapView: View {
             // Keep the failure observable in both the UI (the `.failure`
             // state renders an error) and the logs, rather than silently
             // showing an empty map.
-            RegionLog.channel(.geometryCatalog)
-                .warning("Region map viewer failed to load \(kind.rawValue) geometry: \(error)")
+            RegionLog.geometryCatalog {
+                .loadFailed(kind: kind.rawValue, description: String(describing: error))
+            }
             outlines = .failure(error)
         }
     }
