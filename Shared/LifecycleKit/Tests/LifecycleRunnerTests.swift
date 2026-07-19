@@ -112,6 +112,43 @@ struct LifecycleRunnerForegroundPromotionTests {
         #expect(runner.phase.isReady)
     }
 
+    @Test func retryAfterPromotionSkipsAStepAlreadyCompletedInTheHeadlessDrive() async throws {
+        // Run-once spans a promotion + a `retry()` within the same attempt: a
+        // later step that already completed during the headless drive must not
+        // re-run when `retry()` resumes from an *earlier* foreground-only step
+        // that failed on promotion.
+        var executed: [String] = []
+        var onboardingShouldFail = true
+        let runner = LifecycleRunner(reason: .undetermined, sequence: LifecycleSteps {
+            LifecycleStep.work("store") { _ in executed.append("store") }
+            LifecycleStep.work("onboarding", modes: .foreground) { _ in
+                executed.append("onboarding")
+                if onboardingShouldFail { throw StepError() }
+            }
+            LifecycleStep.work("widget") { _ in executed.append("widget") }
+        })
+
+        // Headless drive: the background-safe "store" and "widget" complete; the
+        // foreground-only "onboarding" (index between them) is skipped.
+        await runner.run()
+        #expect(executed == ["store", "widget"])
+        #expect(runner.phase.isReady)
+
+        // Promotion re-drives from the top: "store" is skipped (completed), the
+        // now-applicable "onboarding" runs and fails.
+        await runner.enterForeground()
+        #expect(runner.phase.failed(at: "onboarding"))
+        #expect(executed == ["store", "widget", "onboarding"])
+
+        // Retry resumes from the failed "onboarding" (now succeeds). "widget",
+        // which sits *after* it but already completed in the headless drive, is
+        // skipped rather than run a second time.
+        onboardingShouldFail = false
+        runner.retry()
+        try await waitUntil { runner.phase.isReady }
+        #expect(executed == ["store", "widget", "onboarding", "onboarding"])
+    }
+
     @Test func enterForegroundIsNoOpForAForegroundLaunch() async {
         var count = 0
         let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
