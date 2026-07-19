@@ -234,12 +234,16 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   breaks old data. A hand-written conformance needs a load-bearing reason,
   documented on the conformance (see `LogJournalEntry`); simple structs of
   primitives should just use the synthesized one (see `CalendarDay`).
-- **Retain notification-observer tokens; every `start` has a `stop`.** A
-  block-based `addObserver(forName:)` observation stays alive in the center
-  whether or not you keep the token — dropping it makes the observation
-  unremovable and immortalizes everything the block captured. Store the token
-  (see `AmbientObserverTokens`) and give any `start…`-style observation API a
-  paired `stop()` that removes it.
+- **Observe with a target/selector, not a retained token; every `start` has
+  a `stop`.** Register via `addObserver(_:selector:name:object:)` with `self`
+  as the observer so teardown is one `removeObserver(self)` — no opaque
+  tokens to keep, and a restart removes-before-re-adding so it replaces
+  rather than doubles (see `NotificationAmbientSource`, which every built-in
+  notification-based ambient source subclasses). Avoid block-based
+  `addObserver(forName:)`: its observation stays alive in the center whether
+  or not you keep the returned token, so dropping the token makes it
+  unremovable and immortalizes everything the block captured. Any
+  `start…`-style observation API gets a paired `stop()` that removes it.
 - **Testing-only APIs use `@_spi(Testing)`.** Hooks meant exclusively for unit
   tests or previews (direct store mutation, failure injection, queue
   introspection, etc.) are marked `@_spi(Testing)`; wrap in `#if DEBUG` when

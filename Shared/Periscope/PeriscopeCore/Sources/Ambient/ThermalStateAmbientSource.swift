@@ -2,24 +2,13 @@ import Foundation
 
 /// Logs thermal state changes; `serious` and `critical` log at `.warning`
 /// since the system is about to start throttling.
-public struct ThermalStateAmbientSource: AmbientEventSource {
-    private let tokens = AmbientObserverTokens()
-
-    public init() {}
-
-    public func start(log: Log<AmbientEvent>) {
-        let token = NotificationCenter.default.addObserver(
-            forName: ProcessInfo.thermalStateDidChangeNotification,
-            object: nil,
-            queue: nil,
-        ) { _ in
-            log { Self.event(for: ProcessInfo.processInfo.thermalState) }
-        }
-        tokens.replace(with: [token])
+public final class ThermalStateAmbientSource: NotificationAmbientSource {
+    override public var observedNames: [Notification.Name] {
+        [ProcessInfo.thermalStateDidChangeNotification]
     }
 
-    public func stop() {
-        tokens.removeAll()
+    override public func event(for _: Notification) -> AmbientEvent? {
+        Self.event(for: ProcessInfo.processInfo.thermalState)
     }
 
     /// The ambient event for a given thermal state — exposed for tests via

@@ -11,10 +11,10 @@ the build system, formatting, and global conventions. Read that first.
 ## Scope & dependencies
 
 - **Foundation + os + SwiftData + Network + JournalKit only** (plus the
-  ObjectiveC runtime, solely for `LogContextProviding`'s deallocation
-  trackers). No SwiftUI, no app code. UIKit is allowed **only**
-  inside `#if canImport(UIKit)` (ambient sources, the image-attachment
-  convenience).
+  ObjectiveC runtime, for `LogContextProviding`'s deallocation trackers and
+  `NotificationAmbientSource`'s target/selector observation). No SwiftUI, no
+  app code. UIKit is allowed **only** inside `#if canImport(UIKit)`
+  (ambient sources, the image-attachment convenience).
 - Layering: `PeriscopeUI` and `PeriscopeTools` depend on this module — never
   the reverse.
 
@@ -33,6 +33,12 @@ the build system, formatting, and global conventions. Read that first.
   many-to-many (links), and scopes keep their parent chain.
 - **Custom levels are values, not cases.** `LogLevel` is a struct ordered by
   `severity`; never switch exhaustively over "all" levels.
+- **Ambient sources log change-only where the signal is chatty.**
+  `NetworkPathAmbientSource` keeps its last description and drops
+  `NWPathMonitor`'s duplicate, change-agnostic callbacks (which otherwise
+  flood the log); notification-based sources are deliberately *not* deduped
+  — their notifications post only on real transitions, and repeated memory
+  warnings are each a distinct event, not a duplicate to swallow.
 - **Sink failures never propagate or vanish** — the store logs them to
   OSLog, counts them, and persists a synthetic `StoreWriteFailed` marker
   for the lost batch; the pipeline reports drops with a synthetic
