@@ -1,3 +1,4 @@
+import PeriscopeCore
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -20,6 +21,10 @@ struct SecondaryView: View {
                 .navigationTitle(Strings.secondaryTitle)
         }
         .task(id: report.report) { await loadPlaceNames() }
+        // Log View Mode: reveal an inspect badge for the year-report events
+        // backing the Elsewhere tab (representative-coordinate loads). A no-op
+        // in release.
+        .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
     }
 
     /// Pick each secondary region's most-sampled spot and reverse-geocode it,

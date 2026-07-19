@@ -112,6 +112,9 @@ struct ManualDayView: View {
                 Text(message)
             }
         }
+        // Log View Mode: reveal an inspect badge for the manual-day form's
+        // events (region grouping load). A no-op in release.
+        .debugLogInspectable(WhereLog.session(ManualDayViewLog.self))
     }
 
     // MARK: - Mode-specific content

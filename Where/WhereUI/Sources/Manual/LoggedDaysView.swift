@@ -1,3 +1,4 @@
+import PeriscopeCore
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -89,6 +90,9 @@ struct LoggedDaysView: View {
                 Text(message)
             }
         }
+        // Log View Mode: reveal an inspect badge for the logged-days list's
+        // events. A no-op in release.
+        .debugLogInspectable(WhereLog.root(LoggedDaysModelLog.self))
     }
 
     @ViewBuilder

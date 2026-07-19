@@ -76,6 +76,9 @@ public struct OnboardingView: View {
             .ignoresSafeArea(),
         )
         .animation(stylesheet.motion.reducedReveal, value: phase)
+        // Log View Mode: reveal an inspect badge for onboarding events (region
+        // commit / backup restore). A no-op in release.
+        .debugLogInspectable(WhereLog.session(OnboardingViewLog.self))
     }
 
     // MARK: - Intro

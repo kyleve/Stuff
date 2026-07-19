@@ -1,3 +1,4 @@
+import PeriscopeCore
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -41,6 +42,9 @@ struct ResolutionView: View {
                     )
                 }
         }
+        // Log View Mode: reveal an inspect badge for data-issue resolution
+        // events. A no-op in release.
+        .debugLogInspectable(WhereLog.session(ResolveModelLog.self))
     }
 
     @ViewBuilder

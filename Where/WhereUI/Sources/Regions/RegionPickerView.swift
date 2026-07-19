@@ -72,6 +72,9 @@ struct RegionPickerView: View {
             guard mode == .map, mapData == nil else { return }
             await loadMap()
         }
+        // Log View Mode: reveal an inspect badge for region-picker events (map
+        // geometry load). A no-op in release.
+        .debugLogInspectable(WhereLog.session(RegionPickerViewLog.self))
     }
 
     private var modePicker: some View {

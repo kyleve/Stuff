@@ -93,6 +93,9 @@ struct CalendarView: View {
                     .navigationBarTitleDisplayMode(.inline)
             }
         }
+        // Log View Mode: reveal an inspect badge for this calendar's events. A
+        // no-op in release.
+        .debugLogInspectable(WhereLog.session(CalendarViewLog.self))
     }
 
     private var navigationTitle: String {

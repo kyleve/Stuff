@@ -45,6 +45,9 @@ struct RegionsSettingsView: View {
             }
         }
         .task { await loadIfNeeded() }
+        // Log View Mode: reveal an inspect badge for the region-editor events. A
+        // no-op in release.
+        .debugLogInspectable(WhereLog.session(RegionsSettingsViewLog.self))
     }
 
     @ViewBuilder
