@@ -25,7 +25,7 @@ struct SpendView: View {
             Text("Cursor Spend")
                 .font(.headline)
             Spacer()
-            if case .loading = session.loadState {
+            if session.isRefreshing {
                 ProgressView()
                     .controlSize(.small)
             }

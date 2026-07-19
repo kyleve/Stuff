@@ -21,6 +21,12 @@ final class LedgerSession {
         services.lastUpdated
     }
 
+    /// Whether a fetch is in flight (drives the header spinner without clearing
+    /// the shown data).
+    var isRefreshing: Bool {
+        services.isRefreshing
+    }
+
     /// Whether a token was pasted (a manual override) vs. auto-detected.
     var hasManualToken: Bool {
         services.hasManualToken

@@ -55,6 +55,11 @@ public final class LedgerServices {
     /// When the last successful fetch completed, for the "updated …" caption.
     public private(set) var lastUpdated: Date?
 
+    /// Whether a fetch is currently in flight. Distinct from `loadState`:
+    /// during a refresh the last loaded data stays visible (so the UI doesn't
+    /// clear), and this drives only a subtle in-progress indicator.
+    public private(set) var isRefreshing: Bool = false
+
     /// Whether a token was pasted into the Keychain (a manual override).
     public private(set) var hasManualToken: Bool = false
 
@@ -177,7 +182,17 @@ public final class LedgerServices {
 
         requestGeneration += 1
         let generation = requestGeneration
-        loadState = .loading
+        // Keep any already-loaded data on screen during a refresh — only show
+        // the full-screen loading state for the very first load. The header
+        // spinner (driven by `isRefreshing`) signals the in-flight fetch.
+        if case .loaded = loadState {} else {
+            loadState = .loading
+        }
+        isRefreshing = true
+        defer {
+            // Don't clear the flag for a newer refresh that superseded this one.
+            if generation == requestGeneration { isRefreshing = false }
+        }
 
         do {
             let summary = try await provider.usageSummary(token: token)
