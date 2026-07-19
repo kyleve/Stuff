@@ -137,7 +137,10 @@ internal shape.
   must log via a `WhereLog` typed `LogEvent` (PII-free, `.public`) and leave
   state honest — never swallow into an empty default. Each collaborator emits
   its own `LogEvent` under its scope (`WhereLog.<group>(SomeLog.self)` or
-  `WhereLog.root(SomeLog.self)`); errors ride as `LogAttachment.error(_:)`.
+  `WhereLog.root(SomeLog.self)`); errors ride as `LogAttachment.error(_:)`. The
+  `WhereLog` facade and every `*Log.swift` event type live together in
+  `Sources/Logging/` (not beside their collaborator), so the module's logging
+  vocabulary sits in one place.
 
 ## Testing
 

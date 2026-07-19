@@ -56,7 +56,8 @@ Rules the code enforces and agents must preserve:
   (`location`, `reminders`, `backup`, `widgets`, `session`, `evidence`,
   `recentActivity`) that each collaborator derives a typed `LogEvent` leaf from
   (`WhereLog.<group>(SomeLog.self)` / `WhereLog.root(SomeLog.self)`), never a
-  raw string. Events log as `.public`, so keep PII out; catch-path events carry
+  raw string. Each module keeps its facade and `*Log.swift` event types together
+  in its own `Sources/Logging/` folder. Events log as `.public`, so keep PII out; catch-path events carry
   a `LogAttachment.error(_:)`. `info` = success of an important operation,
   `warning` = degraded-but-handled, `error`/`fault` = outright failure; hot
   paths (per-sample persist, widget throttle) stay quiet by design. **RegionKit**
