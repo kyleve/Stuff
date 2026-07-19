@@ -14,6 +14,7 @@ enum WhereSessionLog: LogEvent {
     case remindersUnauthorized
     case summaryUnauthorized
     case issueAlertsUnauthorized
+    case regionStylesLoadFailed(description: String)
     case erasedSession
 
     static let eventName = "WhereSession"
@@ -21,7 +22,7 @@ enum WhereSessionLog: LogEvent {
     var level: LogLevel {
         switch self {
             case .whenInUseOnly, .locationAccessDenied, .remindersUnauthorized,
-                 .summaryUnauthorized, .issueAlertsUnauthorized:
+                 .summaryUnauthorized, .issueAlertsUnauthorized, .regionStylesLoadFailed:
                 .warning
             case .backgroundTrackingStarted, .backgroundTrackingStopped, .permissionGranted,
                  .trackingEnabled, .stoppedBackgroundTracking, .erasedSession:
@@ -51,6 +52,8 @@ enum WhereSessionLog: LogEvent {
                 "Daily summary enabled but notifications not authorized"
             case .issueAlertsUnauthorized:
                 "Issue alerts enabled but notifications not authorized"
+            case let .regionStylesLoadFailed(description):
+                "Failed to load region appearances for styling: \(description)"
             case .erasedSession:
                 "Erased session and reset state"
         }

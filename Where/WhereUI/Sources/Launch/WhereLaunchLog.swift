@@ -10,6 +10,9 @@ enum WhereLaunchLog: LogEvent {
 
     case runnerCreated(reason: String)
     case servicesAssembled
+    /// Assembling the service layer (store open + `WhereServices.make`) failed;
+    /// the `open-store` step surfaces it and the launch parks in `.failed`.
+    case servicesAssemblyFailed(description: String)
     /// The durable log store opened and attached to `Periscope.shared`, having
     /// pruned `prunedEventCount` events past the retention window.
     case loggingStoreReady(prunedEventCount: Int)
@@ -23,7 +26,7 @@ enum WhereLaunchLog: LogEvent {
         switch self {
             case .runnerCreated, .servicesAssembled, .loggingStoreReady:
                 .info
-            case .loggingStoreUnavailable:
+            case .servicesAssemblyFailed, .loggingStoreUnavailable:
                 .error
         }
     }
@@ -34,6 +37,8 @@ enum WhereLaunchLog: LogEvent {
                 "Lifecycle runner created (reason: \(reason))"
             case .servicesAssembled:
                 "WhereServices assembled"
+            case let .servicesAssemblyFailed(description):
+                "Failed to assemble WhereServices: \(description)"
             case let .loggingStoreReady(prunedEventCount):
                 "Log store ready (pruned \(prunedEventCount) event(s) past retention)"
             case let .loggingStoreUnavailable(description):

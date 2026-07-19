@@ -16,9 +16,11 @@ extension RegionEntity: IndexedEntity {}
 public enum RegionSpotlightIndexer {
     private static let logger = WhereLog.root(WhereIntentsLog.self)
 
-    public static func indexRegions() async {
+    /// Not system-instantiated (the app calls this), so the services handoff
+    /// arrives by plain injection rather than `@Dependency`.
+    public static func indexRegions(resolving intentServices: IntentServices) async {
         do {
-            let entities = try await RegionEntity.tracked(from: IntentServices.shared.current())
+            let entities = try await RegionEntity.tracked(from: intentServices.current())
             try await CSSearchableIndex.default().indexAppEntities(entities)
             logger { .spotlightIndexed(regionCount: entities.count) }
         } catch {

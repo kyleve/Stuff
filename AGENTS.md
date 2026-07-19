@@ -6,6 +6,7 @@
 |-------------|----------|--------------|
 | Tuist       | 4.200.5  | `.mise.toml` |
 | SwiftFormat | 0.60.1   | `.mise.toml` |
+| Ruby        | 3.4.10   | `.mise.toml` |
 | Swift PM    | 6.2      | `Package.swift` (`swift-tools-version`) |
 
 Library targets live in the root [`Package.swift`](Package.swift) (one local
@@ -18,13 +19,20 @@ duplicated here.
 Run `./ide` (or `./ide -i` to also install dependencies) to regenerate the
 Xcode project, install external agent skills, and point Git at `.githooks/`.
 Pass `--no-open` to skip launching Xcode (see [Generating the Xcode
-project](#generating-the-xcode-project)).
+project](#generating-the-xcode-project)). On a fresh machine run `./ide
+--bootstrap` (alias `--setup`) first: it verifies a full Xcode is installed
+and selected, installs `mise` (via its official installer, no Homebrew) and
+the pinned tools, then falls through to the normal generate flow. Plain
+`./ide` fails fast when `mise` is missing, pointing at `--bootstrap`.
 
 Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise),
 `sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`),
 `profile` (prints build/test hot spots — slowest build phases, slowest
-tests, and slow type-check sites; see `./profile --help`), and `icons`
-(adds/removes selectable app icons; see `./icons --help`).
+tests, and slow type-check sites; see `./profile --help`), `icons`
+(adds/removes selectable app icons; see `./icons --help`), and `flaky`
+(detects flaky tests by re-running the suite and tight-looping any test that
+ever fails, then writes the counts to `FLAKY_TESTS.md`; report-only, see
+`./flaky --help`).
 
 ### Managing app icons
 
@@ -272,6 +280,51 @@ Smells that signal a missing type:
 - **Stringly-typed status or flags** (`status == "active"`) — use a typed enum,
   per the identifier/keys convention above.
 
+### Composition: create once, inject down
+
+**A shared resource is created exactly once, at the composition root, and
+reaches every consumer by injection** — init parameters, explicit call-site
+arguments, or a composition hook — never by re-resolving a global. The Where
+app's SwiftData store is the template: the launch's `open-store` step performs
+the process's *only* store open, `WhereServices` carries it (plus the
+attribution and clock policies derived from it) to every collaborator, and the
+App Intents stack is derived *from* those services
+(`WhereServices.forIntents(sharingStoreOf:)`) via `WhereLaunch.makeLauncher`'s
+`onServicesReady` hook. Two subsystems independently "opening the same store"
+is how a fresh install once raced two `ModelContainer`s into a launch failure;
+injection made that state impossible to spell rather than merely unlikely.
+
+- **No singletons or static get-or-create registries** for anything that can
+  be injected. A global hides the dependency edge, invites exactly the
+  double-create race injection prevents, and forces tests to share — and
+  carefully reset — process-wide state. Needing `@Suite(.serialized)` plus a
+  reset hook to test something is the smell; injected dependencies get
+  hermetic per-test instances instead.
+- **When the platform instantiates the consumer** (App Intents, extension
+  principal classes) and constructor injection can't reach it, use the
+  platform's own DI seam rather than minting a singleton: the composition
+  root creates the value and registers it (`AppDependencyManager.shared.add`
+  in `didFinishLaunching`; intents resolve it with `@Dependency`). And keep
+  that seam a **handoff, not a factory**: the root *installs* what it created
+  (`IntentServices.install(_:)`), early callers **await** installation
+  (`current()` parks, cancellation-aware), and the seam never creates the
+  resource itself. A "create it myself" fallback — however unlikely to run —
+  quietly reintroduces the duplicate the design exists to prevent.
+- **Derive, don't re-derive.** A stack built from an existing layer reuses
+  what that layer already computed (the store, the live attributor, the
+  injected clock) rather than re-reading it. That keeps derivation synchronous
+  and non-throwing — wiring it can't fail into a half-composed state — and a
+  derived stack can't drift from its base (duplicate change subscriptions,
+  diverging clocks).
+- **Re-fire composition hooks wherever the lifecycle re-creates the thing.**
+  `onServicesReady` fires on every session (re)start — first launch, retry
+  after a failed launch, the reset relaunch — so consumers always hold the
+  current instance, never the first one.
+
+This is [Modeling state](#modeling-state) applied to ownership and lifetime:
+one owner, created in one place, with the illegal wirings (two owners, zero
+owners, a stale copy) unrepresentable.
+
 ## Generating the Xcode project
 
 Agents must never open Xcode on the user's machine — it steals focus and
@@ -337,6 +390,25 @@ work end to end without re-asking per comment.
 - **Deferred feedback gets filed, never dropped.** If a comment is deliberately
   not addressed, record it somewhere durable (the module's `TODOs.md` or the
   review-tracking file) and reply linking where it's tracked.
+
+## Keeping the PR description current
+
+A PR's title and description are the durable record of what it does — keep them
+matching the branch, not just the first commit.
+
+- **When the PR changes beyond a small bug fix, update the description in the
+  same turn you push.** New behavior, a new/changed public API or data model, a
+  migration, a scope change, a follow-up feature, or review fixes that alter the
+  approach all warrant refreshing the body (and the title if the scope shifted).
+  A trivial fix — a typo, a one-line bug fix, a test tweak that doesn't change
+  what the PR is — doesn't.
+- **Reflect the end state, not a changelog of the conversation.** Describe what
+  the PR now does; note notable decisions/trade-offs and testing. Don't leave a
+  stale body that only describes the initial commit.
+- **Preserve human edits.** If someone edited the title/description in the
+  GitHub UI, fold your update into theirs rather than overwriting — only correct
+  what's now inaccurate.
+- Use the PR tooling when it works; otherwise `gh pr edit <n> --body-file`.
 
 ## Debugging build/test/CI failures
 

@@ -153,6 +153,61 @@ struct LifecycleRunnerForegroundPromotionTests {
         #expect(!runner.reason.isBackground)
         #expect(runner.phase.isReady)
     }
+
+    @Test func supersededDriveThatThrowsDoesNotClobberThePromotedDrivesPhase() async throws {
+        // A superseded drive's in-flight step isn't required to be
+        // cancellation-responsive: it can keep working after the promotion
+        // cancels its drive and then throw a *real* error (the fresh-install
+        // store-open failure did exactly this). That dying drive must not park
+        // the runner in `.failed` — the promoted drive owns the phase and
+        // re-runs the step itself.
+        let (blockedStep, releaseBlockedStep) = AsyncStream.makeStream(of: Void.self)
+        let (gatedCondition, releaseGatedCondition) = AsyncStream.makeStream(of: Void.self)
+        var attempts = 0
+        var conditionChecks = 0
+        let runner = LifecycleRunner(reason: .background(.location), sequence: LifecycleSteps {
+            LifecycleStep(
+                id: "store",
+                condition: {
+                    conditionChecks += 1
+                    if conditionChecks > 1 {
+                        // Hold the promoted drive here — before it publishes
+                        // any phase of its own — so the test can observe what
+                        // the dying drive left behind.
+                        for await _ in gatedCondition {}
+                    }
+                    return true
+                },
+            ) { _ in
+                attempts += 1
+                if attempts == 1 {
+                    // Park until released, then fail for real — after the
+                    // promotion has already superseded this drive.
+                    for await _ in blockedStep {}
+                    throw StepError()
+                }
+            }
+        })
+
+        let runTask = Task { @MainActor in await runner.run() }
+        try await waitUntil { runner.phase.isRunning("store") }
+
+        let promote = Task { @MainActor in await runner.enterForeground() }
+        try await waitUntil { !runner.reason.isBackground }
+
+        // Let the superseded drive's step throw now that the promotion owns
+        // the phase, and wait for the promoted drive to reach the gated
+        // condition (which it only does after fully draining the dying drive).
+        releaseBlockedStep.finish()
+        try await waitUntil { conditionChecks > 1 }
+        #expect(runner.phase.failure == nil)
+
+        releaseGatedCondition.finish()
+        await promote.value
+        await runTask.value
+        #expect(attempts == 2)
+        #expect(runner.phase.isReady)
+    }
 }
 
 @MainActor

@@ -17,6 +17,10 @@ public struct DaysInRegionSnippetIntent: SnippetIntent {
     @Parameter(title: "Year")
     public var year: Int?
 
+    /// The app-registered services handoff (see `IntentServices`); resolved by
+    /// the App Intents dependency container, never a singleton of ours.
+    @Dependency private var intentServices: IntentServices
+
     public init() {}
 
     public init(region: RegionEntity, year: Int?) {
@@ -26,7 +30,7 @@ public struct DaysInRegionSnippetIntent: SnippetIntent {
 
     @MainActor
     public func perform() async throws -> some IntentResult & ShowsSnippetView {
-        let services = try await IntentServices.shared.current()
+        let services = try await intentServices.current()
         let resolvedYear = year ?? Calendar.whereIntents.component(.year, from: Date())
         let count = try await WhereIntentReader(services: services)
             .dayCount(in: region.region, year: resolvedYear)
@@ -35,6 +39,9 @@ public struct DaysInRegionSnippetIntent: SnippetIntent {
             year: resolvedYear,
             dayCount: count,
         )
+        // Seed the region look from the user's picks so the snippet renders the
+        // chosen color/emoji/icon (the intent process has no app view root).
+        let regionStyles = try await RegionStyleResolver(primaryRegions: services.primaryRegions())
         // "Log today here" logs into the *current* year, so it can only change
         // this card's count when the card is showing the current year. Omit it
         // otherwise, rather than offer a button that appears to do nothing.
@@ -43,6 +50,7 @@ public struct DaysInRegionSnippetIntent: SnippetIntent {
                 snapshot: snapshot,
                 region: region,
                 canLogToday: isCurrentYear(resolvedYear),
+                regionStyles: regionStyles,
             ),
         )
     }
@@ -56,10 +64,11 @@ struct DaysInRegionInteractiveSnippet: View {
     let snapshot: DaysInRegionSnapshot
     let region: RegionEntity
     let canLogToday: Bool
+    let regionStyles: RegionStyleResolver
 
     var body: some View {
         content
-            .whereBroadwayRoot()
+            .whereBroadwayRoot(regionStyles: regionStyles)
     }
 
     @ViewBuilder private var content: some View {
@@ -76,7 +85,7 @@ struct DaysInRegionInteractiveSnippet: View {
                     .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(snapshot.region.style.tint)
+                .tint(regionStyles.style(for: snapshot.region).tint)
             }
         } else {
             DaysInRegionSnippetView(snapshot: snapshot)

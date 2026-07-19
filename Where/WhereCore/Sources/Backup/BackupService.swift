@@ -93,6 +93,7 @@ public struct BackupService: Sendable {
         manualDays: [DayPresence],
         dismissedIssues: [DismissedIssue] = [],
         trackedRegions: [Region] = [],
+        primaryRegions: [PrimaryRegion] = [],
         blobs: [UUID: Data],
         exportedAt: Date = Date(),
         archiveName: String? = nil,
@@ -124,6 +125,7 @@ public struct BackupService: Sendable {
             manualDays: manualDays,
             dismissedIssues: dismissedIssues,
             trackedRegions: trackedRegions,
+            primaryRegions: primaryRegions,
             assets: assetEntries,
         )
         let manifestData = try Self.makeEncoder().encode(archive)
@@ -151,11 +153,14 @@ public struct BackupService: Sendable {
         return zipURL
     }
 
-    /// A human-friendly, email-ready filename like `Where Backup 2026-06-05.zip`.
+    /// A human-friendly, email-ready filename like
+    /// `Where Backup 2026-06-05 14.30.zip`. The time uses dots (not colons,
+    /// which are invalid in filenames) so two exports on the same day don't
+    /// collide.
     static func defaultArchiveName(for date: Date) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.dateFormat = "yyyy-MM-dd HH.mm"
         return "Where Backup \(formatter.string(from: date)).zip"
     }
 

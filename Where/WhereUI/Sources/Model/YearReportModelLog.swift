@@ -12,6 +12,7 @@ enum YearReportModelLog: LogEvent {
     case dataIssueScanFailed(description: String)
     case clearYearFailed(year: Int, description: String)
     case locationsLoadFailed(region: String, year: Int, description: String)
+    case dayLocationsLoadFailed(day: String, year: Int, description: String)
     case representativeCoordinatesLoadFailed(year: Int, description: String)
 
     static let eventName = "YearReport"
@@ -20,7 +21,8 @@ enum YearReportModelLog: LogEvent {
         switch self {
             case .selectedYear, .reportLoaded: .info
             case .reportLoadFailed, .evidenceDayKeysLoadFailed, .dataIssueScanFailed,
-                 .clearYearFailed, .locationsLoadFailed, .representativeCoordinatesLoadFailed:
+                 .clearYearFailed, .locationsLoadFailed, .dayLocationsLoadFailed,
+                 .representativeCoordinatesLoadFailed:
                 .warning
         }
     }
@@ -41,6 +43,8 @@ enum YearReportModelLog: LogEvent {
                 "Failed to clear year \(year): \(description)"
             case let .locationsLoadFailed(region, year, description):
                 "Failed to load locations for \(region) in \(year): \(description)"
+            case let .dayLocationsLoadFailed(day, year, description):
+                "Failed to load locations for day \(day) in \(year): \(description)"
             case let .representativeCoordinatesLoadFailed(year, description):
                 "Failed to load representative coordinates for \(year): \(description)"
         }
@@ -53,6 +57,8 @@ enum YearReportModelLog: LogEvent {
                  let .clearYearFailed(year, _), let .locationsLoadFailed(_, year, _),
                  let .representativeCoordinatesLoadFailed(year, _):
                 WhereStoreID.year(year)
+            case let .dayLocationsLoadFailed(day, _, _):
+                WhereStoreID.day(day)
             case .dataIssueScanFailed:
                 nil
         }

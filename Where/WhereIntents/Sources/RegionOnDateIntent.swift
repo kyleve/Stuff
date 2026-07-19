@@ -17,6 +17,10 @@ public struct RegionOnDateIntent: AppIntent {
     @Parameter(title: "Date")
     public var date: Date
 
+    /// The app-registered services handoff (see `IntentServices`); resolved by
+    /// the App Intents dependency container, never a singleton of ours.
+    @Dependency private var intentServices: IntentServices
+
     public init() {}
 
     public init(date: Date) {
@@ -25,7 +29,7 @@ public struct RegionOnDateIntent: AppIntent {
 
     @MainActor
     public func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
-        let services = try await IntentServices.shared.current()
+        let services = try await intentServices.current()
         let regions = try await WhereIntentReader(services: services).regions(on: date)
         let ordered = orderedRegions(regions)
         return .result(

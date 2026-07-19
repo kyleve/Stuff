@@ -34,6 +34,31 @@ internal shape.
   production `SwiftDataStore` traps otherwise), and each committed transaction
   pings `changes()` — the single signal readers refresh from. The live
   `ModelContainer` is surfaced only for the read-only debug inspector.
+  Each process opens its on-disk store **once** and injects it — the app's
+  launch opens it, and the App Intents stack shares it via
+  `WhereServices.forIntents(sharingStoreOf:)` — rather than a second caller
+  opening another container over the same file (concurrent first-launch
+  creation is how the launch once failed).
+- **Primary regions *are* the tracked-region set.** The picked primary regions
+  (`primaryRegions()` / `setPrimaryRegions(_:)`) are the same `SDTrackedRegion`
+  rows `trackedRegions()` reads — picking scopes GPS attribution *and* carries
+  each region's `RegionAppearance` (color token / emoji / SF Symbol) + pick
+  order. `RegionAppearance` is data (WhereCore); the token→`Color` mapping and
+  option catalogs are presentation (`WhereUI`).
+- **Backups mirror the persisted model — keep them lossless.** Any change to
+  persisted data (a new/changed `SD*` field, or a value type that crosses
+  `WhereStore`) must be reflected end-to-end in the backup so export/restore
+  never silently drops it: add it to `BackupArchive`, write it in
+  `BackupService.makeArchiveFile`, read it back in `BackupCoordinator.importBackup`
+  for **both** `.replace` and `.merge`, and add a round-trip test
+  (`BackupServiceTests` for the archive, `BackupCoordinatorTests` for the store
+  round-trip). The archive is **strict synthesized `Codable`** — no in-code
+  legacy decode. A shape change **bumps `BackupArchive.currentFormatVersion`**
+  (`readArchive` rejects any other version) and is handled out of band by
+  extending [`../Tools/upgrade-backup.rb`](../Tools/upgrade-backup.rb), per the
+  no-migration-on-read rule below. Example: v2 added `primaryRegions` (per-region
+  picked appearance + pick order), the tool synthesizes it from the legacy
+  `trackedRegions` ids, and import restores looks from it.
 - **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (year-month-
   day) is the timezone-independent identity of a day, and it is what every
   *stored user record* and *day comparison* keys on: `DayPresence.day`,
@@ -81,6 +106,12 @@ internal shape.
   its cache on the same signal *and* is invalidated inline where a caller needs
   it provably fresh (see `WhereServices.reset()`), which is the deterministic
   half of that pair, not redundant with it.
+- **Detectors read aggregated input; the speed-based one needs raw fixes.**
+  `DataIssueScanner` builds `DataIssueInput` from the `YearReport` plus
+  `daySamples` — per-day GPS fixes (`.gpsVisit` / `.gpsSignificantChange` only,
+  sorted by timestamp), the one field that keeps per-fix timestamps. Manual and
+  evidence-implied samples are excluded so `FlightDayDetector`'s speed math
+  isn't skewed by user-asserted timestamps.
 - **Post-write reconciliation is defined once.** Every write and import routes
   through `DayJournal.reconcileAfterDayChange()` (or its widget-less subset
   `reconcileIssueState()` for dismiss/restore paths) — never copy the reconcile
@@ -98,7 +129,7 @@ internal shape.
   merge; read as a `Set`, defaulting to the four when unset). `RegionAttribution`
   derives the attributor from them and rebuilds on `changes()`; assemble via the
   async `WhereServices.make(...)` (which reads the set) so the app and the App
-  Intents process (`WhereServices.forIntents()`, also async) attribute against
+  Intents layer (`WhereServices.forIntents()`, also async) attribute against
   the same synced set. Detection is naturally scoped to it — the attributor only
   loads tracked-region geometry, so `distanceToBoundary` is `nil` elsewhere.
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are

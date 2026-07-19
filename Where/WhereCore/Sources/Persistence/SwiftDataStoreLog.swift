@@ -17,6 +17,9 @@ enum SwiftDataStoreLog: LogEvent {
     /// Ignored tracked-region ids the current catalog doesn't know (a store
     /// written by a newer catalog version).
     case ignoredUnknownTrackedRegions(count: Int, ids: String)
+    /// Ignored primary-region ids the current catalog doesn't know (a store
+    /// written by a newer catalog version).
+    case ignoredUnknownPrimaryRegions(count: Int, ids: String)
     /// Dropped a record that failed to materialize into a domain value.
     case droppedCorruptRecord(type: String)
 
@@ -25,7 +28,7 @@ enum SwiftDataStoreLog: LogEvent {
     var level: LogLevel {
         switch self {
             case .openedInMemory, .openedOnDisk: .info
-            case .ignoredUnknownTrackedRegions: .warning
+            case .ignoredUnknownTrackedRegions, .ignoredUnknownPrimaryRegions: .warning
             case .droppedCorruptRecord: .fault
         }
     }
@@ -38,6 +41,8 @@ enum SwiftDataStoreLog: LogEvent {
                 "Opened SwiftData store (mode: \(mode), appGroupResolved: \(appGroupResolved), url: \(url))"
             case let .ignoredUnknownTrackedRegions(count, ids):
                 "Ignored \(count) unknown tracked-region id(s): \(ids)"
+            case let .ignoredUnknownPrimaryRegions(count, ids):
+                "Ignored \(count) unknown primary-region id(s): \(ids)"
             case let .droppedCorruptRecord(type):
                 "Dropped corrupt SwiftData record of type \(type)"
         }

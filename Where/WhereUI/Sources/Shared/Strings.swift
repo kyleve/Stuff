@@ -332,25 +332,244 @@ enum Strings {
         String(localized: "onboarding.notNow", defaultValue: "Not Now", bundle: .module)
     }
 
-    // MARK: Migration
+    static var onboardingBack: String {
+        String(localized: "onboarding.back", defaultValue: "Back", bundle: .module)
+    }
 
-    static var migrationTitle: String {
+    static var onboardingNext: String {
+        String(localized: "onboarding.next", defaultValue: "Next", bundle: .module)
+    }
+
+    static var onboardingRestoreBackup: String {
         String(
-            localized: "migration.title",
-            defaultValue: "Updating your data…",
+            localized: "onboarding.restoreBackup",
+            defaultValue: "Restore from a backup",
             bundle: .module,
         )
     }
 
-    static var migrationSubtitle: String {
+    static var onboardingRestoreErrorTitle: String {
         String(
-            localized: "migration.subtitle",
+            localized: "onboarding.restoreError.title",
+            defaultValue: "Couldn't restore backup",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingRestoring: String {
+        String(localized: "onboarding.restoring", defaultValue: "Restoring…", bundle: .module)
+    }
+
+    static var onboardingRegionsTitle: String {
+        String(
+            localized: "onboarding.regions.title",
+            defaultValue: "Where do you spend your time?",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingLocationTitle: String {
+        String(
+            localized: "onboarding.location.title",
+            defaultValue: "Turn on location",
+            bundle: .module,
+        )
+    }
+
+    static var onboardingLocationDescription: String {
+        String(
+            localized: "onboarding.location.description",
+            defaultValue: "Where uses background location to log the regions you pass through. You can change this anytime in Settings.",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Region picker
+
+    static var regionPickerTitle: String {
+        String(localized: "regionPicker.title", defaultValue: "Your regions", bundle: .module)
+    }
+
+    static var regionPickerSubtitle: String {
+        String(
+            localized: "regionPicker.subtitle",
+            defaultValue: "Pick up to 5 regions where you spend your time.",
+            bundle: .module,
+        )
+    }
+
+    static var regionPickerModeMap: String {
+        String(localized: "regionPicker.mode.map", defaultValue: "Map", bundle: .module)
+    }
+
+    static var regionPickerModeList: String {
+        String(localized: "regionPicker.mode.list", defaultValue: "List", bundle: .module)
+    }
+
+    /// Accessibility label for the map/list mode switch.
+    static var regionPickerModePicker: String {
+        String(localized: "regionPicker.mode.picker", defaultValue: "View", bundle: .module)
+    }
+
+    static var regionPickerSearchPrompt: String {
+        String(
+            localized: "regionPicker.search.prompt",
+            defaultValue: "Search regions",
+            bundle: .module,
+        )
+    }
+
+    /// "2 of 5 selected".
+    static func regionPickerSelectionCount(selected: Int, max: Int) -> String {
+        String(
+            localized: "regionPicker.selectionCount",
+            defaultValue: "\(selected) of \(max) selected",
+            bundle: .module,
+        )
+    }
+
+    /// Shown when the selection is full, so an ignored tap on a new region reads
+    /// as "at capacity" rather than "unresponsive".
+    static func regionPickerAtCapacity(max: Int) -> String {
+        String(
+            localized: "regionPicker.atCapacity",
+            defaultValue: "That's the maximum of \(max) — deselect one to choose another.",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Region grouping (shared by the manual-day form + primary picker)
+
+    static var regionGroupYours: String {
+        String(localized: "regionGroup.yours", defaultValue: "Your regions", bundle: .module)
+    }
+
+    static var regionGroupUsedThisYear: String {
+        String(
+            localized: "regionGroup.usedThisYear",
+            defaultValue: "Used this year",
+            bundle: .module,
+        )
+    }
+
+    static var regionGroupMore: String {
+        String(localized: "regionGroup.more", defaultValue: "More regions", bundle: .module)
+    }
+
+    static var regionPickerMapAccessibility: String {
+        String(
+            localized: "regionPicker.map.accessibility",
+            defaultValue: "Map for picking your regions",
+            bundle: .module,
+        )
+    }
+
+    static var regionPickerEmptyTitle: String {
+        String(
+            localized: "regionPicker.empty.title",
+            defaultValue: "No matching regions",
+            bundle: .module,
+        )
+    }
+
+    static var regionPickerLoadErrorTitle: String {
+        String(
+            localized: "regionPicker.loadError.title",
+            defaultValue: "Couldn't load the map",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Region customization
+
+    static var regionCustomizeTitle: String {
+        String(localized: "regionCustomize.title", defaultValue: "Make it yours", bundle: .module)
+    }
+
+    /// "Choose a look for California".
+    static func regionCustomizeSubtitle(region: String) -> String {
+        String(
+            localized: "regionCustomize.subtitle",
+            defaultValue: "Choose a look for \(region)",
+            bundle: .module,
+        )
+    }
+
+    static var regionCustomizeColor: String {
+        String(localized: "regionCustomize.color", defaultValue: "Color", bundle: .module)
+    }
+
+    static var regionCustomizeEmoji: String {
+        String(localized: "regionCustomize.emoji", defaultValue: "Emoji", bundle: .module)
+    }
+
+    static var regionCustomizeSymbol: String {
+        String(localized: "regionCustomize.symbol", defaultValue: "Icon", bundle: .module)
+    }
+
+    /// "Region 2 of 5".
+    static func regionCustomizeStep(current: Int, total: Int) -> String {
+        String(
+            localized: "regionCustomize.step",
+            defaultValue: "Region \(current) of \(total)",
+            bundle: .module,
+        )
+    }
+
+    static func regionColorAccessibility(_ token: RegionColorToken) -> String {
+        String(
+            localized: "regionCustomize.color.accessibility",
+            defaultValue: "Color \(token.rawValue)",
+            bundle: .module,
+        )
+    }
+
+    // MARK: Region management (Settings)
+
+    static var regionsManageTitle: String {
+        String(localized: "regions.manage.title", defaultValue: "Your regions", bundle: .module)
+    }
+
+    static var settingsRegionsSection: String {
+        String(localized: "settings.regions.section", defaultValue: "Regions", bundle: .module)
+    }
+
+    static var settingsRegionsRow: String {
+        String(
+            localized: "settings.regions.row",
+            defaultValue: "Primary regions",
+            bundle: .module,
+        )
+    }
+
+    static var settingsRegionsEmpty: String {
+        String(localized: "settings.regions.empty", defaultValue: "None yet", bundle: .module)
+    }
+
+    static var commonSave: String {
+        String(localized: "common.save", defaultValue: "Save", bundle: .module)
+    }
+
+    // MARK: Launch
+
+    /// Title of the splash's slow-launch caption. Deliberately launch-neutral
+    /// — a slow launch may be a schema migration, a fresh install's very first
+    /// store creation, or plain slowness, and the splash can't tell which.
+    static var launchCaptionTitle: String {
+        String(
+            localized: "launch.caption.title",
+            defaultValue: "Getting things ready…",
+            bundle: .module,
+        )
+    }
+
+    static var launchCaptionSubtitle: String {
+        String(
+            localized: "launch.caption.subtitle",
             defaultValue: "This only takes a moment.",
             bundle: .module,
         )
     }
-
-    // MARK: Launch
 
     /// Spoken by VoiceOver while the launch splash is on screen (the icon and
     /// radar animation are decorative and hidden from accessibility).
@@ -1530,6 +1749,12 @@ enum Strings {
                     defaultValue: "Sudden moves",
                     bundle: .module,
                 )
+            case .flightDay:
+                String(
+                    localized: "resolution.section.flightDay",
+                    defaultValue: "Flights",
+                    bundle: .module,
+                )
         }
     }
 
@@ -1608,6 +1833,112 @@ enum Strings {
         )
     }
 
+    static var resolutionFlightRowSubtitle: String {
+        String(
+            localized: "resolution.flight.rowSubtitle",
+            defaultValue: "Looks like a flight",
+            bundle: .module,
+        )
+    }
+
+    static var resolutionFlightDetailTitle: String {
+        String(
+            localized: "resolution.flight.detail.title",
+            defaultValue: "Looks like a flight",
+            bundle: .module,
+        )
+    }
+
+    static func resolutionFlightDetailExplanation(
+        peakSpeedKMH: Double,
+        removed: Set<Region>,
+    ) -> String {
+        let speed = Measurement(value: peakSpeedKMH, unit: UnitSpeed.kilometersPerHour)
+            .formatted(.measurement(width: .abbreviated, usage: .general))
+        let removedNames = removed.map(\.localizedName).sorted().joined(separator: ", ")
+        return String(
+            localized: "resolution.flight.detail.explanation",
+            defaultValue:
+            "Some GPS points crossed the map at about \(speed) — that usually means a flight, not somewhere you actually stopped. Applying this keeps where you took off and landed and drops \(removedNames).",
+            bundle: .module,
+        )
+    }
+
+    static func resolutionFlightApply(regions: Set<Region>) -> String {
+        let names = regions.map(\.localizedName).sorted().joined(separator: ", ")
+        return String(
+            localized: "resolution.flight.apply",
+            defaultValue: "Keep \(names)",
+            bundle: .module,
+        )
+    }
+
+    static var resolutionFlightManualFix: String {
+        String(
+            localized: "resolution.flight.manualFix",
+            defaultValue: "Not what you expected?",
+            bundle: .module,
+        )
+    }
+
+    static var resolutionFlightManualFixFooter: String {
+        String(
+            localized: "resolution.flight.manualFix.footer",
+            defaultValue: "If this wasn't a flight, or you'd rather set the regions yourself, fix the day by hand.",
+            bundle: .module,
+        )
+    }
+
+    static var resolutionFlightBothRight: String {
+        String(
+            localized: "resolution.flight.bothRight",
+            defaultValue: "These are all correct",
+            bundle: .module,
+        )
+    }
+
+    // MARK: - "Fix this day" reason banner
+
+    static func relabelReasonBorderDrift(region: String, distance: String?) -> String {
+        if let distance {
+            return String(
+                localized: "relabel.reason.borderDrift.distance",
+                defaultValue: "Some points sit about \(distance) outside \(region) — likely GPS drift near the border.",
+                bundle: .module,
+            )
+        }
+        return String(
+            localized: "relabel.reason.borderDrift",
+            defaultValue: "Some points look like GPS drift near the \(region) border.",
+            bundle: .module,
+        )
+    }
+
+    static var relabelReasonTravelDay: String {
+        String(
+            localized: "relabel.reason.travelDay",
+            defaultValue: "The days around this one don't overlap — set where you were if you were traveling.",
+            bundle: .module,
+        )
+    }
+
+    static func relabelReasonFlight(removed: Set<Region>) -> String {
+        let removedNames = removed.map(\.localizedName).sorted().joined(separator: ", ")
+        return String(
+            localized: "relabel.reason.flight",
+            defaultValue: "This looked like a flight — high-speed points added \(removedNames). Set where you actually were.",
+            bundle: .module,
+        )
+    }
+
+    static var relabelReasonTitle: String {
+        String(
+            localized: "relabel.reason.title",
+            defaultValue: "Why this needs a look",
+            bundle: .module,
+        )
+    }
+
     static var settingsResolutionHeader: String {
         String(
             localized: "settings.resolution.header",
@@ -1623,6 +1954,49 @@ enum Strings {
             "Days logged just outside a primary region within this distance are flagged as possible GPS drift.",
             bundle: .module,
         )
+    }
+
+    static var settingsFindIssues: String {
+        String(
+            localized: "settings.findIssues",
+            defaultValue: "Find issues now",
+            bundle: .module,
+        )
+    }
+
+    static var settingsFindIssuesScanning: String {
+        String(
+            localized: "settings.findIssues.scanning",
+            defaultValue: "Scanning…",
+            bundle: .module,
+        )
+    }
+
+    /// Result of a manual "Find issues now" scan — the current unresolved count
+    /// for the year (not a "newly found" delta), worded as present state.
+    /// Handles 0 / 1 / many explicitly so the count reads correctly without a
+    /// catalog plural rule.
+    static func settingsFindIssuesResult(count: Int) -> String {
+        switch count {
+            case 0:
+                String(
+                    localized: "settings.findIssues.result.none",
+                    defaultValue: "No issues to resolve",
+                    bundle: .module,
+                )
+            case 1:
+                String(
+                    localized: "settings.findIssues.result.one",
+                    defaultValue: "1 issue to resolve",
+                    bundle: .module,
+                )
+            default:
+                String(
+                    localized: "settings.findIssues.result.many",
+                    defaultValue: "\(count) issues to resolve",
+                    bundle: .module,
+                )
+        }
     }
 
     /// A localized "10 km"-style label for a drift-threshold preset. Formatted

@@ -15,6 +15,7 @@ public struct YearTotalsRectangularAccessoryView: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     private var ranked: [RegionDays] {
         snapshot.rankedTotals(maxRows: Self.maxRows)
@@ -28,7 +29,7 @@ public struct YearTotalsRectangularAccessoryView: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(ranked) { entry in
                     HStack(spacing: stylesheet.spacing.xSmall) {
-                        Image(systemName: entry.region.style.symbolName)
+                        Image(systemName: regionStyles.style(for: entry.region).symbolName)
                             .font(.caption2)
                             .accessibilityHidden(true)
                         Text(entry.region.localizedName)

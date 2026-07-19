@@ -21,6 +21,10 @@ public struct LogTripIntent: AppIntent {
     @Parameter(title: "End Date")
     public var endDate: Date
 
+    /// The app-registered services handoff (see `IntentServices`); resolved by
+    /// the App Intents dependency container, never a singleton of ours.
+    @Dependency private var intentServices: IntentServices
+
     public init() {}
 
     public init(startDate: Date, endDate: Date, regions: [RegionEntity]) {
@@ -34,7 +38,7 @@ public struct LogTripIntent: AppIntent {
         guard !regionSet.isEmpty else {
             return .result(dialog: IntentDialog("\(IntentStrings.chooseRegions())"))
         }
-        let services = try await IntentServices.shared.current()
+        let services = try await intentServices.current()
         let dayCount = try await WhereIntentWriter(services: services)
             .logTrip(from: startDate, through: endDate, regions: regionSet)
         guard dayCount > 0 else {

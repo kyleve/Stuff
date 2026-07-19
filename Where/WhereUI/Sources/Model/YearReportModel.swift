@@ -58,7 +58,16 @@ public final class YearReportModel {
         let year: Int
         let report: YearReport?
         let driftThreshold: DriftThreshold
+        /// Bumped by `rescanForIssues()` so a manual "Find issues now" re-keys
+        /// the inputs and reloads the Resolve list even when nothing else
+        /// (year / report / threshold) changed.
+        let manualScanToken: Int
     }
+
+    /// Incremented by `rescanForIssues()`; folded into `dataIssueScanInputs` so a
+    /// forced rescan reloads the Resolve list. Observed (so the `.task(id:)`
+    /// re-fires), never persisted.
+    private var manualScanToken = 0
 
     public private(set) var selectedYear: Int
     public private(set) var report: YearReport?
@@ -144,7 +153,12 @@ public final class YearReportModel {
     /// `.task(id:)` on this, so the Resolve list re-scans on exactly the triggers
     /// the badge count recomputes on — the two can't drift apart.
     var dataIssueScanInputs: DataIssueScanInputs {
-        DataIssueScanInputs(year: selectedYear, report: report, driftThreshold: driftThreshold)
+        DataIssueScanInputs(
+            year: selectedYear,
+            report: report,
+            driftThreshold: driftThreshold,
+            manualScanToken: manualScanToken,
+        )
     }
 
     /// Primary/secondary split of the current report, or an empty ranking while
@@ -296,6 +310,16 @@ public final class YearReportModel {
                 )
             }
         }
+    }
+
+    /// Force a fresh data-issue scan past the ~3h throttle — the Settings "Find
+    /// issues now" action. Recomputes the badge with `force: true` (which also
+    /// refreshes the scanner's shared cache), then re-keys `dataIssueScanInputs`
+    /// so an already-open Resolve list reloads from that now-fresh cache too.
+    /// This mirrors the dual refresh a drift-threshold change performs.
+    public func rescanForIssues() async {
+        await refreshDataIssueCount(force: true)
+        manualScanToken += 1
     }
 
     /// Recompute the Resolve badge count for the selected year. Uses the cached
@@ -461,6 +485,24 @@ public final class YearReportModel {
                 )
             }
             return []
+        }
+    }
+
+    /// The recorded points for a single calendar `day`, grouped by attributed
+    /// region, for the "Fix this day" screen and flight-day detail view maps.
+    /// Logs and returns empty on failure (see `locations(in:)`).
+    public func locations(onDay day: CalendarDay) async -> [Region: [RegionDayPoint]] {
+        do {
+            return try await services.reports.locations(onDay: day)
+        } catch {
+            Self.logger(attachments: [.error(error, name: "day-locations-error")]) {
+                .dayLocationsLoadFailed(
+                    day: day.description,
+                    year: selectedYear,
+                    description: error.localizedDescription,
+                )
+            }
+            return [:]
         }
     }
 

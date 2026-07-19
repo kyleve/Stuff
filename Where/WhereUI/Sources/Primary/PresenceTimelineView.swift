@@ -74,13 +74,14 @@ private struct StintRow: View {
     let stint: RegionStint
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     private var timeline: WhereStylesheet.TimelineStyle {
         stylesheet.timeline
     }
 
     private var style: RegionStyle {
-        stint.region.style
+        regionStyles.style(for: stint.region)
     }
 
     var body: some View {

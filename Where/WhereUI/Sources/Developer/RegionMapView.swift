@@ -25,6 +25,7 @@ public struct RegionMapView: View {
     @State private var cameraPosition: MapCameraPosition = .automatic
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     /// Public so the standalone `RegionViewer` app (a separate module) can
     /// present the same screen as the in-app developer overlay entry.
@@ -229,7 +230,7 @@ public struct RegionMapView: View {
     /// gets a stable color derived from its title so the same feature is
     /// always the same hue across launches.
     private func color(forTitle title: String, region: Region?) -> Color {
-        if let region { return region.style.tint }
+        if let region { return regionStyles.style(for: region).tint }
         return Self.palette[Self.paletteIndex(for: title)]
     }
 

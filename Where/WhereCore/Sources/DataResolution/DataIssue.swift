@@ -5,6 +5,7 @@ public enum DataIssueCategory: Sendable, Hashable, CaseIterable {
     case missingDays
     case borderDrift
     case abruptChange
+    case flightDay
 }
 
 /// Closed set of fix shapes. The UI switches on this, so a new detector that
@@ -14,12 +15,24 @@ public enum IssueResolution: Sendable, Hashable {
     case backfill(MissingDayRange)
     case relabelDay(day: DayPresence, suggestedRegions: Set<Region>, approximateMeters: Double?)
     case markTravelDay(earlier: DayPresence, later: DayPresence, suggestedRegions: Set<Region>)
+    /// A day whose region set was polluted by cruise-speed GPS fixes crossing
+    /// untracked geography (a flight). `keepRegions` are the endpoints/dwell
+    /// regions to preserve; `removedRegions` are the fly-over-only regions the
+    /// one-tap fix drops (applied as an authoritative `overrideDay(keepRegions)`).
+    /// `peakSpeedKMH` is the fastest leg, for the detail view's copy.
+    case correctFlightDay(
+        day: DayPresence,
+        keepRegions: Set<Region>,
+        removedRegions: Set<Region>,
+        peakSpeedKMH: Double,
+    )
 }
 
 public enum DataIssueID: Hashable, Sendable, WhereStoreURLCodable {
     case missingDays(start: CalendarDay)
     case borderDrift(day: CalendarDay)
     case abruptChange(earlier: CalendarDay, later: CalendarDay)
+    case flightDay(day: CalendarDay)
 
     private static let collection = "issues"
 
@@ -52,6 +65,12 @@ public enum DataIssueID: Hashable, Sendable, WhereStoreURLCodable {
                     type: "abruptChange",
                     items: ["earlier": earlier.description, "later": later.description],
                 )
+            case let .flightDay(day):
+                StoreURL.url(
+                    collection: Self.collection,
+                    type: "flightDay",
+                    items: ["day": day.description],
+                )
         }
     }
 
@@ -77,6 +96,11 @@ public enum DataIssueID: Hashable, Sendable, WhereStoreURLCodable {
                     return nil
                 }
                 self = .abruptChange(earlier: earlier, later: later)
+            case "flightDay":
+                guard let day = parts.value("day").flatMap(CalendarDay.init(iso:)) else {
+                    return nil
+                }
+                self = .flightDay(day: day)
             default:
                 return nil
         }

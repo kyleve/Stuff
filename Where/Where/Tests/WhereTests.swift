@@ -55,5 +55,12 @@ struct WhereAppTests {
         // to `.userForeground` (the background/authorization branches are
         // covered by the pure-mapping tests above).
         #expect(delegate.launcher.reason == .userForeground)
+
+        // This `didFinishLaunching` also re-registered the intent-services
+        // handoff with `AppDependencyManager` (the host app's own launch
+        // registered first). That's tolerated, but its resolution can't be
+        // asserted here: `@Dependency` fatal-errors outside the intent perform
+        // flow, so the registration→resolution plumbing is device-verified
+        // only (see the comment in `AppDelegate`).
     }
 }

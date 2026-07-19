@@ -167,8 +167,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// (defaulting to the build/test-aware `Storage.default`) and wraps
     /// it in a `SwiftDataStore`. The `@ModelActor`-generated
     /// `init(modelContainer:)` is not reachable from other modules, so
-    /// this is the supported entry point for production wiring in the
-    /// app/UI layer.
+    /// this is the supported entry point for opening a store.
+    ///
+    /// Each process opens its on-disk store **once** and injects it where
+    /// it's needed — in the app, the launch's `open-store` step opens it and
+    /// the App Intents stack shares it via
+    /// `WhereServices.forIntents(sharingStoreOf:)` — rather than a second
+    /// caller opening another container over the same file (two containers
+    /// racing to *create* the store on a fresh install is how the launch
+    /// once failed with `SwiftDataError`).
     public static func make(storage: Storage = .default) throws -> SwiftDataStore {
         let container = try logger.measure(.open) { try makeContainer(storage: storage) }
         if storage == .inMemory {
@@ -223,6 +230,7 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             store.startObservingRemoteChanges(remoteChangeSource)
             return store
         }
+
     #endif
 
     /// The live model container, re-exposed for read-only debug tooling (the
@@ -768,15 +776,94 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             // TODO: Untracking deletes the row, which drops the region from the
             // attributor's load set — so re-aggregating a past year would
             // re-attribute that region's GPS days to `.other` (manual days,
-            // stored as region sets, are unaffected). When the onboarding /
-            // region picker lands, switch to a soft-delete (mark the row
-            // inactive, never delete) and have the attributor load every
-            // ever-tracked region so past reports stay stable, while "active"
-            // drives the UI/primary set. Not user-reachable yet — nothing calls
-            // `setTrackedRegion(false)` outside tests.
+            // stored as region sets, are unaffected). Now user-reachable (the
+            // onboarding picker and the Settings region editor remove picks via
+            // `removePrimaryRegion` → here), so switching to a soft-delete (mark
+            // the row inactive, never delete) and having the attributor load
+            // every ever-tracked region — so past reports stay stable while
+            // "active" drives the UI/primary set — is worth doing.
             for record in existing {
                 context.delete(record)
             }
+        }
+    }
+
+    public func primaryRegions() async throws -> [PrimaryRegion] {
+        let context = readContext()
+        var descriptor = FetchDescriptor<SDTrackedRegion>()
+        descriptor.includePendingChanges = true
+        let rows = try context.fetch(descriptor)
+        // No rows means the user hasn't chosen yet — mirror `trackedRegions()`'s
+        // default fallback so the picker/customization UI opens on the
+        // out-of-the-box set rather than empty.
+        guard !rows.isEmpty else {
+            return Region.inCanonicalOrder(Self.defaultTrackedRegions)
+                .enumerated()
+                .map { PrimaryRegion(region: $1, appearance: nil, order: $0) }
+        }
+        var resolved: [PrimaryRegion] = []
+        var unknown: [String] = []
+        // De-dupe by id (CloudKit can't enforce uniqueness): first row per id
+        // wins, preferring one that carries an appearance/order.
+        var seen: Set<String> = []
+        let sorted = rows.sorted { lhs, rhs in
+            let l = lhs.orderIndex ?? Int.max
+            let r = rhs.orderIndex ?? Int.max
+            if l != r { return l < r }
+            return (lhs.regionID ?? "") < (rhs.regionID ?? "")
+        }
+        for row in sorted {
+            guard let id = row.regionID else { continue }
+            guard let region = Region(rawValue: id) else {
+                unknown.append(id)
+                continue
+            }
+            guard seen.insert(id).inserted else { continue }
+            resolved.append(PrimaryRegion(
+                region: region,
+                appearance: row.appearanceValue,
+                order: row.orderIndex ?? resolved.count,
+            ))
+        }
+        if !unknown.isEmpty {
+            Self.logger {
+                .ignoredUnknownPrimaryRegions(
+                    count: unknown.count,
+                    ids: unknown.sorted().joined(separator: ", "),
+                )
+            }
+        }
+        return resolved
+    }
+
+    public func setPrimaryRegions(_ regions: [PrimaryRegion]) async throws {
+        let context = mutationContext()
+        let desiredIDs = Set(regions.map(\.region.rawValue))
+        // Delete every tracked row not in the desired set (and any row with a
+        // nil id, which we can't resolve) — removals happen by omission.
+        for row in try context.fetch(FetchDescriptor<SDTrackedRegion>()) {
+            if let id = row.regionID, desiredIDs.contains(id) { continue }
+            context.delete(row)
+        }
+        // Upsert each desired region's row (membership + appearance + order),
+        // collapsing any accidental duplicate rows to one (CloudKit can't
+        // enforce uniqueness).
+        for entry in regions {
+            let id = entry.region.rawValue
+            let existing = try context.fetch(FetchDescriptor<SDTrackedRegion>(
+                predicate: #Predicate { $0.regionID == id },
+            ))
+            let row: SDTrackedRegion
+            if let first = existing.first {
+                for extra in existing.dropFirst() {
+                    context.delete(extra)
+                }
+                row = first
+            } else {
+                row = SDTrackedRegion(regionID: id)
+                context.insert(row)
+            }
+            row.apply(appearance: entry.appearance, order: entry.order)
         }
     }
 
@@ -1017,13 +1104,40 @@ final class SDDismissedIssue {
 /// and add/add of the same region collapses to one on read (`trackedRegions()`
 /// returns a `Set`). `regionID` is `Region.rawValue`; optional per the CloudKit
 /// mirror's requirement.
+///
+/// The `colorRaw` / `emoji` / `symbolName` / `orderIndex` fields carry the
+/// region's user-picked ``RegionAppearance`` and pick order. All optional —
+/// both because CloudKit requires it and because a row can be tracked without a
+/// chosen look yet (the default set, or a legacy row); a resolved appearance
+/// needs all three style fields present.
 @Model
 final class SDTrackedRegion {
     var regionID: String?
+    var colorRaw: String?
+    var emoji: String?
+    var symbolName: String?
+    var orderIndex: Int?
 
     init() {}
 
     init(regionID: String) {
         self.regionID = regionID
+    }
+
+    /// The stored appearance, or `nil` when the row has no complete look yet.
+    var appearanceValue: RegionAppearance? {
+        guard let colorRaw, let color = RegionColorToken(rawValue: colorRaw),
+              let emoji, let symbolName
+        else { return nil }
+        return RegionAppearance(color: color, emoji: emoji, symbolName: symbolName)
+    }
+
+    /// Overwrite the stored appearance (clearing the style fields when `nil`)
+    /// and pick order.
+    func apply(appearance: RegionAppearance?, order: Int?) {
+        colorRaw = appearance?.color.rawValue
+        emoji = appearance?.emoji
+        symbolName = appearance?.symbolName
+        orderIndex = order
     }
 }

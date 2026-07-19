@@ -121,12 +121,16 @@ public struct RootView: View {
             // foreground and build the heavy `TabView` for a launch nobody sees,
             // defeating the headless path. The `.onChange` below handles the later
             // background→foreground transition; this initial check covers a launch
-            // that is already active when the view first appears.
+            // that is already active when the view first appears — and it must run
+            // *before* awaiting `run()`: when the scene arrives already active,
+            // `.onChange` never fires, and promoting only after `run()` returns
+            // would leave the user staring at the empty background surface for the
+            // entire (possibly slow) headless drive instead of the splash.
             .task {
-                await launcher.run()
                 if scenePhase == .active {
                     await launcher.enterForeground()
                 }
+                await launcher.run()
             }
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
@@ -137,8 +141,11 @@ public struct RootView: View {
             }
             // Seed the Broadway context at the app root so descendants resolve
             // `WhereStylesheet` (via `@Environment(\.stylesheet)`) against the live
-            // system traits and the app's themes.
-            .whereBroadwayRoot()
+            // system traits and the app's themes, plus the session's live region
+            // styles (`\.regionStyles`) so cards/calendar/onboarding render the
+            // user's picked looks. `.default` before the session exists (splash) and
+            // reactive after, since reading `session.regionStyles` tracks it.
+            .whereBroadwayRoot(regionStyles: model.session?.regionStyles ?? .default)
     }
 
     /// How the launch splash gives way to the app once the runner is `.ready`:
