@@ -4,25 +4,44 @@ Random apps and stuff.
 
 ## Requirements
 
-- Xcode 26+
-- [mise](https://mise.jdx.dev) (pins Tuist and SwiftFormat)
+- Xcode 26+ (a full Xcode.app, not just the Command Line Tools)
 - iOS 26.0+
+- [mise](https://mise.jdx.dev) — pins Tuist, SwiftFormat, and Ruby;
+  installed for you by `./ide --bootstrap` (see below)
 
 ## Getting started
 
+On a fresh machine, run the one-shot bootstrap. It checks that Xcode is
+installed and selected, installs `mise` if missing (via its official
+installer — no Homebrew required), installs the pinned tools (Tuist,
+SwiftFormat, Ruby), then sets Git hooks, runs `sync-agents --install`, and
+generates the Xcode project:
+
 ```bash
-# Install mise (if needed)
-brew install mise
+# One-shot setup for a new laptop (add -i to fetch Tuist package deps,
+# --team-id ABCDE12345 for on-device signing — see below)
+./ide --bootstrap
+```
 
-# Install pinned tools (Tuist, SwiftFormat)
-mise install
+When bootstrap installs `mise`, it also adds `mise activate` to your shell rc
+(zsh/bash) so `mise` and the pinned tools are on `PATH` in new terminals —
+restart your shell (or `source ~/.zshrc`) afterwards. On other shells, add
+activation manually per the [mise docs](https://mise.jdx.dev/getting-started.html).
 
+On subsequent runs (mise already installed), just regenerate:
+
+```bash
 # Generate the Xcode project (also sets Git hooks and runs sync-agents --install)
 ./ide
 
 # Or install Tuist package dependencies first, then generate
 ./ide -i
 ```
+
+`./ide` without `--bootstrap` fails fast if `mise` isn't found, pointing you
+back at `./ide --bootstrap`. If you'd rather manage `mise` yourself,
+`brew install mise` (or the [official installer](https://mise.jdx.dev))
+followed by `mise install` works too.
 
 Run tests with `mise exec -- tuist test` (or open the generated workspace in Xcode). CI pins an iOS Simulator destination so the full suite stays consistent.
 
@@ -69,10 +88,10 @@ TUIST_DEVELOPMENT_TEAM = "ABCDE12345"
 Package.swift       Local Swift package (StuffCore, LifecycleKit, WhereCore, WhereUI, TestHostSupport, …)
 Project.swift       Tuist manifest (Where app, StuffTestHost, test bundles → SPM)
 Tuist.swift         Tuist configuration
-.mise.toml          Pins Tuist 4.200.5 and SwiftFormat 0.60.1
+.mise.toml          Pins Tuist 4.200.5, SwiftFormat 0.60.1, and Ruby 3.4.10
 .mise.local.toml    Local mise overrides, gitignored (e.g. TUIST_DEVELOPMENT_TEAM)
 .swiftformat        SwiftFormat rules
-ide                 Dev script – hooks, sync-agents, tuist generate
+ide                 Dev script – bootstrap (mise + tools), hooks, sync-agents, tuist generate
 swiftformat         Run SwiftFormat via mise (default: format `.`)
 sync-agents         Sync AGENTS.md → CLAUDE.md and .claude/skills/
 profile             Report build/test hot spots (see `./profile --help`)

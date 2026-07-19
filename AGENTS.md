@@ -6,6 +6,7 @@
 |-------------|----------|--------------|
 | Tuist       | 4.200.5  | `.mise.toml` |
 | SwiftFormat | 0.60.1   | `.mise.toml` |
+| Ruby        | 3.4.10   | `.mise.toml` |
 | Swift PM    | 6.2      | `Package.swift` (`swift-tools-version`) |
 
 Library targets live in the root [`Package.swift`](Package.swift) (one local
@@ -18,7 +19,11 @@ duplicated here.
 Run `./ide` (or `./ide -i` to also install dependencies) to regenerate the
 Xcode project, install external agent skills, and point Git at `.githooks/`.
 Pass `--no-open` to skip launching Xcode (see [Generating the Xcode
-project](#generating-the-xcode-project)).
+project](#generating-the-xcode-project)). On a fresh machine run `./ide
+--bootstrap` (alias `--setup`) first: it verifies a full Xcode is installed
+and selected, installs `mise` (via its official installer, no Homebrew) and
+the pinned tools, then falls through to the normal generate flow. Plain
+`./ide` fails fast when `mise` is missing, pointing at `--bootstrap`.
 
 Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise),
 `sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`),
