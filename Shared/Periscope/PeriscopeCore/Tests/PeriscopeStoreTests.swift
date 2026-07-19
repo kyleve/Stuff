@@ -102,6 +102,46 @@ struct PeriscopeStoreTests {
         #expect(newer.map(\.message) == ["third"])
     }
 
+    @Test func afterSequencePagesWithinTheNewerEvents() async throws {
+        let (store, root, _, _) = try await makeStore()
+        await store.write([
+            makeRecord("e1", date: date(1), scopes: [root.id]),
+            makeRecord("e2", date: date(2), scopes: [root.id]),
+            makeRecord("e3", date: date(3), scopes: [root.id]),
+            makeRecord("e4", date: date(4), scopes: [root.id]),
+            makeRecord("e5", date: date(5), scopes: [root.id]),
+        ])
+        let all = try await store.events(matching: LogQuery())
+        let cursor = try #require(all.first { $0.message == "e2" }).sequence
+
+        // Newer than e2 is {e3, e4, e5}, newest first; limit takes the newest
+        // two of those, offset pages past the newest one.
+        var limited = LogQuery()
+        limited.afterSequence = cursor
+        limited.limit = 2
+        #expect(try await store.events(matching: limited).map(\.message) == ["e5", "e4"])
+
+        var offset = LogQuery()
+        offset.afterSequence = cursor
+        offset.offset = 1
+        #expect(try await store.events(matching: offset).map(\.message) == ["e4", "e3"])
+    }
+
+    @Test func afterSequenceAtTheMaxReturnsNothing() async throws {
+        let (store, root, _, _) = try await makeStore()
+        await store.write([
+            makeRecord("only", date: date(1), scopes: [root.id]),
+            makeRecord("newest", date: date(2), scopes: [root.id]),
+        ])
+        let all = try await store.events(matching: LogQuery())
+        let highest = try #require(all.map(\.sequence).max())
+
+        // The cursor is already at (or past) the newest event — nothing newer.
+        var query = LogQuery()
+        query.afterSequence = highest
+        #expect(try await store.events(matching: query).isEmpty)
+    }
+
     @Test func afterSequenceCombinesWithOtherFilters() async throws {
         let (store, root, _, _) = try await makeStore()
         await store.write([
