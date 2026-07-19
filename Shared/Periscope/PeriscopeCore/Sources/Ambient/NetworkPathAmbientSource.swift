@@ -8,15 +8,21 @@ import os
 public struct NetworkPathAmbientSource: AmbientEventSource {
     /// The running monitor; boxed so the source stays a Sendable value.
     private let monitor = OSAllocatedUnfairLock<NWPathMonitor?>(uncheckedState: nil)
+    /// Coalesces the monitor's frequent, change-agnostic updates down to
+    /// the transitions worth logging (see ``NetworkPathChangeFilter``).
+    private let filter = NetworkPathChangeFilter()
 
     public init() {}
 
     public func start(log: Log<AmbientEvent>) {
         let started = NWPathMonitor()
+        let filter = filter
         started.pathUpdateHandler = { path in
-            log { AmbientEvent(kind: .network, value: Self.describe(path)) }
+            // NWPathMonitor re-fires on churn that maps to the same
+            // description; only log when the value we'd record changes.
+            guard let event = filter.event(for: Self.describe(path)) else { return }
+            log { event }
         }
-        started.start(queue: DispatchQueue(label: "com.stuff.periscope.network-path"))
         let previous = monitor.withLockUnchecked { boxed -> NWPathMonitor? in
             let previous = boxed
             boxed = started
@@ -25,6 +31,10 @@ public struct NetworkPathAmbientSource: AmbientEventSource {
         // A repeated start replaces the monitor; without the cancel the old
         // one would keep running (and logging) forever.
         previous?.cancel()
+        // A restart re-reports current connectivity rather than swallowing
+        // it as a duplicate of the prior run.
+        filter.reset()
+        started.start(queue: DispatchQueue(label: "com.stuff.periscope.network-path"))
     }
 
     public func stop() {
@@ -34,6 +44,7 @@ public struct NetworkPathAmbientSource: AmbientEventSource {
             return running
         }
         running?.cancel()
+        filter.reset()
     }
 
     private static func describe(_ path: NWPath) -> String {
