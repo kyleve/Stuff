@@ -161,6 +161,8 @@ extension PeriscopeStylesheet {
         var spanName: Font = .callout.weight(.medium)
         var spanAge: Font = .caption
         var spanDetail: Font = .caption2
+        var scopeName: Font = .body
+        var scopeCount: Font = .caption
 
         static let standard = Typography()
     }

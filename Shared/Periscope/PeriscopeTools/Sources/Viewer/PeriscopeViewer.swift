@@ -30,13 +30,40 @@ public struct PeriscopeViewer: View {
     }
 
     public var body: some View {
-        @Bindable var model = model
-        content
-            .navigationTitle(title)
-            .environment(\.logRowDensity, density)
-            .onChange(of: density) { _, newValue in
-                newValue.save(to: defaults)
+        TabView {
+            Tab("Logs", systemImage: "list.bullet") {
+                logsTab
             }
+            Tab("Hierarchy", systemImage: "list.bullet.indent") {
+                LogHierarchyView(store: store)
+            }
+        }
+        .environment(\.logRowDensity, density)
+        .onChange(of: density) { _, newValue in
+            newValue.save(to: defaults)
+        }
+        .periscopeBroadwayRoot()
+        // Keyed on the store's identity: swapping stores in place cancels the
+        // old model's live stream and rebinds a fresh model — `State(initialValue:)`
+        // alone would keep serving the first store forever. Export state is
+        // per-store too: a sheet or failure alert generated against the old
+        // store shouldn't survive the swap.
+        .task(id: ObjectIdentifier(store)) {
+            if model.store !== store {
+                model = PeriscopeViewerModel(store: store)
+                export = nil
+                exportFailed = false
+            }
+            await model.run()
+        }
+    }
+
+    /// The flat, newest-first logs list — the first tab. Owns the filter/
+    /// export toolbar, search, and the export sheet.
+    private var logsTab: some View {
+        @Bindable var model = model
+        return content
+            .navigationTitle(title)
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     filterMenu
@@ -46,26 +73,11 @@ public struct PeriscopeViewer: View {
                 }
             }
             .searchable(text: $model.searchText)
-            .periscopeBroadwayRoot()
             .sheet(item: $export) { export in
                 NDJSONExportSheet(export: export)
             }
             .alert("Export Failed", isPresented: $exportFailed) {
                 Button("OK", role: .cancel) {}
-            }
-            // Keyed on the store's identity: swapping stores in place
-            // cancels the old model's live stream and rebinds a fresh model
-            // — `State(initialValue:)` alone would keep serving the first
-            // store forever. Export state is per-store too: a sheet or
-            // failure alert generated against the old store shouldn't
-            // survive the swap.
-            .task(id: ObjectIdentifier(store)) {
-                if model.store !== store {
-                    model = PeriscopeViewerModel(store: store)
-                    export = nil
-                    exportFailed = false
-                }
-                await model.run()
             }
     }
 

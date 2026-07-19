@@ -6,6 +6,9 @@ import SwiftUI
 struct LogEventRow: View {
     let event: StoredLogEvent
     let scopePath: String
+    /// Scope-tree depth to indent the row by (0 in the flat list); used by the
+    /// hierarchy's subtree view to mirror nesting.
+    var depth: Int = 0
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.logRowDensity) private var density
@@ -37,6 +40,7 @@ struct LogEventRow: View {
                     .foregroundStyle(.tertiary)
             }
         }
+        .padding(.leading, CGFloat(depth) * row.indentStep)
         .padding(.vertical, row.verticalPadding)
     }
 }

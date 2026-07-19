@@ -69,4 +69,21 @@ struct LogInspectorModelTests {
         let event = try #require(model.events.first)
         #expect(model.scopePath(for: event) == "app / photos / album-1")
     }
+
+    @Test func depthCountsScopesBelowTheViewedRoot() async throws {
+        let (store, _, photos, album) = try await makeSeededStore()
+        await store.write([
+            makeRecord("at photos", date: date(1), scopes: [photos.id]),
+            makeRecord("in the album", date: date(2), scopes: [album.id]),
+        ])
+
+        let model = LogInspectorModel(store: store, inspectedScopes: [photos.id], limit: 500)
+        await model.load()
+
+        let albumEvent = try #require(model.events.first { $0.message == "in the album" })
+        let photosEvent = try #require(model.events.first { $0.message == "at photos" })
+        // Viewed at `photos`: its own events sit at depth 0, album-1 one below.
+        #expect(model.depth(of: photosEvent, below: photos.id) == 0)
+        #expect(model.depth(of: albumEvent, below: photos.id) == 1)
+    }
 }

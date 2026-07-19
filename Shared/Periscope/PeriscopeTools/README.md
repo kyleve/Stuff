@@ -43,12 +43,19 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
 
 ## Public API
 
-- **`PeriscopeViewer(store:title:)`** — the latest-logs viewer: newest-first
-  list over a `PeriscopeStore`, searchable, filterable by level / event type
-  / scope subtree / session / span exit, paged, with exit-mode chips on
-  span rows, per-event detail (exit + reason, payload JSON, tags,
-  attachments), and NDJSON export for bug reports. Push it inside an
-  existing `NavigationStack`.
+- **`PeriscopeViewer(store:title:)`** — the log viewer, a two-tab surface
+  pushed inside an existing `NavigationStack`:
+  - **Logs** — newest-first list over a `PeriscopeStore`, searchable,
+    filterable by level / event type / scope subtree / session / span exit,
+    paged, with exit-mode chips on span rows, per-event detail (exit + reason,
+    payload JSON, tags, attachments), NDJSON export, and a
+    comfortable/compact **row-density** picker (persisted).
+  - **Hierarchy** — the scope tree (see `LogHierarchyView`).
+- **`LogHierarchyView(store:)`** — the scope-tree browser: the store's
+  `LogScope` hierarchy (the tree the `Log<Event>` API builds in code) as an
+  expandable outline with per-scope subtree counts; tapping a scope drills
+  into its subtree's events with rows indented to mirror the nesting. Shown as
+  the viewer's Hierarchy tab, and usable standalone.
 - **`LogTraceView(store:origin:)`** — the tracer: from one event (typically
   an error), shows the trail that led up to it — earlier events in the
   subtrees of all its (linked) scopes, events logged at ancestor scopes on

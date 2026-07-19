@@ -126,18 +126,11 @@ struct LogInspectorView: View {
                     description: Text("Nothing has been logged in this element's scopes."),
                 )
             case let .loaded(events):
-                List(events) { event in
-                    NavigationLink {
-                        LogEventDetailView(
-                            event: event,
-                            scopePath: model.scopePath(for: event),
-                            store: store,
-                        )
-                    } label: {
-                        LogEventRow(event: event, scopePath: model.scopePath(for: event))
-                    }
-                }
-                .listStyle(.plain)
+                LogEventList(
+                    events: events,
+                    store: store,
+                    scopePath: model.scopePath(for:),
+                )
         }
     }
 }
