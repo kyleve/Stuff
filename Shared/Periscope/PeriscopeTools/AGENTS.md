@@ -68,6 +68,15 @@ use `PeriscopeStylesheet.default`.
 - **Merged multi-query results sort by `(date, sequence)`** — the tracer and
   inspector combine several store queries, and the store's insertion
   sequence is the tiebreak that keeps same-millisecond events stable.
+- **Live tree/hierarchy models refresh incrementally.** `LogHierarchyModel`
+  and `SpanTreeModel` accumulate their derived state (per-scope counts; the
+  begin/end pairs) and, on each `changes()` ping, fetch only events past the
+  highest `sequence` they've merged via `LogQuery.afterSequence` — never a
+  full-store re-read. The merge re-filters on `sequence` so it stays
+  idempotent if `run()` restarts over already-seen events. This trades exact
+  reflection of deletions (retention prune / clear, neither wired into the
+  live app) for bounded per-commit work; a store swap makes the hosting view
+  build a fresh model, resetting the watermark.
 - **Tool views rebind on in-place input swaps** — each view's `.task(id:)`
   is keyed on store identity plus its other inputs and rebuilds the model
   when they change; a new identity-relevant input must join the key, or

@@ -41,10 +41,20 @@ final class SpanTreeModel {
 
     /// Exposed so the hosting view can detect a store swap and rebuild.
     let store: PeriscopeStore
-    @ObservationIgnored private var generation = 0
 
     private(set) var state: LoadState = .loading
     private(set) var scopes: [ScopeID: LogScope] = [:]
+
+    /// Every span begin/end seen so far, accumulated across refreshes so each
+    /// commit only fetches the span events appended since the last one. A
+    /// span's end typically lands in a later commit than its begin; both get
+    /// paired here once seen.
+    @ObservationIgnored private var begins: [StoredLogEvent] = []
+    @ObservationIgnored private var ends: [StoredLogEvent] = []
+    /// The highest event ``StoredLogEvent/sequence`` merged so far — the
+    /// cursor the next refresh queries past. `nil` means nothing loaded yet,
+    /// so the first fetch reads all span events.
+    @ObservationIgnored private var watermark: Int?
 
     init(store: PeriscopeStore) {
         self.store = store
@@ -63,23 +73,40 @@ final class SpanTreeModel {
         }
     }
 
+    /// Fetch only the span begins/ends appended since the last load (via the
+    /// `afterSequence` cursor), fold them into the accumulated pairs, and
+    /// rebuild the tree. The over-the-wire read is bounded by what a single
+    /// commit added rather than every span the store has ever recorded.
     func load() async {
-        generation += 1
-        let requested = generation
         do {
             var beginQuery = LogQuery()
             beginQuery.eventName = SpanBegan.eventName
+            beginQuery.afterSequence = watermark
             var endQuery = LogQuery()
             endQuery.eventName = SpanEnded.eventName
-            let begins = try await store.events(matching: beginQuery)
-            let ends = try await store.events(matching: endQuery)
+            endQuery.afterSequence = watermark
+            let newBegins = try await store.events(matching: beginQuery)
+            let newEnds = try await store.events(matching: endQuery)
             let scopeList = try await store.scopes()
-            guard requested == generation else { return }
+            merge(begins: newBegins, ends: newEnds)
             scopes = Dictionary(uniqueKeysWithValues: scopeList.map { ($0.id, $0) })
             state = .loaded(Self.buildTree(begins: begins, ends: ends))
         } catch {
-            guard requested == generation else { return }
             state = .failed(String(describing: error))
+        }
+    }
+
+    /// Append the span events strictly past the watermark and advance it.
+    /// Filtering here (not just in the query) keeps the merge idempotent: a
+    /// refresh that re-runs over events already accumulated — e.g. a
+    /// re-`run()` after the view reappears — skips them rather than
+    /// double-listing a span.
+    private func merge(begins newBegins: [StoredLogEvent], ends newEnds: [StoredLogEvent]) {
+        let floor = watermark ?? Int.min
+        begins.append(contentsOf: newBegins.filter { $0.sequence > floor })
+        ends.append(contentsOf: newEnds.filter { $0.sequence > floor })
+        if let highest = (newBegins + newEnds).map(\.sequence).max() {
+            watermark = max(watermark ?? highest, highest)
         }
     }
 

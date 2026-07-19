@@ -30,10 +30,17 @@ final class LogHierarchyModel {
 
     /// Exposed so the hosting view can detect a store swap and rebuild.
     let store: PeriscopeStore
-    @ObservationIgnored private var generation = 0
 
     private(set) var state: LoadState = .loading
     private(set) var scopes: [ScopeID: LogScope] = [:]
+
+    /// Per-scope direct event counts, accumulated across refreshes so each
+    /// commit only tallies the events appended since the last one.
+    @ObservationIgnored private var directCounts: [ScopeID: Int] = [:]
+    /// The highest event ``StoredLogEvent/sequence`` merged so far — the
+    /// cursor the next refresh queries past. `nil` means nothing loaded yet,
+    /// so the first fetch reads the whole store.
+    @ObservationIgnored private var watermark: Int?
 
     init(store: PeriscopeStore) {
         self.store = store
@@ -52,18 +59,38 @@ final class LogHierarchyModel {
         }
     }
 
+    /// Fetch only the events appended since the last load (via the
+    /// `afterSequence` cursor), fold them into the running counts, and
+    /// rebuild the forest. Scopes are few and re-read whole; the expensive
+    /// part — reading and decoding every event — is now bounded by what a
+    /// single commit added rather than the whole store.
     func load() async {
-        generation += 1
-        let requested = generation
         do {
             let scopeList = try await store.scopes()
-            let events = try await store.events(matching: LogQuery())
-            guard requested == generation else { return }
+            var query = LogQuery()
+            query.afterSequence = watermark
+            let newEvents = try await store.events(matching: query)
+            merge(newEvents)
             scopes = Dictionary(uniqueKeysWithValues: scopeList.map { ($0.id, $0) })
-            state = .loaded(Self.buildForest(scopes: scopeList, events: events))
+            state = .loaded(Self.buildForest(scopes: scopeList, directCounts: directCounts))
         } catch {
-            guard requested == generation else { return }
             state = .failed(String(describing: error))
+        }
+    }
+
+    /// Add the events strictly past the watermark into the running counts and
+    /// advance it. Filtering here (not just in the query) keeps the merge
+    /// idempotent: if a refresh ever re-runs over events already folded in —
+    /// e.g. a re-`run()` after the view reappears — they're skipped rather
+    /// than double-counted.
+    private func merge(_ events: [StoredLogEvent]) {
+        let floor = watermark ?? Int.min
+        for event in events where event.sequence > floor {
+            guard let primary = event.primaryScope else { continue }
+            directCounts[primary, default: 0] += 1
+        }
+        if let highest = events.map(\.sequence).max() {
+            watermark = max(watermark ?? highest, highest)
         }
     }
 
@@ -74,15 +101,21 @@ final class LogHierarchyModel {
             .joined(separator: " / ")
     }
 
-    /// Assemble the scope forest with counts. Roots are scopes with no parent
-    /// (or whose parent isn't in the set); children sort by name.
-    static func buildForest(scopes: [LogScope], events: [StoredLogEvent]) -> [ScopeNode] {
-        var directCounts: [ScopeID: Int] = [:]
+    /// Tally each event under its primary scope (`scopes.first`) — the direct
+    /// count a scope owns before its descendants are folded in.
+    static func directCounts(in events: [StoredLogEvent]) -> [ScopeID: Int] {
+        var counts: [ScopeID: Int] = [:]
         for event in events {
             guard let primary = event.primaryScope else { continue }
-            directCounts[primary, default: 0] += 1
+            counts[primary, default: 0] += 1
         }
+        return counts
+    }
 
+    /// Assemble the scope forest from precomputed direct counts. Roots are
+    /// scopes with no parent (or whose parent isn't in the set); children
+    /// sort by name.
+    static func buildForest(scopes: [LogScope], directCounts: [ScopeID: Int]) -> [ScopeNode] {
         let knownIDs = Set(scopes.map(\.id))
         var childrenByParent: [ScopeID: [LogScope]] = [:]
         var roots: [LogScope] = []

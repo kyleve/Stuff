@@ -110,4 +110,34 @@ struct SpanTreeModelTests {
         }
         #expect(shown)
     }
+
+    /// A span's end usually lands in a later commit than its begin. The begin
+    /// shows open first; when the end arrives in a subsequent refresh, the
+    /// incrementally-fetched end pairs with the already-accumulated begin —
+    /// the span flips to ended without re-reading the whole store.
+    @Test func pairsAnEndArrivingInALaterCommit() async throws {
+        let (store, root, _, _) = try await makeSeededStore()
+        let model = SpanTreeModel(store: store)
+
+        let running = Task { await model.run() }
+        defer { running.cancel() }
+
+        let span = SpanID()
+        await store.write([spanBegan(span, name: "work", at: date(0), scope: root.id)])
+        let opened = await waitUntil {
+            guard case let .loaded(tree) = model.state else { return false }
+            return tree.first?.name == "work" && tree.first?.isOpen == true
+        }
+        #expect(opened)
+
+        await store.write([
+            spanEnded(span, name: "work", at: date(1), duration: .seconds(1), scope: root.id),
+        ])
+        let closed = await waitUntil {
+            guard case let .loaded(tree) = model.state else { return false }
+            guard tree.count == 1, let node = tree.first else { return false }
+            return !node.isOpen && node.duration == .seconds(1)
+        }
+        #expect(closed)
+    }
 }

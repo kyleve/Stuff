@@ -47,7 +47,7 @@ struct LogHierarchyModelTests {
 
         let forest = LogHierarchyModel.buildForest(
             scopes: [root, zed, alpha],
-            events: [],
+            directCounts: [:],
         )
 
         #expect(forest.map(\.name) == ["root"])
@@ -59,7 +59,7 @@ struct LogHierarchyModelTests {
         let child = orphanParent.child(named: "child")
 
         // Only the child is present — its parent isn't in the set.
-        let forest = LogHierarchyModel.buildForest(scopes: [child], events: [])
+        let forest = LogHierarchyModel.buildForest(scopes: [child], directCounts: [:])
 
         #expect(forest.map(\.name) == ["child"])
         #expect(forest.first?.children == nil)
@@ -88,7 +88,10 @@ struct LogHierarchyModelTests {
             sessionID: UUID(),
         )
 
-        let forest = LogHierarchyModel.buildForest(scopes: [root, child], events: [stored])
+        let forest = LogHierarchyModel.buildForest(
+            scopes: [root, child],
+            directCounts: LogHierarchyModel.directCounts(in: [stored]),
+        )
 
         let rootNode = try #require(forest.first)
         #expect(rootNode.directCount == 0)
@@ -115,5 +118,36 @@ struct LogHierarchyModelTests {
             return forest.first?.subtreeCount == 1
         }
         #expect(updated)
+    }
+
+    /// Counts accumulate across successive commits and never double-count:
+    /// each refresh only folds in events newer than the last one merged, so
+    /// two batches of 2 and 3 total 5 — not 2 + 5, and not just the latest 3.
+    @Test func accumulatesCountsAcrossCommitsWithoutDoubleCounting() async throws {
+        let (store, root, _, _) = try await makeSeededStore()
+        let model = LogHierarchyModel(store: store)
+
+        let running = Task { await model.run() }
+        defer { running.cancel() }
+
+        await store.write([
+            makeRecord("a", date: date(1), scopes: [root.id]),
+            makeRecord("b", date: date(2), scopes: [root.id]),
+        ])
+        _ = await waitUntil {
+            guard case let .loaded(forest) = model.state else { return false }
+            return forest.first?.subtreeCount == 2
+        }
+
+        await store.write([
+            makeRecord("c", date: date(3), scopes: [root.id]),
+            makeRecord("d", date: date(4), scopes: [root.id]),
+            makeRecord("e", date: date(5), scopes: [root.id]),
+        ])
+        let total = await waitUntil {
+            guard case let .loaded(forest) = model.state else { return false }
+            return forest.first?.subtreeCount == 5
+        }
+        #expect(total)
     }
 }
