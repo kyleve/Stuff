@@ -42,6 +42,14 @@ final class LedgerSession {
         services.settings
     }
 
+    /// How often spend is auto-refreshed, in seconds. `SettingsView` binds this
+    /// two-way; the change is persisted in Core and picked up by the refresh
+    /// loop on its next cycle.
+    var refreshInterval: TimeInterval {
+        get { services.settings.refreshInterval }
+        set { services.settings.refreshInterval = newValue }
+    }
+
     /// Whether Ledger launches at login. `SettingsView` binds this two-way.
     var startsAtLogin: Bool {
         get { services.startsAtLogin }

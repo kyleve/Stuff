@@ -11,9 +11,9 @@ public struct LedgerConfiguration: Codable, Equatable, Sendable {
         self.refreshInterval = refreshInterval
     }
 
-    /// The configuration a fresh install starts from: refreshing every 15
+    /// The configuration a fresh install starts from: refreshing every 5
     /// minutes.
-    public static let initial = LedgerConfiguration(refreshInterval: 15 * 60)
+    public static let initial = LedgerConfiguration(refreshInterval: 5 * 60)
 }
 
 /// Loads and saves the ``LedgerConfiguration`` JSON file.

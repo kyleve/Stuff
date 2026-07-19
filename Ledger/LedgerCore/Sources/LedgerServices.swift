@@ -289,6 +289,12 @@ public final class LedgerServices {
     private func settingsDidChange() {
         configuration.refreshInterval = settings.refreshInterval
         persist()
+        // Apply a new cadence now rather than after the current sleep: restart
+        // the loop (which refreshes immediately) if it's running.
+        if refreshLoop != nil {
+            stop()
+            start()
+        }
     }
 
     private func persist() {

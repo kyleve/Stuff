@@ -50,8 +50,9 @@ shortcut to System Settings if macOS needs you to approve the login item.
 ## What it shows
 
 - **Menu-bar title** — the current billing cycle's usage-based spend, refreshed
-  automatically every 15 minutes. Opening the popover just shows the latest
-  fetched state; it doesn't trigger a network request.
+  automatically every 5 minutes (configurable in Settings › General). Opening
+  the popover just shows the latest fetched state; it doesn't trigger a network
+  request.
 - **Popover** — this cycle's spend and date range, your plan tier, an
   **included-usage** progress bar (with Cursor's own status lines), **top models
   this cycle** as usage shares, and when it last updated. A **Refresh** button

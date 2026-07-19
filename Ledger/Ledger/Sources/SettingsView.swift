@@ -79,11 +79,31 @@ private struct GeneralSettingsPane: SettingsPane {
         _session = Bindable(session)
     }
 
+    /// Auto-refresh cadence options, in seconds.
+    private let refreshOptions: [(label: String, seconds: TimeInterval)] = [
+        ("Every minute", 60),
+        ("Every 5 minutes", 5 * 60),
+        ("Every 15 minutes", 15 * 60),
+        ("Every 30 minutes", 30 * 60),
+        ("Every hour", 60 * 60),
+    ]
+
     var body: some View {
         Form {
             Toggle("Launch Ledger at login", isOn: $session.startsAtLogin)
             Text(
                 "Ledger starts automatically when you log in and keeps your Cursor spend in the menu bar.",
+            )
+            .font(.caption)
+            .foregroundStyle(.secondary)
+
+            Picker("Refresh", selection: $session.refreshInterval) {
+                ForEach(refreshOptions, id: \.seconds) { option in
+                    Text(option.label).tag(option.seconds)
+                }
+            }
+            Text(
+                "How often Ledger fetches your latest spend. The Refresh button in the popover updates it immediately.",
             )
             .font(.caption)
             .foregroundStyle(.secondary)
