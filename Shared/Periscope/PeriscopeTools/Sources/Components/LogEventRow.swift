@@ -7,32 +7,37 @@ struct LogEventRow: View {
     let event: StoredLogEvent
     let scopePath: String
 
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.logRowDensity) private var density
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
+        let row = stylesheet.row[density]
+        let type = stylesheet.typography
+        VStack(alignment: .leading, spacing: row.lineSpacing) {
+            HStack(spacing: row.headerSpacing) {
                 LogLevelBadge(level: event.level)
                 if let exitMode = event.spanExitMode {
                     SpanExitBadge(mode: exitMode)
                 }
                 Text(event.eventName)
-                    .font(.caption)
+                    .font(type.eventName)
                     .foregroundStyle(.secondary)
                 Spacer()
                 Text(event.date, format: .dateTime.hour().minute().second())
-                    .font(.caption2)
+                    .font(type.timestamp)
                     .monospacedDigit()
                     .foregroundStyle(.tertiary)
             }
             Text(event.message)
-                .font(.callout)
-                .lineLimit(3)
+                .font(type.message)
+                .lineLimit(row.messageLineLimit)
             if !scopePath.isEmpty {
                 Text(scopePath)
-                    .font(.caption2)
+                    .font(type.scopePath)
                     .foregroundStyle(.tertiary)
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, row.verticalPadding)
     }
 }
 
@@ -40,12 +45,16 @@ struct LogEventRow: View {
 struct LogLevelBadge: View {
     let level: LogLevel
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
+        let badge = stylesheet.badge
+        let tint = stylesheet.palette.tint(forLevel: level)
         Text(level.badgeLabel)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(level.tint.opacity(0.18), in: .capsule)
-            .foregroundStyle(level.tint)
+            .font(badge.font)
+            .padding(.horizontal, badge.horizontalPadding)
+            .padding(.vertical, badge.verticalPadding)
+            .background(tint.opacity(badge.backgroundOpacity), in: .capsule)
+            .foregroundStyle(tint)
     }
 }

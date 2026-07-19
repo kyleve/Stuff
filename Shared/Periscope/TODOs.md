@@ -18,7 +18,6 @@
 
 
 ## P1s (Should do)
-- fix: After initial merge, we should come back and update the UI to consume the Shared/Broadway design system tooling, eg a PeriscopeStylesheet for components and other recommendations.
 - feat: Journal attachments via external storage (PR #86 review). Instead of inlining blobs ≤64KB and omitting larger ones, write attachment bytes as files beside the journal segments (the entry referencing them by filename), clean them up with segment rotation and journal removal, and re-attach them at ingest. Removes the size cliff entirely — screenshots and payloads survive crashes too. Follow-up PR after #86.
 - feat: Multi-process store + journal coordination. Today only app processes ingest journals (extensions journal but never ingest, so an extension launch can't delete the live app's journal) — but the reverse hole remains: an app launching while an extension session is live would ingest and delete that *live* journal out from under its open descriptor, silently ending its recoverability. Needs a claim mechanism (e.g. a claim file the writer holds, or skip-directories-with-live-claims) designed alongside App Group store sharing — which the store doesn't support yet either (exclusive sequence counters, SwiftData container coordination).
 
@@ -27,6 +26,9 @@
 
 
 # Completed issues
+
+## Log viewer tooling (Broadway + density + hierarchy)
+- fix: PeriscopeTools consumes the Shared/Broadway design system — a `PeriscopeStylesheet` (`Sources/Styling/`) holds row geometry, badge chrome, typography, and the severity/exit/inspect color palette; every public tool view seeds `periscopeBroadwayRoot()` and reads `@Environment(\.stylesheet)`. Level/exit tints moved off `LogLevel`/`SpanExit.Mode` into `Palette`. (Broadway migration — was the P1 above.)
 
 ## Crash durability (design loop 1)
 - feat: Crash journal — every emitted record appends synchronously to a per-session append-only journal (**JournalKit**, a new generic module: CRC-framed segments, torn-tail-tolerant recovery, flight-recorder rotation) once an on-disk store is attached; fault+ records `F_FULLFSYNC`. At the next launch the store ingests prior journals before the session starts (dedupe by event ID, recovered begans join the orphan sweep, `.notice` recovery marker), then deletes them. Decision made on measured data: the benchmark prototype (`Prototypes/JournalBenchmark`) showed the file append is the only candidate with a microseconds-bounded worst case, and SIGKILL children proved page-cache appends survive process death while batched ORM saves lose their unsaved tail. In-memory stores never journal. Remaining refinement: journal the flush-on-background trigger is unnecessary now (the journal covers background kills), and attachment blobs >64KB journal as omitted markers.

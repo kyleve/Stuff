@@ -72,6 +72,16 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
   scope paths. Reads the system (open spans are live state, not store
   history); push it from a developer menu.
 
+## Design system
+
+Appearance — row geometry, badge chrome, typography, and the severity / span-exit
+/ inspect color palette — lives in `PeriscopeStylesheet`
+([`Sources/Styling/`](Sources/Styling)), a Broadway `BStylesheet`, rather than
+inline in views. Each public tool view seeds `periscopeBroadwayRoot()` and reads
+tokens via `@Environment(\.stylesheet)`, so the tooling styles correctly with or
+without a host-app Broadway root. Row density (`comfortable` / `compact`) is a
+stylesheet axis carried on `\.logRowDensity`.
+
 ## Testing
 
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`

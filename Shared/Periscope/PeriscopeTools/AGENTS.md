@@ -12,15 +12,40 @@ the build system, formatting, and global conventions. Read that first.
 
 `Sources/` groups one directory per tool — `Viewer/`, `Tracer/`, `Alerts/`,
 `InspectMode/`, `Spans/` — plus `Components/` for the display pieces they
-share (event rows, detail view, level/exit display extensions). Tests stay
-flat, named 1:1 with their source files.
+share (event rows, detail view, level/exit display extensions) and `Styling/`
+for the design system (`PeriscopeStylesheet`). Tests stay flat, named 1:1 with
+their source files.
 
 ## Scope & dependencies
 
-- **SwiftUI + PeriscopeCore + PeriscopeUI.** No app code — app-specific
-  wiring (which store, which alert handler) comes in via configuration.
+- **SwiftUI + PeriscopeCore + PeriscopeUI + BroadwayCore/BroadwayUI.** No app
+  code — app-specific wiring (which store, which alert handler) comes in via
+  configuration.
 - **Intended for DEBUG / developer surfaces**; consumers gate entry points
   behind `#if DEBUG`. Developer-facing strings are plain literals here.
+
+## Design system — `PeriscopeStylesheet`
+
+Appearance tokens (row geometry, badge chrome, typography, and the
+severity/exit/inspect color palette) live in `PeriscopeStylesheet`
+([`Sources/Styling/PeriscopeStylesheet.swift`](Sources/Styling/PeriscopeStylesheet.swift)),
+a Broadway `BStylesheet` — not inline in views. Read tokens with
+`@Environment(\.stylesheet) private var stylesheet`; off the `View` tree (tests)
+use `PeriscopeStylesheet.default`.
+
+- **Each public tool view seeds its own root** with `periscopeBroadwayRoot()`
+  so the tooling styles correctly whether or not the host app has a Broadway
+  root; nesting under an app root simply re-seeds from the same system traits.
+- **Row density** (`comfortable` / `compact`) is a `RowStyle` axis resolved via
+  `stylesheet.row[density]`; the active density rides the `\.logRowDensity`
+  environment value, which the viewer seeds from a persisted preference.
+- **Color decisions live in `Palette`**, not on `LogLevel` / `SpanExit.Mode` —
+  `tint(forLevel:)` bands by severity so custom levels inherit a sensible color.
+- Because PeriscopeTools links Broadway as a **static** library it can seed
+  Broadway directly. If it ever becomes a dynamic framework or is embedded in
+  one (e.g. hosted inside WhereUI), follow WhereUI's rule: consumers must not
+  re-link BroadwayCore/BroadwayUI, or the type-keyed environment splits and the
+  stylesheet stops resolving across the boundary.
 
 ## Invariants
 

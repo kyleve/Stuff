@@ -34,6 +34,7 @@ public struct PeriscopeViewer: View {
                 }
             }
             .searchable(text: $model.searchText)
+            .periscopeBroadwayRoot()
             .sheet(item: $export) { export in
                 NDJSONExportSheet(export: export)
             }
@@ -165,11 +166,13 @@ struct NDJSONExport: Identifiable {
 private struct NDJSONExportSheet: View {
     let export: NDJSONExport
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 Text(export.text)
-                    .font(.caption.monospaced())
+                    .font(stylesheet.typography.payload)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()

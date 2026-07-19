@@ -27,6 +27,7 @@ struct LogInspectableModifier: ViewModifier {
     let limit: Int
 
     @Environment(\.periscopeInspector) private var inspector
+    @Environment(\.stylesheet) private var stylesheet
     @State private var isPresentingEvents = false
 
     func body(content: Content) -> some View {
@@ -37,8 +38,8 @@ struct LogInspectableModifier: ViewModifier {
                 }
                 .labelStyle(.iconOnly)
                 .font(.caption)
-                .padding(4)
-                .background(.purple.opacity(0.85), in: .circle)
+                .padding(stylesheet.badge.inspectPadding)
+                .background(stylesheet.palette.inspectBadge.opacity(0.85), in: .circle)
                 .foregroundStyle(.white)
                 .padding(2)
                 .sheet(isPresented: $isPresentingEvents) {
@@ -85,6 +86,7 @@ struct LogInspectorView: View {
         content
             .navigationTitle("Element Logs")
             .navigationBarTitleDisplayMode(.inline)
+            .periscopeBroadwayRoot()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Done") { dismiss() }
