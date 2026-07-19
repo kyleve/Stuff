@@ -13,7 +13,7 @@
 - design: Decompose `Periscope` (the type and its flat `State` — group watchdog/inspect/ambient/live-observer state into sub-structs) and `PeriscopeStore` into children per behavioral area. Plan/build loop.
 - design: `ScopeID` derivation — hash-derived vs a concatenated, human-readable path that preserves the input for debugging. Plan/build loop.
 - design: `LogContextProviding` parent hierarchy — instance logs need a way to nest under a container's context (e.g. a controller inside another controller). Plan/build loop.
-- design: Ambient state snapshots — ambients should persist their *current state* (session-style) alongside change events, so any event joins to the system state at that moment. Plan/build loop.
+- design: Ambient state snapshots — ambients should persist their *current state* (session-style) alongside change events, so any event joins to the system state at that moment. Plan/build loop. (Groundwork landed: ambient sources are now reference types that own their per-kind state — see the "Ambient change filtering" completed entry.)
 - feat: Implement `SpanRelaunchPolicy.survivesRelaunch` resume mechanics. The policy is already recorded on `SpanBegan` payloads and the relaunch sweep honors it (surviving spans are left open, not orphan-closed), but nothing re-seeds them: `end(for:)` in the new process warns "without a matching begin". Needs an async bootstrap step at store/system startup that queries unmatched surviving `SpanBegan` events and re-opens them in `Periscope.openSpans` — plus wall-clock durations for resumed spans (`ContinuousClock` instants don't survive reboot; `SpanEnded.duration` is already optional for this) and accepting that signpost intervals can't resume.
 
 
@@ -27,6 +27,9 @@
 
 
 # Completed issues
+
+## Ambient change filtering
+- refactor: Ambient sources are reference types (`final class`) that own their observation *and* any last-state needed to filter no-op updates before logging. `NetworkPathAmbientSource` keeps the last description it emitted and drops `NWPathMonitor`'s duplicate, change-agnostic callbacks (interface reordering, `isExpensive`/`isConstrained` flips, DNS/gateway churn) that used to flood the ambient log — only *consecutive* duplicates drop (genuine Wi-Fi ↔ cellular flapping still logs), and a (re)start/stop resets the filter so current connectivity re-reports. Notification-based sources stay un-deduped on purpose (their notifications post only on real transitions; repeated memory warnings are each distinct). Replaces the earlier standalone `NetworkPathChangeFilter` with state owned by the source itself.
 
 ## Crash durability (design loop 1)
 - feat: Crash journal — every emitted record appends synchronously to a per-session append-only journal (**JournalKit**, a new generic module: CRC-framed segments, torn-tail-tolerant recovery, flight-recorder rotation) once an on-disk store is attached; fault+ records `F_FULLFSYNC`. At the next launch the store ingests prior journals before the session starts (dedupe by event ID, recovered begans join the orphan sweep, `.notice` recovery marker), then deletes them. Decision made on measured data: the benchmark prototype (`Prototypes/JournalBenchmark`) showed the file append is the only candidate with a microseconds-bounded worst case, and SIGKILL children proved page-cache appends survive process death while batched ORM saves lose their unsaved tail. In-memory stores never journal. Remaining refinement: journal the flush-on-background trigger is unnecessary now (the journal covers background kills), and attachment blobs >64KB journal as omitted markers.

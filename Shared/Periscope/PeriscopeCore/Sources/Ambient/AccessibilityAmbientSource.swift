@@ -7,7 +7,7 @@
     /// then a change event per toggle — VoiceOver, Switch Control, Reduce
     /// Motion, and friends often explain "it behaves differently for this
     /// user".
-    public struct AccessibilityAmbientSource: AmbientEventSource {
+    public final class AccessibilityAmbientSource: AmbientEventSource {
         /// One observed setting: display name, change notification, and
         /// current-state accessor (UIAccessibility statics are main-actor).
         private struct Setting {

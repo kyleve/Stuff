@@ -2,7 +2,7 @@ import Foundation
 
 /// Logs thermal state changes; `serious` and `critical` log at `.warning`
 /// since the system is about to start throttling.
-public struct ThermalStateAmbientSource: AmbientEventSource {
+public final class ThermalStateAmbientSource: AmbientEventSource {
     private let tokens = AmbientObserverTokens()
 
     public init() {}

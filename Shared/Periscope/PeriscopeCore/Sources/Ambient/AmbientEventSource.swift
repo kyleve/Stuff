@@ -6,13 +6,22 @@ import os
 /// accessibility settings; apps conform to add their own (push
 /// registration, sync status, …).
 ///
+/// The built-ins are **reference types** (`final class`): a source owns its
+/// observation state — observer tokens, running monitors — and any
+/// per-kind state it needs to decide *whether* an observed update is worth
+/// logging (e.g. ``NetworkPathAmbientSource`` keeps the last description it
+/// emitted so it can drop `NWPathMonitor`'s duplicate, change-agnostic
+/// callbacks). New sources conform likewise.
+///
 /// Sources are registered with ``Periscope/startAmbientSource(_:)``, which
 /// retains them and hands them a logger under the shared ambient scope;
 /// ``Periscope/stopAmbientSources()`` stops and releases them.
 public protocol AmbientEventSource: Sendable {
-    /// Begin observing and log every observed change into `log`. A
-    /// restart must replace the prior observation, not double it (the
-    /// built-ins swap their observer tokens wholesale).
+    /// Begin observing and log observed changes into `log` — a source may
+    /// filter no-op updates against its own last state before emitting
+    /// (so a signal that re-fires without changing doesn't flood the log).
+    /// A restart must replace the prior observation, not double it (the
+    /// built-ins swap their observer tokens/monitors wholesale).
     func start(log: Log<AmbientEvent>)
 
     /// End the observation: remove notification observers, cancel

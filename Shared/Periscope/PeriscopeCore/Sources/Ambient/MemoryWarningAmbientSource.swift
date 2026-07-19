@@ -4,7 +4,7 @@
 
     /// Logs system memory warnings at `.warning` — the classic missing
     /// context when diagnosing a jetsam-adjacent crash.
-    public struct MemoryWarningAmbientSource: AmbientEventSource {
+    public final class MemoryWarningAmbientSource: AmbientEventSource {
         private let tokens = AmbientObserverTokens()
 
         public init() {}

@@ -4,7 +4,7 @@
 
     /// Logs scene lifecycle transitions — background, foreground, active,
     /// inactive — so error investigations can see what the app was doing.
-    public struct AppLifecycleAmbientSource: AmbientEventSource {
+    public final class AppLifecycleAmbientSource: AmbientEventSource {
         private let tokens = AmbientObserverTokens()
 
         public init() {}
