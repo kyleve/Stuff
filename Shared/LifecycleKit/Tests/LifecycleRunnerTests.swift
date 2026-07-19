@@ -81,9 +81,10 @@ struct LifecycleRunnerForegroundPromotionTests {
         #expect(runner.reason.buildsNoViewTree)
 
         await runner.enterForeground()
-        // Promotion re-drives from the top: the (idempotent) unrestricted step
-        // runs again and the foreground-only step now runs too.
-        #expect(executed == ["store", "store", "onboarding"])
+        // Promotion re-drives from the top, but the already-completed unrestricted
+        // step is skipped (run-once); only the now-applicable foreground-only step
+        // runs.
+        #expect(executed == ["store", "onboarding"])
         #expect(!runner.reason.buildsNoViewTree)
         #expect(runner.phase.isReady)
     }
@@ -102,9 +103,10 @@ struct LifecycleRunnerForegroundPromotionTests {
         #expect(runner.reason.buildsNoViewTree)
 
         await runner.enterForeground()
-        // A scene activated: the launch resolves to foreground, the
-        // foreground-only step runs, and the launch reaches ready.
-        #expect(executed.contains("onboarding"))
+        // A scene activated: the launch resolves to foreground and the
+        // foreground-only step runs. The already-completed "store" is skipped
+        // (run-once), so it doesn't run a second time.
+        #expect(executed == ["store", "onboarding"])
         #expect(!runner.reason.buildsNoViewTree)
         #expect(runner.reason == .userForeground)
         #expect(runner.phase.isReady)

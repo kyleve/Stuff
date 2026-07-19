@@ -69,6 +69,21 @@ public final class LifecycleRunner {
     /// un-torn-down state. Empty until the first `teardown(_:)`.
     @ObservationIgnored private var teardownSteps: [LifecycleStep] = []
 
+    /// Steps that have already finished during the current launch attempt, so a
+    /// re-drive doesn't repeat completed work. It's what lets `enterForeground()`
+    /// promote a headless/undetermined launch — which re-drives from the top so
+    /// the now-applicable foreground-only steps run — without running a work
+    /// step that already serviced the launch a second time.
+    ///
+    /// Only steps that actually *ran to completion* are recorded; a step skipped
+    /// by mode/condition gating (e.g. a foreground-only step during a background
+    /// drive) or one that was cancelled mid-flight is not, so it still runs (and
+    /// its condition still re-evaluates) once the launch is promoted. Reset when
+    /// a *fresh* attempt begins (first `run()`, and the relaunch after a
+    /// teardown) so a reset genuinely re-runs everything; preserved across
+    /// `enterForeground()` and `retry()`, which continue the same attempt.
+    @ObservationIgnored private var completedStepIDs: Set<AnyHashable> = []
+
     public init(
         reason: LifecycleReason,
         initializePrerequisites: @MainActor () -> Void = {},
@@ -91,6 +106,8 @@ public final class LifecycleRunner {
     public func run() async {
         switch state {
             case let .notStarted(reason):
+                // A fresh attempt starts with a clean slate; nothing has run yet.
+                completedStepIDs.removeAll()
                 await drive(reason: reason, from: 0)
             case let .running(_, task):
                 await task.value
@@ -155,6 +172,10 @@ public final class LifecycleRunner {
             guard let self else { return }
             await previous?.value
             guard case .completed = await runSteps(teardownSteps, from: startIndex) else { return }
+            // The relaunch is a fresh attempt: clear the completed set so every
+            // launch step re-runs over the torn-down state rather than being
+            // skipped as "already done" from before the teardown.
+            completedStepIDs.removeAll()
             if case .completed = await runSteps(steps, from: 0) {
                 phase = .ready
             }
@@ -203,6 +224,13 @@ public final class LifecycleRunner {
 
             let step = steps[index]
 
+            // Already finished this attempt (e.g. a background-safe step that
+            // ran before an `enterForeground()` promotion re-drove from the
+            // top) — don't run it again.
+            guard !completedStepIDs.contains(step.id) else {
+                index += 1
+                continue
+            }
             guard step.appliesTo(reason) else {
                 index += 1
                 continue
@@ -213,7 +241,9 @@ public final class LifecycleRunner {
             }
 
             switch await runStep(step) {
-                case .completed: index += 1
+                case .completed:
+                    completedStepIDs.insert(step.id)
+                    index += 1
                 case .failed: return .failed
                 case .cancelled: return .cancelled
             }

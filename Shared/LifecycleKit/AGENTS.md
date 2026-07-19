@@ -41,6 +41,15 @@ system, formatting, and global conventions. Read that first.
   (so `.background` and `.undetermined` both promote); consumers must only call
   it once the scene is genuinely `.active` (see `RootView` in WhereUI for the
   `scenePhase` gating pattern).
+- **Each step runs at most once per launch attempt.** A completed step is
+  recorded in `completedStepIDs`, and a re-drive (`enterForeground()` promotion)
+  skips it — so a work step that already serviced the windowless drive isn't
+  repeated when foreground-only steps get their turn. Only steps that actually
+  ran to completion are recorded (a mode/condition-skipped or cancelled step
+  isn't), so promotion still runs the newly-applicable steps and re-evaluates
+  conditions. The set resets on a *fresh* attempt (first `run()`, and the
+  relaunch after `teardown()`), so a reset re-runs everything; it's preserved
+  across `retry()`, which resumes from the failed step.
 
 ## Testing
 
