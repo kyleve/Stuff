@@ -10,8 +10,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 ## Scope & rules
 
 - **Tuist app target** (bundle ID `com.stuff.regionviewer`), depending on
-  **WhereUI**, **WhereCore**, **RegionKit** (geometry + GeoJSON, whose resource
-  bundle is embedded for `RegionGeometryCatalog`), and **LogKit**. The `@main`
+  **WhereUI**, **WhereCore**, and **RegionKit** (geometry + GeoJSON, whose
+  resource bundle is embedded for `RegionGeometryCatalog`). The `@main`
   body is `WindowGroup { NavigationStack { RegionMapView() } }` — that's the
   whole target.
 - **Shell only, session-less.** No domain logic, SwiftData, App Group, or

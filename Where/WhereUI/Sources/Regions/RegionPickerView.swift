@@ -1,4 +1,5 @@
 import MapKit
+import PeriscopeCore
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -29,7 +30,7 @@ struct RegionPickerView: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
 
-    private static let logger = WhereLog.channel(.regionAttribution)
+    private static let logger = WhereLog.session(RegionPickerViewLog.self)
 
     var body: some View {
         VStack(spacing: stylesheet.spacing.medium) {
@@ -71,6 +72,9 @@ struct RegionPickerView: View {
             guard mode == .map, mapData == nil else { return }
             await loadMap()
         }
+        // Log View Mode: reveal an inspect badge for region-picker events (map
+        // geometry load). A no-op in release.
+        .debugLogInspectable(WhereLog.session(RegionPickerViewLog.self))
     }
 
     private var modePicker: some View {
@@ -219,7 +223,9 @@ struct RegionPickerView: View {
             guard !Task.isCancelled else { return }
             // Keep the failure observable in both the UI (error state) and the
             // logs rather than showing a blank map.
-            Self.logger.warning("Region picker failed to load map geometry: \(error)")
+            Self.logger(attachments: [.error(error, name: "geometry-error")]) {
+                .mapGeometryLoadFailed(description: error.localizedDescription)
+            }
             mapData = .failure(error)
         }
     }

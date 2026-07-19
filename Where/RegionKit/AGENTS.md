@@ -10,7 +10,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 ## Scope & dependencies
 
-- **Pure Swift + Foundation**, plus [`LogKit`](../../Shared/LogKit). It must
+- **Pure Swift + Foundation**, plus
+  [`PeriscopeCore`](../../Shared/Periscope/PeriscopeCore) for logging. It must
   **not** import SwiftUI, UIKit, SwiftData, CoreLocation, or `WhereCore` — it is
   the lowest layer of the feature, and `WhereCore` depends on *it*, never the
   reverse.
@@ -45,9 +46,19 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 - **Missing/corrupt bundled geometry (or manifest) is a programmer error** — the
   loader logs a `fault` via `RegionLog` *and* `assertionFailure`s (debug),
   degrading to `.other`/an empty catalog in release rather than crashing.
-- **Logging goes through `RegionLog.channel(_:)`** (subsystem
-  `com.stuff.regionkit`), never `WhereLog` — RegionKit owns its own channel and
-  in-memory store.
+- **Logging goes through `RegionLog`** — a Periscope facade with a `"RegionKit"`
+  root scope and one typed `LogEvent` per collaborator, emitted into
+  `Periscope.shared`. RegionKit owns its own root scope, never `WhereLog`, but
+  shares the process-wide store (the app wires the `PeriscopeStore` sink). The
+  `RegionLog` facade and the `*Log.swift` event types live together in
+  `Sources/Logging/`.
+- **Object identities are `region://` URLs** — `RegionURL` (RegionKit's local
+  analog of WhereCore's `StoreURL`) builds/parses `region://<collection>/<type>`
+  URLs, and `Region.regionURL` vends `region://regions/<id>`. Used to key a
+  `LogEvent.externalID` (see `RegionAttributorLog`) so inspect-by-object works
+  without RegionKit reaching up into the app's `store://` scheme — a separate,
+  intentionally parallel namespace. Distinct from `Region`'s bare-`rawValue`
+  `Codable`, which stays the persisted form.
 
 ## Testing
 

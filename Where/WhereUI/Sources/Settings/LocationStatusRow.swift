@@ -25,6 +25,9 @@ struct LocationStatusRow: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(presentation.title)
+        // Log View Mode: reveal an inspect badge that opens the session's
+        // location/authorization events. A no-op in release.
+        .debugLogInspectable(WhereLog.session)
     }
 
     private struct Presentation {

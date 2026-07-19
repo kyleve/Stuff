@@ -89,7 +89,7 @@ its day-count query.
 
 `WhereIntents` is an SPM library target in [`Package.swift`](../../Package.swift)
 (`Where/WhereIntents/Sources`) depending on **WhereCore**, **RegionKit**,
-**LogKit**, and **WhereUI** (for the snippet cards). The **Where** app links it;
+**PeriscopeCore**, and **WhereUI** (for the snippet cards). The **Where** app links it;
 the hosted `WhereIntentsTests` bundle is wired in [`Project.swift`](../../Project.swift)
 via the `unitTests` helper.
 

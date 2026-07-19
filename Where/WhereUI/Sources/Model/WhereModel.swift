@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 import WhereCore
 
 /// The long-lived, app-level model: the onboarding gate, the persisted
@@ -28,6 +28,15 @@ public final class WhereModel {
     /// `@Environment(WhereSession.self)`.
     public private(set) var session: WhereSession?
 
+    /// The process-global Periscope log store, opened at launch and attached to
+    /// `Periscope.shared` as its durable sink (see `WhereLaunch.bootstrapLogging`).
+    /// Held here — not on `WhereSession` — because logging spans the whole
+    /// process, not a login: it exists before the store opens and survives a
+    /// reset. `nil` until the bootstrap opens it, and in previews/tests, which
+    /// log only through the in-memory pipeline. The DEBUG developer surface reads
+    /// it to browse persisted history.
+    public private(set) var logStore: PeriscopeStore?
+
     /// The persisted user intent (onboarding, tracking, reminder/summary
     /// schedules). Owns the defaults keys and the `reset()` the erase flow runs;
     /// shared by reference with the `WhereSession` so both halves read/write the
@@ -44,7 +53,7 @@ public final class WhereModel {
     /// (the scene loads from the store once it appears).
     let initialReport: YearReport?
 
-    private static let logger = WhereLog.channel(.model)
+    private static let logger = WhereLog.root(WhereModelLog.self)
 
     /// Whether first-run onboarding has been completed. Persisted so onboarding
     /// shows exactly once; the launch flow gates its onboarding step on this,
@@ -58,7 +67,7 @@ public final class WhereModel {
     /// user finishes the intro (after the permission prompt resolves).
     public func completeOnboarding() {
         hasOnboarded = true
-        Self.logger.info("Onboarding completed")
+        Self.logger { .onboardingCompleted }
     }
 
     public static var currentYear: Int {
@@ -107,6 +116,13 @@ public final class WhereModel {
         services != nil
     }
 
+    /// Retain the process-global log store the launch bootstrap opened and
+    /// attached to `Periscope.shared`. Called once, off the launch critical
+    /// path, so the developer surface can browse persisted history.
+    public func attach(logStore: PeriscopeStore) {
+        self.logStore = logStore
+    }
+
     /// Retain the service layer the launch's `open-store` step assembled (see
     /// `WhereBootstrap`). Idempotent — a no-op once services exist, so an
     /// injected preview/test value is never clobbered. `WhereBootstrap` owns
@@ -129,7 +145,7 @@ public final class WhereModel {
             preferences: preferences,
             now: now,
         )
-        Self.logger.info("Started session (year: \(initialSelectedYear))")
+        Self.logger { .startedSession(year: initialSelectedYear) }
     }
 
     /// Drop the logged-in session (the services stay retained). Run by the
@@ -137,7 +153,7 @@ public final class WhereModel {
     /// fresh session over the erased store.
     public func endSession() {
         session = nil
-        Self.logger.info("Ended session")
+        Self.logger { .endedSession }
     }
 
     // MARK: - Reset / erase all
@@ -162,6 +178,6 @@ public final class WhereModel {
     /// again; the re-driven launch's fresh session reads those defaults back.
     public func resetPreferences() {
         preferences.reset()
-        Self.logger.info("Reset preferences to first-install defaults")
+        Self.logger { .resetPreferences }
     }
 }

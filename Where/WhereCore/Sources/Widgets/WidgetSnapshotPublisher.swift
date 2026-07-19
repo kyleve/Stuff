@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 import RegionKit
 
 /// Owns the published widget snapshot and the policy for when to rebuild it.
@@ -37,7 +37,7 @@ public actor WidgetSnapshotPublisher {
     /// the store and reload widgets.
     static let defaultMaxAge: TimeInterval = 3 * 60 * 60
 
-    private static let logger = WhereLog.channel(.widgetSnapshotPublisher)
+    private static let logger = WhereLog.widgets(WidgetSnapshotPublisherLog.self)
 
     init(
         widgetReader: WidgetDataReader,
@@ -80,13 +80,14 @@ public actor WidgetSnapshotPublisher {
             let snapshot = try await widgetReader.snapshot(asOf: now())
             await widgetRefresher.publish(snapshot)
             lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
-            Self.logger.info(
-                "Published widget snapshot for \(dayLogLabel(snapshot.day)) (\(snapshot.dayRegions.count) region(s))",
-            )
+            Self.logger {
+                .published(
+                    day: dayLogLabel(snapshot.day),
+                    regionCount: snapshot.dayRegions.count,
+                )
+            }
         } catch {
-            Self.logger.error(
-                "Failed to build widget snapshot: \(error.localizedDescription)",
-            )
+            Self.logger { .buildFailed(description: error.localizedDescription) }
         }
     }
 

@@ -1,5 +1,6 @@
 import Foundation
 import os
+import PeriscopeCore
 import RegionKit
 
 /// A live, swappable `RegionAttributing` derived from the store's tracked
@@ -17,7 +18,7 @@ final class RegionAttribution: RegionAttributing {
         var trackedIDs: Set<String>
     }
 
-    private static let logger = WhereLog.channel(.regionAttribution)
+    private static let logger = WhereLog.root(RegionAttributionLog.self)
 
     private let store: any WhereStore
     private let state: OSAllocatedUnfairLock<State>
@@ -76,7 +77,7 @@ final class RegionAttribution: RegionAttributing {
             // Degraded-but-handled: keep the last-good attributor rather than
             // silently freezing on an empty/stale set, and surface the failure so
             // a persistent read error is observable instead of invisible.
-            Self.logger.warning("Failed to read tracked regions for attributor rebuild: \(error)")
+            Self.logger { .trackedRegionsReadFailed(description: String(describing: error)) }
             return
         }
         let ids = Set(tracked.map(\.rawValue))

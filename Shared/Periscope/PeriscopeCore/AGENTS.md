@@ -13,7 +13,7 @@ the build system, formatting, and global conventions. Read that first.
 - **Foundation + os + SwiftData + Network + JournalKit only** (plus the
   ObjectiveC runtime, for `LogContextProviding`'s deallocation trackers and
   `NotificationAmbientSource`'s target/selector observation). No SwiftUI, no
-  app code, no LogKit. UIKit is allowed **only** inside `#if canImport(UIKit)`
+  app code. UIKit is allowed **only** inside `#if canImport(UIKit)`
   (ambient sources, the image-attachment convenience).
 - Layering: `PeriscopeUI` and `PeriscopeTools` depend on this module — never
   the reverse.

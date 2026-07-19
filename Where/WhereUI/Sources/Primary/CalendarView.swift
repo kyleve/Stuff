@@ -1,3 +1,4 @@
+import PeriscopeCore
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -21,7 +22,7 @@ struct CalendarView: View {
     @State private var timelineTarget: TimelineMonthTarget?
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
 
-    private static let logger = WhereLog.channel(.session)
+    private static let logger = WhereLog.session(CalendarViewLog.self)
 
     /// Inputs that invalidate a cached month grid.
     private struct CalendarLoadID: Equatable {
@@ -73,9 +74,9 @@ struct CalendarView: View {
                         Text(Strings.calendarUnavailableDescription)
                     }
                     .onAppear {
-                        Self.logger.warning(
-                            "Calendar opened without a year report (loadState: \(report.loadState))",
-                        )
+                        Self.logger {
+                            .openedWithoutReport(loadState: String(describing: report.loadState))
+                        }
                     }
                 }
             }
@@ -92,6 +93,9 @@ struct CalendarView: View {
                     .navigationBarTitleDisplayMode(.inline)
             }
         }
+        // Log View Mode: reveal an inspect badge for this calendar's events. A
+        // no-op in release.
+        .debugLogInspectable(WhereLog.session(CalendarViewLog.self))
     }
 
     private var navigationTitle: String {
@@ -131,7 +135,7 @@ struct CalendarView: View {
             Text(Strings.calendarUnavailableDescription)
         }
         .onAppear {
-            Self.logger.warning("Calendar layout failed: \(error)")
+            Self.logger { .layoutFailed(description: String(describing: error)) }
         }
     }
 

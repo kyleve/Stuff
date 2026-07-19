@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 import WhereCore
 
 /// View-scoped model for the share-extension compose sheet. Pulls the shared
@@ -42,7 +42,7 @@ final class ShareEvidenceModel {
     /// Storage the extension opens; injectable so a future test can point it at
     /// an in-memory store instead of the shared container.
     private let storage: SwiftDataStore.Storage
-    private static let logger = WhereLog.channel(.shareExtension)
+    private static let logger = WhereLog.root(ShareExtensionLog.self)
 
     init(
         items: [NSExtensionItem],
@@ -99,11 +99,13 @@ final class ShareEvidenceModel {
                     try await store.write(evidence: item.evidence, blob: item.blob)
                 }
             }
-            Self.logger.info("Saved \(pending.count) shared evidence record(s)")
+            Self.logger { .saved(evidenceCount: pending.count) }
             return true
         } catch {
             phase = .failed(error.localizedDescription)
-            Self.logger.error("Failed to save shared evidence: \(error.localizedDescription)")
+            Self.logger(attachments: [.error(error, name: "save-error")]) {
+                .saveFailed(description: error.localizedDescription)
+            }
             return false
         }
     }

@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 import WhereCore
 
 /// View-scoped model backing the "logged days" sheet: loads the selected year's
@@ -25,7 +25,7 @@ public final class LoggedDaysModel {
     public private(set) var loadState: LoadState = .idle
 
     private let services: WhereServices
-    private static let logger = WhereLog.channel(.dayJournal)
+    private static let logger = WhereLog.root(LoggedDaysModelLog.self)
 
     init(services: WhereServices) {
         self.services = services
@@ -62,9 +62,7 @@ public final class LoggedDaysModel {
             loadState = days.isEmpty ? .empty : .loaded(days)
         } catch {
             loadState = .failed(error.localizedDescription)
-            Self.logger.warning(
-                "Failed to load logged days for \(year): \(error.localizedDescription)",
-            )
+            Self.logger { .loadFailed(year: year, description: error.localizedDescription) }
         }
     }
 

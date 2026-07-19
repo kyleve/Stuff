@@ -93,7 +93,6 @@ let project = Project(
             entitlements: whereAppGroupEntitlements,
             dependencies: [
                 .package(product: "LifecycleKit"),
-                .package(product: "LogKit"),
                 .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
@@ -129,7 +128,7 @@ let project = Project(
             resources: ["Where/WhereWidgets/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
-                .package(product: "LogKit"),
+                .package(product: "PeriscopeCore"),
                 .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
@@ -165,7 +164,7 @@ let project = Project(
             resources: ["Where/WhereShareExtension/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
-                .package(product: "LogKit"),
+                .package(product: "PeriscopeCore"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
@@ -189,7 +188,6 @@ let project = Project(
             // No App Group entitlement — the viewer only reads bundled GeoJSON
             // (embedded via the RegionKit dependency), never the app's store.
             dependencies: [
-                .package(product: "LogKit"),
                 .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
@@ -270,18 +268,6 @@ let project = Project(
             sources: ["Shared/LifecycleKit/Tests/**"],
         ),
         unitTests(
-            name: "LogKitTests",
-            bundleIdSuffix: "logkit",
-            productDependency: "LogKit",
-            sources: ["Shared/LogKit/Tests/**"],
-        ),
-        unitTests(
-            name: "LogViewerUITests",
-            bundleIdSuffix: "logviewerui",
-            productDependency: "LogViewerUI",
-            sources: ["Shared/LogViewerUI/Tests/**"],
-        ),
-        unitTests(
             name: "JournalKitTests",
             bundleIdSuffix: "journalkit",
             productDependency: "JournalKit",
@@ -340,8 +326,9 @@ let project = Project(
         // BTraits/BThemes/BStylesheets containers) then silently resolves against
         // the wrong copy — the writer stores under one copy's key type, the
         // reader looks it up under another's. Everything the tests need
-        // (BroadwayCore/BroadwayUI, LifecycleKit, LogViewerUI, SwiftDataInspector,
-        // RegionKit + its GeoJSON bundle) is reached transitively through WhereUI.
+        // (BroadwayCore/BroadwayUI, LifecycleKit, PeriscopeCore/UI/Tools,
+        // SwiftDataInspector, RegionKit + its GeoJSON bundle) is reached
+        // transitively through WhereUI.
         // See the root AGENTS.md "Targets" note.
         unitTests(
             name: "WhereUITests",
@@ -432,8 +419,6 @@ let project = Project(
                 "StuffTestHost",
                 "StuffCoreTests",
                 "LifecycleKitTests",
-                "LogKitTests",
-                "LogViewerUITests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
@@ -452,8 +437,6 @@ let project = Project(
             testAction: .targets([
                 "StuffCoreTests",
                 "LifecycleKitTests",
-                "LogKitTests",
-                "LogViewerUITests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
@@ -471,8 +454,6 @@ let project = Project(
         ),
         testScheme(name: "StuffCoreTests"),
         testScheme(name: "LifecycleKitTests"),
-        testScheme(name: "LogKitTests"),
-        testScheme(name: "LogViewerUITests"),
         testScheme(name: "JournalKitTests"),
         testScheme(name: "PeriscopeCoreTests"),
         testScheme(name: "PeriscopeUITests"),

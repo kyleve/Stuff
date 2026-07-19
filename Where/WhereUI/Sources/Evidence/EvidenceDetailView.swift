@@ -1,3 +1,4 @@
+import PeriscopeCore
 import SwiftUI
 import WhereCore
 
@@ -36,6 +37,9 @@ struct EvidenceDetailView: View {
         .task {
             if model.blobState == .idle { await model.load() }
         }
+        // Log View Mode: reveal an inspect badge for this screen's
+        // evidence-detail events (blob-load failures). A no-op in release.
+        .debugLogInspectable(WhereLog.evidence(EvidenceDetailModelLog.self))
     }
 
     private var header: some View {
