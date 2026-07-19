@@ -2,7 +2,7 @@
 
 LedgerCore is the model layer for the Ledger menu bar app: a tree of
 `@MainActor @Observable` objects rooted in `LedgerServices` that fetches the
-current-cycle Cursor spend (and a year-to-date total) from Cursor's
+current-cycle Cursor spend from Cursor's
 undocumented dashboard API and reduces it to one observable `LoadState`. The
 SwiftUI/AppKit layer lives in the app target ([`Ledger/Ledger`](../Ledger)) and
 binds the tree directly; see [`README.md`](README.md) for the narrative and
@@ -12,7 +12,7 @@ per-type detail.
 LedgerServices ── LedgerSettings (refresh interval)
        ├────────── SessionTokenSource ── CursorLocalTokenSource (state.vscdb, read-only)
        ├────────── KeychainStore (a pasted token override)
-       ├────────── DashboardProvider ── CursorDashboardAPI (usage-summary, get-monthly-invoice, get-aggregated-usage-events)
+       ├────────── DashboardProvider ── CursorDashboardAPI (usage-summary, get-aggregated-usage-events)
        └────────── LoginItemController (SMAppService)
 ```
 
@@ -44,10 +44,11 @@ build system, formatting, and global conventions. Read that first.
 - **Read Cursor's `state.vscdb` read-only.** Open with `SQLITE_OPEN_READONLY`
   and never write/lock it — Cursor may hold it open. Any failure (missing file,
   missing key, locked) degrades to "no auto-token" (`nil`), not a throw.
-- **`onDemand.used` is "this cycle"; year-to-date = prior-month invoices + the
-  live cycle figure.** The current month's invoice lags until charges post, so
-  the live usage-summary number stands in for it — don't double-count by also
-  summing the current month's (sparse) invoice.
+- **`onDemand.used` is "this cycle"; there is no year-to-date total.** The
+  `get-monthly-invoice` endpoint is a billing ledger with cross-month
+  adjustments (negative "mid-month usage paid for <month>" credits) whose
+  contents shift as billing settles, so summing months is not a meaningful
+  yearly spend (it can go negative). Don't reintroduce a summed YTD.
 - **Per-model usage is a dollar-free share, and best-effort.**
   `get-aggregated-usage-events`' `totalCostCents` measures compute differently
   from the billed on-demand figure (they don't reconcile), so `ModelShare`

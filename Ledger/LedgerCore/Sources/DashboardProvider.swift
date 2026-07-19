@@ -18,8 +18,6 @@ public enum DashboardError: Error, Equatable, Sendable {
 public protocol DashboardProvider: Sendable {
     /// The current billing cycle's usage summary.
     func usageSummary(token: SessionToken) async throws -> UsageSummary
-    /// The itemized invoice for a given month (`month` is 1-based) and year.
-    func monthlyInvoice(month: Int, year: Int, token: SessionToken) async throws -> MonthlyInvoice
     /// Per-model usage aggregated over `[startDate, endDate]`.
     func aggregatedUsage(startDate: Date, endDate: Date, token: SessionToken) async throws
         -> AggregatedUsage
@@ -50,25 +48,6 @@ public struct CursorDashboardAPI: DashboardProvider {
             body: nil,
         )
         return try await send(request, decoding: UsageSummary.self)
-    }
-
-    public func monthlyInvoice(
-        month: Int,
-        year: Int,
-        token: SessionToken,
-    ) async throws -> MonthlyInvoice {
-        let body = try JSONSerialization.data(withJSONObject: [
-            "month": month,
-            "year": year,
-            "includeUsageEvents": false,
-        ])
-        let request = makeRequest(
-            path: "/api/dashboard/get-monthly-invoice",
-            method: "POST",
-            token: token,
-            body: body,
-        )
-        return try await send(request, decoding: MonthlyInvoice.self)
     }
 
     public func aggregatedUsage(

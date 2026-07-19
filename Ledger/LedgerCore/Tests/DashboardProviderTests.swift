@@ -5,18 +5,9 @@ import Testing
 struct DashboardProviderTests {
     private let token = SessionToken(cookieValue: "user_X::jwt")
 
-    @Test func scriptedProviderReturnsItsScriptedSummaryAndInvoices() async throws {
-        let provider = ScriptedDashboardProvider(.success(
-            summary: .fixture(onDemandCents: 4200),
-            invoiceCentsByMonth: [3: 5000],
-        ))
-
+    @Test func scriptedProviderReturnsItsScriptedSummary() async throws {
+        let provider = ScriptedDashboardProvider(summary: .fixture(onDemandCents: 4200))
         #expect(try await provider.usageSummary(token: token).onDemandCents == 4200)
-        #expect(try await provider.monthlyInvoice(month: 3, year: 2026, token: token)
-            .totalCents == 5000)
-        // A month with no scripted value is a sparse (zero) invoice.
-        #expect(try await provider.monthlyInvoice(month: 4, year: 2026, token: token)
-            .totalCents == 0)
     }
 
     @Test func scriptedProviderThrowsItsFailureOutcome() async {
@@ -37,7 +28,7 @@ struct DashboardProviderTests {
 
     @Test func scriptedProviderCanFailOnlyAggregated() async throws {
         let provider = ScriptedDashboardProvider(
-            .success(summary: .fixture(onDemandCents: 10), invoiceCentsByMonth: [:]),
+            .success(summary: .fixture(onDemandCents: 10)),
             aggregatedFailure: .http(500),
         )
         // Summary still succeeds…

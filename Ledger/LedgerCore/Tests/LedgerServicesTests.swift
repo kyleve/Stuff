@@ -4,21 +4,11 @@ import Testing
 
 @MainActor
 struct LedgerServicesTests {
-    /// A fixed "now" in July 2026 (month 7), UTC, so prior-month invoice fetches
-    /// (months 1..6) are deterministic.
-    private func julyCalendarAndNow() -> (Calendar, @Sendable () -> Date) {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone(identifier: "UTC")!
-        let now = calendar.date(from: DateComponents(year: 2026, month: 7, day: 15))!
-        return (calendar, { now })
-    }
-
     private func makeServices(
         provider: any DashboardProvider = ScriptedDashboardProvider(.failure(.network("unused"))),
         manualToken: String? = nil,
         autoToken: SessionToken? = nil,
     ) -> LedgerServices {
-        let (calendar, now) = julyCalendarAndNow()
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("LedgerServicesTests-\(UUID().uuidString)")
         let store = LedgerConfigStore(directory: directory)
@@ -28,8 +18,6 @@ struct LedgerServicesTests {
             tokenSource: StubTokenSource(token: autoToken),
             provider: provider,
             loginItem: LoginItemController(backend: LoginItemRecorder()),
-            calendar: calendar,
-            now: now,
         )
     }
 
@@ -51,7 +39,6 @@ struct LedgerServicesTests {
                 includedUsed: 40000,
                 includedLimit: 40000,
             ),
-            invoiceCentsByMonth: [1: 100, 2: 200, 3: 300, 4: 400, 5: 500, 6: 600],
         ))
         let services = makeServices(
             provider: provider,
@@ -64,8 +51,6 @@ struct LedgerServicesTests {
             return
         }
         #expect(snapshot.currentCycleCents == 5000)
-        // Year-to-date = prior months (1..6 = 2100) + current cycle live (5000).
-        #expect(snapshot.yearToDateCents == 2100 + 5000)
         #expect(snapshot.membershipType == "ultra")
         #expect(services.lastUpdated != nil)
     }
@@ -86,7 +71,7 @@ struct LedgerServicesTests {
 
     @Test func loadsTopModelsAsShares() async {
         let provider = ScriptedDashboardProvider(
-            .success(summary: .fixture(onDemandCents: 5000), invoiceCentsByMonth: [:]),
+            .success(summary: .fixture(onDemandCents: 5000)),
             aggregated: .fixture(["a": 75, "b": 25]),
         )
         let services = makeServices(
@@ -107,7 +92,7 @@ struct LedgerServicesTests {
         // The per-model breakdown is best-effort: its failure must not blank
         // the headline.
         let provider = ScriptedDashboardProvider(
-            .success(summary: .fixture(onDemandCents: 5000), invoiceCentsByMonth: [:]),
+            .success(summary: .fixture(onDemandCents: 5000)),
             aggregatedFailure: .http(500),
         )
         let services = makeServices(
@@ -230,14 +215,6 @@ private final class GatedDashboardProvider: DashboardProvider, @unchecked Sendab
             }
         }
         return summary
-    }
-
-    func monthlyInvoice(
-        month _: Int,
-        year _: Int,
-        token _: SessionToken,
-    ) async throws -> MonthlyInvoice {
-        MonthlyInvoice(items: nil)
     }
 
     func aggregatedUsage(

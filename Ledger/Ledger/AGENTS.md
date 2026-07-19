@@ -24,10 +24,10 @@ build system, formatting, and global conventions. Read that first.
   loop (deliberately AppKit, not `MenuBarExtra`). The SwiftUI `Settings` scene
   hosts `SettingsView`.
 - `LedgerSession` — the thin `@Observable` facade over `LedgerServices`: views
-  read its mirrored state and call its intent methods (`refresh`, `setAPIKey`,
-  …); it owns the Core root.
-- `SpendView` — the popover; renders the single `LoadState` (this cycle +
-  year-to-date).
+  read its mirrored state and call its intent methods (`refresh`,
+  `setManualToken`, …); it owns the Core root.
+- `SpendView` — the popover; renders the single `LoadState` (current-cycle
+  spend, included-usage, and top models).
 - `SettingsView` — a System-Settings-style sidebar (General + Account panes);
   Account shows the auto-detect status and an optional pasted-token override.
 - `CurrencyFormat` — the one place spend is formatted as USD.

@@ -106,7 +106,6 @@ public final class LedgerServices {
     @ObservationIgnored private let tokenSource: any SessionTokenSource
     @ObservationIgnored private let provider: any DashboardProvider
     @ObservationIgnored private let loginItem: LoginItemController
-    @ObservationIgnored private let calendar: Calendar
     @ObservationIgnored private let now: @Sendable () -> Date
     @ObservationIgnored private var refreshLoop: Task<Void, Never>?
     /// Increments per fetch so a slow earlier response can't clobber a newer one.
@@ -129,7 +128,6 @@ public final class LedgerServices {
         tokenSource: any SessionTokenSource,
         provider: any DashboardProvider,
         loginItem: LoginItemController,
-        calendar: Calendar = .current,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.configStore = configStore
@@ -137,7 +135,6 @@ public final class LedgerServices {
         self.tokenSource = tokenSource
         self.provider = provider
         self.loginItem = loginItem
-        self.calendar = calendar
         self.now = now
         do {
             configuration = try configStore.load()
@@ -196,23 +193,11 @@ public final class LedgerServices {
 
         do {
             let summary = try await provider.usageSummary(token: token)
-            let components = calendar.dateComponents([.year, .month], from: now())
-            let year = components.year ?? 1970
-            let month = components.month ?? 1
-            let priorMonthsCents = try await priorMonthsSpend(
-                before: month,
-                year: year,
-                token: token,
-            )
             let models = await topModels(cycleStart: summary.cycleStart, token: token)
 
             guard generation == requestGeneration else { return }
             let snapshot = SpendSnapshot(
                 currentCycleCents: summary.onDemandCents,
-                // "This year" = prior months' billed invoices + the current
-                // cycle's live spend (the current month's invoice lags until
-                // charges post).
-                yearToDateCents: priorMonthsCents + summary.onDemandCents,
                 cycleStart: summary.cycleStart,
                 cycleEnd: summary.cycleEnd,
                 membershipType: summary.membershipType,
@@ -229,29 +214,6 @@ public final class LedgerServices {
             guard generation == requestGeneration else { return }
             Self.logger.error("Unexpected dashboard error: \(error.localizedDescription)")
             loadState = .failed(.network(error.localizedDescription))
-        }
-    }
-
-    /// Sums the billed invoice totals for months `1 ..< month` of `year`,
-    /// fetched concurrently.
-    private func priorMonthsSpend(
-        before month: Int,
-        year: Int,
-        token: SessionToken,
-    ) async throws -> Int {
-        guard month > 1 else { return 0 }
-        let provider = provider
-        return try await withThrowingTaskGroup(of: Int.self) { group in
-            for m in 1 ..< month {
-                group.addTask {
-                    try await provider.monthlyInvoice(month: m, year: year, token: token).totalCents
-                }
-            }
-            var total = 0
-            for try await cents in group {
-                total += cents
-            }
-            return total
         }
     }
 

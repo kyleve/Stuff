@@ -2,8 +2,8 @@
 
 A macOS **menu bar app** that shows your current-cycle Cursor spend at a
 glance. The status item displays the cycle-to-date dollar amount; clicking it
-opens a popover with this cycle's spend, a year-to-date total, the included-usage
-breakdown, and your plan.
+opens a popover with this cycle's spend, the included-usage breakdown, your
+plan, and the top models by usage.
 
 All behavior lives in [`LedgerCore`](../LedgerCore); this target is the thin
 SwiftUI/AppKit shell.
@@ -52,12 +52,15 @@ shortcut to System Settings if macOS needs you to approve the login item.
 - **Menu-bar title** — the current billing cycle's usage-based spend, refreshed
   automatically every 15 minutes. Opening the popover just shows the latest
   fetched state; it doesn't trigger a network request.
-- **Popover** — this cycle's spend and date range, a **year-to-date** total,
-  your plan tier, an **included-usage** progress bar (with Cursor's own status
-  lines), **top models this cycle** as usage shares, and when it last updated. A
-  **Refresh** button forces an immediate fetch. On an error (no session, an
-  expired session, a network failure) it explains what to fix and offers a
-  shortcut to Settings.
+- **Popover** — this cycle's spend and date range, your plan tier, an
+  **included-usage** progress bar (with Cursor's own status lines), **top models
+  this cycle** as usage shares, and when it last updated. A **Refresh** button
+  forces an immediate fetch. On an error (no session, an expired session, a
+  network failure) it explains what to fix and offers a shortcut to Settings.
+
+There's intentionally no year-to-date total: the monthly-invoice endpoint is a
+billing ledger with cross-month credit/adjustment lines, so summing it isn't a
+meaningful "spend this year" (see `LedgerCore`'s README).
 
 The per-model rows are shown as **relative shares**, not dollars: the dashboard's
 per-model figure (`get-aggregated-usage-events`) measures compute differently

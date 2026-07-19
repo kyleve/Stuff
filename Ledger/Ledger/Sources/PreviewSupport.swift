@@ -22,14 +22,6 @@
                             "You've used 100% of your included API usage",
                         ],
                     ),
-                    invoiceCentsByMonth: [
-                        1: 120_000,
-                        2: 98000,
-                        3: 210_000,
-                        4: 175_000,
-                        5: 260_000,
-                        6: 288_000,
-                    ],
                 ),
                 aggregated: .fixture([
                     "claude-opus-4-8-thinking-xhigh": 28929,

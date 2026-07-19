@@ -76,27 +76,6 @@ enum DashboardFixture {
     }
     """
 
-    /// A `get-monthly-invoice` body with two itemized lines.
-    static let monthlyInvoiceJSON = """
-    {
-      "items": [
-        { "description": "88 calls to claude-fable-5-thinking-xhigh ($828.11)", "cents": 82811 },
-        { "description": "90 calls to claude-opus-4-8-thinking-high ($334.92)", "cents": 33492 }
-      ],
-      "periodStartMs": "1785542400000",
-      "periodEndMs": "1788220800000"
-    }
-    """
-
-    /// A sparse invoice (current month, nothing billed yet).
-    static let emptyInvoiceJSON = """
-    {
-      "pricingDescription": { "id": "abc" },
-      "periodStartMs": "1785542400000",
-      "periodEndMs": "1788220800000"
-    }
-    """
-
     /// A `get-aggregated-usage-events` body — token fields are strings on the wire.
     static let aggregatedJSON = """
     {

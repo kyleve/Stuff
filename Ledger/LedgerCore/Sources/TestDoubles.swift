@@ -8,7 +8,7 @@
     @_spi(Testing)
     public struct ScriptedDashboardProvider: DashboardProvider {
         public enum Outcome: Sendable {
-            case success(summary: UsageSummary, invoiceCentsByMonth: [Int: Int])
+            case success(summary: UsageSummary)
             case failure(DashboardError)
         }
 
@@ -28,34 +28,17 @@
             self.aggregatedFailure = aggregatedFailure
         }
 
-        /// Convenience: a successful summary with no prior-month invoices.
+        /// Convenience: a successful summary.
         public init(summary: UsageSummary) {
-            outcome = .success(summary: summary, invoiceCentsByMonth: [:])
+            outcome = .success(summary: summary)
             aggregated = AggregatedUsage(aggregations: [], totalCostCents: 0)
             aggregatedFailure = nil
         }
 
         public func usageSummary(token _: SessionToken) async throws -> UsageSummary {
             switch outcome {
-                case let .success(summary, _): summary
+                case let .success(summary): summary
                 case let .failure(error): throw error
-            }
-        }
-
-        public func monthlyInvoice(
-            month: Int,
-            year _: Int,
-            token _: SessionToken,
-        ) async throws -> MonthlyInvoice {
-            switch outcome {
-                case let .success(_, invoiceCentsByMonth):
-                    let cents = invoiceCentsByMonth[month] ?? 0
-                    return MonthlyInvoice(items: cents == 0 ? nil : [.init(
-                        description: "m\(month)",
-                        cents: cents,
-                    )])
-                case let .failure(error):
-                    throw error
             }
         }
 

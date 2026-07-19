@@ -1,7 +1,7 @@
 # LedgerCore
 
 The model layer for the **Ledger** menu bar app: it fetches your current
-Cursor billing-cycle spend (and a year-to-date total) from the same
+Cursor billing-cycle spend from the same
 undocumented dashboard endpoints the `cursor.com/dashboard/usage` page uses,
 authenticated with your Cursor **session token**. The SwiftUI/AppKit shell
 lives in the [`Ledger`](../Ledger) app target and binds this tree directly.
@@ -12,8 +12,7 @@ lives in the [`Ledger`](../Ledger) app target and binds this tree directly.
   (`state.vscdb` → `cursorAuth/accessToken`), or a value you **paste** into
   Settings (stored in the Keychain, which overrides auto-detect).
 - Calls `GET /api/usage-summary` for the current cycle's dates, plan type, and
-  live usage-based spend, `POST /api/dashboard/get-monthly-invoice` for each
-  prior month of the year, and `POST /api/dashboard/get-aggregated-usage-events`
+  live usage-based spend, and `POST /api/dashboard/get-aggregated-usage-events`
   for the per-model breakdown (best-effort).
 - Reduces it all to one observable `LoadState` (`idle` / `loading` /
   `loaded(SpendSnapshot)` / `failed(LoadError)`).
@@ -41,7 +40,7 @@ auto-token", surfaced as `LoadError.missingCredentials`.
 - `SessionToken` / `SessionTokenSource` / `CursorLocalTokenSource` — the auth
   seam.
 - `DashboardProvider` + `CursorDashboardAPI` — the network seam.
-- `UsageSummary`, `MonthlyInvoice`, `SpendSnapshot` — the wire + view models
+- `UsageSummary`, `AggregatedUsage`, `SpendSnapshot` — the wire + view models
   (cents are integers).
 - `KeychainStore` / `SystemKeychainStore` — a pasted token's storage.
 - `LedgerSettings` / `LedgerConfiguration` / `LedgerConfigStore` — the persisted
@@ -53,9 +52,12 @@ auto-token", surfaced as `LoadError.missingCredentials`.
 
 - **This cycle** = `usage-summary` → `individualUsage.onDemand.used` (cents),
   the live usage-based spend.
-- **This year** = the sum of the prior months' `get-monthly-invoice` totals plus
-  the current cycle's live figure (the current month's invoice lags until
-  charges post, so the live number stands in for it).
+- There is deliberately **no year-to-date total**: the `get-monthly-invoice`
+  endpoint is a billing ledger with cross-month adjustments (negative
+  "mid-month usage paid for <month>" credit lines) whose contents shift as
+  billing settles, so summing months doesn't yield a meaningful "spend this
+  year" (it can even go negative). Rather than show a wrong number, Ledger omits
+  it.
 
 - **Top models** = `get-aggregated-usage-events` over the cycle window, shown as
   each model's **share** of that endpoint's total. This is deliberately

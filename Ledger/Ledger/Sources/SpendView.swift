@@ -73,7 +73,6 @@ struct SpendView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                breakdownRow("This year", CurrencyFormat.dollars(snapshot.yearToDateDollars))
                 breakdownRow("Plan", snapshot.membershipType.capitalized)
             }
 

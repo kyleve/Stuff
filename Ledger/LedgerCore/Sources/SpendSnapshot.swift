@@ -1,15 +1,11 @@
 import Foundation
 
-/// The spend figures Ledger renders, distilled from the usage summary, the
-/// year's monthly invoices, and the per-model aggregation into one value the UI
-/// binds to. All money is cents.
+/// The spend figures Ledger renders, distilled from the usage summary and the
+/// per-model aggregation into one value the UI binds to. All money is cents.
 public struct SpendSnapshot: Equatable, Sendable {
     /// Usage-based spend for the current billing cycle (live, from the usage
     /// summary).
     public var currentCycleCents: Int
-    /// Usage-based spend billed so far this calendar year (sum of the monthly
-    /// invoices).
-    public var yearToDateCents: Int
     /// The current billing cycle's start/end, when known.
     public var cycleStart: Date?
     public var cycleEnd: Date?
@@ -26,7 +22,6 @@ public struct SpendSnapshot: Equatable, Sendable {
 
     public init(
         currentCycleCents: Int,
-        yearToDateCents: Int,
         cycleStart: Date?,
         cycleEnd: Date?,
         membershipType: String,
@@ -35,7 +30,6 @@ public struct SpendSnapshot: Equatable, Sendable {
         topModels: [ModelShare],
     ) {
         self.currentCycleCents = currentCycleCents
-        self.yearToDateCents = yearToDateCents
         self.cycleStart = cycleStart
         self.cycleEnd = cycleEnd
         self.membershipType = membershipType
@@ -46,9 +40,5 @@ public struct SpendSnapshot: Equatable, Sendable {
 
     public var currentCycleDollars: Double {
         Double(currentCycleCents) / 100
-    }
-
-    public var yearToDateDollars: Double {
-        Double(yearToDateCents) / 100
     }
 }
