@@ -93,10 +93,47 @@ struct LifecycleContainerTests {
         let runner = LifecycleRunner(reason: .background(.location), sequence: LifecycleSteps {})
         await runner.run()
         #expect(runner.phase.isReady)
-        #expect(runner.reason.isBackground)
+        #expect(runner.reason.buildsNoViewTree)
 
         await runner.enterForeground()
-        #expect(!runner.reason.isBackground)
+        #expect(!runner.reason.buildsNoViewTree)
+        #expect(runner.phase.isReady)
+
+        let container = LifecycleContainer(runner) {
+            ProbeView { content = true }
+        }
+        try show(UIHostingController(rootView: container)) { _ in
+            try waitFor { content }
+        }
+        #expect(content)
+    }
+
+    @Test func undeterminedLaunchShowsNothingUntilPromoted() async throws {
+        var content = false
+        var splash = false
+        let runner = LifecycleRunner(reason: .undetermined, sequence: LifecycleSteps {})
+        await runner.run()
+        #expect(runner.phase.isReady)
+
+        let container = LifecycleContainer(runner, splash: { ProbeView { splash = true } }) {
+            ProbeView { content = true }
+        }
+        try show(UIHostingController(rootView: container)) { _ in
+            // An undetermined launch hasn't proven a window exists, so — like a
+            // background launch — it must build no view tree even at .ready.
+            #expect(!renders { content || splash })
+        }
+    }
+
+    @Test func undeterminedReadyThenEnterForegroundShowsContent() async throws {
+        var content = false
+        let runner = LifecycleRunner(reason: .undetermined, sequence: LifecycleSteps {})
+        await runner.run()
+        #expect(runner.phase.isReady)
+        #expect(runner.reason.buildsNoViewTree)
+
+        await runner.enterForeground()
+        #expect(!runner.reason.buildsNoViewTree)
         #expect(runner.phase.isReady)
 
         let container = LifecycleContainer(runner) {

@@ -78,14 +78,75 @@ struct LifecycleRunnerForegroundPromotionTests {
         await runner.run()
         // The headless background drive ran only the unrestricted step.
         #expect(executed == ["store"])
-        #expect(runner.reason.isBackground)
+        #expect(runner.reason.buildsNoViewTree)
 
         await runner.enterForeground()
-        // Promotion re-drives from the top: the (idempotent) unrestricted step
-        // runs again and the foreground-only step now runs too.
-        #expect(executed == ["store", "store", "onboarding"])
-        #expect(!runner.reason.isBackground)
+        // Promotion re-drives from the top, but the already-completed unrestricted
+        // step is skipped (run-once); only the now-applicable foreground-only step
+        // runs.
+        #expect(executed == ["store", "onboarding"])
+        #expect(!runner.reason.buildsNoViewTree)
         #expect(runner.phase.isReady)
+    }
+
+    @Test func undeterminedLaunchRunsBackgroundStepsThenPromotesToForeground() async {
+        var executed: [String] = []
+        let runner = LifecycleRunner(reason: .undetermined, sequence: LifecycleSteps {
+            LifecycleStep.work("store") { _ in executed.append("store") }
+            LifecycleStep
+                .work("onboarding", modes: .foreground) { _ in executed.append("onboarding") }
+        })
+        await runner.run()
+        // Undetermined gates to the background-safe subset: the foreground-only
+        // step is skipped and the host builds no view tree.
+        #expect(executed == ["store"])
+        #expect(runner.reason.buildsNoViewTree)
+
+        await runner.enterForeground()
+        // A scene activated: the launch resolves to foreground and the
+        // foreground-only step runs. The already-completed "store" is skipped
+        // (run-once), so it doesn't run a second time.
+        #expect(executed == ["store", "onboarding"])
+        #expect(!runner.reason.buildsNoViewTree)
+        #expect(runner.reason == .userForeground)
+        #expect(runner.phase.isReady)
+    }
+
+    @Test func retryAfterPromotionSkipsAStepAlreadyCompletedInTheHeadlessDrive() async throws {
+        // Run-once spans a promotion + a `retry()` within the same attempt: a
+        // later step that already completed during the headless drive must not
+        // re-run when `retry()` resumes from an *earlier* foreground-only step
+        // that failed on promotion.
+        var executed: [String] = []
+        var onboardingShouldFail = true
+        let runner = LifecycleRunner(reason: .undetermined, sequence: LifecycleSteps {
+            LifecycleStep.work("store") { _ in executed.append("store") }
+            LifecycleStep.work("onboarding", modes: .foreground) { _ in
+                executed.append("onboarding")
+                if onboardingShouldFail { throw StepError() }
+            }
+            LifecycleStep.work("widget") { _ in executed.append("widget") }
+        })
+
+        // Headless drive: the background-safe "store" and "widget" complete; the
+        // foreground-only "onboarding" (index between them) is skipped.
+        await runner.run()
+        #expect(executed == ["store", "widget"])
+        #expect(runner.phase.isReady)
+
+        // Promotion re-drives from the top: "store" is skipped (completed), the
+        // now-applicable "onboarding" runs and fails.
+        await runner.enterForeground()
+        #expect(runner.phase.failed(at: "onboarding"))
+        #expect(executed == ["store", "widget", "onboarding"])
+
+        // Retry resumes from the failed "onboarding" (now succeeds). "widget",
+        // which sits *after* it but already completed in the headless drive, is
+        // skipped rather than run a second time.
+        onboardingShouldFail = false
+        runner.retry()
+        try await waitUntil { runner.phase.isReady }
+        #expect(executed == ["store", "widget", "onboarding", "onboarding"])
     }
 
     @Test func enterForegroundIsNoOpForAForegroundLaunch() async {
@@ -111,11 +172,11 @@ struct LifecycleRunnerForegroundPromotionTests {
         // must not drain to `.ready` while still headless — there is no UI to
         // resolve it.
         try await Task.sleep(for: .milliseconds(50))
-        #expect(runner.reason.isBackground)
+        #expect(runner.reason.buildsNoViewTree)
         #expect(runner.phase.isRunning("wait"))
 
         let promote = Task { @MainActor in await runner.enterForeground() }
-        try await waitUntil { !runner.reason.isBackground }
+        try await waitUntil { !runner.reason.buildsNoViewTree }
         runner.phase.runningBridge?.complete()
         await runTask.value
         await promote.value
@@ -150,7 +211,7 @@ struct LifecycleRunnerForegroundPromotionTests {
         await promote.value
 
         #expect(maxInFlight == 1)
-        #expect(!runner.reason.isBackground)
+        #expect(!runner.reason.buildsNoViewTree)
         #expect(runner.phase.isReady)
     }
 
@@ -193,7 +254,7 @@ struct LifecycleRunnerForegroundPromotionTests {
         try await waitUntil { runner.phase.isRunning("store") }
 
         let promote = Task { @MainActor in await runner.enterForeground() }
-        try await waitUntil { !runner.reason.isBackground }
+        try await waitUntil { !runner.reason.buildsNoViewTree }
 
         // Let the superseded drive's step throw now that the promotion owns
         // the phase, and wait for the promoted drive to reach the gated

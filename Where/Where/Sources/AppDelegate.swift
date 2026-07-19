@@ -1,5 +1,4 @@
 import AppIntents
-import CoreLocation
 import LifecycleKit
 import UIKit
 import WhereCore
@@ -27,12 +26,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// installs the store-sharing stack into it via `onServicesReady`.
     let intentServices = IntentServices()
 
-    /// The launch engine, built in `didFinishLaunching` (where the launch
-    /// reason is known) and handed to `RootView` via `WhereApp`.
+    /// The launch engine, built in `didFinishLaunching` (launching
+    /// `.undetermined`, since the UIScene lifecycle can't yet tell a user launch
+    /// from a headless wake here) and handed to `RootView` via `WhereApp`.
     private(set) var launcher: LifecycleRunner!
 
     func application(
-        _ application: UIApplication,
+        _: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil,
     ) -> Bool {
         // Register the handoff before anything async: the system only delivers
@@ -51,13 +51,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // undocumented — don't add tests that build further AppDelegates.
         AppDependencyManager.shared
             .add(dependency: { [intentServices = self.intentServices] in intentServices })
-        // A `.background` launch state means iOS woke us headless (replacing the
-        // deprecated `launchOptions[.location]` check); authorization tells us
-        // whether that could have been the location wake we register for.
-        let reason = WhereLaunch.lifecycleReason(
-            from: application.applicationState,
-            locationAuthorization: CLLocationManager().authorizationStatus,
-        )
+        // Launch `.undetermined`: under the UIScene lifecycle
+        // `application.applicationState` reads `.background` here even for a
+        // user tap, so we can't honestly tell a headless wake from a user launch
+        // yet. The runner drives only the background-safe steps (servicing a
+        // possible location wake we can't yet rule out) and builds no view tree;
+        // `RootView`'s `enterForeground()` promotes it to `.userForeground` once
+        // a scene genuinely activates. A genuine headless wake simply stays
+        // `.undetermined` — the queued location event is delivered through the
+        // `CLLocationManager` installed below, so no launch-state guess is
+        // needed to service it.
+        //
         // Open the durable Periscope log store and attach it to the shared
         // logging pipeline. Off the launch critical path (it touches disk); the
         // shared OSLog sink covers logging until the store is attached.
@@ -75,9 +79,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // once failed). Intents that fire earlier park in
         // `IntentServices.current()` until this lands; the derivation can't
         // fail, so nothing can strand them parked.
-        launcher = WhereLaunch.makeLauncher(model: model, reason: reason) { [intentServices] in
-            await intentServices.install(.forIntents(sharingStoreOf: $0))
-        }
+        launcher = WhereLaunch
+            .makeLauncher(model: model, reason: .undetermined) { [intentServices] in
+                await intentServices.install(.forIntents(sharingStoreOf: $0))
+            }
         Task {
             await launcher.run()
             // Index the tracked regions into Spotlight (a search for a region
