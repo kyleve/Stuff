@@ -36,7 +36,7 @@ xcrun devicectl (no Xcode UI). Builds Release and launches the app by default.
 
 Options:
   --device NAME            Target a specific device by name, UDID, or
-                           identifier (default: the sole connected device)
+                           identifier (default: the sole paired iPhone)
   --configuration NAME     Build configuration (default: Release)
   --no-launch              Install only; don't launch the app afterwards
   -h, --help               Show this help
@@ -102,7 +102,7 @@ if [ ! -d "$APP" ]; then
 fi
 
 # Resolve the target device. devicectl's JSON is the stable, parseable source;
-# we filter to connected iOS devices and let the user disambiguate when needed.
+# we filter to physical iOS devices and let the user disambiguate when needed.
 echo "==> resolving device"
 xcrun devicectl list devices --json-output "$DEVICES_JSON" >/dev/null
 
@@ -127,41 +127,46 @@ wanted = os.environ.get("DEVICE_FILTER", "").strip().lower()
 # Read the non-deprecated `properties` dictionary — the flat
 # hardwareProperties/deviceProperties/connectionProperties fields devicectl
 # also emits are deprecated and slated for removal.
-candidates = []  # (identifier, name)
+#
+# We match physical iOS devices but deliberately DON'T gate on connection
+# state: `list devices` reports a device's last-known state, which is
+# routinely "disconnected" for a network-paired (or even a freshly-plugged)
+# device until a command opens a tunnel — devicectl connects on demand when we
+# install. Gating here would hide a perfectly reachable phone, so any genuine
+# reachability failure surfaces from the install/launch step instead.
+candidates = []  # (identifier, name, connection_state)
 for dev in data.get("result", {}).get("devices", []):
     props = dev.get("properties", {})
     hardware = props.get("hardware", {})
     connection = props.get("connection", {})
     state = props.get("state", {})
-    platform = (hardware.get("platform") or "").lower()
-    if platform not in ("ios", "ipados"):
+    if (hardware.get("platform") or "").lower() not in ("ios", "ipados"):
         continue
     # devicectl also lists booted simulators (reality "simulated",
     # visibilityClass "simulators"); we only install to real hardware.
     if (hardware.get("reality") or "").lower() != "physical":
-        continue
-    if (connection.get("state") or "").lower() != "connected":
         continue
     identifier = dev.get("identifier") or hardware.get("udid") or ""
     name = state.get("name") or "(unnamed)"
     udid = hardware.get("udid") or ""
     if wanted and wanted not in (name.lower(), udid.lower(), identifier.lower()):
         continue
-    candidates.append((identifier, name))
+    candidates.append((identifier, name, connection.get("state") or "unknown"))
 
 if not candidates:
     if wanted:
-        fail(f'no connected device matching "{os.environ["DEVICE_FILTER"]}". '
-             "Run `xcrun devicectl list devices` to see what's available.")
-    fail("no connected iOS device found. Plug in (or network-pair) an iPhone, "
-         "unlock it, and trust this Mac.")
+        fail(f'no physical iOS device matching "{os.environ["DEVICE_FILTER"]}". '
+             "Run `xcrun devicectl list devices` to see what's paired.")
+    fail("no physical iOS device found. Pair or plug in an iPhone, unlock it, "
+         "and trust this Mac.")
 
 if len(candidates) > 1:
-    listing = "\n".join(f"  - {name} ({identifier})" for identifier, name in candidates)
-    fail("multiple connected devices; pass --device <name|udid>:\n" + listing)
+    listing = "\n".join(f"  - {name} ({identifier}) [{conn}]"
+                        for identifier, name, conn in candidates)
+    fail("multiple physical iOS devices; pass --device <name|udid>:\n" + listing)
 
-identifier, name = candidates[0]
-print(f"    using: {name} ({identifier})", file=sys.stderr)
+identifier, name, conn = candidates[0]
+print(f"    using: {name} ({identifier}) [connection: {conn}]", file=sys.stderr)
 sys.stdout.write(identifier)
 PY
 )"

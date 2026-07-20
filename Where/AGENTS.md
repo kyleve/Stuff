@@ -205,8 +205,8 @@ code-signs the `Where` scheme with `xcodebuild` (Release by default,
 `-allowProvisioningUpdates` so the app + extensions provision automatically),
 then copies and launches it via `xcrun devicectl` (see `./Where/install
 --help`). macOS-only, and it needs a signing team configured once via `./ide
---team-id <ABCDE12345>`. Auto-picks the sole connected physical device
-(booted simulators are ignored); pass `--device <name|udid>` to disambiguate,
+--team-id <ABCDE12345>`. Auto-picks the sole paired physical iPhone (booted
+simulators are ignored); pass `--device <name|udid>` to disambiguate,
 `--no-launch` to install without launching.
 
 ## Testing
