@@ -21,10 +21,10 @@ private func waitUntil(
     }
 }
 
-/// Covers the `WhereLaunch.resetSequence` teardown the Settings "Erase all data
-/// & reset" action runs through `LegacyLifecycleRunner.reset`: it wipes the store, stops
-/// tracking, drops the session, clears the preferences that gate onboarding, then
-/// re-drives the launch back to its first-run state.
+/// Covers the `WhereLaunch.resetPlan(for:)` teardown the Settings "Erase all
+/// data & reset" action runs through `LifecycleRunner.teardown`: it wipes the
+/// store, stops tracking, drops the session, clears the preferences that gate
+/// onboarding, then re-drives the launch back to its first-run state.
 @MainActor
 struct WhereResetTests {
     private func makePreferences() -> WherePreferences {
@@ -72,9 +72,9 @@ struct WhereResetTests {
         return (WhereModel(services: services, preferences: preferences), source)
     }
 
-    @Test func resetSequenceErasesThenClearsPreferences() throws {
+    @Test func resetPlanErasesThenClearsPreferences() throws {
         let model = try makeModel(preferences: makePreferences())
-        let ids = WhereLaunch.resetSequence(for: model).steps.map(\.id)
+        let ids = WhereLaunch.resetPlan(for: model).nodeIDs
         #expect(ids == [LaunchStepID.eraseData, .resetPreferences].map { AnyHashable($0) })
     }
 
@@ -112,7 +112,7 @@ struct WhereResetTests {
         await report.refresh()
         #expect(report.trackedDayCount == 1)
 
-        try await model.eraseAllData()
+        try await session.eraseSession()
         #expect(!session.isTracking)
 
         // The store really is empty, not just the in-memory report: a reload
@@ -153,13 +153,20 @@ struct WhereResetTests {
         await launcher.run()
         #expect(launcher.phase.isReady)
 
-        // Reset re-drives into onboarding (hasOnboarded cleared); complete it so
-        // the relaunch rebuilds a fresh session and reaches .ready.
-        let task = Task { @MainActor in
-            await launcher.teardown(WhereLaunch.resetSequence(for: model))
+        // Reset re-drives into onboarding (hasOnboarded cleared); complete it
+        // so the relaunch rebuilds a fresh session and reaches .ready. The
+        // strong reference to the original session is scoped to the task's
+        // closure (released when the teardown finishes), so the weak check
+        // below observes only the runner's own retention.
+        let task: Task<Void, Never>
+        do {
+            let original = try #require(model.session)
+            task = Task { @MainActor in
+                await launcher.teardown(WhereLaunch.resetPlan(for: model), input: original)
+            }
         }
-        try await waitUntil { launcher.phase.isRunning(LaunchStepID.onboarding) }
-        launcher.phase.runningBridge?.complete()
+        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        launcher.phase.gateHandle?.complete()
         await task.value
         #expect(launcher.phase.isReady)
 
@@ -191,13 +198,14 @@ struct WhereResetTests {
         await report.refresh()
         #expect(report.trackedDayCount == 1)
 
-        // reset re-drives the launch, which parks on onboarding again (now that
-        // hasOnboarded is cleared), so reset() doesn't return until onboarding
-        // is resolved — drive it from a task and wait for the parked step.
+        // reset re-drives the launch, which parks on the onboarding gate again
+        // (now that hasOnboarded is cleared), so the teardown doesn't return
+        // until onboarding is resolved — drive it from a task and wait for the
+        // parked gate.
         let task = Task { @MainActor in
-            await launcher.teardown(WhereLaunch.resetSequence(for: model))
+            await launcher.teardown(WhereLaunch.resetPlan(for: model), input: session)
         }
-        try await waitUntil { launcher.phase.isRunning(LaunchStepID.onboarding) }
+        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
 
         // Teardown ran before the relaunch reached onboarding: data erased, the
         // session dropped + rebuilt, and the onboarding gate reopened.
@@ -205,9 +213,9 @@ struct WhereResetTests {
         let rebuilt = try #require(model.session)
         #expect(rebuilt !== session)
         #expect(!rebuilt.isTracking)
-        #expect(launcher.phase.runningBridge?.presentation != nil)
+        #expect(launcher.phase.gateHandle != nil)
 
-        launcher.phase.runningBridge?.complete()
+        launcher.phase.gateHandle?.complete()
         await task.value
 
         #expect(launcher.phase.isReady)
@@ -236,9 +244,9 @@ struct WhereResetTests {
 
         // Drive the reset and finish the onboarding it re-drives into.
         let task = Task { @MainActor in
-            await launcher.teardown(WhereLaunch.resetSequence(for: model))
+            await launcher.teardown(WhereLaunch.resetPlan(for: model), input: original)
         }
-        try await waitUntil { launcher.phase.isRunning(LaunchStepID.onboarding) }
+        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
 
         // Mid-relaunch: the session was dropped and rebuilt fresh, and the
         // preferences were cleared (onboarding gate reopened; the reminder/summary
@@ -249,7 +257,7 @@ struct WhereResetTests {
         #expect(preferences.remindersEnabled)
         #expect(preferences.summaryEnabled)
 
-        launcher.phase.runningBridge?.complete()
+        launcher.phase.gateHandle?.complete()
         await task.value
         #expect(launcher.phase.isReady)
         // The store was wiped: a fresh report read against it is empty.
@@ -265,20 +273,37 @@ struct WhereResetTests {
         let model = try makeModel(preferences: makePreferences())
         model.completeOnboarding()
 
-        let failing = LegacyLifecycleSteps {
-            LegacyLifecycleStep.work(LaunchStepID.eraseData) { _ in
-                throw CocoaError(.fileWriteUnknown)
-            }
-            LegacyLifecycleStep.work(LaunchStepID.resetPreferences) { _ in
-                model.resetPreferences()
-            }
-        }
+        let failing = LaunchPlan(FailingEraseStep())
+            .then(ResetPreferencesProbeStep(model: model))
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
         #expect(launcher.phase.isReady)
 
-        await launcher.teardown(failing)
+        let session = try #require(model.session)
+        await launcher.teardown(failing, input: session)
         #expect(launcher.phase.failed(at: LaunchStepID.eraseData))
         #expect(model.hasOnboarded) // reset-preferences never ran
+    }
+}
+
+/// An erase stand-in that always throws, so the teardown-failure path can be
+/// driven without corrupting a real store.
+private struct FailingEraseStep: LifecycleStep {
+    let id: AnyHashable = LaunchStepID.eraseData
+
+    func run(_: WhereSession, _: LifecycleStepContext) async throws {
+        throw CocoaError(.fileWriteUnknown)
+    }
+}
+
+/// The real reset-preferences behavior behind the failing erase, proving it
+/// never runs when the erase throws.
+private struct ResetPreferencesProbeStep: LifecycleStep {
+    let model: WhereModel
+
+    let id: AnyHashable = LaunchStepID.resetPreferences
+
+    func run(_: Void, _: LifecycleStepContext) async throws {
+        model.resetPreferences()
     }
 }

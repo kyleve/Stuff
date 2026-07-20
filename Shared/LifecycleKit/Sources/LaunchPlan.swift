@@ -25,6 +25,12 @@ public struct LaunchPlan<Input: Sendable, Output: Sendable> {
     /// groups occupy one position and fan out from there.
     package private(set) var nodes: [LaunchPlanNode]
 
+    /// The plan's node IDs in declaration order (detached children at their
+    /// group's position) — introspection for tests and tooling.
+    public var nodeIDs: [AnyHashable] {
+        nodes.flatMap(\.ids)
+    }
+
     private init(nodes: [LaunchPlanNode]) {
         self.nodes = nodes
     }

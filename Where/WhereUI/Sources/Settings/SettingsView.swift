@@ -1,4 +1,4 @@
-import LifecycleKit
+import LifecycleKitUI
 import PeriscopeCore
 import RegionKit
 import SwiftUI
@@ -23,7 +23,7 @@ struct SettingsView: View {
     @Environment(WhereModel.self) private var model
     @Environment(WhereSession.self) private var session
     @Environment(\.openURL) private var openURL
-    @Environment(\.lifecycleRunner) private var runner
+    @Environment(\.lifecycle) private var lifecycle
 
     @State private var showClearConfirmation = false
     @State private var showResetConfirmation = false
@@ -554,8 +554,8 @@ struct SettingsView: View {
     }
 
     /// Whole-app teardown: wipes every year's data and returns to first-run
-    /// onboarding, run through the `LegacyLifecycleRunner` published into the
-    /// environment by `LegacyLifecycleContainer`. The runner proxy asserts in debug /
+    /// onboarding, run through the `LifecycleProxy` published into the
+    /// environment by `LifecycleContainer`. The proxy asserts in debug /
     /// no-ops in release when no container is above (e.g. previews).
     private var resetSection: some View {
         Section {
@@ -582,7 +582,10 @@ struct SettingsView: View {
     }
 
     private func requestReset() {
-        Task { await runner.teardown(WhereLaunch.resetSequence(for: model)) }
+        // The reset plan is rooted at the session being torn down — handed in
+        // here, where it's known non-optional, rather than re-read inside the
+        // teardown.
+        Task { await lifecycle.teardown(WhereLaunch.resetPlan(for: model), input: session) }
     }
 
     private func openSystemSettings() {

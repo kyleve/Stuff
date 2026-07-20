@@ -32,12 +32,16 @@ struct OnboardingModelTests {
 @MainActor
 struct OnboardingViewTests {
     @Test func onboardingViewRenders() throws {
-        // Onboarding reads both the app model and the logged-in session; the
-        // injected services build the session up front, so inject both.
+        // Onboarding reads the app model from the environment and is handed
+        // the session directly (as the gate registration does); the injected
+        // services build the session up front.
         let model = WhereModel(services: PreviewSupport.previewServices())
-        let view = OnboardingView(bridge: LifecycleStepUIBridge(reason: .userForeground))
-            .environment(model)
-            .environment(model.session)
+        let session = try #require(model.session)
+        let view = OnboardingView(
+            gate: LifecycleGateHandle(id: LaunchStepID.onboarding, reason: .userForeground),
+            session: session,
+        )
+        .environment(model)
 
         try show(UIHostingController(rootView: view)) { hosted in
             waitForOneRunloop()

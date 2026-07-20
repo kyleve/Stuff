@@ -109,6 +109,7 @@ let package = Package(
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
                 .target(name: "LifecycleKit"),
+                .target(name: "LifecycleKitUI"),
                 .target(name: "PeriscopeCore"),
                 .target(name: "PeriscopeTools"),
                 .target(name: "PeriscopeUI"),

@@ -245,6 +245,11 @@ public final class LifecycleRunner<Launch: Sendable> {
                 return true
             }
             guard tornDown else { return }
+            // The teardown succeeded, so no retry will need it again: release
+            // the retained plan and — importantly — its input, which is
+            // typically the very object being torn down (retaining a dead
+            // session past its teardown would leak it for the process's life).
+            self.teardown = nil
             // The relaunch is a fresh attempt: clear the memo so every launch
             // node re-runs over the torn-down state rather than being skipped
             // as "already done" from before the teardown.

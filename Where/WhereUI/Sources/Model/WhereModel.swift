@@ -19,13 +19,17 @@ public final class WhereModel {
     /// The assembled service layer, retained across the app's lifetime once
     /// built. Survives a reset (so the re-driven launch rebuilds the session
     /// from it rather than reopening the store / rewiring CoreLocation) and is
-    /// the preview/test injection seam. Nil only in the pre-`open-store` window.
-    private var services: WhereServices?
+    /// the preview/test injection seam. Nil only in the pre-`open-store`
+    /// window; the launch's `OpenStoreStep` reads it to skip rebuilding a
+    /// retained layer.
+    private(set) var services: WhereServices?
 
-    /// The logged-in, services-backed state. Nil until the launch's
-    /// `open-store` step calls `startSession()`; dropped by `endSession()` on
-    /// reset and rebuilt when the launch re-drives. Logged-in views read it via
-    /// `@Environment(WhereSession.self)`.
+    /// The logged-in, services-backed state, mirrored here for surfaces the
+    /// launch container doesn't feed (the DEBUG developer overlay, the
+    /// environment injection in `RootView`). The authoritative handoff is the
+    /// launch itself: `StartSessionStep` returns the session and the runner's
+    /// `.ready` carries it to the UI. Nil until that step runs; dropped by
+    /// `endSession()` on reset and rebuilt when the launch re-drives.
     public private(set) var session: WhereSession?
 
     /// The process-global Periscope log store, opened at launch and attached to
@@ -109,13 +113,6 @@ public final class WhereModel {
         )
     }
 
-    /// Whether the service layer has been assembled yet. The launch's
-    /// `open-store` step reads this to skip building real services when a
-    /// preview/test injected them up front.
-    var hasServices: Bool {
-        services != nil
-    }
-
     /// Retain the process-global log store the launch bootstrap opened and
     /// attached to `Periscope.shared`. Called once, off the launch critical
     /// path, so the developer surface can browse persisted history.
@@ -133,19 +130,22 @@ public final class WhereModel {
         self.services = services
     }
 
-    /// Create the logged-in `WhereSession` from the retained services. The
-    /// launch's `open-store` step calls this after `attach(services:)`; a no-op
-    /// when a session already exists or before services are attached. The
-    /// re-driven launch after a reset rebuilds a fresh session here from the
-    /// retained (now-erased) services.
-    public func startSession() {
-        guard session == nil, let services else { return }
-        session = WhereSession(
+    /// Create the logged-in `WhereSession` over `services` and return it —
+    /// the launch's `start-session` step consumes the return value directly
+    /// (its typed output), rather than the session being re-read from an
+    /// optional. Returns the existing session when one is already live (a
+    /// preview/test built it up front). The re-driven launch after a reset
+    /// rebuilds a fresh session here over the retained (now-erased) services.
+    public func startSession(services: WhereServices) -> WhereSession {
+        if let session { return session }
+        let session = WhereSession(
             services: services,
             preferences: preferences,
             now: now,
         )
+        self.session = session
         Self.logger { .startedSession(year: initialSelectedYear) }
+        return session
     }
 
     /// Drop the logged-in session (the services stay retained). Run by the
@@ -157,15 +157,6 @@ public final class WhereModel {
     }
 
     // MARK: - Reset / erase all
-
-    /// Erase all persisted data, returning the app to a clean slate. Forwards to
-    /// `WhereSession.eraseSession()` (which calls `WhereServices.reset()`); the
-    /// data half of the reset/erase teardown (see `WhereLaunch.resetSequence`).
-    /// Throws on persistence failure so the reset step parks the launcher in
-    /// `.failed` rather than silently half-erasing.
-    public func eraseAllData() async throws {
-        try await session?.eraseSession()
-    }
 
     /// Clear every persisted preference so the next launch behaves like a fresh
     /// install: onboarding shows again (`hasOnboarded` gone), background
