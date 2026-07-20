@@ -38,7 +38,7 @@ struct SpendView: View {
     }
 
     private var header: some View {
-        HStack {
+        HStack(spacing: 8) {
             Text("Cursor Spend")
                 .font(.headline)
             Spacer()
@@ -46,6 +46,24 @@ struct SpendView: View {
                 ProgressView()
                     .controlSize(.small)
             }
+            if let plan = planLabel {
+                Text(plan)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 2)
+                    .background(.secondary.opacity(0.15))
+                    .clipShape(.capsule)
+            }
+        }
+    }
+
+    /// The plan tier for the header badge, shown once loaded.
+    private var planLabel: String? {
+        if case let .loaded(snapshot) = session.loadState {
+            snapshot.membershipType.capitalized
+        } else {
+            nil
         }
     }
 
@@ -87,10 +105,6 @@ struct SpendView: View {
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
-            }
-
-            VStack(alignment: .leading, spacing: 4) {
-                breakdownRow("Plan", snapshot.membershipType.capitalized)
             }
 
             if let fraction = snapshot.includedFractionUsed {
@@ -192,17 +206,6 @@ struct SpendView: View {
             .font(.caption)
             ShareBar(segments: segments)
         }
-    }
-
-    private func breakdownRow(_ label: String, _ value: String) -> some View {
-        HStack {
-            Text(label)
-                .foregroundStyle(.secondary)
-            Spacer()
-            Text(value)
-                .monospacedDigit()
-        }
-        .font(.callout)
     }
 
     private func cycleRange(_ snapshot: SpendSnapshot) -> String? {
