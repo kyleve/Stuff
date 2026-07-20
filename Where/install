@@ -36,8 +36,8 @@ Builds the Where app and installs it on a connected iPhone via xcodebuild and
 xcrun devicectl (no Xcode UI). Builds Release and launches the app by default.
 
 Options:
-  --device NAME            Target a specific device by name, UDID, or
-                           identifier (default: the sole paired iPhone)
+  --device NAME            Target a specific device by name (exact match),
+                           UDID, or identifier (default: the sole paired iPhone)
   --configuration NAME     Build configuration (default: Release)
   --no-launch              Install only; don't launch the app afterwards
   -y, --yes                Skip the "unlock your device" confirmation prompt
@@ -50,10 +50,19 @@ Examples:
 USAGE
 }
 
+# Exit with the same `error:`-prefixed style as the unknown-option branch when a
+# value-taking flag is missing its argument.
+require_value() {
+    if [ -z "${2:-}" ]; then
+        echo "error: $1 requires a value (see ./Where/install --help)" >&2
+        exit 1
+    fi
+}
+
 while [ $# -gt 0 ]; do
     case "$1" in
-        --device) shift; DEVICE="${1:?--device requires a value}" ;;
-        --configuration) shift; CONFIGURATION="${1:?--configuration requires a value}" ;;
+        --device) shift; require_value --device "${1:-}"; DEVICE="$1" ;;
+        --configuration) shift; require_value --configuration "${1:-}"; CONFIGURATION="$1" ;;
         --no-launch) LAUNCH=false ;;
         -y|--yes) ASSUME_YES=true ;;
         -h|--help) usage; exit 0 ;;
