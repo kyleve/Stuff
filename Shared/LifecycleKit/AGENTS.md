@@ -40,7 +40,9 @@ system, formatting, and global conventions. Read that first.
   `retry()` resumes the failed node with its original input and promotion
   never repeats completed work. Skipped gates are deliberately *not*
   memoized so they re-evaluate on promotion. Fresh attempts (first `run()`,
-  post-teardown relaunch) clear the memo.
+  post-teardown relaunch) clear the memo. The memo is keyed by node ID across
+  both walks, so teardown plans must not reuse launch node IDs — the runner
+  `precondition`s disjointness when a teardown is requested.
 - **Detached children are off the critical path by construction:** they never
   block `.ready`, never fail the drive, and surface failures only on
   `detachedFailures`. A successful teardown releases the retained teardown

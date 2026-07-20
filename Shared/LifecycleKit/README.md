@@ -201,6 +201,12 @@ relaunches. A teardown's detached children drain *before* the relaunch, so no
 torn-down-world work overlaps the fresh launch. On success the retained plan
 and input are released (the input is typically the dead session).
 
+Teardown node IDs must not reuse launch node IDs — the run-once memo is keyed
+by ID across both walks, so a collision would silently skip the teardown node
+and corrupt the typed trunk value. The runner `precondition`s disjointness
+when a teardown is requested (use one ID enum for both plans, as Where's
+`LaunchStepID` does, and the collision is impossible to write twice).
+
 ## Correctness points designed in deliberately
 
 - **Retry resumes with the same input.** Every completed node's output is

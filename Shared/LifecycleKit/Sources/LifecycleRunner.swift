@@ -215,8 +215,27 @@ public final class LifecycleRunner<Launch: Sendable> {
     /// `teardown(_:input:)` after erasure — the `LifecycleDriving` seam the
     /// UI proxy forwards through (see `LifecycleDriving`).
     package func teardownErased(nodes: [LaunchPlanNode], input: any Sendable) async {
+        assertDisjointFromLaunchPlan(nodes)
         teardown = RetainedTeardown(nodes: nodes, input: input)
         await driveTeardown(from: 0, input: input)
+    }
+
+    /// Teardown node IDs must not collide with the launch plan's: the
+    /// run-once memo is keyed by ID across both walks, so a colliding
+    /// teardown node would be skipped as "already done" — an erase that never
+    /// runs — *and* would adopt the launch node's memoized output as the
+    /// teardown trunk value, breaking the typed data flow (a later teardown
+    /// node's input cast would trap). A collision is a programmer error —
+    /// fail fast the first time the teardown is requested, before anything
+    /// is torn down. (`LaunchPlan` already preconditions uniqueness *within*
+    /// each plan; this closes the cross-plan gap.)
+    private func assertDisjointFromLaunchPlan(_ nodes: [LaunchPlanNode]) {
+        let launchIDs = Set(launchNodes.flatMap(\.ids))
+        let collisions = nodes.flatMap(\.ids).filter(launchIDs.contains)
+        precondition(
+            collisions.isEmpty,
+            "Teardown plan reuses launch node IDs: \(collisions)",
+        )
     }
 
     /// Cancel any in-flight drive, drain it, then run the retained teardown
