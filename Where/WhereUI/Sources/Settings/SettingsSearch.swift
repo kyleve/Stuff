@@ -40,6 +40,21 @@ enum SettingsDestination: Hashable, CaseIterable {
         }
     }
 
+    /// The fill color of the row's iOS-style icon chip. Lives here (like
+    /// `systemImage`) rather than in the stylesheet, which deliberately holds no
+    /// accent/adaptive colors.
+    var iconColor: Color {
+        switch self {
+            case .location: .blue
+            case .regions: .green
+            case .alerts: .red
+            case .appearance: .purple
+            case .year: .orange
+            case .backup: .teal
+            case .data: .gray
+        }
+    }
+
     /// Whether the group opens as a modal **sheet** (an editor/commit flow with
     /// explicit Cancel/Save) rather than a pushed sub-screen. Regions is the one
     /// top-level committing editor; the rest are plain drill-in settings.

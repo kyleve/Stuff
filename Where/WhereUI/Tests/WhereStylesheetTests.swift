@@ -219,6 +219,9 @@ struct WhereStylesheetTests {
 
     @Test func settingsStyle() {
         let settings = style.settings
+        #expect(settings.iconSize == 29)
+        #expect(settings.iconCornerRadius == 7)
+        #expect(settings.iconSymbolSize == 15)
         #expect(settings.flashAnimation == .easeInOut(duration: 0.4))
         #expect(settings.flashDuration == .seconds(1))
         #expect(settings.scrollSettleDelay == .milliseconds(350))

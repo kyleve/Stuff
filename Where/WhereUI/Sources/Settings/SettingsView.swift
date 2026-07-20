@@ -120,7 +120,11 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
         } label: {
-            Label(destination.rowTitle, systemImage: destination.systemImage)
+            Label {
+                Text(destination.rowTitle)
+            } icon: {
+                SettingsIcon(systemImage: destination.systemImage, color: destination.iconColor)
+            }
         }
     }
 
@@ -151,7 +155,10 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
         } icon: {
-            Image(systemName: result.destination.systemImage)
+            SettingsIcon(
+                systemImage: result.destination.systemImage,
+                color: result.destination.iconColor,
+            )
         }
     }
 
