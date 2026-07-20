@@ -17,10 +17,6 @@
                         includedUsed: 40000,
                         includedLimit: 40000,
                         totalPercentUsed: 20.9,
-                        messages: [
-                            "You've used 21% of your included total usage",
-                            "You've used 100% of your included API usage",
-                        ],
                     ),
                 ),
                 aggregated: .fixture([

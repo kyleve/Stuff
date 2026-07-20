@@ -14,10 +14,6 @@ public struct UsageSummary: Codable, Equatable, Sendable {
     /// `"pro"`, `"ultra"`, `"free"`, etc.
     public var membershipType: String
     public var individualUsage: IndividualUsage
-    /// The dashboard's own human-readable status lines, when present (e.g.
-    /// "You've used 21% of your included total usage").
-    public var autoModelSelectedDisplayMessage: String? = nil
-    public var namedModelSelectedDisplayMessage: String? = nil
 
     public struct IndividualUsage: Codable, Equatable, Sendable {
         /// Usage-based (pay-per-use) spend — the money beyond the subscription.
@@ -88,11 +84,6 @@ public struct UsageSummary: Codable, Equatable, Sendable {
     /// reports a percentage.
     public var includedFractionUsed: Double? {
         individualUsage.plan.totalPercentUsed.map { $0 / 100 }
-    }
-
-    /// The dashboard's status lines, in order, omitting any the API didn't send.
-    public var usageMessages: [String] {
-        [autoModelSelectedDisplayMessage, namedModelSelectedDisplayMessage].compactMap(\.self)
     }
 
     private static func parseDate(_ string: String) -> Date? {

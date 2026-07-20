@@ -106,11 +106,10 @@
             includedUsed: Int = 0,
             includedLimit: Int? = nil,
             totalPercentUsed: Double? = nil,
-            messages: [String] = [],
             cycleStart: String = "2026-07-04T18:16:08.000Z",
             cycleEnd: String = "2026-08-04T18:16:08.000Z",
         ) -> UsageSummary {
-            var summary = UsageSummary(
+            UsageSummary(
                 billingCycleStart: cycleStart,
                 billingCycleEnd: cycleEnd,
                 membershipType: membershipType,
@@ -126,9 +125,6 @@
                     ),
                 ),
             )
-            summary.autoModelSelectedDisplayMessage = messages.first
-            summary.namedModelSelectedDisplayMessage = messages.count > 1 ? messages[1] : nil
-            return summary
         }
     }
 

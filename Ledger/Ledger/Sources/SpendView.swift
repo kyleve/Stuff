@@ -94,7 +94,7 @@ struct SpendView: View {
             }
 
             if let fraction = snapshot.includedFractionUsed {
-                includedUsage(fraction, messages: snapshot.usageMessages)
+                includedUsage(fraction)
             }
 
             if !snapshot.modelShares.isEmpty {
@@ -109,7 +109,7 @@ struct SpendView: View {
         }
     }
 
-    private func includedUsage(_ fraction: Double, messages: [String]) -> some View {
+    private func includedUsage(_ fraction: Double) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text("Included usage")
@@ -120,11 +120,6 @@ struct SpendView: View {
             }
             .font(.callout)
             ProgressView(value: min(max(fraction, 0), 1))
-            ForEach(messages, id: \.self) { message in
-                Text(message)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-            }
         }
     }
 
