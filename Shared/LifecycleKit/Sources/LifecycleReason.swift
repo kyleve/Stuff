@@ -13,7 +13,7 @@ public enum LifecycleReason: Sendable, Hashable {
     /// can't distinguish a user-tap launch from a headless wake at
     /// `didFinishLaunching` time — it reads `.background` for both. Behaves like
     /// a background launch (no window, background-safe steps only) until a scene
-    /// activates and `LegacyLifecycleRunner.enterForeground()` promotes it to
+    /// activates and `LifecycleRunner.enterForeground()` promotes it to
     /// `.userForeground`. If no scene ever connects (a genuine headless wake),
     /// it honestly stays `.undetermined` for the process's life — the
     /// background-safe steps that ran serviced the wake, and no fabricated cause

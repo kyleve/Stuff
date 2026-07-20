@@ -333,7 +333,7 @@ let project = Project(
         // BTraits/BThemes/BStylesheets containers) then silently resolves against
         // the wrong copy — the writer stores under one copy's key type, the
         // reader looks it up under another's. Everything the tests need
-        // (BroadwayCore/BroadwayUI, LifecycleKit, PeriscopeCore/UI/Tools,
+        // (BroadwayCore/BroadwayUI, LifecycleKit/LifecycleKitUI, PeriscopeCore/UI/Tools,
         // SwiftDataInspector, RegionKit + its GeoJSON bundle) is reached
         // transitively through WhereUI.
         // See the root AGENTS.md "Targets" note.

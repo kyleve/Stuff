@@ -1,3 +1,4 @@
+import LifecycleKit
 import SwiftUI
 
 /// The UI shown when a launch step throws. Describes the failure and offers a

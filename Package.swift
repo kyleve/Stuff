@@ -35,9 +35,6 @@ let package = Package(
         .target(
             name: "LifecycleKit",
             path: "Shared/LifecycleKit/Sources",
-            resources: [
-                .process("Resources"),
-            ],
         ),
         .target(
             name: "LifecycleKitUI",
@@ -45,6 +42,9 @@ let package = Package(
                 .target(name: "LifecycleKit"),
             ],
             path: "Shared/LifecycleKitUI/Sources",
+            resources: [
+                .process("Resources"),
+            ],
         ),
         .target(
             name: "JournalKit",

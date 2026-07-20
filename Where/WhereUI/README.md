@@ -18,12 +18,14 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ### App shell & view models
 
-- **`RootView`** — the app root: the launch sequence (via
-  [`LifecycleKit`](../../Shared/LifecycleKit)) gated in front of the Liquid
-  Glass tab bar over the four top-level screens (Primary, Elsewhere, Resolve,
-  Settings). The app injects the launch-built model + runner
-  (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
-  the hosted UI test.
+- **`RootView`** — the app root: the typed launch plan (via
+  [`LifecycleKit`](../../Shared/LifecycleKit), rendered by
+  [`LifecycleKitUI`](../../Shared/LifecycleKitUI)'s container) gated in front
+  of the Liquid Glass tab bar over the four top-level screens (Primary,
+  Elsewhere, Resolve, Settings); the tab bar is built from the `WhereSession`
+  the launch's `.ready` carries. The app injects the launch-built model +
+  runner (`init(model:launcher:)`); a no-arg `init()` builds its own for
+  previews and the hosted UI test.
 - **`WhereModel`** — app-level state: the onboarding flag, the owned
   `WhereSession`, and the lifecycle intents (`attach(services:)`,
   `startSession()` / `endSession()`, `eraseAllData()`, `resetPreferences()`).
@@ -39,12 +41,14 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ### Reusable views & styling
 
-- **`OnboardingView`** — the first-run flow, driven by a `LifecycleStepUIBridge`:
-  a paged intro, then picking up to five primary US regions (map or searchable
-  list) and giving each a look, then the location-permission ask. It commits the
-  picks as the tracked-region set + appearances before finishing. The intro also
-  offers **Restore from a backup**, which imports a backup (`.replace`) and skips
-  the manual pick/customize steps straight to the location ask.
+- **`OnboardingView`** — the first-run flow, registered for the launch's
+  `OnboardingGate` and handed its `LifecycleGateHandle` + the gate's
+  `WhereSession`: a paged intro, then picking up to five primary US regions
+  (map or searchable list) and giving each a look, then the
+  location-permission ask. It commits the picks as the tracked-region set +
+  appearances before resolving the gate. The intro also offers **Restore from
+  a backup**, which imports a backup (`.replace`) and skips the manual
+  pick/customize steps straight to the location ask.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and per-region color/emoji/icon customization,
   backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings

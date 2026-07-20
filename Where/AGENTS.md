@@ -50,7 +50,10 @@ Rules the code enforces and agents must preserve:
   and readers refresh purely off it — write intents just commit, they don't
   refresh inline. The scene's `YearReportModel` subscribes while it's active;
   `DataIssueScanner` drops its cache on the same signal. Launch is driven by
-  [`LifecycleKit`](../Shared/LifecycleKit) (see `WhereLaunch` in WhereUI).
+  [`LifecycleKit`](../Shared/LifecycleKit)'s typed `LaunchPlan` (see
+  `WhereLaunch` in WhereUI: each step is a type whose `Input`/`Output` thread
+  the store scope → session scope through the trunk), rendered by
+  [`LifecycleKitUI`](../Shared/LifecycleKitUI)'s container in `RootView`.
 - **All logging goes through [Periscope](../Shared/Periscope)** via the
   `WhereLog` facade — a `"Where"` root `Log` scope with grouping scopes
   (`location`, `reminders`, `backup`, `widgets`, `session`, `evidence`,
