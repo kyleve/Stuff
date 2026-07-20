@@ -109,33 +109,45 @@ xcrun devicectl list devices --json-output "$DEVICES_JSON" >/dev/null
 DEVICE_UDID="$(DEVICES_JSON="$DEVICES_JSON" DEVICE_FILTER="$DEVICE" python3 - <<'PY'
 import json, os, sys
 
-data = json.load(open(os.environ["DEVICES_JSON"]))
-wanted = os.environ.get("DEVICE_FILTER", "").strip().lower()
-
-candidates = []  # (identifier, name)
-for dev in data.get("result", {}).get("devices", []):
-    hw = dev.get("hardwareProperties", {})
-    props = dev.get("deviceProperties", {})
-    conn = dev.get("connectionProperties", {})
-    platform = (hw.get("platform") or "").lower()
-    if platform not in ("ios", "ipados"):
-        continue
-    # devicectl also lists booted simulators (reality "simulated",
-    # transportType "sameMachine"); we only install to real hardware.
-    if (hw.get("reality") or "").lower() != "physical":
-        continue
-    if (conn.get("tunnelState") or "").lower() != "connected":
-        continue
-    identifier = dev.get("identifier") or hw.get("udid") or ""
-    name = props.get("name") or "(unnamed)"
-    udid = hw.get("udid") or ""
-    if wanted and wanted not in (name.lower(), udid.lower(), identifier.lower()):
-        continue
-    candidates.append((identifier, name))
 
 def fail(msg):
     print("error: " + msg, file=sys.stderr)
     sys.exit(1)
+
+
+try:
+    with open(os.environ["DEVICES_JSON"]) as f:
+        data = json.load(f)
+except (OSError, ValueError) as error:
+    fail(f"couldn't read devicectl's device list ({error}). "
+         "Run `xcrun devicectl list devices` to check your setup.")
+
+wanted = os.environ.get("DEVICE_FILTER", "").strip().lower()
+
+# Read the non-deprecated `properties` dictionary — the flat
+# hardwareProperties/deviceProperties/connectionProperties fields devicectl
+# also emits are deprecated and slated for removal.
+candidates = []  # (identifier, name)
+for dev in data.get("result", {}).get("devices", []):
+    props = dev.get("properties", {})
+    hardware = props.get("hardware", {})
+    connection = props.get("connection", {})
+    state = props.get("state", {})
+    platform = (hardware.get("platform") or "").lower()
+    if platform not in ("ios", "ipados"):
+        continue
+    # devicectl also lists booted simulators (reality "simulated",
+    # visibilityClass "simulators"); we only install to real hardware.
+    if (hardware.get("reality") or "").lower() != "physical":
+        continue
+    if (connection.get("state") or "").lower() != "connected":
+        continue
+    identifier = dev.get("identifier") or hardware.get("udid") or ""
+    name = state.get("name") or "(unnamed)"
+    udid = hardware.get("udid") or ""
+    if wanted and wanted not in (name.lower(), udid.lower(), identifier.lower()):
+        continue
+    candidates.append((identifier, name))
 
 if not candidates:
     if wanted:
