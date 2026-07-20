@@ -49,6 +49,12 @@ build system, formatting, and global conventions. Read that first.
   adjustments (negative "mid-month usage paid for <month>" credits) whose
   contents shift as billing settles, so summing months is not a meaningful
   yearly spend (it can go negative). Don't reintroduce a summed YTD.
+- **Today/this-week spend is differenced from local history, not the API.**
+  `onDemand.used` is a cycle-cumulative running total, so `SpendHistory` diffs
+  recorded `SpendSample`s (baseline scoped to the current cycle) to get
+  per-window spend — real billed dollars, unlike the aggregated compute measure.
+  A window with no baseline returns `nil` (hidden), never a guessed number;
+  deltas clamp at 0. History persistence (`SpendHistoryStore`) is best-effort.
 - **Per-model usage is a dollar-free share, and best-effort.**
   `get-aggregated-usage-events`' `totalCostCents` measures compute differently
   from the billed on-demand figure (they don't reconcile), so `ModelShare`

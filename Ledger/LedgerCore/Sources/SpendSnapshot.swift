@@ -6,6 +6,9 @@ public struct SpendSnapshot: Equatable, Sendable {
     /// Usage-based spend for the current billing cycle (live, from the usage
     /// summary).
     public var currentCycleCents: Int
+    /// Today's and this-week's spend, derived from local history (each `nil`
+    /// until enough history exists).
+    public var deltas: SpendDeltas
     /// The current billing cycle's start/end, when known.
     public var cycleStart: Date?
     public var cycleEnd: Date?
@@ -23,6 +26,7 @@ public struct SpendSnapshot: Equatable, Sendable {
 
     public init(
         currentCycleCents: Int,
+        deltas: SpendDeltas,
         cycleStart: Date?,
         cycleEnd: Date?,
         membershipType: String,
@@ -31,6 +35,7 @@ public struct SpendSnapshot: Equatable, Sendable {
         modelShares: [ModelShare],
     ) {
         self.currentCycleCents = currentCycleCents
+        self.deltas = deltas
         self.cycleStart = cycleStart
         self.cycleEnd = cycleEnd
         self.membershipType = membershipType

@@ -18,6 +18,7 @@ struct LedgerServicesTests {
             tokenSource: StubTokenSource(token: autoToken),
             provider: provider,
             loginItem: LoginItemController(backend: LoginItemRecorder()),
+            historyStore: SpendHistoryStore(directory: directory),
         )
     }
 

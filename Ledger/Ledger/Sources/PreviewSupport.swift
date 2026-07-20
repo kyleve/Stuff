@@ -49,6 +49,7 @@
                 tokenSource: StubTokenSource(token: autoToken),
                 provider: provider,
                 loginItem: LoginItemController(),
+                historyStore: SpendHistoryStore(directory: base),
             )
             return LedgerSession(services: services)
         }

@@ -106,6 +106,9 @@ public final class LedgerServices {
     @ObservationIgnored private let tokenSource: any SessionTokenSource
     @ObservationIgnored private let provider: any DashboardProvider
     @ObservationIgnored private let loginItem: LoginItemController
+    @ObservationIgnored private let historyStore: SpendHistoryStore
+    @ObservationIgnored private var history: [SpendSample] = []
+    @ObservationIgnored private let calendar: Calendar
     @ObservationIgnored private let now: @Sendable () -> Date
     @ObservationIgnored private var refreshLoop: Task<Void, Never>?
     /// Increments per fetch so a slow earlier response can't clobber a newer one.
@@ -118,6 +121,7 @@ public final class LedgerServices {
             tokenSource: CursorLocalTokenSource(),
             provider: CursorDashboardAPI(),
             loginItem: LoginItemController(),
+            historyStore: .applicationSupport(),
         )
     }
 
@@ -128,6 +132,8 @@ public final class LedgerServices {
         tokenSource: any SessionTokenSource,
         provider: any DashboardProvider,
         loginItem: LoginItemController,
+        historyStore: SpendHistoryStore,
+        calendar: Calendar = .current,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.configStore = configStore
@@ -135,12 +141,20 @@ public final class LedgerServices {
         self.tokenSource = tokenSource
         self.provider = provider
         self.loginItem = loginItem
+        self.historyStore = historyStore
+        self.calendar = calendar
         self.now = now
         do {
             configuration = try configStore.load()
         } catch {
             Self.logger.error("Couldn't load configuration: \(error)")
             configuration = .initial
+        }
+        do {
+            history = try historyStore.load()
+        } catch {
+            Self.logger.error("Couldn't load spend history: \(error)")
+            history = []
         }
         refreshTokenAvailability()
     }
@@ -194,10 +208,12 @@ public final class LedgerServices {
         do {
             let summary = try await provider.usageSummary(token: token)
             let models = await modelShares(cycleStart: summary.cycleStart, token: token)
+            let deltas = recordHistory(summary: summary)
 
             guard generation == requestGeneration else { return }
             let snapshot = SpendSnapshot(
                 currentCycleCents: summary.onDemandCents,
+                deltas: deltas,
                 cycleStart: summary.cycleStart,
                 cycleEnd: summary.cycleEnd,
                 membershipType: summary.membershipType,
@@ -215,6 +231,29 @@ public final class LedgerServices {
             Self.logger.error("Unexpected dashboard error: \(error.localizedDescription)")
             loadState = .failed(.network(error.localizedDescription))
         }
+    }
+
+    /// Appends a sample of the cumulative on-demand spend, prunes and persists
+    /// the history (best-effort), and returns today's / this-week's deltas.
+    private func recordHistory(summary: UsageSummary) -> SpendDeltas {
+        let timestamp = now()
+        let sample = SpendSample(
+            timestamp: timestamp,
+            cycleStart: summary.cycleStart,
+            onDemandCents: summary.onDemandCents,
+        )
+        history = historyStore.pruned(history + [sample], now: timestamp)
+        do {
+            try historyStore.save(history)
+        } catch {
+            Self.logger.warning("Couldn't save spend history: \(error.localizedDescription)")
+        }
+        return SpendHistory.deltas(
+            current: sample,
+            samples: history,
+            calendar: calendar,
+            now: timestamp,
+        )
     }
 
     /// The models by usage for the current cycle, as relative shares.

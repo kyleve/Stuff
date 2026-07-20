@@ -54,6 +54,14 @@ auto-token", surfaced as `LoadError.missingCredentials`.
 
 - **This cycle** = `usage-summary` → `individualUsage.onDemand.used` (cents),
   the live usage-based spend.
+- **Today / this week** = differences of the cumulative `onDemand.used` across
+  locally recorded samples (`SpendSample` / `SpendHistoryStore` / `SpendHistory`).
+  Because that value is a server-side running total, the difference between two
+  samples is real billed spend for the interval — even across times the app
+  wasn't running — as long as a sample exists near the window's start. Baselines
+  are scoped to the current cycle; each figure is `nil` (hidden) until there's
+  enough history. The API itself exposes no per-range billed figure, so this
+  local differencing is the only reliable way to get it.
 - There is deliberately **no year-to-date total**: the `get-monthly-invoice`
   endpoint is a billing ledger with cross-month adjustments (negative
   "mid-month usage paid for <month>" credit lines) whose contents shift as

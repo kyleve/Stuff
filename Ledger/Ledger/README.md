@@ -53,7 +53,9 @@ shortcut to System Settings if macOS needs you to approve the login item.
   automatically every 5 minutes (configurable in Settings › General). Opening
   the popover just shows the latest fetched state; it doesn't trigger a network
   request.
-- **Popover** — this cycle's spend and date range, your plan tier, an
+- **Popover** — this cycle's spend and date range, **today** and **this week**
+  spend (differenced from locally recorded history — hidden until enough exists),
+  your plan tier, an
   **included usage** as two side-by-side bars (first-party/Auto and
   third-party/API — a single blended figure would hide that one pool can be
   maxed while the other is barely used), **top models

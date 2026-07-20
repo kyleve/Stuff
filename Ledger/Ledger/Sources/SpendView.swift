@@ -97,6 +97,7 @@ struct SpendView: View {
                     .monospacedDigit()
                     .contentTransition(.numericText(value: snapshot.currentCycleDollars))
                     .animation(.default, value: snapshot.currentCycleDollars)
+                deltas(snapshot.deltas)
                 if let range = cycleRange(snapshot) {
                     Text(range)
                         .font(.caption2)
@@ -111,6 +112,33 @@ struct SpendView: View {
             if !snapshot.modelShares.isEmpty {
                 models(snapshot.modelShares)
             }
+        }
+    }
+
+    /// Today's and this-week's spend, derived from local history. Shows only
+    /// the figures that have enough history to be meaningful.
+    @ViewBuilder
+    private func deltas(_ deltas: SpendDeltas) -> some View {
+        if deltas.todayDollars != nil || deltas.thisWeekDollars != nil {
+            HStack(spacing: 12) {
+                if let today = deltas.todayDollars {
+                    deltaLabel(today, label: "today")
+                }
+                if let week = deltas.thisWeekDollars {
+                    deltaLabel(week, label: "this week")
+                }
+            }
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+    }
+
+    private func deltaLabel(_ dollars: Double, label: String) -> some View {
+        HStack(spacing: 2) {
+            Image(systemName: "arrow.up")
+                .imageScale(.small)
+            Text("\(CurrencyFormat.dollars(dollars)) \(label)")
+                .monospacedDigit()
         }
     }
 
