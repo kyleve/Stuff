@@ -1,0 +1,168 @@
+#!/bin/bash
+set -euo pipefail
+
+# install — build the Where app and install it on a connected iPhone, no Xcode UI.
+#
+# It regenerates the project (so the build reflects the current manifests),
+# builds + code-signs the `Where` scheme with xcodebuild, then copies the
+# resulting .app to a physically-connected (or network-paired) device with
+# `xcrun devicectl` — Apple's first-party replacement for ios-deploy. By
+# default it builds Release and launches the app after installing.
+#
+# macOS-only: Tuist and on-device install/launch don't exist on Linux/CI.
+#
+# Prerequisites:
+#   - A full Xcode (see ./ide --bootstrap).
+#   - An Apple Developer team configured for signing. The generated project
+#     stamps DEVELOPMENT_TEAM from TUIST_DEVELOPMENT_TEAM (set once via
+#     `./ide --team-id <ABCDE12345>` into the gitignored .mise.local.toml).
+
+cd "$(dirname "$0")/.."
+
+WORKSPACE="Stuff.xcworkspace"
+SCHEME="Where"
+BUNDLE_ID="com.stuff.where"
+
+CONFIGURATION="Release"
+DEVICE=""       # name, UDID, or identifier; empty = auto-pick the sole device
+LAUNCH=true
+
+usage() {
+    cat <<'USAGE'
+Usage: ./Where/install [options]
+
+Builds the Where app and installs it on a connected iPhone via xcodebuild and
+xcrun devicectl (no Xcode UI). Builds Release and launches the app by default.
+
+Options:
+  --device NAME            Target a specific device by name, UDID, or
+                           identifier (default: the sole connected device)
+  --configuration NAME     Build configuration (default: Release)
+  --no-launch              Install only; don't launch the app afterwards
+  -h, --help               Show this help
+
+Examples:
+  ./Where/install
+  ./Where/install --device "Kai's iPhone"
+  ./Where/install --configuration Debug --no-launch
+USAGE
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --device) shift; DEVICE="${1:?--device requires a value}" ;;
+        --configuration) shift; CONFIGURATION="${1:?--configuration requires a value}" ;;
+        --no-launch) LAUNCH=false ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "error: unknown option '$1' (see ./Where/install --help)" >&2; exit 1 ;;
+    esac
+    shift
+done
+
+# Pre-flight: a device build must be signed by a real team. Read the value mise
+# injects (TUIST_DEVELOPMENT_TEAM from .mise.local.toml) and fail early with an
+# actionable hint rather than deep inside xcodebuild's signing phase.
+TEAM_ID="$(mise exec -- sh -c 'printf "%s" "${TUIST_DEVELOPMENT_TEAM:-}"')"
+if [ -z "$TEAM_ID" ]; then
+    cat >&2 <<'EOF'
+error: no Apple Developer team configured — a device build can't be signed.
+
+Set it once (writes the gitignored .mise.local.toml), then re-run:
+  ./ide --team-id <ABCDE12345>
+EOF
+    exit 1
+fi
+
+WORKDIR="${TMPDIR:-/tmp}/where-install"
+DERIVED="$WORKDIR/DerivedData"
+DEVICES_JSON="$WORKDIR/devices.json"
+mkdir -p "$WORKDIR"
+
+# Regenerate so the build always reflects the current Package.swift/Project.swift
+# (same reflex as ./profile). --no-open: agents/scripts must never steal focus.
+echo "==> tuist generate --no-open"
+mise exec -- tuist generate --no-open >/dev/null
+
+# Build + sign for a generic iOS device. -allowProvisioningUpdates lets xcodebuild
+# create/download the profiles for the app and its extensions (App Groups,
+# location) instead of requiring them to exist already.
+echo "==> xcodebuild ($CONFIGURATION) for device"
+mise exec -- xcodebuild build \
+    -workspace "$WORKSPACE" \
+    -scheme "$SCHEME" \
+    -configuration "$CONFIGURATION" \
+    -destination 'generic/platform=iOS' \
+    -derivedDataPath "$DERIVED" \
+    -allowProvisioningUpdates
+
+APP="$DERIVED/Build/Products/$CONFIGURATION-iphoneos/Where.app"
+if [ ! -d "$APP" ]; then
+    echo "error: built app not found at $APP" >&2
+    exit 1
+fi
+
+# Resolve the target device. devicectl's JSON is the stable, parseable source;
+# we filter to connected iOS devices and let the user disambiguate when needed.
+echo "==> resolving device"
+xcrun devicectl list devices --json-output "$DEVICES_JSON" >/dev/null
+
+DEVICE_UDID="$(DEVICES_JSON="$DEVICES_JSON" DEVICE_FILTER="$DEVICE" python3 - <<'PY'
+import json, os, sys
+
+data = json.load(open(os.environ["DEVICES_JSON"]))
+wanted = os.environ.get("DEVICE_FILTER", "").strip().lower()
+
+candidates = []  # (identifier, name)
+for dev in data.get("result", {}).get("devices", []):
+    hw = dev.get("hardwareProperties", {})
+    props = dev.get("deviceProperties", {})
+    conn = dev.get("connectionProperties", {})
+    platform = (hw.get("platform") or "").lower()
+    if platform not in ("ios", "ipados"):
+        continue
+    # devicectl also lists booted simulators (reality "simulated",
+    # transportType "sameMachine"); we only install to real hardware.
+    if (hw.get("reality") or "").lower() != "physical":
+        continue
+    if (conn.get("tunnelState") or "").lower() != "connected":
+        continue
+    identifier = dev.get("identifier") or hw.get("udid") or ""
+    name = props.get("name") or "(unnamed)"
+    udid = hw.get("udid") or ""
+    if wanted and wanted not in (name.lower(), udid.lower(), identifier.lower()):
+        continue
+    candidates.append((identifier, name))
+
+def fail(msg):
+    print("error: " + msg, file=sys.stderr)
+    sys.exit(1)
+
+if not candidates:
+    if wanted:
+        fail(f'no connected device matching "{os.environ["DEVICE_FILTER"]}". '
+             "Run `xcrun devicectl list devices` to see what's available.")
+    fail("no connected iOS device found. Plug in (or network-pair) an iPhone, "
+         "unlock it, and trust this Mac.")
+
+if len(candidates) > 1:
+    listing = "\n".join(f"  - {name} ({identifier})" for identifier, name in candidates)
+    fail("multiple connected devices; pass --device <name|udid>:\n" + listing)
+
+identifier, name = candidates[0]
+print(f"    using: {name} ({identifier})", file=sys.stderr)
+sys.stdout.write(identifier)
+PY
+)"
+
+echo "==> installing to device"
+xcrun devicectl device install app --device "$DEVICE_UDID" "$APP"
+
+if [ "$LAUNCH" = true ]; then
+    echo "==> launching $BUNDLE_ID"
+    xcrun devicectl device process launch \
+        --device "$DEVICE_UDID" \
+        --terminate-existing \
+        "$BUNDLE_ID"
+fi
+
+echo "Done. (Build products: $DERIVED)"
