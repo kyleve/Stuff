@@ -16,9 +16,9 @@ public struct SpendSnapshot: Equatable, Sendable {
     /// The dashboard's own status lines (e.g. "You've used 21% of your included
     /// total usage"), for display verbatim.
     public var usageMessages: [String]
-    /// Top models by usage this cycle, as relative shares (dollar-free — see
-    /// ``AggregatedUsage``). Empty when the per-model fetch is unavailable.
-    public var topModels: [ModelShare]
+    /// Models by usage this cycle, as relative shares highest-first (dollar-free
+    /// — see ``AggregatedUsage``). Empty when the per-model fetch is unavailable.
+    public var modelShares: [ModelShare]
 
     public init(
         currentCycleCents: Int,
@@ -27,7 +27,7 @@ public struct SpendSnapshot: Equatable, Sendable {
         membershipType: String,
         includedFractionUsed: Double?,
         usageMessages: [String],
-        topModels: [ModelShare],
+        modelShares: [ModelShare],
     ) {
         self.currentCycleCents = currentCycleCents
         self.cycleStart = cycleStart
@@ -35,7 +35,7 @@ public struct SpendSnapshot: Equatable, Sendable {
         self.membershipType = membershipType
         self.includedFractionUsed = includedFractionUsed
         self.usageMessages = usageMessages
-        self.topModels = topModels
+        self.modelShares = modelShares
     }
 
     public var currentCycleDollars: Double {

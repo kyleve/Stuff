@@ -52,14 +52,14 @@ public struct AggregatedUsage: Codable, Equatable, Sendable {
         self.totalCostCents = totalCostCents
     }
 
-    /// The top `limit` models by compute, each as a ``ModelShare`` (fraction of
-    /// `totalCostCents`), highest first.
-    public func topModels(limit: Int) -> [ModelShare] {
+    /// Every model as a ``ModelShare`` (fraction of `totalCostCents`), highest
+    /// first. The UI decides how to group them (e.g. rolling small shares into
+    /// one bar).
+    public func modelShares() -> [ModelShare] {
         let total = aggregations.reduce(0) { $0 + $1.totalCents }
         guard total > 0 else { return [] }
         return aggregations
             .sorted { $0.totalCents > $1.totalCents }
-            .prefix(limit)
             .map { ModelShare(name: $0.modelIntent, fraction: $0.totalCents / total) }
     }
 }

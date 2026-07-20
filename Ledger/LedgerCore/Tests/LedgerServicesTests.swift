@@ -69,7 +69,7 @@ struct LedgerServicesTests {
         #expect(snapshot.currentCycleCents == 999)
     }
 
-    @Test func loadsTopModelsAsShares() async {
+    @Test func loadsModelSharesSortedByShare() async {
         let provider = ScriptedDashboardProvider(
             .success(summary: .fixture(onDemandCents: 5000)),
             aggregated: .fixture(["a": 75, "b": 25]),
@@ -84,8 +84,8 @@ struct LedgerServicesTests {
             Issue.record("expected loaded, got \(services.loadState)")
             return
         }
-        #expect(snapshot.topModels.map(\.name) == ["a", "b"])
-        #expect(snapshot.topModels.first?.fraction == 0.75)
+        #expect(snapshot.modelShares.map(\.name) == ["a", "b"])
+        #expect(snapshot.modelShares.first?.fraction == 0.75)
     }
 
     @Test func stillLoadsWhenPerModelFetchFails() async {
@@ -106,7 +106,7 @@ struct LedgerServicesTests {
             return
         }
         #expect(snapshot.currentCycleCents == 5000)
-        #expect(snapshot.topModels.isEmpty)
+        #expect(snapshot.modelShares.isEmpty)
     }
 
     @Test func mapsNotAuthenticated() async {

@@ -8,6 +8,23 @@ import SwiftUI
 struct SpendView: View {
     @Bindable var session: LedgerSession
 
+    /// Models at or above this share get their own bar; the rest are rolled up.
+    private static let rollupThreshold = 0.20
+
+    /// Distinct colors assigned to models in share order (cycled if exhausted).
+    private static let palette: [Color] = [
+        .blue,
+        .green,
+        .orange,
+        .purple,
+        .pink,
+        .teal,
+        .indigo,
+        .yellow,
+        .red,
+        .mint,
+    ]
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             header
@@ -80,8 +97,8 @@ struct SpendView: View {
                 includedUsage(fraction, messages: snapshot.usageMessages)
             }
 
-            if !snapshot.topModels.isEmpty {
-                topModels(snapshot.topModels)
+            if !snapshot.modelShares.isEmpty {
+                models(snapshot.modelShares)
             }
 
             if let updated = session.lastUpdated {
@@ -111,14 +128,46 @@ struct SpendView: View {
         }
     }
 
-    private func topModels(_ models: [ModelShare]) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+    /// Models this cycle: each model with ≥20% share gets its own bar; the rest
+    /// roll into a single multi-colored "Other models" bar (one segment per
+    /// model), with a compact legend.
+    private func models(_ shares: [ModelShare]) -> some View {
+        let colored = shares.enumerated().map { index, share in
+            ColoredShare(
+                name: share.name,
+                fraction: share.fraction,
+                color: Self.palette[index % Self.palette.count],
+            )
+        }
+        let majors = colored.filter { $0.fraction >= Self.rollupThreshold }
+        let minors = colored.filter { $0.fraction < Self.rollupThreshold }
+        let minorsTotal = minors.reduce(0) { $0 + $1.fraction }
+
+        return VStack(alignment: .leading, spacing: 6) {
             Text("Top models this cycle")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            ForEach(models) { model in
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
+
+            ForEach(majors) { model in
+                shareRow(
+                    label: model.name,
+                    fraction: model.fraction,
+                    segments: [ShareSegment(color: model.color, fraction: model.fraction)],
+                )
+            }
+
+            if !minors.isEmpty {
+                shareRow(
+                    label: "Other models",
+                    fraction: minorsTotal,
+                    segments: minors.map { ShareSegment(color: $0.color, fraction: $0.fraction) },
+                )
+                // Legend so the rolled-up colors are identifiable.
+                ForEach(minors) { model in
+                    HStack(spacing: 6) {
+                        Circle()
+                            .fill(model.color)
+                            .frame(width: 7, height: 7)
                         Text(model.name)
                             .lineLimit(1)
                             .truncationMode(.middle)
@@ -127,10 +176,26 @@ struct SpendView: View {
                             .monospacedDigit()
                             .foregroundStyle(.secondary)
                     }
-                    .font(.caption)
-                    ProgressView(value: min(max(model.fraction, 0), 1))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                 }
             }
+        }
+    }
+
+    private func shareRow(label: String, fraction: Double, segments: [ShareSegment]) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text(label)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Spacer()
+                Text(fraction.formatted(.percent.precision(.fractionLength(0))))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+            .font(.caption)
+            ShareBar(segments: segments)
         }
     }
 
@@ -185,6 +250,47 @@ struct SpendView: View {
             .help("Quit Ledger")
         }
         .buttonStyle(.borderless)
+    }
+}
+
+/// A model paired with its display color for the models breakdown.
+private struct ColoredShare: Identifiable {
+    let name: String
+    let fraction: Double
+    let color: Color
+
+    var id: String {
+        name
+    }
+}
+
+/// One colored slice of a ``ShareBar`` (its width is `fraction` of the track).
+private struct ShareSegment {
+    let color: Color
+    let fraction: Double
+}
+
+/// A rounded track filled with one or more colored segments, each sized as a
+/// fraction (0...1) of the full width. A single segment reads as a simple bar;
+/// several read as a stacked breakdown.
+private struct ShareBar: View {
+    let segments: [ShareSegment]
+
+    var body: some View {
+        GeometryReader { geometry in
+            HStack(spacing: 1) {
+                ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+                    segment.color
+                        .frame(width: max(
+                            0,
+                            geometry.size.width * min(max(segment.fraction, 0), 1),
+                        ))
+                }
+            }
+        }
+        .frame(height: 6)
+        .background(Color.secondary.opacity(0.15))
+        .clipShape(.capsule)
     }
 }
 

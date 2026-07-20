@@ -59,11 +59,12 @@ auto-token", surfaced as `LoadError.missingCredentials`.
   year" (it can even go negative). Rather than show a wrong number, Ledger omits
   it.
 
-- **Top models** = `get-aggregated-usage-events` over the cycle window, shown as
-  each model's **share** of that endpoint's total. This is deliberately
-  dollar-free: its `totalCostCents` measures compute differently from the billed
-  on-demand figure, so it must not be presented as spend. Best-effort — a
-  failure logs and yields an empty list rather than failing the whole load.
+- **Model shares** = `get-aggregated-usage-events` over the cycle window, each
+  model's **share** of that endpoint's total (all models, highest first; the UI
+  rolls sub-20% shares into one bar). This is deliberately dollar-free: its
+  `totalCostCents` measures compute differently from the billed on-demand
+  figure, so it must not be presented as spend. Best-effort — a failure logs
+  and yields an empty list rather than failing the whole load.
 
 All money is cents. Note: on a plan with usage-based pricing off, these `$`
 figures reflect included-compute value, not money owed.
