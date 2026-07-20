@@ -155,7 +155,7 @@ public enum WhereLaunch {
     ) -> LifecycleRunner<WhereSession> {
         let bootstrap = WhereBootstrap()
         logger { .runnerCreated(reason: String(describing: reason)) }
-        return LifecycleRunner(
+        let runner = LifecycleRunner(
             reason: reason,
             initializePrerequisites: {
                 bootstrap.prepareLocation()
@@ -167,6 +167,12 @@ public enum WhereLaunch {
                 onServicesReady: onServicesReady,
             ),
         )
+        // Mirror detached-step failures into WhereLog: the runner only
+        // records them on its observable `detachedFailures`, which nothing
+        // renders — without this a throwing detached step would fail with no
+        // trace in logs.
+        DetachedFailureReporter.observe(runner)
+        return runner
     }
 
     /// The typed launch plan. The trunk mirrors the imperative
