@@ -7,7 +7,6 @@ import SwiftUI
 enum SettingsDestination: Hashable, CaseIterable {
     case location
     case regions
-    case reminders
     case alerts
     case appearance
     case year
@@ -20,7 +19,6 @@ enum SettingsDestination: Hashable, CaseIterable {
         switch self {
             case .location: Strings.settingsLocationHeader
             case .regions: Strings.settingsRegionsSection
-            case .reminders: Strings.settingsRemindersHeader
             case .alerts: Strings.settingsAlertsGroup
             case .appearance: Strings.settingsAppearanceGroup
             case .year: Strings.settingsYearHeader
@@ -34,8 +32,7 @@ enum SettingsDestination: Hashable, CaseIterable {
         switch self {
             case .location: "location.fill"
             case .regions: "map.fill"
-            case .reminders: "bell.badge"
-            case .alerts: "exclamationmark.bubble.fill"
+            case .alerts: "bell.badge"
             case .appearance: "paintbrush.fill"
             case .year: "calendar"
             case .backup: "externaldrive.fill"
@@ -49,7 +46,7 @@ enum SettingsDestination: Hashable, CaseIterable {
     var isSheet: Bool {
         switch self {
             case .regions: true
-            case .location, .reminders, .alerts, .appearance, .year, .backup, .data: false
+            case .location, .alerts, .appearance, .year, .backup, .data: false
         }
     }
 }
@@ -67,7 +64,7 @@ enum SettingsListSection: CaseIterable {
     var destinations: [SettingsDestination] {
         switch self {
             case .tracking: [.location, .regions]
-            case .notifications: [.reminders, .alerts]
+            case .notifications: [.alerts]
             case .display: [.appearance, .year]
             case .data: [.backup, .data]
         }
@@ -169,7 +166,6 @@ enum SettingsCatalog {
     static let results: [SettingsSearchResult] =
         LocationSettingsView.searchResults
             + RegionsSettingsView.searchResults
-            + RemindersSettingsView.searchResults
             + AlertsSettingsView.searchResults
             + AppearanceSettingsView.searchResults
             + VisibleYearSettingsView.searchResults

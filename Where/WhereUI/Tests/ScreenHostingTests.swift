@@ -48,15 +48,6 @@ struct ScreenHostingTests {
         }
     }
 
-    @Test func remindersSettingsViewHosts() throws {
-        let rootView = NavigationStack {
-            RemindersSettingsView(reminders: PreviewSupport.remindersSettingsModel())
-        }
-        try show(UIHostingController(rootView: rootView)) { hosted in
-            #expect(hosted.view != nil)
-        }
-    }
-
     @Test func alertsSettingsViewHosts() throws {
         let rootView = NavigationStack {
             AlertsSettingsView(

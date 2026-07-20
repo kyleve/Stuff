@@ -1,9 +1,9 @@
 import SwiftUI
 import WhereCore
 
-/// Settings drill-in combining the notification-driven alerts (daily summary,
-/// issue alerts) with the GPS data-resolution threshold and the manual
-/// "find issues now" scan.
+/// Settings drill-in combining the notification-driven alerts (the daily logging
+/// reminder, the daily summary, and issue alerts) with the GPS data-resolution
+/// threshold and the manual "find issues now" scan.
 struct AlertsSettingsView: View {
     let report: YearReportModel
     let reminders: RemindersSettingsModel
@@ -19,6 +19,7 @@ struct AlertsSettingsView: View {
     var body: some View {
         SettingsFocusScope(focus: focus) {
             Form {
+                remindersSection
                 summarySection
                 issueAlertsSection
                 resolutionSection
@@ -30,6 +31,43 @@ struct AlertsSettingsView: View {
         // away; refresh it when the screen appears so the "allow notifications"
         // affordance is accurate.
         .task { await reminders.refreshNotificationAuthorization() }
+    }
+
+    private var remindersSection: some View {
+        @Bindable var reminders = reminders
+        return Section {
+            Toggle(isOn: $reminders.remindersEnabled) {
+                Label(Strings.settingsRemindersToggle, systemImage: "bell.badge")
+            }
+            .settingsRow(Item.dailyReminder)
+
+            if reminders.remindersEnabled {
+                DatePicker(
+                    Strings.settingsReminderTime,
+                    selection: $reminders.reminderTimeOfDay,
+                    displayedComponents: .hourAndMinute,
+                )
+
+                if !reminders.notificationsAuthorized {
+                    Button {
+                        openSystemSettings(openURL)
+                    } label: {
+                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                    }
+                }
+            }
+        } header: {
+            Text(Strings.settingsRemindersHeader)
+        } footer: {
+            Text(remindersFooter)
+        }
+    }
+
+    private var remindersFooter: String {
+        if reminders.remindersEnabled, !reminders.notificationsAuthorized {
+            return Strings.settingsRemindersDeniedFooter
+        }
+        return Strings.settingsRemindersFooter
     }
 
     private var summarySection: some View {
@@ -160,6 +198,7 @@ extension AlertsSettingsView: SettingsSection {
     }
 
     enum Item: SettingsItem {
+        case dailyReminder
         case dailySummary
         case issueAlerts
         case dataResolution
@@ -167,6 +206,7 @@ extension AlertsSettingsView: SettingsSection {
 
         var title: String {
             switch self {
+                case .dailyReminder: Strings.settingsRemindersToggle
                 case .dailySummary: Strings.settingsSummaryToggle
                 case .issueAlerts: Strings.settingsIssueAlertsToggle
                 case .dataResolution: Strings.settingsResolutionHeader
@@ -176,6 +216,7 @@ extension AlertsSettingsView: SettingsSection {
 
         var keywords: [String] {
             switch self {
+                case .dailyReminder: splitKeywords(Strings.settingsKeywordsReminder)
                 case .dailySummary: splitKeywords(Strings.settingsKeywordsSummary)
                 case .issueAlerts: splitKeywords(Strings.settingsKeywordsIssueAlerts)
                 case .dataResolution: splitKeywords(Strings.settingsKeywordsDataResolution)

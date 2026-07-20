@@ -106,7 +106,7 @@ struct SettingsView: View {
         switch destination {
             case .regions:
                 showRegions = true
-            case .location, .reminders, .alerts, .appearance, .year, .backup, .data:
+            case .location, .alerts, .appearance, .year, .backup, .data:
                 assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
@@ -135,7 +135,7 @@ struct SettingsView: View {
                 )
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
-            case .regions, .reminders, .alerts, .appearance, .backup, .data:
+            case .regions, .alerts, .appearance, .backup, .data:
                 nil
         }
     }
@@ -159,8 +159,6 @@ struct SettingsView: View {
                 // Regions is presented as a sheet (`isSheet`), so it's never
                 // routed here; this arm only keeps the switch exhaustive.
                 EmptyView()
-            case .reminders:
-                RemindersSettingsView(reminders: reminders, focus: route.focus)
             case .alerts:
                 AlertsSettingsView(report: report, reminders: reminders, focus: route.focus)
             case .appearance:
