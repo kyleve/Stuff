@@ -22,7 +22,8 @@ struct AlertsSettingsView: View {
                 remindersSection
                 summarySection
                 issueAlertsSection
-                resolutionSection
+                dataResolutionSection
+                findIssuesSection
             }
         }
         .navigationTitle(Strings.settingsAlertsGroup)
@@ -136,17 +137,25 @@ struct AlertsSettingsView: View {
         return Strings.settingsIssueAlertsFooter
     }
 
-    private var resolutionSection: some View {
+    private var dataResolutionSection: some View {
         @Bindable var report = report
         return Section {
-            Picker(Strings.settingsResolutionHeader, selection: $report.driftThreshold) {
+            Picker(Strings.settingsResolutionThreshold, selection: $report.driftThreshold) {
                 ForEach(DriftThreshold.allCases, id: \.self) { threshold in
                     Text(Strings.driftThresholdLabel(kilometers: threshold.rawValue / 1000))
                         .tag(threshold)
                 }
             }
             .settingsRow(Item.dataResolution)
+        } header: {
+            Text(Strings.settingsResolutionHeader)
+        } footer: {
+            Text(Strings.settingsResolutionFooter)
+        }
+    }
 
+    private var findIssuesSection: some View {
+        Section {
             Button {
                 findIssues()
             } label: {
@@ -168,8 +177,10 @@ struct AlertsSettingsView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             }
+        } header: {
+            Text(Strings.settingsFindIssuesHeader)
         } footer: {
-            Text(Strings.settingsResolutionFooter)
+            Text(Strings.settingsFindIssuesFooter)
         }
         .animation(.default, value: isScanningForIssues)
         // The shown count is for the current year at the current threshold;

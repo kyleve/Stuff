@@ -2111,6 +2111,33 @@ enum Strings {
         )
     }
 
+    /// Row label for the drift-threshold picker (the section header already says
+    /// "Data resolution", so the row names the specific control).
+    static var settingsResolutionThreshold: String {
+        String(
+            localized: "settings.resolution.threshold",
+            defaultValue: "Drift threshold",
+            bundle: .module,
+        )
+    }
+
+    static var settingsFindIssuesHeader: String {
+        String(
+            localized: "settings.findIssues.header",
+            defaultValue: "Find issues",
+            bundle: .module,
+        )
+    }
+
+    static var settingsFindIssuesFooter: String {
+        String(
+            localized: "settings.findIssues.footer",
+            defaultValue:
+            "Scan the selected year for data issues right now — such as GPS drift or missed days — instead of waiting for the periodic check. Anything found appears in the Resolve tab.",
+            bundle: .module,
+        )
+    }
+
     static var settingsFindIssues: String {
         String(
             localized: "settings.findIssues",
