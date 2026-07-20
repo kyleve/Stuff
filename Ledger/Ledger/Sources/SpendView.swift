@@ -277,8 +277,9 @@ struct SpendView: View {
             Button {
                 session.refresh()
             } label: {
-                Label("Refresh", systemImage: "arrow.clockwise")
+                Image(systemName: "arrow.clockwise")
             }
+            .help("Refresh")
             if let updated = session.lastUpdated {
                 HStack(spacing: 3) {
                     if session.isStale {
