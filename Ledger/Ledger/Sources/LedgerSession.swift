@@ -27,6 +27,17 @@ final class LedgerSession {
         services.isRefreshing
     }
 
+    /// Whether the shown data is stale — the last refresh failed but prior data
+    /// is still displayed.
+    var isStale: Bool {
+        services.loadError != nil
+    }
+
+    /// Why the data is stale, for a tooltip on the warning.
+    var staleMessage: String? {
+        services.loadError?.message
+    }
+
     /// Whether a token was pasted (a manual override) vs. auto-detected.
     var hasManualToken: Bool {
         services.hasManualToken

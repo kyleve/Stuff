@@ -62,10 +62,13 @@ build system, formatting, and global conventions. Read that first.
   failure to fetch it logs a warning and yields no models; it must not fail the
   whole load.
 - **Failures are observable, never swallowed.** Transport/HTTP/decode failures
-  become a typed `DashboardError`, mapped into `LoadState.failed(LoadError)` and
-  logged; 401 maps to `.notAuthenticated` (expired session). A stale response
-  (an earlier fetch finishing after a newer one) is dropped via the request
-  generation counter.
+  become a typed `DashboardError`, mapped into a `LoadError` and logged; 401
+  maps to `.notAuthenticated` (expired session). A slow response superseded by a
+  newer fetch is dropped via the request-generation counter.
+- **A failed refresh keeps prior data (stale), not blanks it.** If spend is
+  already `.loaded`, a failure keeps the last snapshot on screen and surfaces on
+  `loadError` (the UI shows a stale "Updated…" warning); only a failure with
+  nothing loaded yet becomes `LoadState.failed`. Success clears `loadError`.
 - **The login item is OS-owned, not persisted config** (see
   `LoginItemController`); `startsAtLogin` is a live read whose setter keeps the
   observed value honest and surfaces failures on `loginItemError`.

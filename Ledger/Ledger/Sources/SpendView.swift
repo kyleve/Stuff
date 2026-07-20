@@ -280,9 +280,15 @@ struct SpendView: View {
                 Label("Refresh", systemImage: "arrow.clockwise")
             }
             if let updated = session.lastUpdated {
-                Text("Updated \(updated.formatted(date: .omitted, time: .shortened))")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
+                HStack(spacing: 3) {
+                    if session.isStale {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                    }
+                    Text("Updated \(updated.formatted(date: .omitted, time: .shortened))")
+                }
+                .font(.caption2)
+                .foregroundStyle(session.isStale ? Color.orange : Color.secondary)
+                .help(session.isStale ? (session.staleMessage ?? "Couldn't refresh") : "")
             }
             Spacer()
             SettingsLink {

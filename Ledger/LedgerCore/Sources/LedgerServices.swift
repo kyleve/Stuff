@@ -55,6 +55,11 @@ public final class LedgerServices {
     /// When the last successful fetch completed, for the "updated …" caption.
     public private(set) var lastUpdated: Date?
 
+    /// The most recent refresh failure *while spend is still shown* — i.e. the
+    /// data is stale. `nil` when the last refresh succeeded. (A failure with no
+    /// prior data goes to `loadState = .failed` instead.)
+    public private(set) var loadError: LoadError?
+
     /// Whether a fetch is currently in flight. Distinct from `loadState`:
     /// during a refresh the last loaded data stays visible (so the UI doesn't
     /// clear), and this drives only a subtle in-progress indicator.
@@ -187,7 +192,7 @@ public final class LedgerServices {
     public func refresh() async {
         refreshTokenAvailability()
         guard let token = resolveToken() else {
-            loadState = .failed(.missingCredentials)
+            applyFailure(.missingCredentials)
             return
         }
 
@@ -223,13 +228,27 @@ public final class LedgerServices {
             )
             loadState = .loaded(snapshot)
             lastUpdated = now()
+            loadError = nil
         } catch let error as DashboardError {
             guard generation == requestGeneration else { return }
-            loadState = .failed(error.asLoadError)
+            applyFailure(error.asLoadError)
         } catch {
             guard generation == requestGeneration else { return }
             Self.logger.error("Unexpected dashboard error: \(error.localizedDescription)")
-            loadState = .failed(.network(error.localizedDescription))
+            applyFailure(.network(error.localizedDescription))
+        }
+    }
+
+    /// Records a refresh failure. If spend is already loaded, the last good data
+    /// stays on screen and the failure surfaces as ``loadError`` (a stale
+    /// warning); otherwise — nothing loaded yet — it becomes the full error
+    /// state.
+    private func applyFailure(_ error: LoadError) {
+        if case .loaded = loadState {
+            loadError = error
+        } else {
+            loadState = .failed(error)
+            loadError = nil
         }
     }
 

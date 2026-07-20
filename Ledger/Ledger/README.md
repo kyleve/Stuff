@@ -61,9 +61,11 @@ shortcut to System Settings if macOS needs you to approve the login item.
   maxed while the other is barely used), **top models
   this cycle** as usage shares (each model ≥20% gets its own bar; smaller ones
   roll into a single multi-colored "Other models" bar with a legend), and when
-  it last updated. A **Refresh** button
-  forces an immediate fetch. On an error (no session, an expired session, a
-  network failure) it explains what to fix and offers a shortcut to Settings.
+  it last updated. A **Refresh** button forces an immediate fetch. If a refresh
+  fails (e.g. you go offline) the last figures stay on screen and the "Updated…"
+  caption turns into an amber stale warning rather than blanking. The full error
+  screen (with a shortcut to Settings) shows only before anything has loaded —
+  no session yet, an expired session, or a first-load network failure.
 
 There's intentionally no year-to-date total: the monthly-invoice endpoint is a
 billing ledger with cross-month credit/adjustment lines, so summing it isn't a

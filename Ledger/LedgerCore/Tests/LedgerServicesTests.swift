@@ -110,6 +110,40 @@ struct LedgerServicesTests {
         #expect(snapshot.modelShares.isEmpty)
     }
 
+    @Test func keepsLoadedDataAndFlagsStaleWhenARefreshFails() async {
+        let provider = MutableDashboardProvider(.success(.fixture(onDemandCents: 5000)))
+        let services = makeServices(
+            provider: provider,
+            autoToken: SessionToken(cookieValue: "auto::jwt"),
+        )
+
+        await services.refresh()
+        #expect(isLoaded(services.loadState))
+        #expect(services.loadError == nil)
+
+        // A later refresh fails (e.g. offline): keep the data, mark it stale.
+        provider.result = .failure(.network("offline"))
+        await services.refresh()
+        #expect(isLoaded(services.loadState))
+        #expect(services.loadError == .network("offline"))
+
+        // Recovering clears the stale flag.
+        provider.result = .success(.fixture(onDemandCents: 5100))
+        await services.refresh()
+        #expect(isLoaded(services.loadState))
+        #expect(services.loadError == nil)
+    }
+
+    @Test func firstLoadFailureShowsTheErrorState() async {
+        let services = makeServices(
+            provider: ScriptedDashboardProvider(.failure(.network("offline"))),
+            autoToken: SessionToken(cookieValue: "auto::jwt"),
+        )
+        await services.refresh()
+        #expect(services.loadState == .failed(.network("offline")))
+        #expect(services.loadError == nil)
+    }
+
     @Test func mapsNotAuthenticated() async {
         let services = makeServices(
             provider: ScriptedDashboardProvider(.failure(.notAuthenticated)),
@@ -184,6 +218,34 @@ struct LedgerServicesTests {
             if predicate() { return }
             await Task.yield()
         }
+    }
+}
+
+/// A `DashboardProvider` whose usage-summary result can be swapped between
+/// calls, so a test can simulate a success followed by a failure.
+private final class MutableDashboardProvider: DashboardProvider, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _result: Result<UsageSummary, DashboardError>
+
+    init(_ result: Result<UsageSummary, DashboardError>) {
+        _result = result
+    }
+
+    var result: Result<UsageSummary, DashboardError> {
+        get { lock.withLock { _result } }
+        set { lock.withLock { _result = newValue } }
+    }
+
+    func usageSummary(token _: SessionToken) async throws -> UsageSummary {
+        try result.get()
+    }
+
+    func aggregatedUsage(
+        startDate _: Date,
+        endDate _: Date,
+        token _: SessionToken,
+    ) async throws -> AggregatedUsage {
+        AggregatedUsage(aggregations: [], totalCostCents: 0)
     }
 }
 
