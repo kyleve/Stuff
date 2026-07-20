@@ -70,7 +70,7 @@ final class LedgerSession {
     var statusTitle: String {
         switch services.loadState {
             case let .loaded(snapshot):
-                CurrencyFormat.dollars(snapshot.currentCycleDollars)
+                CurrencyFormat.menuBar(snapshot.currentCycleDollars)
             case .idle, .loading, .failed:
                 "$—"
         }
