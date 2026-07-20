@@ -52,9 +52,11 @@ struct SettingsView: View {
                         searchNavigationRow(result)
                     }
                 } else {
-                    Section {
-                        ForEach(SettingsDestination.allCases, id: \.self) { destination in
-                            groupNavigationRow(destination)
+                    ForEach(SettingsListSection.allCases, id: \.self) { section in
+                        Section {
+                            ForEach(section.destinations, id: \.self) { destination in
+                                groupNavigationRow(destination)
+                            }
                         }
                     }
                 }

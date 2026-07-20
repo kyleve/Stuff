@@ -10,6 +10,13 @@ struct SettingsSearchTests {
         #expect(registered == Set(SettingsDestination.allCases))
     }
 
+    @Test func everyDestinationAppearsInExactlyOneListSection() {
+        let grouped = SettingsListSection.allCases.flatMap(\.destinations)
+        // Full coverage, and no destination placed in two blocks.
+        #expect(Set(grouped) == Set(SettingsDestination.allCases))
+        #expect(grouped.count == SettingsDestination.allCases.count)
+    }
+
     @Test func focusTokensAreUnique() {
         let focuses = SettingsCatalog.results.map(\.focus)
         #expect(Set(focuses).count == focuses.count)

@@ -54,6 +54,26 @@ enum SettingsDestination: Hashable, CaseIterable {
     }
 }
 
+/// The visual grouping of the top-level settings list into separated blocks
+/// (headerless, matching the iOS Settings app). Every ``SettingsDestination``
+/// belongs to exactly one block — `SettingsSearchTests` guards full, unique
+/// coverage — and the block order is the on-screen order.
+enum SettingsListSection: CaseIterable {
+    case tracking
+    case notifications
+    case display
+    case data
+
+    var destinations: [SettingsDestination] {
+        switch self {
+            case .tracking: [.location, .regions]
+            case .notifications: [.reminders, .alerts]
+            case .display: [.appearance, .year]
+            case .data: [.backup, .data]
+        }
+    }
+}
+
 /// A per-screen setting identity. Conformers are small, screen-local enums (e.g.
 /// `LocationSettingsView.Item`) that also carry their own localized search text,
 /// so the search index is *derived* from the cases and can't drift from them.
