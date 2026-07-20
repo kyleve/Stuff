@@ -5,25 +5,25 @@ struct ModelNameTests {
     @Test func parsesClaudeWithHyphenatedVersionAndEffort() {
         let name = ModelName.parse("claude-opus-4-8-thinking-xhigh")
         #expect(name.displayName == "Claude Opus 4.8")
-        #expect(name.badges == ["XHigh"])
+        #expect(name.badges == ["xhigh"])
     }
 
     @Test func keepsDottedVersionsAndMapsEffort() {
         let name = ModelName.parse("composer-2.5-fast")
         #expect(name.displayName == "Composer 2.5")
-        #expect(name.badges == ["Fast"])
+        #expect(name.badges == ["fast"])
     }
 
     @Test func dropsThinkingFromTheName() {
         let name = ModelName.parse("claude-fable-5-thinking-high")
         #expect(name.displayName == "Claude Fable 5")
-        #expect(name.badges == ["High"])
+        #expect(name.badges == ["high"])
     }
 
     @Test func handlesEffortBeforeThinking() {
         let name = ModelName.parse("claude-4.6-sonnet-high-thinking")
         #expect(name.displayName == "Claude 4.6 Sonnet")
-        #expect(name.badges == ["High"])
+        #expect(name.badges == ["high"])
     }
 
     @Test func mapsUnderscoreIdentifiers() {
@@ -35,19 +35,19 @@ struct ModelNameTests {
     @Test func extractsNonMaxModeBeforeEffort() {
         let name = ModelName.parse("non-max-claude-opus-4-8-thinking-xhigh")
         #expect(name.displayName == "Claude Opus 4.8")
-        #expect(name.badges == ["Non-max", "XHigh"])
+        #expect(name.badges == ["non-max", "xhigh"])
     }
 
     @Test func dropsHostingPrefix() {
         let name = ModelName.parse("cursor-grok-4.5-high")
         #expect(name.displayName == "Grok 4.5")
-        #expect(name.badges == ["High"])
+        #expect(name.badges == ["high"])
     }
 
     @Test func keepsFamilyWordsLikeSol() {
         let name = ModelName.parse("gpt-5.6-sol-high")
         #expect(name.displayName == "GPT 5.6 Sol")
-        #expect(name.badges == ["High"])
+        #expect(name.badges == ["high"])
     }
 
     @Test func titleCasesUnknownModels() {

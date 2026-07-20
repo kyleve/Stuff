@@ -92,9 +92,6 @@ struct SpendView: View {
     private func loaded(_ snapshot: SpendSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("This cycle")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 Text(CurrencyFormat.dollars(snapshot.currentCycleDollars))
                     .font(.system(size: 34, weight: .semibold, design: .rounded))
                     .monospacedDigit()
@@ -113,12 +110,6 @@ struct SpendView: View {
 
             if !snapshot.modelShares.isEmpty {
                 models(snapshot.modelShares)
-            }
-
-            if let updated = session.lastUpdated {
-                Text("Updated \(updated.formatted(date: .omitted, time: .shortened))")
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
             }
         }
     }
@@ -259,6 +250,11 @@ struct SpendView: View {
                 session.refresh()
             } label: {
                 Label("Refresh", systemImage: "arrow.clockwise")
+            }
+            if let updated = session.lastUpdated {
+                Text("Updated \(updated.formatted(date: .omitted, time: .shortened))")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
             }
             Spacer()
             SettingsLink {

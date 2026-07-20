@@ -13,7 +13,7 @@ public struct ModelName: Equatable, Sendable {
     /// The cleaned-up name, e.g. "Claude Opus 4.8".
     public var displayName: String
     /// Short badges in display order (mode, then effort, then speed), e.g.
-    /// `["Non-max", "XHigh"]`.
+    /// `["non-max", "xhigh"]`.
     public var badges: [String]
 
     public init(displayName: String, badges: [String]) {
@@ -23,11 +23,11 @@ public struct ModelName: Equatable, Sendable {
 
     /// Reasoning-effort tokens → badge label.
     private static let effortLabels: [String: String] = [
-        "low": "Low",
-        "medium": "Medium",
-        "high": "High",
-        "xhigh": "XHigh",
-        "min": "Min",
+        "low": "low",
+        "medium": "medium",
+        "high": "high",
+        "xhigh": "xhigh",
+        "min": "min",
     ]
 
     /// Vendor/family words → their display casing. Anything absent is
@@ -63,7 +63,7 @@ public struct ModelName: Equatable, Sendable {
         var modeBadges: [String] = []
         // A leading "non-max" (→ ["non", "max"]) is a mode, not part of the name.
         if tokens.first == "non", tokens.count > 1, tokens[1] == "max" {
-            modeBadges.append("Non-max")
+            modeBadges.append("non-max")
             tokens.removeFirst(2)
         }
 
@@ -74,9 +74,9 @@ public struct ModelName: Equatable, Sendable {
             if let effort = effortLabels[token] {
                 effortBadges.append(effort)
             } else if token == "max" {
-                modeBadges.append("Max")
+                modeBadges.append("max")
             } else if token == "fast" {
-                speedBadges.append("Fast")
+                speedBadges.append("fast")
             } else if token == "thinking" {
                 continue // implied by the effort badge; omit from the name
             } else if droppedWords.contains(token) {
