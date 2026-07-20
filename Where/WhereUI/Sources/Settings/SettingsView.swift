@@ -554,8 +554,8 @@ struct SettingsView: View {
     }
 
     /// Whole-app teardown: wipes every year's data and returns to first-run
-    /// onboarding, run through the `LifecycleRunner` published into the
-    /// environment by `LifecycleContainer`. The runner proxy asserts in debug /
+    /// onboarding, run through the `LegacyLifecycleRunner` published into the
+    /// environment by `LegacyLifecycleContainer`. The runner proxy asserts in debug /
     /// no-ops in release when no container is above (e.g. previews).
     private var resetSection: some View {
         Section {

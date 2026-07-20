@@ -9,7 +9,7 @@ struct LifecyclePhaseTests {
         // The anti-flicker invariant: a step advancing keeps showing the splash,
         // so it must not change the surface identity and retrigger a transition.
         let running = LifecyclePhase.running(
-            LifecycleStep.work("a") { _ in },
+            LegacyLifecycleStep.work("a") { _ in },
             LifecycleStepUIBridge(reason: .userForeground),
         )
         #expect(LifecyclePhase.launching.surfaceIdentity == .splash)
@@ -19,11 +19,11 @@ struct LifecyclePhaseTests {
     @Test func runningStepsAllCollapseToTheSameSurface() {
         // Advancing from one running step to the next is still the splash surface.
         let first = LifecyclePhase.running(
-            LifecycleStep.work("first") { _ in },
+            LegacyLifecycleStep.work("first") { _ in },
             LifecycleStepUIBridge(reason: .userForeground),
         )
         let second = LifecyclePhase.running(
-            LifecycleStep.work("second") { _ in },
+            LegacyLifecycleStep.work("second") { _ in },
             LifecycleStepUIBridge(reason: .userForeground),
         )
         #expect(first.surfaceIdentity == second.surfaceIdentity)

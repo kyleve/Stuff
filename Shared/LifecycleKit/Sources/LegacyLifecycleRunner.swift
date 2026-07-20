@@ -1,7 +1,7 @@
 import Observation
 import SwiftUI
 
-/// Drives a `LifecycleSteps` to completion, publishing a single observable
+/// Drives a `LegacyLifecycleSteps` to completion, publishing a single observable
 /// `phase` the host renders. The engine and every step run on the main actor;
 /// heavy work is expected to be delegated to actors from inside a step's body.
 ///
@@ -28,7 +28,7 @@ import SwiftUI
 /// that will never come.
 @MainActor
 @Observable
-public final class LifecycleRunner {
+public final class LegacyLifecycleRunner {
     /// The single value the host renders.
     public private(set) var phase: LifecyclePhase = .launching
 
@@ -62,12 +62,12 @@ public final class LifecycleRunner {
         state.reason
     }
 
-    @ObservationIgnored private let steps: [LifecycleStep]
+    @ObservationIgnored private let steps: [LegacyLifecycleStep]
     /// The most recent teardown sequence handed to `teardown(_:)`, retained so a
     /// `retry()` after a thrown teardown step resumes the teardown (and the
     /// relaunch that follows) rather than re-driving the launch sequence over
     /// un-torn-down state. Empty until the first `teardown(_:)`.
-    @ObservationIgnored private var teardownSteps: [LifecycleStep] = []
+    @ObservationIgnored private var teardownSteps: [LegacyLifecycleStep] = []
 
     /// Steps that have already finished during the current launch attempt, so a
     /// re-drive doesn't repeat completed work. It's what lets `enterForeground()`
@@ -87,7 +87,7 @@ public final class LifecycleRunner {
     public init(
         reason: LifecycleReason,
         initializePrerequisites: @MainActor () -> Void = {},
-        sequence: LifecycleSteps,
+        sequence: LegacyLifecycleSteps,
     ) {
         state = .notStarted(reason)
         steps = sequence.steps
@@ -154,7 +154,7 @@ public final class LifecycleRunner {
     /// The teardown steps are retained so a `retry()` after a thrown teardown
     /// step resumes the teardown (then the relaunch). If a teardown step throws,
     /// the runner parks in `.failed` and does not relaunch.
-    public func teardown(_ sequence: LifecycleSteps) async {
+    public func teardown(_ sequence: LegacyLifecycleSteps) async {
         teardownSteps = sequence.steps
         await driveTeardown(fromTeardownIndex: 0)
     }
@@ -217,7 +217,10 @@ public final class LifecycleRunner {
 
     /// Walk `steps` from `startIndex`, honoring mode/condition gating and
     /// delegating each applicable step to `runStep`.
-    private func runSteps(_ steps: [LifecycleStep], from startIndex: Int) async -> DriveOutcome {
+    private func runSteps(
+        _ steps: [LegacyLifecycleStep],
+        from startIndex: Int,
+    ) async -> DriveOutcome {
         var index = startIndex
         while index < steps.count {
             if Task.isCancelled { return .cancelled }
@@ -258,7 +261,7 @@ public final class LifecycleRunner {
     /// here and torn down on every exit path via `defer` — so a step's
     /// deferred-timer/`minVisible` state can't outlive the step that owns it
     /// (the invariant that previously lived in scattered stored properties).
-    private func runStep(_ step: LifecycleStep) async -> DriveOutcome {
+    private func runStep(_ step: LegacyLifecycleStep) async -> DriveOutcome {
         let bridge = LifecycleStepUIBridge(reason: reason)
         phase = .running(step, bridge)
 
@@ -287,7 +290,7 @@ public final class LifecycleRunner {
 }
 
 #if DEBUG
-    extension LifecycleRunner {
+    extension LegacyLifecycleRunner {
         /// Injects a failure for SPI-enabled tests (e.g. stale step IDs in `retry()`).
         @_spi(Testing) public func injectFailureForTesting(_ failure: LifecycleFailure) {
             phase = .failed(failure)
@@ -313,7 +316,7 @@ private final class ActivePresentation {
 
     /// Activate `step`'s presentation per its trigger. With no presentation this
     /// is inert: `hold()`/`cancel()` then do nothing.
-    init(for step: LifecycleStep, bridge: LifecycleStepUIBridge) {
+    init(for step: LegacyLifecycleStep, bridge: LifecycleStepUIBridge) {
         guard let presentation = step.presentation else {
             minVisible = .zero
             return

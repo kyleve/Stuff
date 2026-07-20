@@ -22,7 +22,7 @@ private struct SplitMix64: RandomNumberGenerator {
     }
 }
 
-/// A randomized step description, kept separate from the built `LifecycleStep`
+/// A randomized step description, kept separate from the built `LegacyLifecycleStep`
 /// so the test can predict the expected outcome from the same data the runner
 /// drives.
 private struct FuzzStep {
@@ -49,7 +49,7 @@ private func makeFuzzSteps(_ rng: inout SplitMix64) -> [FuzzStep] {
 /// many randomized ones and check the runner's behavior against an independent
 /// model. Complements the targeted runner tests.
 @MainActor
-struct LifecycleRunnerFuzzTests {
+struct LegacyLifecycleRunnerFuzzTests {
     /// For a random reason and a random mix of mode/condition/throwing steps, the
     /// runner runs exactly the applicable + condition-true prefix, stops at the
     /// first throw (parking `.failed` there), and otherwise reaches `.ready`.
@@ -61,9 +61,9 @@ struct LifecycleRunnerFuzzTests {
         let fuzz = makeFuzzSteps(&rng)
 
         var executed: [String] = []
-        let runner = LifecycleRunner(reason: reason, sequence: LifecycleSteps {
+        let runner = LegacyLifecycleRunner(reason: reason, sequence: LegacyLifecycleSteps {
             for step in fuzz {
-                LifecycleStep
+                LegacyLifecycleStep
                     .work(step.id, modes: step.modes, condition: { step.conditionPasses }) { _ in
                         executed.append(step.id)
                         if step.throwsError { throw FuzzError() }
@@ -104,9 +104,9 @@ struct LifecycleRunnerFuzzTests {
 
         var attempts = [Int](repeating: 0, count: count)
         var succeeded: [String] = []
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
+        let runner = LegacyLifecycleRunner(reason: .userForeground, sequence: LegacyLifecycleSteps {
             for index in 0 ..< count {
-                LifecycleStep.work(ids[index]) { _ in
+                LegacyLifecycleStep.work(ids[index]) { _ in
                     attempts[index] += 1
                     if attempts[index] <= failuresBeforeSuccess[index] { throw FuzzError() }
                     succeeded.append(ids[index])

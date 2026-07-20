@@ -5,7 +5,7 @@ import WhereCore
 import WhereIntents
 import WhereUI
 
-/// Owns the app's single `WhereModel` and the `LifecycleRunner` that drives
+/// Owns the app's single `WhereModel` and the `LegacyLifecycleRunner` that drives
 /// launch, wiring both up at process launch rather than from a SwiftUI view's
 /// `.task`.
 ///
@@ -29,7 +29,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// The launch engine, built in `didFinishLaunching` (launching
     /// `.undetermined`, since the UIScene lifecycle can't yet tell a user launch
     /// from a headless wake here) and handed to `RootView` via `WhereApp`.
-    private(set) var launcher: LifecycleRunner!
+    private(set) var launcher: LegacyLifecycleRunner!
 
     func application(
         _: UIApplication,

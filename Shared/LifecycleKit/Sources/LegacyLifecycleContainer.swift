@@ -1,11 +1,11 @@
 import SwiftUI
 
 extension EnvironmentValues {
-    /// A handle to the running `LifecycleRunner`, published by
-    /// `LifecycleContainer` so nested views (a custom failure view, a Settings
+    /// A handle to the running `LegacyLifecycleRunner`, published by
+    /// `LegacyLifecycleContainer` so nested views (a custom failure view, a Settings
     /// "reset" button) can reach `retry()`/`teardown()` without prop-drilling.
     ///
-    /// It's a `LifecycleRunnerProxy` rather than a bare `LifecycleRunner?` so a
+    /// It's a `LifecycleRunnerProxy` rather than a bare `LegacyLifecycleRunner?` so a
     /// view that reads it can just *call* the runner: when no container is above
     /// (previews, isolated tests) the proxy is disconnected and every call
     /// asserts in debug — surfacing the missing container — and no-ops in
@@ -13,21 +13,21 @@ extension EnvironmentValues {
     @Entry public var lifecycleRunner = LifecycleRunnerProxy()
 }
 
-/// A debug-loud, release-quiet handle to the environment's `LifecycleRunner`.
+/// A debug-loud, release-quiet handle to the environment's `LegacyLifecycleRunner`.
 ///
-/// `LifecycleContainer` publishes a *connected* proxy; the environment default
+/// `LegacyLifecycleContainer` publishes a *connected* proxy; the environment default
 /// is *disconnected* (no runner). Calling through a disconnected proxy
 /// `assertionFailure`s in debug (so a view used outside a container is caught in
 /// development) and no-ops in release (so a stray reset/retry tap can't crash a
 /// shipping build). Views therefore drive the runner without `guard`ing — the
 /// "is there a runner?" decision lives here, once.
 ///
-/// The wrapped `LifecycleRunner` is `@MainActor`; every forwarding entry point
+/// The wrapped `LegacyLifecycleRunner` is `@MainActor`; every forwarding entry point
 /// is annotated `@MainActor` accordingly. The struct itself stays `Sendable` so
 /// it can be the `@Entry` default — callers must invoke it from the main actor
 /// (SwiftUI views already do).
 public struct LifecycleRunnerProxy: Sendable {
-    let base: LifecycleRunner?
+    let base: LegacyLifecycleRunner?
 
     /// A disconnected proxy (no runner): the environment default, and what
     /// previews get so reset/retry quietly do nothing.
@@ -35,20 +35,20 @@ public struct LifecycleRunnerProxy: Sendable {
         base = nil
     }
 
-    init(_ runner: LifecycleRunner) {
+    init(_ runner: LegacyLifecycleRunner) {
         base = runner
     }
 
     /// Resume a failed launch from the step that failed.
-    /// See `LifecycleRunner.retry()`.
+    /// See `LegacyLifecycleRunner.retry()`.
     @MainActor public func retry(file: StaticString = #fileID, line: UInt = #line) {
         connected(file: file, line: line)?.retry()
     }
 
     /// Run a teardown `sequence`, then relaunch from the top.
-    /// See `LifecycleRunner.teardown(_:)`.
+    /// See `LegacyLifecycleRunner.teardown(_:)`.
     @MainActor public func teardown(
-        _ sequence: LifecycleSteps,
+        _ sequence: LegacyLifecycleSteps,
         file: StaticString = #fileID,
         line: UInt = #line,
     ) async {
@@ -56,7 +56,7 @@ public struct LifecycleRunnerProxy: Sendable {
     }
 
     /// Promote a headless background launch to the foreground.
-    /// See `LifecycleRunner.enterForeground()`.
+    /// See `LegacyLifecycleRunner.enterForeground()`.
     @MainActor public func enterForeground(file: StaticString = #fileID, line: UInt = #line) async {
         await connected(file: file, line: line)?.enterForeground()
     }
@@ -64,10 +64,10 @@ public struct LifecycleRunnerProxy: Sendable {
     /// The wrapped runner, or nil with a debug assertion pointing at the caller —
     /// so a disconnected proxy is loud in development and a silent no-op in
     /// production.
-    private func connected(file: StaticString, line: UInt) -> LifecycleRunner? {
+    private func connected(file: StaticString, line: UInt) -> LegacyLifecycleRunner? {
         if base == nil {
             assertionFailure(
-                "No LifecycleRunner in the environment — is this view inside a LifecycleContainer?",
+                "No LegacyLifecycleRunner in the environment — is this view inside a LegacyLifecycleContainer?",
                 file: file,
                 line: line,
             )
@@ -76,7 +76,7 @@ public struct LifecycleRunnerProxy: Sendable {
     }
 }
 
-/// The root view that renders a `LifecycleRunner`'s `phase`.
+/// The root view that renders a `LegacyLifecycleRunner`'s `phase`.
 ///
 /// The launch sequence is only the *prerequisites*; the destination — the
 /// app's real, "logged-in" UI — is the `content` closure, shown when the
@@ -101,8 +101,8 @@ public struct LifecycleRunnerProxy: Sendable {
 /// one not yet promoted), the container renders nothing at all (iOS never shows
 /// UI for a headless relaunch and reclaims memory aggressively), so `content`
 /// is never constructed even once the runner reaches `.ready`.
-public struct LifecycleContainer<Content: View, Splash: View, Failure: View>: View {
-    private let runner: LifecycleRunner
+public struct LegacyLifecycleContainer<Content: View, Splash: View, Failure: View>: View {
+    private let runner: LegacyLifecycleRunner
     private let transition: AnyTransition
     private let animation: Animation?
     private let splash: () -> Splash
@@ -114,7 +114,7 @@ public struct LifecycleContainer<Content: View, Splash: View, Failure: View>: Vi
     ///   - animation: the animation driving `transition`. Pass `nil` to swap
     ///     surfaces instantly (no animation).
     public init(
-        _ runner: LifecycleRunner,
+        _ runner: LegacyLifecycleRunner,
         transition: AnyTransition = .opacity,
         animation: Animation? = .default,
         @ViewBuilder splash: @escaping () -> Splash,
@@ -180,10 +180,12 @@ public struct LifecycleContainer<Content: View, Splash: View, Failure: View>: Vi
     }
 }
 
-extension LifecycleContainer where Splash == LifecycleSplash, Failure == LifecycleFailureView {
+extension LegacyLifecycleContainer where Splash == LifecycleSplash,
+    Failure == LifecycleFailureView
+{
     /// Convenience initializer using the built-in splash and failure views.
     public init(
-        _ runner: LifecycleRunner,
+        _ runner: LegacyLifecycleRunner,
         @ViewBuilder content: @escaping () -> Content,
     ) {
         self.init(
@@ -195,11 +197,11 @@ extension LifecycleContainer where Splash == LifecycleSplash, Failure == Lifecyc
     }
 }
 
-extension LifecycleContainer where Failure == LifecycleFailureView {
+extension LegacyLifecycleContainer where Failure == LifecycleFailureView {
     /// Convenience initializer with a custom splash but the built-in failure
     /// view.
     public init(
-        _ runner: LifecycleRunner,
+        _ runner: LegacyLifecycleRunner,
         @ViewBuilder splash: @escaping () -> Splash,
         @ViewBuilder content: @escaping () -> Content,
     ) {
@@ -214,9 +216,9 @@ extension LifecycleContainer where Failure == LifecycleFailureView {
 
 #if DEBUG
     #Preview("Launching") {
-        LifecycleContainer(
-            LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
-                LifecycleStep.work("open") { _ in }
+        LegacyLifecycleContainer(
+            LegacyLifecycleRunner(reason: .userForeground, sequence: LegacyLifecycleSteps {
+                LegacyLifecycleStep.work("open") { _ in }
             }),
         ) {
             Text("App content")

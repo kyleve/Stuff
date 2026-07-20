@@ -35,15 +35,18 @@ private struct EnvironmentRunnerProbe: View {
 }
 
 @MainActor
-struct LifecycleContainerTests {
+struct LegacyLifecycleContainerTests {
     @Test func readyShowsContent() async throws {
         var content = false
         var splash = false
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {})
+        let runner = LegacyLifecycleRunner(
+            reason: .userForeground,
+            sequence: LegacyLifecycleSteps {},
+        )
         await runner.run()
         #expect(runner.phase.isReady)
 
-        let container = LifecycleContainer(runner, splash: { ProbeView { splash = true } }) {
+        let container = LegacyLifecycleContainer(runner, splash: { ProbeView { splash = true } }) {
             ProbeView { content = true }
         }
         try show(UIHostingController(rootView: container)) { _ in
@@ -56,12 +59,12 @@ struct LifecycleContainerTests {
     @Test func launchingShowsSplash() throws {
         var splash = false
         var content = false
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
-            LifecycleStep.work("a") { _ in }
+        let runner = LegacyLifecycleRunner(reason: .userForeground, sequence: LegacyLifecycleSteps {
+            LegacyLifecycleStep.work("a") { _ in }
         })
         // Not run yet, so the runner is still in .launching.
 
-        let container = LifecycleContainer(runner, splash: { ProbeView { splash = true } }) {
+        let container = LegacyLifecycleContainer(runner, splash: { ProbeView { splash = true } }) {
             ProbeView { content = true }
         }
         try show(UIHostingController(rootView: container)) { _ in
@@ -74,11 +77,14 @@ struct LifecycleContainerTests {
     @Test func backgroundLaunchShowsNothing() async throws {
         var content = false
         var splash = false
-        let runner = LifecycleRunner(reason: .background(.location), sequence: LifecycleSteps {})
+        let runner = LegacyLifecycleRunner(
+            reason: .background(.location),
+            sequence: LegacyLifecycleSteps {},
+        )
         await runner.run()
         #expect(runner.phase.isReady)
 
-        let container = LifecycleContainer(runner, splash: { ProbeView { splash = true } }) {
+        let container = LegacyLifecycleContainer(runner, splash: { ProbeView { splash = true } }) {
             ProbeView { content = true }
         }
         try show(UIHostingController(rootView: container)) { _ in
@@ -90,7 +96,10 @@ struct LifecycleContainerTests {
 
     @Test func backgroundReadyThenEnterForegroundShowsContent() async throws {
         var content = false
-        let runner = LifecycleRunner(reason: .background(.location), sequence: LifecycleSteps {})
+        let runner = LegacyLifecycleRunner(
+            reason: .background(.location),
+            sequence: LegacyLifecycleSteps {},
+        )
         await runner.run()
         #expect(runner.phase.isReady)
         #expect(runner.reason.buildsNoViewTree)
@@ -99,7 +108,7 @@ struct LifecycleContainerTests {
         #expect(!runner.reason.buildsNoViewTree)
         #expect(runner.phase.isReady)
 
-        let container = LifecycleContainer(runner) {
+        let container = LegacyLifecycleContainer(runner) {
             ProbeView { content = true }
         }
         try show(UIHostingController(rootView: container)) { _ in
@@ -111,11 +120,11 @@ struct LifecycleContainerTests {
     @Test func undeterminedLaunchShowsNothingUntilPromoted() async throws {
         var content = false
         var splash = false
-        let runner = LifecycleRunner(reason: .undetermined, sequence: LifecycleSteps {})
+        let runner = LegacyLifecycleRunner(reason: .undetermined, sequence: LegacyLifecycleSteps {})
         await runner.run()
         #expect(runner.phase.isReady)
 
-        let container = LifecycleContainer(runner, splash: { ProbeView { splash = true } }) {
+        let container = LegacyLifecycleContainer(runner, splash: { ProbeView { splash = true } }) {
             ProbeView { content = true }
         }
         try show(UIHostingController(rootView: container)) { _ in
@@ -127,7 +136,7 @@ struct LifecycleContainerTests {
 
     @Test func undeterminedReadyThenEnterForegroundShowsContent() async throws {
         var content = false
-        let runner = LifecycleRunner(reason: .undetermined, sequence: LifecycleSteps {})
+        let runner = LegacyLifecycleRunner(reason: .undetermined, sequence: LegacyLifecycleSteps {})
         await runner.run()
         #expect(runner.phase.isReady)
         #expect(runner.reason.buildsNoViewTree)
@@ -136,7 +145,7 @@ struct LifecycleContainerTests {
         #expect(!runner.reason.buildsNoViewTree)
         #expect(runner.phase.isReady)
 
-        let container = LifecycleContainer(runner) {
+        let container = LegacyLifecycleContainer(runner) {
             ProbeView { content = true }
         }
         try show(UIHostingController(rootView: container)) { _ in
@@ -148,13 +157,13 @@ struct LifecycleContainerTests {
     @Test func runningShowsActivePresentation() async throws {
         var presentation = false
         var content = false
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
-            LifecycleStep.interactive("gate") { _ in ProbeView { presentation = true } }
+        let runner = LegacyLifecycleRunner(reason: .userForeground, sequence: LegacyLifecycleSteps {
+            LegacyLifecycleStep.interactive("gate") { _ in ProbeView { presentation = true } }
         })
         let task = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.isRunning("gate") }
 
-        let container = LifecycleContainer(runner) { ProbeView { content = true } }
+        let container = LegacyLifecycleContainer(runner) { ProbeView { content = true } }
         try show(UIHostingController(rootView: container)) { _ in
             try waitFor { presentation }
         }
@@ -169,13 +178,13 @@ struct LifecycleContainerTests {
         var failure = false
         var content = false
         var splash = false
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
-            LifecycleStep.work("boom") { _ in throw ProbeError() }
+        let runner = LegacyLifecycleRunner(reason: .userForeground, sequence: LegacyLifecycleSteps {
+            LegacyLifecycleStep.work("boom") { _ in throw ProbeError() }
         })
         await runner.run()
         #expect(runner.phase.failed(at: "boom"))
 
-        let container = LifecycleContainer(
+        let container = LegacyLifecycleContainer(
             runner,
             splash: { ProbeView { splash = true } },
             failure: { _, _ in ProbeView { failure = true } },
@@ -192,11 +201,14 @@ struct LifecycleContainerTests {
 
     @Test func publishesTheRunnerIntoTheEnvironment() async throws {
         var sawRunner = false
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {})
+        let runner = LegacyLifecycleRunner(
+            reason: .userForeground,
+            sequence: LegacyLifecycleSteps {},
+        )
         await runner.run()
         #expect(runner.phase.isReady)
 
-        let container = LifecycleContainer(runner) {
+        let container = LegacyLifecycleContainer(runner) {
             EnvironmentRunnerProbe { sawRunner = $0 }
         }
         try show(UIHostingController(rootView: container)) { _ in
@@ -210,11 +222,14 @@ struct LifecycleContainerTests {
         // container renders — at .ready it still builds `content`, not the splash.
         var content = false
         var splash = false
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {})
+        let runner = LegacyLifecycleRunner(
+            reason: .userForeground,
+            sequence: LegacyLifecycleSteps {},
+        )
         await runner.run()
         #expect(runner.phase.isReady)
 
-        let container = LifecycleContainer(
+        let container = LegacyLifecycleContainer(
             runner,
             transition: .scale.combined(with: .opacity),
             animation: .easeInOut,
@@ -238,12 +253,15 @@ struct LifecycleContainerTests {
 
     @Test func connectedProxyForwardsTeardownToTheRunner() async {
         var tornDown = false
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {})
+        let runner = LegacyLifecycleRunner(
+            reason: .userForeground,
+            sequence: LegacyLifecycleSteps {},
+        )
         await runner.run()
         #expect(runner.phase.isReady)
 
-        await LifecycleRunnerProxy(runner).teardown(LifecycleSteps {
-            LifecycleStep.work("teardown") { _ in tornDown = true }
+        await LifecycleRunnerProxy(runner).teardown(LegacyLifecycleSteps {
+            LegacyLifecycleStep.work("teardown") { _ in tornDown = true }
         })
         #expect(tornDown)
         #expect(runner.phase.isReady)

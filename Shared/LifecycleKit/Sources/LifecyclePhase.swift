@@ -1,11 +1,11 @@
 /// The single observable value the host renders. The runner publishes a
-/// `LifecyclePhase`; `LifecycleContainer` maps each case to UI.
+/// `LifecyclePhase`; `LegacyLifecycleContainer` maps each case to UI.
 public enum LifecyclePhase {
     /// Before any presenting step — show the splash.
     case launching
     /// A step is running. The host shows the step's presentation if one is
     /// active (`LifecycleStepUIBridge.presentation`), otherwise the splash.
-    case running(LifecycleStep, LifecycleStepUIBridge)
+    case running(LegacyLifecycleStep, LifecycleStepUIBridge)
     /// A step threw. The host shows an error UI offering retry.
     case failed(LifecycleFailure)
     /// All applicable steps finished — hand off to the app's main UI.
@@ -62,7 +62,7 @@ extension LifecyclePhase {
 }
 
 extension LifecyclePhase {
-    /// A value identity for the *surface* `LifecycleContainer` renders, so it can
+    /// A value identity for the *surface* `LegacyLifecycleContainer` renders, so it can
     /// animate transitions between surfaces with `.animation(_:value:)` (the
     /// phase itself isn't `Equatable`).
     ///

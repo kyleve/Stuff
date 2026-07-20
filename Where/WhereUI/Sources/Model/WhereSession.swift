@@ -156,7 +156,7 @@ public final class WhereSession {
     ///
     /// This is the imperative equivalent of `WhereLaunch.sequence`'s coordinator
     /// work steps, kept for previews/tests that drive the coordinator directly
-    /// without a `LifecycleRunner`. Report/data-issue loading is *not* here — the
+    /// without a `LegacyLifecycleRunner`. Report/data-issue loading is *not* here — the
     /// scene's `YearReportModel` owns that and starts it when the UI appears.
     public func start() async {
         await syncAuthorization()

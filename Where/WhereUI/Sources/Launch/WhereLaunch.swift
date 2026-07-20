@@ -45,11 +45,11 @@ public enum LaunchStepID: String {
     case resetPreferences = "reset-preferences"
 }
 
-/// Assembles the Where app's cold-launch sequence and the `LifecycleRunner`
+/// Assembles the Where app's cold-launch sequence and the `LegacyLifecycleRunner`
 /// that drives it.
 ///
 /// The sequence is only the *prerequisites*; the destination — the real tab UI
-/// — is `LifecycleContainer`'s `content` (see `RootView`), shown once the
+/// — is `LegacyLifecycleContainer`'s `content` (see `RootView`), shown once the
 /// runner reaches `.ready`. It mirrors the imperative `WhereSession.start()`:
 /// CoreLocation is wired synchronously in `initializePrerequisites`, then the
 /// store opens, the session is built, and the rest of the work runs as ordered
@@ -143,10 +143,10 @@ public enum WhereLaunch {
         model: WhereModel,
         reason: LifecycleReason,
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
-    ) -> LifecycleRunner {
+    ) -> LegacyLifecycleRunner {
         let bootstrap = WhereBootstrap()
         logger { .runnerCreated(reason: String(describing: reason)) }
-        return LifecycleRunner(
+        return LegacyLifecycleRunner(
             reason: reason,
             initializePrerequisites: {
                 bootstrap.prepareLocation()
@@ -173,8 +173,8 @@ public enum WhereLaunch {
         for model: WhereModel,
         bootstrap: WhereBootstrap = WhereBootstrap(),
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
-    ) -> LifecycleSteps {
-        LifecycleSteps {
+    ) -> LegacyLifecycleSteps {
+        LegacyLifecycleSteps {
             // Open the store, assemble the services, and create the session.
             // The build is skipped when services are already retained (a
             // preview/test injected them, or a prior session before a reset) so
@@ -183,7 +183,7 @@ public enum WhereLaunch {
             // run a lightweight migration; there's no separate UI for it — the
             // launch splash (shown throughout) fades in its own launch-neutral
             // "taking a moment" caption when any launch phase runs long.
-            LifecycleStep.work(LaunchStepID.openStore) { _ in
+            LegacyLifecycleStep.work(LaunchStepID.openStore) { _ in
                 guard model.session == nil else { return }
                 if !model.hasServices {
                     try await model.attach(services: bootstrap.makeServices())
@@ -198,22 +198,22 @@ public enum WhereLaunch {
                 }
             }
 
-            // First run only. `LifecycleStep.interactive` defaults to
+            // First run only. `LegacyLifecycleStep.interactive` defaults to
             // `modes: .foreground`, so a headless launch (unpromoted
             // `.undetermined`, or a `.background` relaunch) skips it (and never
             // deadlocks waiting for a tap that can't come).
-            LifecycleStep.interactive(
+            LegacyLifecycleStep.interactive(
                 LaunchStepID.onboarding,
                 condition: { !model.hasOnboarded },
             ) { OnboardingView(bridge: $0) }
 
-            LifecycleStep.work(LaunchStepID.syncAuth) { _ in
+            LegacyLifecycleStep.work(LaunchStepID.syncAuth) { _ in
                 await model.session?.syncAuthorization()
                 model.session?.observeAuthorizationChanges()
                 await model.session?.seedRegionStyles()
                 model.session?.observeRegionStyleChanges()
             }
-            LifecycleStep.work(LaunchStepID.reconcileTracking) { _ in
+            LegacyLifecycleStep.work(LaunchStepID.reconcileTracking) { _ in
                 await model.session?.reconcileTracking()
             }
             // Foreground-only: a headless launch shouldn't trigger a fresh
@@ -221,30 +221,30 @@ public enum WhereLaunch {
             // location event), so it runs only once a scene promotes the launch.
             // Returns fast (the ingestor spawns the ~10s fix internally), so it
             // never delays reaching `.ready`.
-            LifecycleStep.work(LaunchStepID.captureToday, modes: .foreground) { _ in
+            LegacyLifecycleStep.work(LaunchStepID.captureToday, modes: .foreground) { _ in
                 await model.session?.captureTodayIfNeeded()
             }
-            LifecycleStep.work(LaunchStepID.reminders) { _ in
+            LegacyLifecycleStep.work(LaunchStepID.reminders) { _ in
                 await model.session?.applyReminderConfiguration()
             }
-            LifecycleStep.work(LaunchStepID.summary) { _ in
+            LegacyLifecycleStep.work(LaunchStepID.summary) { _ in
                 await model.session?.applySummaryConfiguration()
             }
-            LifecycleStep.work(LaunchStepID.issueAlerts) { _ in
+            LegacyLifecycleStep.work(LaunchStepID.issueAlerts) { _ in
                 await model.session?.applyIssueAlertConfiguration()
             }
-            LifecycleStep.work(LaunchStepID.widgetSnapshot) { _ in
+            LegacyLifecycleStep.work(LaunchStepID.widgetSnapshot) { _ in
                 await model.session?.refreshWidgetSnapshot()
             }
         }
     }
 
     /// The reverse of `sequence`: the teardown run by Settings' "Erase all data
-    /// & reset". `LifecycleRunner.teardown` runs these steps, then re-drives
+    /// & reset". `LegacyLifecycleRunner.teardown` runs these steps, then re-drives
     /// `sequence` from the top — which, with `hasOnboarded` now cleared, lands
     /// back on the onboarding step, returning the app to its first-run state.
-    public static func resetSequence(for model: WhereModel) -> LifecycleSteps {
-        LifecycleSteps {
+    public static func resetSequence(for model: WhereModel) -> LegacyLifecycleSteps {
+        LegacyLifecycleSteps {
             // Stop GPS and wipe the store first, then drop the session and clear
             // the preferences that gate the relaunch (onboarding, tracking
             // intent, reminders). If the erase throws the runner parks in
@@ -252,11 +252,11 @@ public enum WhereLaunch {
             // re-erases rather than stranding the user in onboarding atop
             // un-erased data. Dropping the session here makes the re-driven
             // `sequence` rebuild a fresh one over the erased store.
-            LifecycleStep.work(LaunchStepID.eraseData) { _ in
+            LegacyLifecycleStep.work(LaunchStepID.eraseData) { _ in
                 try await model.eraseAllData()
                 model.endSession()
             }
-            LifecycleStep
+            LegacyLifecycleStep
                 .work(LaunchStepID.resetPreferences) { _ in model.resetPreferences() }
         }
     }

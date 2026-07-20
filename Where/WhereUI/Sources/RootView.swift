@@ -10,8 +10,8 @@ import WhereCore
 /// The app's root: the launch sequence gated in front of a Liquid Glass tab bar
 /// over the four top-level screens (Primary, Elsewhere, Resolve, Settings).
 ///
-/// `LifecycleContainer` renders the splash / onboarding / migration UI while
-/// the `LifecycleRunner` runs, then the `TabView` (the real "logged-in" UI —
+/// `LegacyLifecycleContainer` renders the splash / onboarding / migration UI while
+/// the `LegacyLifecycleRunner` runs, then the `TabView` (the real "logged-in" UI —
 /// the launch *destination*, not a step) once it reaches `.ready`. The model is
 /// built at launch (so CoreLocation is wired for background relaunch) and shared
 /// down through the environment.
@@ -36,10 +36,10 @@ public struct RootView: View {
         @State private var alerter: PeriscopeAlerter?
         @State private var toastCenter = DeveloperToastCenter()
     #endif
-    private let launcher: LifecycleRunner
+    private let launcher: LegacyLifecycleRunner
 
     /// Inject the app-owned model + runner built at launch. The app uses this.
-    public init(model: WhereModel, launcher: LifecycleRunner) {
+    public init(model: WhereModel, launcher: LegacyLifecycleRunner) {
         _model = State(initialValue: model)
         self.launcher = launcher
     }
@@ -55,7 +55,7 @@ public struct RootView: View {
 
     public var body: some View {
         ZStack {
-            LifecycleContainer(
+            LegacyLifecycleContainer(
                 launcher,
                 transition: revealTransition,
                 animation: revealAnimation,
@@ -107,7 +107,7 @@ public struct RootView: View {
             // SwiftData inspector row simply hides.
             .environment(model.session)
             // Settings' "Erase all data & reset" runs the teardown through the
-            // `LifecycleRunner` that `LifecycleContainer` publishes into the
+            // `LegacyLifecycleRunner` that `LegacyLifecycleContainer` publishes into the
             // environment, which wipes data + preferences and re-drives the launch
             // sequence back to onboarding.
             //

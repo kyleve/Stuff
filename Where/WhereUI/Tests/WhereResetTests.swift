@@ -22,7 +22,7 @@ private func waitUntil(
 }
 
 /// Covers the `WhereLaunch.resetSequence` teardown the Settings "Erase all data
-/// & reset" action runs through `LifecycleRunner.reset`: it wipes the store, stops
+/// & reset" action runs through `LegacyLifecycleRunner.reset`: it wipes the store, stops
 /// tracking, drops the session, clears the preferences that gate onboarding, then
 /// re-drives the launch back to its first-run state.
 @MainActor
@@ -265,11 +265,11 @@ struct WhereResetTests {
         let model = try makeModel(preferences: makePreferences())
         model.completeOnboarding()
 
-        let failing = LifecycleSteps {
-            LifecycleStep.work(LaunchStepID.eraseData) { _ in
+        let failing = LegacyLifecycleSteps {
+            LegacyLifecycleStep.work(LaunchStepID.eraseData) { _ in
                 throw CocoaError(.fileWriteUnknown)
             }
-            LifecycleStep.work(LaunchStepID.resetPreferences) { _ in
+            LegacyLifecycleStep.work(LaunchStepID.resetPreferences) { _ in
                 model.resetPreferences()
             }
         }

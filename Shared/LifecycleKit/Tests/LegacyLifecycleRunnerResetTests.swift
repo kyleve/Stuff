@@ -5,18 +5,18 @@ import Testing
 private struct ResetError: Error {}
 
 @MainActor
-struct LifecycleRunnerResetTests {
+struct LegacyLifecycleRunnerResetTests {
     @Test func resetRunsTeardownThenRelaunches() async {
         var events: [String] = []
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
-            LifecycleStep.work("launch") { _ in events.append("launch") }
+        let runner = LegacyLifecycleRunner(reason: .userForeground, sequence: LegacyLifecycleSteps {
+            LegacyLifecycleStep.work("launch") { _ in events.append("launch") }
         })
         await runner.run()
         #expect(events == ["launch"])
         #expect(runner.phase.isReady)
 
-        await runner.teardown(LifecycleSteps {
-            LifecycleStep.work("teardown") { _ in events.append("teardown") }
+        await runner.teardown(LegacyLifecycleSteps {
+            LegacyLifecycleStep.work("teardown") { _ in events.append("teardown") }
         })
         #expect(events == ["launch", "teardown", "launch"])
         #expect(runner.phase.isReady)
@@ -24,24 +24,30 @@ struct LifecycleRunnerResetTests {
 
     @Test func resetRunsTeardownStepsInOrder() async {
         var events: [String] = []
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {})
+        let runner = LegacyLifecycleRunner(
+            reason: .userForeground,
+            sequence: LegacyLifecycleSteps {},
+        )
         await runner.run()
 
-        await runner.teardown(LifecycleSteps {
-            LifecycleStep.work("stop-gps") { _ in events.append("stop-gps") }
-            LifecycleStep.work("clear-store") { _ in events.append("clear-store") }
-            LifecycleStep.work("clear-widget") { _ in events.append("clear-widget") }
+        await runner.teardown(LegacyLifecycleSteps {
+            LegacyLifecycleStep.work("stop-gps") { _ in events.append("stop-gps") }
+            LegacyLifecycleStep.work("clear-store") { _ in events.append("clear-store") }
+            LegacyLifecycleStep.work("clear-widget") { _ in events.append("clear-widget") }
         })
         #expect(events == ["stop-gps", "clear-store", "clear-widget"])
     }
 
     @Test func resetStepCanPresentTeardownUI() async throws {
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {})
+        let runner = LegacyLifecycleRunner(
+            reason: .userForeground,
+            sequence: LegacyLifecycleSteps {},
+        )
         await runner.run()
 
         let task = Task { @MainActor in
-            await runner.teardown(LifecycleSteps {
-                LifecycleStep.interactive("signing-out") { _ in Text("Signing out") }
+            await runner.teardown(LegacyLifecycleSteps {
+                LegacyLifecycleStep.interactive("signing-out") { _ in Text("Signing out") }
             })
         }
         try await waitUntil { runner.phase.isRunning("signing-out") }
@@ -54,14 +60,14 @@ struct LifecycleRunnerResetTests {
 
     @Test func failedTeardownParksInFailedAndSkipsRelaunch() async {
         var relaunched = false
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
-            LifecycleStep.work("launch") { _ in relaunched = true }
+        let runner = LegacyLifecycleRunner(reason: .userForeground, sequence: LegacyLifecycleSteps {
+            LegacyLifecycleStep.work("launch") { _ in relaunched = true }
         })
         await runner.run()
         relaunched = false
 
-        await runner.teardown(LifecycleSteps {
-            LifecycleStep.work("teardown") { _ in throw ResetError() }
+        await runner.teardown(LegacyLifecycleSteps {
+            LegacyLifecycleStep.work("teardown") { _ in throw ResetError() }
         })
         #expect(runner.phase.failed(at: "teardown"))
         #expect(!relaunched)
@@ -70,18 +76,18 @@ struct LifecycleRunnerResetTests {
     @Test func retryAfterFailedTeardownReRunsTeardownThenRelaunches() async throws {
         var events: [String] = []
         var shouldFailErase = true
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
-            LifecycleStep.work("launch") { _ in events.append("launch") }
+        let runner = LegacyLifecycleRunner(reason: .userForeground, sequence: LegacyLifecycleSteps {
+            LegacyLifecycleStep.work("launch") { _ in events.append("launch") }
         })
         await runner.run()
         events.removeAll()
 
-        await runner.teardown(LifecycleSteps {
-            LifecycleStep.work("erase") { _ in
+        await runner.teardown(LegacyLifecycleSteps {
+            LegacyLifecycleStep.work("erase") { _ in
                 events.append("erase")
                 if shouldFailErase { throw ResetError() }
             }
-            LifecycleStep.work("clear-prefs") { _ in events.append("clear-prefs") }
+            LegacyLifecycleStep.work("clear-prefs") { _ in events.append("clear-prefs") }
         })
         #expect(runner.phase.failed(at: "erase"))
         #expect(events == ["erase"])
@@ -98,15 +104,15 @@ struct LifecycleRunnerResetTests {
     @Test func retryAfterFailedTeardownTailResumesWithoutReErasing() async throws {
         var events: [String] = []
         var shouldFailPrefs = true
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
-            LifecycleStep.work("launch") { _ in events.append("launch") }
+        let runner = LegacyLifecycleRunner(reason: .userForeground, sequence: LegacyLifecycleSteps {
+            LegacyLifecycleStep.work("launch") { _ in events.append("launch") }
         })
         await runner.run()
         events.removeAll()
 
-        await runner.teardown(LifecycleSteps {
-            LifecycleStep.work("erase") { _ in events.append("erase") }
-            LifecycleStep.work("clear-prefs") { _ in
+        await runner.teardown(LegacyLifecycleSteps {
+            LegacyLifecycleStep.work("erase") { _ in events.append("erase") }
+            LegacyLifecycleStep.work("clear-prefs") { _ in
                 events.append("clear-prefs")
                 if shouldFailPrefs { throw ResetError() }
             }
