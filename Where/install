@@ -26,6 +26,7 @@ BUNDLE_ID="com.stuff.where"
 CONFIGURATION="Release"
 DEVICE=""       # name, UDID, or identifier; empty = auto-pick the sole device
 LAUNCH=true
+ASSUME_YES=false
 
 usage() {
     cat <<'USAGE'
@@ -39,6 +40,7 @@ Options:
                            identifier (default: the sole paired iPhone)
   --configuration NAME     Build configuration (default: Release)
   --no-launch              Install only; don't launch the app afterwards
+  -y, --yes                Skip the "unlock your device" confirmation prompt
   -h, --help               Show this help
 
 Examples:
@@ -53,6 +55,7 @@ while [ $# -gt 0 ]; do
         --device) shift; DEVICE="${1:?--device requires a value}" ;;
         --configuration) shift; CONFIGURATION="${1:?--configuration requires a value}" ;;
         --no-launch) LAUNCH=false ;;
+        -y|--yes) ASSUME_YES=true ;;
         -h|--help) usage; exit 0 ;;
         *) echo "error: unknown option '$1' (see ./Where/install --help)" >&2; exit 1 ;;
     esac
@@ -106,7 +109,7 @@ fi
 echo "==> resolving device"
 xcrun devicectl list devices --json-output "$DEVICES_JSON" >/dev/null
 
-DEVICE_UDID="$(DEVICES_JSON="$DEVICES_JSON" DEVICE_FILTER="$DEVICE" python3 - <<'PY'
+DEVICE_SELECTION="$(DEVICES_JSON="$DEVICES_JSON" DEVICE_FILTER="$DEVICE" python3 - <<'PY'
 import json, os, sys
 
 
@@ -166,10 +169,22 @@ if len(candidates) > 1:
     fail("multiple physical iOS devices; pass --device <name|udid>:\n" + listing)
 
 identifier, name, conn = candidates[0]
-print(f"    using: {name} ({identifier}) [connection: {conn}]", file=sys.stderr)
-sys.stdout.write(identifier)
+print(f"    using: {name} ({identifier})", file=sys.stderr)
+# Tab-separated so the caller can prompt with the human-readable name; a device
+# name never contains a tab.
+sys.stdout.write(f"{identifier}\t{name}")
 PY
 )"
+DEVICE_UDID="${DEVICE_SELECTION%%$'\t'*}"
+DEVICE_NAME="${DEVICE_SELECTION#*$'\t'}"
+
+# devicectl needs the device unlocked (and this Mac trusted); a locked phone
+# fails partway through the install. Give the user a beat to unlock it first.
+# Skip when non-interactive (no TTY) or when --yes is passed.
+if [ "$ASSUME_YES" = false ] && [ -t 0 ]; then
+    printf 'Make sure "%s" is unlocked and trusts this Mac.\n' "$DEVICE_NAME"
+    read -r -p "Press Enter to install, or Ctrl-C to cancel... " _
+fi
 
 echo "==> installing to device"
 xcrun devicectl device install app --device "$DEVICE_UDID" "$APP"
