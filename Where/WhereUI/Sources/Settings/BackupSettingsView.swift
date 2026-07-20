@@ -13,13 +13,12 @@ struct BackupSettingsView: View {
     /// `ShareLink` once the background export finishes.
     @State private var exportedArchiveURL: URL?
 
-    // Backup import: the picked file, the merge/replace choice, and the
-    // success confirmation.
+    // Backup import: the picked file and the merge/replace choice. The success
+    // confirmation lives on `backup` (the model), so it survives this screen
+    // being popped mid-import.
     @State private var showImporter = false
     @State private var pendingImportURL: URL?
     @State private var showStrategyDialog = false
-    @State private var showImportSuccess = false
-    @State private var lastImportSummary: BackupCoordinator.ImportSummary?
 
     /// How long a finished export stays offered before it's auto-discarded.
     private static let exportRetention: Duration = .seconds(10 * 60)
@@ -54,8 +53,8 @@ struct BackupSettingsView: View {
         }
         .alert(
             Strings.settingsBackupImportedTitle,
-            isPresented: $showImportSuccess,
-            presenting: lastImportSummary,
+            isPresented: $backup.isShowingImportSuccess,
+            presenting: backup.lastImportSummary,
         ) { _ in
             Button(Strings.commonOK, role: .cancel) {}
         } message: { summary in
@@ -184,10 +183,9 @@ struct BackupSettingsView: View {
 
     private func runImport(url: URL, strategy: BackupCoordinator.ImportStrategy) {
         Task {
-            if let summary = await backup.importBackup(from: url, strategy: strategy) {
-                lastImportSummary = summary
-                showImportSuccess = true
-            }
+            // On success `backup` sets `lastImportSummary`, which drives the
+            // confirmation alert; the return value is unused here.
+            _ = await backup.importBackup(from: url, strategy: strategy)
             pendingImportURL = nil
         }
     }

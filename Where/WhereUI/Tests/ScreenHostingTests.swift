@@ -122,7 +122,8 @@ struct ScreenHostingTests {
     }
 
     @Test func regionsSettingsViewHosts() throws {
-        let rootView = NavigationStack { RegionsSettingsView() }
+        // Presented as a sheet, so it owns its own navigation stack.
+        let rootView = RegionsSettingsView()
             .environment(PreviewSupport.loadedSession())
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)

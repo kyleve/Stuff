@@ -28,16 +28,22 @@ struct RegionsSettingsView: View {
     private static let logger = WhereLog.session(RegionsSettingsViewLog.self)
 
     var body: some View {
-        // Pushed onto the Settings navigation stack (not a sheet), so it relies
-        // on the ambient stack's back button to leave without saving; Done saves
-        // and pops via `dismiss()`.
-        Group {
-            if let model {
-                content(model)
-            } else {
-                ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .navigationTitle(Strings.regionsManageTitle)
+        // Presented as a sheet from Settings, so it owns its navigation stack and
+        // explicit Cancel/Done points — making the commit boundary clear.
+        NavigationStack {
+            Group {
+                if let model {
+                    content(model)
+                } else {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .navigationTitle(Strings.regionsManageTitle)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button(Strings.commonCancel) { dismiss() }
+                            }
+                        }
+                }
             }
         }
         .task { await loadIfNeeded() }
@@ -53,6 +59,9 @@ struct RegionsSettingsView: View {
                 RegionPickerView(model: model)
                     .navigationTitle(Strings.regionsManageTitle)
                     .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(Strings.commonCancel) { dismiss() }
+                        }
                         ToolbarItem(placement: .confirmationAction) {
                             Button(Strings.onboardingNext) { phase = .customize }
                                 .disabled(!model.hasSelection)
@@ -127,10 +136,8 @@ extension RegionsSettingsView: SettingsSection {
 
 #if DEBUG
     #Preview {
-        NavigationStack {
-            RegionsSettingsView()
-                .environment(PreviewSupport.loadedSession())
-        }
-        .whereBroadwayRoot()
+        RegionsSettingsView()
+            .environment(PreviewSupport.loadedSession())
+            .whereBroadwayRoot()
     }
 #endif

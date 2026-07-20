@@ -52,6 +52,10 @@ struct LocationSettingsView: View {
         }
         .navigationTitle(Strings.settingsLocationHeader)
         .navigationBarTitleDisplayMode(.inline)
+        // `session.permissionDenied` is only ever raised by the Grant button /
+        // tracking toggle on this screen (an external Settings-app toggle flows
+        // through the authorization observer, which never sets it), so the alert
+        // belongs here rather than on the always-mounted settings root.
         .alert(Strings.settingsPermissionAlertTitle, isPresented: $session.permissionDenied) {
             Button(Strings.settingsPermissionAlertOpenSettings) { openSystemSettings(openURL) }
             Button(Strings.settingsPermissionAlertNotNow, role: .cancel) {}

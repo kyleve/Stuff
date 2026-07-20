@@ -42,6 +42,16 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .data: "trash.fill"
         }
     }
+
+    /// Whether the group opens as a modal **sheet** (an editor/commit flow with
+    /// explicit Cancel/Save) rather than a pushed sub-screen. Regions is the one
+    /// top-level committing editor; the rest are plain drill-in settings.
+    var isSheet: Bool {
+        switch self {
+            case .regions: true
+            case .location, .reminders, .alerts, .appearance, .year, .backup, .data: false
+        }
+    }
 }
 
 /// A per-screen setting identity. Conformers are small, screen-local enums (e.g.

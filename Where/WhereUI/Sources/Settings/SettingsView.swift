@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var backup: BackupModel
     @State private var reminders: RemindersSettingsModel
     @State private var searchText = ""
+    @State private var showRegions = false
 
     @Environment(WhereSession.self) private var session
 
@@ -48,16 +49,12 @@ struct SettingsView: View {
             List {
                 if isSearching {
                     ForEach(searchResults) { result in
-                        NavigationLink(value: SettingsRoute(result)) {
-                            searchRow(result)
-                        }
+                        searchNavigationRow(result)
                     }
                 } else {
                     Section {
                         ForEach(SettingsDestination.allCases, id: \.self) { destination in
-                            NavigationLink(value: SettingsRoute(destination)) {
-                                groupRow(destination)
-                            }
+                            groupNavigationRow(destination)
                         }
                     }
                 }
@@ -72,6 +69,43 @@ struct SettingsView: View {
             .navigationDestination(for: SettingsRoute.self) { route in
                 destination(for: route)
             }
+            .sheet(isPresented: $showRegions) {
+                RegionsSettingsView(usedThisYear: regionsUsedThisYear)
+            }
+        }
+    }
+
+    /// A top-level row that either pushes its sub-screen or, for a sheet group
+    /// (Regions), presents it modally.
+    @ViewBuilder
+    private func groupNavigationRow(_ destination: SettingsDestination) -> some View {
+        if destination.isSheet {
+            Button { present(destination) } label: { groupRow(destination) }
+                .tint(.primary)
+        } else {
+            NavigationLink(value: SettingsRoute(destination)) { groupRow(destination) }
+        }
+    }
+
+    /// A search-result row that mirrors the group row's push-vs-sheet routing.
+    @ViewBuilder
+    private func searchNavigationRow(_ result: SettingsSearchResult) -> some View {
+        if result.destination.isSheet {
+            Button { present(result.destination) } label: { searchRow(result) }
+                .tint(.primary)
+        } else {
+            NavigationLink(value: SettingsRoute(result)) { searchRow(result) }
+        }
+    }
+
+    /// Present a sheet group. Non-sheet destinations are pushed via
+    /// `NavigationLink`, so reaching them here is a programmer error.
+    private func present(_ destination: SettingsDestination) {
+        switch destination {
+            case .regions:
+                showRegions = true
+            case .location, .reminders, .alerts, .appearance, .year, .backup, .data:
+                assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
 
@@ -120,7 +154,9 @@ struct SettingsView: View {
             case .location:
                 LocationSettingsView(focus: route.focus)
             case .regions:
-                RegionsSettingsView(usedThisYear: regionsUsedThisYear)
+                // Regions is presented as a sheet (`isSheet`), so it's never
+                // routed here; this arm only keeps the switch exhaustive.
+                EmptyView()
             case .reminders:
                 RemindersSettingsView(reminders: reminders, focus: route.focus)
             case .alerts:

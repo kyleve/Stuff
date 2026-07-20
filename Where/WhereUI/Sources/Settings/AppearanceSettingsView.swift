@@ -7,6 +7,8 @@ struct AppearanceSettingsView: View {
     let report: YearReportModel
     var focus: SettingsFocus?
 
+    @State private var showAppIcon = false
+
     var body: some View {
         @Bindable var report = report
         SettingsFocusScope(focus: focus) {
@@ -26,11 +28,14 @@ struct AppearanceSettingsView: View {
                 }
 
                 Section {
-                    NavigationLink {
-                        AppIconView()
+                    // A sheet (not a push) so the icon picker's Done/commit point
+                    // is explicit, matching the app's other editor flows.
+                    Button {
+                        showAppIcon = true
                     } label: {
                         Label(Strings.settingsAppIconLink, systemImage: "app.badge")
                     }
+                    .tint(.primary)
                     .settingsRow(Item.appIcon)
                 } footer: {
                     Text(Strings.settingsAppIconFooter)
@@ -39,6 +44,9 @@ struct AppearanceSettingsView: View {
         }
         .navigationTitle(Strings.settingsAppearanceGroup)
         .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showAppIcon) {
+            AppIconView()
+        }
     }
 }
 
