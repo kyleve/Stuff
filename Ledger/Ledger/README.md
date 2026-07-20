@@ -15,9 +15,9 @@ SwiftUI/AppKit shell.
 mise exec -- tuist build Ledger
 ```
 
-or run the `Ledger` scheme from Xcode. The app lives in the menu bar (a
-dollar-sign icon with the amount beside it once loaded) and shows no Dock icon
-(`LSUIElement`). It keeps running until you quit it from the popover.
+or run the `Ledger` scheme from Xcode. The app lives in the menu bar (showing
+the current-cycle amount once loaded) and shows no Dock icon (`LSUIElement`).
+It keeps running until you quit it from the popover.
 
 ### Install to /Applications
 
