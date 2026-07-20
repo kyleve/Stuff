@@ -209,7 +209,13 @@ public final class LifecycleRunner<Launch: Sendable> {
         _ plan: LaunchPlan<Input, some Sendable>,
         input: Input,
     ) async {
-        teardown = RetainedTeardown(nodes: plan.nodes, input: input)
+        await teardownErased(nodes: plan.nodes, input: input)
+    }
+
+    /// `teardown(_:input:)` after erasure — the `LifecycleDriving` seam the
+    /// UI proxy forwards through (see `LifecycleDriving`).
+    package func teardownErased(nodes: [LaunchPlanNode], input: any Sendable) async {
+        teardown = RetainedTeardown(nodes: nodes, input: input)
         await driveTeardown(from: 0, input: input)
     }
 

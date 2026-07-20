@@ -268,6 +268,13 @@ let project = Project(
             sources: ["Shared/LifecycleKit/Tests/**"],
         ),
         unitTests(
+            name: "LifecycleKitUITests",
+            bundleIdSuffix: "lifecyclekitui",
+            productDependency: "LifecycleKitUI",
+            sources: ["Shared/LifecycleKitUI/Tests/**"],
+            extraPackageProducts: ["LifecycleKit"],
+        ),
+        unitTests(
             name: "JournalKitTests",
             bundleIdSuffix: "journalkit",
             productDependency: "JournalKit",
@@ -419,6 +426,7 @@ let project = Project(
                 "StuffTestHost",
                 "StuffCoreTests",
                 "LifecycleKitTests",
+                "LifecycleKitUITests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
@@ -437,6 +445,7 @@ let project = Project(
             testAction: .targets([
                 "StuffCoreTests",
                 "LifecycleKitTests",
+                "LifecycleKitUITests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
@@ -454,6 +463,7 @@ let project = Project(
         ),
         testScheme(name: "StuffCoreTests"),
         testScheme(name: "LifecycleKitTests"),
+        testScheme(name: "LifecycleKitUITests"),
         testScheme(name: "JournalKitTests"),
         testScheme(name: "PeriscopeCoreTests"),
         testScheme(name: "PeriscopeUITests"),
