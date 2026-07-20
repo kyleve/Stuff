@@ -24,6 +24,7 @@ struct WhereStylesheet: BStylesheet {
     var palette = Palette.standard
     var motion = Motion.standard
     var typography = Typography.standard
+    var settings = SettingsStyle.standard
 
     init() {}
 
@@ -615,6 +616,39 @@ extension WhereStylesheet {
             reveal: .easeIn(duration: 0.18),
             reducedReveal: .easeInOut(duration: 0.2),
             captionFade: .easeOut(duration: 0.3),
+        )
+    }
+}
+
+// MARK: - Settings
+
+extension WhereStylesheet {
+    /// Appearance + motion for the Settings list. Geometry only — per-section
+    /// icon colors live on `SettingsDestination`, and the flash tint (accent) /
+    /// restored grouped-row background (a system role) / white-or-black glyph
+    /// stay inline, per the "no adaptive/accent colors in the sheet" rule.
+    struct SettingsStyle: Equatable {
+        /// Edge of the colored rounded-square icon chip on each top-level row.
+        var iconSize: CGFloat
+        /// Corner radius of that chip (continuous corners for the squircle look).
+        var iconCornerRadius: CGFloat
+        /// Point size of the SF Symbol glyph inside the chip.
+        var iconSymbolSize: CGFloat
+        /// The animation used for both the scroll and the flash fade.
+        var flashAnimation: Animation
+        /// How long the row stays highlighted before it fades back.
+        var flashDuration: Duration
+        /// A short wait after the push lands before scrolling, so the row is laid
+        /// out and the scroll reliably lands on it.
+        var scrollSettleDelay: Duration
+
+        static let standard = SettingsStyle(
+            iconSize: 29,
+            iconCornerRadius: 7,
+            iconSymbolSize: 15,
+            flashAnimation: .easeInOut(duration: 0.4),
+            flashDuration: .seconds(1),
+            scrollSettleDelay: .milliseconds(350),
         )
     }
 }

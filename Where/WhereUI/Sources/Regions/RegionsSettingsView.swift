@@ -28,6 +28,8 @@ struct RegionsSettingsView: View {
     private static let logger = WhereLog.session(RegionsSettingsViewLog.self)
 
     var body: some View {
+        // Presented as a sheet from Settings, so it owns its navigation stack and
+        // explicit Cancel/Done points — making the commit boundary clear.
         NavigationStack {
             Group {
                 if let model {
@@ -106,6 +108,28 @@ struct RegionsSettingsView: View {
                 }
             }
             dismiss()
+        }
+    }
+}
+
+extension RegionsSettingsView: SettingsSection {
+    static var destination: SettingsDestination {
+        .regions
+    }
+
+    enum Item: SettingsItem {
+        case regions
+
+        var title: String {
+            switch self {
+                case .regions: Strings.settingsRegionsSection
+            }
+        }
+
+        var keywords: [String] {
+            switch self {
+                case .regions: splitKeywords(Strings.settingsKeywordsRegions)
+            }
         }
     }
 }

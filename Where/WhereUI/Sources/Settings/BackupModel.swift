@@ -37,6 +37,20 @@ public final class BackupModel {
         set { if !newValue { backupError = nil } }
     }
 
+    /// Summary of the most recent successful import, surfaced as a confirmation
+    /// alert. Owned here (not on the view) so the acknowledgment survives the
+    /// backup screen being popped mid-import — mirroring `backupError`. Set by
+    /// `importBackup`; the alert binding clears it on dismiss.
+    public private(set) var lastImportSummary: BackupCoordinator.ImportSummary?
+
+    /// Drives the import-success alert. Reads `true` while `lastImportSummary`
+    /// holds a value and clears it when dismissed, so the view can bind straight
+    /// to it (`$backup.isShowingImportSuccess`).
+    public var isShowingImportSuccess: Bool {
+        get { lastImportSummary != nil }
+        set { if !newValue { lastImportSummary = nil } }
+    }
+
     private let services: WhereServices
     private static let logger = WhereLog.session(BackupModelLog.self)
 
@@ -130,6 +144,7 @@ public final class BackupModel {
                     trackedRegionCount: summary.trackedRegionCount,
                 )
             }
+            lastImportSummary = summary
             return summary
         } catch {
             continuation.finish()

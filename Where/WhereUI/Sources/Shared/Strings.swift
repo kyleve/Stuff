@@ -587,6 +587,161 @@ enum Strings {
         localized("settings.title")
     }
 
+    // MARK: Settings navigation & search
+
+    /// Prompt in the top-level Settings search field.
+    static var settingsSearchPrompt: String {
+        String(
+            localized: "settings.search.prompt",
+            defaultValue: "Search settings",
+            bundle: .module,
+        )
+    }
+
+    /// Top-level group row combining the daily summary, issue alerts, and data
+    /// resolution settings.
+    static var settingsAlertsGroup: String {
+        String(
+            localized: "settings.alerts.group",
+            defaultValue: "Alerts & Data Resolution",
+            bundle: .module,
+        )
+    }
+
+    /// Top-level group row combining tab visibility and the app icon.
+    static var settingsAppearanceGroup: String {
+        String(
+            localized: "settings.appearance.group",
+            defaultValue: "Appearance",
+            bundle: .module,
+        )
+    }
+
+    /// Search title for the erase-year action (year-neutral, since search results
+    /// don't carry the selected year).
+    static var settingsEraseYearTitle: String {
+        String(
+            localized: "settings.eraseYear.title",
+            defaultValue: "Erase year data",
+            bundle: .module,
+        )
+    }
+
+    // Comma-separated search synonyms, one catalog entry per searchable setting;
+    // `SettingsItem.splitKeywords` turns each into tokens.
+
+    static var settingsKeywordsTracking: String {
+        String(
+            localized: "settings.keywords.tracking",
+            defaultValue: "location, gps, tracking, background, permission",
+            bundle: .module,
+        )
+    }
+
+    static var settingsKeywordsRegions: String {
+        String(
+            localized: "settings.keywords.regions",
+            defaultValue: "regions, states, countries, places, primary",
+            bundle: .module,
+        )
+    }
+
+    static var settingsKeywordsReminder: String {
+        String(
+            localized: "settings.keywords.reminder",
+            defaultValue: "reminder, notification, nudge, daily, log",
+            bundle: .module,
+        )
+    }
+
+    static var settingsKeywordsSummary: String {
+        String(
+            localized: "settings.keywords.summary",
+            defaultValue: "summary, recap, notification, morning, digest",
+            bundle: .module,
+        )
+    }
+
+    static var settingsKeywordsIssueAlerts: String {
+        String(
+            localized: "settings.keywords.issueAlerts",
+            defaultValue: "issue, alerts, notification, badge, resolve",
+            bundle: .module,
+        )
+    }
+
+    static var settingsKeywordsDataResolution: String {
+        String(
+            localized: "settings.keywords.dataResolution",
+            defaultValue: "drift, gps, border, threshold, resolution, distance",
+            bundle: .module,
+        )
+    }
+
+    static var settingsKeywordsFindIssues: String {
+        String(
+            localized: "settings.keywords.findIssues",
+            defaultValue: "scan, find, issues, check, resolve",
+            bundle: .module,
+        )
+    }
+
+    static var settingsKeywordsHideTabs: String {
+        String(
+            localized: "settings.keywords.hideTabs",
+            defaultValue: "tabs, hide, empty, elsewhere, resolve",
+            bundle: .module,
+        )
+    }
+
+    static var settingsKeywordsAppIcon: String {
+        String(
+            localized: "settings.keywords.appIcon",
+            defaultValue: "app icon, icon, home screen, appearance",
+            bundle: .module,
+        )
+    }
+
+    static var settingsKeywordsYear: String {
+        String(
+            localized: "settings.keywords.year",
+            defaultValue: "year, report, calendar",
+            bundle: .module,
+        )
+    }
+
+    static var settingsKeywordsExport: String {
+        String(
+            localized: "settings.keywords.export",
+            defaultValue: "backup, export, save, share, archive",
+            bundle: .module,
+        )
+    }
+
+    static var settingsKeywordsImport: String {
+        String(
+            localized: "settings.keywords.import",
+            defaultValue: "backup, import, restore, load, archive",
+            bundle: .module,
+        )
+    }
+
+    static var settingsKeywordsEraseYear: String {
+        String(
+            localized: "settings.keywords.eraseYear",
+            defaultValue: "erase, delete, clear, year, data",
+            bundle: .module,
+        )
+    }
+
+    static var settingsKeywordsReset: String {
+        String(
+            localized: "settings.keywords.reset",
+            defaultValue: "reset, erase, delete, wipe, start over",
+            bundle: .module,
+        )
+    }
+
     static var settingsPermissionAlertTitle: String {
         localized("settings.permissionAlert.title")
     }
@@ -1952,6 +2107,33 @@ enum Strings {
             localized: "settings.resolution.footer",
             defaultValue:
             "Days logged just outside a primary region within this distance are flagged as possible GPS drift.",
+            bundle: .module,
+        )
+    }
+
+    /// Row label for the drift-threshold picker (the section header already says
+    /// "Data resolution", so the row names the specific control).
+    static var settingsResolutionThreshold: String {
+        String(
+            localized: "settings.resolution.threshold",
+            defaultValue: "Drift threshold",
+            bundle: .module,
+        )
+    }
+
+    static var settingsFindIssuesHeader: String {
+        String(
+            localized: "settings.findIssues.header",
+            defaultValue: "Find issues",
+            bundle: .module,
+        )
+    }
+
+    static var settingsFindIssuesFooter: String {
+        String(
+            localized: "settings.findIssues.footer",
+            defaultValue:
+            "Scan the selected year for data issues right now — such as GPS drift or missed days — instead of waiting for the periodic check. Anything found appears in the Resolve tab.",
             bundle: .module,
         )
     }
