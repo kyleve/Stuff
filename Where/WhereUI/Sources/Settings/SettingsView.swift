@@ -140,13 +140,18 @@ struct SettingsView: View {
         }
     }
 
-    /// A search result row: the setting's name over its parent group.
+    /// A search result row: the owning group's icon beside the setting's name
+    /// over its parent group, so a result reads as belonging to its section.
     private func searchRow(_ result: SettingsSearchResult) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(result.title)
-            Text(result.destination.rowTitle)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+        Label {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(result.title)
+                Text(result.destination.rowTitle)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } icon: {
+            Image(systemName: result.destination.systemImage)
         }
     }
 
