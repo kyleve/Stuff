@@ -7,7 +7,9 @@ set -euo pipefail
 # builds + code-signs the `Where` scheme with xcodebuild, then copies the
 # resulting .app to a physically-connected (or network-paired) device with
 # `xcrun devicectl` — Apple's first-party replacement for ios-deploy. By
-# default it builds Release and launches the app after installing.
+# default it builds the Debug configuration with compiler optimizations forced
+# on (so the DEBUG-only developer surfaces survive but the app still runs at
+# roughly Release speed) and launches the app after installing.
 #
 # macOS-only: Tuist and on-device install/launch don't exist on Linux/CI.
 #
@@ -23,7 +25,8 @@ WORKSPACE="Stuff.xcworkspace"
 SCHEME="Where"
 BUNDLE_ID="com.stuff.where"
 
-CONFIGURATION="Release"
+CONFIGURATION="Debug"
+OPTIMIZE=true   # force compiler optimizations on regardless of configuration
 DEVICE=""       # name, UDID, or identifier; empty = auto-pick the sole device
 LAUNCH=true
 ASSUME_YES=false
@@ -33,12 +36,17 @@ usage() {
 Usage: ./Where/install [options]
 
 Builds the Where app and installs it on a connected iPhone via xcodebuild and
-xcrun devicectl (no Xcode UI). Builds Release and launches the app by default.
+xcrun devicectl (no Xcode UI). By default it builds the Debug configuration
+with compiler optimizations forced on — keeping the DEBUG-only developer tools
+while running at roughly Release speed — and launches the app.
 
 Options:
   --device NAME            Target a specific device by name (exact match),
                            UDID, or identifier (default: the sole paired iPhone)
-  --configuration NAME     Build configuration (default: Release)
+  --configuration NAME     Build configuration (default: Debug)
+  --optimize               Force compiler optimizations on (default)
+  --no-optimize            Build without forcing optimizations (use the
+                           configuration's own optimization level)
   --no-launch              Install only; don't launch the app afterwards
   -y, --yes                Skip the "unlock your device" confirmation prompt
   -h, --help               Show this help
@@ -46,7 +54,8 @@ Options:
 Examples:
   ./Where/install
   ./Where/install --device "Kai's iPhone"
-  ./Where/install --configuration Debug --no-launch
+  ./Where/install --configuration Release
+  ./Where/install --no-optimize --no-launch
 USAGE
 }
 
@@ -63,6 +72,8 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --device) shift; require_value --device "${1:-}"; DEVICE="$1" ;;
         --configuration) shift; require_value --configuration "${1:-}"; CONFIGURATION="$1" ;;
+        --optimize) OPTIMIZE=true ;;
+        --no-optimize) OPTIMIZE=false ;;
         --no-launch) LAUNCH=false ;;
         -y|--yes) ASSUME_YES=true ;;
         -h|--help) usage; exit 0 ;;
@@ -95,17 +106,28 @@ mkdir -p "$WORKDIR"
 echo "==> tuist generate --no-open"
 mise exec -- tuist generate --no-open >/dev/null
 
+# Force compiler optimizations on when requested (the default). This lets a
+# Debug build — which keeps the DEBUG active-compilation conditions, and thus
+# the developer-only surfaces — still run at roughly Release speed by overriding
+# the configuration's optimization levels at the xcodebuild command line. With
+# --no-optimize we pass nothing and let the configuration use its own levels.
+OPTIMIZATION_OVERRIDES=()
+if [ "$OPTIMIZE" = true ]; then
+    OPTIMIZATION_OVERRIDES=(SWIFT_OPTIMIZATION_LEVEL=-O GCC_OPTIMIZATION_LEVEL=s)
+fi
+
 # Build + sign for a generic iOS device. -allowProvisioningUpdates lets xcodebuild
 # create/download the profiles for the app and its extensions (App Groups,
 # location) instead of requiring them to exist already.
-echo "==> xcodebuild ($CONFIGURATION) for device"
+echo "==> xcodebuild ($CONFIGURATION$([ "$OPTIMIZE" = true ] && echo ', optimized')) for device"
 mise exec -- xcodebuild build \
     -workspace "$WORKSPACE" \
     -scheme "$SCHEME" \
     -configuration "$CONFIGURATION" \
     -destination 'generic/platform=iOS' \
     -derivedDataPath "$DERIVED" \
-    -allowProvisioningUpdates
+    -allowProvisioningUpdates \
+    ${OPTIMIZATION_OVERRIDES[@]+"${OPTIMIZATION_OVERRIDES[@]}"}
 
 APP="$DERIVED/Build/Products/$CONFIGURATION-iphoneos/Where.app"
 if [ ! -d "$APP" ]; then

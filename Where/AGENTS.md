@@ -201,12 +201,16 @@ path.
 
 `./Where/install` builds the app and installs it on a connected iPhone
 straight from the CLI — no Xcode UI. It regenerates the project, builds +
-code-signs the `Where` scheme with `xcodebuild` (Release by default,
+code-signs the `Where` scheme with `xcodebuild` (the Debug configuration with
+compiler optimizations forced on by default, so the DEBUG-only developer
+surfaces survive while the app still runs at roughly Release speed;
 `-allowProvisioningUpdates` so the app + extensions provision automatically),
 then copies and launches it via `xcrun devicectl` (see `./Where/install
 --help`). macOS-only, and it needs a signing team configured once via `./ide
 --team-id <ABCDE12345>`. Auto-picks the sole paired physical iPhone (booted
 simulators are ignored) and prompts you to unlock it before installing; pass
+`--configuration <name>` to build a different configuration (e.g. `Release`),
+`--no-optimize` to leave the configuration's own optimization level alone,
 `--device <name|udid>` to disambiguate, `--no-launch` to install without
 launching, `--yes` to skip the unlock prompt.
 
