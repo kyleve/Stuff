@@ -10,9 +10,9 @@ func openSystemSettings(_ openURL: OpenURLAction) {
 }
 
 extension EnvironmentValues {
-    // The setting a search deep-link is currently flashing, injected by
-    // ``SettingsFocusScope`` and read by ``SettingsRowModifier`` so the matching
-    // row tints briefly. `nil` when nothing is highlighted.
+    /// The setting a search deep-link is currently flashing, injected by
+    /// ``SettingsFocusScope`` and read by ``SettingsRowModifier`` so the matching
+    /// row tints briefly. `nil` when nothing is highlighted.
     @Entry var settingsHighlight: SettingsFocus?
 }
 
