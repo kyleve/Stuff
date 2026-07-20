@@ -28,20 +28,16 @@ struct RegionsSettingsView: View {
     private static let logger = WhereLog.session(RegionsSettingsViewLog.self)
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let model {
-                    content(model)
-                } else {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .navigationTitle(Strings.regionsManageTitle)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button(Strings.commonCancel) { dismiss() }
-                            }
-                        }
-                }
+        // Pushed onto the Settings navigation stack (not a sheet), so it relies
+        // on the ambient stack's back button to leave without saving; Done saves
+        // and pops via `dismiss()`.
+        Group {
+            if let model {
+                content(model)
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .navigationTitle(Strings.regionsManageTitle)
             }
         }
         .task { await loadIfNeeded() }
@@ -57,9 +53,6 @@ struct RegionsSettingsView: View {
                 RegionPickerView(model: model)
                     .navigationTitle(Strings.regionsManageTitle)
                     .toolbar {
-                        ToolbarItem(placement: .cancellationAction) {
-                            Button(Strings.commonCancel) { dismiss() }
-                        }
                         ToolbarItem(placement: .confirmationAction) {
                             Button(Strings.onboardingNext) { phase = .customize }
                                 .disabled(!model.hasSelection)
@@ -110,10 +103,34 @@ struct RegionsSettingsView: View {
     }
 }
 
+extension RegionsSettingsView: SettingsSection {
+    static var destination: SettingsDestination {
+        .regions
+    }
+
+    enum Item: SettingsItem {
+        case regions
+
+        var title: String {
+            switch self {
+                case .regions: Strings.settingsRegionsSection
+            }
+        }
+
+        var keywords: [String] {
+            switch self {
+                case .regions: splitKeywords(Strings.settingsKeywordsRegions)
+            }
+        }
+    }
+}
+
 #if DEBUG
     #Preview {
-        RegionsSettingsView()
-            .environment(PreviewSupport.loadedSession())
-            .whereBroadwayRoot()
+        NavigationStack {
+            RegionsSettingsView()
+                .environment(PreviewSupport.loadedSession())
+        }
+        .whereBroadwayRoot()
     }
 #endif

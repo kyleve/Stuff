@@ -1,51 +1,25 @@
-import LifecycleKit
-import PeriscopeCore
 import RegionKit
 import SwiftUI
-import UIKit
-import UniformTypeIdentifiers
 import WhereCore
 
-/// Settings tab: location permission + tracking, notification reminders and
-/// summaries, the report year, whole-database backup export/import, and the
-/// destructive "erase a year" action. (Logging or overriding a day moved to the
-/// Primary tab's "Logged days" toolbar item.)
+/// Settings tab: an iOS-Settings-style top-level list of icon rows that drill
+/// into grouped sub-screens (location, regions, reminders, alerts & data
+/// resolution, appearance, report year, backup, data), plus a search field that
+/// filters individual settings and deep-links to the screen — and the row —
+/// containing each.
+///
+/// The top level owns nothing but navigation; behavior lives in the sub-screens
+/// (`LocationSettingsView`, `AlertsSettingsView`, …). The scene's report model and
+/// the two view-scoped editing models (backup, reminders) are owned here and
+/// handed down; the `WhereSession` coordinator (location) and `WhereModel` (reset)
+/// come from the environment via the sub-screens.
 struct SettingsView: View {
-    // The scene's report model drives the year-scoped rows (clear-year, drift
-    // threshold); the always-on `WhereSession` coordinator (environment) drives
-    // tracking/permission; `model` (environment) drives the reset sequence (which
-    // rebuilds the session from scratch). The reminder and backup editing
-    // surfaces are view-scoped models owned here.
     let report: YearReportModel
     @State private var backup: BackupModel
     @State private var reminders: RemindersSettingsModel
+    @State private var searchText = ""
 
-    @Environment(WhereModel.self) private var model
     @Environment(WhereSession.self) private var session
-    @Environment(\.openURL) private var openURL
-    @Environment(\.lifecycleRunner) private var runner
-
-    @State private var showClearConfirmation = false
-    @State private var showResetConfirmation = false
-    @State private var showAppIcon = false
-    @State private var showRegions = false
-
-    // "Find issues now": a manual, force-past-the-throttle data-issue scan and
-    // its result (issue count) shown until the next scan.
-    @State private var isScanningForIssues = false
-    @State private var lastScanIssueCount: Int?
-
-    /// Backup export: the ready-to-share archive built up-front, revealed as a
-    /// `ShareLink` once the background export finishes.
-    @State private var exportedArchiveURL: URL?
-
-    // Backup import: the picked file, the merge/replace choice, and the
-    // success confirmation.
-    @State private var showImporter = false
-    @State private var pendingImportURL: URL?
-    @State private var showStrategyDialog = false
-    @State private var showImportSuccess = false
-    @State private var lastImportSummary: BackupCoordinator.ImportSummary?
 
     init(report: YearReportModel) {
         self.report = report
@@ -57,85 +31,108 @@ struct SettingsView: View {
         ))
     }
 
-    var body: some View {
-        @Bindable var session = session
-        @Bindable var backup = backup
+    private var searchQuery: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
+    private var isSearching: Bool {
+        !searchQuery.isEmpty
+    }
+
+    private var searchResults: [SettingsSearchResult] {
+        SettingsCatalog.results(matching: searchQuery)
+    }
+
+    var body: some View {
         NavigationStack {
-            Form {
-                trackingSection
-                regionsSection
-                remindersSection
-                summarySection
-                issueAlertsSection
-                resolutionSection
-                tabsSection
-                yearSection
-                appIconSection
-                backupSection
-                dataSection
-                resetSection
+            List {
+                if isSearching {
+                    ForEach(searchResults) { result in
+                        NavigationLink(value: SettingsRoute(result)) {
+                            searchRow(result)
+                        }
+                    }
+                } else {
+                    Section {
+                        ForEach(SettingsDestination.allCases, id: \.self) { destination in
+                            NavigationLink(value: SettingsRoute(destination)) {
+                                groupRow(destination)
+                            }
+                        }
+                    }
+                }
             }
             .navigationTitle(Strings.settingsTitle)
-            // Notification permission can change in the Settings app while we're
-            // away; refresh it when the screen appears so the "open Settings"
-            // affordance is accurate.
-            .task { await reminders.refreshNotificationAuthorization() }
-            .sheet(isPresented: $showAppIcon) {
-                AppIconView()
-            }
-            .sheet(isPresented: $showRegions) {
-                RegionsSettingsView(usedThisYear: regionsUsedThisYear)
-            }
-            .alert(Strings.settingsPermissionAlertTitle, isPresented: $session.permissionDenied) {
-                Button(Strings.settingsPermissionAlertOpenSettings) { openSystemSettings() }
-                Button(Strings.settingsPermissionAlertNotNow, role: .cancel) {}
-            } message: {
-                Text(Strings.settingsPermissionAlertMessage)
-            }
-            .fileImporter(
-                isPresented: $showImporter,
-                allowedContentTypes: [.zip],
-                onCompletion: handleImportSelection,
-            )
-            .confirmationDialog(
-                Strings.settingsBackupImportStrategyTitle,
-                isPresented: $showStrategyDialog,
-                titleVisibility: .visible,
-                presenting: pendingImportURL,
-            ) { url in
-                Button(Strings.settingsBackupMerge) { runImport(url: url, strategy: .merge) }
-                Button(Strings.settingsBackupReplace, role: .destructive) {
-                    runImport(url: url, strategy: .replace)
+            .searchable(text: $searchText, prompt: Strings.settingsSearchPrompt)
+            .overlay {
+                if isSearching, searchResults.isEmpty {
+                    ContentUnavailableView.search(text: searchQuery)
                 }
-                Button(Strings.settingsDataCancel, role: .cancel) { pendingImportURL = nil }
-            } message: { _ in
-                Text(Strings.settingsBackupImportStrategyMessage)
             }
-            .alert(
-                Strings.settingsBackupImportedTitle,
-                isPresented: $showImportSuccess,
-                presenting: lastImportSummary,
-            ) { _ in
-                Button(Strings.commonOK, role: .cancel) {}
-            } message: { summary in
-                Text(Strings.settingsBackupImportedMessage(
-                    samples: summary.sampleCount,
-                    evidence: summary.evidenceCount,
-                    manualDays: summary.manualDayCount,
-                    dismissedIssues: summary.dismissedIssueCount,
-                    trackedRegions: summary.trackedRegionCount,
-                ))
+            .navigationDestination(for: SettingsRoute.self) { route in
+                destination(for: route)
             }
-            .alert(
-                Strings.settingsBackupErrorTitle,
-                isPresented: $backup.isShowingBackupError,
-                presenting: backup.backupError,
-            ) { _ in
-                Button(Strings.commonOK, role: .cancel) {}
-            } message: { message in
-                Text(message)
+        }
+    }
+
+    /// A top-level drill-in row: icon + group title, with a value subtitle where
+    /// one is cheap and useful (location status, the report year).
+    private func groupRow(_ destination: SettingsDestination) -> some View {
+        LabeledContent {
+            if let subtitle = subtitle(for: destination) {
+                Text(subtitle)
+                    .foregroundStyle(.secondary)
             }
+        } label: {
+            Label(destination.rowTitle, systemImage: destination.systemImage)
+        }
+    }
+
+    /// A cheap, always-available value shown on the right of a group row; `nil`
+    /// for groups without a meaningful one-line summary.
+    private func subtitle(for destination: SettingsDestination) -> String? {
+        switch destination {
+            case .location:
+                LocationStatusRow.statusTitle(
+                    status: session.authorizationStatus,
+                    isTracking: session.isTracking,
+                )
+            case .year:
+                report.selectedYear.formatted(.number.grouping(.never))
+            case .regions, .reminders, .alerts, .appearance, .backup, .data:
+                nil
+        }
+    }
+
+    /// A search result row: the setting's name over its parent group.
+    private func searchRow(_ result: SettingsSearchResult) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(result.title)
+            Text(result.destination.rowTitle)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private func destination(for route: SettingsRoute) -> some View {
+        switch route.destination {
+            case .location:
+                LocationSettingsView(focus: route.focus)
+            case .regions:
+                RegionsSettingsView(usedThisYear: regionsUsedThisYear)
+            case .reminders:
+                RemindersSettingsView(reminders: reminders, focus: route.focus)
+            case .alerts:
+                AlertsSettingsView(report: report, reminders: reminders, focus: route.focus)
+            case .appearance:
+                AppearanceSettingsView(report: report, focus: route.focus)
+            case .year:
+                VisibleYearSettingsView(report: report, focus: route.focus)
+            case .backup:
+                BackupSettingsView(backup: backup, focus: route.focus)
+            case .data:
+                DataSettingsView(report: report, focus: route.focus)
         }
     }
 
@@ -146,449 +143,6 @@ struct SettingsView: View {
         guard let totals = report.report?.totals else { return [] }
         return Set(totals.filter { $0.key != .other && $0.value > 0 }.map(\.key))
     }
-
-    private var regionsSection: some View {
-        Section {
-            Button {
-                showRegions = true
-            } label: {
-                LabeledContent {
-                    Text(Strings.settingsRegionsRow)
-                        .foregroundStyle(.secondary)
-                } label: {
-                    Label(Strings.settingsRegionsSection, systemImage: "map.fill")
-                }
-            }
-            .tint(.primary)
-        }
-    }
-
-    private var trackingSection: some View {
-        @Bindable var session = session
-        return Section {
-            LocationStatusRow(status: session.authorizationStatus, isTracking: session.isTracking)
-
-            Toggle(isOn: $session.trackingEnabled) {
-                Label(Strings.settingsLocationToggle, systemImage: "location.fill")
-            }
-
-            if showGrantButton {
-                Button {
-                    Task { await session.requestPermission() }
-                } label: {
-                    Label(Strings.settingsLocationGrant, systemImage: "location.magnifyingglass")
-                }
-            }
-
-            if showOpenSettingsButton {
-                Button {
-                    openSystemSettings()
-                } label: {
-                    Label(Strings.settingsPermissionAlertOpenSettings, systemImage: "gear")
-                }
-            }
-        } header: {
-            Text(Strings.settingsLocationHeader)
-        } footer: {
-            Text(Strings.settingsLocationFooter)
-        }
-    }
-
-    /// Re-requesting only helps before the user has made a final decision.
-    private var showGrantButton: Bool {
-        switch session.authorizationStatus {
-            case .notDetermined, .whenInUse: true
-            case .restricted, .denied, .always: false
-        }
-    }
-
-    /// Once access is denied/restricted (or stuck at When-In-Use), the only way
-    /// forward is the Settings app.
-    private var showOpenSettingsButton: Bool {
-        switch session.authorizationStatus {
-            case .denied, .restricted, .whenInUse: true
-            case .notDetermined, .always: false
-        }
-    }
-
-    private var remindersSection: some View {
-        @Bindable var reminders = reminders
-        return Section {
-            Toggle(isOn: $reminders.remindersEnabled) {
-                Label(Strings.settingsRemindersToggle, systemImage: "bell.badge")
-            }
-
-            if reminders.remindersEnabled {
-                DatePicker(
-                    Strings.settingsReminderTime,
-                    selection: $reminders.reminderTimeOfDay,
-                    displayedComponents: .hourAndMinute,
-                )
-
-                if !reminders.notificationsAuthorized {
-                    Button {
-                        openSystemSettings()
-                    } label: {
-                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
-                    }
-                }
-            }
-        } header: {
-            Text(Strings.settingsRemindersHeader)
-        } footer: {
-            Text(remindersFooter)
-        }
-    }
-
-    private var remindersFooter: String {
-        if reminders.remindersEnabled, !reminders.notificationsAuthorized {
-            return Strings.settingsRemindersDeniedFooter
-        }
-        return Strings.settingsRemindersFooter
-    }
-
-    private var summarySection: some View {
-        @Bindable var reminders = reminders
-        return Section {
-            Toggle(isOn: $reminders.summaryEnabled) {
-                Label(Strings.settingsSummaryToggle, systemImage: "chart.bar.doc.horizontal")
-            }
-
-            if reminders.summaryEnabled {
-                DatePicker(
-                    Strings.settingsSummaryTime,
-                    selection: $reminders.summaryTimeOfDay,
-                    displayedComponents: .hourAndMinute,
-                )
-
-                if !reminders.notificationsAuthorized {
-                    Button {
-                        openSystemSettings()
-                    } label: {
-                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
-                    }
-                }
-            }
-        } header: {
-            Text(Strings.settingsSummaryHeader)
-        } footer: {
-            Text(summaryFooter)
-        }
-    }
-
-    private var summaryFooter: String {
-        if reminders.summaryEnabled, !reminders.notificationsAuthorized {
-            return Strings.settingsSummaryDeniedFooter
-        }
-        return Strings.settingsSummaryFooter
-    }
-
-    private var issueAlertsSection: some View {
-        @Bindable var reminders = reminders
-        return Section {
-            Toggle(isOn: $reminders.issueAlertsEnabled) {
-                Label(Strings.settingsIssueAlertsToggle, systemImage: "checklist.checked")
-            }
-
-            if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
-                Button {
-                    openSystemSettings()
-                } label: {
-                    Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
-                }
-            }
-        } header: {
-            Text(Strings.settingsIssueAlertsHeader)
-        } footer: {
-            Text(issueAlertsFooter)
-        }
-    }
-
-    private var issueAlertsFooter: String {
-        if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
-            return Strings.settingsIssueAlertsDeniedFooter
-        }
-        return Strings.settingsIssueAlertsFooter
-    }
-
-    private var resolutionSection: some View {
-        @Bindable var report = report
-
-        return Section {
-            Picker(Strings.settingsResolutionHeader, selection: $report.driftThreshold) {
-                ForEach(DriftThreshold.allCases, id: \.self) { threshold in
-                    Text(Strings.driftThresholdLabel(kilometers: threshold.rawValue / 1000))
-                        .tag(threshold)
-                }
-            }
-
-            Button {
-                findIssues()
-            } label: {
-                if isScanningForIssues {
-                    SavingStatusRow(text: Strings.settingsFindIssuesScanning)
-                } else {
-                    Label(Strings.settingsFindIssues, systemImage: "magnifyingglass")
-                }
-            }
-            .disabled(isScanningForIssues)
-
-            if let count = lastScanIssueCount, !isScanningForIssues {
-                Label {
-                    Text(Strings.settingsFindIssuesResult(count: count))
-                } icon: {
-                    Image(systemName: count == 0 ? "checkmark.circle" : "checklist")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            }
-        } footer: {
-            Text(Strings.settingsResolutionFooter)
-        }
-        .animation(.default, value: isScanningForIssues)
-        // The shown count is for the current year at the current threshold;
-        // drop it once either changes so it can't linger as a stale result.
-        .onChange(of: report.selectedYear) { lastScanIssueCount = nil }
-        .onChange(of: report.driftThreshold) { lastScanIssueCount = nil }
-    }
-
-    /// Force a fresh data-issue scan past the ~3h throttle, then surface the
-    /// resulting count. The scan also refreshes the Resolve tab's badge and
-    /// reloads its list (see `YearReportModel.rescanForIssues()`).
-    private func findIssues() {
-        Task {
-            isScanningForIssues = true
-            lastScanIssueCount = nil
-            await report.rescanForIssues()
-            lastScanIssueCount = report.dataIssueCount
-            isScanningForIssues = false
-        }
-    }
-
-    private var tabsSection: some View {
-        @Bindable var report = report
-        return Section {
-            Toggle(isOn: $report.hideEmptyTabs) {
-                Label(Strings.settingsTabsToggle, systemImage: "rectangle.bottomthird.inset.filled")
-            }
-        } header: {
-            Text(Strings.settingsTabsHeader)
-        } footer: {
-            Text(Strings.settingsTabsFooter)
-        }
-    }
-
-    private var appIconSection: some View {
-        Section {
-            Button {
-                showAppIcon = true
-            } label: {
-                Label(Strings.settingsAppIconLink, systemImage: "app.badge")
-            }
-        } header: {
-            Text(Strings.settingsAppIconHeader)
-        } footer: {
-            Text(Strings.settingsAppIconFooter)
-        }
-    }
-
-    /// The report year moved here off the Primary/Elsewhere toolbars — it's set
-    /// rarely, so it lives in Settings rather than taking a permanent toolbar
-    /// slot. Reuses `YearSelector`, which reads/drives the shared scene model, so
-    /// changing it here updates every tab (and the erase-year row below).
-    private var yearSection: some View {
-        Section {
-            LabeledContent(Strings.settingsYearLabel) {
-                YearSelector(report: report)
-            }
-        } header: {
-            Text(Strings.settingsYearHeader)
-        } footer: {
-            Text(Strings.settingsYearFooter)
-        }
-    }
-
-    private var backupSection: some View {
-        Section {
-            // The archive is built up-front on a background task (with an
-            // in-app "Exporting…" bar), then shared through a `ShareLink` to the
-            // ready file — so the share sheet opens instantly instead of sitting
-            // in the system's blocking "Preparing…" state.
-            Button {
-                runExport()
-            } label: {
-                if backup.backupState == .exporting {
-                    backupProgressLabel(
-                        Strings.settingsBackupExporting,
-                        systemImage: "square.and.arrow.up",
-                    )
-                } else {
-                    Label(Strings.settingsBackupExport, systemImage: "square.and.arrow.up")
-                }
-            }
-            .disabled(backup.backupState != .idle)
-
-            if backup.backupState == .idle, let url = exportedArchiveURL {
-                ShareLink(
-                    item: BackupArchiveFile(url: url),
-                    preview: SharePreview(Strings.settingsBackupShareTitle),
-                ) {
-                    Label(Strings.settingsBackupShare, systemImage: "square.and.arrow.up.on.square")
-                }
-            }
-
-            Button {
-                showImporter = true
-            } label: {
-                if backup.backupState == .importing {
-                    backupProgressLabel(
-                        Strings.settingsBackupImporting,
-                        systemImage: "square.and.arrow.down",
-                    )
-                } else {
-                    Label(Strings.settingsBackupImport, systemImage: "square.and.arrow.down")
-                }
-            }
-            .disabled(backup.backupState != .idle)
-        } header: {
-            Text(Strings.settingsBackupHeader)
-        } footer: {
-            Text(Strings.settingsBackupFooter)
-        }
-        // A finished export lingers in the temp directory; stop offering it (and
-        // reclaim the file) after a while so a stale link can't be shared. The
-        // task restarts whenever `exportedArchiveURL` changes and no-ops while
-        // it's `nil`.
-        .task(id: exportedArchiveURL) {
-            await expireExportIfNeeded()
-        }
-        // Log View Mode: reveal an inspect badge for backup export/import
-        // events on this section. A no-op in release.
-        .debugLogInspectable(WhereLog.session(BackupModelLog.self))
-    }
-
-    /// Determinate progress for an in-flight export or import, driven by
-    /// `backup.backupProgress` as the backup coordinator makes progress.
-    private func backupProgressLabel(_ title: String, systemImage: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label(title, systemImage: systemImage)
-            ProgressView(value: backup.backupProgress)
-        }
-    }
-
-    /// How long a finished export stays offered before it's auto-discarded.
-    private static let exportRetention: Duration = .seconds(10 * 60)
-
-    /// Build the archive in the background, then reveal the share row. Clearing
-    /// `exportedArchiveURL` first hides the stale share link — the coordinator
-    /// purges the previous export's directory when this new export starts.
-    private func runExport() {
-        exportedArchiveURL = nil
-        Task {
-            if let url = await backup.exportBackup() {
-                exportedArchiveURL = url
-            }
-        }
-    }
-
-    /// After a finished export has been offered for `exportRetention`, hide the
-    /// share row and delete the temp file. Hiding before the delete closes the
-    /// window where the row could point at an already-removed file. A no-op when
-    /// there's no export to expire (the `.task(id:)` also runs on `nil`).
-    private func expireExportIfNeeded() async {
-        guard exportedArchiveURL != nil else { return }
-        try? await Task.sleep(for: Self.exportRetention)
-        guard !Task.isCancelled else { return }
-        exportedArchiveURL = nil
-        await backup.discardExport()
-    }
-
-    private func handleImportSelection(_ result: Result<URL, any Error>) {
-        switch result {
-            case let .success(url):
-                pendingImportURL = url
-                showStrategyDialog = true
-            case let .failure(error):
-                backup.backupError = error.localizedDescription
-        }
-    }
-
-    private func runImport(url: URL, strategy: BackupCoordinator.ImportStrategy) {
-        Task {
-            if let summary = await backup.importBackup(from: url, strategy: strategy) {
-                lastImportSummary = summary
-                showImportSuccess = true
-            }
-            pendingImportURL = nil
-        }
-    }
-
-    private var dataSection: some View {
-        Section {
-            Button(role: .destructive) {
-                showClearConfirmation = true
-            } label: {
-                Label(eraseTitle, systemImage: "trash")
-            }
-            .confirmationDialog(
-                eraseTitle,
-                isPresented: $showClearConfirmation,
-                titleVisibility: .visible,
-            ) {
-                Button(eraseTitle, role: .destructive) {
-                    Task { await report.clearSelectedYear() }
-                }
-                Button(Strings.settingsDataCancel, role: .cancel) {}
-            } message: {
-                Text(Strings.settingsDataConfirmMessage(year: report.selectedYear))
-            }
-        } header: {
-            Text(Strings.settingsDataHeader)
-        } footer: {
-            Text(Strings.settingsDataFooter(year: report.selectedYear))
-        }
-    }
-
-    private var eraseTitle: String {
-        Strings.settingsDataErase(year: report.selectedYear)
-    }
-
-    /// Whole-app teardown: wipes every year's data and returns to first-run
-    /// onboarding, run through the `LifecycleRunner` published into the
-    /// environment by `LifecycleContainer`. The runner proxy asserts in debug /
-    /// no-ops in release when no container is above (e.g. previews).
-    private var resetSection: some View {
-        Section {
-            Button(role: .destructive) {
-                showResetConfirmation = true
-            } label: {
-                Label(Strings.settingsResetErase, systemImage: "arrow.counterclockwise")
-            }
-            .confirmationDialog(
-                Strings.settingsResetErase,
-                isPresented: $showResetConfirmation,
-                titleVisibility: .visible,
-            ) {
-                Button(Strings.settingsResetConfirm, role: .destructive) {
-                    requestReset()
-                }
-                Button(Strings.settingsDataCancel, role: .cancel) {}
-            } message: {
-                Text(Strings.settingsResetMessage)
-            }
-        } footer: {
-            Text(Strings.settingsResetFooter)
-        }
-    }
-
-    private func requestReset() {
-        Task { await runner.teardown(WhereLaunch.resetSequence(for: model)) }
-    }
-
-    private func openSystemSettings() {
-        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-        openURL(url)
-    }
 }
 
 #if DEBUG
@@ -596,5 +150,6 @@ struct SettingsView: View {
         SettingsView(report: PreviewSupport.loadedYearReportModel())
             .environment(PreviewSupport.loadedModel())
             .environment(PreviewSupport.loadedSession())
+            .whereBroadwayRoot()
     }
 #endif

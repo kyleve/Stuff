@@ -24,6 +24,7 @@ struct WhereStylesheet: BStylesheet {
     var palette = Palette.standard
     var motion = Motion.standard
     var typography = Typography.standard
+    var settings = SettingsStyle.standard
 
     init() {}
 
@@ -615,6 +616,32 @@ extension WhereStylesheet {
             reveal: .easeIn(duration: 0.18),
             reducedReveal: .easeInOut(duration: 0.2),
             captionFade: .easeOut(duration: 0.3),
+        )
+    }
+}
+
+// MARK: - Settings
+
+extension WhereStylesheet {
+    /// Motion for the Settings search deep-link: how a row targeted from a
+    /// search result is scrolled into view and briefly flashed to draw the eye.
+    /// Only geometry/timing lives here — the flash tint (accent) and the
+    /// restored grouped-row background (a system role) stay inline in
+    /// `SettingsRowModifier`, per the "no adaptive/accent colors in the sheet"
+    /// rule.
+    struct SettingsStyle: Equatable {
+        /// The animation used for both the scroll and the flash fade.
+        var flashAnimation: Animation
+        /// How long the row stays highlighted before it fades back.
+        var flashDuration: Duration
+        /// A short wait after the push lands before scrolling, so the row is laid
+        /// out and the scroll reliably lands on it.
+        var scrollSettleDelay: Duration
+
+        static let standard = SettingsStyle(
+            flashAnimation: .easeInOut(duration: 0.4),
+            flashDuration: .seconds(1),
+            scrollSettleDelay: .milliseconds(350),
         )
     }
 }

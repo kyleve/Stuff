@@ -217,6 +217,13 @@ struct WhereStylesheetTests {
         #expect(motion.captionFade == .easeOut(duration: 0.3))
     }
 
+    @Test func settingsStyle() {
+        let settings = style.settings
+        #expect(settings.flashAnimation == .easeInOut(duration: 0.4))
+        #expect(settings.flashDuration == .seconds(1))
+        #expect(settings.scrollSettleDelay == .milliseconds(350))
+    }
+
     @Test func paletteColors() {
         let palette = style.palette
         #expect(palette.primary.backgroundTop == Color(red: 0.07, green: 0.08, blue: 0.13))

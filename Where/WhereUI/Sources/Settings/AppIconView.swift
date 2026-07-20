@@ -4,8 +4,9 @@ import SwiftUI
 /// (two columns on phones, more on wider displays — see `AppIconLayout`).
 /// Tapping a cell slides a preview panel up from the bottom over the dimmed
 /// grid: the panel's background reflects a light/dark mode you toggle by tapping
-/// the icon, and a Set button applies it. Presented as a sheet from
-/// `SettingsView`, so it owns its navigation bar and a Done button.
+/// the icon, and a Set button applies it. Pushed onto the Settings navigation
+/// stack from the Appearance sub-screen, so it uses the ambient nav bar (back
+/// button) rather than owning its own stack.
 struct AppIconView: View {
     @State private var model: AppIconModel
     @State private var preview: AppIconOption?
@@ -13,7 +14,6 @@ struct AppIconView: View {
     @State private var appearanceToggles = 0
     @State private var dragOffset: CGFloat = 0
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.stylesheet) private var stylesheet
 
     @MainActor
@@ -26,36 +26,29 @@ struct AppIconView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            GeometryReader { proxy in
-                let grid = AppIconLayout.gridMetrics(
-                    containerWidth: proxy.size.width,
-                    style: appIcon,
-                )
-                let previewIconSize = AppIconLayout.previewIconSize(
-                    containerSize: proxy.size,
-                    style: appIcon,
-                )
-                ZStack(alignment: .bottom) {
-                    grids(metrics: grid)
+        GeometryReader { proxy in
+            let grid = AppIconLayout.gridMetrics(
+                containerWidth: proxy.size.width,
+                style: appIcon,
+            )
+            let previewIconSize = AppIconLayout.previewIconSize(
+                containerSize: proxy.size,
+                style: appIcon,
+            )
+            ZStack(alignment: .bottom) {
+                grids(metrics: grid)
 
-                    if preview != nil {
-                        scrim
-                    }
-
-                    if let option = preview {
-                        previewPanel(for: option, iconSize: previewIconSize)
-                            .transition(.move(edge: .bottom))
-                    }
+                if preview != nil {
+                    scrim
                 }
-                .navigationTitle(Strings.appIconTitle)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.commonDone) { dismiss() }
-                    }
+
+                if let option = preview {
+                    previewPanel(for: option, iconSize: previewIconSize)
+                        .transition(.move(edge: .bottom))
                 }
             }
+            .navigationTitle(Strings.appIconTitle)
+            .navigationBarTitleDisplayMode(.inline)
         }
         .sensoryFeedback(trigger: preview) { _, new in
             new == nil ? nil : .impact(weight: .light)
@@ -309,6 +302,8 @@ struct AppIconImage: View {
     }
 
     #Preview {
-        AppIconView(model: .preview())
+        NavigationStack {
+            AppIconView(model: .preview())
+        }
     }
 #endif

@@ -40,6 +40,95 @@ struct ScreenHostingTests {
         }
     }
 
+    @Test func locationSettingsViewHosts() throws {
+        let rootView = NavigationStack { LocationSettingsView() }
+            .environment(PreviewSupport.loadedSession())
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func remindersSettingsViewHosts() throws {
+        let rootView = NavigationStack {
+            RemindersSettingsView(reminders: PreviewSupport.remindersSettingsModel())
+        }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func alertsSettingsViewHosts() throws {
+        let rootView = NavigationStack {
+            AlertsSettingsView(
+                report: PreviewSupport.loadedYearReportModel(),
+                reminders: PreviewSupport.remindersSettingsModel(),
+            )
+        }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func appearanceSettingsViewHosts() throws {
+        let rootView = NavigationStack {
+            AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
+        }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func visibleYearSettingsViewHosts() throws {
+        let rootView = NavigationStack {
+            VisibleYearSettingsView(report: PreviewSupport.loadedYearReportModel())
+        }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func backupSettingsViewHosts() throws {
+        let rootView = NavigationStack {
+            BackupSettingsView(backup: PreviewSupport.backupModel())
+        }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func dataSettingsViewHosts() throws {
+        // Reads the app model (reset sequence) from the environment.
+        let rootView = NavigationStack {
+            DataSettingsView(report: PreviewSupport.loadedYearReportModel())
+        }
+        .environment(PreviewSupport.loadedModel())
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func dataSettingsViewHostsWithFocus() throws {
+        // A search deep-link hands the screen a focus token to scroll to + flash.
+        let focus = try #require(
+            SettingsCatalog.results.first { $0.destination == .data },
+        ).focus
+        let rootView = NavigationStack {
+            DataSettingsView(report: PreviewSupport.loadedYearReportModel(), focus: focus)
+        }
+        .environment(PreviewSupport.loadedModel())
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func regionsSettingsViewHosts() throws {
+        let rootView = NavigationStack { RegionsSettingsView() }
+            .environment(PreviewSupport.loadedSession())
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
     @Test func primaryViewHostsWithElsewhereOnlyData() throws {
         let report = PreviewSupport.elsewhereOnlyYearReportModel()
         try show(UIHostingController(rootView: PrimaryView(report: report))) { hosted in
