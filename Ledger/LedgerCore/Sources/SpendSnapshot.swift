@@ -11,8 +11,12 @@ public struct SpendSnapshot: Equatable, Sendable {
     public var cycleEnd: Date?
     /// Plan tier (`"pro"`, `"ultra"`, …).
     public var membershipType: String
-    /// Fraction (0...1) of the included allowance used this cycle, when known.
-    public var includedFractionUsed: Double?
+    /// Fraction (0...1) of the included first-party/Auto allowance used this
+    /// cycle, when known.
+    public var autoFractionUsed: Double?
+    /// Fraction (0...1) of the included third-party/API allowance used this
+    /// cycle, when known.
+    public var apiFractionUsed: Double?
     /// Models by usage this cycle, as relative shares highest-first (dollar-free
     /// — see ``AggregatedUsage``). Empty when the per-model fetch is unavailable.
     public var modelShares: [ModelShare]
@@ -22,14 +26,16 @@ public struct SpendSnapshot: Equatable, Sendable {
         cycleStart: Date?,
         cycleEnd: Date?,
         membershipType: String,
-        includedFractionUsed: Double?,
+        autoFractionUsed: Double?,
+        apiFractionUsed: Double?,
         modelShares: [ModelShare],
     ) {
         self.currentCycleCents = currentCycleCents
         self.cycleStart = cycleStart
         self.cycleEnd = cycleEnd
         self.membershipType = membershipType
-        self.includedFractionUsed = includedFractionUsed
+        self.autoFractionUsed = autoFractionUsed
+        self.apiFractionUsed = apiFractionUsed
         self.modelShares = modelShares
     }
 

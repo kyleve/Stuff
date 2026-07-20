@@ -105,7 +105,8 @@
             membershipType: String = "pro",
             includedUsed: Int = 0,
             includedLimit: Int? = nil,
-            totalPercentUsed: Double? = nil,
+            autoPercentUsed: Double? = nil,
+            apiPercentUsed: Double? = nil,
             cycleStart: String = "2026-07-04T18:16:08.000Z",
             cycleEnd: String = "2026-08-04T18:16:08.000Z",
         ) -> UsageSummary {
@@ -121,7 +122,8 @@
                         limit: includedLimit,
                         remaining: nil,
                         breakdown: nil,
-                        totalPercentUsed: totalPercentUsed,
+                        autoPercentUsed: autoPercentUsed,
+                        apiPercentUsed: apiPercentUsed,
                     ),
                 ),
             )

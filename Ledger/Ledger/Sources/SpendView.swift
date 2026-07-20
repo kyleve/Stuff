@@ -107,8 +107,8 @@ struct SpendView: View {
                 }
             }
 
-            if let fraction = snapshot.includedFractionUsed {
-                includedUsage(fraction)
+            if snapshot.autoFractionUsed != nil || snapshot.apiFractionUsed != nil {
+                includedUsage(auto: snapshot.autoFractionUsed, api: snapshot.apiFractionUsed)
             }
 
             if !snapshot.modelShares.isEmpty {
@@ -123,18 +123,39 @@ struct SpendView: View {
         }
     }
 
-    private func includedUsage(_ fraction: Double) -> some View {
+    /// Included allowance shown as two side-by-side gauges — first-party (Auto)
+    /// and third-party (API) — since a single blended figure hides that one
+    /// pool can be exhausted while the other is barely touched.
+    private func includedUsage(auto: Double?, api: Double?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
+            Text("Included usage")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            HStack(alignment: .top, spacing: 12) {
+                if let auto {
+                    usageGauge(label: "First-party", fraction: auto, color: .teal)
+                }
+                if let api {
+                    usageGauge(label: "API", fraction: api, color: .blue)
+                }
+            }
+        }
+    }
+
+    private func usageGauge(label: String, fraction: Double, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Text("Included usage")
-                    .foregroundStyle(.secondary)
+                Text(label)
+                    .lineLimit(1)
                 Spacer()
                 Text(fraction.formatted(.percent.precision(.fractionLength(0))))
                     .monospacedDigit()
             }
-            .font(.callout)
-            ProgressView(value: min(max(fraction, 0), 1))
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            ShareBar(segments: [ShareSegment(color: color, fraction: fraction)])
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// Models this cycle: each model with ≥20% share gets its own bar; the rest

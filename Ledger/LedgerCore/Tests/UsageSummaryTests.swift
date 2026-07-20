@@ -17,6 +17,15 @@ struct UsageSummaryTests {
         #expect(summary.individualUsage.onDemand.limit == nil)
     }
 
+    @Test func exposesFirstPartyAndAPIPoolFractions() throws {
+        let summary = try JSONDecoder().decode(
+            UsageSummary.self,
+            from: Data(DashboardFixture.usageSummaryJSON.utf8),
+        )
+        #expect(summary.autoFractionUsed == 0.0069)
+        #expect(summary.apiFractionUsed == 1.0)
+    }
+
     @Test func parsesFractionalSecondISO8601CycleDates() throws {
         let summary = try JSONDecoder().decode(
             UsageSummary.self,

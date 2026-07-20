@@ -39,11 +39,10 @@ public struct UsageSummary: Codable, Equatable, Sendable {
         public var limit: Int?
         public var remaining: Int?
         public var breakdown: Breakdown?
-        /// Percentage (0...100) of the total included allowance used this
-        /// cycle, when reported — the figure behind the "N% of included usage"
-        /// message.
-        public var totalPercentUsed: Double? = nil
+        /// Percentage (0...100) of the included first-party/Auto allowance used
+        /// this cycle, when reported (some account types omit these).
         public var autoPercentUsed: Double? = nil
+        /// Percentage (0...100) of the included third-party/API allowance used.
         public var apiPercentUsed: Double? = nil
     }
 
@@ -80,10 +79,16 @@ public struct UsageSummary: Codable, Equatable, Sendable {
         individualUsage.onDemand.used
     }
 
-    /// Fraction (0...1) of the included allowance used this cycle, when the API
-    /// reports a percentage.
-    public var includedFractionUsed: Double? {
-        individualUsage.plan.totalPercentUsed.map { $0 / 100 }
+    /// Fraction (0...1) of the included **first-party / Auto** allowance used
+    /// this cycle, when the API reports it.
+    public var autoFractionUsed: Double? {
+        individualUsage.plan.autoPercentUsed.map { $0 / 100 }
+    }
+
+    /// Fraction (0...1) of the included **third-party / API** allowance used
+    /// this cycle, when the API reports it.
+    public var apiFractionUsed: Double? {
+        individualUsage.plan.apiPercentUsed.map { $0 / 100 }
     }
 
     private static func parseDate(_ string: String) -> Date? {

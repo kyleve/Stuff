@@ -68,7 +68,10 @@ enum DashboardFixture {
           "used": 40000,
           "limit": 40000,
           "remaining": 0,
-          "breakdown": { "included": 40000, "bonus": 12158, "total": 52158 }
+          "breakdown": { "included": 40000, "bonus": 12158, "total": 52158 },
+          "autoPercentUsed": 0.69,
+          "apiPercentUsed": 100,
+          "totalPercentUsed": 20.87
         },
         "onDemand": { "enabled": true, "used": 315609, "limit": null, "remaining": null }
       },

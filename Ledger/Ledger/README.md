@@ -54,7 +54,9 @@ shortcut to System Settings if macOS needs you to approve the login item.
   the popover just shows the latest fetched state; it doesn't trigger a network
   request.
 - **Popover** — this cycle's spend and date range, your plan tier, an
-  **included-usage** progress bar, **top models
+  **included usage** as two side-by-side bars (first-party/Auto and
+  third-party/API — a single blended figure would hide that one pool can be
+  maxed while the other is barely used), **top models
   this cycle** as usage shares (each model ≥20% gets its own bar; smaller ones
   roll into a single multi-colored "Other models" bar with a legend), and when
   it last updated. A **Refresh** button

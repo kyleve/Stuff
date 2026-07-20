@@ -201,7 +201,8 @@ public final class LedgerServices {
                 cycleStart: summary.cycleStart,
                 cycleEnd: summary.cycleEnd,
                 membershipType: summary.membershipType,
-                includedFractionUsed: summary.includedFractionUsed,
+                autoFractionUsed: summary.autoFractionUsed,
+                apiFractionUsed: summary.apiFractionUsed,
                 modelShares: models,
             )
             loadState = .loaded(snapshot)

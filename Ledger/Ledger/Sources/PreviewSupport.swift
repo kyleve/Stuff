@@ -16,7 +16,8 @@
                         membershipType: "ultra",
                         includedUsed: 40000,
                         includedLimit: 40000,
-                        totalPercentUsed: 20.9,
+                        autoPercentUsed: 0.69,
+                        apiPercentUsed: 100,
                     ),
                 ),
                 aggregated: .fixture([
