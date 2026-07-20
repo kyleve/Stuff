@@ -40,6 +40,8 @@ auto-token", surfaced as `LoadError.missingCredentials`.
 - `SessionToken` / `SessionTokenSource` / `CursorLocalTokenSource` — the auth
   seam.
 - `DashboardProvider` + `CursorDashboardAPI` — the network seam.
+- `ModelName` — parses a raw model id (`claude-opus-4-8-thinking-xhigh`,
+  `github_bugbot`, …) into a friendly `displayName` + `badges` (effort/speed/mode).
 - `UsageSummary`, `AggregatedUsage`, `SpendSnapshot` — the wire + view models
   (cents are integers).
 - `KeychainStore` / `SystemKeychainStore` — a pasted token's storage.

@@ -180,27 +180,29 @@ struct SpendView: View {
 
             ForEach(majors) { model in
                 shareRow(
-                    label: model.name,
                     fraction: model.fraction,
                     segments: [ShareSegment(color: model.color, fraction: model.fraction)],
-                )
+                ) {
+                    ModelLabel(name: ModelName.parse(model.name))
+                }
             }
 
             if !minors.isEmpty {
                 shareRow(
-                    label: "Other models",
                     fraction: minorsTotal,
                     segments: minors.map { ShareSegment(color: $0.color, fraction: $0.fraction) },
-                )
+                ) {
+                    Text("Other models")
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
                 // Legend so the rolled-up colors are identifiable.
                 ForEach(minors) { model in
                     HStack(spacing: 6) {
                         Circle()
                             .fill(model.color)
                             .frame(width: 7, height: 7)
-                        Text(model.name)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
+                        ModelLabel(name: ModelName.parse(model.name))
                         Spacer()
                         Text(model.fraction.formatted(.percent.precision(.fractionLength(0))))
                             .monospacedDigit()
@@ -213,12 +215,14 @@ struct SpendView: View {
         }
     }
 
-    private func shareRow(label: String, fraction: Double, segments: [ShareSegment]) -> some View {
+    private func shareRow(
+        fraction: Double,
+        segments: [ShareSegment],
+        @ViewBuilder label: () -> some View,
+    ) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             HStack {
-                Text(label)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                label()
                 Spacer()
                 Text(fraction.formatted(.percent.precision(.fractionLength(0))))
                     .monospacedDigit()
@@ -269,6 +273,29 @@ struct SpendView: View {
             .help("Quit Ledger")
         }
         .buttonStyle(.borderless)
+    }
+}
+
+/// Renders a parsed ``ModelName`` — the friendly name plus small badge chips
+/// (reasoning effort, speed, mode). Adopts the ambient font for the name; the
+/// badges stay compact.
+private struct ModelLabel: View {
+    let name: ModelName
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text(name.displayName)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            ForEach(name.badges, id: \.self) { badge in
+                Text(badge)
+                    .font(.system(size: 9, weight: .semibold))
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 1)
+                    .background(.secondary.opacity(0.2), in: .capsule)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 
