@@ -77,5 +77,17 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 
 ## Testing
 
-No dedicated test bundle; exercised by every `*SnapshotTests` bundle that calls
-`assertSnapshots` (currently `WhereUISnapshotTests`).
+`SnapshotKitTestingTests` (`Tests/`, wired in `Project.swift`, in the
+`Stuff-iOS-Tests` scheme) owns the pipeline's own regression tests: async-content
+settle, concurrent-capture serialization, duplicate-identifier detection,
+tile-and-stitch / full-content sizing, the pre-capture hook, the same-image
+capture-flag surface, and safe-area composition (the swizzle zeroes the captured
+root while an interior `safeAreaInset` still composes). They render through
+`renderSnapshotImage` (so they need the `StuffTestHost` key window) but assert on
+probed pixels via the `@_spi(Testing)` `PixelSample`/`probePixel` API rather than
+LFS reference images — so the bundle is fast, has no `__Snapshots__/`, and runs
+in the main `test` job, not the snapshot job. The matrixed image assertions
+themselves are still exercised by consumer bundles (currently
+`WhereUISnapshotTests`); the WhereUI↔bundle cross-boundary flag probe stays there
+(`SnapshotCaptureFlagProbeTests`), since only a WhereUI-defined view can detect a
+duplicate-`SnapshotKit` split.

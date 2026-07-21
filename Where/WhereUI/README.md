@@ -132,11 +132,13 @@ the on-disk/CloudKit store). Internal types are reached via
 
 How screens *look* is pinned separately: every top-level screen, widget, and
 app-flow surface has matrixed image snapshots (light/dark, Dynamic Type,
-iPhone/iPad, contrast, right-to-left, bold text, VoiceOver annotations) in
+iPhone/iPad, contrast, right-to-left, VoiceOver annotations) in
 [`SnapshotTests/`](SnapshotTests) (`WhereUISnapshotTests`), with reference
 images under `SnapshotTests/__Snapshots__/` in Git LFS. Each view declares its
-matrix via a `SnapshotProviding` conformance in
-[`Sources/Preview/`](Sources/Preview), shared with its `#Preview` cutsheet. The
+matrix via a `SnapshotProviding` conformance **in its own source file**, shared
+with its `#Preview` cutsheet (`Self.snapshotPreviews`); the test bundle is one
+`FooSnapshotTests` suite per view, so each view's references live in their own
+`__Snapshots__/` directory. The
 bundle has its own scheme and CI job; to re-record after an intentional UI
 change, forward the record mode into the test process (see the
 [SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)

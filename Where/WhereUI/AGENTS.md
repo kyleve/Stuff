@@ -137,15 +137,19 @@ required previews) live in the feature [`Where/AGENTS.md`](../AGENTS.md).
 
 Screens, widgets, and app-flow surfaces are pinned as matrixed image snapshots
 in the `WhereUISnapshotTests` bundle ([`SnapshotTests/`](SnapshotTests)) — that
-bundle, not hosting smoke tests, owns "does this screen render". Each view
-declares its matrix once via a `SnapshotProviding` conformance in
-[`Sources/Preview/`](Sources/Preview) (`ScreenSnapshots.swift`,
-`WidgetSnapshots.swift`, `AppFlowSnapshots.swift`), which also drives the
-`#Preview` cutsheets. The bundle runs in its own `WhereUISnapshotTests` scheme
-and CI job, deliberately outside `Stuff-iOS-Tests` (see `Project.swift`). To
-re-record a reference, delete the PNG under `SnapshotTests/__Snapshots__/`
-(LFS-tracked) and run the scheme — the suites record `.missing`, and a
-recording run fails by design so it can't pass as green. (Bulk re-records
-after an intentional UI change can instead forward
+bundle, not hosting smoke tests, owns "does this screen render". **Each view
+declares its matrix once, in its own source file**, via a `SnapshotProviding`
+conformance under `#if DEBUG` whose `#Preview` renders `Self.snapshotPreviews` —
+so one declaration drives both the Xcode cutsheet and the image tests (the
+`whereSnapshot(...)` helper + config presets live in
+[`Sources/Preview/WhereSnapshot.swift`](Sources/Preview/WhereSnapshot.swift)).
+The test bundle is **one `FooSnapshotTests` suite per view**, each in its own
+file calling `assertSnapshots(of: FooView.self)`, so each view's references sit
+in their own `__Snapshots__/<FooSnapshotTests>/` directory. The bundle runs in
+its own `WhereUISnapshotTests` scheme and CI job, deliberately outside
+`Stuff-iOS-Tests` (see `Project.swift`). To re-record a reference, delete the PNG
+under `SnapshotTests/__Snapshots__/` (LFS-tracked) and run the scheme — the
+suites record `.missing`, and a recording run fails by design so it can't pass as
+green. (Bulk re-records after an intentional UI change can instead forward
 `TEST_RUNNER_SNAPSHOT_RECORD=failed` — see the
 [SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording).)

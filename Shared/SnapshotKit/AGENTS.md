@@ -38,9 +38,13 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   deterministic — externally-loaded substrates, system controls that render
   relative to wall-clock state, wall-clock timers that flip visible state
   (skipped under capture; an explicit per-case seam pins each state) — may
-  substitute a placeholder of identical layout. It is a UIKit trait bridge
-  (not `@Entry`) so it reaches SwiftUI through the re-hosting the capture
-  pipeline does.
+  substitute a placeholder of identical layout. It is a **hybrid** accessor
+  (like Broadway's `BContext+SwiftUI`): a pure-SwiftUI `EnvironmentKey` read
+  first — set synchronously by the preview cutsheet / any `.environment`
+  override, no `UITraitCollection` round-trip — falling back to a
+  `UITraitBridgedEnvironmentKey` (not `@Entry`), which is how the test
+  pipeline's `traitOverrides` value reaches SwiftUI through the re-hosting the
+  capture does. The setter mirrors into both.
 - **Design-system-agnostic.** SnapshotKit never imports Broadway/WhereUI; the
   Broadway root wrap is a consumer concern (`WhereUI`'s `whereSnapshot(...)`).
 
