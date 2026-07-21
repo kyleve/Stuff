@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -139,9 +140,20 @@ private struct DayRow: View {
 }
 
 #if DEBUG
-    #Preview {
-        NavigationStack {
-            RegionDaysView(region: .other, report: PreviewSupport.elsewhereOnlyYearReportModel())
+    extension RegionDaysView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "WithData", configurations: .screenDefaults) {
+                NavigationStack {
+                    RegionDaysView(
+                        region: .other,
+                        report: PreviewSupport.elsewhereOnlyYearReportModel(),
+                    )
+                }
+            }
         }
+    }
+
+    #Preview {
+        RegionDaysView.snapshotPreviews
     }
 #endif

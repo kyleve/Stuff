@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -107,11 +108,15 @@ struct SecondaryView: View {
 }
 
 #if DEBUG
-    #Preview("Loaded") {
-        SecondaryView(report: PreviewSupport.loadedYearReportModel())
+    extension SecondaryView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Loaded", configurations: .screenDefaults) {
+                SecondaryView(report: PreviewSupport.loadedYearReportModel())
+            }
+        }
     }
 
-    #Preview("Empty") {
-        SecondaryView(report: PreviewSupport.emptyYearReportModel())
+    #Preview {
+        SecondaryView.snapshotPreviews
     }
 #endif

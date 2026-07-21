@@ -1,6 +1,7 @@
 #if DEBUG
     import LogViewerUI
     import RegionKit
+    import SnapshotKit
     import SwiftDataInspector
     import SwiftUI
     import WhereCore
@@ -59,8 +60,16 @@
         }
     }
 
+    extension DeveloperToolsView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .phoneLightDark) {
+                DeveloperToolsView()
+                    .environment(PreviewSupport.loadedSession())
+            }
+        }
+    }
+
     #Preview {
-        DeveloperToolsView()
-            .environment(PreviewSupport.loadedSession())
+        DeveloperToolsView.snapshotPreviews
     }
 #endif

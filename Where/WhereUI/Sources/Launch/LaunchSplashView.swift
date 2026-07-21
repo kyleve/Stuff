@@ -207,21 +207,22 @@ private struct RadarPingBackground: View {
 }
 
 #if DEBUG
-    // `accessibilityReduceMotion` is a read-only environment value, so the
-    // motion-pinned variant can't be previewed via `.environment`; at rest the
-    // animated splash looks identical to it anyway. These cover the color-mode
-    // variation (which changes the rendered icon art) and the slow-launch caption.
-    #Preview("Light") {
-        LaunchSplashView(previewImageName: "AppIconClassic")
-            .environment(\.colorScheme, .light)
+    extension LaunchSplashView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .phoneLightDark) {
+                LaunchSplashView(previewImageName: "AppIconClassic")
+            }
+            whereSnapshot(name: "SlowLaunchCaption", configurations: .phoneLightDark) {
+                LaunchSplashView(previewImageName: "AppIconClassic", previewShowsCaption: true)
+            }
+        }
     }
 
-    #Preview("Dark") {
-        LaunchSplashView(previewImageName: "AppIconClassic")
-            .environment(\.colorScheme, .dark)
-    }
-
-    #Preview("Slow launch") {
-        LaunchSplashView(previewImageName: "AppIconClassic", previewShowsCaption: true)
+    // The cutsheet covers the color-mode variation (which changes the rendered
+    // icon art) and the slow-launch caption. Reduce Motion isn't shown: it's a
+    // read-only environment value that can't be set via `.environment`, and at
+    // rest the animated splash looks identical to its motion-pinned frame.
+    #Preview {
+        LaunchSplashView.snapshotPreviews
     }
 #endif

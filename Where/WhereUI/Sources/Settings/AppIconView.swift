@@ -1,3 +1,4 @@
+import SnapshotKit
 import SwiftUI
 
 /// The app-icon picker. A grid of options that flexes with the container width
@@ -303,12 +304,20 @@ struct AppIconImage: View {
 }
 
 #if DEBUG
+    extension AppIconView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .screenDefaults, settle: .immediate) {
+                NavigationStack { AppIconView(model: .preview()) }
+            }
+        }
+    }
+
     #Preview("Classic") {
         AppIconImage(name: "AppIconClassic", size: 60)
             .padding()
     }
 
     #Preview {
-        AppIconView(model: .preview())
+        AppIconView.snapshotPreviews
     }
 #endif

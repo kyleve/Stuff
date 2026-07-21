@@ -399,12 +399,32 @@
             )
         }
 
+        /// Fixed day for widget previews and snapshots — a single pinned instant
+        /// so the day/year chrome renders identically whenever a capture runs
+        /// (an unpinned `.now` default churned references daily). Widget captures
+        /// pin the timezone (Pacific), so this reads as a stable calendar day.
+        public static let referenceWidgetDay = Date(timeIntervalSince1970: 1_770_000_000)
+
+        /// A fresh, not-yet-onboarded model over **in-memory** preferences — for
+        /// the onboarding preview/snapshot. Uses `InMemoryKeyValueStore` rather
+        /// than the default `WherePreferences()` (which is backed by
+        /// `UserDefaults.standard`) so the fixture honors PreviewSupport's
+        /// no-disk contract and the host's real defaults can't leak in.
+        @MainActor
+        public static func onboardingModel() -> WhereModel {
+            WhereModel(
+                services: previewServices(),
+                preferences: WherePreferences(store: InMemoryKeyValueStore()),
+                now: { referenceNow },
+            )
+        }
+
         /// A widget snapshot built from the sample year totals, for widget
         /// previews and tests.
         public static func sampleWidgetSnapshot(
             dayRegions: Set<Region> = [.california],
             totals: [Region: Int]? = nil,
-            day: Date = .now,
+            day: Date = PreviewSupport.referenceWidgetDay,
             year: Int = PreviewSupport.year,
         ) -> WidgetSnapshot {
             WidgetSnapshot(

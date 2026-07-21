@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -200,17 +201,24 @@ private struct IssueRow: View {
 }
 
 #if DEBUG
-    #Preview("Loaded") {
-        ResolutionView(
-            report: PreviewSupport.loadedYearReportModel(),
-            resolve: PreviewSupport.resolveModel(),
-        )
+    extension ResolutionView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "WithIssues", configurations: .screenDefaults) {
+                ResolutionView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    resolve: PreviewSupport.resolveModel(),
+                )
+            }
+            whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
+                ResolutionView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    resolve: PreviewSupport.resolveModel(seededWithIssues: false),
+                )
+            }
+        }
     }
 
-    #Preview("Empty") {
-        ResolutionView(
-            report: PreviewSupport.loadedYearReportModel(),
-            resolve: PreviewSupport.resolveModel(seededWithIssues: false),
-        )
+    #Preview {
+        ResolutionView.snapshotPreviews
     }
 #endif

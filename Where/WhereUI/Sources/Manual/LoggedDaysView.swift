@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -250,25 +251,31 @@ private struct LoggedDayRow: View {
 }
 
 #if DEBUG
-    #Preview("Loaded") {
-        LoggedDaysView(
-            report: PreviewSupport.loadedYearReportModel(),
-            model: PreviewSupport
-                .loggedDaysModel(state: .loaded(PreviewSupport.sampleManualDays())),
-        )
+    extension LoggedDaysView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Loaded", configurations: .screenDefaults) {
+                LoggedDaysView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    model: PreviewSupport
+                        .loggedDaysModel(state: .loaded(PreviewSupport.sampleManualDays())),
+                )
+            }
+            whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
+                LoggedDaysView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    model: PreviewSupport.loggedDaysModel(state: .empty),
+                )
+            }
+            whereSnapshot(name: "Failed", configurations: .phoneLightDark) {
+                LoggedDaysView(
+                    report: PreviewSupport.loadedYearReportModel(),
+                    model: PreviewSupport.loggedDaysModel(state: .failed("iCloud is unavailable.")),
+                )
+            }
+        }
     }
 
-    #Preview("Empty") {
-        LoggedDaysView(
-            report: PreviewSupport.loadedYearReportModel(),
-            model: PreviewSupport.loggedDaysModel(state: .empty),
-        )
-    }
-
-    #Preview("Failed") {
-        LoggedDaysView(
-            report: PreviewSupport.loadedYearReportModel(),
-            model: PreviewSupport.loggedDaysModel(state: .failed("iCloud is unavailable.")),
-        )
+    #Preview {
+        LoggedDaysView.snapshotPreviews
     }
 #endif

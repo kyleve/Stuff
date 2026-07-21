@@ -1,3 +1,4 @@
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -128,29 +129,38 @@ struct RecentActivitySummaryView: View {
 }
 
 #if DEBUG
-    #Preview("Loaded") {
-        RecentActivitySummaryView(
-            model: PreviewSupport.recentActivityModel(
-                state: .loaded(
-                    "You spent the morning in California near San Francisco, then traveled to New York in the early evening, where the most recent readings place you.",
-                ),
-            ),
-        )
+    extension RecentActivitySummaryView: SnapshotProviding {
+        // A NavigationStack + ScrollView sheet is a screen, not an intrinsic
+        // component: greedy containers have no meaningful `sizeThatFits`, so
+        // intrinsic sizing would measure just the pinned window picker.
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Loaded", configurations: .screenDefaults) {
+                RecentActivitySummaryView(
+                    model: PreviewSupport.recentActivityModel(
+                        state: .loaded("You were in California, then New York."),
+                    ),
+                )
+            }
+            whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
+                RecentActivitySummaryView(model: PreviewSupport.recentActivityModel(state: .empty))
+            }
+            whereSnapshot(name: "Unavailable", configurations: .phoneLightDark) {
+                RecentActivitySummaryView(
+                    model: PreviewSupport.recentActivityModel(
+                        state: .unavailable(.appleIntelligenceNotEnabled),
+                    ),
+                )
+            }
+            whereSnapshot(name: "Failed", configurations: .phoneLightDark) {
+                RecentActivitySummaryView(
+                    model: PreviewSupport
+                        .recentActivityModel(state: .failed("Something went wrong.")),
+                )
+            }
+        }
     }
 
-    #Preview("Loading") {
-        RecentActivitySummaryView(model: PreviewSupport.recentActivityModel(state: .loading))
-    }
-
-    #Preview("Empty") {
-        RecentActivitySummaryView(model: PreviewSupport.recentActivityModel(state: .empty))
-    }
-
-    #Preview("Unavailable") {
-        RecentActivitySummaryView(
-            model: PreviewSupport.recentActivityModel(
-                state: .unavailable(.appleIntelligenceNotEnabled),
-            ),
-        )
+    #Preview {
+        RecentActivitySummaryView.snapshotPreviews
     }
 #endif
