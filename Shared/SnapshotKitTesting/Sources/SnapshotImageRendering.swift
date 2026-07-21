@@ -96,6 +96,10 @@ private func renderSnapshotImageLocked(
     onReadyToSnapshot: (@MainActor () async -> Void)?,
 ) async -> UIImage {
     func capture() async -> UIImage {
+        // `hostKeyWindow()` is the specific window `StuffTestHost` stamps with
+        // `isMainTestHostWindow` — the guaranteed root window we set up, not
+        // merely whatever window happens to be key. So this is stable regardless
+        // of any transient key-window changes during a capture.
         guard let window = hostKeyWindow(), let hostRoot = window.rootViewController else {
             preconditionFailure(
                 "SnapshotKitTesting requires the StuffTestHost key window. Run snapshot tests in a hosted bundle.",
