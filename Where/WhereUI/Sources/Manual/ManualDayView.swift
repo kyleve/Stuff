@@ -33,7 +33,6 @@ struct ManualDayView: View {
     let showsCancelButton: Bool
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
 
     /// Mode-specific editable state, each case carrying *exactly* the fields that
     /// mode needs — so add-only inputs (dates, span) can't be read in edit and
@@ -174,52 +173,35 @@ struct ManualDayView: View {
         }
     }
 
-    /// Snapshot captures substitute each compact picker's value capsule with a
-    /// deterministic stand-in of the same row layout: the live capsule's date
-    /// format depends on the real-world date, so no reference image containing
-    /// it is stable across days (see `SnapshotDatePickerStandIn`).
+    /// `WhereDatePicker` renders a deterministic stand-in under snapshot capture
+    /// (the live compact capsule's date format depends on the real-world date,
+    /// so no reference image containing it is stable across days) — the capture
+    /// handling stays inside the wrapper, not here.
     @ViewBuilder
     private func datePickers(_ add: AddFields) -> some View {
         @Bindable var add = add
         switch add.dateSpan {
             case .singleDay:
-                if isCapturingSnapshot {
-                    SnapshotDatePickerStandIn(
-                        title: Strings.manualDay,
-                        selection: .date(add.startDate),
-                    )
-                } else {
-                    DatePicker(
-                        Strings.manualDay,
-                        selection: $add.startDate,
-                        in: ...Date(),
-                        displayedComponents: .date,
-                    )
-                }
+                WhereDatePicker(
+                    Strings.manualDay,
+                    selection: $add.startDate,
+                    latest: Date(),
+                    displayedComponents: .date,
+                )
             case .range:
-                if isCapturingSnapshot {
-                    SnapshotDatePickerStandIn(
-                        title: Strings.manualFrom,
-                        selection: .date(add.startDate),
-                    )
-                    SnapshotDatePickerStandIn(
-                        title: Strings.manualThrough,
-                        selection: .date(add.endDate),
-                    )
-                } else {
-                    DatePicker(
-                        Strings.manualFrom,
-                        selection: $add.startDate,
-                        in: ...Date(),
-                        displayedComponents: .date,
-                    )
-                    DatePicker(
-                        Strings.manualThrough,
-                        selection: $add.endDate,
-                        in: add.startDate ... Date(),
-                        displayedComponents: .date,
-                    )
-                }
+                WhereDatePicker(
+                    Strings.manualFrom,
+                    selection: $add.startDate,
+                    latest: Date(),
+                    displayedComponents: .date,
+                )
+                WhereDatePicker(
+                    Strings.manualThrough,
+                    selection: $add.endDate,
+                    earliest: add.startDate,
+                    latest: Date(),
+                    displayedComponents: .date,
+                )
         }
     }
 
