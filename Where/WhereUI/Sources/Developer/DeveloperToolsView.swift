@@ -22,6 +22,11 @@
         @Environment(WhereSession.self) private var session: WhereSession?
         @Environment(\.periscopeInspector) private var inspector
 
+        /// Extra bottom scroll inset so the last rows clear the floating HUD's
+        /// resize grip. Zero (the default) when hosted without the overlay chrome
+        /// (previews, tests, full screen).
+        var bottomContentInset: CGFloat = 0
+
         var body: some View {
             NavigationStack {
                 List {
@@ -66,6 +71,9 @@
                 }
                 .navigationTitle(Strings.developerTitle)
                 .navigationBarTitleDisplayMode(.inline)
+                // Let the HUD's glass surface show through the list.
+                .scrollContentBackground(.hidden)
+                .contentMargins(.bottom, bottomContentInset, for: .scrollContent)
             }
         }
     }
