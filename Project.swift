@@ -333,6 +333,22 @@ let project = Project(
             productDependency: "SnapshotKit",
             sources: ["Shared/SnapshotKit/Tests/**"],
         ),
+        // The capture/compare pipeline's own regression tests. They render
+        // through `renderSnapshotImage` (so they need the `StuffTestHost` key
+        // window) but assert on probed pixels rather than LFS reference images,
+        // so — unlike `WhereUISnapshotTests` — this bundle is fast, has no
+        // `__Snapshots__/`, and runs in the main `Stuff-iOS-Tests` scheme /
+        // `test` CI job. `SnapshotKitTesting` embeds its dependency closure
+        // (SnapshotKit, SnapshotTesting, AccessibilitySnapshot) into the
+        // `.xctest`; that's fine here since no WhereUI dynamic-framework
+        // boundary is crossed (the duplicate-metadata hazard is specific to the
+        // WhereUISnapshotTests topology).
+        unitTests(
+            name: "SnapshotKitTestingTests",
+            bundleIdSuffix: "snapshotkittesting",
+            productDependency: "SnapshotKitTesting",
+            sources: ["Shared/SnapshotKitTesting/Tests/**"],
+        ),
         unitTests(
             name: "RegionKitTests",
             bundleIdSuffix: "regionkit",
@@ -485,6 +501,7 @@ let project = Project(
                 "PeriscopeToolsTests",
                 "SwiftDataInspectorTests",
                 "SnapshotKitTests",
+                "SnapshotKitTestingTests",
                 "RegionKitTests",
                 "WhereCoreTests",
                 "WhereTests",
@@ -506,6 +523,7 @@ let project = Project(
                 "PeriscopeToolsTests",
                 "SwiftDataInspectorTests",
                 "SnapshotKitTests",
+                "SnapshotKitTestingTests",
                 "RegionKitTests",
                 "WhereCoreTests",
                 "WhereTests",
@@ -526,6 +544,7 @@ let project = Project(
         testScheme(name: "PeriscopeToolsTests"),
         testScheme(name: "SwiftDataInspectorTests"),
         testScheme(name: "SnapshotKitTests"),
+        testScheme(name: "SnapshotKitTestingTests"),
         testScheme(name: "RegionKitTests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),

@@ -3,18 +3,22 @@ import UIKit
 /// A single RGBA pixel sampled from a rendered snapshot, with components in
 /// `0...1`. Shared by the pipeline regression tests that assert on rendered
 /// colors rather than reference images.
-struct PixelSample {
-    let red: CGFloat
-    let green: CGFloat
-    let blue: CGFloat
-    let alpha: CGFloat
+///
+/// `@_spi(Testing)`: a probe for snapshot-pipeline tests, not shipping API.
+@_spi(Testing)
+public struct PixelSample {
+    public let red: CGFloat
+    public let green: CGFloat
+    public let blue: CGFloat
+    public let alpha: CGFloat
 }
 
+@_spi(Testing)
 extension UIImage {
     /// Samples the pixel at a unit-space point (`(0.5, 0.5)` is the center),
     /// clamped to the image bounds. Returns transparent black if the image has
     /// no bitmap backing.
-    func probePixel(atUnitPoint unit: CGPoint) -> PixelSample {
+    public func probePixel(atUnitPoint unit: CGPoint) -> PixelSample {
         guard let cgImage else { return PixelSample(red: 0, green: 0, blue: 0, alpha: 0) }
         let x = min(cgImage.width - 1, max(0, Int(CGFloat(cgImage.width) * unit.x)))
         let y = min(cgImage.height - 1, max(0, Int(CGFloat(cgImage.height) * unit.y)))

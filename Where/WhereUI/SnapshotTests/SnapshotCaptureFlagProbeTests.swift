@@ -1,4 +1,4 @@
-import SnapshotKitTesting
+@_spi(Testing) import SnapshotKitTesting
 import SwiftUI
 import TestHostSupport
 import Testing
