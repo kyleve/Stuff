@@ -86,6 +86,13 @@ func settleContent(
         }
         CATransaction.performWithoutAnimation(view.layoutIfNeeded)
         let sample = view.renderedContentSample()
+        // Byte-exact on purpose — not the tolerance the final image compare uses.
+        // The final compare answers "does this match the reference?", where
+        // sub-pixel/gamut noise warrants a perceptual threshold. This loop answers
+        // a different question — "has rendering *stopped changing*?" — and the
+        // quarter-resolution sample already absorbs sub-pixel jitter, so exact
+        // equality is the right settled signal. A tolerance here would let a slow,
+        // still-drifting animation read as settled between adjacent samples.
         if sample != nil, sample == anchorSample {
             stablePasses += 1
         } else {
@@ -152,6 +159,12 @@ func drainInFlightAnimations(timeout: TimeInterval = 1) -> Bool {
 extension UIView {
     /// Clears the tint color of every text input in the tree so the blinking caret
     /// doesn't flake captures. Not restored — capture hosts are transient.
+    ///
+    /// It walks the tree and targets only `UITextField`/`UITextView` rather than
+    /// clearing the tint once at the root: `tintColor` inherits, so a clear root
+    /// tint would also blank every control that draws with the accent tint —
+    /// buttons, links, toggles, `Label` glyphs — silently changing the captured
+    /// image. Only the text inputs (whose caret *is* the tint) may be cleared.
     @MainActor
     func hideTextInputCursors() {
         recursiveForEach(UITextField.self) { $0.tintColor = .clear }
