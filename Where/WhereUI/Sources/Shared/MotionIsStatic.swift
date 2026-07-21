@@ -18,6 +18,13 @@ import SwiftUI
 /// guard !motionIsStatic else { return }
 /// withAnimation(.easeInOut.repeatForever()) { pulsing = true }
 /// ```
+///
+/// `@Environment` reads work here because the wrapper is a `DynamicProperty`:
+/// SwiftUI walks a view's `DynamicProperty` members (including nested ones) and
+/// populates their environment before `body`, so the two reads resolve exactly
+/// as they would on the view itself. Proven end-to-end by the `launchSplash.*`
+/// captures (the pulse/radar freeze only if this reads the capture flag) and by
+/// `WhereUISnapshotTests.SnapshotCaptureFlagProbeTests`.
 @propertyWrapper
 struct MotionIsStatic: DynamicProperty {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

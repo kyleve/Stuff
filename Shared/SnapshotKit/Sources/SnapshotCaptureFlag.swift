@@ -32,6 +32,18 @@ private struct IsCapturingSnapshotKey: UITraitBridgedEnvironmentKey {
     }
 }
 
+/// A pure-SwiftUI capture flag set by SwiftUI-native callers (the preview
+/// cutsheet's `.environment(\.isCapturingSnapshot, true)`, or any `.environment`
+/// override). Because it's an ordinary `EnvironmentKey` — not trait-bridged — it
+/// propagates synchronously through the SwiftUI tree with no `UITraitCollection`
+/// round-trip or first-frame lag. `nil` means "no SwiftUI ancestor set one", so
+/// the accessor falls back to the UIKit-bridged value. This mirrors Broadway's
+/// `BContext+SwiftUI` bridging, and is why the capture pipeline's
+/// `traitOverrides`-set value (UIKit) still reaches SwiftUI via the fallback.
+private struct SwiftUIIsCapturingSnapshotKey: EnvironmentKey {
+    static let defaultValue: Bool? = nil
+}
+
 extension EnvironmentValues {
     /// `true` while `SnapshotKitTesting` captures this view for a snapshot test,
     /// and in the ``SnapshotProviding/snapshotPreviews`` cutsheet (previews
@@ -53,7 +65,7 @@ extension EnvironmentValues {
     /// Keep the placeholder honest: the view's own chrome (markers, overlays,
     /// legends, row titles) must still render for real; only the
     /// nondeterministic element is substituted (see the Where app's
-    /// `RegionMapView` and `SnapshotDatePickerStandIn`).
+    /// `RegionMapView` and `WhereDatePicker`).
     ///
     /// The same determinism rationale covers **wall-clock timers that flip
     /// visible state**: whether such a timer has fired by capture time races
@@ -62,8 +74,18 @@ extension EnvironmentValues {
     /// each state then gets its own snapshot case (see the Where app's launch
     /// splash, whose slow-launch caption shows iff its `previewShowsCaption`
     /// seam says so). Everything else must render real content.
+    ///
+    /// A SwiftUI-set value (the preview cutsheet, or any `.environment`
+    /// override) is read synchronously from a pure-SwiftUI key; with none set,
+    /// it falls back to the value bridged from the nearest UIKit ancestor's
+    /// trait collection (how the test pipeline's `traitOverrides` reaches
+    /// SwiftUI). Writing mirrors into both so a SwiftUI-set flag also reaches
+    /// nested UIKit.
     public var isCapturingSnapshot: Bool {
-        get { self[IsCapturingSnapshotKey.self] }
-        set { self[IsCapturingSnapshotKey.self] = newValue }
+        get { self[SwiftUIIsCapturingSnapshotKey.self] ?? self[IsCapturingSnapshotKey.self] }
+        set {
+            self[SwiftUIIsCapturingSnapshotKey.self] = newValue
+            self[IsCapturingSnapshotKey.self] = newValue
+        }
     }
 }
