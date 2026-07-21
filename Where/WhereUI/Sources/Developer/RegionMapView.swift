@@ -26,7 +26,6 @@ public struct RegionMapView: View {
     @State private var cameraPosition: MapCameraPosition = .automatic
 
     @Environment(\.stylesheet) private var stylesheet
-    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
     @Environment(\.regionStyles) private var regionStyles
 
     /// Public so the standalone `RegionViewer` app (a separate module) can
@@ -79,32 +78,12 @@ public struct RegionMapView: View {
         }
     }
 
-    /// Snapshot captures substitute the live `Map` with a deterministic
-    /// stand-in of identical layout: MapKit's tile/label loading is
-    /// asynchronous and cache/network-dependent, so no settle window can make
-    /// the real substrate pixel-stable. The view's own overlays (the region
-    /// polygons) still render for real — only the tile substrate is replaced —
-    /// per the `\.isCapturingSnapshot` carve-out for externally-loaded,
-    /// non-deterministic content (see SnapshotKit's `SnapshotCaptureFlag`).
     private func map(for outlines: [RegionOutline]) -> some View {
-        Group {
-            if isCapturingSnapshot {
-                SnapshotMapStandIn(
-                    outlines: outlines,
-                    region: Self.enclosingRegion(of: outlines),
-                    color: color(for:),
-                )
-            } else {
-                Map(position: $cameraPosition) {
-                    ForEach(outlines) { outline in
-                        MapPolygon(coordinates: outline.coordinates.clLocationCoordinates)
-                            .foregroundStyle(color(for: outline).opacity(0.25))
-                            .stroke(color(for: outline), lineWidth: 1.5)
-                    }
-                }
-                .mapStyle(.standard(pointsOfInterest: .excludingAll))
-            }
-        }
+        RegionOutlinesMap(
+            outlines: outlines,
+            cameraPosition: $cameraPosition,
+            color: color(for:),
+        )
         .frame(maxHeight: .infinity)
         .accessibilityLabel(Strings.regionMapMapAccessibility)
     }
@@ -278,6 +257,42 @@ public struct RegionMapView: View {
     private static func paletteIndex(for title: String) -> Int {
         let sum = title.unicodeScalars.reduce(0) { $0 &+ Int($1.value) }
         return sum % palette.count
+    }
+}
+
+/// The map surface for ``RegionMapView``: the live MapKit `Map`, or — under
+/// snapshot capture — a deterministic stand-in of identical layout. Owning the
+/// `\.isCapturingSnapshot` branch here keeps the capture check out of
+/// `RegionMapView` itself: the screen just renders this, unaware which substrate
+/// it drew. MapKit's tile/label loading is asynchronous and cache/network-
+/// dependent, so no settle window can make the real substrate pixel-stable; the
+/// view's own overlays (the region polygons) still render for real in the
+/// stand-in — only the tile substrate is replaced — per the
+/// `\.isCapturingSnapshot` carve-out (see SnapshotKit's `SnapshotCaptureFlag`).
+private struct RegionOutlinesMap: View {
+    let outlines: [RegionOutline]
+    @Binding var cameraPosition: MapCameraPosition
+    let color: (RegionOutline) -> Color
+
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
+
+    var body: some View {
+        if isCapturingSnapshot {
+            SnapshotMapStandIn(
+                outlines: outlines,
+                region: RegionMapView.enclosingRegion(of: outlines),
+                color: color,
+            )
+        } else {
+            Map(position: $cameraPosition) {
+                ForEach(outlines) { outline in
+                    MapPolygon(coordinates: outline.coordinates.clLocationCoordinates)
+                        .foregroundStyle(color(outline).opacity(0.25))
+                        .stroke(color(outline), lineWidth: 1.5)
+                }
+            }
+            .mapStyle(.standard(pointsOfInterest: .excludingAll))
+        }
     }
 }
 

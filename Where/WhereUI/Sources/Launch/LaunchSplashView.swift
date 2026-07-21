@@ -35,6 +35,12 @@ import SwiftUI
 /// deterministically.
 struct LaunchSplashView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // Two distinct questions, deliberately not merged:
+    // • `motionIsStatic` (Reduce Motion *or* capture) gates never-settling
+    //   motion — the pulse — which must freeze in both cases.
+    // • `isCapturingSnapshot` alone gates the wall-clock caption timer below:
+    //   Reduce Motion users still get the caption (just without the fade), so
+    //   the timer can't key off `motionIsStatic` — only a capture skips it.
     @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
     @MotionIsStatic private var motionIsStatic
     @Environment(\.stylesheet) private var stylesheet
@@ -172,11 +178,13 @@ private struct RadarPingBackground: View {
     private let maxOpacity: Double = 0.32
 
     var body: some View {
+        // `motionIsStatic` pauses the clock (no ticks under Reduce Motion or
+        // capture); `isCapturingSnapshot` additionally pins the phase, since a
+        // paused `TimelineView` still reports its wall-clock pause instant —
+        // which would leak run-dependent ring radii/opacities into the capture.
         TimelineView(.animation(paused: motionIsStatic)) { timeline in
             Canvas { context, size in
-                let now = isCapturingSnapshot
-                    ? 0
-                    : timeline.date.timeIntervalSinceReferenceDate
+                let now = timeline.radarPhaseClock(capturingSnapshot: isCapturingSnapshot)
                 let center = CGPoint(x: size.width / 2, y: size.height / 2)
                 let maxRadius = max(size.width, size.height) * 0.75
                 for index in 0 ..< ringCount {
@@ -203,6 +211,15 @@ private struct RadarPingBackground: View {
     private func ringPhase(now: Double, index: Int) -> Double {
         let raw = now / period + Double(index) / Double(ringCount)
         return raw - raw.rounded(.down)
+    }
+}
+
+extension TimelineViewDefaultContext {
+    /// The radar rings' animation-phase clock: the wall-clock time normally, or
+    /// a pinned constant under snapshot capture so the rings freeze at a
+    /// deterministic phase (see `RadarPingBackground`).
+    fileprivate func radarPhaseClock(capturingSnapshot: Bool) -> Double {
+        capturingSnapshot ? 0 : date.timeIntervalSinceReferenceDate
     }
 }
 
