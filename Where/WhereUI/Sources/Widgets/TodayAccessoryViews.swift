@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 import WidgetKit
@@ -73,17 +74,53 @@ public struct TodayCircularAccessoryView: View {
 }
 
 #if DEBUG
-    #Preview("Inline", traits: .fixedLayout(width: 200, height: 30)) {
-        TodayInlineAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
-            dayRegions: [.california, .newYork],
-            totals: [.california: 132, .newYork: 41],
-        ))
+    extension TodayInlineAccessoryView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Regions",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
+                TodayInlineAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [.california, .newYork],
+                    totals: [.california: 132, .newYork: 41],
+                ))
+            }
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
+                TodayInlineAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [],
+                    totals: [:],
+                ))
+            }
+        }
     }
 
-    #Preview("Circular", traits: .fixedLayout(width: 80, height: 80)) {
-        TodayCircularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
-            dayRegions: [.california, .newYork],
-            totals: [.california: 132, .newYork: 41],
-        ))
+    extension TodayCircularAccessoryView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Regions",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
+                TodayCircularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [.california, .newYork],
+                    totals: [.california: 132, .newYork: 41],
+                ))
+            }
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
+                TodayCircularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [],
+                    totals: [:],
+                ))
+            }
+        }
+    }
+
+    #Preview("Inline") {
+        TodayInlineAccessoryView.snapshotPreviews
+    }
+
+    #Preview("Circular") {
+        TodayCircularAccessoryView.snapshotPreviews
     }
 #endif

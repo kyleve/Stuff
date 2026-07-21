@@ -509,54 +509,70 @@ extension ManualDayView {
 }
 
 #if DEBUG
-    #Preview("Add") {
-        NavigationStack {
-            ManualDayView(report: PreviewSupport.loadedYearReportModel(), mode: .add(prefill: nil))
+    extension ManualDayView: SnapshotProviding {
+        /// A plain add (`prefill: nil`) would default its date pickers to the
+        /// real current date and churn the references daily, so the add cases
+        /// prefill a fixed single day instead — same form, deterministic date.
+        private static var addPrefill: MissingDayRange {
+            let day = CalendarDay(from: PreviewSupport.referenceNow, in: .current)
+            return MissingDayRange(start: day, end: day, dayCount: 1)
+        }
+
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Add", configurations: .screenDefaults) {
+                NavigationStack {
+                    ManualDayView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        mode: .add(prefill: addPrefill),
+                        showsCancelButton: false,
+                    )
+                }
+            }
+            whereSnapshot(name: "AddWithCancel", configurations: .phoneLightDark) {
+                NavigationStack {
+                    ManualDayView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        mode: .add(prefill: addPrefill),
+                        showsCancelButton: true,
+                    )
+                }
+            }
+            whereSnapshot(name: "EditPlain", configurations: .phoneLightDark) {
+                NavigationStack {
+                    ManualDayView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        mode: .edit(DayPresence(
+                            date: PreviewSupport.referenceNow,
+                            in: .current,
+                            regions: [.california],
+                        )),
+                        showsCancelButton: true,
+                    )
+                }
+            }
+            whereSnapshot(name: "EditAuthoritative", configurations: .phoneLightDark) {
+                NavigationStack {
+                    ManualDayView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        mode: .edit(DayPresence(
+                            date: PreviewSupport.referenceNow,
+                            in: .current,
+                            regions: [.canada],
+                            isAuthoritative: true,
+                            audit: ManualEntryAudit(
+                                recordedAt: PreviewSupport.referenceNow,
+                                note: "Boarding pass.",
+                                location: nil,
+                            ),
+                        )),
+                        showsCancelButton: true,
+                    )
+                }
+            }
         }
     }
 
-    #Preview("Add — prefilled range") {
-        NavigationStack {
-            ManualDayView(
-                report: PreviewSupport.missingDaysYearReportModel(),
-                mode: .add(prefill: MissingDayRange(
-                    start: CalendarDay(year: 2026, month: 1, day: 1),
-                    end: CalendarDay(year: 2026, month: 1, day: 5),
-                    dayCount: 5,
-                )),
-            )
-        }
-    }
-
-    #Preview("Edit — additive backfill") {
-        NavigationStack {
-            ManualDayView(
-                report: PreviewSupport.loadedYearReportModel(),
-                mode: .edit(DayPresence(date: .now, in: .current, regions: [.california])),
-            )
-        }
-    }
-
-    #Preview("Edit — authoritative with audit") {
-        NavigationStack {
-            ManualDayView(
-                report: PreviewSupport.loadedYearReportModel(),
-                mode: .edit(DayPresence(
-                    date: .now,
-                    in: .current,
-                    regions: [.canada],
-                    isAuthoritative: true,
-                    audit: ManualEntryAudit(
-                        recordedAt: .now,
-                        note: "Corrected after reviewing my boarding pass.",
-                        location: CapturedLocation(
-                            coordinate: Coordinate(latitude: 49.2827, longitude: -123.1207),
-                            horizontalAccuracy: 12,
-                            timestamp: .now,
-                        ),
-                    ),
-                )),
-            )
-        }
+    #Preview {
+        ManualDayView.snapshotPreviews
     }
 #endif

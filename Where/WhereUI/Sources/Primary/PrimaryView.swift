@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -207,19 +208,28 @@ struct PrimaryView: View {
 }
 
 #if DEBUG
-    #Preview("Loaded") {
-        PrimaryView(report: PreviewSupport.loadedYearReportModel())
+    extension PrimaryView: SnapshotProviding {
+        /// The raised settle floor on `Loaded` outlasts the iOS 26 glass toolbar
+        /// material adaptation (seen pre-adaptation once on `Loaded_iPhone`) —
+        /// same mechanism as `RootView.LoggedIn`.
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Loaded",
+                configurations: .screenDefaults,
+                settle: .settledAtLeast(minDuration: 1.0),
+            ) {
+                PrimaryView(report: PreviewSupport.loadedYearReportModel())
+            }
+            whereSnapshot(name: "ElsewhereOnly", configurations: .phoneLightDark) {
+                PrimaryView(report: PreviewSupport.elsewhereOnlyYearReportModel())
+            }
+            whereSnapshot(name: "MissingDays", configurations: .phoneLightDark) {
+                PrimaryView(report: PreviewSupport.missingDaysYearReportModel())
+            }
+        }
     }
 
-    #Preview("Empty") {
-        PrimaryView(report: PreviewSupport.emptyYearReportModel())
-    }
-
-    #Preview("Missing days") {
-        PrimaryView(report: PreviewSupport.missingDaysYearReportModel())
-    }
-
-    #Preview("Elsewhere only") {
-        PrimaryView(report: PreviewSupport.elsewhereOnlyYearReportModel())
+    #Preview {
+        PrimaryView.snapshotPreviews
     }
 #endif

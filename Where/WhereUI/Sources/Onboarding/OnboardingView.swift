@@ -1,4 +1,5 @@
 import LifecycleKit
+import SnapshotKit
 import SwiftUI
 import UniformTypeIdentifiers
 import WhereCore
@@ -329,9 +330,18 @@ struct OnboardingPage: Identifiable {
 }
 
 #if DEBUG
+    extension OnboardingView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .screenDefaults) {
+                let model = PreviewSupport.onboardingModel()
+                OnboardingView(bridge: LifecycleStepUIBridge(reason: .userForeground))
+                    .environment(model)
+                    .environment(model.session)
+            }
+        }
+    }
+
     #Preview {
-        OnboardingView(bridge: LifecycleStepUIBridge(reason: .userForeground))
-            .environment(PreviewSupport.loadedModel())
-            .environment(PreviewSupport.loadedSession())
+        OnboardingView.snapshotPreviews
     }
 #endif

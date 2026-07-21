@@ -352,9 +352,24 @@ private struct LegendGroup: Identifiable {
 }
 
 #if DEBUG
-    #Preview {
+    extension RegionMapView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .phoneLightDark) {
+                NavigationStack { RegionMapView() }
+            }
+        }
+    }
+
+    // The live `Map` preview stays alongside the cutsheet: the cutsheet renders
+    // the deterministic capture stand-in (`\.isCapturingSnapshot` is set there),
+    // but a developer previewing this screen still wants the real MapKit map.
+    #Preview("Live map") {
         NavigationStack {
             RegionMapView()
         }
+    }
+
+    #Preview("Snapshot cutsheet") {
+        RegionMapView.snapshotPreviews
     }
 #endif
