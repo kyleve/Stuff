@@ -893,6 +893,16 @@ enum Strings {
         localized("developer.expand")
     }
 
+    /// Accessibility label for the handle that drags the floating developer window.
+    static var developerDragHandle: String {
+        localized("developer.dragHandle")
+    }
+
+    /// Accessibility label for the grip that resizes the floating developer window.
+    static var developerResizeHandle: String {
+        localized("developer.resizeHandle")
+    }
+
     /// Accessibility label for shrinking the developer panel back to a
     /// floating window.
     static var developerCollapse: String {
