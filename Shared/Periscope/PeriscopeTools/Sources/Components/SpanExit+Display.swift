@@ -6,31 +6,22 @@ extension SpanExit.Mode {
     var displayName: String {
         rawValue.capitalized
     }
-
-    /// Chip tint: calm for expected outcomes, hot for the ones worth
-    /// chasing.
-    var tint: Color {
-        switch self {
-            case .success: .green
-            case .cancelled: .gray
-            case .superseded: .yellow
-            case .expired: .orange
-            case .failure: .red
-            case .orphaned: .purple
-        }
-    }
 }
 
 /// The exit-mode chip shown beside span-ended rows and in event detail.
 struct SpanExitBadge: View {
     let mode: SpanExit.Mode
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
+        let badge = stylesheet.badge
+        let tint = stylesheet.palette.tint(forSpanExit: mode)
         Text(mode.displayName)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(mode.tint.opacity(0.18), in: .capsule)
-            .foregroundStyle(mode.tint)
+            .font(badge.font)
+            .padding(.horizontal, badge.horizontalPadding)
+            .padding(.vertical, badge.verticalPadding)
+            .background(tint.opacity(badge.backgroundOpacity), in: .capsule)
+            .foregroundStyle(tint)
     }
 }

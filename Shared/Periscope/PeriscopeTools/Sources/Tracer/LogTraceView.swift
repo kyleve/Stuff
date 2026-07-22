@@ -44,6 +44,7 @@ public struct LogTraceView: View {
         .listStyle(.plain)
         .navigationTitle("Trace")
         .navigationBarTitleDisplayMode(.inline)
+        .periscopeBroadwayRoot()
         .task(id: Inputs(store: ObjectIdentifier(store), origin: origin.id, limit: limit)) {
             if model.store !== store || model.origin.id != origin.id || model.limit != limit {
                 model = LogTraceModel(store: store, origin: origin, limit: limit)
