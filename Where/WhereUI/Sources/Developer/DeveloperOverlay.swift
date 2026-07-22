@@ -296,6 +296,10 @@
             .overlay(alignment: .bottomTrailing) {
                 if !isFullScreen { resizeGrip }
             }
+            // Compact the chrome + tools so the small HUD window fits more. A dev
+            // surface deliberately ignores the user's Dynamic Type here to reclaim
+            // space; text styles (`.title3`, list rows) all scale down from this.
+            .dynamicTypeSize(.small)
         }
 
         private var controlBar: some View {
@@ -339,8 +343,13 @@
                     .frame(width: 40, height: 5)
                     .frame(maxWidth: .infinity, minHeight: 28)
                     .contentShape(Rectangle())
+                    // Measure in the global space: the handle rides on the window
+                    // we're moving, so a `.local` translation would be relative to a
+                    // frame that's itself moving under the finger — it oscillates and
+                    // reads as jitter. Global keeps the translation anchored to the
+                    // screen.
                     .gesture(
-                        DragGesture(minimumDistance: 1)
+                        DragGesture(minimumDistance: 1, coordinateSpace: .global)
                             .onChanged { onMove($0.translation, false) }
                             .onEnded { onMove($0.translation, true) },
                     )
@@ -354,8 +363,11 @@
                 .foregroundStyle(.secondary)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
+                // Global space for the same reason as the drag handle: the grip
+                // sits at the growing bottom-trailing corner, so a `.local`
+                // translation would chase the moving corner and jitter.
                 .gesture(
-                    DragGesture(minimumDistance: 1)
+                    DragGesture(minimumDistance: 1, coordinateSpace: .global)
                         .onChanged { onResize($0.translation, false) }
                         .onEnded { onResize($0.translation, true) },
                 )
