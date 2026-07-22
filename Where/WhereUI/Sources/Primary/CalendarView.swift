@@ -56,6 +56,10 @@ struct CalendarContentView: View {
 
     @State private var timelineTarget: TimelineMonthTarget?
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
+    /// The year whose grid we've already auto-scrolled to the current month, so
+    /// the jump happens once per year rather than on every reappearance (e.g.
+    /// returning to the tab), which would clobber the user's scroll position.
+    @State private var scrolledForYear: Int?
 
     private static let logger = WhereLog.session(CalendarViewLog.self)
 
@@ -171,13 +175,19 @@ struct CalendarContentView: View {
                 .padding()
             }
             .onAppear {
-                scrollToCurrentMonth(proxy, months: months)
+                scrollToCurrentMonthIfNeeded(proxy, months: months)
             }
         }
     }
 
-    /// When viewing the current year, scrolls the grid to today's month.
-    private func scrollToCurrentMonth(_ proxy: ScrollViewProxy, months: [CalendarMonth]) {
+    /// When viewing the current year, scrolls the grid to today's month — but
+    /// only the first time this year's grid appears. Reappearing (returning to
+    /// the tab, re-showing the calendar) must keep the user's scroll position,
+    /// so it's guarded by the year already scrolled. A report-year switch tears
+    /// this content down and rebuilds it, so the new year scrolls afresh.
+    private func scrollToCurrentMonthIfNeeded(_ proxy: ScrollViewProxy, months: [CalendarMonth]) {
+        guard scrolledForYear != report.selectedYear else { return }
+        scrolledForYear = report.selectedYear
         guard let targetID = months.first(where: \.isCurrentMonth)?.id else { return }
         DispatchQueue.main.async {
             proxy.scrollTo(targetID, anchor: .top)
