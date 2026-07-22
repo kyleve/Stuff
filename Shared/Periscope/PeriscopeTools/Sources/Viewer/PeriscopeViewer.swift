@@ -16,6 +16,19 @@ public struct PeriscopeViewer: View {
     @State private var export: NDJSONExport?
     @State private var exportFailed = false
     @State private var density: PeriscopeStylesheet.Density
+    @State private var spanDestination: SpanDestination?
+
+    /// The span surfaces reachable from the Logs toolbar's Spans menu, pushed
+    /// onto the host stack via `navigationDestination` (a menu keeps the bar
+    /// uncrowded and both surfaces discoverable).
+    private enum SpanDestination: Hashable, Identifiable {
+        case tree
+        case history
+
+        var id: Self {
+            self
+        }
+    }
 
     public init(store: PeriscopeStore, title: String = "Logs") {
         self.init(store: store, title: title, defaults: .standard)
@@ -53,6 +66,7 @@ public struct PeriscopeViewer: View {
                 model = PeriscopeViewerModel(store: store)
                 export = nil
                 exportFailed = false
+                spanDestination = nil
             }
             await model.run()
         }
@@ -69,21 +83,18 @@ public struct PeriscopeViewer: View {
                     filterMenu
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SpanTreeView(store: store)
-                    } label: {
-                        Label("Span Tree", systemImage: "stopwatch")
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SpanHistoryView(store: store)
-                    } label: {
-                        Label("Span History", systemImage: "chart.bar.xaxis")
-                    }
+                    spansMenu
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     exportButton
+                }
+            }
+            .navigationDestination(item: $spanDestination) { destination in
+                switch destination {
+                    case .tree:
+                        SpanTreeView(store: store)
+                    case .history:
+                        SpanHistoryView(store: store)
                 }
             }
             .searchable(text: $model.searchText)
@@ -178,6 +189,25 @@ public struct PeriscopeViewer: View {
             }
         } label: {
             Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
+        }
+    }
+
+    /// The Spans menu: the store's span surfaces, grouped so the bar stays
+    /// uncrowded. Selecting one pushes it via `spanDestination`.
+    private var spansMenu: some View {
+        Menu {
+            Button {
+                spanDestination = .tree
+            } label: {
+                Label("Span Tree", systemImage: "stopwatch")
+            }
+            Button {
+                spanDestination = .history
+            } label: {
+                Label("Span History", systemImage: "chart.bar.xaxis")
+            }
+        } label: {
+            Label("Spans", systemImage: "stopwatch")
         }
     }
 
