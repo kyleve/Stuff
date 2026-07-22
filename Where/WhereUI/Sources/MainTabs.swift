@@ -55,7 +55,8 @@ struct MainTabs: View {
                     .reportingDeveloperTabBarInset()
             }
         }
-        .tabBarMinimizeBehavior(.onScrollDown)
+        // Keep the tab bar fixed — don't minimize it as content scrolls.
+        .tabBarMinimizeBehavior(.never)
         // Subscribe + pull once the scene is on screen, and again whenever it
         // returns to the foreground; cancel the subscription on background so a
         // backgrounded scene drives no refreshes.
