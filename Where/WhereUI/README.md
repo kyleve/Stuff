@@ -18,7 +18,7 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ### App shell & view models
 
-- **`RootView`** — the app root: the typed launch plan (via
+- **`RootView`** — the app root: the launch function (via
   [`LifecycleKit`](../../Shared/LifecycleKit), rendered by
   [`LifecycleKitUI`](../../Shared/LifecycleKitUI)'s container) gated in front
   of the Liquid Glass tab bar over the four top-level screens (Primary,

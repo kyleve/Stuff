@@ -4,7 +4,7 @@ The SwiftUI layer for [LifecycleKit](../LifecycleKit): `LifecycleContainer`
 renders a `LifecycleRunner`'s `phase` (splash / gate view / failure / app
 content), `GateView(for:content:)` registers gate views by gate *type*, and
 `LifecycleProxy` (`@Environment(\.lifecycle)`) lets nested views reach
-`retry()`/`teardown(_:input:)`. See [`README.md`](README.md) for the full
+`retry()`/`teardown(input:_:)`. See [`README.md`](README.md) for the full
 narrative and API.
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md), which owns

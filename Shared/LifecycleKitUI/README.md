@@ -64,14 +64,15 @@ LifecycleContainer(
 
 `LifecycleContainer` publishes a `LifecycleProxy` under
 `@Environment(\.lifecycle)`. The proxy is non-generic (environment values
-must be), forwards `retry()` / `enterForeground()` / `teardown(_:input:)`,
-and is *disconnected* by default: calling through it without a container
-above asserts in debug and no-ops in release.
+must be), forwards `retry()` / `enterForeground()` / `teardown(input:_:)` —
+the typed teardown input + function are captured into a plain closure at the
+call site to cross the seam — and is *disconnected* by default: calling
+through it without a container above asserts in debug and no-ops in release.
 
 ```swift
 @Environment(\.lifecycle) private var lifecycle
 ...
-await lifecycle.teardown(WhereLaunch.resetPlan(for: model), input: session)
+await lifecycle.teardown(input: session, WhereLaunch.reset(for: model))
 ```
 
 ## Defaults
