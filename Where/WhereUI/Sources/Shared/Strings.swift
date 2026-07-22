@@ -686,14 +686,6 @@ enum Strings {
         )
     }
 
-    static var settingsKeywordsHideTabs: String {
-        String(
-            localized: "settings.keywords.hideTabs",
-            defaultValue: "tabs, hide, empty, elsewhere, resolve",
-            bundle: .module,
-        )
-    }
-
     static var settingsKeywordsAppIcon: String {
         String(
             localized: "settings.keywords.appIcon",
@@ -1120,30 +1112,6 @@ enum Strings {
         String(
             localized: "settings.issueAlerts.deniedFooter",
             defaultValue: "Notifications are turned off for Where, so issue alerts can't appear. Turn them on in Settings.",
-            bundle: .module,
-        )
-    }
-
-    static var settingsTabsHeader: String {
-        String(
-            localized: "settings.tabs.header",
-            defaultValue: "Tabs",
-            bundle: .module,
-        )
-    }
-
-    static var settingsTabsToggle: String {
-        String(
-            localized: "settings.tabs.toggle",
-            defaultValue: "Hide empty tabs",
-            bundle: .module,
-        )
-    }
-
-    static var settingsTabsFooter: String {
-        String(
-            localized: "settings.tabs.footer",
-            defaultValue: "Hide the Elsewhere and Resolve tabs while they have nothing to show. Turn this off to always keep them in the tab bar.",
             bundle: .module,
         )
     }

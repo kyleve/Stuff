@@ -3724,39 +3724,6 @@
         }
       }
     },
-    "settings.tabs.footer" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide the Elsewhere and Resolve tabs while they have nothing to show. Turn this off to always keep them in the tab bar."
-          }
-        }
-      }
-    },
-    "settings.tabs.header" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tabs"
-          }
-        }
-      }
-    },
-    "settings.tabs.toggle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide empty tabs"
-          }
-        }
-      }
-    },
     "settings.title" : {
       "extractionState" : "manual",
       "localizations" : {
