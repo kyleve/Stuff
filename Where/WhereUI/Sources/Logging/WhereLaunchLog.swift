@@ -1,18 +1,24 @@
 import PeriscopeCore
 
-/// Structured events for the app launch sequence (`WhereLaunch` /
-/// `WhereBootstrap`), including the process-global log-store bootstrap.
+/// Launch/bootstrap events for the `WhereLaunch` flow.
 enum WhereLaunchLog: LogEvent {
     /// Names the launch spans — one bounded span per launch step.
     enum SpanName: Hashable {
         case step
     }
 
-    case runnerCreated(reason: String)
+    case launchStarted
     case servicesAssembled
     /// Assembling the service layer (store open + `WhereServices.make`) failed;
-    /// the `open-store` step surfaces it and the launch parks in `.failed`.
+    /// the launch surfaces it and parks in the terminal `.failed` phase.
     case servicesAssemblyFailed(description: String)
+    /// The launch attempt failed. Logged as well as published: a headless
+    /// attempt's failure surface is never rendered, so without this the
+    /// failure would leave no trace anywhere.
+    case launchFailed(description: String)
+    /// The reset's erase failed; the session and preferences were left
+    /// intact and the launch state parked in the terminal `.failed` phase.
+    case resetFailed(description: String)
     /// The durable log store opened and attached to `Periscope.shared`. Fired
     /// as soon as the store is browsable — retention pruning runs after, off the
     /// ready path (see ``historyPruned``).
@@ -26,37 +32,34 @@ enum WhereLaunchLog: LogEvent {
     /// Retention pruning failed; the store is still usable (last good history
     /// preserved), it just isn't trimmed this launch.
     case historyPruneFailed(description: String)
-    /// A detached (fire-and-forget) launch step failed. Never fatal — the
-    /// launch reaches `.ready` regardless and the runner records it on
-    /// `detachedFailures` — but it must be visible in logs too, not just on
-    /// observable state nothing renders (see `DetachedFailureReporter`).
-    case detachedStepFailed(stepID: String, description: String)
 
     static let eventName = "WhereLaunch"
 
     var level: LogLevel {
         switch self {
-            case .runnerCreated, .servicesAssembled, .loggingStoreReady, .historyPruned:
+            case .launchStarted, .servicesAssembled, .loggingStoreReady, .historyPruned:
                 .info
             // The store is still usable when pruning fails (degraded-but-handled),
-            // unlike an outright open failure. A detached-step failure is the
-            // same shape: the launch stays healthy, one best-effort fan-out
-            // didn't land.
-            case .historyPruneFailed, .detachedStepFailed:
+            // unlike an outright open failure.
+            case .historyPruneFailed:
                 .warning
-            case .servicesAssemblyFailed, .loggingStoreUnavailable:
+            case .servicesAssemblyFailed, .loggingStoreUnavailable, .launchFailed, .resetFailed:
                 .error
         }
     }
 
     var message: String {
         switch self {
-            case let .runnerCreated(reason):
-                "Lifecycle runner created (reason: \(reason))"
+            case .launchStarted:
+                "Launch started"
             case .servicesAssembled:
                 "WhereServices assembled"
             case let .servicesAssemblyFailed(description):
                 "Failed to assemble WhereServices: \(description)"
+            case let .launchFailed(description):
+                "Launch failed: \(description)"
+            case let .resetFailed(description):
+                "Erase-and-reset failed: \(description)"
             case .loggingStoreReady:
                 "Log store ready"
             case let .loggingStoreUnavailable(description):
@@ -65,8 +68,6 @@ enum WhereLaunchLog: LogEvent {
                 "Pruned \(prunedEventCount) log event(s) past retention"
             case let .historyPruneFailed(description):
                 "Failed to prune log history: \(description)"
-            case let .detachedStepFailed(stepID, description):
-                "Detached launch step '\(stepID)' failed: \(description)"
         }
     }
 }

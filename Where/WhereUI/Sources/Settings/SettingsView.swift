@@ -1,4 +1,3 @@
-import LifecycleKitUI
 import PeriscopeCore
 import RegionKit
 import SwiftUI
@@ -23,7 +22,7 @@ struct SettingsView: View {
     @Environment(WhereModel.self) private var model
     @Environment(WhereSession.self) private var session
     @Environment(\.openURL) private var openURL
-    @Environment(\.lifecycle) private var lifecycle
+    @Environment(WhereLaunchState.self) private var launchState
 
     @State private var showClearConfirmation = false
     @State private var showResetConfirmation = false
@@ -554,9 +553,8 @@ struct SettingsView: View {
     }
 
     /// Whole-app teardown: wipes every year's data and returns to first-run
-    /// onboarding, run through the `LifecycleProxy` published into the
-    /// environment by `LifecycleContainer`. The proxy asserts in debug /
-    /// no-ops in release when no container is above (e.g. previews).
+    /// onboarding, run through `WhereLaunch.reset` against the launch state
+    /// `RootView` publishes into the environment.
     private var resetSection: some View {
         Section {
             Button(role: .destructive) {
@@ -582,10 +580,9 @@ struct SettingsView: View {
     }
 
     private func requestReset() {
-        // The reset function is rooted at the session being torn down —
-        // handed in here, where it's known non-optional, rather than re-read
-        // inside the teardown.
-        Task { await lifecycle.teardown(input: session, WhereLaunch.reset(for: model)) }
+        // The reset takes the session being torn down — handed in here, where
+        // it's known non-optional, rather than re-read inside the teardown.
+        Task { await WhereLaunch.reset(model: model, state: launchState, session: session) }
     }
 
     private func openSystemSettings() {
@@ -599,5 +596,6 @@ struct SettingsView: View {
         SettingsView(report: PreviewSupport.loadedYearReportModel())
             .environment(PreviewSupport.loadedModel())
             .environment(PreviewSupport.loadedSession())
+            .environment(WhereLaunchState())
     }
 #endif

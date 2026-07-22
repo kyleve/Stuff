@@ -92,7 +92,6 @@ let project = Project(
             resources: ["Where/Where/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
-                .package(product: "LifecycleKit"),
                 .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
@@ -209,7 +208,6 @@ let project = Project(
             sources: ["Where/Where/Tests/**"],
             dependencies: [
                 .target(name: "Where"),
-                .package(product: "LifecycleKit"),
                 .package(product: "TestHostSupport"),
                 .package(product: "WhereUI"),
             ],
@@ -260,19 +258,6 @@ let project = Project(
             bundleIdSuffix: "stuffcore",
             productDependency: "StuffCore",
             sources: ["Shared/StuffCore/Tests/**"],
-        ),
-        unitTests(
-            name: "LifecycleKitTests",
-            bundleIdSuffix: "lifecyclekit",
-            productDependency: "LifecycleKit",
-            sources: ["Shared/LifecycleKit/Tests/**"],
-        ),
-        unitTests(
-            name: "LifecycleKitUITests",
-            bundleIdSuffix: "lifecyclekitui",
-            productDependency: "LifecycleKitUI",
-            sources: ["Shared/LifecycleKitUI/Tests/**"],
-            extraPackageProducts: ["LifecycleKit"],
         ),
         unitTests(
             name: "JournalKitTests",
@@ -333,7 +318,7 @@ let project = Project(
         // BTraits/BThemes/BStylesheets containers) then silently resolves against
         // the wrong copy — the writer stores under one copy's key type, the
         // reader looks it up under another's. Everything the tests need
-        // (BroadwayCore/BroadwayUI, LifecycleKit/LifecycleKitUI, PeriscopeCore/UI/Tools,
+        // (BroadwayCore/BroadwayUI, PeriscopeCore/UI/Tools,
         // SwiftDataInspector, RegionKit + its GeoJSON bundle) is reached
         // transitively through WhereUI.
         // See the root AGENTS.md "Targets" note.
@@ -425,8 +410,6 @@ let project = Project(
                 "RegionViewer",
                 "StuffTestHost",
                 "StuffCoreTests",
-                "LifecycleKitTests",
-                "LifecycleKitUITests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
@@ -444,8 +427,6 @@ let project = Project(
             ]),
             testAction: .targets([
                 "StuffCoreTests",
-                "LifecycleKitTests",
-                "LifecycleKitUITests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
@@ -462,8 +443,6 @@ let project = Project(
             ]),
         ),
         testScheme(name: "StuffCoreTests"),
-        testScheme(name: "LifecycleKitTests"),
-        testScheme(name: "LifecycleKitUITests"),
         testScheme(name: "JournalKitTests"),
         testScheme(name: "PeriscopeCoreTests"),
         testScheme(name: "PeriscopeUITests"),

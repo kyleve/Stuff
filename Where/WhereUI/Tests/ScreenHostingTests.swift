@@ -28,13 +28,15 @@ struct ScreenHostingTests {
     }
 
     @Test func settingsViewHosts() throws {
-        // Settings reads the app model (reset) and the logged-in session
-        // (tracking) from the environment, and takes the scene report explicitly.
+        // Settings reads the app model (reset), the logged-in session
+        // (tracking), and the launch state (the reset flow) from the
+        // environment, and takes the scene report explicitly.
         let model = PreviewSupport.loadedModel()
         let session = PreviewSupport.loadedSession()
         let rootView = SettingsView(report: PreviewSupport.loadedYearReportModel())
             .environment(model)
             .environment(session)
+            .environment(WhereLaunchState())
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }

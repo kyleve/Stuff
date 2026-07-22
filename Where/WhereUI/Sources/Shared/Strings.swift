@@ -571,6 +571,16 @@ enum Strings {
         )
     }
 
+    /// Title of the terminal launch-failure surface. Deliberately offers no
+    /// retry — the recovery is relaunching the app.
+    static var launchFailureTitle: String {
+        String(
+            localized: "launch.failure.title",
+            defaultValue: "Couldn't finish launching",
+            bundle: .module,
+        )
+    }
+
     /// Spoken by VoiceOver while the launch splash is on screen (the icon and
     /// radar animation are decorative and hidden from accessibility).
     static var launchAccessibilityLabel: String {

@@ -1,4 +1,3 @@
-import LifecycleKit
 import PeriscopeCore
 import SwiftUI
 import UniformTypeIdentifiers
@@ -12,17 +11,17 @@ import WhereCore
 ///
 /// When the user finishes it commits the picked regions + appearances to the
 /// store (which becomes the tracked-region set), persists `hasOnboarded`, and
-/// resolves the `LifecycleGateHandle` so the launch continues; the following
-/// authorization-sync step then seeds region styling and picks up whatever
-/// permission was granted.
+/// resolves the `OnboardingHandle` so the parked launch task continues; the
+/// caller then re-syncs authorization and picks up whatever permission was
+/// granted.
 public struct OnboardingView: View {
     // Onboarding straddles both: it persists the app-level `hasOnboarded` flag
     // (model) and kicks off background tracking + the region commit through
-    // the session — handed in by the gate registration (the gate passes the
-    // trunk's session through), not trusted to be in the environment.
+    // the session — handed in by the launch's parked phase alongside the
+    // handle, not trusted to be in the environment.
     @Environment(WhereModel.self) private var model
     @Environment(\.stylesheet) private var stylesheet
-    private let gate: LifecycleGateHandle
+    private let handle: OnboardingHandle
     private let session: WhereSession
 
     /// The ordered onboarding phases. An explicit state machine (rather than
@@ -48,8 +47,8 @@ public struct OnboardingView: View {
 
     private static let logger = WhereLog.session(OnboardingViewLog.self)
 
-    public init(gate: LifecycleGateHandle, session: WhereSession) {
-        self.gate = gate
+    public init(handle: OnboardingHandle, session: WhereSession) {
+        self.handle = handle
         self.session = session
     }
 
@@ -268,7 +267,7 @@ public struct OnboardingView: View {
                 }
             }
             model.completeOnboarding()
-            gate.complete()
+            handle.complete()
         }
     }
 
@@ -340,7 +339,7 @@ struct OnboardingPage: Identifiable {
 #if DEBUG
     #Preview {
         OnboardingView(
-            gate: LifecycleGateHandle(id: LaunchStepID.onboarding, reason: .userForeground),
+            handle: OnboardingHandle(),
             session: PreviewSupport.loadedSession(),
         )
         .environment(PreviewSupport.loadedModel())

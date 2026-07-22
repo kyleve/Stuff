@@ -1,5 +1,4 @@
 import Foundation
-import LifecycleKit
 import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
@@ -8,7 +7,7 @@ import WhereUI
 private struct WaitTimeout: Error {}
 
 /// Polls `predicate` on the main actor until it holds or the timeout elapses,
-/// yielding to the launcher's drive task between checks.
+/// yielding to the launch task between checks.
 @MainActor
 private func waitUntil(
     timeout: Duration = .seconds(5),
@@ -21,13 +20,13 @@ private func waitUntil(
     }
 }
 
-/// Covers the `WhereLaunch.reset(for:)` teardown the Settings "Erase all
-/// data & reset" action runs through `LifecycleRunner.teardown`: it wipes the
+/// Covers the `WhereLaunch.reset` teardown the Settings "Erase all data &
+/// reset" action runs: it cancels and drains the in-flight attempt, wipes the
 /// store, stops tracking, drops the session, clears the preferences that gate
-/// onboarding, then re-runs the launch back to its first-run state. (The
-/// erase-before-preferences ordering is pinned behaviorally by
-/// `resetFailureParksLauncherAndKeepsPreferences` — a failed erase must leave
-/// the onboarding flag untouched.)
+/// onboarding, then begins a fresh attempt back to the first-run state.
+/// (Erase-before-preferences ordering is structural — one function, one
+/// order; a thrown erase parks terminal `.failed` before preferences are
+/// touched, which `reset`'s catch pins.)
 @MainActor
 struct WhereResetTests {
     private func makePreferences() -> WherePreferences {
@@ -94,7 +93,7 @@ struct WhereResetTests {
         #expect(preferences.summaryEnabled)
     }
 
-    @Test func eraseAllDataClearsTheStoreAndStopsTracking() async throws {
+    @Test func eraseSessionClearsTheStoreAndStopsTracking() async throws {
         let preferences = makePreferences()
         let services = try makeServices(status: .always)
         let model = WhereModel(services: services, preferences: preferences)
@@ -118,7 +117,7 @@ struct WhereResetTests {
         #expect(report.trackedDayCount == 0)
     }
 
-    @Test func endSessionDropsTheSessionAndRelaunchRebuildsIt() async throws {
+    @Test func endSessionDropsTheSessionAndAFreshAttemptRebuildsIt() async throws {
         let model = try makeModel(status: .always, preferences: makePreferences())
         model.completeOnboarding()
         let original = try #require(model.session)
@@ -126,11 +125,11 @@ struct WhereResetTests {
         model.endSession()
         #expect(model.session == nil)
 
-        // The re-driven launch rebuilds a fresh session from the retained
-        // (still-open) services rather than reopening the store.
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-        await launcher.run()
-        #expect(launcher.phase.isReady)
+        // A fresh launch rebuilds a session from the retained (still-open)
+        // services rather than reopening the store.
+        let state = WhereLaunch.start(model: model)
+        state.sceneBecameActive()
+        try await waitUntil { state.phase.isReady }
         let rebuilt = try #require(model.session)
         #expect(rebuilt !== original)
     }
@@ -144,28 +143,24 @@ struct WhereResetTests {
         let preferences = makePreferences()
         let (model, source) = try makeModelWithSource(status: .always, preferences: preferences)
         model.completeOnboarding()
-        weak let weakOriginal = model.session
+        weak var weakOriginal = model.session
 
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-        await launcher.run()
-        #expect(launcher.phase.isReady)
+        let state = WhereLaunch.start(model: model)
+        state.sceneBecameActive()
+        try await waitUntil { state.phase.isReady }
 
-        // Reset re-drives into onboarding (hasOnboarded cleared); complete it
-        // so the relaunch rebuilds a fresh session and reaches .ready. The
-        // strong reference to the original session is scoped to the task's
-        // closure (released when the teardown finishes), so the weak check
-        // below observes only the runner's own retention.
-        let task: Task<Void, Never>
+        // Reset relaunches into onboarding (hasOnboarded cleared); complete
+        // it so the fresh attempt rebuilds a session and reaches .ready. The
+        // strong reference to the original session is scoped so the weak
+        // check below observes only the launch flow's own retention.
         do {
             let original = try #require(model.session)
-            task = Task { @MainActor in
-                await launcher.teardown(input: original, WhereLaunch.reset(for: model))
-            }
+            await WhereLaunch.reset(model: model, state: state, session: original)
         }
-        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
-        launcher.phase.gateHandle?.complete()
-        await task.value
-        #expect(launcher.phase.isReady)
+        try await waitUntil { state.phase.onboarding != nil }
+        model.completeOnboarding()
+        state.phase.onboarding?.handle.complete()
+        try await waitUntil { state.phase.isReady }
 
         // The original session was torn down, so only the rebuilt session is left
         // observing the shared stream.
@@ -185,9 +180,9 @@ struct WhereResetTests {
         let services = try makeServices(status: .always)
         let model = WhereModel(services: services, preferences: preferences)
         model.completeOnboarding()
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-        await launcher.run()
-        #expect(launcher.phase.isReady)
+        let state = WhereLaunch.start(model: model)
+        state.sceneBecameActive()
+        try await waitUntil { state.phase.isReady }
 
         let session = try #require(model.session)
         let report = YearReportModel(services: services, preferences: preferences)
@@ -195,27 +190,22 @@ struct WhereResetTests {
         await report.refresh()
         #expect(report.trackedDayCount == 1)
 
-        // reset re-drives the launch, which parks on the onboarding gate again
-        // (now that hasOnboarded is cleared), so the teardown doesn't return
-        // until onboarding is resolved — drive it from a task and wait for the
-        // parked gate.
-        let task = Task { @MainActor in
-            await launcher.teardown(input: session, WhereLaunch.reset(for: model))
-        }
-        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        // The reset drains the attempt, erases, and begins a fresh attempt —
+        // which parks on onboarding again (hasOnboarded now cleared).
+        await WhereLaunch.reset(model: model, state: state, session: session)
+        try await waitUntil { state.phase.onboarding != nil }
 
-        // Teardown ran before the relaunch reached onboarding: data erased, the
-        // session dropped + rebuilt, and the onboarding gate reopened.
+        // Mid-relaunch: data erased, the session dropped + rebuilt, and the
+        // onboarding gate reopened.
         #expect(!model.hasOnboarded)
         let rebuilt = try #require(model.session)
         #expect(rebuilt !== session)
         #expect(!rebuilt.isTracking)
-        #expect(launcher.phase.gateHandle != nil)
 
-        launcher.phase.gateHandle?.complete()
-        await task.value
+        model.completeOnboarding()
+        state.phase.onboarding?.handle.complete()
+        try await waitUntil { state.phase.isReady }
 
-        #expect(launcher.phase.isReady)
         // The store was wiped: a fresh report read against it finds nothing.
         await report.refresh()
         #expect(report.trackedDayCount == 0)
@@ -232,18 +222,16 @@ struct WhereResetTests {
         preferences.remindersEnabled = false
         preferences.summaryEnabled = false
 
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-        await launcher.run()
+        let state = WhereLaunch.start(model: model)
+        state.sceneBecameActive()
+        try await waitUntil { state.phase.isReady }
         let report = YearReportModel(services: services, preferences: preferences)
         try await report.setManualDay(date: Date(), regions: [.california])
         await report.refresh()
         #expect(report.trackedDayCount == 1)
 
-        // Drive the reset and finish the onboarding it re-drives into.
-        let task = Task { @MainActor in
-            await launcher.teardown(input: original, WhereLaunch.reset(for: model))
-        }
-        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        await WhereLaunch.reset(model: model, state: state, session: original)
+        try await waitUntil { state.phase.onboarding != nil }
 
         // Mid-relaunch: the session was dropped and rebuilt fresh, and the
         // preferences were cleared (onboarding gate reopened; the reminder/summary
@@ -254,39 +242,40 @@ struct WhereResetTests {
         #expect(preferences.remindersEnabled)
         #expect(preferences.summaryEnabled)
 
-        launcher.phase.gateHandle?.complete()
-        await task.value
-        #expect(launcher.phase.isReady)
+        model.completeOnboarding()
+        state.phase.onboarding?.handle.complete()
+        try await waitUntil { state.phase.isReady }
         // The store was wiped: a fresh report read against it is empty.
         await report.refresh()
         #expect(report.trackedDayCount == 0)
     }
 
-    @Test func resetFailureParksLauncherAndKeepsPreferences() async throws {
-        // A teardown whose erase step throws parks the launcher in .failed on
-        // that step and never reaches reset-preferences, so the onboarding flag
-        // is preserved rather than stranding the user in onboarding atop
-        // un-erased data.
-        let model = try makeModel(preferences: makePreferences())
-        model.completeOnboarding()
+    @Test func resetWhileParkedOnOnboardingDrainsTheOldAttempt() async throws {
+        // A reset can land while the launch is parked on first-run onboarding.
+        // The old attempt must drain (its handle cancelled, writing no phase)
+        // and the fresh attempt must park on a NEW handle — resolving the
+        // stale one is a no-op.
+        let model = try makeModel(status: .notDetermined, preferences: makePreferences())
+        #expect(!model.hasOnboarded)
+        let state = WhereLaunch.start(model: model)
+        state.sceneBecameActive()
+        try await waitUntil { state.phase.onboarding != nil }
+        let staleHandle = try #require(state.phase.onboarding?.handle)
 
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-        await launcher.run()
-        #expect(launcher.phase.isReady)
-
-        // An erase stand-in that always throws, so the teardown-failure path
-        // can be driven without corrupting a real store; the real
-        // reset-preferences behavior follows it, proving it never runs.
         let session = try #require(model.session)
-        await launcher.teardown(input: session) { _, context in
-            try await context.step(LaunchStepID.eraseData) {
-                throw CocoaError(.fileWriteUnknown)
-            }
-            try await context.step(LaunchStepID.resetPreferences) {
-                model.resetPreferences()
-            }
-        }
-        #expect(launcher.phase.failed(at: LaunchStepID.eraseData))
-        #expect(model.hasOnboarded) // reset-preferences never ran
+        await WhereLaunch.reset(model: model, state: state, session: session)
+        try await waitUntil { state.phase.onboarding != nil }
+        let freshHandle = try #require(state.phase.onboarding?.handle)
+        #expect(freshHandle !== staleHandle)
+
+        // The superseded attempt's handle is dead: resolving it changes
+        // nothing (the launch stays parked on the fresh handle).
+        staleHandle.complete()
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(state.phase.onboarding?.handle === freshHandle)
+
+        model.completeOnboarding()
+        freshHandle.complete()
+        try await waitUntil { state.phase.isReady }
     }
 }

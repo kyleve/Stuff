@@ -1,5 +1,4 @@
 import Foundation
-@_spi(Testing) import LifecycleKit
 @_spi(Testing) import PeriscopeCore
 import RegionKit
 import SwiftData
@@ -10,8 +9,10 @@ import WhereUI
 
 private struct WaitTimeout: Error {}
 
+private struct GateError: Error {}
+
 /// Polls `predicate` on the main actor until it holds or the timeout elapses,
-/// yielding to the launcher's drive task between checks.
+/// yielding to the launch task between checks.
 @MainActor
 private func waitUntil(
     timeout: Duration = .seconds(5),
@@ -38,9 +39,9 @@ private func waitUntilAsync(
     }
 }
 
-/// Covers the `WhereLaunch` sequence the app drives at startup: the step order
-/// (parity with `WhereSession.start()`), the onboarding gate, and the headless
-/// background path.
+/// Covers the `WhereLaunch.run` flow the app drives at startup: the headless
+/// section above the scene-activation park, the foreground tail below it, the
+/// onboarding park, and the `onServicesReady` composition hook.
 @MainActor
 struct WhereLaunchTests {
     private func makePreferences() -> WherePreferences {
@@ -48,8 +49,8 @@ struct WhereLaunchTests {
     }
 
     /// A model with injected services (in-memory store, no-op schedulers)
-    /// so the launch sequence runs without touching real CoreLocation, the
-    /// disk, or the notification center.
+    /// so the launch runs without touching real CoreLocation, the disk, or
+    /// the notification center.
     private func makeModel(
         status: LocationAuthorizationStatus = .always,
         preferences: WherePreferences,
@@ -94,123 +95,76 @@ struct WhereLaunchTests {
         )
     }
 
-    @Test func launchStepsRunInStartParityOrder() async throws {
-        // The work steps mirror WhereSession.start()'s order; the only
-        // insertion is the start-session scope promotion (the onboarding gate
-        // is skipped here — the model has onboarded). The function style has
-        // no inspectable node list, so parity is asserted on the runner's
-        // executed-step recording.
-        let model = try makeModel(preferences: makePreferences())
-        model.completeOnboarding()
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-        await launcher.run()
-        #expect(launcher.phase.isReady)
-        #expect(launcher.executedStepIDs == [
-            LaunchStepID.openStore,
-            .startSession,
-            .syncAuth,
-            .reconcileTracking,
-            .captureToday,
-            .reminders,
-            .summary,
-            .issueAlerts,
-            .widgetSnapshot,
-        ].map { AnyHashable($0) })
+    @Test func headlessWakeIsServicedAboveTheParkWithoutBuildingTheTail() async throws {
+        // A headless launch (no scene ever activates) must service the wake —
+        // store open, session, authorization, tracking — and then park before
+        // the foreground tail: no onboarding, no one-shot fix, no .ready.
+        let (model, store, source) = try makeModelAndStore(
+            status: .always,
+            preferences: makePreferences(),
+        )
+        source.setNextRequestedLocation(todayFix())
+        // Deliberately NOT onboarded: the park sits above the onboarding
+        // check, so a headless wake never deadlocks on a first-run gate.
+        let state = WhereLaunch.start(model: model)
+
+        try await waitUntil { model.session?.isTracking == true }
+        // Parked: still .launching, nothing captured, no scene ever active.
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(state.phase.isLaunching)
+        #expect(!state.sceneHasBeenActive)
+        #expect(try await store.allSamples().isEmpty)
     }
 
-    @Test func coldForegroundLaunchReachesReadyAndReconcilesTracking() async throws {
-        let model = try makeModel(status: .always, preferences: makePreferences())
-        model.completeOnboarding() // not a first run
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-        await launcher.run()
-        #expect(launcher.phase.isReady)
-        // .always authorization → the reconcile-tracking step resumed GPS,
-        // proving the post-onboarding steps ran.
-        #expect(model.session?.isTracking == true)
-    }
-
-    @Test func coldForegroundLaunchCapturesTodayWhenEmpty() async throws {
+    @Test func sceneActivationResumesTheForegroundTailToReady() async throws {
         let (model, store, source) = try makeModelAndStore(
             status: .always,
             preferences: makePreferences(),
         )
         model.completeOnboarding()
         source.setNextRequestedLocation(todayFix())
+        let state = WhereLaunch.start(model: model)
 
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-        await launcher.run()
-        #expect(launcher.phase.isReady)
+        // Let the headless half finish, then promote — the parked task
+        // resumes; nothing re-runs because nothing is driven twice.
+        try await waitUntil { model.session?.isTracking == true }
+        state.sceneBecameActive()
 
-        // The capture-today step logged today's fix (non-blocking, so wait for
+        try await waitUntil { state.phase.isReady }
+        // .ready carries the session the launch produced.
+        #expect(state.phase.readyValue === model.session)
+        // The foreground tail spent the one-shot fix (non-blocking; wait for
         // the persist to land).
         try await waitUntilAsync { await (try? store.allSamples().count) == 1 }
     }
 
-    @Test func undeterminedLaunchDefersForegroundStepsUntilPromoted() async throws {
-        // The app launches `.undetermined` (the UIScene lifecycle can't tell a
-        // user launch from a headless wake yet). It must run only the
-        // background-safe steps and build no view tree until a scene activates.
-        let (model, store, source) = try makeModelAndStore(
-            status: .always,
-            preferences: makePreferences(),
-        )
+    @Test func alreadyActiveSceneRunsStraightThroughToReady() async throws {
+        let model = try makeModel(status: .always, preferences: makePreferences())
         model.completeOnboarding()
-        source.setNextRequestedLocation(todayFix())
+        let state = WhereLaunch.start(model: model)
+        state.sceneBecameActive()
 
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .undetermined)
-        await launcher.run()
-        // Reconcile-tracking (background-safe) resumed GPS, but the
-        // foreground-only capture-today was skipped — nothing captured — and the
-        // launch builds no view tree.
-        #expect(launcher.phase.isReady)
-        #expect(launcher.reason.buildsNoViewTree)
+        try await waitUntil { state.phase.isReady }
         #expect(model.session?.isTracking == true)
-        #expect(try await store.allSamples().isEmpty)
-
-        // A scene activates → promote. The re-drive skips the already-completed
-        // background steps and runs the now-applicable foreground-only
-        // capture-today, which logs today's fix.
-        await launcher.enterForeground()
-        #expect(launcher.phase.isReady)
-        #expect(launcher.reason == .userForeground)
-        try await waitUntilAsync { await (try? store.allSamples().count) == 1 }
     }
 
-    @Test func backgroundLaunchSkipsCaptureToday() async throws {
-        // The capture-today step is foreground-only: a headless background
-        // relaunch is itself the passive location event, so it must not fire a
-        // fresh foreground fix even though authorization/intent would allow one.
-        let (model, store, source) = try makeModelAndStore(
-            status: .always,
-            preferences: makePreferences(),
-        )
-        model.completeOnboarding()
-        source.setNextRequestedLocation(todayFix())
-
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .background(.location))
-        await launcher.run()
-        #expect(launcher.phase.isReady)
-
-        // Skipped → nothing captured. (reconcile-tracking started monitoring but
-        // the scripted source emits no passive samples on its own.)
-        #expect(try await store.allSamples().isEmpty)
-    }
-
-    @Test func firstRunForegroundLaunchParksOnTheOnboardingGate() async throws {
+    @Test func firstRunParksOnOnboardingAfterActivation() async throws {
         let model = try makeModel(status: .notDetermined, preferences: makePreferences())
         #expect(!model.hasOnboarded)
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-        let task = Task { @MainActor in await launcher.run() }
+        let state = WhereLaunch.start(model: model)
+        state.sceneBecameActive()
 
-        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
-        #expect(launcher.phase.gateHandle != nil)
+        try await waitUntil { state.phase.onboarding != nil }
+        let onboarding = try #require(state.phase.onboarding)
+        // The parked phase hands the view the session it commits regions
+        // with — not left to find one in the environment.
+        #expect(onboarding.session === model.session)
 
-        // Resolve the gate as OnboardingView would, letting the launch finish.
-        launcher.phase.gateHandle?.complete()
-        await task.value
-        #expect(launcher.phase.isReady)
-        // .ready carries the session the trunk produced.
-        #expect(launcher.phase.readyValue === model.session)
+        // Resolve as OnboardingView would, letting the launch finish.
+        model.completeOnboarding()
+        onboarding.handle.complete()
+        try await waitUntil { state.phase.isReady }
+        #expect(state.phase.readyValue === model.session)
     }
 
     @Test func secondLaunchSkipsOnboarding() async throws {
@@ -218,14 +172,25 @@ struct WhereLaunchTests {
         let first = try makeModel(preferences: preferences)
         first.completeOnboarding()
 
-        // A fresh model over the same preferences sees onboarding as done, so the
-        // gate's condition is false and the launch never parks on onboarding.
+        // A fresh model over the same preferences sees onboarding as done, so
+        // the launch's `if` takes the other branch and never parks.
         let model = try makeModel(preferences: preferences)
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
-        let task = Task { @MainActor in await launcher.run() }
-        try await waitUntil { launcher.phase.isReady }
-        await task.value
-        #expect(launcher.phase.isReady)
+        let state = WhereLaunch.start(model: model)
+        state.sceneBecameActive()
+        try await waitUntil { state.phase.isReady }
+    }
+
+    @Test func onboardingFailureIsTerminal() async throws {
+        // Failure is terminal by design: the phase parks in .failed and there
+        // is no retry API — the recovery is relaunching the app.
+        let model = try makeModel(status: .notDetermined, preferences: makePreferences())
+        let state = WhereLaunch.start(model: model)
+        state.sceneBecameActive()
+
+        try await waitUntil { state.phase.onboarding != nil }
+        state.phase.onboarding?.handle.fail(GateError())
+        try await waitUntil { state.phase.failure != nil }
+        #expect(state.phase.failure is GateError)
     }
 
     @Test func attachingLogStoreExposesItOnTheModel() async throws {
@@ -239,10 +204,9 @@ struct WhereLaunchTests {
         #expect(model.logStore === store)
     }
 
-    @Test func startSessionHandsTheSessionsServicesToTheOnServicesReadyHook() async throws {
+    @Test func startHandsTheSessionsServicesToTheOnServicesReadyHook() async throws {
         // A model with services attached but no session yet — the app's shape
-        // when the open-store step runs (the preview/test init pre-builds the
-        // session; the open-store step then reuses the injected layer).
+        // when the launch runs.
         let store = try SwiftDataStore.inMemory()
         let services = WhereServices(
             store: store,
@@ -257,15 +221,16 @@ struct WhereLaunchTests {
         model.completeOnboarding()
 
         var receivedContainers: [ModelContainer?] = []
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground) {
+        let state = WhereLaunch.start(model: model) {
             receivedContainers.append($0.modelContainer)
         }
-        await launcher.run()
+        state.sceneBecameActive()
+        try await waitUntil { state.phase.isReady }
 
-        #expect(launcher.phase.isReady)
         // The hook fired exactly once, with the session's service layer (same
         // backing store) — the seam the app uses to install the App Intents
-        // stack over the launch's one store open.
+        // stack over the launch's one store open. It fires above the park, so
+        // a headless wake's intents resolve too.
         #expect(receivedContainers.count == 1)
         let receivedContainer = receivedContainers.first ?? nil
         #expect(receivedContainer === store.inspectorContainer)
@@ -286,40 +251,24 @@ struct WhereLaunchTests {
         model.completeOnboarding()
 
         var hookFires = 0
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground) { _ in
+        let state = WhereLaunch.start(model: model) { _ in
             hookFires += 1
         }
-        await launcher.run()
+        state.sceneBecameActive()
+        try await waitUntil { state.phase.isReady }
         #expect(hookFires == 1)
 
-        // The reset teardown drops the session and re-drives the launch; the
-        // rebuilt session (over the retained, erased services) must be handed
-        // to the hook again so consumers ride the fresh session. The cleared
-        // onboarding flag parks the relaunch on the onboarding gate — resolve
-        // it as OnboardingView would.
+        // The reset drops the session and begins a fresh attempt; the rebuilt
+        // session (over the retained, erased services) must be handed to the
+        // hook again so consumers ride the fresh session. The cleared
+        // onboarding flag parks the relaunch on onboarding — resolve it as
+        // OnboardingView would.
         let session = try #require(model.session)
-        let teardown = Task { @MainActor in
-            await launcher.teardown(input: session, WhereLaunch.reset(for: model))
-        }
-        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        await WhereLaunch.reset(model: model, state: state, session: session)
+        try await waitUntil { state.phase.onboarding != nil }
         #expect(hookFires == 2)
         model.completeOnboarding()
-        launcher.phase.gateHandle?.complete()
-        await teardown.value
-        #expect(launcher.phase.isReady)
-    }
-
-    @Test func backgroundLaunchSkipsOnboardingAndReachesReady() async throws {
-        // Not onboarded — but a headless background launch must skip the
-        // foreground-only onboarding step (waiting for a tap with no UI would
-        // deadlock) and still run the rest.
-        let model = try makeModel(status: .always, preferences: makePreferences())
-        #expect(!model.hasOnboarded)
-        let launcher = WhereLaunch.makeLauncher(model: model, reason: .background(.location))
-        await launcher.run()
-        #expect(launcher.phase.isReady)
-        #expect(launcher.reason.buildsNoViewTree)
-        // The minimal background steps still ran (reconcile-tracking resumed GPS).
-        #expect(model.session?.isTracking == true)
+        state.phase.onboarding?.handle.complete()
+        try await waitUntil { state.phase.isReady }
     }
 }

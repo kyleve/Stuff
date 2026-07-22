@@ -1,21 +1,21 @@
 import AppIntents
-import LifecycleKit
 import UIKit
 import WhereCore
 import WhereIntents
 import WhereUI
 
-/// Owns the app's single `WhereModel` and the `LifecycleRunner` that drives
-/// launch, wiring both up at process launch rather than from a SwiftUI view's
+/// Owns the app's single `WhereModel` and the launch task that boots it,
+/// wiring both up at process launch rather than from a SwiftUI view's
 /// `.task`.
 ///
 /// This matters for background relaunch: when CoreLocation relaunches the app
 /// after termination (a significant location change or visit), there's no UI,
 /// so a view's `.task` is not a reliable hook. `didFinishLaunching` always
-/// runs, so building the runner here (whose synchronous
-/// `initializePrerequisites` installs the `CLLocationManager`) lets CoreLocation
-/// deliver the pending event, while the async launch steps continue background
-/// tracking off the main thread.
+/// runs, so starting the launch here (whose synchronous wiring installs the
+/// `CLLocationManager`) lets CoreLocation deliver the pending event, while
+/// the launch task continues background tracking off the main thread — and
+/// parks before its foreground-only tail until a scene genuinely activates
+/// (`RootView` reports that).
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
     let model = WhereModel()
@@ -26,10 +26,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// installs the store-sharing stack into it via `onServicesReady`.
     let intentServices = IntentServices()
 
-    /// The launch engine, built in `didFinishLaunching` (launching
-    /// `.undetermined`, since the UIScene lifecycle can't yet tell a user launch
-    /// from a headless wake here) and handed to `RootView` via `WhereApp`.
-    private(set) var launcher: LifecycleRunner<WhereSession>!
+    /// The observable launch state, built in `didFinishLaunching` (which also
+    /// starts the launch task) and handed to `RootView` via `WhereApp`.
+    private(set) var launchState: WhereLaunchState!
 
     func application(
         _: UIApplication,
@@ -51,44 +50,34 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // undocumented — don't add tests that build further AppDelegates.
         AppDependencyManager.shared
             .add(dependency: { [intentServices = self.intentServices] in intentServices })
-        // Launch `.undetermined`: under the UIScene lifecycle
-        // `application.applicationState` reads `.background` here even for a
-        // user tap, so we can't honestly tell a headless wake from a user launch
-        // yet. The runner drives only the background-safe steps (servicing a
-        // possible location wake we can't yet rule out) and builds no view tree;
-        // `RootView`'s `enterForeground()` promotes it to `.userForeground` once
-        // a scene genuinely activates. A genuine headless wake simply stays
-        // `.undetermined` — the queued location event is delivered through the
-        // `CLLocationManager` installed below, so no launch-state guess is
-        // needed to service it.
-        //
         // Open the durable Periscope log store and attach it to the shared
         // logging pipeline. Off the launch critical path (it touches disk); the
         // shared OSLog sink covers logging until the store is attached.
         WhereLaunch.bootstrapLogging(model: model)
-        // `initializePrerequisites` installs the CLLocationManager synchronously
-        // (so a queued location event isn't lost) and registers the
-        // foreground-notification presenter; the rest (store open, etc.) runs as
-        // async steps off this synchronous launch path.
-        // `onServicesReady` fires from the `start-session` step on every session
-        // (re)start: derive the App Intents stack from the launch's services —
-        // same store, attribution, and clock; GPS-free — and install it, so
-        // the launch's open is the process's *only* store open and an intent
-        // can never race it with a second container over the same file (two
-        // containers racing to create it on a fresh install is how the launch
-        // once failed). Intents that fire earlier park in
+        // Start the launch: synchronous must-exist-now wiring (the
+        // CLLocationManager, so a queued location event isn't lost; the
+        // foreground-notification presenter), then the launch task. The task
+        // services a possible headless wake above its scene-activation park;
+        // `RootView` reports activation once a scene is genuinely active,
+        // which resumes the foreground tail.
+        // `onServicesReady` fires on every session (re)start — first launch
+        // and each reset relaunch: derive the App Intents stack from the
+        // launch's services — same store, attribution, and clock; GPS-free —
+        // and install it, so the launch's open is the process's *only* store
+        // open and an intent can never race it with a second container over
+        // the same file. Intents that fire earlier park in
         // `IntentServices.current()` until this lands; the derivation can't
         // fail, so nothing can strand them parked.
-        launcher = WhereLaunch
-            .makeLauncher(model: model, reason: .undetermined) { [intentServices] in
-                await intentServices.install(.forIntents(sharingStoreOf: $0))
-            }
+        launchState = WhereLaunch.start(model: model) { [intentServices] in
+            await intentServices.install(.forIntents(sharingStoreOf: $0))
+        }
+        // Index the tracked regions into Spotlight (a search for a region
+        // name surfaces Where and its day-count query) through the stack
+        // installed above, off the launch critical path. The resolver parks
+        // until `onServicesReady` installs the stack, so this needs no
+        // launch-completion signal; indexing a handful of items is cheap and
+        // idempotent.
         Task {
-            await launcher.run()
-            // Index the tracked regions into Spotlight (a search for a region
-            // name surfaces Where and its day-count query) through the stack
-            // installed above, off the launch critical path. Indexing a
-            // handful of items is cheap and idempotent.
             await RegionSpotlightIndexer.indexRegions(resolving: intentServices)
         }
         return true

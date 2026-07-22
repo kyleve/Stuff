@@ -1,5 +1,3 @@
-import LifecycleKit
-import LifecycleKitUI
 import PeriscopeUI
 import SwiftUI
 import WhereCore
@@ -8,15 +6,21 @@ import WhereCore
     import PeriscopeTools
 #endif
 
-/// The app's root: the launch sequence gated in front of a Liquid Glass tab bar
-/// over the four top-level screens (Primary, Elsewhere, Resolve, Settings).
+/// The app's root: the launch surfaces gated in front of a Liquid Glass tab
+/// bar over the four top-level screens (Primary, Elsewhere, Resolve,
+/// Settings).
 ///
-/// `LifecycleContainer` renders the splash / onboarding UI while the
-/// `LifecycleRunner` runs, then the `TabView` (the real "logged-in" UI — the
-/// launch *destination*, not a step) once it reaches `.ready`, built from the
-/// session the launch's trunk produced. The model is built at launch (so
-/// CoreLocation is wired for background relaunch) and shared down through the
-/// environment.
+/// Renders the app-owned `WhereLaunchState.Phase` directly (there is no
+/// lifecycle engine): splash while the launch task works, `OnboardingView`
+/// while it parks on first run, a terminal failure surface, and the `TabView`
+/// (the real "logged-in" UI) built from the session `.ready` carries. The
+/// model is built at launch (so CoreLocation is wired for background
+/// relaunch) and shared down through the environment.
+///
+/// Until a scene has been genuinely active, no view tree is built at all: a
+/// headless wake's scene may be connected without being shown, and the launch
+/// task is parked before its foreground tail — reporting activation here is
+/// what resumes it.
 public struct RootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -38,54 +42,27 @@ public struct RootView: View {
         @State private var alerter: PeriscopeAlerter?
         @State private var toastCenter = DeveloperToastCenter()
     #endif
-    private let launcher: LifecycleRunner<WhereSession>
+    private let launchState: WhereLaunchState
 
-    /// Inject the app-owned model + runner built at launch. The app uses this.
-    public init(model: WhereModel, launcher: LifecycleRunner<WhereSession>) {
+    /// Inject the app-owned model + launch state built at process launch. The
+    /// app uses this.
+    public init(model: WhereModel, launchState: WhereLaunchState) {
         _model = State(initialValue: model)
-        self.launcher = launcher
+        self.launchState = launchState
     }
 
-    /// Convenience for previews and the hosted UI test: build a model and a
-    /// foreground runner for it. The runner isn't run by the app delegate
-    /// here, so `.task` drives it (see `body`).
+    /// Convenience for previews and the hosted UI test: build a model and
+    /// start its launch here (the app starts it in the app delegate).
     public init() {
         let model = WhereModel()
         _model = State(initialValue: model)
-        launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        launchState = WhereLaunch.start(model: model)
     }
 
     public var body: some View {
         ZStack {
-            LifecycleContainer(
-                launcher,
-                transition: revealTransition,
-                animation: revealAnimation,
-                splash: { _ in LaunchSplashView() },
-                failure: { LifecycleFailureView(failure: $0, retry: $1) },
-                gates: {
-                    // The gate passes the trunk's session through, so
-                    // onboarding is handed the session it commits regions
-                    // with — not left to find one in the environment.
-                    GateView(for: OnboardingGate.self) { handle, session in
-                        OnboardingView(gate: handle, session: session)
-                    }
-                },
-            ) { session in
-                // `.ready` carries the session the launch produced — the app
-                // surface cannot render without it. `MainTabs` owns the
-                // scene-scoped `YearReportModel` and gets a fresh one whenever
-                // a reset rebuilds the session. Keyed on the session's
-                // monotonic `id` (never reused within the process) rather than
-                // its address, so a rebuilt session can't collide with a freed
-                // one and skip the rebuild.
-                MainTabs(
-                    session: session,
-                    initialReport: model.initialReport,
-                    selectedYear: model.initialSelectedYear,
-                )
-                .id(session.id)
-            }
+            launchSurfaces
+                .environment(launchState)
 
             // The floating developer surface sits above every launch phase and
             // tab so its tools are reachable from anywhere (even logged out). It's
@@ -109,47 +86,33 @@ public struct RootView: View {
             // `\.logContext` emits under the "Where" scope rather than a bare root.
             .logContext(WhereLog.root)
             .environment(model)
-            // The logged-in session appears once the launch's `start-session`
-            // step builds it. Injected as an optional `Observable`, so the
-            // `TabView`'s `@Environment(WhereSession.self)` views resolve it
-            // (they only render at `.ready`, by which point it's present) and
-            // re-inject when a reset rebuilds it. The DEBUG developer overlay
-            // reads it optionally — it can appear before login, where the
-            // SwiftData inspector row simply hides.
+            // The logged-in session appears once the launch task builds it.
+            // Injected as an optional `Observable`, so the `TabView`'s
+            // `@Environment(WhereSession.self)` views resolve it (they only
+            // render at `.ready`, by which point it's present) and re-inject
+            // when a reset rebuilds it. The DEBUG developer overlay reads it
+            // optionally — it can appear before login, where the SwiftData
+            // inspector row simply hides.
             .environment(model.session)
-            // Settings' "Erase all data & reset" runs the teardown through the
-            // `LifecycleProxy` that `LifecycleContainer` publishes into the
-            // environment, which wipes data + preferences and re-drives the
-            // launch plan back to onboarding.
-            //
-            // `run()` is idempotent: in the app the delegate already kicked it off,
-            // so this is a no-op there; in previews/tests it's what drives the
-            // launch.
-            //
-            // Promote the launch (`.undetermined` from the app delegate, or a
-            // genuine `.background` relaunch) only once the scene is genuinely
-            // active. SwiftUI may build this view (and run `.task`) for a scene that
-            // iOS connected in the background; promoting then would flip the launcher
-            // to foreground and build the heavy `TabView` for a launch nobody sees,
-            // defeating the headless path. The `.onChange` below handles the later
-            // background→foreground transition; this initial check covers a launch
-            // that is already active when the view first appears — and it must run
-            // *before* awaiting `run()`: when the scene arrives already active,
-            // `.onChange` never fires, and promoting only after `run()` returns
-            // would leave the user staring at the empty background surface for the
-            // entire (possibly slow) headless drive instead of the splash.
+            // Report scene activation to the launch state: this is what
+            // resumes the launch task parked before its foreground tail, and
+            // what permits a view tree at all. Only report a *genuinely*
+            // active scene — SwiftUI may build this view for a scene iOS
+            // connected in the background, and activating then would run the
+            // foreground tail (and build the heavy `TabView`) for a launch
+            // nobody sees, defeating the headless path. The `.onChange`
+            // handles the later background→foreground transition; the initial
+            // `.task` check covers a launch that is already active when the
+            // view first appears.
             .task {
                 if scenePhase == .active {
-                    await launcher.enterForeground()
+                    launchState.sceneBecameActive()
                 }
-                await launcher.run()
             }
             .onChange(of: scenePhase) { _, newPhase in
                 guard newPhase == .active else { return }
-                Task {
-                    await launcher.enterForeground()
-                    await model.session?.appBecameActive()
-                }
+                launchState.sceneBecameActive()
+                Task { await model.session?.appBecameActive() }
             }
             // Seed the Broadway context at the app root so descendants resolve
             // `WhereStylesheet` (via `@Environment(\.stylesheet)`) against the live
@@ -160,10 +123,56 @@ public struct RootView: View {
             .whereBroadwayRoot(regionStyles: model.session?.regionStyles ?? .default)
     }
 
-    /// How the launch splash gives way to the app once the runner is `.ready`:
-    /// the splash scales up and fades while the `TabView` stays put beneath it
-    /// (`insertion: .identity`), reading as the icon zooming toward the viewer to
-    /// uncover the UI. Reduce Motion swaps this for a plain crossfade.
+    /// The launch surface machine — what the lifecycle container used to own,
+    /// inlined: no view tree until a scene has been active, then a `switch`
+    /// over the phase, animated on surface identity so a phase update within
+    /// the same surface never re-triggers the transition. Launch surfaces sit
+    /// above the app content so the leaving splash plays its removal
+    /// transition (the zoom reveal) over the entering destination.
+    private var launchSurfaces: some View {
+        Group {
+            if !launchState.sceneHasBeenActive {
+                EmptyView()
+            } else {
+                switch launchState.phase {
+                    case .launching:
+                        LaunchSplashView()
+                            .transition(revealTransition)
+                            .zIndex(1)
+                    case let .onboarding(handle, session):
+                        OnboardingView(handle: handle, session: session)
+                            .transition(revealTransition)
+                            .zIndex(1)
+                    case let .failed(error):
+                        LaunchFailureView(error: error)
+                            .transition(revealTransition)
+                            .zIndex(1)
+                    case let .ready(session):
+                        // `.ready` carries the session the launch produced —
+                        // the app surface cannot render without it. `MainTabs`
+                        // owns the scene-scoped `YearReportModel` and gets a
+                        // fresh one whenever a reset rebuilds the session.
+                        // Keyed on the session's monotonic `id` (never reused
+                        // within the process) rather than its address, so a
+                        // rebuilt session can't collide with a freed one and
+                        // skip the rebuild.
+                        MainTabs(
+                            session: session,
+                            initialReport: model.initialReport,
+                            selectedYear: model.initialSelectedYear,
+                        )
+                        .id(session.id)
+                        .zIndex(0)
+                }
+            }
+        }
+        .animation(revealAnimation, value: launchState.phase.surfaceIdentity)
+    }
+
+    /// How the launch splash gives way to the next surface: it scales up and
+    /// fades while the destination stays put beneath it (`insertion:
+    /// .identity`), reading as the icon zooming toward the viewer to uncover
+    /// the UI. Reduce Motion swaps this for a plain crossfade.
     private var revealTransition: AnyTransition {
         if reduceMotion {
             return .opacity
@@ -199,15 +208,27 @@ public struct RootView: View {
     #endif
 }
 
+/// The terminal launch-failure surface. Deliberately offers no retry:
+/// transiently retryable work belongs to the layer that understands it, and
+/// the recovery for anything else is relaunching the app.
+struct LaunchFailureView: View {
+    let error: any Error
+
+    var body: some View {
+        ContentUnavailableView {
+            Label(Strings.launchFailureTitle, systemImage: "exclamationmark.triangle")
+        } description: {
+            Text(error.localizedDescription)
+        }
+    }
+}
+
 #if DEBUG
     private struct LoggedInRootPreview: View {
         private let model = PreviewSupport.loadedModel()
 
         var body: some View {
-            RootView(
-                model: model,
-                launcher: WhereLaunch.makeLauncher(model: model, reason: .userForeground),
-            )
+            RootView(model: model, launchState: WhereLaunch.start(model: model))
         }
     }
 
@@ -217,5 +238,9 @@ public struct RootView: View {
 
     #Preview("Logged in") {
         LoggedInRootPreview()
+    }
+
+    #Preview("Launch failed") {
+        LaunchFailureView(error: URLError(.notConnectedToInternet))
     }
 #endif

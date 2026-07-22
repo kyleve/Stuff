@@ -911,6 +911,18 @@
         }
       }
     },
+    "launch.failure.title" : {
+      "comment" : "Title of the terminal launch-failure surface (no retry; the recovery is relaunching the app).",
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Couldn't finish launching"
+          }
+        }
+      }
+    },
     "loggedDays.add" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {

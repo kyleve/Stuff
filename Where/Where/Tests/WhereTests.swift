@@ -1,4 +1,3 @@
-import LifecycleKit
 import Testing
 import UIKit
 @testable import Where
@@ -8,19 +7,19 @@ import WhereUI
 /// `AppDelegate` into `RootView`.
 @MainActor
 struct WhereAppTests {
-    @Test func appDelegateBuildsLauncherForRootView() {
+    @Test func appDelegateBuildsLaunchStateForRootView() {
         let delegate = AppDelegate()
         _ = delegate.application(UIApplication.shared, didFinishLaunchingWithOptions: nil)
 
-        // Mirrors `WhereApp.body`: `RootView(model: appDelegate.model, launcher:
-        // appDelegate.launcher)`.
-        _ = RootView(model: delegate.model, launcher: delegate.launcher)
-        // The app always launches `.undetermined` under the UIScene lifecycle
-        // (it can't tell a user launch from a headless wake at
-        // `didFinishLaunching`); `RootView`'s `enterForeground()` promotes it to
-        // `.userForeground` once a scene activates. This holds regardless of
-        // whether the test host happens to be foregrounded.
-        #expect(delegate.launcher.reason == .undetermined)
+        // Mirrors `WhereApp.body`: `RootView(model: appDelegate.model,
+        // launchState: appDelegate.launchState)`.
+        _ = RootView(model: delegate.model, launchState: delegate.launchState)
+        // The launch starts headless under the UIScene lifecycle (it can't
+        // tell a user launch from a headless wake at `didFinishLaunching`);
+        // the launch task parks before its foreground tail until `RootView`
+        // reports a genuinely active scene. This holds regardless of whether
+        // the test host happens to be foregrounded.
+        #expect(!delegate.launchState.sceneHasBeenActive)
 
         // This `didFinishLaunching` also re-registered the intent-services
         // handoff with `AppDependencyManager` (the host app's own launch
