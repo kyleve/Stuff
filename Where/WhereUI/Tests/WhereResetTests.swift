@@ -21,10 +21,13 @@ private func waitUntil(
     }
 }
 
-/// Covers the `WhereLaunch.resetPlan(for:)` teardown the Settings "Erase all
+/// Covers the `WhereLaunch.reset(for:)` teardown the Settings "Erase all
 /// data & reset" action runs through `LifecycleRunner.teardown`: it wipes the
 /// store, stops tracking, drops the session, clears the preferences that gate
-/// onboarding, then re-drives the launch back to its first-run state.
+/// onboarding, then re-runs the launch back to its first-run state. (The
+/// erase-before-preferences ordering is pinned behaviorally by
+/// `resetFailureParksLauncherAndKeepsPreferences` — a failed erase must leave
+/// the onboarding flag untouched.)
 @MainActor
 struct WhereResetTests {
     private func makePreferences() -> WherePreferences {
@@ -70,12 +73,6 @@ struct WhereResetTests {
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         return (WhereModel(services: services, preferences: preferences), source)
-    }
-
-    @Test func resetPlanErasesThenClearsPreferences() throws {
-        let model = try makeModel(preferences: makePreferences())
-        let ids = WhereLaunch.resetPlan(for: model).nodeIDs
-        #expect(ids == [LaunchStepID.eraseData, .resetPreferences].map { AnyHashable($0) })
     }
 
     @Test func resetPreferencesRestoresFirstInstallDefaults() throws {
@@ -162,7 +159,7 @@ struct WhereResetTests {
         do {
             let original = try #require(model.session)
             task = Task { @MainActor in
-                await launcher.teardown(WhereLaunch.resetPlan(for: model), input: original)
+                await launcher.teardown(input: original, WhereLaunch.reset(for: model))
             }
         }
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
@@ -203,7 +200,7 @@ struct WhereResetTests {
         // until onboarding is resolved — drive it from a task and wait for the
         // parked gate.
         let task = Task { @MainActor in
-            await launcher.teardown(WhereLaunch.resetPlan(for: model), input: session)
+            await launcher.teardown(input: session, WhereLaunch.reset(for: model))
         }
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
 
@@ -244,7 +241,7 @@ struct WhereResetTests {
 
         // Drive the reset and finish the onboarding it re-drives into.
         let task = Task { @MainActor in
-            await launcher.teardown(WhereLaunch.resetPlan(for: model), input: original)
+            await launcher.teardown(input: original, WhereLaunch.reset(for: model))
         }
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
 
@@ -273,37 +270,23 @@ struct WhereResetTests {
         let model = try makeModel(preferences: makePreferences())
         model.completeOnboarding()
 
-        let failing = LaunchPlan(FailingEraseStep())
-            .then(ResetPreferencesProbeStep(model: model))
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
         #expect(launcher.phase.isReady)
 
+        // An erase stand-in that always throws, so the teardown-failure path
+        // can be driven without corrupting a real store; the real
+        // reset-preferences behavior follows it, proving it never runs.
         let session = try #require(model.session)
-        await launcher.teardown(failing, input: session)
+        await launcher.teardown(input: session) { _, context in
+            try await context.step(LaunchStepID.eraseData) {
+                throw CocoaError(.fileWriteUnknown)
+            }
+            try await context.step(LaunchStepID.resetPreferences) {
+                model.resetPreferences()
+            }
+        }
         #expect(launcher.phase.failed(at: LaunchStepID.eraseData))
         #expect(model.hasOnboarded) // reset-preferences never ran
-    }
-}
-
-/// An erase stand-in that always throws, so the teardown-failure path can be
-/// driven without corrupting a real store.
-private struct FailingEraseStep: LifecycleStep {
-    let id: AnyHashable = LaunchStepID.eraseData
-
-    func run(_: WhereSession, _: LifecycleStepContext) async throws {
-        throw CocoaError(.fileWriteUnknown)
-    }
-}
-
-/// The real reset-preferences behavior behind the failing erase, proving it
-/// never runs when the erase throws.
-private struct ResetPreferencesProbeStep: LifecycleStep {
-    let model: WhereModel
-
-    let id: AnyHashable = LaunchStepID.resetPreferences
-
-    func run(_: Void, _: LifecycleStepContext) async throws {
-        model.resetPreferences()
     }
 }

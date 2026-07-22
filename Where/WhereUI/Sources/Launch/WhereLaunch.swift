@@ -4,8 +4,8 @@ import SwiftUI
 import UserNotifications
 import WhereCore
 
-/// Stable identifiers for the nodes in `WhereLaunch.plan(for:)` and
-/// `resetPlan(for:)`. Raw strings drift silently (a typo just creates a new,
+/// Stable identifiers for the steps in `WhereLaunch.launch(for:)` and
+/// `reset(for:)`. Raw strings drift silently (a typo just creates a new,
 /// untracked step); an enum makes each ID a compile-checked symbol and gives
 /// the launch/reset parity tests a single source of truth.
 public enum LaunchStepID: String {
@@ -48,21 +48,23 @@ public enum LaunchStepID: String {
     case resetPreferences = "reset-preferences"
 }
 
-/// Assembles the Where app's cold-launch plan and the `LifecycleRunner` that
-/// drives it.
+/// Assembles the Where app's cold-launch function and the `LifecycleRunner`
+/// that drives it.
 ///
-/// The plan is only the *prerequisites*; the destination — the real tab UI —
-/// is `LifecycleContainer`'s `content` (see `RootView`), handed the
-/// `WhereSession` the trunk produced once the runner reaches `.ready`.
+/// The launch is only the *prerequisites*; the destination — the real tab UI
+/// — is `LifecycleContainer`'s `content` (see `RootView`), handed the
+/// `WhereSession` the function returned once the runner reaches `.ready`.
 ///
-/// The trunk's value is the launch's dependency scope, growing monotonically
-/// by embedding: `OpenStoreStep` mints `WhereServices` (the store scope),
-/// `StartSessionStep` promotes it to `WhereSession` (which carries the
-/// services non-optionally), and every downstream node takes the session as
-/// its typed input. The compiler holds the ordering — a node cannot be
-/// placed before its input exists, and only pass-through nodes (the
-/// onboarding gate, `thenKeeping` steps, the detached fan) may skip, so a
-/// skipped node can't leave a hole in the data flow.
+/// The function is ordinary async Swift: its `let`s are the launch's
+/// dependency scope, growing monotonically by embedding — the `open-store`
+/// step mints `WhereServices` (the store scope), `start-session` promotes it
+/// to `WhereSession` (which carries the services non-optionally), and every
+/// downstream step closes over the session. The compiler holds the ordering
+/// (a value can't be used before the step that produced it), and only `Void`
+/// work can be mode-gated, so a skipped step can't leave a hole in the data
+/// flow. The one discipline the style demands: **all effects live inside
+/// `context.step`/`gate`/`detached`** — bare glue between steps re-runs on
+/// every re-drive (promotion, retry).
 @MainActor
 public enum WhereLaunch {
     private static let logger = WhereLog.root(WhereLaunchLog.self)
@@ -161,7 +163,7 @@ public enum WhereLaunch {
                 bootstrap.prepareLocation()
                 ForegroundNotificationPresenter.install()
             },
-            plan: plan(
+            launch: launch(
                 for: model,
                 bootstrap: bootstrap,
                 onServicesReady: onServicesReady,
@@ -175,46 +177,152 @@ public enum WhereLaunch {
         return runner
     }
 
-    /// The typed launch plan. The trunk mirrors the imperative
-    /// `WhereSession.start()` order (a parity test guards this); the only
-    /// insertions are the `start-session` scope promotion and the
-    /// `onboarding` gate, neither of which `start()` models. The independent
-    /// session-configuration steps fan out detached after the trunk — they
-    /// take the session, return nothing, and never block `.ready`.
+    /// The launch function. The required steps mirror the imperative
+    /// `WhereSession.start()` order (a parity test on the runner's executed
+    /// IDs guards this); the only insertions are the `start-session` scope
+    /// promotion and the `onboarding` gate, neither of which `start()`
+    /// models. The independent session-configuration steps fan out detached
+    /// after the trunk — they close over the session, return nothing, and
+    /// never block `.ready`.
     ///
     /// `bootstrap` assembles the services in the `open-store` step, and
     /// `onServicesReady` fires from `start-session` whenever a session is
-    /// (re)started (see `makeLauncher`); callers that only inspect the node
-    /// list (the parity test) can rely on the defaults.
-    public static func plan(
+    /// (re)started (see `makeLauncher`); previews and tests can rely on the
+    /// defaults.
+    public static func launch(
         for model: WhereModel,
         bootstrap: WhereBootstrap = WhereBootstrap(),
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
-    ) -> LaunchPlan<Void, WhereSession> {
-        LaunchPlan(OpenStoreStep(model: model, bootstrap: bootstrap))
-            .then(StartSessionStep(model: model, onServicesReady: onServicesReady))
-            .gate(OnboardingGate(model: model))
-            .thenKeeping(SyncAuthStep())
-            .thenKeeping(ReconcileTrackingStep())
-            .detached {
-                CaptureTodayStep()
-                RemindersStep()
-                SummaryStep()
-                IssueAlertsStep()
-                WidgetSnapshotStep()
+    ) -> @MainActor (LifecycleContext) async throws -> WhereSession {
+        { context in
+            // Open the SwiftData store and assemble the service layer — the
+            // process's **one** store open (everything else shares the
+            // instance by injection; see `WhereBootstrap.makeServices`).
+            // Reuses already-attached services (a preview/test injected them,
+            // or a prior session before a reset), so we never spin up a real
+            // store + CoreLocation behind a retained layer. Opening may run a
+            // lightweight migration; there's no separate UI for it — the
+            // launch splash fades in its own launch-neutral caption when any
+            // launch phase runs long.
+            let services: WhereServices = try await context.step(LaunchStepID.openStore) {
+                if let services = model.services { return services }
+                let services = try await bootstrap.makeServices()
+                model.attach(services: services)
+                return services
             }
+
+            // Create the logged-in session and hand the service layer to the
+            // app's composition hook before any later step — or the UI —
+            // runs, so consumers awaiting it (parked App Intents) resume
+            // against this session's store. Runs on every session (re)start:
+            // first launch, a retry after a failed open, and the reset
+            // relaunch (whose fresh attempt clears the run-once memo).
+            let session: WhereSession = try await context.step(LaunchStepID.startSession) {
+                let session = model.startSession(services: services)
+                await onServicesReady(session.services)
+                return session
+            }
+
+            // First-run onboarding. The gate is foreground-only, so a
+            // headless launch skips it unmemoized — and this plain `if`
+            // re-evaluates when a scene promotes the launch and the function
+            // re-runs, so a cold `.undetermined` start still onboards once
+            // it becomes user-visible. `RootView` registers `OnboardingView`
+            // for the gate type; the view receives the session passed here.
+            if !model.hasOnboarded {
+                try await context.gate(OnboardingGate(), value: session)
+            }
+
+            // Read location authorization into the coordinator and start
+            // observing live authorization + region-style changes. Required
+            // and ordered: the reconcile step below must see the synced
+            // authorization.
+            try await context.step(LaunchStepID.syncAuth) {
+                await session.syncAuthorization()
+                session.observeAuthorizationChanges()
+                await session.seedRegionStyles()
+                session.observeRegionStyleChanges()
+            }
+
+            // Start or stop GPS ingestion to match the user's intent + the
+            // authorization the previous step just synced.
+            try await context.step(LaunchStepID.reconcileTracking) {
+                await session.reconcileTracking()
+            }
+
+            // The independent session-configuration fan: fire-and-forget,
+            // never blocks `.ready`, failures surface on `detachedFailures`
+            // (mirrored into WhereLog by `DetachedFailureReporter`).
+            //
+            // Capture-today is foreground-only — a headless launch shouldn't
+            // spend a fresh one-shot GPS fix (a `.background` relaunch is
+            // itself the passive event); it runs once a scene promotes the
+            // launch and the function re-runs.
+            context.detached(LaunchStepID.captureToday, modes: .foreground) {
+                await session.captureTodayIfNeeded()
+            }
+            // Push the logging-reminder schedule + badge to the reconciler.
+            context.detached(LaunchStepID.reminders) {
+                await session.applyReminderConfiguration()
+            }
+            // Push the daily-summary recap to the reconciler.
+            context.detached(LaunchStepID.summary) {
+                await session.applySummaryConfiguration()
+            }
+            // Push the "issues to resolve" notification intent to its
+            // reconciler.
+            context.detached(LaunchStepID.issueAlerts) {
+                await session.applyIssueAlertConfiguration()
+            }
+            // Republish the widget snapshot from whatever is already on disk,
+            // so a cold launch with no writes this session doesn't leave the
+            // widget blank or showing the previous day's "today".
+            context.detached(LaunchStepID.widgetSnapshot) {
+                await session.refreshWidgetSnapshot()
+            }
+
+            return session
+        }
     }
 
-    /// The reverse of `plan(for:)`: the teardown run by Settings' "Erase all
-    /// data & reset", rooted at the session being torn down (Settings hands
-    /// it in as the teardown input — no optional re-read). `LifecycleRunner
-    /// .teardown` runs these nodes, then re-drives the launch plan from the
-    /// top — which, with `hasOnboarded` now cleared, parks on the onboarding
-    /// gate again, returning the app to its first-run state.
-    public static func resetPlan(for model: WhereModel) -> LaunchPlan<WhereSession, Void> {
-        LaunchPlan(EraseDataStep(model: model))
-            .then(ResetPreferencesStep(model: model))
+    /// The reverse of `launch(for:)`: the teardown run by Settings' "Erase
+    /// all data & reset", rooted at the session being torn down (Settings
+    /// hands it in as the teardown input — no optional re-read).
+    /// `LifecycleRunner.teardown` runs it, then re-runs the launch function
+    /// as a fresh attempt — which, with `hasOnboarded` now cleared, parks on
+    /// the onboarding gate again, returning the app to its first-run state.
+    public static func reset(
+        for model: WhereModel,
+    ) -> @MainActor (WhereSession, LifecycleContext) async throws -> Void {
+        { session, context in
+            // Stop GPS and wipe the store first, then drop the session. If
+            // the erase throws the runner parks in `.failed` with the session
+            // and preferences intact, so a retry re-erases rather than
+            // stranding the user in onboarding atop un-erased data. Dropping
+            // the session makes the relaunch rebuild a fresh one over the
+            // erased store (the services stay retained).
+            try await context.step(LaunchStepID.eraseData) {
+                try await session.eraseSession()
+                model.endSession()
+            }
+            // Clear the persisted preferences that gate the relaunch
+            // (onboarding flag, tracking intent, reminder/summary schedules),
+            // so the next launch behaves like a fresh install.
+            try await context.step(LaunchStepID.resetPreferences) {
+                model.resetPreferences()
+            }
+        }
     }
+}
+
+/// First-run onboarding's gate type: how the launch function parks for the
+/// user, and the key `RootView`'s registry maps to `OnboardingView`. Carries
+/// no behavior — conditionality is the `if !model.hasOnboarded` at the call
+/// site; `Value` is the session the gate view commits regions with.
+struct OnboardingGate: LifecycleGate {
+    typealias Value = WhereSession
+
+    let id: AnyHashable = LaunchStepID.onboarding
 }
 
 /// Owns the launch-time assembly of `WhereServices` so `WhereModel`

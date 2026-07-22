@@ -5,64 +5,62 @@ private struct ResetError: Error {}
 
 @MainActor
 struct LifecycleRunnerResetTests {
+    /// A one-step launch that records into `events` and returns "session".
+    private func makeRunner(recording events: @escaping @MainActor (String) -> Void)
+        -> LifecycleRunner<String>
+    {
+        LifecycleRunner(reason: .userForeground) { context in
+            try await context.step("launch") {
+                events("launch")
+                return "session"
+            }
+        }
+    }
+
     @Test func teardownRunsThenRelaunchesWithItsTypedInput() async {
         var events: [String] = []
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("launch") { _, _ in
-                events.append("launch")
-                return "session"
-            }),
-        )
+        let runner = makeRunner { events.append($0) }
         await runner.run()
         #expect(events == ["launch"])
         #expect(runner.phase.isReady)
 
-        // The teardown plan roots at a real value — the thing being torn down.
-        await runner.teardown(
-            LaunchPlan(FixtureStep<String, Void>("teardown") { value, _ in
+        // The teardown function roots at a real value — the thing being torn
+        // down — captured into the closure with its type intact.
+        await runner.teardown(input: "session") { value, context in
+            try await context.step("teardown") {
                 events.append("teardown-\(value)")
-            }),
-            input: "session",
-        )
+            }
+        }
         #expect(events == ["launch", "teardown-session", "launch"])
         #expect(runner.phase.isReady)
     }
 
-    @Test func teardownNodesRunInOrder() async {
+    @Test func teardownStepsRunInOrder() async {
         var events: [String] = []
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Void>("noop") { _, _ in }),
-        )
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            try await context.step("noop") {}
+        }
         await runner.run()
 
-        await runner.teardown(
-            LaunchPlan(FixtureStep<Void, Void>("stop-gps") { _, _ in events.append("stop-gps") })
-                .thenKeeping(FixtureStep<Void, Void>("clear-store") { _, _ in
-                    events.append("clear-store")
-                })
-                .thenKeeping(FixtureStep<Void, Void>("clear-widget") { _, _ in
-                    events.append("clear-widget")
-                }),
-            input: (),
-        )
+        await runner.teardown(input: ()) { _, context in
+            try await context.step("stop-gps") { events.append("stop-gps") }
+            try await context.step("clear-store") { events.append("clear-store") }
+            try await context.step("clear-widget") { events.append("clear-widget") }
+        }
         #expect(events == ["stop-gps", "clear-store", "clear-widget"])
     }
 
     @Test func teardownGateParksAndResumes() async throws {
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Void>("noop") { _, _ in }),
-        )
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            try await context.step("noop") {}
+        }
         await runner.run()
 
         let task = Task { @MainActor in
-            await runner.teardown(
-                LaunchPlan(FixtureStep<Void, String>("prepare") { _, _ in "account" })
-                    .gate(FixtureGate<String>("signing-out")),
-                input: (),
-            )
+            await runner.teardown(input: ()) { _, context in
+                let account: String = try await context.step("prepare") { "account" }
+                try await context.gate(FixtureGate<String>("signing-out"), value: account)
+            }
         }
         try await waitUntil { runner.phase.isAwaitingGate("signing-out") }
         #expect(runner.phase.gateHandle?.value as? String == "account")
@@ -72,47 +70,37 @@ struct LifecycleRunnerResetTests {
         #expect(runner.phase.isReady)
     }
 
-    @Test func teardownDetachedChildrenDrainBeforeTheRelaunch() async {
+    @Test func teardownDetachedWorkDrainsBeforeTheRelaunch() async {
         var events: [String] = []
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Void>("launch") { _, _ in
-                events.append("launch")
-            }),
-        )
+        let runner = makeRunner { events.append($0) }
         await runner.run()
         events.removeAll()
 
-        await runner.teardown(
-            LaunchPlan(FixtureStep<Void, Void>("erase") { _, _ in events.append("erase") })
-                .detached {
-                    FixtureStep<Void, Void>("flush") { _, _ in
-                        // Yield so the trunk finishes first; the relaunch must
-                        // still wait for this child — no torn-down-world work
-                        // may overlap the fresh launch.
-                        await Task.yield()
-                        events.append("flush")
-                    }
-                },
-            input: (),
-        )
+        await runner.teardown(input: ()) { _, context in
+            try await context.step("erase") { events.append("erase") }
+            context.detached("flush") {
+                // Yield so the function returns first; the relaunch must
+                // still wait for this work — no torn-down-world work may
+                // overlap the fresh launch.
+                await Task.yield()
+                events.append("flush")
+            }
+        }
         #expect(events == ["erase", "flush", "launch"])
         #expect(runner.phase.isReady)
     }
 
     @Test func failedTeardownParksInFailedAndSkipsRelaunch() async {
         var relaunched = false
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Void>("launch") { _, _ in relaunched = true }),
-        )
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            try await context.step("launch") { relaunched = true }
+        }
         await runner.run()
         relaunched = false
 
-        await runner.teardown(
-            LaunchPlan(FixtureStep<Void, Void>("teardown") { _, _ in throw ResetError() }),
-            input: (),
-        )
+        await runner.teardown(input: ()) { _, context in
+            try await context.step("teardown") { throw ResetError() }
+        }
         #expect(runner.phase.failed(at: "teardown"))
         #expect(!relaunched)
     }
@@ -120,28 +108,23 @@ struct LifecycleRunnerResetTests {
     @Test func retryAfterFailedTeardownReRunsTeardownThenRelaunches() async throws {
         var events: [String] = []
         var shouldFailErase = true
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Void>("launch") { _, _ in events.append("launch") }),
-        )
+        let runner = makeRunner { events.append($0) }
         await runner.run()
         events.removeAll()
 
-        await runner.teardown(
-            LaunchPlan(FixtureStep<Void, Void>("erase") { _, _ in
+        await runner.teardown(input: ()) { _, context in
+            try await context.step("erase") {
                 events.append("erase")
                 if shouldFailErase { throw ResetError() }
-            })
-            .thenKeeping(FixtureStep<Void, Void>("clear-prefs") { _, _ in
-                events.append("clear-prefs")
-            }),
-            input: (),
-        )
+            }
+            try await context.step("clear-prefs") { events.append("clear-prefs") }
+        }
         #expect(runner.phase.failed(at: "erase"))
         #expect(events == ["erase"])
 
-        // Retry must resume the teardown (re-erasing) and only then relaunch —
-        // not silently re-drive the launch plan over un-torn-down state.
+        // Retry must re-run the teardown (re-erasing — the failed step was
+        // never memoized) and only then relaunch — not silently re-drive the
+        // launch over un-torn-down state.
         shouldFailErase = false
         events.removeAll()
         runner.retry()
@@ -152,27 +135,23 @@ struct LifecycleRunnerResetTests {
     @Test func retryAfterFailedTeardownTailResumesWithoutReErasing() async throws {
         var events: [String] = []
         var shouldFailPrefs = true
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Void>("launch") { _, _ in events.append("launch") }),
-        )
+        let runner = makeRunner { events.append($0) }
         await runner.run()
         events.removeAll()
 
-        await runner.teardown(
-            LaunchPlan(FixtureStep<Void, Void>("erase") { _, _ in events.append("erase") })
-                .thenKeeping(FixtureStep<Void, Void>("clear-prefs") { _, _ in
-                    events.append("clear-prefs")
-                    if shouldFailPrefs { throw ResetError() }
-                }),
-            input: (),
-        )
+        await runner.teardown(input: ()) { _, context in
+            try await context.step("erase") { events.append("erase") }
+            try await context.step("clear-prefs") {
+                events.append("clear-prefs")
+                if shouldFailPrefs { throw ResetError() }
+            }
+        }
         #expect(runner.phase.failed(at: "clear-prefs"))
         #expect(events == ["erase", "clear-prefs"])
 
-        // The earlier teardown node ("erase") already succeeded, so retry
-        // resumes from the failed node rather than re-running it, then
-        // relaunches.
+        // The earlier teardown step ("erase") already succeeded, so the
+        // retry's re-run skips it via the teardown memo rather than
+        // re-erasing, then relaunches.
         shouldFailPrefs = false
         events.removeAll()
         runner.retry()
@@ -185,25 +164,44 @@ struct LifecycleRunnerResetTests {
         // drive forever: it is parked on a gate waiting for a tap that never
         // comes.
         var teardownRan = false
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("root") { _, _ in "session" })
-                // After teardown clears the gate, the relaunch skips it and
-                // runs to completion.
-                .gate(FixtureGate<String>("gate") { _ in !teardownRan }),
-        )
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            let root: String = try await context.step("root") { "session" }
+            // Vanilla conditionality: after teardown clears the flag, the
+            // relaunch's re-run takes the other branch and completes.
+            if !teardownRan {
+                try await context.gate(FixtureGate<String>("gate"), value: root)
+            }
+            return root
+        }
         let runTask = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.isAwaitingGate("gate") }
 
-        await runner.teardown(
-            LaunchPlan(FixtureStep<Void, Void>("teardown") { _, _ in teardownRan = true }),
-            input: (),
-        )
+        await runner.teardown(input: ()) { _, context in
+            try await context.step("teardown") { teardownRan = true }
+        }
 
         await runTask.value
         #expect(teardownRan)
         // The cancelled gate was treated as a drained drive, not a failure.
         #expect(runner.phase.failure == nil)
+        #expect(runner.phase.isReady)
+    }
+
+    @Test func teardownStepsMayReuseLaunchStepIDs() async {
+        // Launch and teardown memos are separate namespaces: a teardown step
+        // sharing an ID with a completed launch step must still run (the
+        // combinator engine had to precondition this collision away; separate
+        // stores make it simply legal).
+        var events: [String] = []
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            try await context.step("shared-id") { events.append("launch-side") }
+        }
+        await runner.run()
+
+        await runner.teardown(input: ()) { _, context in
+            try await context.step("shared-id") { events.append("teardown-side") }
+        }
+        #expect(events == ["launch-side", "teardown-side", "launch-side"])
         #expect(runner.phase.isReady)
     }
 }

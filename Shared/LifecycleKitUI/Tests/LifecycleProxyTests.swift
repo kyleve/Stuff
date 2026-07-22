@@ -12,21 +12,19 @@ struct LifecycleProxyTests {
 
     @Test func connectedProxyForwardsTypedTeardownToTheRunner() async {
         var tornDownWith: String?
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("open") { _, _ in "session" }),
-        )
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            try await context.step("open") { "session" }
+        }
         await runner.run()
         #expect(runner.phase.isReady)
 
-        // The typed plan + input cross the non-generic environment seam and
+        // The typed input + body cross the non-generic environment seam and
         // land on the runner with the value intact.
-        await LifecycleProxy(runner).teardown(
-            LaunchPlan(FixtureStep<String, Void>("teardown") { value, _ in
+        await LifecycleProxy(runner).teardown(input: "session") { value, context in
+            try await context.step("teardown") {
                 tornDownWith = value
-            }),
-            input: "session",
-        )
+            }
+        }
         #expect(tornDownWith == "session")
         #expect(runner.phase.isReady)
     }
@@ -34,13 +32,12 @@ struct LifecycleProxyTests {
     @Test func connectedProxyForwardsRetryToTheRunner() async throws {
         struct Boom: Error {}
         var shouldFail = true
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("open") { _, _ in
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            try await context.step("open") {
                 if shouldFail { throw Boom() }
                 return "session"
-            }),
-        )
+            }
+        }
         await runner.run()
         #expect(runner.phase.failed(at: "open"))
 

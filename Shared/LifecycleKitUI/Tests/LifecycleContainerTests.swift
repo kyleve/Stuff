@@ -29,7 +29,9 @@ struct LifecycleContainerTests {
     ) async -> LifecycleRunner<String> {
         let runner = LifecycleRunner(
             reason: reason,
-            plan: LaunchPlan(FixtureStep<Void, String>("open") { _, _ in "session" }),
+            launch: { context in
+                try await context.step("open") { "session" }
+            },
         )
         await runner.run()
         return runner
@@ -61,7 +63,9 @@ struct LifecycleContainerTests {
         var content = false
         let runner = LifecycleRunner(
             reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("open") { _, _ in "session" }),
+            launch: { context in
+                try await context.step("open") { "session" }
+            },
         )
         // Not run yet, so the runner is still in .launching.
 
@@ -83,11 +87,14 @@ struct LifecycleContainerTests {
         var caption: String?
         let runner = LifecycleRunner(
             reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("open") { _, context in
-                context.message = "opening the store"
-                for await _ in parked {}
-                return "session"
-            }),
+            launch: { context in
+                let session: String = try await context.step("open") {
+                    context.runningStep?.message = "opening the store"
+                    for await _ in parked {}
+                    return "session"
+                }
+                return session
+            },
         )
         let task = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.isRunning("open") }
@@ -168,8 +175,11 @@ struct LifecycleContainerTests {
         var content = false
         let runner = LifecycleRunner(
             reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("open") { _, _ in "session" })
-                .gate(FixtureGate<String>("onboarding")),
+            launch: { context in
+                let session: String = try await context.step("open") { "session" }
+                try await context.gate(FixtureGate<String>("onboarding"), value: session)
+                return session
+            },
         )
         let task = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.isAwaitingGate("onboarding") }
@@ -206,8 +216,11 @@ struct LifecycleContainerTests {
         var splashShown = false
         let runner = LifecycleRunner(
             reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("open") { _, _ in "session" })
-                .gate(FixtureGate<String>("onboarding")),
+            launch: { context in
+                let session: String = try await context.step("open") { "session" }
+                try await context.gate(FixtureGate<String>("onboarding"), value: session)
+                return session
+            },
         )
         let task = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.isAwaitingGate("onboarding") }
@@ -239,7 +252,10 @@ struct LifecycleContainerTests {
         var splash = false
         let runner = LifecycleRunner(
             reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("boom") { _, _ in throw ProbeError() }),
+            launch: { context in
+                let value: String = try await context.step("boom") { throw ProbeError() }
+                return value
+            },
         )
         await runner.run()
         #expect(runner.phase.failed(at: "boom"))

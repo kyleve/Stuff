@@ -21,25 +21,6 @@ private func waitUntil(
     }
 }
 
-/// A minimal typed root so a reporter test can drive a real runner without
-/// Where's services.
-private struct RootStep: LifecycleStep {
-    let id: AnyHashable = "root"
-
-    func run(_: Void, _: LifecycleStepContext) async throws -> String {
-        "value"
-    }
-}
-
-/// A detached child that always throws, landing on `detachedFailures`.
-private struct ThrowingChildStep: LifecycleStep {
-    let id: AnyHashable
-
-    func run(_: String, _: LifecycleStepContext) async throws {
-        throw FanError()
-    }
-}
-
 @MainActor
 struct DetachedFailureReporterTests {
     private func failure(_ id: String) -> LifecycleFailure {
@@ -77,14 +58,12 @@ struct DetachedFailureReporterTests {
         // End-to-end plumbing: a runner whose detached fan throws must reach
         // the reporter through the observation chain — no view tree involved,
         // matching the headless-launch case the reporter exists for.
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(RootStep())
-                .detached {
-                    ThrowingChildStep(id: "boom-1")
-                    ThrowingChildStep(id: "boom-2")
-                },
-        )
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            let root: String = try await context.step("root") { "value" }
+            context.detached("boom-1") { throw FanError() }
+            context.detached("boom-2") { throw FanError() }
+            return root
+        }
         let reporter = DetachedFailureReporter()
         reporter.observe(runner)
 

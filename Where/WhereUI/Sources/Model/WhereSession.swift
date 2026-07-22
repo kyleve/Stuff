@@ -154,7 +154,7 @@ public final class WhereSession {
     /// summary schedules, and republish the widget snapshot. Safe to call
     /// repeatedly; the authorization observer is only set up once.
     ///
-    /// This is the imperative equivalent of `WhereLaunch.plan(for:)`'s coordinator
+    /// This is the imperative equivalent of `WhereLaunch.launch(for:)`'s coordinator
     /// work steps, kept for previews/tests that drive the coordinator directly
     /// without a `LifecycleRunner`. Report/data-issue loading is *not* here — the
     /// scene's `YearReportModel` owns that and starts it when the UI appears.
@@ -192,7 +192,7 @@ public final class WhereSession {
     }
 
     /// Republish the widget snapshot from whatever is on disk. A launch step
-    /// in its own right (see `WhereLaunch.plan(for:)`).
+    /// in its own right (see `WhereLaunch.launch(for:)`).
     public func refreshWidgetSnapshot() async {
         await services.widgets.refreshIfStale()
     }
@@ -200,7 +200,7 @@ public final class WhereSession {
     /// Read the current authorization status from the ingestor into our
     /// observable state. Does not surface the permission alert — that's
     /// reserved for explicit user actions. A launch step (see
-    /// `WhereLaunch.plan(for:)`).
+    /// `WhereLaunch.launch(for:)`).
     func syncAuthorization() async {
         authorizationStatus = await services.ingestor.authorizationStatus()
         warnIfAuthorizationDegraded()
@@ -247,7 +247,7 @@ public final class WhereSession {
 
     /// Load the user's picked region appearances into ``regionStyles`` so the
     /// UI resolves them everywhere it renders a region. A launch step (see
-    /// `WhereLaunch.plan(for:)`); also re-run on every store change via
+    /// `WhereLaunch.launch(for:)`); also re-run on every store change via
     /// `observeRegionStyleChanges()`. On failure it keeps the last good resolver
     /// (honest degraded state) and logs.
     func seedRegionStyles() async {
@@ -277,7 +277,7 @@ public final class WhereSession {
 
     /// Start or stop GPS ingestion so it matches the user's intent and the
     /// current authorization. Tracking only runs with Always authorization. A
-    /// launch step (see `WhereLaunch.plan(for:)`).
+    /// launch step (see `WhereLaunch.launch(for:)`).
     func reconcileTracking() async {
         let wasTracking = isTracking
         if wantsTracking, authorizationStatus.allowsBackgroundTracking {
@@ -297,7 +297,7 @@ public final class WhereSession {
     /// and a usable authorization (When-In-Use is enough for a foreground fix —
     /// notably the only way When-In-Use users get any data). The ingestor is
     /// non-blocking and reconciles widgets / reminders + pings the read signal
-    /// on persist. A launch step (see `WhereLaunch.plan(for:)`); also runs on
+    /// on persist. A launch step (see `WhereLaunch.launch(for:)`); also runs on
     /// every foreground.
     func captureTodayIfNeeded() async {
         guard wantsTracking, authorizationStatus.allowsForegroundFix else { return }
@@ -354,7 +354,7 @@ public final class WhereSession {
     /// notifications are enabled but unauthorized. Reads `WherePreferences`
     /// directly (the single source of truth the `RemindersSettingsModel` also
     /// writes), so it re-applies whatever the user last chose. A launch step
-    /// (see `WhereLaunch.plan(for:)`); also runs on every foreground.
+    /// (see `WhereLaunch.launch(for:)`); also runs on every foreground.
     func applyReminderConfiguration() async {
         let enabled = preferences.remindersEnabled
         // The reminder reconciler also owns the app-icon badge, whose value folds
@@ -379,7 +379,7 @@ public final class WhereSession {
 
     /// Push the persisted daily-summary intent to the summary reconciler and warn
     /// if enabled but unauthorized. Reads `WherePreferences` directly, mirroring
-    /// `applyReminderConfiguration()`. A launch step (see `WhereLaunch.plan(for:)`);
+    /// `applyReminderConfiguration()`. A launch step (see `WhereLaunch.launch(for:)`);
     /// also runs on every foreground.
     func applySummaryConfiguration() async {
         let enabled = preferences.summaryEnabled
@@ -399,7 +399,7 @@ public final class WhereSession {
     /// warn if enabled but unauthorized. Fires the alert at the evening reminder
     /// time and scans at the current drift threshold. Reads `WherePreferences`
     /// directly, mirroring `applyReminderConfiguration()`. A launch step (see
-    /// `WhereLaunch.plan(for:)`); also runs on every foreground.
+    /// `WhereLaunch.launch(for:)`); also runs on every foreground.
     func applyIssueAlertConfiguration() async {
         let enabled = preferences.issueAlertsEnabled
         await services.issueAlerts.configure(
@@ -424,7 +424,7 @@ public final class WhereSession {
     /// empty widget snapshot); the coordinator only mirrors the outcome. The
     /// scene's `YearReportModel` is torn down and rebuilt by the relaunch, so no
     /// report/issue state needs clearing here. The data half of the reset/erase
-    /// teardown (see `WhereLaunch.resetPlan(for:)`); throws on persistence failure
+    /// teardown (see `WhereLaunch.reset(for:)`); throws on persistence failure
     /// so the reset step parks the launcher in `.failed` rather than silently
     /// half-erasing.
     public func eraseSession() async throws {

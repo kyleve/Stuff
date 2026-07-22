@@ -22,15 +22,15 @@ private struct SplitMix64: RandomNumberGenerator {
     }
 }
 
-/// A randomized plan-element description, kept separate from the built
-/// `LaunchPlan` so the test can predict the expected outcome from the same
+/// A randomized function-element description, kept separate from the built
+/// launch closure so the test can predict the expected outcome from the same
 /// data the runner drives.
 private struct FuzzElement {
     enum Kind {
-        /// A required pass-through trunk step (`thenKeeping`).
-        case keep
-        /// A fire-and-forget child in its own `detached` group.
-        case detachedChild
+        /// A required `Void` step (`context.step(_:modes:_:)`).
+        case step
+        /// Fire-and-forget work (`context.detached`).
+        case detached
     }
 
     let id: String
@@ -45,73 +45,70 @@ private func makeFuzzElements(_ rng: inout SplitMix64) -> [FuzzElement] {
     return (0 ..< count).map { index in
         FuzzElement(
             id: "s\(index)",
-            kind: Bool.random(using: &rng) ? .keep : .detachedChild,
+            kind: Bool.random(using: &rng) ? .step : .detached,
             modes: modeChoices[Int.random(in: 0 ..< modeChoices.count, using: &rng)],
             throwsError: Double.random(in: 0 ... 1, using: &rng) < 0.15,
         )
     }
 }
 
-/// Property-based / adversarial coverage: rather than hand-pick plans, run
-/// many randomized ones and check the runner's behavior against an
-/// independent model. Complements the targeted runner tests.
+/// Property-based / adversarial coverage: rather than hand-pick launch
+/// functions, run many randomized ones and check the runner's behavior
+/// against an independent model. Complements the targeted runner tests.
 @MainActor
 struct LifecycleRunnerFuzzTests {
-    /// For a random reason and a random mix of mode-gated / throwing trunk
-    /// steps and detached children, the runner runs exactly the applicable
-    /// trunk prefix (stopping at the first trunk throw, which parks
-    /// `.failed`), spawns exactly the detached children the trunk reached,
-    /// records exactly the detached failures, and otherwise reaches `.ready`.
+    /// For a random reason and a random mix of mode-gated / throwing steps
+    /// and detached work, the runner runs exactly the applicable prefix
+    /// (stopping at the first step throw, which parks `.failed`), spawns
+    /// exactly the detached work the function reached, records exactly the
+    /// detached failures, and otherwise reaches `.ready`.
     @Test(arguments: 0 ..< 200)
-    func randomPlanLandsWhereTheModelPredicts(seed: Int) async {
+    func randomFunctionLandsWhereTheModelPredicts(seed: Int) async {
         var rng = SplitMix64(seed: UInt64(seed))
         let foreground = Bool.random(using: &rng)
         let reason: LifecycleReason = foreground ? .userForeground : .background(.location)
         let fuzz = makeFuzzElements(&rng)
 
-        var executedTrunk: [String] = []
+        var executedSteps: [String] = []
         var executedDetached: Set<String> = []
-        var plan = LaunchPlan(FixtureStep<Void, String>("root") { _, _ in "value" })
-        for element in fuzz {
-            switch element.kind {
-                case .keep:
-                    plan = plan.thenKeeping(
-                        FixtureStep<String, Void>(element.id, modes: element.modes) { _, _ in
-                            executedTrunk.append(element.id)
+        let runner = LifecycleRunner(reason: reason) { context in
+            for element in fuzz {
+                switch element.kind {
+                    case .step:
+                        try await context.step(element.id, modes: element.modes) {
+                            executedSteps.append(element.id)
                             if element.throwsError { throw FuzzError() }
-                        },
-                    )
-                case .detachedChild:
-                    plan = plan.detached {
-                        FixtureStep<String, Void>(element.id, modes: element.modes) { _, _ in
+                        }
+                    case .detached:
+                        context.detached(element.id, modes: element.modes) {
                             executedDetached.insert(element.id)
                             if element.throwsError { throw FuzzError() }
                         }
-                    }
+                }
             }
+            return "value"
         }
-        let runner = LifecycleRunner(reason: reason, plan: plan)
         await runner.run()
 
         // Independent model of what should have happened.
-        var expectedTrunk: [String] = []
+        var expectedSteps: [String] = []
         var expectedDetached: Set<String> = []
         var expectedDetachedFailures: Set<String> = []
         var expectedFailureID: String?
         for element in fuzz {
             guard element.modes.contains(reason.modeSet) else { continue }
             switch element.kind {
-                case .keep:
-                    expectedTrunk.append(element.id)
+                case .step:
+                    expectedSteps.append(element.id)
                     if element.throwsError { expectedFailureID = element.id }
-                case .detachedChild:
+                case .detached:
                     expectedDetached.insert(element.id)
                     if element.throwsError { expectedDetachedFailures.insert(element.id) }
             }
             if expectedFailureID != nil { break }
         }
 
-        #expect(executedTrunk == expectedTrunk)
+        #expect(executedSteps == expectedSteps)
         #expect(executedDetached == expectedDetached)
         #expect(Set(runner.detachedFailures.map { "\($0.stepID)" }) == expectedDetachedFailures)
         if let expectedFailureID {
@@ -122,10 +119,11 @@ struct LifecycleRunnerFuzzTests {
         }
     }
 
-    /// Trunk steps that throw their first N attempts then succeed: driving
-    /// `retry()` resumes from the failed node each time (with its memoized
-    /// input — earlier nodes never re-run) and, after exactly the number of
-    /// injected failures, drains to `.ready` with every node having run once.
+    /// Steps that throw their first N attempts then succeed: driving
+    /// `retry()` re-runs the function each time (the memo skipping every
+    /// completed step, so nothing runs twice) and, after exactly the number
+    /// of injected failures, drains to `.ready` with every step having run
+    /// once.
     @Test(arguments: 0 ..< 120)
     func retryDrainsFuzzedFlakyFailuresToReady(seed: Int) async throws {
         var rng = SplitMix64(seed: UInt64(seed))
@@ -135,15 +133,16 @@ struct LifecycleRunnerFuzzTests {
 
         var attempts = [Int](repeating: 0, count: count)
         var succeeded: [String] = []
-        var plan = LaunchPlan(FixtureStep<Void, String>("root") { _, _ in "value" })
-        for index in 0 ..< count {
-            plan = plan.thenKeeping(FixtureStep<String, Void>(ids[index]) { _, _ in
-                attempts[index] += 1
-                if attempts[index] <= failuresBeforeSuccess[index] { throw FuzzError() }
-                succeeded.append(ids[index])
-            })
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            for index in 0 ..< count {
+                try await context.step(ids[index]) {
+                    attempts[index] += 1
+                    if attempts[index] <= failuresBeforeSuccess[index] { throw FuzzError() }
+                    succeeded.append(ids[index])
+                }
+            }
+            return "value"
         }
-        let runner = LifecycleRunner(reason: .userForeground, plan: plan)
 
         await runner.run()
 

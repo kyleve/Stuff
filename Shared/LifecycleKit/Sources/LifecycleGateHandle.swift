@@ -44,10 +44,15 @@ public final class LifecycleGateHandle {
         value = nil
     }
 
-    package init(node: GateNode, reason: LifecycleReason, value: any Sendable) {
-        id = node.id
+    package init(
+        id: AnyHashable,
+        reason: LifecycleReason,
+        gateType: ObjectIdentifier,
+        value: any Sendable,
+    ) {
+        self.id = id
         self.reason = reason
-        gateType = node.gateType
+        self.gateType = gateType
         self.value = value
     }
 

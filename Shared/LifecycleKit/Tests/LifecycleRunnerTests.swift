@@ -5,45 +5,41 @@ private struct StepError: Error {}
 
 @MainActor
 struct LifecycleRunnerDriveTests {
-    @Test func runsTrunkNodesInDeclarationOrderAndThreadsTheValue() async {
+    @Test func runsStepsInOrderAndThreadsValuesThroughLets() async {
         var executed: [String] = []
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Int>("open") { _, _ in
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            let opened: Int = try await context.step("open") {
                 executed.append("open")
                 return 41
-            })
-            .then(FixtureStep<Int, Int>("increment") { value, _ in
+            }
+            let incremented: Int = try await context.step("increment") {
                 executed.append("increment")
-                return value + 1
-            })
-            .thenKeeping(FixtureStep<Int, Void>("keep") { value, _ in
-                executed.append("keep-\(value)")
-            }),
-        )
+                return opened + 1
+            }
+            try await context.step("keep") {
+                executed.append("keep-\(incremented)")
+            }
+            return incremented
+        }
         await runner.run()
         #expect(executed == ["open", "increment", "keep-42"])
         #expect(runner.phase.isReady)
-        // .ready carries the trunk's output — the app's input.
+        // .ready carries the function's return value — the app's input.
         #expect(runner.phase.readyValue == 42)
     }
 
-    @Test func filtersPassThroughNodesByLaunchReason() async {
+    @Test func filtersVoidStepsByLaunchReason() async {
         var executed: [String] = []
-        let runner = LifecycleRunner(
-            reason: .background(.location),
-            plan: LaunchPlan(FixtureStep<Void, String>("root") { _, _ in
+        let runner = LifecycleRunner(reason: .background(.location)) { context in
+            let root: String = try await context.step("root") {
                 executed.append("root")
                 return "session"
-            })
-            .thenKeeping(FixtureStep<String, Void>("always") { _, _ in executed.append("always") })
-            .thenKeeping(FixtureStep<String, Void>("fg", modes: .foreground) { _, _ in
-                executed.append("fg")
-            })
-            .thenKeeping(FixtureStep<String, Void>("bg", modes: .background) { _, _ in
-                executed.append("bg")
-            }),
-        )
+            }
+            try await context.step("always") { executed.append("always") }
+            try await context.step("fg", modes: .foreground) { executed.append("fg") }
+            try await context.step("bg", modes: .background) { executed.append("bg") }
+            return root
+        }
         await runner.run()
         #expect(executed == ["root", "always", "bg"])
         #expect(runner.phase.isReady)
@@ -52,77 +48,100 @@ struct LifecycleRunnerDriveTests {
     @Test func gatesAreSkippedInBackground() async {
         // Gates default to .foreground: a headless launch skips them (and
         // never deadlocks waiting for a tap that can't come).
-        var evaluated = false
-        let runner = LifecycleRunner(
-            reason: .background(.location),
-            plan: LaunchPlan(FixtureStep<Void, String>("root") { _, _ in "session" })
-                .gate(FixtureGate<String>("onboarding") { _ in
-                    evaluated = true
-                    return true
-                }),
-        )
+        let runner = LifecycleRunner(reason: .background(.location)) { context in
+            let root: String = try await context.step("root") { "session" }
+            try await context.gate(FixtureGate<String>("onboarding"), value: root)
+            return root
+        }
         await runner.run()
         #expect(runner.phase.isReady)
-        #expect(!evaluated)
     }
 
     @Test func runIsIdempotent() async {
         var count = 0
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Void>("a") { _, _ in count += 1 }),
-        )
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            try await context.step("a") { count += 1 }
+        }
         await runner.run()
         await runner.run()
         #expect(count == 1)
+    }
+
+    @Test func recordsExecutedStepIDsInOrder() async {
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            let root: String = try await context.step("root") { "session" }
+            try await context.step("keep") {}
+            try await context.step("skipped", modes: .background) {}
+            context.detached("fan") {}
+            return root
+        }
+        await runner.run()
+        // The function style has no inspectable node list; executed-ID
+        // recording is the replacement for order-style assertions. Skipped
+        // (mode-gated) steps don't appear.
+        #expect(runner.executedStepIDs == ["root", "keep", "fan"])
+    }
+
+    @Test func bareGlueReRunsOnReDrivesButMemoizedStepsDoNot() async {
+        // THE discipline of the function style: bare code between steps
+        // re-runs on every re-drive (promotion here), while completed steps
+        // skip via the memo. Effects belong inside steps.
+        var glueRuns = 0
+        var stepRuns = 0
+        let runner = LifecycleRunner(reason: .undetermined) { context in
+            glueRuns += 1
+            return try await context.step("root") {
+                stepRuns += 1
+                return "session"
+            }
+        }
+        await runner.run()
+        await runner.enterForeground()
+        #expect(glueRuns == 2)
+        #expect(stepRuns == 1)
+        #expect(runner.phase.isReady)
     }
 }
 
 @MainActor
 struct LifecycleRunnerDetachedTests {
-    @Test func detachedChildrenDoNotBlockReady() async throws {
+    @Test func detachedWorkDoesNotBlockReady() async throws {
         let (parked, release) = AsyncStream.makeStream(of: Void.self)
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("root") { _, _ in "session" })
-                .detached {
-                    FixtureStep<String, Void>("slow") { _, _ in
-                        for await _ in parked {}
-                    }
-                },
-        )
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            let root: String = try await context.step("root") { "session" }
+            context.detached("slow") {
+                for await _ in parked {}
+            }
+            return root
+        }
         let task = Task { @MainActor in await runner.run() }
-        // .ready is published as soon as the trunk finishes, while the child
-        // is still parked.
+        // .ready is published as soon as the function returns, while the
+        // detached work is still parked.
         try await waitUntil { runner.phase.isReady }
         release.finish()
         await task.value
         #expect(runner.phase.readyValue == "session")
     }
 
-    @Test func detachedChildrenReceiveTheTrunkValue() async {
+    @Test func detachedWorkCapturesTheValuesItNeeds() async {
         var seen: [String] = []
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("root") { _, _ in "session" })
-                .detached {
-                    FixtureStep<String, Void>("child") { value, _ in seen.append(value) }
-                },
-        )
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            let root: String = try await context.step("root") { "session" }
+            context.detached("child") { seen.append(root) }
+            return root
+        }
         await runner.run()
         #expect(seen == ["session"])
     }
 
     @Test func detachedFailureIsRecordedButNeverFatal() async {
         var ran = false
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("root") { _, _ in "session" })
-                .detached {
-                    FixtureStep<String, Void>("boom") { _, _ in throw StepError() }
-                    FixtureStep<String, Void>("fine") { _, _ in ran = true }
-                },
-        )
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            let root: String = try await context.step("root") { "session" }
+            context.detached("boom") { throw StepError() }
+            context.detached("fine") { ran = true }
+            return root
+        }
         await runner.run()
         #expect(runner.phase.isReady)
         #expect(ran)
@@ -130,20 +149,14 @@ struct LifecycleRunnerDetachedTests {
         #expect(runner.detachedFailures.first?.error is StepError)
     }
 
-    @Test func detachedChildrenHonorModeGating() async {
+    @Test func detachedWorkHonorsModeGating() async {
         var executed: [String] = []
-        let runner = LifecycleRunner(
-            reason: .background(.location),
-            plan: LaunchPlan(FixtureStep<Void, String>("root") { _, _ in "session" })
-                .detached {
-                    FixtureStep<String, Void>("fg", modes: .foreground) { _, _ in
-                        executed.append("fg")
-                    }
-                    FixtureStep<String, Void>("bg", modes: .background) { _, _ in
-                        executed.append("bg")
-                    }
-                },
-        )
+        let runner = LifecycleRunner(reason: .background(.location)) { context in
+            let root: String = try await context.step("root") { "session" }
+            context.detached("fg", modes: .foreground) { executed.append("fg") }
+            context.detached("bg", modes: .background) { executed.append("bg") }
+            return root
+        }
         await runner.run()
         #expect(executed == ["bg"])
     }
@@ -151,50 +164,36 @@ struct LifecycleRunnerDetachedTests {
 
 @MainActor
 struct LifecycleRunnerGateTests {
-    @Test func gateParksTheTrunkUntilResolved() async throws {
-        var executed: [String] = []
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("root") { _, _ in
-                executed.append("root")
-                return "session"
-            })
-            .gate(FixtureGate<String>("onboarding"))
-            .thenKeeping(FixtureStep<String, Void>("after") { _, _ in executed.append("after") }),
-        )
+    /// A launch function with a root step, a gate, and a step after the gate
+    /// — the shape most gate tests need.
+    private func makeGatedRunner(
+        reason: LifecycleReason = .userForeground,
+        after: @escaping @MainActor () -> Void = {},
+    ) -> LifecycleRunner<String> {
+        LifecycleRunner(reason: reason) { context in
+            let root: String = try await context.step("root") { "session" }
+            try await context.gate(FixtureGate<String>("onboarding"), value: root)
+            try await context.step("after") { after() }
+            return root
+        }
+    }
+
+    @Test func gateParksTheFunctionUntilResolved() async throws {
+        var afterRan = false
+        let runner = makeGatedRunner { afterRan = true }
         let task = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.isAwaitingGate("onboarding") }
-        #expect(executed == ["root"])
+        #expect(!afterRan)
         #expect(!runner.phase.isReady)
 
         runner.phase.gateHandle?.complete()
         await task.value
-        #expect(executed == ["root", "after"])
+        #expect(afterRan)
         #expect(runner.phase.isReady)
     }
 
-    @Test func gateEvaluatesIsNeededAgainstTheTrunkValue() async {
-        var seen: [String] = []
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("root") { _, _ in "session" })
-                .gate(FixtureGate<String>("onboarding") { value in
-                    seen.append(value)
-                    return false
-                }),
-        )
-        await runner.run()
-        // Not needed → skipped, the value flows through, no park.
-        #expect(runner.phase.readyValue == "session")
-        #expect(seen == ["session"])
-    }
-
     @Test func gateFailurePropagatesToFailedPhase() async throws {
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("root") { _, _ in "session" })
-                .gate(FixtureGate<String>("onboarding")),
-        )
+        let runner = makeGatedRunner()
         let task = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.isAwaitingGate("onboarding") }
         runner.phase.gateHandle?.fail(StepError())
@@ -203,11 +202,7 @@ struct LifecycleRunnerGateTests {
     }
 
     @Test func gateHandleCarriesTheGateTypeAndValueForTheRegistry() async throws {
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("root") { _, _ in "session" })
-                .gate(FixtureGate<String>("onboarding")),
-        )
+        let runner = makeGatedRunner()
         let task = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.isAwaitingGate("onboarding") }
         let handle = try #require(runner.phase.gateHandle)
@@ -217,17 +212,16 @@ struct LifecycleRunnerGateTests {
         await task.value
     }
 
-    @Test func contextProgressIsReadableWhileAStepRuns() async throws {
+    @Test func runningStepContextIsReadableWhileAStepRuns() async throws {
         let (parked, release) = AsyncStream.makeStream(of: Void.self)
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("root") { _, context in
-                context.progress = 0.5
-                context.message = "opening"
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            try await context.step("root") {
+                context.runningStep?.progress = 0.5
+                context.runningStep?.message = "opening"
                 for await _ in parked {}
                 return "session"
-            }),
-        )
+            }
+        }
         let task = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.isRunning("root") }
         #expect(runner.phase.runningContext?.progress == 0.5)
@@ -240,47 +234,45 @@ struct LifecycleRunnerGateTests {
 
 @MainActor
 struct LifecycleRunnerForegroundPromotionTests {
-    @Test func enterForegroundReDrivesAndRunsForegroundOnlyNodes() async {
+    @Test func enterForegroundReRunsAndExecutesForegroundOnlySteps() async {
         var executed: [String] = []
-        let runner = LifecycleRunner(
-            reason: .background(.location),
-            plan: LaunchPlan(FixtureStep<Void, String>("store") { _, _ in
+        let runner = LifecycleRunner(reason: .background(.location)) { context in
+            let store: String = try await context.step("store") {
                 executed.append("store")
                 return "session"
-            })
-            .thenKeeping(FixtureStep<String, Void>("onboarding", modes: .foreground) { _, _ in
+            }
+            try await context.step("onboarding", modes: .foreground) {
                 executed.append("onboarding")
-            }),
-        )
+            }
+            return store
+        }
         await runner.run()
-        // The headless background drive ran only the unrestricted node.
+        // The headless background drive ran only the unrestricted step.
         #expect(executed == ["store"])
         #expect(runner.reason.buildsNoViewTree)
 
         await runner.enterForeground()
-        // Promotion re-drives from the top, but the already-completed
-        // unrestricted node is skipped (memoized); only the now-applicable
-        // foreground-only node runs.
+        // Promotion re-runs the function, but the already-completed
+        // unrestricted step is skipped (memoized); only the now-applicable
+        // foreground-only step runs.
         #expect(executed == ["store", "onboarding"])
         #expect(!runner.reason.buildsNoViewTree)
         #expect(runner.phase.isReady)
     }
 
-    @Test func undeterminedLaunchRunsBackgroundNodesThenPromotesToForeground() async {
+    @Test func undeterminedLaunchRunsBackgroundStepsThenPromotesToForeground() async {
         var executed: [String] = []
-        let runner = LifecycleRunner(
-            reason: .undetermined,
-            plan: LaunchPlan(FixtureStep<Void, String>("store") { _, _ in
+        let runner = LifecycleRunner(reason: .undetermined) { context in
+            let store: String = try await context.step("store") {
                 executed.append("store")
                 return "session"
-            })
-            .thenKeeping(FixtureStep<String, Void>("onboarding", modes: .foreground) { _, _ in
+            }
+            try await context.step("onboarding", modes: .foreground) {
                 executed.append("onboarding")
-            }),
-        )
+            }
+            return store
+        }
         await runner.run()
-        // Undetermined gates to the background-safe subset: the foreground-only
-        // node is skipped and the host builds no view tree.
         #expect(executed == ["store"])
         #expect(runner.reason.buildsNoViewTree)
 
@@ -292,12 +284,12 @@ struct LifecycleRunnerForegroundPromotionTests {
 
     @Test func promotionReEvaluatesAGateSkippedHeadless() async throws {
         // A gate skipped during the headless drive is *not* memoized: once a
-        // scene promotes the launch, the re-drive parks on it.
-        let runner = LifecycleRunner(
-            reason: .undetermined,
-            plan: LaunchPlan(FixtureStep<Void, String>("store") { _, _ in "session" })
-                .gate(FixtureGate<String>("onboarding")),
-        )
+        // scene promotes the launch, the re-run parks on it.
+        let runner = LifecycleRunner(reason: .undetermined) { context in
+            let root: String = try await context.step("store") { "session" }
+            try await context.gate(FixtureGate<String>("onboarding"), value: root)
+            return root
+        }
         await runner.run()
         #expect(runner.phase.isReady)
 
@@ -308,27 +300,25 @@ struct LifecycleRunnerForegroundPromotionTests {
         #expect(runner.phase.isReady)
     }
 
-    @Test func retryAfterPromotionSkipsANodeAlreadyCompletedInTheHeadlessDrive() async throws {
+    @Test func retryAfterPromotionSkipsAStepAlreadyCompletedInTheHeadlessDrive() async throws {
         // Run-once spans a promotion + a `retry()` within the same attempt: a
-        // later node that already completed during the headless drive must not
-        // re-run when `retry()` resumes from an *earlier* foreground-only node
-        // that failed on promotion.
+        // later step that already completed during the headless drive must not
+        // re-run when `retry()` re-runs the function after an *earlier*
+        // foreground-only step failed on promotion.
         var executed: [String] = []
         var onboardingShouldFail = true
-        let runner = LifecycleRunner(
-            reason: .undetermined,
-            plan: LaunchPlan(FixtureStep<Void, String>("store") { _, _ in
+        let runner = LifecycleRunner(reason: .undetermined) { context in
+            let store: String = try await context.step("store") {
                 executed.append("store")
                 return "session"
-            })
-            .thenKeeping(FixtureStep<String, Void>("onboarding", modes: .foreground) { _, _ in
+            }
+            try await context.step("onboarding", modes: .foreground) {
                 executed.append("onboarding")
                 if onboardingShouldFail { throw StepError() }
-            })
-            .thenKeeping(FixtureStep<String, Void>("widget") { _, _ in
-                executed.append("widget")
-            }),
-        )
+            }
+            try await context.step("widget") { executed.append("widget") }
+            return store
+        }
 
         // Headless drive: the background-safe "store" and "widget" complete;
         // the foreground-only "onboarding" (between them) is skipped.
@@ -336,15 +326,15 @@ struct LifecycleRunnerForegroundPromotionTests {
         #expect(executed == ["store", "widget"])
         #expect(runner.phase.isReady)
 
-        // Promotion re-drives from the top: "store" is skipped (memoized), the
+        // Promotion re-runs the function: "store" is skipped (memoized), the
         // now-applicable "onboarding" runs and fails.
         await runner.enterForeground()
         #expect(runner.phase.failed(at: "onboarding"))
         #expect(executed == ["store", "widget", "onboarding"])
 
-        // Retry resumes from the failed "onboarding" (now succeeds). "widget",
-        // which sits *after* it but already completed in the headless drive, is
-        // skipped rather than run a second time.
+        // Retry re-runs the function; "onboarding" (unmemoized) re-runs and
+        // succeeds, while "widget" — after it, but completed in the headless
+        // drive — is skipped rather than run a second time.
         onboardingShouldFail = false
         runner.retry()
         try await waitUntil { runner.phase.isReady }
@@ -353,10 +343,9 @@ struct LifecycleRunnerForegroundPromotionTests {
 
     @Test func enterForegroundIsNoOpForAForegroundLaunch() async {
         var count = 0
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Void>("a") { _, _ in count += 1 }),
-        )
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            try await context.step("a") { count += 1 }
+        }
         await runner.run()
         await runner.enterForeground()
         #expect(count == 1)
@@ -368,9 +357,8 @@ struct LifecycleRunnerForegroundPromotionTests {
         var inFlight = 0
         var maxInFlight = 0
         var handles: [LifecycleGateHandle] = []
-        let runner = LifecycleRunner(
-            reason: .background(.location),
-            plan: LaunchPlan(FixtureStep<Void, String>("slow") { _, _ in
+        let runner = LifecycleRunner(reason: .background(.location)) { context in
+            try await context.step("slow") {
                 starts += 1
                 inFlight += 1
                 defer { inFlight -= 1 }
@@ -380,14 +368,14 @@ struct LifecycleRunnerForegroundPromotionTests {
                 handles.append(handle)
                 try await handle.waitForResolution()
                 return "session"
-            }),
-        )
+            }
+        }
         let runTask = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.isRunning("slow") }
 
         // Promote while the background drive is parked in "slow". Promotion
         // cancels that drive (its wait throws), drains it, and only then
-        // re-drives "slow" for the foreground launch — never two at once.
+        // re-runs "slow" for the foreground launch — never two at once.
         let promote = Task { @MainActor in await runner.enterForeground() }
         try await waitUntil { starts == 2 }
 
@@ -410,9 +398,8 @@ struct LifecycleRunnerForegroundPromotionTests {
         let (blockedFirst, _) = AsyncStream.makeStream(of: Void.self)
         let (blockedSecond, releaseSecond) = AsyncStream.makeStream(of: Void.self)
         var attempts = 0
-        let runner = LifecycleRunner(
-            reason: .background(.location),
-            plan: LaunchPlan(FixtureStep<Void, String>("store") { _, _ in
+        let runner = LifecycleRunner(reason: .background(.location)) { context in
+            try await context.step("store") {
                 attempts += 1
                 if attempts == 1 {
                     // Parks until the promotion cancels this drive (the
@@ -423,8 +410,8 @@ struct LifecycleRunnerForegroundPromotionTests {
                 }
                 for await _ in blockedSecond {}
                 return "session"
-            }),
-        )
+            }
+        }
 
         let runTask = Task { @MainActor in await runner.run() }
         try await waitUntil { runner.phase.isRunning("store") }
@@ -445,67 +432,106 @@ struct LifecycleRunnerForegroundPromotionTests {
 
 @MainActor
 struct LifecycleRunnerFailureTests {
-    @Test func thrownErrorParksInFailedAndStopsSubsequentNodes() async {
+    @Test func thrownErrorParksInFailedAndStopsSubsequentSteps() async {
         var executed: [String] = []
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("a") { _, _ in
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            let root: String = try await context.step("a") {
                 executed.append("a")
                 return "session"
-            })
-            .thenKeeping(FixtureStep<String, Void>("b") { _, _ in throw StepError() })
-            .thenKeeping(FixtureStep<String, Void>("c") { _, _ in executed.append("c") }),
-        )
+            }
+            try await context.step("b") { throw StepError() }
+            try await context.step("c") { executed.append("c") }
+            return root
+        }
         await runner.run()
         #expect(executed == ["a"])
         #expect(runner.phase.failed(at: "b"))
         #expect(runner.phase.failure?.error is StepError)
     }
 
-    @Test func retryResumesFromTheFailedNodeWithItsMemoizedInput() async throws {
+    @Test func retryReRunsTheFunctionAndResumesTheFailedStepWithItsMemoizedInput() async throws {
         var rootRuns = 0
         var received: [Int] = []
         var shouldFail = true
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Int>("root") { _, _ in
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            let root: Int = try await context.step("root") {
                 rootRuns += 1
                 return 42
-            })
-            .then(FixtureStep<Int, Int>("flaky") { value, _ in
-                received.append(value)
+            }
+            return try await context.step("flaky") {
+                received.append(root)
                 if shouldFail { throw StepError() }
-                return value + 1
-            }),
-        )
+                return root + 1
+            }
+        }
         await runner.run()
         #expect(runner.phase.failed(at: "flaky"))
 
         shouldFail = false
         runner.retry()
         try await waitUntil { runner.phase.isReady }
-        // The root ran once; the retried node got the same memoized input.
+        // The root ran once (memo); the retried step saw the same input.
         #expect(rootRuns == 1)
         #expect(received == [42, 42])
         #expect(runner.phase.readyValue == 43)
     }
 
+    @Test func vanillaConditionsReEvaluateOnRetry() async throws {
+        // A deliberate semantic difference from a resume-at-index engine:
+        // retry re-runs the whole function, so plain `if`s before the failed
+        // step re-evaluate against current state.
+        var includeExtra = false
+        var executed: [String] = []
+        var shouldFail = true
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            let root: String = try await context.step("root") { "session" }
+            if includeExtra {
+                try await context.step("extra") { executed.append("extra") }
+            }
+            try await context.step("flaky") {
+                executed.append("flaky")
+                if shouldFail { throw StepError() }
+            }
+            return root
+        }
+        await runner.run()
+        #expect(runner.phase.failed(at: "flaky"))
+        #expect(executed == ["flaky"])
+
+        includeExtra = true
+        shouldFail = false
+        runner.retry()
+        try await waitUntil { runner.phase.isReady }
+        #expect(executed == ["flaky", "extra", "flaky"])
+    }
+
+    @Test func aThrowOutsideAnyStepFailsAtTheFunctionID() async {
+        // Bare glue failed — attributed to the function itself so the
+        // failure is visible even without step discipline.
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            let root: String = try await context.step("root") { "session" }
+            if root == "session" { throw StepError() }
+            return root
+        }
+        await runner.run()
+        #expect(runner.phase.failed(at: LifecycleFunctionID.launch))
+        #expect(runner.phase.failure?.error is StepError)
+    }
+
     @Test func retryIsNoOpWhenNotFailed() async {
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Void>("a") { _, _ in }),
-        )
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            try await context.step("a") {}
+        }
         await runner.run()
         runner.retry()
         #expect(runner.phase.isReady)
     }
 
-    @Test func retryIsNoOpForAnInjectedFailureWithNoResumePoint() async {
+    @Test func retryIsNoOpForAnInjectedFailureWithNoFailedSite() async {
         var executed = 0
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Void>("a") { _, _ in executed += 1 }),
-        )
+        let runner = LifecycleRunner(reason: .userForeground) { context in
+            try await context.step("a") { executed += 1 }
+        }
         await runner.run()
         #expect(runner.phase.isReady)
 

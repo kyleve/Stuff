@@ -1,5 +1,5 @@
 import Foundation
-import LifecycleKit
+@_spi(Testing) import LifecycleKit
 @_spi(Testing) import PeriscopeCore
 import RegionKit
 import SwiftData
@@ -94,16 +94,20 @@ struct WhereLaunchTests {
         )
     }
 
-    @Test func planNodesRunInStartParityOrder() throws {
+    @Test func launchStepsRunInStartParityOrder() async throws {
         // The work steps mirror WhereSession.start()'s order; the only
-        // insertions are the start-session scope promotion and the onboarding
-        // gate.
+        // insertion is the start-session scope promotion (the onboarding gate
+        // is skipped here — the model has onboarded). The function style has
+        // no inspectable node list, so parity is asserted on the runner's
+        // executed-step recording.
         let model = try makeModel(preferences: makePreferences())
-        let ids = WhereLaunch.plan(for: model).nodeIDs
-        #expect(ids == [
+        model.completeOnboarding()
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        await launcher.run()
+        #expect(launcher.phase.isReady)
+        #expect(launcher.executedStepIDs == [
             LaunchStepID.openStore,
             .startSession,
-            .onboarding,
             .syncAuth,
             .reconcileTracking,
             .captureToday,
@@ -295,7 +299,7 @@ struct WhereLaunchTests {
         // it as OnboardingView would.
         let session = try #require(model.session)
         let teardown = Task { @MainActor in
-            await launcher.teardown(WhereLaunch.resetPlan(for: model), input: session)
+            await launcher.teardown(input: session, WhereLaunch.reset(for: model))
         }
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
         #expect(hookFires == 2)

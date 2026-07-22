@@ -205,17 +205,11 @@ extension LifecycleContainer where Failure == LifecycleFailureView {
 }
 
 #if DEBUG
-    private struct PreviewStep: LifecycleStep {
-        let id: AnyHashable = "open"
-
-        func run(_: Void, _: LifecycleStepContext) async throws -> String {
-            "session"
-        }
-    }
-
     #Preview("Launching") {
         LifecycleContainer(
-            LifecycleRunner(reason: .userForeground, plan: LaunchPlan(PreviewStep())),
+            LifecycleRunner(reason: .userForeground) { context in
+                try await context.step("open") { "session" }
+            },
         ) { value in
             Text(verbatim: "App content for \(value)")
         }

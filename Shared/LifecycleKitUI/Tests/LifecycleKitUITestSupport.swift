@@ -33,45 +33,15 @@ struct ProbeView: View {
     }
 }
 
-/// A configurable typed step for container tests: identity, mode gating, and
-/// a closure body (mirrors the fixture in LifecycleKit's own bundle).
-struct FixtureStep<Input: Sendable, Output: Sendable>: LifecycleStep {
-    let id: AnyHashable
-    var modes: LifecycleModeSet = .all
-    let body: @MainActor (Input, LifecycleStepContext) async throws -> Output
-
-    init(
-        _ id: AnyHashable,
-        modes: LifecycleModeSet = .all,
-        body: @escaping @MainActor (Input, LifecycleStepContext) async throws -> Output,
-    ) {
-        self.id = id
-        self.modes = modes
-        self.body = body
-    }
-
-    func run(_ input: Input, _ context: LifecycleStepContext) async throws -> Output {
-        try await body(input, context)
-    }
-}
-
-/// A configurable gate for container tests, mirroring `FixtureStep`.
+/// A configurable gate for container tests: identity, mode gating, and a
+/// phantom `Value` (mirrors the fixture in LifecycleKit's own bundle). Steps
+/// need no fixture in the function style — they're closures at the call site.
 struct FixtureGate<Value: Sendable>: LifecycleGate {
     let id: AnyHashable
     var modes: LifecycleModeSet = .foreground
-    var needed: @MainActor (Value) async -> Bool
 
-    init(
-        _ id: AnyHashable,
-        modes: LifecycleModeSet = .foreground,
-        needed: @escaping @MainActor (Value) async -> Bool = { _ in true },
-    ) {
+    init(_ id: AnyHashable, modes: LifecycleModeSet = .foreground) {
         self.id = id
         self.modes = modes
-        self.needed = needed
-    }
-
-    func isNeeded(_ value: Value) async -> Bool {
-        await needed(value)
     }
 }

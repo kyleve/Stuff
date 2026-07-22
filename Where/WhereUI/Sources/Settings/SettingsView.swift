@@ -582,10 +582,10 @@ struct SettingsView: View {
     }
 
     private func requestReset() {
-        // The reset plan is rooted at the session being torn down — handed in
-        // here, where it's known non-optional, rather than re-read inside the
-        // teardown.
-        Task { await lifecycle.teardown(WhereLaunch.resetPlan(for: model), input: session) }
+        // The reset function is rooted at the session being torn down —
+        // handed in here, where it's known non-optional, rather than re-read
+        // inside the teardown.
+        Task { await lifecycle.teardown(input: session, WhereLaunch.reset(for: model)) }
     }
 
     private func openSystemSettings() {

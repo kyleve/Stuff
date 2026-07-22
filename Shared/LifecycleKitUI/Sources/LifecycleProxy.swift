@@ -55,17 +55,19 @@ public struct LifecycleProxy: Sendable {
         await connected(file: file, line: line)?.enterForeground()
     }
 
-    /// Run a typed teardown `plan` rooted at `input`, then relaunch from the
-    /// top. See `LifecycleRunner.teardown(_:input:)`. The plan and input are
-    /// type-checked here, at the call site, and erased only to cross the
-    /// non-generic environment seam.
+    /// Run a typed teardown function rooted at `input`, then relaunch from
+    /// the top. See `LifecycleRunner.teardown(input:_:)`. The input and body
+    /// are type-checked here, at the call site, and captured into a plain
+    /// closure only to cross the non-generic environment seam.
     @MainActor public func teardown<Input: Sendable>(
-        _ plan: LaunchPlan<Input, some Sendable>,
         input: Input,
+        _ body: @escaping @MainActor (Input, LifecycleContext) async throws -> Void,
         file: StaticString = #fileID,
         line: UInt = #line,
     ) async {
-        await connected(file: file, line: line)?.teardownErased(nodes: plan.nodes, input: input)
+        await connected(file: file, line: line)?.teardownErased { context in
+            try await body(input, context)
+        }
     }
 
     /// The wrapped runner, or nil with a debug assertion pointing at the
