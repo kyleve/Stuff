@@ -53,7 +53,7 @@ struct LoggedDaysView: View {
             .navigationTitle(Strings.loggedDaysTitle(year: report.selectedYear))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingAdd = true
                     } label: {

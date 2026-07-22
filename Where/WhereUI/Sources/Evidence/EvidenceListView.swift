@@ -41,7 +41,7 @@ struct EvidenceListView: View {
             .navigationTitle(Strings.evidenceListTitle(year: report.selectedYear))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingAdd = true
                     } label: {
