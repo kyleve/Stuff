@@ -76,6 +76,13 @@ public struct PeriscopeViewer: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
+                    NavigationLink {
+                        SpanHistoryView(store: store)
+                    } label: {
+                        Label("Span History", systemImage: "chart.bar.xaxis")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     exportButton
                 }
             }

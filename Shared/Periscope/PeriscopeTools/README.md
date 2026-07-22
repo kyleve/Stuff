@@ -84,6 +84,13 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
   drilling into the span's detail. Distinct from `OpenSpansView` (live,
   in-flight) — this reads the store, so it shows finished spans. Reachable
   from the viewer's Logs toolbar, and usable standalone.
+- **`SpanHistoryView(store:)`** — span timing history: the store's closed
+  spans grouped by kind (`SpanEnded.name`), each row showing the recorded
+  instance count and the p50/p90/p95/p99 of their durations (nearest-rank, so
+  every figure is a real observed sample; a kind whose instances never recorded
+  a duration reports none). Tapping a kind drills into every closed span of
+  that kind, newest first, each linking to its detail and the tracer. Reachable
+  from the viewer's Logs toolbar, and usable standalone.
 
 ## Design system
 
