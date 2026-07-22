@@ -28,16 +28,10 @@ struct YearView: View {
             }
             // Crossfade between the two views rather than hard-cutting.
             .animation(.default, value: mode)
+            .navigationTitle(navigationTitle)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Picker(Strings.yearSegmentPickerLabel, selection: $mode) {
-                        Text(Strings.primaryCalendar).tag(Mode.calendar)
-                        Text(Strings.primaryTimeline).tag(Mode.timeline)
-                    }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("where_year_segmented_control")
-                }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     Button {
                         showingRecentActivity = true
                     } label: {
@@ -45,10 +39,30 @@ struct YearView: View {
                     }
                     .accessibilityIdentifier("where_recent_activity_button")
                 }
+                ToolbarItem(placement: .topBarLeading) {
+                    Picker(Strings.yearSegmentPickerLabel, selection: $mode) {
+                        Image(systemName: "calendar")
+                            .accessibilityLabel(Strings.primaryCalendar)
+                            .tag(Mode.calendar)
+                        Image(systemName: "calendar.day.timeline.left")
+                            .accessibilityLabel(Strings.primaryTimeline)
+                            .tag(Mode.timeline)
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityIdentifier("where_year_segmented_control")
+                }
             }
         }
         .sheet(isPresented: $showingRecentActivity) {
             RecentActivitySummaryView(report: report)
+        }
+    }
+
+    /// The page title tracks the selected view.
+    private var navigationTitle: String {
+        switch mode {
+            case .calendar: Strings.primaryCalendar
+            case .timeline: Strings.primaryTimeline
         }
     }
 }
