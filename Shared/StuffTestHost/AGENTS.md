@@ -45,5 +45,5 @@ until a slimmer host split is designed.
 ## Testing
 
 The host itself has no test target; its invariants are covered by
-`StuffTestHostSmokeTests` (in `LifecycleKitTests`) and every
+`StuffTestHostSmokeTests` (in `StuffCoreTests`) and every
 `TestHostSupport.show` call site.

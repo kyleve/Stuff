@@ -37,5 +37,5 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 ## Testing
 
 No dedicated test bundle; exercised by every hosted bundle that calls `show`
-(`StuffTestHostSmokeTests`/`ShowLifecycleTests` in `LifecycleKitTests`, the
+(`StuffTestHostSmokeTests`/`ShowLifecycleTests` in `StuffCoreTests`, the
 `BroadwayUITests`/`WhereUITests` suites, …).

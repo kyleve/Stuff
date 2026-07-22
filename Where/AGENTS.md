@@ -49,12 +49,16 @@ Rules the code enforces and agents must preserve:
   remote import) pings the single store-change signal (`WhereStore.changes()`),
   and readers refresh purely off it — write intents just commit, they don't
   refresh inline. The scene's `YearReportModel` subscribes while it's active;
-  `DataIssueScanner` drops its cache on the same signal. Launch is driven by
-  [`LifecycleKit`](../Shared/LifecycleKit) as an async launch function (see
-  `WhereLaunch.launch(for:)` in WhereUI: its `let`s thread the store scope →
-  session scope, and all effects live inside `context.step`/`gate`/`detached`
-  — bare glue re-runs on every re-drive), rendered by
-  [`LifecycleKitUI`](../Shared/LifecycleKitUI)'s container in `RootView`.
+  `DataIssueScanner` drops its cache on the same signal. Launch is **raw
+  async/await** — no lifecycle engine: `WhereLaunch.run` (WhereUI) is one
+  task per attempt whose `let`s thread the store scope → session scope, with
+  a scene-activation *park* separating the headless-wake section from the
+  foreground tail (onboarding, the one-shot fix); `RootView` renders the
+  app-owned `WhereLaunchState.Phase` directly. Launch failure is terminal
+  (no retry — relaunch the app). The invariants the old engine enforced are
+  conventions `WhereLaunch` documents and owns: one store open per process,
+  effects placed relative to the park deliberately, and no phase writes from
+  a cancelled (reset-superseded) attempt.
 - **All logging goes through [Periscope](../Shared/Periscope)** via the
   `WhereLog` facade — a `"Where"` root `Log` scope with grouping scopes
   (`location`, `reminders`, `backup`, `widgets`, `session`, `evidence`,

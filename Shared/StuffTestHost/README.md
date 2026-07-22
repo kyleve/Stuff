@@ -31,6 +31,6 @@ checklist when adding modules with processed resources.
 ## Testing the host
 
 Host invariants (key window + root view controller) are asserted by
-[`StuffTestHostSmokeTests`](../LifecycleKit/Tests/StuffTestHostSmokeTests.swift)
-in `LifecycleKitTests`. Individual feature bundles rely on `TestHostSupport.show`
+[`StuffTestHostSmokeTests`](../StuffCore/Tests/StuffTestHostSmokeTests.swift)
+in `StuffCoreTests`. Individual feature bundles rely on `TestHostSupport.show`
 for deeper lifecycle coverage.

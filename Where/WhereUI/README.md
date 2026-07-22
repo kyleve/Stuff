@@ -18,14 +18,15 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ### App shell & view models
 
-- **`RootView`** — the app root: the launch function (via
-  [`LifecycleKit`](../../Shared/LifecycleKit), rendered by
-  [`LifecycleKitUI`](../../Shared/LifecycleKitUI)'s container) gated in front
-  of the Liquid Glass tab bar over the four top-level screens (Primary,
-  Elsewhere, Resolve, Settings); the tab bar is built from the `WhereSession`
-  the launch's `.ready` carries. The app injects the launch-built model +
-  runner (`init(model:launcher:)`); a no-arg `init()` builds its own for
-  previews and the hosted UI test.
+- **`RootView`** — the app root: the launch surfaces (rendered directly from
+  the app-owned `WhereLaunchState.Phase` — splash / onboarding / terminal
+  failure) gated in front of the Liquid Glass tab bar over the four top-level
+  screens (Primary, Elsewhere, Resolve, Settings); the tab bar is built from
+  the `WhereSession` the phase's `.ready` carries. No view tree is built
+  until a scene has been genuinely active, and reporting that activation is
+  what resumes the launch task parked before its foreground tail. The app
+  injects the launch-built model + state (`init(model:launchState:)`); a
+  no-arg `init()` starts its own launch for previews and the hosted UI test.
 - **`WhereModel`** — app-level state: the onboarding flag, the owned
   `WhereSession`, and the lifecycle intents (`attach(services:)`,
   `startSession()` / `endSession()`, `eraseAllData()`, `resetPreferences()`).
@@ -41,13 +42,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ### Reusable views & styling
 
-- **`OnboardingView`** — the first-run flow, registered for the launch's
-  `OnboardingGate` and handed its `LifecycleGateHandle` + the gate's
-  `WhereSession`: a paged intro, then picking up to five primary US regions
+- **`OnboardingView`** — the first-run flow, rendered while the launch task
+  parks on it and handed the `OnboardingHandle` + `WhereSession` the parked
+  phase carries: a paged intro, then picking up to five primary US regions
   (map or searchable list) and giving each a look, then the
   location-permission ask. It commits the picks as the tracked-region set +
-  appearances before resolving the gate. The intro also offers **Restore from
-  a backup**, which imports a backup (`.replace`) and skips the manual
+  appearances before resolving the handle. The intro also offers **Restore
+  from a backup**, which imports a backup (`.replace`) and skips the manual
   pick/customize steps straight to the location ask.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and per-region color/emoji/icon customization,
