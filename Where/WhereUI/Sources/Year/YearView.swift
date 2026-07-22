@@ -39,7 +39,7 @@ struct YearView: View {
                     }
                     .accessibilityIdentifier("where_recent_activity_button")
                 }
-                ToolbarItem(placement: .topBarLeading) {
+                ToolbarItem(placement: .topBarTrailing) {
                     Picker(Strings.yearSegmentPickerLabel, selection: $mode) {
                         Image(systemName: "calendar")
                             .accessibilityLabel(Strings.primaryCalendar)
