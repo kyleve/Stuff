@@ -27,8 +27,11 @@ build system, formatting, and global conventions. Read that first.
   view the parked `LifecycleGateHandle`; a superseded drive's handle no-ops,
   so don't route gate resolution through anything but the handle.
 - **One registration per gate type** (construction `precondition`); a parked
-  gate with no registration is a programmer error (debug assert, splash
-  fallback in release).
+  gate with no registration is a programmer error — the container logs it
+  (`os`, subsystem `com.stuff.lifecyclekitui`) and fails the gate's handle
+  with `MissingGateViewError`, landing on the failure surface (visible and
+  retryable, identical in debug and release) rather than an indefinite
+  splash.
 
 ## Testing
 

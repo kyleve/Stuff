@@ -42,6 +42,25 @@ public struct GateRegistration {
     let build: @MainActor (LifecycleGateHandle, any Sendable) -> AnyView
 }
 
+/// A gate parked but its type has no `GateView` registration — a
+/// misconfiguration (the plan gates on something the UI can't render). The
+/// container fails the gate's handle with this error, so the launch lands on
+/// the failure surface (visible, retryable, named) instead of an indefinite
+/// splash that reads as progress; the behavior is identical in debug and
+/// release.
+public struct MissingGateViewError: Error, LocalizedError {
+    /// The parked gate's identity, so the failure is diagnosable from the
+    /// failure surface or a log line alone.
+    public let gateID: AnyHashable
+
+    public var errorDescription: String? {
+        String(
+            localized: "failure.gate.unregistered \(String(describing: gateID))",
+            bundle: .module,
+        )
+    }
+}
+
 /// Result builder for `LifecycleContainer`'s `gates:` parameter, with
 /// `if`/`if-else`/`for` support so registrations can be included
 /// conditionally.

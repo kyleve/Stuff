@@ -46,8 +46,9 @@ LifecycleContainer(
 - **Gate views are registered by gate type**, which statically recovers the
   gate's `Value`: the view gets `(LifecycleGateHandle, Value)` and resolves
   the handle (`complete()` / `fail(_:)`) to resume the trunk. A parked gate
-  with no registration asserts in debug and falls back to the splash in
-  release.
+  with no registration is logged and failed with `MissingGateViewError`, so
+  the launch lands on the failure surface — visible and retryable — instead
+  of an indefinite splash; debug and release behave identically.
 - **Headless launches render nothing.** When `reason.buildsNoViewTree` (a
   `.background` relaunch, or `.undetermined` before promotion) the container
   renders `EmptyView()` — even at `.ready` — so `content` is never built for

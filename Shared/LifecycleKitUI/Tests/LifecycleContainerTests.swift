@@ -197,6 +197,42 @@ struct LifecycleContainerTests {
         #expect(runner.phase.isReady)
     }
 
+    @Test func parkedGateWithNoRegistrationFailsTheGateOntoTheFailureSurface() async throws {
+        // A parked gate whose type has no GateView entry is a
+        // misconfiguration: the container must fail the handle — landing on
+        // the visible, retryable failure surface (rendering of `.failed` is
+        // pinned by `failedShowsFailureView`) — rather than leave the launch
+        // behind an indefinite splash that reads as progress.
+        var splashShown = false
+        let runner = LifecycleRunner(
+            reason: .userForeground,
+            plan: LaunchPlan(FixtureStep<Void, String>("open") { _, _ in "session" })
+                .gate(FixtureGate<String>("onboarding")),
+        )
+        let task = Task { @MainActor in await runner.run() }
+        try await waitUntil { runner.phase.isAwaitingGate("onboarding") }
+
+        let container = LifecycleContainer(
+            runner,
+            splash: { _ in ProbeView { splashShown = true } },
+        ) { _ in
+            ProbeView {}
+        }
+        try show(UIHostingController(rootView: container)) { _ in
+            // Hosting renders the interim splash and fires the fallback's
+            // `onAppear`, which fails the handle. The drive's resumption is a
+            // main-actor task continuation, so it can only land after this
+            // synchronous block yields — hence the async wait below, not a
+            // run-loop-pumping `waitFor` here.
+            try waitFor { splashShown }
+        }
+
+        try await waitUntil { runner.phase.failed(at: "onboarding") }
+        await task.value
+        let error = try #require(runner.phase.failure?.error as? MissingGateViewError)
+        #expect(error.gateID == AnyHashable("onboarding"))
+    }
+
     @Test func failedShowsFailureView() async throws {
         var failure = false
         var content = false

@@ -1,4 +1,5 @@
 import LifecycleKit
+import os
 import SwiftUI
 
 /// The root view that renders a `LifecycleRunner`'s `phase`.
@@ -133,8 +134,15 @@ public struct LifecycleContainer<
 
     /// The registered view for the parked gate. A parked gate with no
     /// registration is a programmer error (the plan gates on something the
-    /// UI can't render); debug-assert and fall back to the splash so a
-    /// release build degrades to a wait rather than crashing.
+    /// UI can't render); rather than an indefinite splash that reads as
+    /// progress, log it and fail the gate's handle so the launch lands on
+    /// the failure surface — visible, retryable, and named. Identical in
+    /// debug and release, which also keeps the path testable.
+    ///
+    /// The handle is failed from `onAppear`, not during `body`: `fail(_:)`
+    /// only resumes the drive's parked continuation, so the phase change it
+    /// causes lands on the drive task after this render commits. The splash
+    /// shows for the beat in between.
     @ViewBuilder
     private func gateView(for handle: LifecycleGateHandle) -> some View {
         if let gateType = handle.gateType,
@@ -143,11 +151,20 @@ public struct LifecycleContainer<
         {
             registration.build(handle, value)
         } else {
-            let _ = assertionFailure(
-                "No gate view registered for gate '\(handle.id)' — add a GateView(for:) entry.",
-            )
-            splash(nil)
+            splash(nil).onAppear {
+                Self.logger.error(
+                    "No gate view registered for gate '\(String(describing: handle.id), privacy: .public)' — add a GateView(for:) entry.",
+                )
+                handle.fail(MissingGateViewError(gateID: handle.id))
+            }
         }
+    }
+
+    /// LifecycleKitUI deliberately has no app logging facade; the one
+    /// misconfiguration it can detect logs through `os` directly so the
+    /// signal isn't state-only.
+    private static var logger: Logger {
+        Logger(subsystem: "com.stuff.lifecyclekitui", category: "gates")
     }
 }
 
