@@ -1,15 +1,13 @@
 import LifecycleKit
 import SwiftUI
 
-/// The UI shown when a launch step throws. Describes the failure and offers a
-/// retry that resumes the runner from the step that failed.
+/// The UI shown when a launch step throws. Describes the failure. Terminal by
+/// design — there is no retry, so the recovery is relaunching the app.
 public struct LifecycleFailureView: View {
     private let failure: LifecycleFailure
-    private let retry: () -> Void
 
-    public init(failure: LifecycleFailure, retry: @escaping () -> Void) {
+    public init(failure: LifecycleFailure) {
         self.failure = failure
-        self.retry = retry
     }
 
     public var body: some View {
@@ -20,9 +18,6 @@ public struct LifecycleFailureView: View {
             )
         } description: {
             Text(failure.error.localizedDescription)
-        } actions: {
-            Button(String(localized: "failure.launch.retry", bundle: .module), action: retry)
-                .buttonStyle(.borderedProminent)
         }
     }
 }
@@ -34,6 +29,6 @@ public struct LifecycleFailureView: View {
                 stepID: "open-store",
                 error: URLError(.notConnectedToInternet),
             ),
-        ) {}
+        )
     }
 #endif

@@ -3,9 +3,8 @@ import SwiftUI
 
 extension EnvironmentValues {
     /// A handle to the running `LifecycleRunner`, published by
-    /// `LifecycleContainer` so nested views (a custom failure view, a
-    /// Settings "reset" button) can reach `retry()`/`teardown(_:input:)`
-    /// without prop-drilling.
+    /// `LifecycleContainer` so nested views (a Settings "reset" button) can
+    /// reach `enterForeground()`/`teardown(input:_:)` without prop-drilling.
     ///
     /// It's a `LifecycleProxy` rather than a bare runner for two reasons: an
     /// environment value must be non-generic (the runner is generic over its
@@ -41,12 +40,6 @@ public struct LifecycleProxy: Sendable {
 
     init(_ runner: any LifecycleDriving) {
         base = runner
-    }
-
-    /// Resume a failed launch from the node that failed.
-    /// See `LifecycleRunner.retry()`.
-    @MainActor public func retry(file: StaticString = #fileID, line: UInt = #line) {
-        connected(file: file, line: line)?.retry()
     }
 
     /// Promote a headless launch to the foreground.

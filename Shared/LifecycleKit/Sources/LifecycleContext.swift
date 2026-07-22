@@ -8,9 +8,9 @@
 /// - **Phase publication**: each `step` publishes `.running(context)` while
 ///   its body runs; `gate` publishes `.awaitingGate(handle)` while parked.
 /// - **Run-once memoization**: a completed step's output is recorded, so a
-///   re-run of the function (an `enterForeground()` promotion, a `retry()`)
-///   skips completed work and returns the memoized value. This is why the
-///   one hard rule of the function style exists: **all effects live inside
+///   re-run of the function (an `enterForeground()` promotion) skips
+///   completed work and returns the memoized value. This is why the one hard
+///   rule of the function style exists: **all effects live inside
 ///   `step`/`gate`/`detached` — bare glue between calls re-runs on every
 ///   re-drive.**
 /// - **Failure tagging**: a throw inside a step is attributed to that step's
@@ -73,9 +73,9 @@ public final class LifecycleContext {
     /// parameter — a producer can't be skipped, or downstream code would
     /// have no value; gate on the launch reason only around `Void` work.
     ///
-    /// Memoized per attempt: a re-run of the function returns the recorded
-    /// output without running `body` again. A throw fails the drive at `id`;
-    /// `retry()` re-runs the function and resumes here via the memo.
+    /// Memoized per attempt: a re-run of the function (an `enterForeground()`
+    /// promotion) returns the recorded output without running `body` again. A
+    /// throw fails the drive at `id` — terminally, since there is no retry.
     public func step<Output: Sendable>(
         _ id: AnyHashable,
         _ body: @MainActor () async throws -> Output,

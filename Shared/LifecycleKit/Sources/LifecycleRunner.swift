@@ -14,21 +14,22 @@ import Observation
 ///   relaunch can't wait for (e.g. installing a `CLLocationManager` delegate).
 /// - `run()` runs the launch function once, landing in `.ready` with its
 ///   return value. A throw inside a step parks the runner in `.failed` at
-///   that step; `retry()` re-runs the function, the memo skipping completed
-///   work.
+///   that step — a **terminal** state: there is no retry, so the recovery
+///   for a failed launch is relaunching the app.
 /// - `enterForeground()` promotes a runner that started headless (its
 ///   `reason` was `.background` or `.undetermined`) once a window actually
 ///   appears, re-running the function so the now-applicable foreground-only
 ///   work (mode-gated steps, gates) runs — completed steps skip via the memo.
+///   (Promotion is the *only* reason the memo exists; a fresh launch never
+///   re-runs a step.)
 ///
 /// Drives never overlap. The internal `State` folds the launch reason, the
 /// "has run" flag, and the in-flight drive task into one value so invalid
 /// combinations are unrepresentable; `reason` and `phase` are its public
-/// projections. A new drive (`run`/`retry`/`enterForeground`/`teardown`)
-/// cancels the in-flight one and awaits it draining before starting —
-/// cooperative cancellation (a parked gate's wait throws
-/// `CancellationError`) keeps that drain from hanging behind a gate waiting
-/// on a tap that will never come.
+/// projections. A new drive (`run`/`enterForeground`/`teardown`) cancels the
+/// in-flight one and awaits it draining before starting — cooperative
+/// cancellation (a parked gate's wait throws `CancellationError`) keeps that
+/// drain from hanging behind a gate waiting on a tap that will never come.
 @MainActor
 @Observable
 public final class LifecycleRunner<Launch: Sendable> {
@@ -43,7 +44,8 @@ public final class LifecycleRunner<Launch: Sendable> {
         case running(LifecycleStepContext)
         /// A gate parked the function; the UI resolves the handle to continue.
         case awaitingGate(LifecycleGateHandle)
-        /// A step threw. The host shows an error UI offering retry.
+        /// A step threw. Terminal — the host shows an error surface (no
+        /// retry); the recovery is relaunching the app.
         case failed(LifecycleFailure)
         /// The function returned — hand its value to the app's main UI.
         /// Detached work may still be draining; it can't regress this.
@@ -95,32 +97,11 @@ public final class LifecycleRunner<Launch: Sendable> {
 
     @ObservationIgnored private let launchBody: @MainActor (LifecycleContext) async throws -> Launch
 
-    /// Run-once stores, one per site so launch and teardown IDs live in
-    /// separate namespaces — a teardown step can never be skipped because a
-    /// launch step happened to share its ID.
+    /// The launch's run-once store: a completed step's output, keyed by ID,
+    /// so an `enterForeground()` promotion's re-run skips work already done.
+    /// Cleared when a fresh attempt begins. Teardown needs no equivalent —
+    /// it runs exactly once (no retry), so its walk uses a throwaway store.
     @ObservationIgnored private let launchMemo = LifecycleMemo()
-    @ObservationIgnored private let teardownMemo = LifecycleMemo()
-
-    /// The most recent teardown function (its typed input captured by the
-    /// erasing closure), retained so a `retry()` after a thrown teardown step
-    /// resumes the teardown (and the relaunch that follows) rather than
-    /// re-driving the launch over un-torn-down state. Released on success —
-    /// the captured input is typically the very session being torn down.
-    private struct RetainedTeardown {
-        let run: @MainActor (LifecycleContext) async throws -> Void
-    }
-
-    @ObservationIgnored private var teardown: RetainedTeardown?
-
-    /// Which function the current `.failed` phase belongs to, so `retry()`
-    /// re-runs the right one. One value with the phase would be nicer, but
-    /// the site is engine bookkeeping, not renderable state.
-    private enum FailedSite {
-        case launch
-        case teardown
-    }
-
-    @ObservationIgnored private var failedSite: FailedSite?
 
     public init(
         reason: LifecycleReason,
@@ -170,36 +151,17 @@ public final class LifecycleRunner<Launch: Sendable> {
         await drive(reason: .userForeground)
     }
 
-    /// Re-run the failed function, the memo skipping completed steps — so
-    /// the failed step re-runs with the same upstream values. No-op unless
-    /// the runner is currently in `.failed`.
-    ///
-    /// If the failure was in the teardown function, the teardown is re-run
-    /// (its memo skipping completed teardown steps) and the relaunch still
-    /// follows — so a failed erase re-erases rather than dropping the user
-    /// back into the app over un-torn-down state.
-    public func retry() {
-        guard case .failed = phase, let failedSite else { return }
-        switch failedSite {
-            case .launch:
-                let reason = reason
-                Task { await drive(reason: reason) }
-            case .teardown:
-                Task { await driveTeardown() }
-        }
-    }
-
     /// Run a teardown function rooted at `input` (logout / erase), then
     /// relaunch from the top so the app returns to its initial state — e.g.
     /// first-run onboarding shows again once the teardown clears the "has
     /// onboarded" flag.
     ///
-    /// The function (capturing its typed input) is retained so a `retry()`
-    /// after a thrown teardown step re-runs it — the teardown memo skipping
-    /// completed steps. If a teardown step throws, the runner parks in
-    /// `.failed` and does not relaunch. The teardown's detached work is
-    /// drained *before* the relaunch begins, so no torn-down-world work
-    /// overlaps the fresh launch.
+    /// If a teardown step throws, the runner parks in the terminal `.failed`
+    /// and does not relaunch — the erase leaves prior state intact (a thrown
+    /// erase never reaches the session drop), so relaunching the app returns
+    /// to the working app rather than a half-erased one. The teardown's
+    /// detached work is drained *before* the relaunch begins, so no
+    /// torn-down-world work overlaps the fresh launch.
     public func teardown<Input: Sendable>(
         input: Input,
         _ body: @escaping @MainActor (Input, LifecycleContext) async throws -> Void,
@@ -210,44 +172,29 @@ public final class LifecycleRunner<Launch: Sendable> {
     }
 
     /// `teardown(input:_:)` after erasure — the `LifecycleDriving` seam the
-    /// UI proxy forwards through (see `LifecycleDriving`).
+    /// UI proxy forwards through (see `LifecycleDriving`). Cancels any
+    /// in-flight drive, drains it, runs the teardown once, then relaunches
+    /// from the top — landing in `.ready` only if both complete.
     package func teardownErased(
         _ run: @escaping @MainActor (LifecycleContext) async throws -> Void,
     ) async {
-        // A new teardown is a fresh walk: its memo must not carry a previous
-        // (completed or abandoned) teardown's steps.
-        teardownMemo.removeAll()
-        teardown = RetainedTeardown(run: run)
-        await driveTeardown()
-    }
-
-    /// Cancel any in-flight drive, drain it, then run the retained teardown
-    /// followed by a fresh launch from the top — landing in `.ready` only if
-    /// both complete. Shared by `teardown(input:_:)` and a `retry()` resuming
-    /// a failed teardown, so the two stay in lockstep.
-    private func driveTeardown() async {
-        guard let retained = teardown else { return }
         let previous = currentTask
         previous?.cancel()
         let reason = reason
         phase = .launching
-        failedSite = nil
         let task = Task { [weak self] in
             guard let self else { return }
             await previous?.value
+            // Teardown runs exactly once (no retry), so its run-once store is
+            // a local throwaway — each teardown step is walked a single time.
             let tornDown = await runFunction(
-                site: .teardown,
-                memo: teardownMemo,
+                functionID: .teardown,
+                memo: LifecycleMemo(),
             ) { context in
-                try await retained.run(context)
+                try await run(context)
                 return ()
             } publishReady: { _ in }
             guard tornDown, !Task.isCancelled else { return }
-            // The teardown succeeded, so no retry will need it again: release
-            // the retained function and — importantly — its captured input,
-            // which is typically the very object being torn down.
-            teardown = nil
-            teardownMemo.removeAll()
             // The relaunch is a fresh attempt: clear the launch memo so every
             // step re-runs over the torn-down state rather than being skipped
             // as "already done" from before the teardown.
@@ -267,7 +214,6 @@ public final class LifecycleRunner<Launch: Sendable> {
         let previous = currentTask
         previous?.cancel()
         phase = .launching
-        failedSite = nil
         let task = Task { [weak self] in
             guard let self else { return }
             await previous?.value
@@ -278,7 +224,7 @@ public final class LifecycleRunner<Launch: Sendable> {
     }
 
     private func runLaunch() async {
-        _ = await runFunction(site: .launch, memo: launchMemo, launchBody) { value in
+        _ = await runFunction(functionID: .launch, memo: launchMemo, launchBody) { value in
             self.phase = .ready(value)
         }
     }
@@ -287,9 +233,10 @@ public final class LifecycleRunner<Launch: Sendable> {
     /// `publishReady`) the moment it returns, then drain its detached work —
     /// cancelling that work first when this drive was superseded. Returns
     /// whether the function completed (as opposed to failing or being
-    /// superseded).
+    /// superseded). `functionID` tags a throw that escapes *outside* any
+    /// step (bare glue) so even an undisciplined failure stays attributable.
     private func runFunction<Output: Sendable>(
-        site: FailedSite,
+        functionID: LifecycleFunctionID,
         memo: LifecycleMemo,
         _ body: @MainActor (LifecycleContext) async throws -> Output,
         publishReady: @MainActor (Output) -> Void,
@@ -315,18 +262,12 @@ public final class LifecycleRunner<Launch: Sendable> {
             // Superseded drive draining; the superseding drive owns the phase.
         } catch let failure as LifecycleStepFailure {
             guard !Task.isCancelled else { return false }
-            failedSite = site
             phase = .failed(LifecycleFailure(stepID: failure.id, error: failure.underlying))
         } catch {
             // The function threw outside any step — bare glue failed. Effects
             // should live inside steps (see LifecycleContext); attribute the
             // failure to the function itself so it stays visible either way.
             guard !Task.isCancelled else { return false }
-            failedSite = site
-            let functionID: LifecycleFunctionID = switch site {
-                case .launch: .launch
-                case .teardown: .teardown
-            }
             phase = .failed(LifecycleFailure(stepID: functionID, error: error))
         }
         if Task.isCancelled {
@@ -336,16 +277,6 @@ public final class LifecycleRunner<Launch: Sendable> {
         return completed
     }
 }
-
-#if DEBUG
-    extension LifecycleRunner {
-        /// Injects a failure for SPI-enabled tests. Carries no failed site,
-        /// so a subsequent `retry()` is a no-op.
-        @_spi(Testing) public func injectFailureForTesting(_ failure: LifecycleFailure) {
-            phase = .failed(failure)
-        }
-    }
-#endif
 
 // MARK: - Phase inspection
 

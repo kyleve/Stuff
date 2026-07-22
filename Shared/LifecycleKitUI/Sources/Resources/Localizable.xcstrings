@@ -12,17 +12,6 @@
         }
       }
     },
-    "failure.launch.retry" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Try Again"
-          }
-        }
-      }
-    },
     "failure.launch.title" : {
       "extractionState" : "manual",
       "localizations" : {

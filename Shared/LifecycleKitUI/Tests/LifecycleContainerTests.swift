@@ -210,7 +210,7 @@ struct LifecycleContainerTests {
     @Test func parkedGateWithNoRegistrationFailsTheGateOntoTheFailureSurface() async throws {
         // A parked gate whose type has no GateView entry is a
         // misconfiguration: the container must fail the handle — landing on
-        // the visible, retryable failure surface (rendering of `.failed` is
+        // the visible (terminal) failure surface (rendering of `.failed` is
         // pinned by `failedShowsFailureView`) — rather than leave the launch
         // behind an indefinite splash that reads as progress.
         var splashShown = false
@@ -263,7 +263,7 @@ struct LifecycleContainerTests {
         let container = LifecycleContainer(
             runner,
             splash: { _ in ProbeView { splash = true } },
-            failure: { _, _ in ProbeView { failure = true } },
+            failure: { _ in ProbeView { failure = true } },
         ) { _ in
             ProbeView { content = true }
         }
@@ -300,7 +300,7 @@ struct LifecycleContainerTests {
             transition: .scale.combined(with: .opacity),
             animation: .easeInOut,
             splash: { _ in ProbeView { splash = true } },
-            failure: { _, _ in EmptyView() },
+            failure: { _ in EmptyView() },
         ) { _ in
             ProbeView { content = true }
         }

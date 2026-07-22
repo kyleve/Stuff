@@ -7,9 +7,6 @@
 /// them) into a plain closure and forwards through this seam.
 @MainActor
 package protocol LifecycleDriving: AnyObject, Sendable {
-    /// See `LifecycleRunner.retry()`.
-    func retry()
-
     /// See `LifecycleRunner.enterForeground()`.
     func enterForeground() async
 

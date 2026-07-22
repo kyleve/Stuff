@@ -105,60 +105,6 @@ struct LifecycleRunnerResetTests {
         #expect(!relaunched)
     }
 
-    @Test func retryAfterFailedTeardownReRunsTeardownThenRelaunches() async throws {
-        var events: [String] = []
-        var shouldFailErase = true
-        let runner = makeRunner { events.append($0) }
-        await runner.run()
-        events.removeAll()
-
-        await runner.teardown(input: ()) { _, context in
-            try await context.step("erase") {
-                events.append("erase")
-                if shouldFailErase { throw ResetError() }
-            }
-            try await context.step("clear-prefs") { events.append("clear-prefs") }
-        }
-        #expect(runner.phase.failed(at: "erase"))
-        #expect(events == ["erase"])
-
-        // Retry must re-run the teardown (re-erasing — the failed step was
-        // never memoized) and only then relaunch — not silently re-drive the
-        // launch over un-torn-down state.
-        shouldFailErase = false
-        events.removeAll()
-        runner.retry()
-        try await waitUntil { runner.phase.isReady }
-        #expect(events == ["erase", "clear-prefs", "launch"])
-    }
-
-    @Test func retryAfterFailedTeardownTailResumesWithoutReErasing() async throws {
-        var events: [String] = []
-        var shouldFailPrefs = true
-        let runner = makeRunner { events.append($0) }
-        await runner.run()
-        events.removeAll()
-
-        await runner.teardown(input: ()) { _, context in
-            try await context.step("erase") { events.append("erase") }
-            try await context.step("clear-prefs") {
-                events.append("clear-prefs")
-                if shouldFailPrefs { throw ResetError() }
-            }
-        }
-        #expect(runner.phase.failed(at: "clear-prefs"))
-        #expect(events == ["erase", "clear-prefs"])
-
-        // The earlier teardown step ("erase") already succeeded, so the
-        // retry's re-run skips it via the teardown memo rather than
-        // re-erasing, then relaunches.
-        shouldFailPrefs = false
-        events.removeAll()
-        runner.retry()
-        try await waitUntil { runner.phase.isReady }
-        #expect(events == ["clear-prefs", "launch"])
-    }
-
     @Test func teardownCancelsAParkedGateInsteadOfHanging() async throws {
         // Without cooperative cancellation, `teardown()` would await the run
         // drive forever: it is parked on a gate waiting for a tap that never

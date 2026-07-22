@@ -300,13 +300,12 @@ struct LifecycleRunnerForegroundPromotionTests {
         #expect(runner.phase.isReady)
     }
 
-    @Test func retryAfterPromotionSkipsAStepAlreadyCompletedInTheHeadlessDrive() async throws {
-        // Run-once spans a promotion + a `retry()` within the same attempt: a
-        // later step that already completed during the headless drive must not
-        // re-run when `retry()` re-runs the function after an *earlier*
-        // foreground-only step failed on promotion.
+    @Test func promotionSkipsStepsCompletedInTheHeadlessDrive() async {
+        // Run-once spans the headless drive and the promotion re-run: a step
+        // that completed while headless must not run again when
+        // `enterForeground()` re-runs the function for the now-applicable
+        // foreground-only work.
         var executed: [String] = []
-        var onboardingShouldFail = true
         let runner = LifecycleRunner(reason: .undetermined) { context in
             let store: String = try await context.step("store") {
                 executed.append("store")
@@ -314,7 +313,6 @@ struct LifecycleRunnerForegroundPromotionTests {
             }
             try await context.step("onboarding", modes: .foreground) {
                 executed.append("onboarding")
-                if onboardingShouldFail { throw StepError() }
             }
             try await context.step("widget") { executed.append("widget") }
             return store
@@ -326,19 +324,11 @@ struct LifecycleRunnerForegroundPromotionTests {
         #expect(executed == ["store", "widget"])
         #expect(runner.phase.isReady)
 
-        // Promotion re-runs the function: "store" is skipped (memoized), the
-        // now-applicable "onboarding" runs and fails.
+        // Promotion re-runs the function: "store" and "widget" are skipped
+        // (memoized), only the now-applicable "onboarding" runs.
         await runner.enterForeground()
-        #expect(runner.phase.failed(at: "onboarding"))
         #expect(executed == ["store", "widget", "onboarding"])
-
-        // Retry re-runs the function; "onboarding" (unmemoized) re-runs and
-        // succeeds, while "widget" — after it, but completed in the headless
-        // drive — is skipped rather than run a second time.
-        onboardingShouldFail = false
-        runner.retry()
-        try await waitUntil { runner.phase.isReady }
-        #expect(executed == ["store", "widget", "onboarding", "onboarding"])
+        #expect(runner.phase.isReady)
     }
 
     @Test func enterForegroundIsNoOpForAForegroundLaunch() async {
@@ -449,60 +439,25 @@ struct LifecycleRunnerFailureTests {
         #expect(runner.phase.failure?.error is StepError)
     }
 
-    @Test func retryReRunsTheFunctionAndResumesTheFailedStepWithItsMemoizedInput() async throws {
-        var rootRuns = 0
-        var received: [Int] = []
-        var shouldFail = true
+    @Test func failureIsTerminalAndRunDoesNotReDrive() async {
+        // No retry: once a step throws, the drive is done. A later `run()`
+        // awaits the finished drive rather than starting a new one, so the
+        // launch stays `.failed` and the failing step doesn't run again — the
+        // recovery is relaunching the app (a fresh process, fresh runner).
+        var attempts = 0
         let runner = LifecycleRunner(reason: .userForeground) { context in
-            let root: Int = try await context.step("root") {
-                rootRuns += 1
-                return 42
-            }
-            return try await context.step("flaky") {
-                received.append(root)
-                if shouldFail { throw StepError() }
-                return root + 1
+            try await context.step("boom") {
+                attempts += 1
+                throw StepError()
             }
         }
         await runner.run()
-        #expect(runner.phase.failed(at: "flaky"))
+        #expect(runner.phase.failed(at: "boom"))
+        #expect(attempts == 1)
 
-        shouldFail = false
-        runner.retry()
-        try await waitUntil { runner.phase.isReady }
-        // The root ran once (memo); the retried step saw the same input.
-        #expect(rootRuns == 1)
-        #expect(received == [42, 42])
-        #expect(runner.phase.readyValue == 43)
-    }
-
-    @Test func vanillaConditionsReEvaluateOnRetry() async throws {
-        // A deliberate semantic difference from a resume-at-index engine:
-        // retry re-runs the whole function, so plain `if`s before the failed
-        // step re-evaluate against current state.
-        var includeExtra = false
-        var executed: [String] = []
-        var shouldFail = true
-        let runner = LifecycleRunner(reason: .userForeground) { context in
-            let root: String = try await context.step("root") { "session" }
-            if includeExtra {
-                try await context.step("extra") { executed.append("extra") }
-            }
-            try await context.step("flaky") {
-                executed.append("flaky")
-                if shouldFail { throw StepError() }
-            }
-            return root
-        }
         await runner.run()
-        #expect(runner.phase.failed(at: "flaky"))
-        #expect(executed == ["flaky"])
-
-        includeExtra = true
-        shouldFail = false
-        runner.retry()
-        try await waitUntil { runner.phase.isReady }
-        #expect(executed == ["flaky", "extra", "flaky"])
+        #expect(runner.phase.failed(at: "boom"))
+        #expect(attempts == 1)
     }
 
     @Test func aThrowOutsideAnyStepFailsAtTheFunctionID() async {
@@ -516,30 +471,6 @@ struct LifecycleRunnerFailureTests {
         await runner.run()
         #expect(runner.phase.failed(at: LifecycleFunctionID.launch))
         #expect(runner.phase.failure?.error is StepError)
-    }
-
-    @Test func retryIsNoOpWhenNotFailed() async {
-        let runner = LifecycleRunner(reason: .userForeground) { context in
-            try await context.step("a") {}
-        }
-        await runner.run()
-        runner.retry()
-        #expect(runner.phase.isReady)
-    }
-
-    @Test func retryIsNoOpForAnInjectedFailureWithNoFailedSite() async {
-        var executed = 0
-        let runner = LifecycleRunner(reason: .userForeground) { context in
-            try await context.step("a") { executed += 1 }
-        }
-        await runner.run()
-        #expect(runner.phase.isReady)
-
-        runner.injectFailureForTesting(LifecycleFailure(stepID: "missing", error: StepError()))
-        runner.retry()
-        try? await Task.sleep(for: .milliseconds(50))
-        #expect(runner.phase.failed(at: "missing"))
-        #expect(executed == 1)
     }
 }
 
