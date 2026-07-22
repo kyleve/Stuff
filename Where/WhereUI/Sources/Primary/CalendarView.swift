@@ -3,11 +3,10 @@ import RegionKit
 import SwiftUI
 import WhereCore
 
-/// A scrollable year calendar: one month grid per month, with colored dots for
-/// each region present on a day, and a per-month footer tallying the days spent
-/// in each region. Tapping a day pushes the full-year timeline auto-scrolled to
-/// that month. Presented as a sheet from the Primary tab — either unfiltered
-/// (toolbar) or focused on a single region (tapping a region card).
+/// A sheet wrapper around ``CalendarContentView`` for the region-focused
+/// calendar presented from the Locations tab: it owns the `NavigationStack`,
+/// the region/year title, and the Done button. The unfocused, full-year
+/// calendar is hosted inline by the Your Year tab via ``CalendarContentView``.
 struct CalendarView: View {
     /// When set, the day grid only shows dots for this region (so it reads as
     /// "just the days I spent here"); the per-month footer still lists every
@@ -17,6 +16,42 @@ struct CalendarView: View {
     let report: YearReportModel
 
     @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            CalendarContentView(focusedRegion: focusedRegion, report: report)
+                .navigationTitle(navigationTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(Strings.commonDone) { dismiss() }
+                    }
+                }
+        }
+    }
+
+    private var navigationTitle: String {
+        if let focusedRegion {
+            Strings.calendarRegionTitle(region: focusedRegion, year: report.selectedYear)
+        } else {
+            Strings.calendarTitle(year: report.selectedYear)
+        }
+    }
+}
+
+/// A scrollable year calendar: one month grid per month, with colored dots for
+/// each region present on a day, and a per-month footer tallying the days spent
+/// in each region. Tapping a day pushes the full-year timeline auto-scrolled to
+/// that month. Chrome-free (no `NavigationStack` / Done) so it can be hosted
+/// inline in the Your Year tab or inside the ``CalendarView`` sheet wrapper.
+struct CalendarContentView: View {
+    /// When set, the day grid only shows dots for this region (so it reads as
+    /// "just the days I spent here"); the per-month footer still lists every
+    /// region. `nil` shows every region's dots.
+    var focusedRegion: Region?
+
+    let report: YearReportModel
+
     @Environment(\.stylesheet) private var stylesheet
 
     @State private var timelineTarget: TimelineMonthTarget?
@@ -41,69 +76,52 @@ struct CalendarView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Group {
-                if let yearReport = report.report {
-                    Group {
-                        switch monthsLoad {
-                            case let .success(months):
-                                calendarContent(months: months)
-                            case let .failure(error):
-                                calendarLayoutError(error)
-                            case nil:
-                                AppIconLoadingView(caption: Strings.primaryLoading)
-                        }
+        Group {
+            if let yearReport = report.report {
+                Group {
+                    switch monthsLoad {
+                        case let .success(months):
+                            calendarContent(months: months)
+                        case let .failure(error):
+                            calendarLayoutError(error)
+                        case nil:
+                            AppIconLoadingView(caption: Strings.primaryLoading)
                     }
-                    .task(id: calendarLoadID(report: yearReport)) {
-                        let result = loadCalendarMonths(from: yearReport)
-                        guard !Task.isCancelled else { return }
-                        monthsLoad = result
-                    }
-                } else if report.loadState == .loading {
-                    AppIconLoadingView(caption: Strings.primaryLoading)
-                } else if case let .failed(error) = report.loadState {
-                    ContentUnavailableView {
-                        Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
-                    } description: {
-                        Text(error.message)
-                    }
-                } else {
-                    ContentUnavailableView {
-                        Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
-                    } description: {
-                        Text(Strings.calendarUnavailableDescription)
-                    }
-                    .onAppear {
-                        Self.logger {
-                            .openedWithoutReport(loadState: String(describing: report.loadState))
-                        }
+                }
+                .task(id: calendarLoadID(report: yearReport)) {
+                    let result = loadCalendarMonths(from: yearReport)
+                    guard !Task.isCancelled else { return }
+                    monthsLoad = result
+                }
+            } else if report.loadState == .loading {
+                AppIconLoadingView(caption: Strings.primaryLoading)
+            } else if case let .failed(error) = report.loadState {
+                ContentUnavailableView {
+                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                } description: {
+                    Text(error.message)
+                }
+            } else {
+                ContentUnavailableView {
+                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                } description: {
+                    Text(Strings.calendarUnavailableDescription)
+                }
+                .onAppear {
+                    Self.logger {
+                        .openedWithoutReport(loadState: String(describing: report.loadState))
                     }
                 }
             }
-            .navigationTitle(navigationTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(Strings.commonDone) { dismiss() }
-                }
-            }
-            .navigationDestination(item: $timelineTarget) { target in
-                PresenceTimelineList(report: report, scrollToMonth: target.startOfMonth)
-                    .navigationTitle(Strings.timelineTitle(year: report.selectedYear))
-                    .navigationBarTitleDisplayMode(.inline)
-            }
+        }
+        .navigationDestination(item: $timelineTarget) { target in
+            PresenceTimelineList(report: report, scrollToMonth: target.startOfMonth)
+                .navigationTitle(Strings.timelineTitle(year: report.selectedYear))
+                .navigationBarTitleDisplayMode(.inline)
         }
         // Log View Mode: reveal an inspect badge for this calendar's events. A
         // no-op in release.
         .debugLogInspectable(WhereLog.session(CalendarViewLog.self))
-    }
-
-    private var navigationTitle: String {
-        if let focusedRegion {
-            Strings.calendarRegionTitle(region: focusedRegion, year: report.selectedYear)
-        } else {
-            Strings.calendarTitle(year: report.selectedYear)
-        }
     }
 
     private func calendarLoadID(report yearReport: YearReport) -> CalendarLoadID {
@@ -363,7 +381,7 @@ private struct DayCell: View {
 }
 
 #if DEBUG
-    #Preview("Loaded") {
+    #Preview("Sheet") {
         CalendarView(report: PreviewSupport.loadedYearReportModel())
     }
 
@@ -371,11 +389,21 @@ private struct DayCell: View {
         CalendarView(focusedRegion: .california, report: PreviewSupport.loadedYearReportModel())
     }
 
-    #Preview("Empty") {
-        CalendarView(report: PreviewSupport.emptyYearReportModel())
+    #Preview("Content loaded") {
+        NavigationStack {
+            CalendarContentView(report: PreviewSupport.loadedYearReportModel())
+        }
     }
 
-    #Preview("Missing days") {
-        CalendarView(report: PreviewSupport.missingDaysYearReportModel())
+    #Preview("Content empty") {
+        NavigationStack {
+            CalendarContentView(report: PreviewSupport.emptyYearReportModel())
+        }
+    }
+
+    #Preview("Content missing days") {
+        NavigationStack {
+            CalendarContentView(report: PreviewSupport.missingDaysYearReportModel())
+        }
     }
 #endif

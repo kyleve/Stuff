@@ -3,9 +3,11 @@ import RegionKit
 import SwiftUI
 import WhereCore
 
-/// Elsewhere tab: every region outside your primary spots, shown as compact
-/// Liquid Glass cards for the selected year.
-struct SecondaryView: View {
+/// Elsewhere: every region outside your primary spots, shown as compact Liquid
+/// Glass cards for the selected year. Pushed from the Locations tab's Elsewhere
+/// entry card, so it renders inside that tab's `NavigationStack` (no stack of
+/// its own).
+struct ElsewhereView: View {
     let report: YearReportModel
 
     /// Reverse-geocoded "where" teaser per region, loaded asynchronously so
@@ -16,15 +18,13 @@ struct SecondaryView: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        NavigationStack {
-            screen
-                .navigationTitle(Strings.secondaryTitle)
-        }
-        .task(id: report.report) { await loadPlaceNames() }
-        // Log View Mode: reveal an inspect badge for the year-report events
-        // backing the Elsewhere tab (representative-coordinate loads). A no-op
-        // in release.
-        .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
+        screen
+            .navigationTitle(Strings.secondaryTitle)
+            .task(id: report.report) { await loadPlaceNames() }
+            // Log View Mode: reveal an inspect badge for the year-report events
+            // backing Elsewhere (representative-coordinate loads). A no-op in
+            // release.
+            .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
     }
 
     /// Pick each secondary region's most-sampled spot and reverse-geocode it,
@@ -113,10 +113,14 @@ struct SecondaryView: View {
 
 #if DEBUG
     #Preview("Loaded") {
-        SecondaryView(report: PreviewSupport.loadedYearReportModel())
+        NavigationStack {
+            ElsewhereView(report: PreviewSupport.loadedYearReportModel())
+        }
     }
 
     #Preview("Empty") {
-        SecondaryView(report: PreviewSupport.emptyYearReportModel())
+        NavigationStack {
+            ElsewhereView(report: PreviewSupport.emptyYearReportModel())
+        }
     }
 #endif

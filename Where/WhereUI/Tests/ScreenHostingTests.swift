@@ -20,9 +20,10 @@ struct ScreenHostingTests {
         }
     }
 
-    @Test func secondaryViewHostsWithData() throws {
+    @Test func elsewhereViewHostsWithData() throws {
         let report = PreviewSupport.loadedYearReportModel()
-        try show(UIHostingController(rootView: SecondaryView(report: report))) { hosted in
+        let rootView = NavigationStack { ElsewhereView(report: report) }
+        try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }

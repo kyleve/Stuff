@@ -3,10 +3,12 @@ import RegionKit
 import SwiftUI
 import WhereCore
 
-/// A sheet listing every day the user logged or overrode by hand in the selected
-/// year, newest first, with a "+" to log a new one. Tapping a row opens an editor
-/// to correct it; swiping (or edit mode) deletes the entry, restoring the
-/// GPS-derived attribution for that day. Presented from the Primary tab.
+/// Lists every day the user logged or overrode by hand in the selected year,
+/// newest first, with a "+" to log a new one. Tapping a row opens an editor to
+/// correct it; swiping (or edit mode) deletes the entry, restoring the
+/// GPS-derived attribution for that day. Chrome-free (no `NavigationStack` /
+/// title): the Your Data tab hosts it as the Logged Days segment and owns the
+/// bar.
 ///
 /// The list stays in sync off the single store-change signal
 /// (`LoggedDaysModel.observe`), so an add, edit, or delete — from here or
@@ -14,7 +16,6 @@ import WhereCore
 struct LoggedDaysView: View {
     let report: YearReportModel
 
-    @Environment(\.dismiss) private var dismiss
     @Environment(\.stylesheet) private var stylesheet
     @State private var model: LoggedDaysModel
     @State private var showingAdd = false
@@ -48,51 +49,52 @@ struct LoggedDaysView: View {
     var body: some View {
         @Bindable var deleteError = deleteError
 
-        NavigationStack {
-            content
-                .navigationTitle(Strings.loggedDaysTitle(year: report.selectedYear))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.commonDone) { dismiss() }
+        content
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingAdd = true
+                    } label: {
+                        Label(Strings.loggedDaysAdd, systemImage: "plus")
                     }
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            showingAdd = true
-                        } label: {
-                            Label(Strings.loggedDaysAdd, systemImage: "plus")
-                        }
-                        .accessibilityIdentifier("where_add_logged_day_button")
-                    }
+                    .accessibilityIdentifier("where_add_logged_day_button")
                 }
-        }
-        // Load, then keep the list current off the single store-change signal —
-        // no per-action reload wiring needed. Runs for the sheet's lifetime and
-        // is cancelled when it closes.
-        .task { await model.observe(year: report.selectedYear) }
-        .sheet(isPresented: $showingAdd) {
-            NavigationStack {
-                ManualDayView(report: report, mode: .add(prefill: nil), showsCancelButton: true)
             }
-        }
-        .sheet(item: $editTarget) { target in
-            NavigationStack {
-                ManualDayView(report: report, mode: .edit(target.day), showsCancelButton: true)
+            // Load, then keep the list current off the single store-change
+            // signal — no per-action reload wiring needed. Runs while the view
+            // is on screen and is cancelled when it goes away.
+            .task { await model.observe(year: report.selectedYear) }
+            .sheet(isPresented: $showingAdd) {
+                NavigationStack {
+                    ManualDayView(
+                        report: report,
+                        mode: .add(prefill: nil),
+                        showsCancelButton: true,
+                    )
+                }
             }
-        }
-        .alert(
-            Strings.loggedDaysDeleteErrorTitle,
-            isPresented: $deleteError.isPresented,
-        ) {
-            Button(Strings.commonOK, role: .cancel) {}
-        } message: {
-            if let message = deleteError.message {
-                Text(message)
+            .sheet(item: $editTarget) { target in
+                NavigationStack {
+                    ManualDayView(
+                        report: report,
+                        mode: .edit(target.day),
+                        showsCancelButton: true,
+                    )
+                }
             }
-        }
-        // Log View Mode: reveal an inspect badge for the logged-days list's
-        // events. A no-op in release.
-        .debugLogInspectable(WhereLog.root(LoggedDaysModelLog.self))
+            .alert(
+                Strings.loggedDaysDeleteErrorTitle,
+                isPresented: $deleteError.isPresented,
+            ) {
+                Button(Strings.commonOK, role: .cancel) {}
+            } message: {
+                if let message = deleteError.message {
+                    Text(message)
+                }
+            }
+            // Log View Mode: reveal an inspect badge for the logged-days list's
+            // events. A no-op in release.
+            .debugLogInspectable(WhereLog.root(LoggedDaysModelLog.self))
     }
 
     @ViewBuilder
@@ -255,24 +257,30 @@ private struct LoggedDayRow: View {
 
 #if DEBUG
     #Preview("Loaded") {
-        LoggedDaysView(
-            report: PreviewSupport.loadedYearReportModel(),
-            model: PreviewSupport
-                .loggedDaysModel(state: .loaded(PreviewSupport.sampleManualDays())),
-        )
+        NavigationStack {
+            LoggedDaysView(
+                report: PreviewSupport.loadedYearReportModel(),
+                model: PreviewSupport
+                    .loggedDaysModel(state: .loaded(PreviewSupport.sampleManualDays())),
+            )
+        }
     }
 
     #Preview("Empty") {
-        LoggedDaysView(
-            report: PreviewSupport.loadedYearReportModel(),
-            model: PreviewSupport.loggedDaysModel(state: .empty),
-        )
+        NavigationStack {
+            LoggedDaysView(
+                report: PreviewSupport.loadedYearReportModel(),
+                model: PreviewSupport.loggedDaysModel(state: .empty),
+            )
+        }
     }
 
     #Preview("Failed") {
-        LoggedDaysView(
-            report: PreviewSupport.loadedYearReportModel(),
-            model: PreviewSupport.loggedDaysModel(state: .failed("iCloud is unavailable.")),
-        )
+        NavigationStack {
+            LoggedDaysView(
+                report: PreviewSupport.loadedYearReportModel(),
+                model: PreviewSupport.loggedDaysModel(state: .failed("iCloud is unavailable.")),
+            )
+        }
     }
 #endif

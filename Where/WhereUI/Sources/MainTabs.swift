@@ -56,8 +56,10 @@ struct MainTabs: View {
                     systemImage: "globe.americas.fill",
                     value: TabID.elsewhere,
                 ) {
-                    SecondaryView(report: report)
-                        .reportingDeveloperTabBarInset()
+                    NavigationStack {
+                        ElsewhereView(report: report)
+                    }
+                    .reportingDeveloperTabBarInset()
                 }
             }
 
