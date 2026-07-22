@@ -34,6 +34,26 @@ enum Strings {
         String(localized: "tab.data", defaultValue: "Your Data", bundle: .module)
     }
 
+    /// Your Year tab title when viewing a past year, e.g. "Your Year · 2024".
+    /// The current year uses the plain ``tabYear``.
+    static func tabYearTitle(forYear year: Int) -> String {
+        String(
+            localized: "tab.year.forYear",
+            defaultValue: "Your Year · \(yearText(year))",
+            bundle: .module,
+        )
+    }
+
+    /// Your Data tab title when viewing a past year, e.g. "Your Data · 2024".
+    /// The current year uses the plain ``tabData``.
+    static func tabDataTitle(forYear year: Int) -> String {
+        String(
+            localized: "tab.data.forYear",
+            defaultValue: "Your Data · \(yearText(year))",
+            bundle: .module,
+        )
+    }
+
     /// Accessibility label for the Your Year tab's Calendar/Timeline control.
     static var yearSegmentPickerLabel: String {
         String(localized: "year.segmentPicker", defaultValue: "Year view", bundle: .module)

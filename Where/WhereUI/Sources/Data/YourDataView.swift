@@ -22,8 +22,16 @@ struct YourDataView: View {
                         LoggedDaysView(report: report)
                 }
             }
-            .navigationTitle(Strings.tabData)
+            .navigationTitle(navigationTitle)
         }
+    }
+
+    /// Plain "Your Data" for the current year; suffixed with the year when
+    /// viewing a past one, so the year in view is never ambiguous.
+    private var navigationTitle: String {
+        report.selectedYear == WhereModel.currentYear
+            ? Strings.tabData
+            : Strings.tabDataTitle(forYear: report.selectedYear)
     }
 }
 

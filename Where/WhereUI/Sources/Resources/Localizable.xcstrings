@@ -3827,6 +3827,18 @@
         }
       }
     },
+    "tab.data.forYear" : {
+      "comment" : "Your Data tab title when viewing a past year, e.g. Your Data · 2024.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Data · %@"
+          }
+        }
+      }
+    },
     "tab.locations" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3868,6 +3880,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your Year"
+          }
+        }
+      }
+    },
+    "tab.year.forYear" : {
+      "comment" : "Your Year tab title when viewing a past year, e.g. Your Year · 2024.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your Year · %@"
           }
         }
       }

@@ -24,7 +24,7 @@ struct YearView: View {
                         PresenceTimelineList(report: report)
                 }
             }
-            .navigationTitle(Strings.tabYear)
+            .navigationTitle(navigationTitle)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -39,6 +39,14 @@ struct YearView: View {
         .sheet(isPresented: $showingRecentActivity) {
             RecentActivitySummaryView(report: report)
         }
+    }
+
+    /// Plain "Your Year" for the current year; suffixed with the year when
+    /// viewing a past one, so the year in view is never ambiguous.
+    private var navigationTitle: String {
+        report.selectedYear == WhereModel.currentYear
+            ? Strings.tabYear
+            : Strings.tabYearTitle(forYear: report.selectedYear)
     }
 }
 
