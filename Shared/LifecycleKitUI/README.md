@@ -17,8 +17,8 @@ LifecycleContainer(
     splash: { context in
         LaunchSplashView(caption: context?.message)
     },
-    failure: { failure, retry in
-        LifecycleFailureView(failure: failure, retry: retry)
+    failure: { failure in
+        LifecycleFailureView(failure: failure)   // terminal — no retry
     },
     gates: {
         GateView(for: OnboardingGate.self) { handle, session in
@@ -37,7 +37,7 @@ LifecycleContainer(
 | `.launching` | `splash(nil)` |
 | `.running(context)` | `splash(context)` — caption/progress off the context |
 | `.awaitingGate(handle)` | the `GateView` registered for the gate's *type* |
-| `.failed(failure)` | `failure(failure, retry)` |
+| `.failed(failure)` | `failure(failure)` — terminal, no retry |
 | `.ready(value)` | `content(value)` |
 
 - **`content` receives the launch's output.** `.ready` carries the trunk's
@@ -47,8 +47,8 @@ LifecycleContainer(
   gate's `Value`: the view gets `(LifecycleGateHandle, Value)` and resolves
   the handle (`complete()` / `fail(_:)`) to resume the trunk. A parked gate
   with no registration is logged and failed with `MissingGateViewError`, so
-  the launch lands on the failure surface — visible and retryable — instead
-  of an indefinite splash; debug and release behave identically.
+  the launch lands on the (terminal) failure surface — visible and named —
+  instead of an indefinite splash; debug and release behave identically.
 - **Headless launches render nothing.** When `reason.buildsNoViewTree` (a
   `.background` relaunch, or `.undetermined` before promotion) the container
   renders `EmptyView()` — even at `.ready` — so `content` is never built for
@@ -64,10 +64,10 @@ LifecycleContainer(
 
 `LifecycleContainer` publishes a `LifecycleProxy` under
 `@Environment(\.lifecycle)`. The proxy is non-generic (environment values
-must be), forwards `retry()` / `enterForeground()` / `teardown(input:_:)` —
-the typed teardown input + function are captured into a plain closure at the
-call site to cross the seam — and is *disconnected* by default: calling
-through it without a container above asserts in debug and no-ops in release.
+must be), forwards `enterForeground()` / `teardown(input:_:)` — the typed
+teardown input + function are captured into a plain closure at the call site
+to cross the seam — and is *disconnected* by default: calling through it
+without a container above asserts in debug and no-ops in release.
 
 ```swift
 @Environment(\.lifecycle) private var lifecycle
@@ -78,5 +78,5 @@ await lifecycle.teardown(input: session, WhereLaunch.reset(for: model))
 ## Defaults
 
 `LifecycleSplash` (a plain centered spinner) and `LifecycleFailureView` (a
-`ContentUnavailableView` with a retry button) are used by the convenience
-initializers when the host passes no custom surfaces.
+terminal `ContentUnavailableView`, no retry button) are used by the
+convenience initializers when the host passes no custom surfaces.

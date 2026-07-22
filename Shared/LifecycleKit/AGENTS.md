@@ -24,15 +24,19 @@ system, formatting, and global conventions. Read that first.
 ## Invariants
 
 - **Effects live inside `step`/`gate`/`detached` — never in bare glue.** A
-  re-drive (promotion, retry) re-runs the *whole function* with the memo
-  skipping completed steps, so unwrapped code between steps re-runs every
-  time. Glue is value plumbing and `if`s only. This is the function style's
-  load-bearing convention; don't add a code path that relies on glue running
-  once.
+  promotion re-drive re-runs the *whole function* with the memo skipping
+  completed steps, so unwrapped code between steps re-runs. Glue is value
+  plumbing and `if`s only. This is the function style's load-bearing
+  convention; don't add a code path that relies on glue running once.
+- **Failure is terminal.** A thrown step parks `.failed` with no retry — the
+  recovery is relaunching the app. A failed teardown likewise parks and does
+  not relaunch (a thrown erase leaves state intact). Don't reintroduce a
+  resume/retry path; if a launch step is genuinely flaky, retry inside the
+  step at the layer that understands the failure.
 - **One step ID, one call site.** The memo keys on IDs: a duplicate within a
   walk traps on any complete run; a memo hit with a mismatched type traps
-  with the offending ID. Launch and teardown memos are separate namespaces
-  (their functions may share IDs).
+  with the offending ID. The memo exists only for promotion; teardown runs
+  once through a throwaway store and may share IDs with the launch.
 - **Only `Void` work may gate on the launch reason** — held by API shape
   (the value-producing `step` overload has no `modes:`), not a runtime check.
   Skipped steps and gates are unmemoized, so they re-evaluate when a
@@ -46,9 +50,7 @@ system, formatting, and global conventions. Read that first.
   task completes — and before a teardown's relaunch. Don't add a drive path
   that bypasses that serialization.
 - **Detached work is off the critical path by construction:** `Void` bodies,
-  never blocks `.ready`, failures only on `detachedFailures`. A successful
-  teardown releases the retained teardown function (its capture is typically
-  the dead session).
+  never blocks `.ready`, failures only on `detachedFailures`.
 - **Promotion is foreground-only and idempotent.** `enterForeground()` no-ops
   for a foreground launch; consumers must only call it once the scene is
   genuinely `.active` (see `RootView` in WhereUI for the `scenePhase` gating

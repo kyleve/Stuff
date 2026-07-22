@@ -11,8 +11,9 @@ ordering), conditionality is a plain `if`, and concurrency is explicit. A
 `step` (phase publication + run-once memoization + failure attribution),
 `gate` (park for user interaction, e.g. onboarding), and `detached`
 (fire-and-forget fan-out that never blocks readiness). A thrown step parks
-the runner in a failure phase with retry; logout/erase is a second function
-run over a typed input, followed by a fresh relaunch.
+the runner in a terminal failure phase (no retry — the recovery is
+relaunching the app); logout/erase is a second function run over a typed
+input, followed by a fresh relaunch.
 
 LifecycleKit depends only on Foundation + Observation — **no SwiftUI, no app
 code**. Everything rendered lives in [LifecycleKitUI](../LifecycleKitUI).
@@ -47,8 +48,8 @@ step embedding what came before:
   runner's `detachedFailures` diagnostics — observable, never fatal.
 
 **The one discipline the style demands:** a re-drive (an `enterForeground()`
-promotion, a `retry()`) *re-runs the whole function*, with the memo skipping
-completed steps. Bare glue between steps therefore re-runs every time —
+promotion) *re-runs the whole function*, with the memo skipping completed
+steps. Bare glue between steps therefore re-runs every time —
 **all effects live inside `step`/`gate`/`detached`**; glue is value plumbing
 and `if`s only.
 
@@ -70,7 +71,7 @@ Add it to a target's dependencies in [`Package.swift`](../../Package.swift):
         case launching                          // splash
         case running(LifecycleStepContext)      // splash + caption/progress
         case awaitingGate(LifecycleGateHandle)  // the gate's registered view
-        case failed(LifecycleFailure)           // failure UI + retry
+        case failed(LifecycleFailure)           // terminal failure UI (no retry)
         case ready(Launch)                      // the app, handed the launch's output
     }
     public private(set) var phase: Phase
@@ -79,7 +80,6 @@ Add it to a target's dependencies in [`Package.swift`](../../Package.swift):
                 initializePrerequisites: @MainActor () -> Void = {},
                 launch: @escaping @MainActor (LifecycleContext) async throws -> Launch)
     public func run() async                 // run the function; idempotent
-    public func retry()                     // re-run it; the memo skips completed steps
     public func enterForeground() async     // promote a background/undetermined launch
     public func teardown<Input: Sendable>(
         input: Input,
@@ -142,19 +142,20 @@ await runner.teardown(input: session) { session, context in
 }
 ```
 
-If a teardown step throws, the runner parks in `.failed` and does **not**
-relaunch; `retry()` re-runs the teardown (its own memo skipping completed
-steps — a failed erase re-erases, a failed tail doesn't) and then relaunches.
-Teardown detached work drains *before* the relaunch, and the retained
-function (whose capture is typically the dead session) is released on
-success. Launch and teardown memos are separate namespaces, so the two
-functions may freely share step IDs.
+If a teardown step throws, the runner parks in the terminal `.failed` and
+does **not** relaunch — a thrown erase never reaches the session drop, so
+state stays intact and relaunching the app returns to the working app rather
+than a half-erased one. Teardown detached work drains *before* the relaunch.
+Teardown runs exactly once (no retry), so it uses a throwaway run-once store
+and may freely share step IDs with the launch.
 
 ## Memo discipline
 
-Run-once memoization is what makes re-drives safe, and it keys on step IDs —
-so **one ID must identify one call site**. The engine enforces what it can at
-runtime, deterministically:
+Run-once memoization is what makes *promotion* safe — an `enterForeground()`
+re-run must skip work already done — and it keys on step IDs, so **one ID
+must identify one call site**. (It exists only for promotion: a fresh launch
+never re-runs a step, and there is no retry.) The engine enforces what it can
+at runtime, deterministically:
 
 - A duplicate ID within one walk traps (`precondition`) on any complete run
   of the function — every test run catches it.
@@ -171,17 +172,20 @@ plan-construction time to first-run time.
 
 ## Correctness points designed in deliberately
 
-- **Retry and promotion are one code path**: re-run the function with the
-  memo. Completed steps never run twice within an attempt; the failed step
-  re-runs with the same memoized upstream values; plain `if`s re-evaluate
-  against current state (deliberately — a promotion must re-consider a
-  skipped gate, and a retry sees the world as it now is). A fresh attempt
-  (first `run()`, the relaunch after a teardown) clears the memo.
+- **Failure is terminal.** A thrown step parks `.failed` with no retry — the
+  recovery is relaunching the app. (Retry's original customer, a fresh
+  install's transient store-open race, was fixed structurally by injection;
+  genuinely retryable work belongs to the layer that understands it.)
+- **Promotion re-runs the function** with the memo skipping completed steps,
+  so completed work never runs twice within an attempt; plain `if`s
+  re-evaluate against current state (deliberately — a promotion must
+  re-consider a gate skipped while headless). A fresh attempt (first
+  `run()`, the relaunch after a teardown) clears the memo.
 - **`.ready` never waits for the fan, and the fan can't regress it.**
   `.ready(Launch)` publishes the moment the function returns; detached work
   drains behind it and reports failures only on `detachedFailures`.
-- **Drives never overlap.** All drives (`run` / `enterForeground` / `retry`
-  / `teardown`) serialize through a single internal task; a new drive cancels
+- **Drives never overlap.** All drives (`run` / `enterForeground` /
+  `teardown`) serialize through a single internal task; a new drive cancels
   the in-flight one and awaits it draining first — including its detached
   work, which the runner cancels when the drive was superseded. A parked
   gate's wait throws `CancellationError` on cancellation — "drive cancelled"
@@ -201,13 +205,10 @@ plan-construction time to first-run time.
 ## Testing
 
 The engine is exercised with Swift Testing: targeted suites for ordering,
-value threading, mode gating, gates, detached isolation, promotion, retry
-memoization (including the re-evaluated-`if` semantics and the
-bare-glue-re-runs rule), and teardown — plus seeded fuzz suites that build
-randomized launch functions and drive them against an independent model (200
-seeds) and drain randomized flaky failures through `retry()` (120 seeds).
-Because a real gate suspends, drive the runner from a `Task` and poll
-`runner.phase` until it parks, then resolve the handle. `@_spi(Testing)
-injectFailureForTesting(_:)` covers the failed-with-no-resume path;
-`@_spi(Testing) executedStepIDs` replaces static structure inspection for
-order assertions.
+value threading, mode gating, gates, detached isolation, promotion (memo
+run-once + the bare-glue-re-runs rule), terminal failure, and teardown —
+plus a seeded fuzz suite that builds randomized launch functions and drives
+them against an independent model (200 seeds). Because a real gate suspends,
+drive the runner from a `Task` and poll `runner.phase` until it parks, then
+resolve the handle. `@_spi(Testing) executedStepIDs` replaces static
+structure inspection for order assertions.
