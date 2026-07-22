@@ -285,9 +285,15 @@ extension WhereStylesheet {
         /// Min height (tap target) of a day cell — grows at accessibility
         /// Dynamic Type sizes.
         var dayMinHeight: CGFloat
-        /// Diameter of a region-presence dot.
+        /// Diameter of a region-presence dot (used in the month footer tally).
         var dotSize: CGFloat
-        /// Spacing inside a day cell (the number over its dots).
+        /// Height of the region band beneath a day number — a full-width bar
+        /// (split per region on multi-region days) so contiguous stays read as
+        /// horizontal color bands across a week.
+        var regionBarHeight: CGFloat
+        /// Corner radius of that band.
+        var regionBarCornerRadius: CGFloat
+        /// Spacing inside a day cell (the number over its region band).
         var dayContentSpacing: CGFloat
         /// Edge of the rounded day-number chip.
         var dayNumberSize: CGFloat
@@ -347,6 +353,8 @@ extension WhereStylesheet {
             ),
             dayMinHeight: 44,
             dotSize: 6,
+            regionBarHeight: 5,
+            regionBarCornerRadius: 2,
             dayContentSpacing: 2,
             dayNumberSize: 26,
             todayMarker: .accentColor,

@@ -310,7 +310,10 @@ private struct MonthFooter: View {
     }
 }
 
-/// One day in the month grid: the day number and region-colored dots below.
+/// One day in the month grid: the day number and, beneath it, a full-width
+/// region-colored band (split per region on multi-region days) so contiguous
+/// stays read as horizontal color bands across a week — easier to scan than
+/// dots.
 private struct DayCell: View {
     let day: CalendarDayCell
 
@@ -354,17 +357,7 @@ private struct DayCell: View {
                     }
                 }
 
-            HStack(spacing: calendar.dayContentSpacing) {
-                ForEach(day.regions, id: \.self) { region in
-                    Circle()
-                        .fill(regionStyles.style(for: region).tint)
-                        .frame(
-                            width: calendar.dotSize,
-                            height: calendar.dotSize,
-                        )
-                }
-            }
-            .frame(height: calendar.dotSize)
+            regionBand
         }
         .frame(maxWidth: .infinity, minHeight: calendar.dayMinHeight)
         .contentShape(Rectangle())
@@ -377,6 +370,25 @@ private struct DayCell: View {
                 hasEvidence: day.hasEvidence,
             ),
         )
+    }
+
+    /// A full-width bar tinted by the day's region(s) — split into equal
+    /// segments when a day counts for several — so a stay reads as a continuous
+    /// horizontal band across the week. Empty (untracked) days reserve the same
+    /// height with a clear bar so the grid baseline stays even.
+    private var regionBand: some View {
+        HStack(spacing: 0) {
+            if day.regions.isEmpty {
+                Color.clear
+            } else {
+                ForEach(day.regions, id: \.self) { region in
+                    regionStyles.style(for: region).tint
+                }
+            }
+        }
+        .frame(height: calendar.regionBarHeight)
+        .frame(maxWidth: .infinity)
+        .clipShape(RoundedRectangle(cornerRadius: calendar.regionBarCornerRadius))
     }
 
     private var dayNumberColor: Color {

@@ -105,6 +105,8 @@ struct WhereStylesheetTests {
         #expect(calendar.monthSpacing == 16)
         #expect(calendar.dayMinHeight == 44)
         #expect(calendar.dotSize == 6)
+        #expect(calendar.regionBarHeight == 5)
+        #expect(calendar.regionBarCornerRadius == 2)
         #expect(calendar.dayContentSpacing == 2)
         #expect(calendar.dayNumberSize == 26)
         #expect(calendar.todayMarker == .accentColor)
