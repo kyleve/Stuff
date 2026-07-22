@@ -59,6 +59,16 @@ enum Strings {
         )
     }
 
+    /// Subtitle on the Locations tab's Elsewhere entry card, e.g. "3 regions ·
+    /// 24 days" (grammatically agreed for singular counts).
+    static func elsewhereCardSubtitle(regions: Int, days: Int) -> String {
+        String(
+            localized: "locations.elsewhere.subtitle",
+            defaultValue: "^[\(regions) region](inflect: true) · ^[\(days) day](inflect: true)",
+            bundle: .module,
+        )
+    }
+
     // MARK: Shared
 
     static var loadErrorTitle: String {

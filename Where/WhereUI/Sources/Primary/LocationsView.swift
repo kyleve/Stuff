@@ -3,16 +3,14 @@ import RegionKit
 import SwiftUI
 import WhereCore
 
-/// Home tab: the regions you spend the most days in for the selected year,
-/// shown as prominent Liquid Glass cards.
-struct PrimaryView: View {
+/// Locations tab: the regions you spend the most days in for the selected year,
+/// shown as prominent Liquid Glass cards, with the Elsewhere summary folded in
+/// at the bottom (only when there are secondary regions) and a Resolve button
+/// that appears — badged — only while there are data issues to fix.
+struct LocationsView: View {
     let report: YearReportModel
 
-    @State private var showingTimeline = false
-    @State private var showingCalendar = false
-    @State private var showingRecentActivity = false
-    @State private var showingEvidence = false
-    @State private var showingLoggedDays = false
+    @State private var showingResolution = false
     @State private var calendarFocus: CalendarFocus?
 
     /// Drives the region cards' tilt-reactive holographic sheen. Started/stopped
@@ -41,82 +39,28 @@ struct PrimaryView: View {
                 // the floating toolbar buttons rather than behind an opaque bar.
                 .toolbarBackground(.hidden, for: .navigationBar)
                 .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showingRecentActivity = true
-                        } label: {
-                            Label(
-                                Strings.primaryRecentActivity,
-                                systemImage: "sparkles",
-                            )
+                    // Resolve is a toolbar action here rather than its own tab:
+                    // it appears (badged with the count) only while there are
+                    // data issues to fix, and opens the resolution list.
+                    if report.dataIssueCount > 0 {
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button {
+                                showingResolution = true
+                            } label: {
+                                ResolveToolbarLabel(count: report.dataIssueCount)
+                            }
+                            .accessibilityIdentifier("where_resolution_button")
                         }
-                        .accessibilityIdentifier("where_recent_activity_button")
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showingTimeline = true
-                        } label: {
-                            Label(
-                                Strings.primaryTimeline,
-                                systemImage: "calendar.day.timeline.left",
-                            )
-                        }
-                        .accessibilityIdentifier("where_timeline_button")
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showingCalendar = true
-                        } label: {
-                            Label(
-                                Strings.primaryCalendar,
-                                systemImage: "calendar",
-                            )
-                        }
-                        .accessibilityIdentifier("where_calendar_button")
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showingEvidence = true
-                        } label: {
-                            Label(
-                                Strings.primaryEvidence,
-                                systemImage: "paperclip",
-                            )
-                        }
-                        .accessibilityIdentifier("where_evidence_button")
-                    }
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button {
-                            showingLoggedDays = true
-                        } label: {
-                            Label(
-                                Strings.primaryLoggedDays,
-                                systemImage: "calendar.badge.plus",
-                            )
-                        }
-                        .accessibilityIdentifier("where_logged_days_button")
                     }
                 }
         }
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
-        .sheet(isPresented: $showingRecentActivity) {
-            RecentActivitySummaryView(report: report)
-        }
-        .sheet(isPresented: $showingTimeline) {
-            PresenceTimelineView(report: report)
-        }
-        .sheet(isPresented: $showingCalendar) {
-            CalendarView(report: report)
-        }
-        .sheet(isPresented: $showingEvidence) {
-            EvidenceListView(report: report)
-        }
-        .sheet(isPresented: $showingLoggedDays) {
-            LoggedDaysView(report: report)
-        }
         .sheet(item: $calendarFocus) { focus in
             CalendarView(focusedRegion: focus.region, report: report)
+        }
+        .sheet(isPresented: $showingResolution) {
+            ResolutionView(report: report)
         }
         // Log View Mode: reveal an inspect badge for the year-report events
         // backing this screen. A no-op in release.
@@ -186,6 +130,20 @@ struct PrimaryView: View {
                         .buttonStyle(.plain)
                         .accessibilityHint(Strings.primaryCardCalendarHint)
                     }
+
+                    // Fold Elsewhere in at the bottom — only when there's
+                    // something in it — as an entry card into the full list.
+                    if !report.ranking.secondary.isEmpty {
+                        NavigationLink {
+                            ElsewhereView(report: report)
+                        } label: {
+                            ElsewhereSummaryCard(
+                                regionCount: report.ranking.secondary.count,
+                                dayCount: report.ranking.secondary.reduce(0) { $0 + $1.days },
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
             }
             .padding()
@@ -210,20 +168,45 @@ struct PrimaryView: View {
     }
 }
 
+/// The Locations toolbar's Resolve affordance: the checklist icon with a count
+/// badge. Rendered only while there are issues (the toolbar item is gated on
+/// the count), so it always carries a positive `count`.
+private struct ResolveToolbarLabel: View {
+    let count: Int
+
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        Image(systemName: "checklist")
+            .overlay(alignment: .topTrailing) {
+                Text(count, format: .number)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, stylesheet.spacing.xSmall)
+                    .padding(.vertical, stylesheet.spacing.xxSmall)
+                    .background(.red, in: Capsule())
+                    .offset(x: stylesheet.spacing.small, y: -stylesheet.spacing.small)
+                    .accessibilityHidden(true)
+            }
+            .accessibilityLabel(Strings.tabResolution)
+            .accessibilityValue(Text(count, format: .number))
+    }
+}
+
 #if DEBUG
     #Preview("Loaded") {
-        PrimaryView(report: PreviewSupport.loadedYearReportModel())
+        LocationsView(report: PreviewSupport.loadedYearReportModel())
     }
 
     #Preview("Empty") {
-        PrimaryView(report: PreviewSupport.emptyYearReportModel())
+        LocationsView(report: PreviewSupport.emptyYearReportModel())
     }
 
     #Preview("Missing days") {
-        PrimaryView(report: PreviewSupport.missingDaysYearReportModel())
+        LocationsView(report: PreviewSupport.missingDaysYearReportModel())
     }
 
     #Preview("Elsewhere only") {
-        PrimaryView(report: PreviewSupport.elsewhereOnlyYearReportModel())
+        LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
     }
 #endif

@@ -13,9 +13,9 @@ import WhereCore
 /// (Settings) also read the `WhereSession` coordinator from the environment.
 @MainActor
 struct ScreenHostingTests {
-    @Test func primaryViewHostsWithData() throws {
+    @Test func locationsViewHostsWithData() throws {
         let report = PreviewSupport.loadedYearReportModel()
-        try show(UIHostingController(rootView: PrimaryView(report: report))) { hosted in
+        try show(UIHostingController(rootView: LocationsView(report: report))) { hosted in
             #expect(hosted.view != nil)
         }
     }
@@ -122,16 +122,16 @@ struct ScreenHostingTests {
         }
     }
 
-    @Test func primaryViewHostsWithElsewhereOnlyData() throws {
+    @Test func locationsViewHostsWithElsewhereOnlyData() throws {
         let report = PreviewSupport.elsewhereOnlyYearReportModel()
-        try show(UIHostingController(rootView: PrimaryView(report: report))) { hosted in
+        try show(UIHostingController(rootView: LocationsView(report: report))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
-    @Test func primaryViewHostsWithMissingDays() throws {
+    @Test func locationsViewHostsWithMissingDays() throws {
         let report = PreviewSupport.missingDaysYearReportModel()
-        try show(UIHostingController(rootView: PrimaryView(report: report))) { hosted in
+        try show(UIHostingController(rootView: LocationsView(report: report))) { hosted in
             #expect(hosted.view != nil)
         }
     }
@@ -245,9 +245,10 @@ struct ScreenHostingTests {
         }
     }
 
-    @Test func presenceTimelineViewHostsWithData() throws {
+    @Test func presenceTimelineListHostsWithData() throws {
         let report = PreviewSupport.loadedYearReportModel()
-        try show(UIHostingController(rootView: PresenceTimelineView(report: report))) { hosted in
+        let rootView = NavigationStack { PresenceTimelineList(report: report) }
+        try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }

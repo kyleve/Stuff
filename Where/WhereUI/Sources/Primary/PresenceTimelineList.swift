@@ -3,29 +3,9 @@ import WhereCore
 
 /// A chronological list of continuous stays (`RegionStint`s) for the selected
 /// year — "California, Jan 1 – Feb 3", "New York, Feb 3 – Mar 10", and so on.
-/// Presented as a sheet from the Primary tab.
-struct PresenceTimelineView: View {
-    let report: YearReportModel
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            PresenceTimelineList(report: report)
-                .navigationTitle(Strings.timelineTitle(year: report.selectedYear))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.timelineDone) { dismiss() }
-                    }
-                }
-        }
-    }
-}
-
-/// The stint list shared by `PresenceTimelineView` and the calendar drill-in.
-/// When `scrollToMonth` is set, scrolls to the first stint overlapping that
-/// month on appear.
+/// Hosted as the Timeline segment of the Your Year tab and as the calendar's
+/// day-tap drill-in. When `scrollToMonth` is set, scrolls to the first stint
+/// overlapping that month on appear.
 struct PresenceTimelineList: View {
     let report: YearReportModel
 
@@ -130,6 +110,8 @@ private struct StintRow: View {
 
 #if DEBUG
     #Preview {
-        PresenceTimelineView(report: PreviewSupport.loadedYearReportModel())
+        NavigationStack {
+            PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+        }
     }
 #endif

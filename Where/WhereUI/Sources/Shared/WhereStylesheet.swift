@@ -21,6 +21,7 @@ struct WhereStylesheet: BStylesheet {
     var regionMap = RegionMapStyle.standard
     var regionPicker = RegionPickerStyle.standard
     var evidence = EvidenceStyle.standard
+    var elsewhereCard = ElsewhereCardStyle.standard
     var palette = Palette.standard
     var motion = Motion.standard
     var typography = Typography.standard
@@ -593,6 +594,28 @@ extension WhereStylesheet {
             onboardingIcon: .system(size: 72),
             widgetHeroRegion: .system(.headline, design: .serif).weight(.semibold),
             widgetTotalNumber: .system(.body, design: .rounded, weight: .bold),
+        )
+    }
+}
+
+// MARK: - Elsewhere entry card
+
+extension WhereStylesheet {
+    /// The compact entry card at the bottom of the Locations tab that links to
+    /// the Elsewhere list. A small self-contained group (it doesn't borrow the
+    /// passport `CardStyle`, which is a different, heavier component).
+    struct ElsewhereCardStyle: Equatable {
+        /// Corner radius of the glass card.
+        var cornerRadius: CGFloat
+        /// Inset of the card's contents from its edge.
+        var padding: CGFloat
+        /// Point size of the leading globe glyph.
+        var iconPointSize: CGFloat
+
+        static let standard = ElsewhereCardStyle(
+            cornerRadius: 22,
+            padding: 18,
+            iconPointSize: 28,
         )
     }
 }

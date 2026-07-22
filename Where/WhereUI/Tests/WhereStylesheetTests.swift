@@ -203,6 +203,13 @@ struct WhereStylesheetTests {
         #expect(evidence.loadingMinHeight == 200)
     }
 
+    @Test func elsewhereCardStyle() {
+        let card = style.elsewhereCard
+        #expect(card.cornerRadius == 22)
+        #expect(card.padding == 18)
+        #expect(card.iconPointSize == 28)
+    }
+
     @Test func typographyFaces() {
         let typography = style.typography
         #expect(typography.onboardingIcon == .system(size: 72))

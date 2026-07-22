@@ -41,7 +41,7 @@ struct MainTabs: View {
     var body: some View {
         TabView(selection: $selection) {
             Tab(Strings.tabPrimary, systemImage: "star.fill", value: TabID.primary) {
-                PrimaryView(report: report)
+                LocationsView(report: report)
                     .reportingDeveloperTabBarInset()
             }
 
