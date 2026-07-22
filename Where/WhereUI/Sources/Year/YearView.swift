@@ -1,20 +1,17 @@
 import SwiftUI
 import WhereCore
 
-/// Your Year tab: the selected year's calendar and timeline for the same data,
-/// switched by a segmented control in the toolbar (sitting in the Liquid Glass
-/// bar), with the on-device activity summary alongside it.
+/// Your Year tab: the selected year's calendar and timeline for the same data.
+/// A floating Liquid Glass pill at the bottom (Photos-style) zooms between the
+/// calendar (month detail) and the timeline (year overview); the activity
+/// summary sits in the toolbar.
 struct YearView: View {
     let report: YearReportModel
 
-    @State private var mode: Mode = .calendar
+    @State private var mode: YearMode = .calendar
     @State private var showingRecentActivity = false
 
-    /// The two views of the selected year the toolbar control switches between.
-    private enum Mode: Hashable {
-        case calendar
-        case timeline
-    }
+    @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
         NavigationStack {
@@ -28,13 +25,17 @@ struct YearView: View {
             }
             // Crossfade between the two views rather than hard-cutting.
             .animation(.default, value: mode)
-            .navigationTitle(navigationTitle)
+            .navigationTitle(mode.title)
             .navigationBarTitleDisplayMode(.inline)
             // Keep the bar background on at all times. The calendar auto-scrolls
             // under the bar (so its scroll-edge material is showing) while the
             // timeline starts at the top; without pinning it, switching between
             // them animates that material in/out — reading as a toolbar fade.
             .toolbarBackground(.visible, for: .navigationBar)
+            .safeAreaInset(edge: .bottom, alignment: .center) {
+                YearModePicker(mode: $mode)
+                    .padding(.bottom, stylesheet.spacing.small)
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -44,31 +45,76 @@ struct YearView: View {
                     }
                     .accessibilityIdentifier("where_recent_activity_button")
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Picker(Strings.yearSegmentPickerLabel, selection: $mode) {
-                        Image(systemName: "calendar")
-                            .accessibilityLabel(Strings.primaryCalendar)
-                            .tag(Mode.calendar)
-                        Image(systemName: "calendar.day.timeline.left")
-                            .accessibilityLabel(Strings.primaryTimeline)
-                            .tag(Mode.timeline)
-                    }
-                    .pickerStyle(.segmented)
-                    .accessibilityIdentifier("where_year_segmented_control")
-                }
             }
         }
         .sheet(isPresented: $showingRecentActivity) {
             RecentActivitySummaryView(report: report)
         }
     }
+}
 
-    /// The page title tracks the selected view.
-    private var navigationTitle: String {
-        switch mode {
+/// The two lenses on the selected year the bottom pill zooms between.
+private enum YearMode: String, Hashable, CaseIterable {
+    case calendar
+    case timeline
+
+    var title: String {
+        switch self {
             case .calendar: Strings.primaryCalendar
             case .timeline: Strings.primaryTimeline
         }
+    }
+
+    var systemImage: String {
+        switch self {
+            case .calendar: "calendar"
+            case .timeline: "calendar.day.timeline.left"
+        }
+    }
+}
+
+/// A floating Liquid Glass pill (Photos-style) switching the Your Year view
+/// between calendar and timeline, with the selection sliding between segments.
+private struct YearModePicker: View {
+    @Binding var mode: YearMode
+
+    @Namespace private var selection
+    @Environment(\.stylesheet) private var stylesheet
+
+    var body: some View {
+        HStack(spacing: stylesheet.spacing.xxSmall) {
+            ForEach(YearMode.allCases, id: \.self) { candidate in
+                segment(candidate)
+            }
+        }
+        .padding(stylesheet.spacing.xxSmall)
+        .glassEffect(.regular, in: .capsule)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(Strings.yearSegmentPickerLabel)
+    }
+
+    private func segment(_ candidate: YearMode) -> some View {
+        let isSelected = candidate == mode
+        return Button {
+            withAnimation(.snappy(duration: 0.28)) { mode = candidate }
+        } label: {
+            Label(candidate.title, systemImage: candidate.systemImage)
+                .labelStyle(.titleAndIcon)
+                .font(.subheadline.weight(.medium))
+                .padding(.horizontal, stylesheet.spacing.medium)
+                .padding(.vertical, stylesheet.spacing.small)
+                .foregroundStyle(isSelected ? Color.white : Color.primary)
+                .background {
+                    if isSelected {
+                        Capsule()
+                            .fill(Color.accentColor)
+                            .matchedGeometryEffect(id: "selectedSegment", in: selection)
+                    }
+                }
+                .contentShape(.capsule)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
 
