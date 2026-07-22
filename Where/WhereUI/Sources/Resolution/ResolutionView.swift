@@ -34,7 +34,6 @@ struct ResolutionView: View {
         NavigationStack {
             screen
                 .navigationTitle(Strings.resolutionTitle)
-                .navigationBarTitleDisplayMode(.inline)
                 .task(id: report.dataIssueScanInputs) {
                     await resolve.load(
                         year: report.selectedYear,
