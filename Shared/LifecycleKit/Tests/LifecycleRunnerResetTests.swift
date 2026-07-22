@@ -117,67 +117,28 @@ struct LifecycleRunnerResetTests {
         #expect(!relaunched)
     }
 
-    @Test func retryAfterFailedTeardownReRunsTeardownThenRelaunches() async throws {
+    @Test func teardownNodesMayReuseLaunchNodeIDs() async {
+        // Teardown starts from an empty run-once set (the launch attempt is
+        // over), so a teardown node may share a launch node's ID and still
+        // run — no cross-plan disjointness precondition needed, because there
+        // is no retry re-walk that would consult a live launch memo.
         var events: [String] = []
-        var shouldFailErase = true
         let runner = LifecycleRunner(
             reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Void>("launch") { _, _ in events.append("launch") }),
+            plan: LaunchPlan(FixtureStep<Void, Void>("shared-id") { _, _ in
+                events.append("launch-side")
+            }),
         )
         await runner.run()
-        events.removeAll()
 
         await runner.teardown(
-            LaunchPlan(FixtureStep<Void, Void>("erase") { _, _ in
-                events.append("erase")
-                if shouldFailErase { throw ResetError() }
-            })
-            .thenKeeping(FixtureStep<Void, Void>("clear-prefs") { _, _ in
-                events.append("clear-prefs")
+            LaunchPlan(FixtureStep<Void, Void>("shared-id") { _, _ in
+                events.append("teardown-side")
             }),
             input: (),
         )
-        #expect(runner.phase.failed(at: "erase"))
-        #expect(events == ["erase"])
-
-        // Retry must resume the teardown (re-erasing) and only then relaunch —
-        // not silently re-drive the launch plan over un-torn-down state.
-        shouldFailErase = false
-        events.removeAll()
-        runner.retry()
-        try await waitUntil { runner.phase.isReady }
-        #expect(events == ["erase", "clear-prefs", "launch"])
-    }
-
-    @Test func retryAfterFailedTeardownTailResumesWithoutReErasing() async throws {
-        var events: [String] = []
-        var shouldFailPrefs = true
-        let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, Void>("launch") { _, _ in events.append("launch") }),
-        )
-        await runner.run()
-        events.removeAll()
-
-        await runner.teardown(
-            LaunchPlan(FixtureStep<Void, Void>("erase") { _, _ in events.append("erase") })
-                .thenKeeping(FixtureStep<Void, Void>("clear-prefs") { _, _ in
-                    events.append("clear-prefs")
-                    if shouldFailPrefs { throw ResetError() }
-                }),
-            input: (),
-        )
-        #expect(runner.phase.failed(at: "clear-prefs"))
-        #expect(events == ["erase", "clear-prefs"])
-
-        // The earlier teardown node ("erase") already succeeded, so retry
-        // resumes from the failed node rather than re-running it, then
-        // relaunches.
-        shouldFailPrefs = false
-        events.removeAll()
-        runner.retry()
-        try await waitUntil { runner.phase.isReady }
-        #expect(events == ["clear-prefs", "launch"])
+        #expect(events == ["launch-side", "teardown-side", "launch-side"])
+        #expect(runner.phase.isReady)
     }
 
     @Test func teardownCancelsAParkedGateInsteadOfHanging() async throws {

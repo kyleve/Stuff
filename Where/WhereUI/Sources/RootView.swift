@@ -62,7 +62,7 @@ public struct RootView: View {
                 transition: revealTransition,
                 animation: revealAnimation,
                 splash: { _ in LaunchSplashView() },
-                failure: { LifecycleFailureView(failure: $0, retry: $1) },
+                failure: { LifecycleFailureView(failure: $0) },
                 gates: {
                     // The gate passes the trunk's session through, so
                     // onboarding is handed the session it commits regions

@@ -12,19 +12,21 @@ import Observation
 ///   output into the next node's input and skipping nodes whose `modes`
 ///   don't include the launch reason (only pass-through nodes may gate — see
 ///   `LaunchPlan`). Detached groups fan out concurrently and never block the
-///   trunk. A thrown trunk step parks the runner in `.failed`; `retry()`
-///   resumes from the node that failed, feeding it the same memoized input.
+///   trunk. A thrown trunk step parks the runner in `.failed` — a **terminal**
+///   state: there is no retry, so the recovery for a failed launch is
+///   relaunching the app.
 /// - `enterForeground()` promotes a runner that started headless (its
 ///   `reason` was `.background` or `.undetermined`) once a window actually
 ///   appears, re-driving the plan so the now-applicable foreground-only
-///   nodes (gates, foreground work) run.
+///   nodes (gates, foreground work) run. (Promotion is the *only* reason the
+///   memo exists — a fresh launch never re-walks a node.)
 ///
 /// Drives never overlap. The internal `State` folds the launch reason, the
 /// "has run" flag, and the in-flight drive task into one value so invalid
 /// combinations are unrepresentable; `reason` and `phase` are its public
-/// projections. A new drive (`run`/`retry`/`enterForeground`/`teardown`)
-/// cancels the in-flight one and awaits it draining before starting —
-/// cooperative cancellation (a parked gate's `waitForResolution()` throws
+/// projections. A new drive (`run`/`enterForeground`/`teardown`) cancels the
+/// in-flight one and awaits it draining before starting — cooperative
+/// cancellation (a parked gate's `waitForResolution()` throws
 /// `CancellationError`) keeps that drain from hanging behind a gate waiting
 /// on a tap that will never come.
 @MainActor
@@ -40,7 +42,8 @@ public final class LifecycleRunner<Launch: Sendable> {
         case running(LifecycleStepContext)
         /// A gate parked the trunk; the UI resolves the handle to continue.
         case awaitingGate(LifecycleGateHandle)
-        /// A trunk node threw. The host shows an error UI offering retry.
+        /// A trunk node threw. Terminal — the host shows an error surface (no
+        /// retry); the recovery is relaunching the app.
         case failed(LifecycleFailure)
         /// The trunk finished — hand its output to the app's main UI.
         /// Detached children may still be draining; they can't regress this.
@@ -88,45 +91,18 @@ public final class LifecycleRunner<Launch: Sendable> {
 
     @ObservationIgnored private let launchNodes: [LaunchPlanNode]
 
-    /// The most recent teardown plan (erased) and its root input, retained so
-    /// a `retry()` after a thrown teardown node resumes the teardown (and the
-    /// relaunch that follows) rather than re-driving the launch plan over
-    /// un-torn-down state. Nil until the first `teardown(_:input:)`.
-    private struct RetainedTeardown {
-        var nodes: [LaunchPlanNode]
-        var input: any Sendable
-    }
-
-    @ObservationIgnored private var teardown: RetainedTeardown?
-
     /// The output of every node that ran to completion during the current
-    /// launch attempt, keyed by node ID — both the run-once set (a re-drive
-    /// doesn't repeat completed work) and the value store that lets a retry
-    /// resume mid-trunk with the input its node originally got.
+    /// attempt, keyed by node ID — the run-once set that lets an
+    /// `enterForeground()` promotion's re-walk skip completed work and thread
+    /// the recorded value into the next node.
     ///
     /// Only nodes that actually *ran to completion* are recorded; a node
     /// skipped by mode gating or a gate whose `isNeeded` was false is not, so
     /// it re-evaluates once the launch is promoted. Reset when a *fresh*
-    /// attempt begins (first `run()`, and the relaunch after a teardown) so a
-    /// reset genuinely re-runs everything; preserved across
-    /// `enterForeground()` and `retry()`, which continue the same attempt.
+    /// attempt begins (first `run()`, the start of a teardown, and the
+    /// relaunch after it), so each fresh walk starts from an empty set —
+    /// which is why a teardown plan may freely reuse launch node IDs.
     @ObservationIgnored private var memo: [AnyHashable: any Sendable] = [:]
-
-    /// Where a trunk failure parked, so `retry()` can resume the same walk
-    /// with the same input. One value: a resume point always carries the
-    /// site it belongs to and the input its node needs.
-    private struct FailedResume {
-        enum Site {
-            case launch
-            case teardown
-        }
-
-        var site: Site
-        var index: Int
-        var input: any Sendable
-    }
-
-    @ObservationIgnored private var failedResume: FailedResume?
 
     public init(
         reason: LifecycleReason,
@@ -155,7 +131,7 @@ public final class LifecycleRunner<Launch: Sendable> {
                 // A fresh attempt starts with a clean slate; nothing has run yet.
                 memo.removeAll()
                 detachedFailures.removeAll()
-                await drive(reason: reason, from: 0, input: ())
+                await drive(reason: reason)
             case let .running(_, task):
                 await task.value
         }
@@ -173,26 +149,7 @@ public final class LifecycleRunner<Launch: Sendable> {
     /// isn't run a second time.
     public func enterForeground() async {
         guard reason != .userForeground else { return }
-        await drive(reason: .userForeground, from: 0, input: ())
-    }
-
-    /// Resume from the node that failed, feeding it the same input it
-    /// originally got. No-op unless the runner is currently in `.failed`.
-    ///
-    /// If the failure was in a teardown node (from `teardown(_:input:)`), the
-    /// teardown is resumed from that node and the relaunch still follows — so
-    /// a failed erase re-erases rather than dropping the user back into the
-    /// app over un-torn-down state. Otherwise the launch plan is resumed from
-    /// the failed node.
-    public func retry() {
-        guard case .failed = phase, let resume = failedResume else { return }
-        switch resume.site {
-            case .launch:
-                let reason = reason
-                Task { await drive(reason: reason, from: resume.index, input: resume.input) }
-            case .teardown:
-                Task { await driveTeardown(from: resume.index, input: resume.input) }
-        }
+        await drive(reason: .userForeground)
     }
 
     /// Run a teardown `plan` rooted at `input` (logout / erase), then
@@ -200,11 +157,12 @@ public final class LifecycleRunner<Launch: Sendable> {
     /// first-run onboarding shows again once the teardown clears the "has
     /// onboarded" flag.
     ///
-    /// The plan and input are retained so a `retry()` after a thrown teardown
-    /// node resumes the teardown (then the relaunch). If a teardown node
-    /// throws, the runner parks in `.failed` and does not relaunch. The
-    /// teardown's detached children (if any) are drained *before* the
-    /// relaunch begins, so no torn-down-world work overlaps the fresh launch.
+    /// If a teardown node throws, the runner parks in the terminal `.failed`
+    /// and does not relaunch — the erase leaves prior state intact (a thrown
+    /// erase never reaches the session drop), so relaunching the app returns
+    /// to the working app rather than a half-erased one. The teardown's
+    /// detached children (if any) are drained *before* the relaunch begins,
+    /// so no torn-down-world work overlaps the fresh launch.
     public func teardown<Input: Sendable>(
         _ plan: LaunchPlan<Input, some Sendable>,
         input: Input,
@@ -213,90 +171,51 @@ public final class LifecycleRunner<Launch: Sendable> {
     }
 
     /// `teardown(_:input:)` after erasure — the `LifecycleDriving` seam the
-    /// UI proxy forwards through (see `LifecycleDriving`).
+    /// UI proxy forwards through (see `LifecycleDriving`). Cancels any
+    /// in-flight drive, drains it, walks the teardown once, then relaunches
+    /// from the top — landing in `.ready` only if both complete.
     package func teardownErased(nodes: [LaunchPlanNode], input: any Sendable) async {
-        assertDisjointFromLaunchPlan(nodes)
-        teardown = RetainedTeardown(nodes: nodes, input: input)
-        await driveTeardown(from: 0, input: input)
-    }
-
-    /// Teardown node IDs must not collide with the launch plan's: the
-    /// run-once memo is keyed by ID across both walks, so a colliding
-    /// teardown node would be skipped as "already done" — an erase that never
-    /// runs — *and* would adopt the launch node's memoized output as the
-    /// teardown trunk value, breaking the typed data flow (a later teardown
-    /// node's input cast would trap). A collision is a programmer error —
-    /// fail fast the first time the teardown is requested, before anything
-    /// is torn down. (`LaunchPlan` already preconditions uniqueness *within*
-    /// each plan; this closes the cross-plan gap.)
-    private func assertDisjointFromLaunchPlan(_ nodes: [LaunchPlanNode]) {
-        let launchIDs = Set(launchNodes.flatMap(\.ids))
-        let collisions = nodes.flatMap(\.ids).filter(launchIDs.contains)
-        precondition(
-            collisions.isEmpty,
-            "Teardown plan reuses launch node IDs: \(collisions)",
-        )
-    }
-
-    /// Cancel any in-flight drive, drain it, then run the retained teardown
-    /// from `startIndex` followed by a fresh launch from the top — landing in
-    /// `.ready` only if both complete. Shared by `teardown(_:input:)` and a
-    /// `retry()` resuming a failed teardown node, so the two stay in lockstep.
-    private func driveTeardown(from startIndex: Int, input: any Sendable) async {
-        guard let teardown else { return }
         let previous = currentTask
         previous?.cancel()
         let reason = reason
         phase = .launching
-        failedResume = nil
         let task = Task { [weak self] in
             guard let self else { return }
             await previous?.value
+            // Teardown starts from an empty run-once set: the launch attempt
+            // is over (its drive drained above), so clearing here means a
+            // teardown node may freely reuse a launch node's ID — there is no
+            // shared-memo collision, which is why the combinator engine no
+            // longer needs a cross-plan disjointness precondition. Teardown
+            // runs exactly once (no retry), so nothing re-reads these entries.
+            memo.removeAll()
             let tornDown = await withDiscardingTaskGroup(returning: Bool.self) { group in
-                let outcome = await self.walk(
-                    teardown.nodes,
-                    from: startIndex,
-                    input: input,
-                    site: .teardown,
-                    group: &group,
-                )
+                let outcome = await self.walk(nodes, input: input, group: &group)
                 guard case .completed = outcome, !Task.isCancelled else { return false }
                 return true
             }
             guard tornDown else { return }
-            // The teardown succeeded, so no retry will need it again: release
-            // the retained plan and — importantly — its input, which is
-            // typically the very object being torn down (retaining a dead
-            // session past its teardown would leak it for the process's life).
-            self.teardown = nil
-            // The relaunch is a fresh attempt: clear the memo so every launch
-            // node re-runs over the torn-down state rather than being skipped
-            // as "already done" from before the teardown.
+            // The relaunch is a fresh attempt: clear the teardown's entries so
+            // every launch node re-runs over the torn-down state.
             memo.removeAll()
             detachedFailures.removeAll()
-            await runLaunchPlan(from: 0, input: ())
+            await runLaunchPlan()
         }
         state = .running(reason: reason, task: task)
         await task.value
     }
 
-    /// Cancel any in-flight drive, then drive the launch plan from
-    /// `startIndex` on a fresh task, landing in `.ready` if the trunk
-    /// completes. The new task drains the cancelled one before running, so
-    /// two drives never overlap.
-    private func drive(
-        reason newReason: LifecycleReason,
-        from startIndex: Int,
-        input: any Sendable,
-    ) async {
+    /// Cancel any in-flight drive, then drive the launch plan on a fresh
+    /// task, landing in `.ready` if the trunk completes. The new task drains
+    /// the cancelled one before running, so two drives never overlap.
+    private func drive(reason newReason: LifecycleReason) async {
         let previous = currentTask
         previous?.cancel()
         phase = .launching
-        failedResume = nil
         let task = Task { [weak self] in
             guard let self else { return }
             await previous?.value
-            await runLaunchPlan(from: startIndex, input: input)
+            await runLaunchPlan()
         }
         state = .running(reason: newReason, task: task)
         await task.value
@@ -306,45 +225,37 @@ public final class LifecycleRunner<Launch: Sendable> {
     /// children it spawns), publishing `.ready` with the trunk's output as
     /// soon as the trunk completes — *before* the children drain, which
     /// happens on scope exit. A superseded (cancelled) walk publishes nothing.
-    private func runLaunchPlan(from startIndex: Int, input: any Sendable) async {
+    private func runLaunchPlan() async {
         await withDiscardingTaskGroup { group in
-            let outcome = await self.walk(
-                self.launchNodes,
-                from: startIndex,
-                input: input,
-                site: .launch,
-                group: &group,
-            )
+            let outcome = await self.walk(self.launchNodes, input: (), group: &group)
             guard case let .completed(value) = outcome, !Task.isCancelled else { return }
             self.phase = .ready(value as! Launch)
         }
     }
 
-    /// The outcome of walking a trunk from some node onward.
+    /// The outcome of walking a trunk.
     private enum WalkOutcome {
         /// Every applicable node finished; carries the trunk value after the
         /// last one.
         case completed(any Sendable)
         /// A node threw a non-cancellation error; `phase` is now `.failed`
-        /// and `failedResume` points at the node.
+        /// (terminally).
         case failed
         /// The drive was superseded (cancelled); `phase` is left for the
         /// drive that cancelled it to set.
         case cancelled
     }
 
-    /// Walk `nodes` from `startIndex`, threading the trunk value through
-    /// steps and gates, spawning detached children into `group`, and honoring
-    /// the memoized run-once set.
+    /// Walk `nodes` in order, threading the trunk value through steps and
+    /// gates, spawning detached children into `group`, and honoring the
+    /// memoized run-once set.
     private func walk(
         _ nodes: [LaunchPlanNode],
-        from startIndex: Int,
         input: any Sendable,
-        site: FailedResume.Site,
         group: inout DiscardingTaskGroup,
     ) async -> WalkOutcome {
         var value = input
-        var index = startIndex
+        var index = 0
         while index < nodes.count {
             if Task.isCancelled { return .cancelled }
 
@@ -375,10 +286,8 @@ public final class LifecycleRunner<Launch: Sendable> {
                         // be cancellation-responsive). The superseding drive
                         // owns `phase` now, so a dying drive must report
                         // `.cancelled` rather than clobber the new drive's
-                        // state with `.failed` — the new drive re-runs the
-                        // step and surfaces its own outcome.
+                        // state with `.failed`.
                         guard !Task.isCancelled else { return .cancelled }
-                        failedResume = FailedResume(site: site, index: index, input: value)
                         phase = .failed(LifecycleFailure(stepID: node.id, error: error))
                         return .failed
                     }
@@ -400,7 +309,6 @@ public final class LifecycleRunner<Launch: Sendable> {
                         return .cancelled
                     } catch {
                         guard !Task.isCancelled else { return .cancelled }
-                        failedResume = FailedResume(site: site, index: index, input: value)
                         phase = .failed(LifecycleFailure(stepID: node.id, error: error))
                         return .failed
                     }
@@ -449,16 +357,6 @@ public final class LifecycleRunner<Launch: Sendable> {
         }
     }
 }
-
-#if DEBUG
-    extension LifecycleRunner {
-        /// Injects a failure for SPI-enabled tests. Carries no resume point,
-        /// so a subsequent `retry()` is a no-op.
-        @_spi(Testing) public func injectFailureForTesting(_ failure: LifecycleFailure) {
-            phase = .failed(failure)
-        }
-    }
-#endif
 
 // MARK: - Phase inspection
 

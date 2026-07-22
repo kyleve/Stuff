@@ -31,21 +31,23 @@ struct LifecycleProxyTests {
         #expect(runner.phase.isReady)
     }
 
-    @Test func connectedProxyForwardsRetryToTheRunner() async throws {
-        struct Boom: Error {}
-        var shouldFail = true
+    @Test func connectedProxyForwardsEnterForegroundToTheRunner() async {
+        var executed: [String] = []
         let runner = LifecycleRunner(
-            reason: .userForeground,
-            plan: LaunchPlan(FixtureStep<Void, String>("open") { _, _ in
-                if shouldFail { throw Boom() }
+            reason: .undetermined,
+            plan: LaunchPlan(FixtureStep<Void, String>("store") { _, _ in
+                executed.append("store")
                 return "session"
+            })
+            .thenKeeping(FixtureStep<String, Void>("foreground-only", modes: .foreground) { _, _ in
+                executed.append("foreground-only")
             }),
         )
         await runner.run()
-        #expect(runner.phase.failed(at: "open"))
+        #expect(executed == ["store"])
 
-        shouldFail = false
-        LifecycleProxy(runner).retry()
-        try await waitUntil { runner.phase.isReady }
+        await LifecycleProxy(runner).enterForeground()
+        #expect(executed == ["store", "foreground-only"])
+        #expect(runner.phase.isReady)
     }
 }
