@@ -58,6 +58,10 @@
             static let maxHeight: CGFloat = 620
             static let heightFraction: CGFloat = 0.62
             static let minSize = CGSize(width: 260, height: 320)
+            /// The most of each container dimension the window's footprint may
+            /// claim as a safe-area inset on the app content behind it, so a large
+            /// window can't collapse that content to nothing (see `contentInsets`).
+            static let maxContentInsetFraction: CGFloat = 0.8
         }
 
         private let store: any KeyValueStore
@@ -220,6 +224,50 @@
                 y: topLeading.y + size.height / 2,
             )
             return clamp(FloatingLayout(center: center, size: size), in: container)
+        }
+
+        /// The safe-area inset the floating window's footprint claims on each edge
+        /// it's docked to, so app content behind the non-modal HUD can scroll clear
+        /// of it. Expects an on-screen `layout` (the caller clamps first).
+        ///
+        /// An edge counts as docked only when the window's near edge is within
+        /// `edgeTolerance` of the container edge **and** its far edge leaves the
+        /// opposite edge free — so there's actually room to push content aside.
+        /// This means a window spanning an axis (near both edges, e.g. the near
+        /// full-width default) claims nothing on that axis, and a window can dock
+        /// at most one edge per axis. Each inset is capped at
+        /// `Layout.maxContentInsetFraction` of the container so a large window
+        /// can't collapse the content behind it to nothing.
+        nonisolated static func contentInsets(
+            for layout: FloatingLayout,
+            in container: CGSize,
+            edgeTolerance: CGFloat,
+        ) -> EdgeInsets {
+            guard container.width > 0, container.height > 0 else { return EdgeInsets() }
+            let minX = layout.center.x - layout.size.width / 2
+            let maxX = layout.center.x + layout.size.width / 2
+            let minY = layout.center.y - layout.size.height / 2
+            let maxY = layout.center.y + layout.size.height / 2
+            let maxVertical = container.height * Layout.maxContentInsetFraction
+            let maxHorizontal = container.width * Layout.maxContentInsetFraction
+
+            let nearTop = minY <= edgeTolerance
+            let nearBottom = maxY >= container.height - edgeTolerance
+            let nearLeading = minX <= edgeTolerance
+            let nearTrailing = maxX >= container.width - edgeTolerance
+
+            var insets = EdgeInsets()
+            if nearTop, !nearBottom {
+                insets.top = min(max(0, maxY), maxVertical)
+            } else if nearBottom, !nearTop {
+                insets.bottom = min(max(0, container.height - minY), maxVertical)
+            }
+            if nearLeading, !nearTrailing {
+                insets.leading = min(max(0, maxX), maxHorizontal)
+            } else if nearTrailing, !nearLeading {
+                insets.trailing = min(max(0, container.width - minX), maxHorizontal)
+            }
+            return insets
         }
 
         // MARK: Persistence

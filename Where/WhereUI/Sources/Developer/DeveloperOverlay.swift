@@ -188,12 +188,25 @@
             .transition(.scale(scale: 0.12, anchor: .bottomTrailing).combined(with: .opacity))
         }
 
-        /// The floating window's on-screen geometry: its persisted (or default)
-        /// layout with the in-flight drag / resize translation applied. Never
-        /// written back to the model during layout — the model is only updated at
-        /// gesture end (see `moveWindow` / `resizeWindow`).
+        /// The floating window's resting geometry: its persisted layout (or the
+        /// default), always clamped to the *current* container. Clamping here is
+        /// what keeps a window persisted in one orientation / size class / device
+        /// from opening off-screen or oversized in another — persisted values were
+        /// only clamped for the container that was current when they were written.
+        /// Display and the gesture-end commit share this so they can't disagree.
+        private func currentBase(in container: CGSize) -> DeveloperOverlayModel.FloatingLayout {
+            DeveloperOverlayModel.clamp(
+                model.floating ?? DeveloperOverlayModel.defaultLayout(in: container),
+                in: container,
+            )
+        }
+
+        /// The floating window's on-screen geometry: its resting layout with the
+        /// in-flight drag / resize translation applied. Never written back to the
+        /// model during layout — the model is only updated at gesture end (see
+        /// `moveWindow` / `resizeWindow`).
         private func displayedLayout(in container: CGSize) -> DeveloperOverlayModel.FloatingLayout {
-            let base = model.floating ?? DeveloperOverlayModel.defaultLayout(in: container)
+            let base = currentBase(in: container)
             let resized = windowResize == .zero
                 ? base
                 : DeveloperOverlayModel.resized(base, by: windowResize, in: container)
@@ -211,7 +224,7 @@
 
         private func moveWindow(by translation: CGSize, ended: Bool, in container: CGSize) {
             if ended {
-                let base = model.floating ?? DeveloperOverlayModel.defaultLayout(in: container)
+                let base = currentBase(in: container)
                 model.setFloating(DeveloperOverlayModel.moved(base, by: translation, in: container))
                 windowDrag = .zero
             } else {
@@ -221,7 +234,7 @@
 
         private func resizeWindow(by translation: CGSize, ended: Bool, in container: CGSize) {
             if ended {
-                let base = model.floating ?? DeveloperOverlayModel.defaultLayout(in: container)
+                let base = currentBase(in: container)
                 model
                     .setFloating(DeveloperOverlayModel.resized(
                         base,
@@ -234,34 +247,17 @@
             }
         }
 
-        /// The safe-area inset the floating HUD occupies on each edge it's docked
-        /// to, so `RootView` can push app content clear of it. Zero unless
-        /// floating; each axis picks the single edge the window is nearer to (so a
-        /// tall window doesn't inset top *and* bottom), and reports how far the
-        /// window reaches in from that edge.
+        /// The safe-area inset the floating HUD occupies, so `RootView` can push
+        /// app content clear of it. Zero unless floating; the docking math + cap
+        /// live in ``DeveloperOverlayModel/contentInsets(for:in:edgeTolerance:)``,
+        /// fed the on-screen (clamped) `displayedLayout`.
         private func appContentInsets(in container: CGSize) -> EdgeInsets {
             guard model.presentation == .floating else { return EdgeInsets() }
-            let layout = displayedLayout(in: container)
-            let minX = layout.center.x - layout.size.width / 2
-            let maxX = layout.center.x + layout.size.width / 2
-            let minY = layout.center.y - layout.size.height / 2
-            let maxY = layout.center.y + layout.size.height / 2
-            let tolerance = edgeInset
-
-            var insets = EdgeInsets()
-            let inTopHalf = layout.center.y <= container.height / 2
-            if inTopHalf {
-                if minY <= tolerance { insets.top = max(0, maxY) }
-            } else if maxY >= container.height - tolerance {
-                insets.bottom = max(0, container.height - minY)
-            }
-            let inLeadingHalf = layout.center.x <= container.width / 2
-            if inLeadingHalf {
-                if minX <= tolerance { insets.leading = max(0, maxX) }
-            } else if maxX >= container.width - tolerance {
-                insets.trailing = max(0, container.width - minX)
-            }
-            return insets
+            return DeveloperOverlayModel.contentInsets(
+                for: displayedLayout(in: container),
+                in: container,
+                edgeTolerance: edgeInset,
+            )
         }
 
         /// Bottom content inset the tools list reserves so its last rows scroll
