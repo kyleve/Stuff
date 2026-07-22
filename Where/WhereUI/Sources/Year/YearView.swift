@@ -30,6 +30,11 @@ struct YearView: View {
             .animation(.default, value: mode)
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
+            // Keep the bar background on at all times. The calendar auto-scrolls
+            // under the bar (so its scroll-edge material is showing) while the
+            // timeline starts at the top; without pinning it, switching between
+            // them animates that material in/out — reading as a toolbar fade.
+            .toolbarBackground(.visible, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
