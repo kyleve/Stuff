@@ -1,12 +1,15 @@
 import PeriscopeCore
 import SwiftUI
 
-/// The latest-logs viewer: a reverse-chronological, searchable list over a
-/// `PeriscopeStore`, filterable by level, event type, scope subtree, and
-/// session, with NDJSON export for bug reports.
+/// The log viewer: two surfaces switched by a nav-bar segmented control — a
+/// reverse-chronological, searchable **Logs** list over a `PeriscopeStore`
+/// (filterable by level, event type, scope subtree, session, and span exit,
+/// with NDJSON export) and the scope **Hierarchy** browser.
 ///
 /// Designed to be pushed inside an existing `NavigationStack` (it sets a
-/// navigation title and toolbar but does not create its own stack). A
+/// navigation title and toolbar but does not create its own stack — so a
+/// single stack owns the bar and every drill-in, rather than a nested
+/// `TabView` whose per-tab toolbar wouldn't reliably reach the host bar). A
 /// developer surface — gate it behind `#if DEBUG` or a developer menu.
 public struct PeriscopeViewer: View {
     private let store: PeriscopeStore
@@ -16,7 +19,25 @@ public struct PeriscopeViewer: View {
     @State private var export: NDJSONExport?
     @State private var exportFailed = false
     @State private var density: PeriscopeStylesheet.Density
+    @State private var mode: Mode = .logs
     @State private var spanDestination: SpanDestination?
+
+    /// The viewer's two surfaces, switched by the nav-bar segmented control.
+    /// A single stack-hosted view (rather than a `TabView`) so the toolbar
+    /// reliably hosts on the pushing stack's bar — matching the sibling
+    /// developer tools — and every push lands on that one stack (no
+    /// cross-surface toolbar/back-stack bleed).
+    private enum Mode: Hashable, CaseIterable {
+        case logs
+        case hierarchy
+
+        var label: String {
+            switch self {
+                case .logs: "Logs"
+                case .hierarchy: "Hierarchy"
+            }
+        }
+    }
 
     /// The span surfaces reachable from the Logs toolbar's Spans menu, pushed
     /// onto the host stack via `navigationDestination` (a menu keeps the bar
@@ -43,52 +64,10 @@ public struct PeriscopeViewer: View {
     }
 
     public var body: some View {
-        TabView {
-            Tab("Logs", systemImage: "list.bullet") {
-                logsTab
-            }
-            Tab("Hierarchy", systemImage: "list.bullet.indent") {
-                LogHierarchyView(store: store)
-            }
-        }
-        .environment(\.logRowDensity, density)
-        .onChange(of: density) { _, newValue in
-            newValue.save(to: defaults)
-        }
-        .periscopeBroadwayRoot()
-        // Keyed on the store's identity: swapping stores in place cancels the
-        // old model's live stream and rebinds a fresh model — `State(initialValue:)`
-        // alone would keep serving the first store forever. Export state is
-        // per-store too: a sheet or failure alert generated against the old
-        // store shouldn't survive the swap.
-        .task(id: ObjectIdentifier(store)) {
-            if model.store !== store {
-                model = PeriscopeViewerModel(store: store)
-                export = nil
-                exportFailed = false
-                spanDestination = nil
-            }
-            await model.run()
-        }
-    }
-
-    /// The flat, newest-first logs list — the first tab. Owns the filter/
-    /// export toolbar, search, and the export sheet.
-    private var logsTab: some View {
-        @Bindable var model = model
-        return content
+        content
             .navigationTitle(title)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    filterMenu
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    spansMenu
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    exportButton
-                }
-            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { toolbarContent }
             .navigationDestination(item: $spanDestination) { destination in
                 switch destination {
                     case .tree:
@@ -97,17 +76,77 @@ public struct PeriscopeViewer: View {
                         SpanHistoryView(store: store)
                 }
             }
-            .searchable(text: $model.searchText)
             .sheet(item: $export) { export in
                 NDJSONExportSheet(export: export)
             }
             .alert("Export Failed", isPresented: $exportFailed) {
                 Button("OK", role: .cancel) {}
             }
+            .environment(\.logRowDensity, density)
+            .onChange(of: density) { _, newValue in
+                newValue.save(to: defaults)
+            }
+            .periscopeBroadwayRoot()
+            // Keyed on the store's identity: swapping stores in place cancels
+            // the old model's live stream and rebinds a fresh model —
+            // `State(initialValue:)` alone would keep serving the first store
+            // forever. Export/navigation/mode state is per-store too: nothing
+            // generated against the old store should survive the swap.
+            .task(id: ObjectIdentifier(store)) {
+                if model.store !== store {
+                    model = PeriscopeViewerModel(store: store)
+                    export = nil
+                    exportFailed = false
+                    spanDestination = nil
+                    mode = .logs
+                }
+                await model.run()
+            }
     }
 
+    /// The nav-bar segmented control that switches surfaces, plus the
+    /// logs-only filter / spans / export actions (dropped on the hierarchy
+    /// surface, where they don't apply).
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .principal) {
+            Picker("View", selection: $mode) {
+                ForEach(Mode.allCases, id: \.self) { mode in
+                    Text(mode.label).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .fixedSize()
+        }
+        if mode == .logs {
+            ToolbarItem(placement: .primaryAction) {
+                filterMenu
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                spansMenu
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                exportButton
+            }
+        }
+    }
+
+    /// The selected surface: the searchable logs list, or the scope hierarchy.
     @ViewBuilder
     private var content: some View {
+        @Bindable var model = model
+        switch mode {
+            case .logs:
+                logsList
+                    .searchable(text: $model.searchText)
+            case .hierarchy:
+                LogHierarchyView(store: store)
+        }
+    }
+
+    /// The flat, newest-first logs list — loading / failed / empty / loaded.
+    @ViewBuilder
+    private var logsList: some View {
         switch model.state {
             case .loading:
                 ProgressView()
