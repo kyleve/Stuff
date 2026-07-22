@@ -15,6 +15,9 @@ import WhereCore
 /// anywhere — reloads it.
 struct LoggedDaysView: View {
     let report: YearReportModel
+    /// Whether this is the visible Your Data segment; gates the `+` toolbar item
+    /// so the hidden (but still-mounted) segment doesn't also contribute it.
+    var isActive: Bool
 
     @Environment(\.stylesheet) private var stylesheet
     @State private var model: LoggedDaysModel
@@ -23,15 +26,17 @@ struct LoggedDaysView: View {
     @State private var deleteError = SaveErrorAlertState()
     @State private var filter: LoggedDaysFilter = .all
 
-    init(report: YearReportModel) {
+    init(report: YearReportModel, isActive: Bool = true) {
         self.report = report
+        self.isActive = isActive
         _model = State(initialValue: LoggedDaysModel(services: report.services))
     }
 
     #if DEBUG
         /// Preview seam: inject a model already in a chosen state.
-        init(report: YearReportModel, model: LoggedDaysModel) {
+        init(report: YearReportModel, model: LoggedDaysModel, isActive: Bool = true) {
             self.report = report
+            self.isActive = isActive
             _model = State(initialValue: model)
         }
     #endif
@@ -51,13 +56,15 @@ struct LoggedDaysView: View {
 
         content
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showingAdd = true
-                    } label: {
-                        Label(Strings.loggedDaysAdd, systemImage: "plus")
+                if isActive {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            showingAdd = true
+                        } label: {
+                            Label(Strings.loggedDaysAdd, systemImage: "plus")
+                        }
+                        .accessibilityIdentifier("where_add_logged_day_button")
                     }
-                    .accessibilityIdentifier("where_add_logged_day_button")
                 }
             }
             // Load, then keep the list current off the single store-change

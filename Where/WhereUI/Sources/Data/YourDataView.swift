@@ -14,12 +14,12 @@ struct YourDataView: View {
                 storageKey: .data,
                 initialSelection: DataSegment.attachments,
                 pickerLabel: Strings.dataSegmentPickerLabel,
-            ) { segment in
+            ) { segment, isActive in
                 switch segment {
                     case .attachments:
-                        EvidenceListView(report: report)
+                        EvidenceListView(report: report, isActive: isActive)
                     case .loggedDays:
-                        LoggedDaysView(report: report)
+                        LoggedDaysView(report: report, isActive: isActive)
                 }
             }
             .navigationTitle(navigationTitle)

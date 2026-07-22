@@ -17,9 +17,13 @@ struct SegmentedTabContainerTests {
         }
     }
 
-    /// Collects which segment the content builder was asked to render.
+    /// Collects which segment the builder reported as selected.
     private final class Sink {
-        var segments: [Seg] = []
+        var selected: [Seg] = []
+
+        func record(_ segment: Seg, isActive: Bool) {
+            if isActive { selected.append(segment) }
+        }
     }
 
     @Test func restoresPersistedSelectionAcrossLaunches() throws {
@@ -29,14 +33,14 @@ struct SegmentedTabContainerTests {
         defer { UserDefaults.standard.removeObject(forKey: key.rawValue) }
 
         let sink = Sink()
+        // All segments are built (they stay mounted), so key off the `isActive`
+        // flag to learn which one is selected rather than which one was built.
         let view = SegmentedTabContainer(
             storageKey: key,
             initialSelection: Seg.first,
             pickerLabel: "Test",
-        ) { segment in
-            // Record the rendered segment; the builder runs only for the
-            // selected one.
-            let _ = sink.segments.append(segment)
+        ) { segment, isActive in
+            let _ = sink.record(segment, isActive: isActive)
             Color.clear
         }
 
@@ -44,8 +48,8 @@ struct SegmentedTabContainerTests {
             #expect(hosted.view != nil)
         }
 
-        // The persisted `.third` is shown, not the `.first` initial value.
-        #expect(sink.segments.contains(.third))
-        #expect(!sink.segments.contains(.first))
+        // The persisted `.third` is the active segment, not the `.first` initial.
+        #expect(sink.selected.contains(.third))
+        #expect(!sink.selected.contains(.first))
     }
 }

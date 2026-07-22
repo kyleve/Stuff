@@ -12,19 +12,24 @@ import WhereCore
 /// appears immediately.
 struct EvidenceListView: View {
     let report: YearReportModel
+    /// Whether this is the visible Your Data segment; gates the `+` toolbar item
+    /// so the hidden (but still-mounted) segment doesn't also contribute it.
+    var isActive: Bool
 
     @State private var model: EvidenceListModel
     @State private var showingAdd = false
 
-    init(report: YearReportModel) {
+    init(report: YearReportModel, isActive: Bool = true) {
         self.report = report
+        self.isActive = isActive
         _model = State(initialValue: EvidenceListModel(services: report.services))
     }
 
     #if DEBUG
         /// Preview seam: inject a model already in a chosen state.
-        init(report: YearReportModel, model: EvidenceListModel) {
+        init(report: YearReportModel, model: EvidenceListModel, isActive: Bool = true) {
             self.report = report
+            self.isActive = isActive
             _model = State(initialValue: model)
         }
     #endif
@@ -38,13 +43,15 @@ struct EvidenceListView: View {
     var body: some View {
         content
             .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showingAdd = true
-                    } label: {
-                        Label(Strings.evidenceAdd, systemImage: "plus")
+                if isActive {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            showingAdd = true
+                        } label: {
+                            Label(Strings.evidenceAdd, systemImage: "plus")
+                        }
+                        .accessibilityIdentifier("where_add_evidence_button")
                     }
-                    .accessibilityIdentifier("where_add_evidence_button")
                 }
             }
             .navigationDestination(for: Evidence.self) { evidence in

@@ -16,7 +16,7 @@ struct YearView: View {
                 storageKey: .year,
                 initialSelection: YearSegment.calendar,
                 pickerLabel: Strings.yearSegmentPickerLabel,
-            ) { segment in
+            ) { segment, _ in
                 switch segment {
                     case .calendar:
                         CalendarContentView(report: report)

@@ -7,6 +7,14 @@ import WhereCore
 enum SegmentStoreKey: String {
     case year = "where.segment.year"
     case data = "where.segment.data"
+
+    /// Distinct accessibility id for each tab's segmented control.
+    var accessibilityID: String {
+        switch self {
+            case .year: "where_year_segmented_control"
+            case .data: "where_data_segmented_control"
+        }
+    }
 }
 
 /// A segment a ``SegmentedTabContainer`` switches between: a `String`-backed
@@ -23,82 +31,95 @@ protocol SegmentedItem: CaseIterable, Hashable, RawRepresentable where RawValue 
 /// driving a content builder. Swapping segments animates with a
 /// Reduce-Motion-aware directional slide (a plain crossfade when reduced).
 ///
-/// The container owns only the control + transition; the hosting tab supplies
-/// the `NavigationStack`, title, and any toolbar items, and each segment's
-/// content view carries its own contextual toolbar/loading.
+/// **All segments stay mounted** (only the selected one is visible and
+/// interactive), so switching preserves each segment's state — scroll position,
+/// filters, loaded data — rather than tearing it down and reloading. The
+/// builder receives whether a segment is currently selected so a content view
+/// can, e.g., contribute its toolbar items only while active.
+///
+/// The container owns only the control + slide; the hosting tab supplies the
+/// `NavigationStack`, title, and any tab-level toolbar items.
 struct SegmentedTabContainer<Item: SegmentedItem, Content: View>: View {
     @AppStorage private var selection: Item
+    private let storageKey: SegmentStoreKey
     private let pickerLabel: String
-    private let content: (Item) -> Content
+    private let content: (Item, Bool) -> Content
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    /// Index of the segment shown before the latest change, so the slide knows
-    /// which way to move. Seeded to the initial segment; refreshed on change.
-    @State private var lastIndex: Int
 
     /// - Parameters:
     ///   - storageKey: Where the selected segment persists across launches.
     ///   - initialSelection: The segment shown on first launch (before any
     ///     persisted choice exists).
     ///   - pickerLabel: The segmented control's accessibility label.
+    ///   - content: Builds a segment's view; the `Bool` is whether it is the
+    ///     currently selected segment.
     init(
         storageKey: SegmentStoreKey,
         initialSelection: Item,
         pickerLabel: String,
-        @ViewBuilder content: @escaping (Item) -> Content,
+        @ViewBuilder content: @escaping (Item, Bool) -> Content,
     ) {
         _selection = AppStorage(wrappedValue: initialSelection, storageKey.rawValue)
-        _lastIndex = State(initialValue: Self.index(of: initialSelection))
+        self.storageKey = storageKey
         self.pickerLabel = pickerLabel
         self.content = content
     }
 
-    private static func index(of item: Item) -> Int {
-        Array(Item.allCases).firstIndex(of: item) ?? 0
+    private var segments: [Item] {
+        Array(Item.allCases)
+    }
+
+    private func index(of item: Item) -> Int {
+        segments.firstIndex(of: item) ?? 0
     }
 
     var body: some View {
         VStack(spacing: 0) {
             Picker(pickerLabel, selection: $selection) {
-                ForEach(Array(Item.allCases), id: \.self) { item in
+                ForEach(segments, id: \.self) { item in
                     Text(item.title).tag(item)
                 }
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)
             .padding(.vertical, stylesheet.spacing.small)
-            .accessibilityIdentifier("where_segmented_control")
+            .accessibilityIdentifier(storageKey.accessibilityID)
 
-            content(selection)
-                .id(selection)
-                .transition(transition)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .animation(
-            reduceMotion ? stylesheet.motion.reducedReveal : stylesheet.motion.segmentTransition,
-            value: selection,
-        )
-        // `lastIndex` still holds the pre-change index while `body` recomputes
-        // the transition for the swap, so the slide direction is correct; catch
-        // it up afterward for the next change.
-        .onChange(of: selection) { _, newValue in
-            lastIndex = Self.index(of: newValue)
+            slidingContent
         }
     }
 
-    /// A directional slide — the incoming segment enters from the side you moved
-    /// toward — or a plain crossfade under Reduce Motion.
-    private var transition: AnyTransition {
-        guard !reduceMotion else { return .opacity }
-        let movingForward = Self.index(of: selection) >= lastIndex
-        return .asymmetric(
-            insertion: .move(edge: movingForward ? .trailing : .leading)
-                .combined(with: .opacity),
-            removal: .move(edge: movingForward ? .leading : .trailing)
-                .combined(with: .opacity),
-        )
+    /// All segments mounted in a `ZStack`; the selected one sits at rest while
+    /// the others are offset one container-width to their side, so changing the
+    /// selection slides them across. Only the selected segment is visible,
+    /// hit-testable, and exposed to VoiceOver. Under Reduce Motion nothing moves
+    /// horizontally — the change is a plain opacity crossfade.
+    private var slidingContent: some View {
+        GeometryReader { proxy in
+            ZStack {
+                ForEach(segments, id: \.self) { item in
+                    content(item, item == selection)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .opacity(item == selection ? 1 : 0)
+                        .offset(x: offset(for: item, width: proxy.size.width))
+                        .allowsHitTesting(item == selection)
+                        .accessibilityHidden(item != selection)
+                }
+            }
+            .animation(
+                reduceMotion
+                    ? stylesheet.motion.reducedReveal
+                    : stylesheet.motion.segmentTransition,
+                value: selection,
+            )
+        }
+    }
+
+    private func offset(for item: Item, width: CGFloat) -> CGFloat {
+        guard !reduceMotion else { return 0 }
+        return CGFloat(index(of: item) - index(of: selection)) * width
     }
 }
 
@@ -125,7 +146,7 @@ struct SegmentedTabContainer<Item: SegmentedItem, Content: View>: View {
                 storageKey: .year,
                 initialSelection: PreviewSegment.first,
                 pickerLabel: "Preview segments",
-            ) { segment in
+            ) { segment, _ in
                 ContentUnavailableView(segment.title, systemImage: "square.stack")
             }
             .navigationTitle("Segmented")
