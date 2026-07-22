@@ -19,13 +19,11 @@ struct StringsTests {
     @Test func elsewhereOnlyDescriptionUsesPluralVariations() {
         #expect(
             Strings.primaryElsewhereOnlyDescription(count: 1)
-                ==
-                "1 day logged this year, but none in a headline spot yet. Peek at the Elsewhere tab.",
+                == "1 day logged this year, but none in a headline spot yet.",
         )
         #expect(
             Strings.primaryElsewhereOnlyDescription(count: 9)
-                ==
-                "9 days logged this year, but none in a headline spot yet. Peek at the Elsewhere tab.",
+                == "9 days logged this year, but none in a headline spot yet.",
         )
     }
 

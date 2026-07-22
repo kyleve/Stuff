@@ -31,13 +31,7 @@ struct LocationsView: View {
     var body: some View {
         NavigationStack {
             screen
-                .background(elevatedBackground)
-                .environment(\.colorScheme, .dark)
                 .navigationBarTitleDisplayMode(.inline)
-                .toolbarColorScheme(.dark, for: .navigationBar)
-                // Hide the bar's material so the glass cards scroll underneath
-                // the floating toolbar buttons rather than behind an opaque bar.
-                .toolbarBackground(.hidden, for: .navigationBar)
                 .toolbar {
                     // Resolve is a toolbar action here rather than its own tab:
                     // it appears (badged with the count) only while there are
@@ -65,21 +59,6 @@ struct LocationsView: View {
         // Log View Mode: reveal an inspect badge for the year-report events
         // backing this screen. A no-op in release.
         .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
-    }
-
-    /// A deep, near-black gradient that makes the Primary tab read like a
-    /// passport cover, so the glass cards and their foil sheen feel elevated
-    /// off the page. Forced dark (see `colorScheme` above) regardless of the
-    /// system appearance.
-    private var elevatedBackground: LinearGradient {
-        LinearGradient(
-            colors: [
-                stylesheet.palette.primary.backgroundTop,
-                stylesheet.palette.primary.backgroundBottom,
-            ],
-            startPoint: .top,
-            endPoint: .bottom,
-        )
     }
 
     @ViewBuilder
@@ -164,6 +143,15 @@ struct LocationsView: View {
             Label(Strings.primaryElsewhereOnlyTitle, systemImage: "globe.americas")
         } description: {
             Text(Strings.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
+        } actions: {
+            // Everything tracked is Elsewhere, so surface the list directly —
+            // there's no Elsewhere tab to send them to anymore.
+            if !report.ranking.secondary.isEmpty {
+                NavigationLink(Strings.primaryElsewhereOnlyOpen) {
+                    ElsewhereView(report: report)
+                }
+                .buttonStyle(.borderedProminent)
+            }
         }
     }
 }

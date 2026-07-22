@@ -136,11 +136,20 @@ enum Strings {
     }
 
     /// Shown when there's tracked data, but none of it lands in a primary
-    /// region — points the user at the Elsewhere tab.
+    /// region; the Locations screen offers an Elsewhere link beneath it.
     static func primaryElsewhereOnlyDescription(count: Int) -> String {
         String(
             localized: "primary.elsewhereOnly.description",
-            defaultValue: "\(count) days logged this year, but none in a headline spot yet. Peek at the Elsewhere tab.",
+            defaultValue: "\(count) days logged this year, but none in a headline spot yet.",
+            bundle: .module,
+        )
+    }
+
+    /// Button on the Locations elsewhere-only state that opens the Elsewhere list.
+    static var primaryElsewhereOnlyOpen: String {
+        String(
+            localized: "primary.elsewhereOnly.open",
+            defaultValue: "See Elsewhere",
             bundle: .module,
         )
     }

@@ -1705,16 +1705,28 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld day logged this year, but none in a headline spot yet. Peek at the Elsewhere tab."
+                  "value" : "%lld day logged this year, but none in a headline spot yet."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld days logged this year, but none in a headline spot yet. Peek at the Elsewhere tab."
+                  "value" : "%lld days logged this year, but none in a headline spot yet."
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "primary.elsewhereOnly.open" : {
+      "comment" : "Button on the Locations elsewhere-only state that opens the Elsewhere list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See Elsewhere"
           }
         }
       }
