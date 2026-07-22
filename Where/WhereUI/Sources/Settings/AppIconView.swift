@@ -4,8 +4,8 @@ import SwiftUI
 /// (two columns on phones, more on wider displays — see `AppIconLayout`).
 /// Tapping a cell slides a preview panel up from the bottom over the dimmed
 /// grid: the panel's background reflects a light/dark mode you toggle by tapping
-/// the icon, and a Set button applies it. Presented as a sheet from
-/// `SettingsView`, so it owns its navigation bar and a Done button.
+/// the icon, and a Set button applies it. Presented as a sheet from the
+/// Appearance sub-screen, so it owns its navigation bar and a Done button.
 struct AppIconView: View {
     @State private var model: AppIconModel
     @State private var preview: AppIconOption?

@@ -1,8 +1,6 @@
-import CoreLocation
 import LifecycleKit
 import PeriscopeCore
 import SwiftUI
-import UIKit
 import UserNotifications
 import WhereCore
 
@@ -14,19 +12,21 @@ public enum LaunchStepID: String {
     /// Open the SwiftData store, assemble the services, and build the session.
     /// The splash's slow-launch caption most often shows during this step.
     case openStore = "open-store"
-    /// First-run onboarding gate. Foreground-only, so a headless background
-    /// relaunch skips it.
+    /// First-run onboarding gate. Foreground-only, so a headless launch (an
+    /// unpromoted `.undetermined` cold launch or a `.background` relaunch) skips
+    /// it — it runs only once a scene promotes the launch to foreground.
     case onboarding
     /// Read location authorization into the coordinator and start observing live
     /// authorization changes. The report + data-issue scan (and their
     /// store-change subscription) load with the scene now, not here — so a
-    /// headless background relaunch never drives a refresh no UI consumes.
+    /// headless launch (no scene) never drives a refresh no UI consumes.
     case syncAuth = "sync-auth"
     /// Start or stop GPS ingestion to match the user's intent + authorization.
     case reconcileTracking = "reconcile-tracking"
     /// Take a one-shot GPS fix for today if none is logged yet, so opening the
     /// app on a fresh day fills the calendar in. Foreground-only — a headless
-    /// background relaunch is itself the passive event, so it needs no fix.
+    /// launch shouldn't spend a fresh fix (a `.background` relaunch is itself the
+    /// passive event); it runs once a scene promotes the launch.
     case captureToday = "capture-today"
     /// Push the logging-reminder schedule + badge (backlog + issue count) to the
     /// reconciler.
@@ -123,34 +123,6 @@ public enum WhereLaunch {
         }
     }
 
-    /// Maps the process's launch-time application state to the lifecycle reason
-    /// the runner consumes. An `.active`/`.inactive` launch is a user-visible
-    /// foreground launch; a `.background` launch state means iOS woke the
-    /// process headless.
-    ///
-    /// The only thing that wakes Where headless is a CoreLocation
-    /// significant-change / visit event, which requires *Always* authorization
-    /// — so a background launch is attributed to `.location` only when that
-    /// authorization is present, and to `.other` otherwise rather than claiming
-    /// a location wake the process couldn't have received. (The cause is
-    /// informational; both keep the launch on the background step path.)
-    ///
-    /// This replaces inspecting the `UIApplication.LaunchOptionsKey.location`
-    /// launch option, deprecated in iOS 26 in favor of handling the location
-    /// events through the `CLLocationManagerDelegate` after scene connection:
-    /// the `CLLocationManager` installed in `initializePrerequisites` still
-    /// delivers the buffered event, and the launch state alone tells us whether
-    /// anyone will see UI.
-    public static func lifecycleReason(
-        from applicationState: UIApplication.State,
-        locationAuthorization: CLAuthorizationStatus,
-    ) -> LifecycleReason {
-        guard applicationState == .background else { return .userForeground }
-        return locationAuthorization == .authorizedAlways
-            ? .background(.location)
-            : .background(.other)
-    }
-
     /// Build the runner for `model`, launching for `reason`.
     ///
     /// `initializePrerequisites` runs the synchronous, must-exist-now launch
@@ -227,8 +199,9 @@ public enum WhereLaunch {
             }
 
             // First run only. `LifecycleStep.interactive` defaults to
-            // `modes: .foreground`, so a headless background launch skips it (and
-            // never deadlocks waiting for a tap that can't come).
+            // `modes: .foreground`, so a headless launch (unpromoted
+            // `.undetermined`, or a `.background` relaunch) skips it (and never
+            // deadlocks waiting for a tap that can't come).
             LifecycleStep.interactive(
                 LaunchStepID.onboarding,
                 condition: { !model.hasOnboarded },
@@ -243,10 +216,11 @@ public enum WhereLaunch {
             LifecycleStep.work(LaunchStepID.reconcileTracking) { _ in
                 await model.session?.reconcileTracking()
             }
-            // Foreground-only: a headless background relaunch is itself the
-            // passive location event, so it neither needs nor should trigger a
-            // fresh foreground fix. Returns fast (the ingestor spawns the ~10s
-            // fix internally), so it never delays reaching `.ready`.
+            // Foreground-only: a headless launch shouldn't trigger a fresh
+            // foreground fix (a `.background` relaunch is itself the passive
+            // location event), so it runs only once a scene promotes the launch.
+            // Returns fast (the ingestor spawns the ~10s fix internally), so it
+            // never delays reaching `.ready`.
             LifecycleStep.work(LaunchStepID.captureToday, modes: .foreground) { _ in
                 await model.session?.captureTodayIfNeeded()
             }

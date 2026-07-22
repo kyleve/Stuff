@@ -25,6 +25,10 @@ public struct RootView: View {
         /// handed to the sibling `DeveloperOverlay` so its button rests clear of the
         /// tab bar. Zero when logged out (no tab bar in the tree).
         @State private var developerTabBarInset: CGFloat = 0
+        /// The footprint the non-modal floating developer HUD occupies, reported up
+        /// from the sibling `DeveloperOverlay` and applied as extra safe area to the
+        /// app content so screens behind the HUD can scroll clear of it.
+        @State private var developerOverlayInsets = EdgeInsets()
         /// Periscope's "log view mode" mirror, built once the launch bootstrap has
         /// opened the log store. Injected into the environment so
         /// `debugLogInspectable(_:)` badges across the app can reveal their scopes;
@@ -76,6 +80,13 @@ public struct RootView: View {
                     .id(session.id)
                 }
             }
+            // Extend the app content's safe area by the floating HUD's footprint so
+            // scroll views behind the non-modal window inset and their last rows
+            // clear it. Scoped to the content only — never the sibling overlay/toast
+            // layers below — so the overlay's own geometry can't feed back on itself.
+            #if DEBUG
+            .safeAreaPadding(developerOverlayInsets)
+            #endif
 
             // The floating developer surface sits above every launch phase and
             // tab so its tools are reachable from anywhere (even logged out). It's
@@ -89,6 +100,7 @@ public struct RootView: View {
         }
         #if DEBUG
         .onPreferenceChange(DeveloperTabBarInsetKey.self) { developerTabBarInset = $0 }
+            .onPreferenceChange(DeveloperOverlayInsetKey.self) { developerOverlayInsets = $0 }
             .environment(\.periscopeInspector, inspector)
             .task { configureDeveloperLogging() }
             .onChange(of: model.logStore.map(ObjectIdentifier.init)) { _, _ in
@@ -115,10 +127,11 @@ public struct RootView: View {
             // so this is a no-op there; in previews/tests it's what drives the
             // launch.
             //
-            // Promote a background launch only once the scene is genuinely active.
-            // SwiftUI may build this view (and run `.task`) for a scene that iOS
-            // connected in the background; promoting then would flip the launcher to
-            // foreground and build the heavy `TabView` for a launch nobody sees,
+            // Promote the launch (`.undetermined` from the app delegate, or a
+            // genuine `.background` relaunch) only once the scene is genuinely
+            // active. SwiftUI may build this view (and run `.task`) for a scene that
+            // iOS connected in the background; promoting then would flip the launcher
+            // to foreground and build the heavy `TabView` for a launch nobody sees,
             // defeating the headless path. The `.onChange` below handles the later
             // background→foreground transition; this initial check covers a launch
             // that is already active when the view first appears — and it must run

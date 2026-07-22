@@ -78,6 +78,11 @@ by `./sync-agents`.
 |------------------------------|-------------|
 | iPhone, iPad, Mac Catalyst   | iOS 26.0    |
 
+Install the Where app to a connected iPhone from the CLI (no Xcode UI) with
+`./Where/install` — it builds + code-signs Release and installs/launches via
+`xcodebuild` + `xcrun devicectl`. macOS-only; needs a signing team configured
+via `./ide --team-id`. See [`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device).
+
 ## Directory layout
 
 Every module — shared ones under `Shared/`, feature ones under a top-level

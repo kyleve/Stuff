@@ -378,6 +378,18 @@
         }
       }
     },
+    "developer.dragHandle" : {
+      "comment" : "Accessibility label for the handle that drags the floating developer window.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Move developer window"
+          }
+        }
+      }
+    },
     "developer.expand" : {
       "comment" : "Accessibility label for growing the developer panel to full screen.",
       "extractionState" : "manual",
@@ -386,6 +398,18 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Enter full screen"
+          }
+        }
+      }
+    },
+    "developer.resizeHandle" : {
+      "comment" : "Accessibility label for the grip that resizes the floating developer window.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resize developer window"
           }
         }
       }
