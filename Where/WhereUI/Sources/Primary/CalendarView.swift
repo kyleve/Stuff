@@ -234,11 +234,11 @@ private struct MonthGridView: View {
                         .frame(minHeight: calendar.dayMinHeight)
                 }
 
-                ForEach(month.days) { day in
+                ForEach(Array(month.days.enumerated()), id: \.element.id) { index, day in
                     Button {
                         onSelectDay(day)
                     } label: {
-                        DayCell(day: day)
+                        DayCell(day: day, band: bandGeometry(at: index))
                     }
                     .buttonStyle(.plain)
                 }
@@ -256,6 +256,54 @@ private struct MonthGridView: View {
             }
         }
     }
+
+    /// The stay-pill geometry for the day at `index`: a run is contiguous days
+    /// with the identical region set, so its true ends round fully while a run
+    /// spilling across a week boundary rounds subtly (and same-row neighbours
+    /// extend half the grid gap so the pill reads as one connected shape).
+    private func bandGeometry(at index: Int) -> DayBandGeometry {
+        let days = month.days
+        let day = days[index]
+        guard !day.regions.isEmpty else { return .none }
+
+        let regionSet = Set(day.regions)
+        let column = (month.leadingBlankCount + index) % month.weekdayCount
+        let isRowStart = column == 0
+        let isRowEnd = column == month.weekdayCount - 1
+        let joinsLeft = index > 0 && Set(days[index - 1].regions) == regionSet
+        let joinsRight = index < days.count - 1 && Set(days[index + 1].regions) == regionSet
+
+        let band = calendar.regionBand
+        let halfGap = calendar.month.gridSpacing / 2
+        return DayBandGeometry(
+            regions: day.regions,
+            leadingRadius: joinsLeft ? (isRowStart ? band.continuationRadius : 0) : band
+                .cornerRadius,
+            trailingRadius: joinsRight ? (isRowEnd ? band.continuationRadius : 0) : band
+                .cornerRadius,
+            extendLeading: joinsLeft && !isRowStart ? halfGap : 0,
+            extendTrailing: joinsRight && !isRowEnd ? halfGap : 0,
+        )
+    }
+}
+
+/// How to draw a day's slice of the region "stay" pill: which corners round
+/// (the run's ends) and how far to bleed into the grid gaps so a run reads as
+/// one connected shape. Empty `regions` means no pill.
+private struct DayBandGeometry {
+    var regions: [Region]
+    var leadingRadius: CGFloat
+    var trailingRadius: CGFloat
+    var extendLeading: CGFloat
+    var extendTrailing: CGFloat
+
+    static let none = DayBandGeometry(
+        regions: [],
+        leadingRadius: 0,
+        trailingRadius: 0,
+        extendLeading: 0,
+        extendTrailing: 0,
+    )
 }
 
 /// The per-month footer: one row per region present that month, showing its dot
@@ -310,12 +358,13 @@ private struct MonthFooter: View {
     }
 }
 
-/// One day in the month grid: the day number and, beneath it, a full-width
-/// region-colored band (split per region on multi-region days) so contiguous
-/// stays read as horizontal color bands across a week — easier to scan than
-/// dots.
+/// One day in the month grid: the day number, region-presence dots beneath it,
+/// and a subtle region-tinted "stay" pill behind it that connects to adjacent
+/// days in the same run so a stretch in one place reads as a single shape.
 private struct DayCell: View {
     let day: CalendarDayCell
+    /// The stay-pill slice for this day (computed by the enclosing month).
+    let band: DayBandGeometry
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
@@ -357,9 +406,10 @@ private struct DayCell: View {
                     }
                 }
 
-            regionBand
+            dots
         }
         .frame(maxWidth: .infinity, minHeight: calendar.dayMinHeight)
+        .background { stayPill }
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
@@ -372,23 +422,54 @@ private struct DayCell: View {
         )
     }
 
-    /// A full-width bar tinted by the day's region(s) — split into equal
-    /// segments when a day counts for several — so a stay reads as a continuous
-    /// horizontal band across the week. Empty (untracked) days reserve the same
-    /// height with a clear bar so the grid baseline stays even.
-    private var regionBand: some View {
-        HStack(spacing: 0) {
-            if day.regions.isEmpty {
-                Color.clear
-            } else {
-                ForEach(day.regions, id: \.self) { region in
-                    regionStyles.style(for: region).tint
-                }
+    /// Region-presence dots beneath the day number (one per region the day
+    /// counts for). Empty days keep the row height so the grid baseline is even.
+    private var dots: some View {
+        HStack(spacing: calendar.dayContentSpacing) {
+            ForEach(day.regions, id: \.self) { region in
+                Circle()
+                    .fill(regionStyles.style(for: region).tint)
+                    .frame(width: calendar.dayDotSize, height: calendar.dayDotSize)
             }
         }
-        .frame(height: calendar.regionBarHeight)
-        .frame(maxWidth: .infinity)
-        .clipShape(RoundedRectangle(cornerRadius: calendar.regionBarCornerRadius))
+        .frame(height: calendar.dayDotSize)
+    }
+
+    /// The subtle region-tinted pill spanning this day's slice of a stay run —
+    /// tinted per region (a soft blend on multi-region days), its corners
+    /// rounded per `band`, inset vertically, and bled `extend…` points into the
+    /// grid gaps so same-run neighbours join into one shape. A `GeometryReader`
+    /// gives the exact cell size to size and offset the overflow precisely.
+    @ViewBuilder
+    private var stayPill: some View {
+        if !band.regions.isEmpty {
+            let inset = calendar.regionBand.verticalInset
+            GeometryReader { proxy in
+                UnevenRoundedRectangle(
+                    topLeadingRadius: band.leadingRadius,
+                    bottomLeadingRadius: band.leadingRadius,
+                    bottomTrailingRadius: band.trailingRadius,
+                    topTrailingRadius: band.trailingRadius,
+                )
+                .fill(pillFill)
+                .opacity(calendar.regionBand.opacity)
+                .frame(
+                    width: proxy.size.width + band.extendLeading + band.extendTrailing,
+                    height: max(proxy.size.height - inset * 2, 0),
+                )
+                .offset(x: -band.extendLeading, y: inset)
+            }
+        }
+    }
+
+    /// The pill's tint: one region reads as a solid wash; a multi-region day
+    /// (rare — a travel day) softly blends its regions left-to-right.
+    private var pillFill: LinearGradient {
+        LinearGradient(
+            colors: band.regions.map { regionStyles.style(for: $0).tint },
+            startPoint: .leading,
+            endPoint: .trailing,
+        )
     }
 
     private var dayNumberColor: Color {

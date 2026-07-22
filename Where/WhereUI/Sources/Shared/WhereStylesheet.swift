@@ -285,15 +285,14 @@ extension WhereStylesheet {
         /// Min height (tap target) of a day cell — grows at accessibility
         /// Dynamic Type sizes.
         var dayMinHeight: CGFloat
-        /// Diameter of a region-presence dot (used in the month footer tally).
+        /// Diameter of a region-presence dot in the month footer tally.
         var dotSize: CGFloat
-        /// Height of the region band beneath a day number — a full-width bar
-        /// (split per region on multi-region days) so contiguous stays read as
-        /// horizontal color bands across a week.
-        var regionBarHeight: CGFloat
-        /// Corner radius of that band.
-        var regionBarCornerRadius: CGFloat
-        /// Spacing inside a day cell (the number over its region band).
+        /// Diameter of a region-presence dot under a day number (a touch larger
+        /// than the footer dots so days scan easily).
+        var dayDotSize: CGFloat
+        /// The subtle "stay" pill drawn behind contiguous same-region days.
+        var regionBand: RegionBand
+        /// Spacing inside a day cell (the number over its dots).
         var dayContentSpacing: CGFloat
         /// Edge of the rounded day-number chip.
         var dayNumberSize: CGFloat
@@ -325,6 +324,22 @@ extension WhereStylesheet {
             var unfocusedRowOpacity: Double
         }
 
+        /// The subtle region-tinted pill drawn behind a run of contiguous days
+        /// sharing the same region(s), so a "stay" reads as one connected shape.
+        /// The run's true ends get `cornerRadius`; where a run spills onto the
+        /// next (or from the previous) week row, that edge gets the smaller
+        /// `continuationRadius` to imply it carries on.
+        struct RegionBand: Equatable {
+            /// Opacity of the region tint — kept low so it sits behind the dots.
+            var opacity: Double
+            /// Radius at a run's true start/end.
+            var cornerRadius: CGFloat
+            /// Radius at a week-boundary edge where the run continues.
+            var continuationRadius: CGFloat
+            /// Vertical inset of the pill within the day cell.
+            var verticalInset: CGFloat
+        }
+
         /// The paperclip badge in a day cell's top-trailing corner marking a day
         /// that carries evidence. Its tint (accent) and backing disc (system
         /// background) follow the app/system roles, so only geometry lives here.
@@ -353,8 +368,13 @@ extension WhereStylesheet {
             ),
             dayMinHeight: 44,
             dotSize: 6,
-            regionBarHeight: 5,
-            regionBarCornerRadius: 2,
+            dayDotSize: 8,
+            regionBand: RegionBand(
+                opacity: 0.16,
+                cornerRadius: 10,
+                continuationRadius: 3,
+                verticalInset: 3,
+            ),
             dayContentSpacing: 2,
             dayNumberSize: 26,
             todayMarker: .accentColor,
