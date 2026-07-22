@@ -222,7 +222,6 @@ struct WhereStylesheetTests {
         #expect(motion.reveal == .easeIn(duration: 0.18))
         #expect(motion.reducedReveal == .easeInOut(duration: 0.2))
         #expect(motion.captionFade == .easeOut(duration: 0.3))
-        #expect(motion.segmentTransition == .easeInOut(duration: 0.25))
     }
 
     @Test func settingsStyle() {

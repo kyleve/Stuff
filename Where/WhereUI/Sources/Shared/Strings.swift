@@ -30,47 +30,9 @@ enum Strings {
         String(localized: "tab.year", defaultValue: "Your Year", bundle: .module)
     }
 
-    static var tabData: String {
-        String(localized: "tab.data", defaultValue: "Your Data", bundle: .module)
-    }
-
-    /// Your Year tab title when viewing a past year, e.g. "Your Year · 2024".
-    /// The current year uses the plain ``tabYear``.
-    static func tabYearTitle(forYear year: Int) -> String {
-        String(
-            localized: "tab.year.forYear",
-            defaultValue: "Your Year · \(yearText(year))",
-            bundle: .module,
-        )
-    }
-
-    /// Your Data tab title when viewing a past year, e.g. "Your Data · 2024".
-    /// The current year uses the plain ``tabData``.
-    static func tabDataTitle(forYear year: Int) -> String {
-        String(
-            localized: "tab.data.forYear",
-            defaultValue: "Your Data · \(yearText(year))",
-            bundle: .module,
-        )
-    }
-
     /// Accessibility label for the Your Year tab's Calendar/Timeline control.
     static var yearSegmentPickerLabel: String {
         String(localized: "year.segmentPicker", defaultValue: "Year view", bundle: .module)
-    }
-
-    /// Accessibility label for the Your Data tab's Attachments/Logged Days control.
-    static var dataSegmentPickerLabel: String {
-        String(localized: "data.segmentPicker", defaultValue: "Data view", bundle: .module)
-    }
-
-    /// Segment label for the attachments (evidence) view in the Your Data tab.
-    static var dataSegmentAttachments: String {
-        String(
-            localized: "data.segment.attachments",
-            defaultValue: "Attachments",
-            bundle: .module,
-        )
     }
 
     /// Subtitle on the Locations tab's Elsewhere entry card, e.g. "3 regions"

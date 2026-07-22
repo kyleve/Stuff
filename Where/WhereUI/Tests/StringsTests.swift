@@ -41,8 +41,6 @@ struct StringsTests {
         #expect(Strings.timelineTitle(year: 2026) == "Timeline · 2026")
         #expect(Strings.calendarTitle(year: 2026) == "Calendar · 2026")
         #expect(Strings.settingsDataErase(year: 2026) == "Erase 2026 data")
-        #expect(Strings.tabYearTitle(forYear: 2026) == "Your Year · 2026")
-        #expect(Strings.tabDataTitle(forYear: 2026) == "Your Data · 2026")
     }
 
     @Test func calendarStringsResolveToCatalogValues() {

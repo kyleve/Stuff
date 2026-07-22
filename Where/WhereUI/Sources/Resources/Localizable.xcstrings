@@ -342,30 +342,6 @@
         }
       }
     },
-    "data.segment.attachments" : {
-      "comment" : "Attachments segment label in the Your Data tab.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Attachments"
-          }
-        }
-      }
-    },
-    "data.segmentPicker" : {
-      "comment" : "Accessibility label for the Your Data tab's segmented control.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Data view"
-          }
-        }
-      }
-    },
     "developer.button.label" : {
       "comment" : "Accessibility label for the floating developer button.",
       "extractionState" : "manual",
@@ -3494,6 +3470,52 @@
         }
       }
     },
+    "settings.attachments.row" : {
+      "comment" : "Row title for the attachments (evidence) screen in the Settings Data group.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attachments"
+          }
+        }
+      }
+    },
+    "settings.keywords.attachments" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "attachments, evidence, receipt, boarding pass, ticket, photo"
+          }
+        }
+      }
+    },
+    "settings.keywords.loggedDays" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "logged days, manual, override, entry, backfill"
+          }
+        }
+      }
+    },
+    "settings.loggedDays.row" : {
+      "comment" : "Row title for the hand-logged-days screen in the Settings Data group.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logged Days"
+          }
+        }
+      }
+    },
     "settings.regions.section" : {
       "comment" : "Label for the settings option to manage your regions.",
       "extractionState" : "extracted_with_value",
@@ -3816,29 +3838,6 @@
         }
       }
     },
-    "tab.data" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your Data"
-          }
-        }
-      }
-    },
-    "tab.data.forYear" : {
-      "comment" : "Your Data tab title when viewing a past year, e.g. Your Data · 2024.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your Data · %@"
-          }
-        }
-      }
-    },
     "tab.locations" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3880,18 +3879,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your Year"
-          }
-        }
-      }
-    },
-    "tab.year.forYear" : {
-      "comment" : "Your Year tab title when viewing a past year, e.g. Your Year · 2024.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your Year · %@"
           }
         }
       }

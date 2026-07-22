@@ -634,16 +634,11 @@ extension WhereStylesheet {
         var reducedReveal: Animation
         /// One-shot fade for incidental appearance (e.g. the launch caption).
         var captionFade: Animation
-        /// Swapping the visible content of a segmented container (Your Year /
-        /// Your Data). Views apply a directional slide with this at full motion
-        /// and fall back to a plain crossfade under Reduce Motion.
-        var segmentTransition: Animation
 
         static let standard = Motion(
             reveal: .easeIn(duration: 0.18),
             reducedReveal: .easeInOut(duration: 0.2),
             captionFade: .easeOut(duration: 0.3),
-            segmentTransition: .easeInOut(duration: 0.25),
         )
     }
 }

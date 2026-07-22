@@ -3,10 +3,10 @@ import SwiftUI
 import WhereCore
 
 /// Settings tab: an iOS-Settings-style top-level list of icon rows that drill
-/// into grouped sub-screens (location, regions, reminders, alerts & data
-/// resolution, appearance, report year, backup, data), plus a search field that
-/// filters individual settings and deep-links to the screen — and the row —
-/// containing each.
+/// into grouped sub-screens — a Data group at the top (attachments, logged days,
+/// regions), then location, alerts, appearance, report year, backup, and erase
+/// — plus a search field that filters individual settings and deep-links to the
+/// screen — and the row — containing each.
 ///
 /// The top level owns nothing but navigation; behavior lives in the sub-screens
 /// (`LocationSettingsView`, `AlertsSettingsView`, …). The scene's report model and
