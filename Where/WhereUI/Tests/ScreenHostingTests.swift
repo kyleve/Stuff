@@ -260,6 +260,35 @@ struct ScreenHostingTests {
         }
     }
 
+    @Test func calendarContentViewHostsWithData() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let rootView = NavigationStack { CalendarContentView(report: report) }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func yearViewHostsWithData() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        try show(UIHostingController(rootView: YearView(report: report))) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func yourDataViewHostsWithData() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        try show(UIHostingController(rootView: YourDataView(report: report))) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func elsewhereSummaryCardHosts() throws {
+        let rootView = ElsewhereSummaryCard(regionCount: 3, dayCount: 24)
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
     @Test func appIconViewHosts() throws {
         let rootView = NavigationStack { AppIconView(model: .preview()) }
         try show(UIHostingController(rootView: rootView)) { hosted in

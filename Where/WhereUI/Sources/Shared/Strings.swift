@@ -12,14 +12,8 @@ import WhereCore
 enum Strings {
     // MARK: Tabs
 
-    static var tabPrimary: String {
-        localized("tab.primary")
-    }
-
-    static var tabElsewhere: String {
-        localized("tab.elsewhere")
-    }
-
+    /// Used as the Locations toolbar Resolve button's accessibility label — the
+    /// former Resolve tab is now a toolbar action.
     static var tabResolution: String {
         localized("tab.resolution")
     }
@@ -1792,10 +1786,6 @@ enum Strings {
     }
 
     // MARK: Timeline
-
-    static var timelineDone: String {
-        localized("timeline.done")
-    }
 
     static var timelineEmptyTitle: String {
         localized("timeline.empty.title")

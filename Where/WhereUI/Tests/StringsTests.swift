@@ -9,7 +9,7 @@ import WhereCore
 /// years are formatted without a grouping separator.
 struct StringsTests {
     @Test func simpleKeysResolveToCatalogValues() {
-        #expect(Strings.tabElsewhere == "Elsewhere")
+        #expect(Strings.tabSettings == "Settings")
         #expect(Strings.loadErrorTitle == "Couldn't load your year")
         #expect(Strings.commonOK == "OK")
         #expect(Strings.manualSaveErrorTitle == "Couldn't save that day")

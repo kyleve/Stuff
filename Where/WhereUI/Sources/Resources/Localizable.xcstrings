@@ -342,6 +342,30 @@
         }
       }
     },
+    "data.segment.attachments" : {
+      "comment" : "Attachments segment label in the Your Data tab.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attachments"
+          }
+        }
+      }
+    },
+    "data.segmentPicker" : {
+      "comment" : "Accessibility label for the Your Data tab's segmented control.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data view"
+          }
+        }
+      }
+    },
     "developer.button.label" : {
       "comment" : "Accessibility label for the floating developer button.",
       "extractionState" : "manual",
@@ -931,6 +955,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Getting things ready…"
+          }
+        }
+      }
+    },
+    "locations.elsewhere.subtitle" : {
+      "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region and day counts.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%1$lld region](inflect: true) · ^[%2$lld day](inflect: true)"
           }
         }
       }
@@ -3768,24 +3804,24 @@
         }
       }
     },
-    "tab.elsewhere" : {
+    "tab.data" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Elsewhere"
+            "value" : "Your Data"
           }
         }
       }
     },
-    "tab.primary" : {
+    "tab.locations" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Primary"
+            "value" : "Locations"
           }
         }
       }
@@ -3813,13 +3849,13 @@
         }
       }
     },
-    "timeline.done" : {
+    "tab.year" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Done"
+            "value" : "Your Year"
           }
         }
       }
@@ -3916,6 +3952,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Days in %@"
+          }
+        }
+      }
+    },
+    "year.segmentPicker" : {
+      "comment" : "Accessibility label for the Your Year tab's segmented control.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year view"
           }
         }
       }
