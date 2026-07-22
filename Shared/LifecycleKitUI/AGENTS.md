@@ -4,7 +4,8 @@ The SwiftUI layer for [LifecycleKit](../LifecycleKit): `LifecycleContainer`
 renders a `LifecycleRunner`'s `phase` (splash / gate view / failure / app
 content), `GateView(for:content:)` registers gate views by gate *type*, and
 `LifecycleProxy` (`@Environment(\.lifecycle)`) lets nested views reach
-`retry()`/`teardown(_:input:)`. See [`README.md`](README.md) for the full
+`enterForeground()`/`teardown(_:input:)`. The failure surface is terminal
+(no retry). See [`README.md`](README.md) for the full
 narrative and API.
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md), which owns
@@ -30,7 +31,7 @@ build system, formatting, and global conventions. Read that first.
   gate with no registration is a programmer error — the container logs it
   (`os`, subsystem `com.stuff.lifecyclekitui`) and fails the gate's handle
   with `MissingGateViewError`, landing on the failure surface (visible and
-  retryable, identical in debug and release) rather than an indefinite
+  named (though terminal), identical in debug and release) rather than an indefinite
   splash.
 
 ## Testing
