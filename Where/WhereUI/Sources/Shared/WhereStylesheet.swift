@@ -290,6 +290,12 @@ extension WhereStylesheet {
         /// Diameter of a region-presence dot under a day number (a touch larger
         /// than the footer dots so days scan easily).
         var dayDotSize: CGFloat
+        /// How far adjacent day dots overlap on a multi-region day, so several
+        /// regions read as an overlapping cluster.
+        var dayDotOverlap: CGFloat
+        /// Background-colored rim on each dot of an overlapping cluster, so the
+        /// overlap reads as distinct coins rather than a merged blob.
+        var dayDotStrokeWidth: CGFloat
         /// The subtle "stay" pill drawn behind contiguous same-region days.
         var regionBand: RegionBand
         /// Spacing inside a day cell (the number over its dots).
@@ -369,9 +375,11 @@ extension WhereStylesheet {
             dayMinHeight: 44,
             dotSize: 6,
             dayDotSize: 8,
+            dayDotOverlap: 2,
+            dayDotStrokeWidth: 1.5,
             regionBand: RegionBand(
                 opacity: 0.16,
-                cornerRadius: 10,
+                cornerRadius: 14,
                 continuationRadius: 3,
                 verticalInset: 3,
             ),

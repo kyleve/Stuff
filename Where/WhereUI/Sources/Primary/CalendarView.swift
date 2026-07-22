@@ -423,13 +423,24 @@ private struct DayCell: View {
     }
 
     /// Region-presence dots beneath the day number (one per region the day
-    /// counts for). Empty days keep the row height so the grid baseline is even.
+    /// counts for). On a multi-region day the dots overlap into a cluster, each
+    /// with a background rim so they read as distinct coins. Empty days keep the
+    /// row height so the grid baseline is even.
     private var dots: some View {
-        HStack(spacing: calendar.dayContentSpacing) {
+        let isCluster = day.regions.count > 1
+        return HStack(spacing: isCluster ? -calendar.dayDotOverlap : calendar.dayContentSpacing) {
             ForEach(day.regions, id: \.self) { region in
                 Circle()
                     .fill(regionStyles.style(for: region).tint)
                     .frame(width: calendar.dayDotSize, height: calendar.dayDotSize)
+                    .overlay {
+                        if isCluster {
+                            Circle().stroke(
+                                Color(.systemBackground),
+                                lineWidth: calendar.dayDotStrokeWidth,
+                            )
+                        }
+                    }
             }
         }
         .frame(height: calendar.dayDotSize)
