@@ -63,7 +63,7 @@ struct ScreenHostingTests {
 
     @Test func appearanceSettingsViewHosts() throws {
         let rootView = NavigationStack {
-            AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
+            AppearanceSettingsView()
         }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
@@ -283,7 +283,7 @@ struct ScreenHostingTests {
     }
 
     @Test func elsewhereSummaryCardHosts() throws {
-        let rootView = ElsewhereSummaryCard(regionCount: 3, dayCount: 24)
+        let rootView = ElsewhereSummaryCard(regionCount: 3)
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }

@@ -116,10 +116,7 @@ struct LocationsView: View {
                         NavigationLink {
                             ElsewhereView(report: report)
                         } label: {
-                            ElsewhereSummaryCard(
-                                regionCount: report.ranking.secondary.count,
-                                dayCount: report.ranking.secondary.reduce(0) { $0 + $1.days },
-                            )
+                            ElsewhereSummaryCard(regionCount: report.ranking.secondary.count)
                         }
                         .buttonStyle(.plain)
                     }

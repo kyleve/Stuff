@@ -174,7 +174,7 @@ struct SettingsView: View {
             case .alerts:
                 AlertsSettingsView(report: report, reminders: reminders, focus: route.focus)
             case .appearance:
-                AppearanceSettingsView(report: report, focus: route.focus)
+                AppearanceSettingsView(focus: route.focus)
             case .year:
                 VisibleYearSettingsView(report: report, focus: route.focus)
             case .backup:

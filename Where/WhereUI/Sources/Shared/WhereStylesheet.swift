@@ -86,13 +86,13 @@ extension WhereStylesheet {
 extension WhereStylesheet {
     /// The complete visual spec for a `RegionSummaryCard`. Bundling every value
     /// the card's appearance depends on into one type — with a `.regular` variant
-    /// (the big Primary cards) and a `.compact` variant (the Elsewhere list) —
+    /// (the big Locations cards) and a `.compact` variant (the Elsewhere list) —
     /// lets the view read a single resolved `CardStyle` instead of branching on a
     /// `compact` flag across ~30 tokens. Non-varying generic spacing (the inner
     /// header/number stacks) still comes from ``Spacing``.
     struct CardStyle: Equatable {
-        /// Which card the stylesheet vends: the Primary tab uses `.regular`, the
-        /// Elsewhere tab `.compact`.
+        /// Which card the stylesheet vends: the Locations cards use `.regular`,
+        /// the Elsewhere list `.compact`.
         enum Variant {
             case regular
             case compact

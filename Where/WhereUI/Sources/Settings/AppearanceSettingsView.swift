@@ -4,7 +4,6 @@ import WhereCore
 /// Settings drill-in for presentation choices: which alternate app icon is used
 /// (the icon picker pushes on from here).
 struct AppearanceSettingsView: View {
-    let report: YearReportModel
     var focus: SettingsFocus?
 
     @State private var showAppIcon = false
@@ -60,7 +59,7 @@ extension AppearanceSettingsView: SettingsSection {
 #if DEBUG
     #Preview {
         NavigationStack {
-            AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
+            AppearanceSettingsView()
         }
         .whereBroadwayRoot()
     }

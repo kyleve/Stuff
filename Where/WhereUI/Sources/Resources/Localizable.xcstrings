@@ -960,13 +960,13 @@
       }
     },
     "locations.elsewhere.subtitle" : {
-      "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region and day counts.",
+      "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region count.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "^[%1$lld region](inflect: true) · ^[%2$lld day](inflect: true)"
+            "value" : "^[%lld region](inflect: true)"
           }
         }
       }

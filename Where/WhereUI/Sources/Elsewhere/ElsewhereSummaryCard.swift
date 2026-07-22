@@ -8,8 +8,6 @@ import WhereCore
 struct ElsewhereSummaryCard: View {
     /// Number of secondary regions.
     let regionCount: Int
-    /// Total days spent across those regions.
-    let dayCount: Int
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -27,7 +25,7 @@ struct ElsewhereSummaryCard: View {
             VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
                 Text(Strings.secondaryTitle)
                     .font(.headline)
-                Text(Strings.elsewhereCardSubtitle(regions: regionCount, days: dayCount))
+                Text(Strings.elsewhereCardSubtitle(regions: regionCount))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }
@@ -52,8 +50,7 @@ struct ElsewhereSummaryCard: View {
 
 #if DEBUG
     #Preview {
-        ElsewhereSummaryCard(regionCount: 3, dayCount: 24)
+        ElsewhereSummaryCard(regionCount: 3)
             .padding()
-            .environment(\.colorScheme, .dark)
     }
 #endif

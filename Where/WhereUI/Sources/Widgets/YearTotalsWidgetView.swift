@@ -4,7 +4,8 @@ import WhereCore
 /// Home-screen widget content: year-to-date day counts per region — the
 /// number a residency-audit user wants at a glance. Renders from a
 /// `WidgetSnapshot` value; ranking reuses `RegionRanking.ranked` so the
-/// widget orders regions exactly like the app's Primary/Elsewhere tabs.
+/// widget orders regions exactly like the app's Locations tab (primary
+/// regions first, then Elsewhere).
 public struct YearTotalsWidgetView: View {
     private let snapshot: WidgetSnapshot
     private let maxRows: Int
