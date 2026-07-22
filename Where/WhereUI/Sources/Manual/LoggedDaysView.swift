@@ -6,18 +6,15 @@ import WhereCore
 /// Lists every day the user logged or overrode by hand in the selected year,
 /// newest first, with a "+" to log a new one. Tapping a row opens an editor to
 /// correct it; swiping (or edit mode) deletes the entry, restoring the
-/// GPS-derived attribution for that day. Chrome-free (no `NavigationStack` /
-/// title): the Your Data tab hosts it as the Logged Days segment and owns the
-/// bar.
+/// GPS-derived attribution for that day. A drill-in from the Settings "Data"
+/// section (the Logged Days row), so it renders inside that `NavigationStack`
+/// and owns only its title and toolbar.
 ///
 /// The list stays in sync off the single store-change signal
 /// (`LoggedDaysModel.observe`), so an add, edit, or delete — from here or
 /// anywhere — reloads it.
 struct LoggedDaysView: View {
     let report: YearReportModel
-    /// Whether this is the visible Your Data segment; gates the `+` toolbar item
-    /// so the hidden (but still-mounted) segment doesn't also contribute it.
-    var isActive: Bool
 
     @Environment(\.stylesheet) private var stylesheet
     @State private var model: LoggedDaysModel
@@ -26,17 +23,15 @@ struct LoggedDaysView: View {
     @State private var deleteError = SaveErrorAlertState()
     @State private var filter: LoggedDaysFilter = .all
 
-    init(report: YearReportModel, isActive: Bool = true) {
+    init(report: YearReportModel) {
         self.report = report
-        self.isActive = isActive
         _model = State(initialValue: LoggedDaysModel(services: report.services))
     }
 
     #if DEBUG
         /// Preview seam: inject a model already in a chosen state.
-        init(report: YearReportModel, model: LoggedDaysModel, isActive: Bool = true) {
+        init(report: YearReportModel, model: LoggedDaysModel) {
             self.report = report
-            self.isActive = isActive
             _model = State(initialValue: model)
         }
     #endif
@@ -55,16 +50,16 @@ struct LoggedDaysView: View {
         @Bindable var deleteError = deleteError
 
         content
+            .navigationTitle(Strings.loggedDaysTitle(year: report.selectedYear))
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                if isActive {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            showingAdd = true
-                        } label: {
-                            Label(Strings.loggedDaysAdd, systemImage: "plus")
-                        }
-                        .accessibilityIdentifier("where_add_logged_day_button")
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingAdd = true
+                    } label: {
+                        Label(Strings.loggedDaysAdd, systemImage: "plus")
                     }
+                    .accessibilityIdentifier("where_add_logged_day_button")
                 }
             }
             // Load, then keep the list current off the single store-change
@@ -199,6 +194,28 @@ struct LoggedDaysView: View {
                 )
             } catch {
                 deleteError.message = error.localizedDescription
+            }
+        }
+    }
+}
+
+extension LoggedDaysView: SettingsSection {
+    static var destination: SettingsDestination {
+        .loggedDays
+    }
+
+    enum Item: SettingsItem {
+        case loggedDays
+
+        var title: String {
+            switch self {
+                case .loggedDays: Strings.settingsLoggedDaysRow
+            }
+        }
+
+        var keywords: [String] {
+            switch self {
+                case .loggedDays: splitKeywords(Strings.settingsKeywordsLoggedDays)
             }
         }
     }

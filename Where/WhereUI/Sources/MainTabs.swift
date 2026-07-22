@@ -7,17 +7,17 @@ import WhereCore
 /// subscribe + pull, background → cancel — closing the headless-relaunch rescan
 /// leak).
 ///
-/// Four fixed tabs — Locations, Your Year, Your Data, Settings. Elsewhere is
-/// folded into Locations (an entry card) and Resolve into a Locations toolbar
-/// button, so neither is a tab anymore. The tabs receive the report by explicit
-/// init injection (compile-checked wiring); the always-on `WhereSession`
-/// coordinator stays in the environment.
+/// Three fixed tabs — Locations, Your Year, Settings. Elsewhere is folded into
+/// Locations (an entry card) and Resolve into a Locations toolbar button; the
+/// data screens (attachments, logged days, regions) live in the Settings "Data"
+/// group. The tabs receive the report by explicit init injection (compile-
+/// checked wiring); the always-on `WhereSession` coordinator stays in the
+/// environment.
 struct MainTabs: View {
     /// Identity for the tab-bar selection.
     private enum TabID: Hashable {
         case locations
         case year
-        case data
         case settings
     }
 
@@ -47,11 +47,6 @@ struct MainTabs: View {
 
             Tab(Strings.tabYear, systemImage: "calendar", value: TabID.year) {
                 YearView(report: report)
-                    .reportingDeveloperTabBarInset()
-            }
-
-            Tab(Strings.tabData, systemImage: "tray.full.fill", value: TabID.data) {
-                YourDataView(report: report)
                     .reportingDeveloperTabBarInset()
             }
 

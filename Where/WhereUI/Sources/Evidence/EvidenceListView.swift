@@ -3,8 +3,9 @@ import WhereCore
 
 /// Lists every piece of evidence captured in the selected year, newest first,
 /// with a "+" to compose a new one in-app. Tapping a row pushes its detail
-/// (metadata + attachment preview). Chrome-free (no `NavigationStack` / title):
-/// the Your Data tab hosts it as the Attachments segment and owns the bar.
+/// (metadata + attachment preview). A drill-in from the Settings "Data" section
+/// (the Attachments row), so it renders inside that `NavigationStack` and owns
+/// only its title and toolbar.
 ///
 /// The list reloads whenever the year's evidence day-keys change (any committed
 /// write, including a share-extension add synced back) and again each time the
@@ -12,24 +13,19 @@ import WhereCore
 /// appears immediately.
 struct EvidenceListView: View {
     let report: YearReportModel
-    /// Whether this is the visible Your Data segment; gates the `+` toolbar item
-    /// so the hidden (but still-mounted) segment doesn't also contribute it.
-    var isActive: Bool
 
     @State private var model: EvidenceListModel
     @State private var showingAdd = false
 
-    init(report: YearReportModel, isActive: Bool = true) {
+    init(report: YearReportModel) {
         self.report = report
-        self.isActive = isActive
         _model = State(initialValue: EvidenceListModel(services: report.services))
     }
 
     #if DEBUG
         /// Preview seam: inject a model already in a chosen state.
-        init(report: YearReportModel, model: EvidenceListModel, isActive: Bool = true) {
+        init(report: YearReportModel, model: EvidenceListModel) {
             self.report = report
-            self.isActive = isActive
             _model = State(initialValue: model)
         }
     #endif
@@ -42,16 +38,16 @@ struct EvidenceListView: View {
 
     var body: some View {
         content
+            .navigationTitle(Strings.evidenceListTitle(year: report.selectedYear))
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                if isActive {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            showingAdd = true
-                        } label: {
-                            Label(Strings.evidenceAdd, systemImage: "plus")
-                        }
-                        .accessibilityIdentifier("where_add_evidence_button")
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showingAdd = true
+                    } label: {
+                        Label(Strings.evidenceAdd, systemImage: "plus")
                     }
+                    .accessibilityIdentifier("where_add_evidence_button")
                 }
             }
             .navigationDestination(for: Evidence.self) { evidence in
@@ -111,6 +107,28 @@ struct EvidenceListView: View {
             Text(Strings.evidenceEmptyDescription)
         } actions: {
             Button(Strings.evidenceAdd) { showingAdd = true }
+        }
+    }
+}
+
+extension EvidenceListView: SettingsSection {
+    static var destination: SettingsDestination {
+        .attachments
+    }
+
+    enum Item: SettingsItem {
+        case attachments
+
+        var title: String {
+            switch self {
+                case .attachments: Strings.settingsAttachmentsRow
+            }
+        }
+
+        var keywords: [String] {
+            switch self {
+                case .attachments: splitKeywords(Strings.settingsKeywordsAttachments)
+            }
         }
     }
 }

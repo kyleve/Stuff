@@ -5,6 +5,8 @@ import SwiftUI
 /// `navigationDestination` switch (in `SettingsView`) builds a screen for every
 /// case with no `default:`, so adding a case is a compile error until wired.
 enum SettingsDestination: Hashable, CaseIterable {
+    case attachments
+    case loggedDays
     case location
     case regions
     case alerts
@@ -17,6 +19,8 @@ enum SettingsDestination: Hashable, CaseIterable {
     /// group label under a search result.
     var rowTitle: String {
         switch self {
+            case .attachments: Strings.settingsAttachmentsRow
+            case .loggedDays: Strings.settingsLoggedDaysRow
             case .location: Strings.settingsLocationHeader
             case .regions: Strings.settingsRegionsSection
             case .alerts: Strings.settingsAlertsGroup
@@ -30,6 +34,8 @@ enum SettingsDestination: Hashable, CaseIterable {
     /// The SF Symbol shown as the row's leading icon.
     var systemImage: String {
         switch self {
+            case .attachments: "paperclip"
+            case .loggedDays: "calendar.badge.plus"
             case .location: "location.fill"
             case .regions: "map.fill"
             case .alerts: "bell.badge"
@@ -45,6 +51,8 @@ enum SettingsDestination: Hashable, CaseIterable {
     /// accent/adaptive colors.
     var iconColor: Color {
         switch self {
+            case .attachments: .indigo
+            case .loggedDays: .mint
             case .location: .blue
             case .regions: .green
             case .alerts: .red
@@ -61,7 +69,8 @@ enum SettingsDestination: Hashable, CaseIterable {
     var isSheet: Bool {
         switch self {
             case .regions: true
-            case .location, .alerts, .appearance, .year, .backup, .data: false
+            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .backup, .data:
+                false
         }
     }
 }
@@ -71,17 +80,19 @@ enum SettingsDestination: Hashable, CaseIterable {
 /// belongs to exactly one block — `SettingsSearchTests` guards full, unique
 /// coverage — and the block order is the on-screen order.
 enum SettingsListSection: CaseIterable {
+    case userData
     case tracking
     case notifications
     case display
-    case data
+    case storage
 
     var destinations: [SettingsDestination] {
         switch self {
-            case .tracking: [.location, .regions]
+            case .userData: [.attachments, .loggedDays, .regions]
+            case .tracking: [.location]
             case .notifications: [.alerts]
             case .display: [.appearance, .year]
-            case .data: [.backup, .data]
+            case .storage: [.backup, .data]
         }
     }
 }
@@ -179,7 +190,9 @@ extension SettingsSection {
 enum SettingsCatalog {
     /// Every searchable setting across all screens.
     static let results: [SettingsSearchResult] =
-        LocationSettingsView.searchResults
+        EvidenceListView.searchResults
+            + LoggedDaysView.searchResults
+            + LocationSettingsView.searchResults
             + RegionsSettingsView.searchResults
             + AlertsSettingsView.searchResults
             + AppearanceSettingsView.searchResults

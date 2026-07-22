@@ -600,6 +600,32 @@ enum Strings {
         String(localized: "settings.regions.section", defaultValue: "Regions", bundle: .module)
     }
 
+    /// Row title for the attachments (evidence) screen in the Settings Data group.
+    static var settingsAttachmentsRow: String {
+        String(localized: "settings.attachments.row", defaultValue: "Attachments", bundle: .module)
+    }
+
+    static var settingsKeywordsAttachments: String {
+        String(
+            localized: "settings.keywords.attachments",
+            defaultValue: "attachments, evidence, receipt, boarding pass, ticket, photo",
+            bundle: .module,
+        )
+    }
+
+    /// Row title for the hand-logged-days screen in the Settings Data group.
+    static var settingsLoggedDaysRow: String {
+        String(localized: "settings.loggedDays.row", defaultValue: "Logged Days", bundle: .module)
+    }
+
+    static var settingsKeywordsLoggedDays: String {
+        String(
+            localized: "settings.keywords.loggedDays",
+            defaultValue: "logged days, manual, override, entry, backfill",
+            bundle: .module,
+        )
+    }
+
     static var settingsRegionsRow: String {
         String(
             localized: "settings.regions.row",

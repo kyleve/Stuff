@@ -275,13 +275,6 @@ struct ScreenHostingTests {
         }
     }
 
-    @Test func yourDataViewHostsWithData() throws {
-        let report = PreviewSupport.loadedYearReportModel()
-        try show(UIHostingController(rootView: YourDataView(report: report))) { hosted in
-            #expect(hosted.view != nil)
-        }
-    }
-
     @Test func elsewhereSummaryCardHosts() throws {
         let rootView = ElsewhereSummaryCard(regionCount: 3)
         try show(UIHostingController(rootView: rootView)) { hosted in

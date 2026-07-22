@@ -106,7 +106,7 @@ struct SettingsView: View {
         switch destination {
             case .regions:
                 showRegions = true
-            case .location, .alerts, .appearance, .year, .backup, .data:
+            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .backup, .data:
                 assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
@@ -139,7 +139,7 @@ struct SettingsView: View {
                 )
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
-            case .regions, .alerts, .appearance, .backup, .data:
+            case .attachments, .loggedDays, .regions, .alerts, .appearance, .backup, .data:
                 nil
         }
     }
@@ -165,6 +165,10 @@ struct SettingsView: View {
     @ViewBuilder
     private func destination(for route: SettingsRoute) -> some View {
         switch route.destination {
+            case .attachments:
+                EvidenceListView(report: report)
+            case .loggedDays:
+                LoggedDaysView(report: report)
             case .location:
                 LocationSettingsView(focus: route.focus)
             case .regions:
