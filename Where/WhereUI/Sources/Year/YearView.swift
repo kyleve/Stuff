@@ -82,14 +82,18 @@ struct YearView: View {
                 LinearGradient(
                     stops: [
                         .init(color: .clear, location: 0),
-                        .init(color: .black, location: 0.7),
+                        // Reach full blur partway up so it's solid well before
+                        // the bottom.
+                        .init(color: .black, location: 0.5),
                         .init(color: .black, location: 1),
                     ],
                     startPoint: .top,
                     endPoint: .bottom,
                 )
             }
-            .frame(height: bottomSafeArea + pillClearance + stylesheet.spacing.xxxLarge)
+            // Start the fade higher above the pill (a taller band) so the blur
+            // begins earlier.
+            .frame(height: bottomSafeArea + pillClearance + stylesheet.spacing.xxxLarge * 2)
             .frame(maxWidth: .infinity)
             .ignoresSafeArea(.container, edges: .bottom)
             .allowsHitTesting(false)
