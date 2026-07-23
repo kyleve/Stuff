@@ -87,7 +87,7 @@ private struct YearModePicker: View {
                 segment(candidate)
             }
         }
-        .padding(stylesheet.spacing.xxSmall)
+        .padding(stylesheet.spacing.small)
         // A single selection capsule that follows the selected segment's frame,
         // so changing selection slides it across (rather than a per-segment
         // capsule fading in/out). Real black in light mode / white in dark — it
