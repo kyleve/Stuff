@@ -19,9 +19,22 @@ jobs:
       - uses: jdx/mise-action@v3
       - run: ./swiftformat --lint
 
+  architecture:
+    name: Bumper Bowling
+    needs: format
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate configuration
+        run: swift run bumper config .
+      - name: Test architecture rules
+        run: swift run bumper test .
+      - name: Enforce Where architecture
+        run: swift run bumper lint . --timings
+
   test:
     name: Build & Test (iOS)
-    needs: format
+    needs: [format, architecture]
     runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4

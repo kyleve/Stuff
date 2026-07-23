@@ -8,6 +8,7 @@
 | SwiftFormat | 0.60.1   | `.mise.toml` |
 | Ruby        | 3.4.10   | `.mise.toml` |
 | Swift PM    | 6.2      | `Package.swift` (`swift-tools-version`) |
+| Bumper Bowling | `main` | `Package.swift` / `Package.resolved` |
 
 Library targets live in the root [`Package.swift`](Package.swift) (one local
 package); apps, app extensions, and test bundles are Tuist targets in
@@ -47,6 +48,20 @@ Run `./ide --no-open` after adding one.
   format the tree, or `./swiftformat --lint` to check only (as in CI).
 - The pre-commit hook (enabled by `./ide` via `core.hooksPath`) formats staged
   `*.swift` files in place and re-stages them.
+
+## Architecture lint
+
+Bumper Bowling enforces the production Where module graph and selected
+source-level invariants. The entry point is
+[`BumperBowling.swift`](BumperBowling.swift), repository-owned shapes and rules
+live in [`.bumper/Sources`](.bumper/Sources), and
+[`.bumper/RULES.md`](.bumper/RULES.md) is the rule catalog.
+
+Run `swift run bumper config .`, `swift run bumper test .`, and
+`swift run bumper lint . --timings` after changing a Where dependency,
+composition root, or documented concurrency boundary. Keep the relevant
+`AGENTS.md`, the executable rule, its catalog entry, and its mutation test in
+the same change.
 
 ## Agent instructions sync
 

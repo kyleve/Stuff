@@ -45,6 +45,19 @@ followed by `mise install` works too.
 
 Run tests with `mise exec -- tuist test` (or open the generated workspace in Xcode). CI pins an iOS Simulator destination so the full suite stays consistent.
 
+Where's production architecture is checked with Bumper Bowling through the
+root Swift package:
+
+```bash
+swift run bumper config .
+swift run bumper test .
+swift run bumper lint . --timings
+```
+
+The executable configuration is in [`BumperBowling.swift`](BumperBowling.swift);
+the enforced invariants and repair guidance are cataloged in
+[`.bumper/RULES.md`](.bumper/RULES.md).
+
 To see where build and test time goes, run `./profile` — it prints the slowest build phases, the slowest tests (per bundle), and any slow type-check sites. It only reports, it never fails; see `./profile --help` for flags (`--build-only`/`--tests-only`, `--device`/`--os`, `--top`, thresholds).
 
 To hunt down flaky tests, run `./flaky` — it runs the whole suite several times, then tight-loops (in isolation) any test that ever failed, and records the tests that both pass and fail (with flake counts) in [`FLAKY_TESTS.md`](FLAKY_TESTS.md). Like `./profile` it's report-only; see `./flaky --help` for flags (`--suite-runs`, `--iterations`, `--device`/`--os`, `--no-update`, `--top`).
@@ -86,6 +99,8 @@ TUIST_DEVELOPMENT_TEAM = "ABCDE12345"
 
 ```
 Package.swift       Local Swift package (StuffCore, LifecycleKit, WhereCore, WhereUI, TestHostSupport, …)
+BumperBowling.swift Executable Where architecture policy
+.bumper/            Repo-owned Bumper shapes, rules, tests, and catalog
 Project.swift       Tuist manifest (Where app, StuffTestHost, test bundles → SPM)
 Tuist.swift         Tuist configuration
 .mise.toml          Pins Tuist 4.200.5, SwiftFormat 0.60.1, and Ruby 3.4.10
