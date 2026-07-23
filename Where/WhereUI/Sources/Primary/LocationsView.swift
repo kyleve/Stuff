@@ -82,78 +82,76 @@ struct LocationsView: View {
     }
 
     private var content: some View {
-        // The `GeometryReader` gives the viewport height so a short list (one or
-        // two cards) can be vertically centered rather than pinned to the top:
-        // the stack claims at least the full height and centers its contents,
-        // and still grows past it — scrolling — when the cards overflow.
-        GeometryReader { proxy in
-            ScrollView {
-                GlassEffectContainer(spacing: stylesheet.spacing.xxLarge) {
-                    VStack(spacing: stylesheet.spacing.xxLarge) {
-                        ForEach(report.ranking.primary) { item in
-                            NavigationLink {
-                                calendarDestination(item.region)
-                            } label: {
-                                RegionSummaryCard(
-                                    regionDays: item,
-                                    interactive: true,
-                                    yearLength: report.daysInSelectedYear,
-                                    year: report.selectedYear,
-                                    tilt: tilt,
+        // `.defaultScrollAnchor(.center)` vertically centers a short list (one or
+        // two cards) rather than pinning it to the top, while a longer list still
+        // scrolls from the top.
+        ScrollView {
+            GlassEffectContainer(spacing: stylesheet.spacing.xxLarge) {
+                VStack(spacing: stylesheet.spacing.xxLarge) {
+                    ForEach(report.ranking.primary) { item in
+                        NavigationLink {
+                            calendarDestination(item.region)
+                        } label: {
+                            RegionSummaryCard(
+                                regionDays: item,
+                                interactive: true,
+                                yearLength: report.daysInSelectedYear,
+                                year: report.selectedYear,
+                                tilt: tilt,
+                            )
+                        }
+                        // Plain so the card's interactive Liquid Glass owns
+                        // the press feel rather than the button adding its own.
+                        .buttonStyle(.plain)
+                        // The card is the zoom source: tapping it expands the
+                        // card into the pushed calendar (matched geometry). The
+                        // configuration re-states the card's rounded shape and
+                        // its glow/lift shadows so the transition interpolates
+                        // them — without it, the zoom clips the source to a bare
+                        // rectangle and the card's soft shadow pops on/off.
+                        .matchedTransitionSource(
+                            id: item.region,
+                            in: calendarTransition,
+                        ) { source in
+                            let card = stylesheet.card.regular
+                            let tint = regionStyles.style(for: item.region).tint
+                            return source
+                                .clipShape(
+                                    RoundedRectangle(
+                                        cornerRadius: card.cornerRadius,
+                                        style: .continuous,
+                                    ),
                                 )
-                            }
-                            // Plain so the card's interactive Liquid Glass owns
-                            // the press feel rather than the button adding its own.
-                            .buttonStyle(.plain)
-                            // The card is the zoom source: tapping it expands the
-                            // card into the pushed calendar (matched geometry). The
-                            // configuration re-states the card's rounded shape and
-                            // its glow/lift shadows so the transition interpolates
-                            // them — without it, the zoom clips the source to a bare
-                            // rectangle and the card's soft shadow pops on/off.
-                            .matchedTransitionSource(
-                                id: item.region,
-                                in: calendarTransition,
-                            ) { source in
-                                let card = stylesheet.card.regular
-                                let tint = regionStyles.style(for: item.region).tint
-                                return source
-                                    .clipShape(
-                                        RoundedRectangle(
-                                            cornerRadius: card.cornerRadius,
-                                            style: .continuous,
-                                        ),
-                                    )
-                                    .shadow(
-                                        color: tint.opacity(card.glow.opacity),
-                                        radius: card.glow.radius,
-                                    )
-                                    .shadow(
-                                        color: tint.opacity(card.lift.opacity),
-                                        radius: card.lift.radius,
-                                        y: card.lift.offsetY,
-                                    )
-                            }
-                            .accessibilityHint(Strings.primaryCardCalendarHint)
+                                .shadow(
+                                    color: tint.opacity(card.glow.opacity),
+                                    radius: card.glow.radius,
+                                )
+                                .shadow(
+                                    color: tint.opacity(card.lift.opacity),
+                                    radius: card.lift.radius,
+                                    y: card.lift.offsetY,
+                                )
                         }
+                        .accessibilityHint(Strings.primaryCardCalendarHint)
+                    }
 
-                        // Fold Elsewhere in at the bottom — only when there's
-                        // something in it — as an entry card into the full list.
-                        if !report.ranking.secondary.isEmpty {
-                            NavigationLink {
-                                ElsewhereView(report: report)
-                            } label: {
-                                ElsewhereSummaryCard(regionCount: report.ranking.secondary.count)
-                            }
-                            .buttonStyle(.plain)
+                    // Fold Elsewhere in at the bottom — only when there's
+                    // something in it — as an entry card into the full list.
+                    if !report.ranking.secondary.isEmpty {
+                        NavigationLink {
+                            ElsewhereView(report: report)
+                        } label: {
+                            ElsewhereSummaryCard(regionCount: report.ranking.secondary.count)
                         }
+                        .buttonStyle(.plain)
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, minHeight: proxy.size.height, alignment: .center)
             }
-            .scrollBounceBehavior(.basedOnSize)
+            .padding()
+            .frame(maxWidth: .infinity)
         }
+        .defaultScrollAnchor(.center)
+        .scrollBounceBehavior(.basedOnSize)
         .accessibilityIdentifier("where_root_title")
     }
 
