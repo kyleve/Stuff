@@ -10,17 +10,8 @@ struct YearView: View {
 
     @State private var mode: YearMode = .calendar
     @State private var showingRecentActivity = false
-    /// Measured so content scrolls clear of the floating pill and the fade
-    /// covers from a bit above the pill to the bottom of the screen.
-    @State private var pillHeight: CGFloat = 0
-    @State private var bottomSafeArea: CGFloat = 0
 
     @Environment(\.stylesheet) private var stylesheet
-
-    /// The pill's occupied height above the safe area (pill + its bottom gap).
-    private var pillClearance: CGFloat {
-        pillHeight + stylesheet.spacing.xLarge
-    }
 
     var body: some View {
         NavigationStack {
@@ -41,14 +32,10 @@ struct YearView: View {
             // timeline starts at the top; without pinning it, switching between
             // them animates that material in/out — reading as a toolbar fade.
             .toolbarBackground(.visible, for: .navigationBar)
-            .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.bottom }
-            action: { bottomSafeArea = $0 }
-            // Let content scroll out from under the floating pill.
-            .contentMargins(.bottom, pillClearance, for: .scrollContent)
-            // The scrolling content dissolves into a Liquid-Glass blur toward
-            // the bottom, behind the pill (drawn on top below).
-            .overlay(alignment: .bottom) { bottomFade }
-            .overlay(alignment: .bottom) { pill }
+            .safeAreaInset(edge: .bottom, alignment: .center) {
+                YearModePicker(mode: $mode)
+                    .padding(.bottom, stylesheet.spacing.xLarge)
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -63,40 +50,6 @@ struct YearView: View {
         .sheet(isPresented: $showingRecentActivity) {
             RecentActivitySummaryView(report: report)
         }
-    }
-
-    private var pill: some View {
-        YearModePicker(mode: $mode)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pillHeight = $0 }
-            .padding(.bottom, stylesheet.spacing.xLarge)
-    }
-
-    /// A progressive Liquid-Glass fade: a bottom band of blur masked by a
-    /// vertical gradient (clear a bit above the pill → full at the bottom), so
-    /// the content scrolling under it dissolves into blur. Runs to the screen
-    /// bottom and ignores taps.
-    private var bottomFade: some View {
-        Rectangle()
-            .fill(.ultraThinMaterial)
-            .mask {
-                LinearGradient(
-                    stops: [
-                        .init(color: .clear, location: 0),
-                        // Reach full blur partway up so it's solid well before
-                        // the bottom.
-                        .init(color: .black, location: 0.5),
-                        .init(color: .black, location: 1),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom,
-                )
-            }
-            // Start the fade higher above the pill (a taller band) so the blur
-            // begins earlier.
-            .frame(height: bottomSafeArea + pillClearance + stylesheet.spacing.xxxLarge * 2)
-            .frame(maxWidth: .infinity)
-            .ignoresSafeArea(.container, edges: .bottom)
-            .allowsHitTesting(false)
     }
 }
 
