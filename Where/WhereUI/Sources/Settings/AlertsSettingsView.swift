@@ -26,7 +26,7 @@ struct AlertsSettingsView: View {
                 findIssuesSection
             }
         }
-        .navigationTitle(Strings.settingsAlertsGroup)
+        .navigationTitle(String(localized: .settingsAlertsGroup))
         .navigationBarTitleDisplayMode(.inline)
         // Notification permission can change in the Settings app while we're
         // away; refresh it when the screen appears so the "allow notifications"
@@ -38,13 +38,13 @@ struct AlertsSettingsView: View {
         @Bindable var reminders = reminders
         return Section {
             Toggle(isOn: $reminders.remindersEnabled) {
-                Label(Strings.settingsRemindersToggle, systemImage: "bell.badge")
+                Label(String(localized: .settingsRemindersToggle), systemImage: "bell.badge")
             }
             .settingsRow(Item.dailyReminder)
 
             if reminders.remindersEnabled {
                 DatePicker(
-                    Strings.settingsReminderTime,
+                    String(localized: .settingsRemindersTime),
                     selection: $reminders.reminderTimeOfDay,
                     displayedComponents: .hourAndMinute,
                 )
@@ -53,12 +53,15 @@ struct AlertsSettingsView: View {
                     Button {
                         openSystemSettings(openURL)
                     } label: {
-                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                        Label(
+                            String(localized: .settingsRemindersOpenSettings),
+                            systemImage: "bell.slash",
+                        )
                     }
                 }
             }
         } header: {
-            Text(Strings.settingsRemindersHeader)
+            Text(String(localized: .settingsRemindersHeader))
         } footer: {
             Text(remindersFooter)
         }
@@ -66,22 +69,25 @@ struct AlertsSettingsView: View {
 
     private var remindersFooter: String {
         if reminders.remindersEnabled, !reminders.notificationsAuthorized {
-            return Strings.settingsRemindersDeniedFooter
+            return String(localized: .settingsRemindersDeniedFooter)
         }
-        return Strings.settingsRemindersFooter
+        return String(localized: .settingsRemindersFooter)
     }
 
     private var summarySection: some View {
         @Bindable var reminders = reminders
         return Section {
             Toggle(isOn: $reminders.summaryEnabled) {
-                Label(Strings.settingsSummaryToggle, systemImage: "chart.bar.doc.horizontal")
+                Label(
+                    String(localized: .settingsSummaryToggle),
+                    systemImage: "chart.bar.doc.horizontal",
+                )
             }
             .settingsRow(Item.dailySummary)
 
             if reminders.summaryEnabled {
                 DatePicker(
-                    Strings.settingsSummaryTime,
+                    String(localized: .settingsSummaryTime),
                     selection: $reminders.summaryTimeOfDay,
                     displayedComponents: .hourAndMinute,
                 )
@@ -90,12 +96,15 @@ struct AlertsSettingsView: View {
                     Button {
                         openSystemSettings(openURL)
                     } label: {
-                        Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                        Label(
+                            String(localized: .settingsRemindersOpenSettings),
+                            systemImage: "bell.slash",
+                        )
                     }
                 }
             }
         } header: {
-            Text(Strings.settingsSummaryHeader)
+            Text(String(localized: .settingsSummaryHeader))
         } footer: {
             Text(summaryFooter)
         }
@@ -103,16 +112,19 @@ struct AlertsSettingsView: View {
 
     private var summaryFooter: String {
         if reminders.summaryEnabled, !reminders.notificationsAuthorized {
-            return Strings.settingsSummaryDeniedFooter
+            return String(localized: .settingsSummaryDeniedFooter)
         }
-        return Strings.settingsSummaryFooter
+        return String(localized: .settingsSummaryFooter)
     }
 
     private var issueAlertsSection: some View {
         @Bindable var reminders = reminders
         return Section {
             Toggle(isOn: $reminders.issueAlertsEnabled) {
-                Label(Strings.settingsIssueAlertsToggle, systemImage: "checklist.checked")
+                Label(
+                    String(localized: .settingsIssueAlertsToggle),
+                    systemImage: "checklist.checked",
+                )
             }
             .settingsRow(Item.issueAlerts)
 
@@ -120,11 +132,14 @@ struct AlertsSettingsView: View {
                 Button {
                     openSystemSettings(openURL)
                 } label: {
-                    Label(Strings.settingsRemindersOpenSettings, systemImage: "bell.slash")
+                    Label(
+                        String(localized: .settingsRemindersOpenSettings),
+                        systemImage: "bell.slash",
+                    )
                 }
             }
         } header: {
-            Text(Strings.settingsIssueAlertsHeader)
+            Text(String(localized: .settingsIssueAlertsHeader))
         } footer: {
             Text(issueAlertsFooter)
         }
@@ -132,25 +147,28 @@ struct AlertsSettingsView: View {
 
     private var issueAlertsFooter: String {
         if reminders.issueAlertsEnabled, !reminders.notificationsAuthorized {
-            return Strings.settingsIssueAlertsDeniedFooter
+            return String(localized: .settingsIssueAlertsDeniedFooter)
         }
-        return Strings.settingsIssueAlertsFooter
+        return String(localized: .settingsIssueAlertsFooter)
     }
 
     private var dataResolutionSection: some View {
         @Bindable var report = report
         return Section {
-            Picker(Strings.settingsResolutionThreshold, selection: $report.driftThreshold) {
+            Picker(
+                String(localized: .settingsResolutionThreshold),
+                selection: $report.driftThreshold,
+            ) {
                 ForEach(DriftThreshold.allCases, id: \.self) { threshold in
-                    Text(Strings.driftThresholdLabel(kilometers: threshold.rawValue / 1000))
+                    Text(WhereFormat.driftThresholdLabel(kilometers: threshold.rawValue / 1000))
                         .tag(threshold)
                 }
             }
             .settingsRow(Item.dataResolution)
         } header: {
-            Text(Strings.settingsResolutionHeader)
+            Text(String(localized: .settingsResolutionHeader))
         } footer: {
-            Text(Strings.settingsResolutionFooter)
+            Text(String(localized: .settingsResolutionFooter))
         }
     }
 
@@ -160,9 +178,9 @@ struct AlertsSettingsView: View {
                 findIssues()
             } label: {
                 if isScanningForIssues {
-                    SavingStatusRow(text: Strings.settingsFindIssuesScanning)
+                    SavingStatusRow(text: String(localized: .settingsFindIssuesScanning))
                 } else {
-                    Label(Strings.settingsFindIssues, systemImage: "magnifyingglass")
+                    Label(String(localized: .settingsFindIssues), systemImage: "magnifyingglass")
                 }
             }
             .disabled(isScanningForIssues)
@@ -170,7 +188,7 @@ struct AlertsSettingsView: View {
 
             if let count = lastScanIssueCount, !isScanningForIssues {
                 Label {
-                    Text(Strings.settingsFindIssuesResult(count: count))
+                    Text(WhereFormat.settingsFindIssuesResult(count: count))
                 } icon: {
                     Image(systemName: count == 0 ? "checkmark.circle" : "checklist")
                 }
@@ -178,9 +196,9 @@ struct AlertsSettingsView: View {
                 .foregroundStyle(.secondary)
             }
         } header: {
-            Text(Strings.settingsFindIssuesHeader)
+            Text(String(localized: .settingsFindIssuesHeader))
         } footer: {
-            Text(Strings.settingsFindIssuesFooter)
+            Text(String(localized: .settingsFindIssuesFooter))
         }
         .animation(.default, value: isScanningForIssues)
         // The shown count is for the current year at the current threshold;
@@ -217,21 +235,23 @@ extension AlertsSettingsView: SettingsSection {
 
         var title: String {
             switch self {
-                case .dailyReminder: Strings.settingsRemindersToggle
-                case .dailySummary: Strings.settingsSummaryToggle
-                case .issueAlerts: Strings.settingsIssueAlertsToggle
-                case .dataResolution: Strings.settingsResolutionHeader
-                case .findIssues: Strings.settingsFindIssues
+                case .dailyReminder: String(localized: .settingsRemindersToggle)
+                case .dailySummary: String(localized: .settingsSummaryToggle)
+                case .issueAlerts: String(localized: .settingsIssueAlertsToggle)
+                case .dataResolution: String(localized: .settingsResolutionHeader)
+                case .findIssues: String(localized: .settingsFindIssues)
             }
         }
 
         var keywords: [String] {
             switch self {
-                case .dailyReminder: splitKeywords(Strings.settingsKeywordsReminder)
-                case .dailySummary: splitKeywords(Strings.settingsKeywordsSummary)
-                case .issueAlerts: splitKeywords(Strings.settingsKeywordsIssueAlerts)
-                case .dataResolution: splitKeywords(Strings.settingsKeywordsDataResolution)
-                case .findIssues: splitKeywords(Strings.settingsKeywordsFindIssues)
+                case .dailyReminder: splitKeywords(String(localized: .settingsKeywordsReminder))
+                case .dailySummary: splitKeywords(String(localized: .settingsKeywordsSummary))
+                case .issueAlerts: splitKeywords(String(localized: .settingsKeywordsIssueAlerts))
+                case .dataResolution: splitKeywords(
+                        String(localized: .settingsKeywordsDataResolution),
+                    )
+                case .findIssues: splitKeywords(String(localized: .settingsKeywordsFindIssues))
             }
         }
     }

@@ -217,7 +217,7 @@ struct RegionSummaryCard: View {
                     .font(card.heroNumberFont)
                     .contentTransition(.numericText())
                     .foregroundStyle(style.tint)
-                Text(Strings.dayUnit(regionDays.days))
+                Text(WhereFormat.dayUnit(regionDays.days))
                     .font(card.dayUnitFont)
                     .foregroundStyle(.secondary)
             }
@@ -267,7 +267,7 @@ struct RegionSummaryCard: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            Strings.regionDaysAccessibility(
+            WhereFormat.regionDaysAccessibility(
                 region: regionDays.region.localizedName,
                 days: regionDays.days,
             ),

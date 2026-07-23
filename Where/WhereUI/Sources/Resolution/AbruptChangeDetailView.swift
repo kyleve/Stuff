@@ -16,10 +16,10 @@ struct AbruptChangeDetailView: View {
         if let payload = travelDayPayload {
             Form {
                 Section {
-                    Text(Strings.resolutionAbruptDetailExplanation)
+                    Text(String(localized: .resolutionAbruptDetailExplanation))
                 }
 
-                Section(Strings.resolutionAbruptDetailEarlierHeader) {
+                Section(String(localized: .resolutionAbruptDetailEarlier)) {
                     daySummary(payload.earlier)
                     NavigationLink {
                         DayRelabelView(
@@ -29,11 +29,11 @@ struct AbruptChangeDetailView: View {
                             reason: .travelDay,
                         )
                     } label: {
-                        Text(Strings.resolutionAbruptDetailRelabelEarlier)
+                        Text(String(localized: .resolutionAbruptDetailRelabelEarlier))
                     }
                 }
 
-                Section(Strings.resolutionAbruptDetailLaterHeader) {
+                Section(String(localized: .resolutionAbruptDetailLater)) {
                     daySummary(payload.later)
                     NavigationLink {
                         DayRelabelView(
@@ -43,12 +43,12 @@ struct AbruptChangeDetailView: View {
                             reason: .travelDay,
                         )
                     } label: {
-                        Text(Strings.resolutionAbruptDetailRelabelLater)
+                        Text(String(localized: .resolutionAbruptDetailRelabelLater))
                     }
                 }
 
                 Section {
-                    Button(Strings.resolutionAbruptDetailBothRight) {
+                    Button(String(localized: .resolutionAbruptDetailBothRight)) {
                         Task {
                             await resolve.dismiss(issue)
                             dismiss()
@@ -56,11 +56,11 @@ struct AbruptChangeDetailView: View {
                     }
                 }
             }
-            .navigationTitle(Strings.resolutionAbruptDetailTitle)
+            .navigationTitle(String(localized: .resolutionAbruptDetailTitle))
             .navigationBarTitleDisplayMode(.inline)
         } else {
             ContentUnavailableView(
-                Strings.loadErrorTitle,
+                String(localized: .commonLoadErrorTitle),
                 systemImage: "exclamationmark.triangle",
             )
         }

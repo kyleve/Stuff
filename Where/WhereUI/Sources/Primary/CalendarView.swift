@@ -24,7 +24,7 @@ struct CalendarView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.commonDone) { dismiss() }
+                        Button(String(localized: .commonDone)) { dismiss() }
                     }
                 }
         }
@@ -32,9 +32,9 @@ struct CalendarView: View {
 
     private var navigationTitle: String {
         if let focusedRegion {
-            Strings.calendarRegionTitle(region: focusedRegion, year: report.selectedYear)
+            WhereFormat.calendarRegionTitle(region: focusedRegion, year: report.selectedYear)
         } else {
-            Strings.calendarTitle(year: report.selectedYear)
+            WhereFormat.calendarTitle(year: report.selectedYear)
         }
     }
 }
@@ -82,7 +82,7 @@ struct CalendarContentView: View {
                         case let .failure(error):
                             calendarLayoutError(error)
                         case nil:
-                            AppIconLoadingView(caption: Strings.primaryLoading)
+                            AppIconLoadingView(caption: String(localized: .primaryLoading))
                     }
                 }
                 .task(id: calendarLoadID(report: yearReport)) {
@@ -91,18 +91,24 @@ struct CalendarContentView: View {
                     monthsLoad = result
                 }
             } else if report.loadState == .loading {
-                AppIconLoadingView(caption: Strings.primaryLoading)
+                AppIconLoadingView(caption: String(localized: .primaryLoading))
             } else if case let .failed(error) = report.loadState {
                 ContentUnavailableView {
-                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                    Label(
+                        String(localized: .commonLoadErrorTitle),
+                        systemImage: "exclamationmark.icloud",
+                    )
                 } description: {
                     Text(error.message)
                 }
             } else {
                 ContentUnavailableView {
-                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                    Label(
+                        String(localized: .commonLoadErrorTitle),
+                        systemImage: "exclamationmark.icloud",
+                    )
                 } description: {
-                    Text(Strings.calendarUnavailableDescription)
+                    Text(String(localized: .calendarUnavailableDescription))
                 }
                 .onAppear {
                     Self.logger {
@@ -140,9 +146,9 @@ struct CalendarContentView: View {
 
     private func calendarLayoutError(_ error: Error) -> some View {
         ContentUnavailableView {
-            Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+            Label(String(localized: .commonLoadErrorTitle), systemImage: "exclamationmark.icloud")
         } description: {
-            Text(Strings.calendarUnavailableDescription)
+            Text(String(localized: .calendarUnavailableDescription))
         }
         .onAppear {
             Self.logger { .layoutFailed(description: String(describing: error)) }
@@ -422,7 +428,7 @@ private struct MonthFooter: View {
                 .font(.subheadline)
                 .fontWeight(isFocused ? .semibold : .regular)
             Spacer(minLength: 0)
-            Text(Strings.dayCount(tally.days))
+            Text(WhereFormat.dayCount(tally.days))
                 .font(.subheadline)
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
@@ -430,7 +436,7 @@ private struct MonthFooter: View {
         .opacity(focusedRegion == nil || isFocused ? 1 : calendar.month.unfocusedRowOpacity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            Strings.regionDaysAccessibility(
+            WhereFormat.regionDaysAccessibility(
                 region: tally.region.localizedName,
                 days: tally.days,
             ),
@@ -498,7 +504,7 @@ private struct DayCell: View {
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            Strings.calendarDayAccessibility(
+            WhereFormat.calendarDayAccessibility(
                 date: day.date,
                 regions: day.regions,
                 needsAttention: day.needsAttention,

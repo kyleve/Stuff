@@ -456,7 +456,7 @@ public final class WhereSession {
             return SwiftDataInspectorConfiguration(
                 container: container,
                 modelTypes: SwiftDataStore.inspectorModelTypes,
-                title: Strings.developerInspectorTitle,
+                title: String(localized: .developerInspectorTitle),
             )
         }
     }

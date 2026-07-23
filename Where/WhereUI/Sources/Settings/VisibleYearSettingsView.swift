@@ -13,18 +13,18 @@ struct VisibleYearSettingsView: View {
         SettingsFocusScope(focus: focus) {
             Form {
                 Section {
-                    LabeledContent(Strings.settingsYearLabel) {
+                    LabeledContent(String(localized: .settingsYearLabel)) {
                         YearSelector(report: report)
                     }
                     .settingsRow(Item.reportYear)
                 } header: {
-                    Text(Strings.settingsYearHeader)
+                    Text(String(localized: .settingsYearHeader))
                 } footer: {
-                    Text(Strings.settingsYearFooter)
+                    Text(String(localized: .settingsYearFooter))
                 }
             }
         }
-        .navigationTitle(Strings.settingsYearHeader)
+        .navigationTitle(String(localized: .settingsYearHeader))
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -39,13 +39,13 @@ extension VisibleYearSettingsView: SettingsSection {
 
         var title: String {
             switch self {
-                case .reportYear: Strings.settingsYearHeader
+                case .reportYear: String(localized: .settingsYearHeader)
             }
         }
 
         var keywords: [String] {
             switch self {
-                case .reportYear: splitKeywords(Strings.settingsKeywordsYear)
+                case .reportYear: splitKeywords(String(localized: .settingsKeywordsYear))
             }
         }
     }
