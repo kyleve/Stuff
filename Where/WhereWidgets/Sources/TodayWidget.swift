@@ -21,8 +21,8 @@ struct TodayWidget: Widget {
                     regionStyles: RegionStyleResolver(appearances: entry.snapshot.appearances),
                 )
         }
-        .configurationDisplayName(WidgetStrings.todayGalleryName)
-        .description(WidgetStrings.todayGalleryDescription)
+        .configurationDisplayName(String(localized: .widgetGalleryTodayName))
+        .description(String(localized: .widgetGalleryTodayDescription))
         .supportedFamilies([.systemSmall, .accessoryInline, .accessoryCircular])
     }
 }
