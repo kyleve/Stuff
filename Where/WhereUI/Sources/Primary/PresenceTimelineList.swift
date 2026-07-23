@@ -3,13 +3,9 @@ import WhereCore
 
 /// A chronological list of continuous stays (`RegionStint`s) for the selected
 /// year — "California, Jan 1 – Feb 3", "New York, Feb 3 – Mar 10", and so on.
-/// Hosted as the Timeline segment of the Your Year tab and as the calendar's
-/// day-tap drill-in. When `scrollToMonth` is set, scrolls to the first stint
-/// overlapping that month on appear.
+/// Hosted as the Timeline segment of the Your Year tab.
 struct PresenceTimelineList: View {
     let report: YearReportModel
-
-    var scrollToMonth: Date?
 
     private var stints: [RegionStint] {
         guard let report = report.report else { return [] }
@@ -24,26 +20,9 @@ struct PresenceTimelineList: View {
                 Text(Strings.timelineEmptyDescription)
             }
         } else {
-            ScrollViewReader { proxy in
-                List(stints) { stint in
-                    StintRow(stint: stint)
-                }
-                .onAppear {
-                    scrollToTargetMonth(proxy)
-                }
+            List(stints) { stint in
+                StintRow(stint: stint)
             }
-        }
-    }
-
-    private func scrollToTargetMonth(_ proxy: ScrollViewProxy) {
-        guard let startOfMonth = scrollToMonth else { return }
-        let calendar = Calendar.current
-        guard let nextMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)
-        else { return }
-        guard let target = stints.first(where: { $0.end >= startOfMonth && $0.start < nextMonth })
-        else { return }
-        DispatchQueue.main.async {
-            proxy.scrollTo(target.id, anchor: .top)
         }
     }
 }

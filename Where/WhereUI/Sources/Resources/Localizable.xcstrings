@@ -3916,17 +3916,6 @@
         }
       }
     },
-    "timeline.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Timeline · %@"
-          }
-        }
-      }
-    },
     "widget.today.empty" : {
       "comment" : "Text displayed in the widget when no data is available for the current day.",
       "extractionState" : "extracted_with_value",

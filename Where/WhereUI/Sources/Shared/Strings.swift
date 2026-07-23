@@ -1814,14 +1814,6 @@ enum Strings {
         localized("timeline.empty.description")
     }
 
-    static func timelineTitle(year: Int) -> String {
-        String(
-            localized: "timeline.title",
-            defaultValue: "Timeline · \(yearText(year))",
-            bundle: .module,
-        )
-    }
-
     static func timelineRowAccessibility(region: String, range: String, days: Int) -> String {
         String(
             localized: "timeline.row.accessibility",

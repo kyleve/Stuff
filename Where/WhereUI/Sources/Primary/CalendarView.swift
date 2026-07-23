@@ -41,8 +41,7 @@ struct CalendarView: View {
 
 /// A scrollable year calendar: one month grid per month, with colored dots for
 /// each region present on a day, and a per-month footer tallying the days spent
-/// in each region. Tapping a day pushes the full-year timeline auto-scrolled to
-/// that month. Chrome-free (no `NavigationStack` / Done) so it can be hosted
+/// in each region. Chrome-free (no `NavigationStack` / Done) so it can be hosted
 /// inline in the Your Year tab or inside the ``CalendarView`` sheet wrapper.
 struct CalendarContentView: View {
     /// When set, the day grid only shows dots for this region (so it reads as
@@ -54,7 +53,6 @@ struct CalendarContentView: View {
 
     @Environment(\.stylesheet) private var stylesheet
 
-    @State private var timelineTarget: TimelineMonthTarget?
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
     /// The year whose grid we've already auto-scrolled to the current month, so
     /// the jump happens once per year rather than on every reappearance (e.g.
@@ -70,13 +68,6 @@ struct CalendarContentView: View {
         let evidenceDayKeys: Set<CalendarDay>
         let referenceDay: Date
         let focusedRegion: Region?
-    }
-
-    private struct TimelineMonthTarget: Hashable, Identifiable {
-        let startOfMonth: Date
-        var id: Date {
-            startOfMonth
-        }
     }
 
     var body: some View {
@@ -117,11 +108,6 @@ struct CalendarContentView: View {
                     }
                 }
             }
-        }
-        .navigationDestination(item: $timelineTarget) { target in
-            PresenceTimelineList(report: report, scrollToMonth: target.startOfMonth)
-                .navigationTitle(Strings.timelineTitle(year: report.selectedYear))
-                .navigationBarTitleDisplayMode(.inline)
         }
         // Log View Mode: reveal an inspect badge for this calendar's events. A
         // no-op in release.
@@ -166,10 +152,8 @@ struct CalendarContentView: View {
             ScrollView {
                 LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
                     ForEach(months) { month in
-                        MonthGridView(month: month, focusedRegion: focusedRegion) { _ in
-                            timelineTarget = TimelineMonthTarget(startOfMonth: month.startOfMonth)
-                        }
-                        .id(month.id)
+                        MonthGridView(month: month, focusedRegion: focusedRegion)
+                            .id(month.id)
                     }
                 }
                 .padding()
@@ -201,7 +185,6 @@ private struct MonthGridView: View {
     let month: CalendarMonth
     /// The region the calendar is focused on, if any — emphasized in the footer.
     var focusedRegion: Region?
-    let onSelectDay: (CalendarDayCell) -> Void
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -235,12 +218,7 @@ private struct MonthGridView: View {
                 }
 
                 ForEach(Array(month.days.enumerated()), id: \.element.id) { index, day in
-                    Button {
-                        onSelectDay(day)
-                    } label: {
-                        DayCell(day: day, band: bandGeometry(at: index))
-                    }
-                    .buttonStyle(.plain)
+                    DayCell(day: day, band: bandGeometry(at: index))
                 }
             }
 
