@@ -3,46 +3,11 @@ import RegionKit
 import SwiftUI
 import WhereCore
 
-/// A sheet wrapper around ``CalendarContentView`` for the region-focused
-/// calendar presented from the Locations tab: it owns the `NavigationStack`,
-/// the region/year title, and the Done button. The unfocused, full-year
-/// calendar is hosted inline by the Your Year tab via ``CalendarContentView``.
-struct CalendarView: View {
-    /// When set, the day grid only shows dots for this region (so it reads as
-    /// "just the days I spent here"); the per-month footer still lists every
-    /// region. `nil` shows every region's dots.
-    var focusedRegion: Region?
-
-    let report: YearReportModel
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            CalendarContentView(focusedRegion: focusedRegion, report: report)
-                .navigationTitle(navigationTitle)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.commonDone) { dismiss() }
-                    }
-                }
-        }
-    }
-
-    private var navigationTitle: String {
-        if let focusedRegion {
-            Strings.calendarRegionTitle(region: focusedRegion, year: report.selectedYear)
-        } else {
-            Strings.calendarTitle(year: report.selectedYear)
-        }
-    }
-}
-
 /// A scrollable year calendar: one month grid per month, with colored dots for
 /// each region present on a day, and a per-month footer tallying the days spent
-/// in each region. Chrome-free (no `NavigationStack` / Done) so it can be hosted
-/// inline in the Your Year tab or inside the ``CalendarView`` sheet wrapper.
+/// in each region. Chrome-free (no `NavigationStack`) so the host owns the
+/// navigation: the Your Year tab embeds it inline, and the Locations tab pushes
+/// it — region-focused, with a title — as the zoom destination of a tapped card.
 struct CalendarContentView: View {
     /// When set, the day grid only shows dots for this region (so it reads as
     /// "just the days I spent here"); the per-month footer still lists every
@@ -577,12 +542,13 @@ private struct DayCell: View {
 }
 
 #if DEBUG
-    #Preview("Sheet") {
-        CalendarView(report: PreviewSupport.loadedYearReportModel())
-    }
-
     #Preview("Focused") {
-        CalendarView(focusedRegion: .california, report: PreviewSupport.loadedYearReportModel())
+        NavigationStack {
+            CalendarContentView(
+                focusedRegion: .california,
+                report: PreviewSupport.loadedYearReportModel(),
+            )
+        }
     }
 
     #Preview("Content loaded") {

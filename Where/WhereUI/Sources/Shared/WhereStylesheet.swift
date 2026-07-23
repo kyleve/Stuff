@@ -24,6 +24,7 @@ struct WhereStylesheet: BStylesheet {
     var elsewhereCard = ElsewhereCardStyle.standard
     var palette = Palette.standard
     var motion = Motion.standard
+    var launch = LaunchStyle.standard
     var typography = Typography.standard
     var settings = SettingsStyle.standard
 
@@ -273,7 +274,7 @@ extension WhereStylesheet {
 // MARK: - Calendar
 
 extension WhereStylesheet {
-    /// Style for the year calendar (`CalendarView`): `month` covers one month
+    /// Style for the year calendar (`CalendarContentView`): `month` covers one month
     /// section, and the remaining properties cover the day cells shared across
     /// every month. Grouping the component's appearance here (rather than reading
     /// scattered generic tokens) keeps its full spec in one place and gives a
@@ -401,7 +402,7 @@ extension WhereStylesheet {
         }
 
         /// The fixed calendar geometry, migrated from the former generic
-        /// spacing/size tokens and inline colors in `CalendarView`.
+        /// spacing/size tokens and inline colors in `CalendarContentView`.
         static let standard = CalendarStyle(
             monthSpacing: 16,
             month: MonthStyle(
@@ -729,9 +730,31 @@ extension WhereStylesheet {
         var captionFade: Animation
 
         static let standard = Motion(
-            reveal: .easeIn(duration: 0.18),
+            reveal: .easeIn(duration: 0.16),
             reducedReveal: .easeInOut(duration: 0.2),
             captionFade: .easeOut(duration: 0.3),
+        )
+    }
+}
+
+// MARK: - Launch
+
+extension WhereStylesheet {
+    /// Timings for the launch splash (`LaunchSplashView`) and how long it lingers
+    /// before the app reveals. Kept as tokens so the durations aren't hardcoded
+    /// across the splash view and the `LifecycleContainer` seam.
+    struct LaunchStyle: Equatable {
+        /// The least time the splash stays up before the app reveals, passed to
+        /// `LifecycleContainer`. Optimized launches finish near-instantly, so
+        /// without this the splash (and its reveal) would flash past unseen.
+        var minimumSplashDuration: Duration
+        /// How long the splash lingers before the "getting things ready" caption
+        /// fades in, so a normal fast launch never flashes it.
+        var captionDelay: Duration
+
+        static let standard = LaunchStyle(
+            minimumSplashDuration: .milliseconds(800),
+            captionDelay: .milliseconds(1200),
         )
     }
 }
@@ -788,15 +811,15 @@ extension WhereStylesheet {
             var backgroundBottom: Color
         }
 
-        /// The launch splash: dark backdrop, radial vignette, brand-tinted icon
-        /// glow / radar, and the reassurance caption.
+        /// The launch splash: an adaptive backdrop (follows light/dark) with a
+        /// subtle radial vignette and a brand-tinted icon glow / radar. The
+        /// reassurance caption uses inline adaptive roles (`.primary` /
+        /// `.secondary`), per the "adaptive system roles stay inline" rule.
         struct Splash: Equatable {
             var background: Color
             var vignetteCenter: Color
             var vignetteEdge: Color
             var iconGlow: Color
-            var caption: Color
-            var captionSecondary: Color
         }
 
         /// The onboarding backdrop (top → bottom).
@@ -811,12 +834,14 @@ extension WhereStylesheet {
                 backgroundBottom: Color(red: 0.02, green: 0.02, blue: 0.05),
             ),
             splash: Splash(
-                background: .black,
-                vignetteCenter: Color(white: 0.16),
-                vignetteEdge: .black,
+                // Adaptive so the splash follows the app's light/dark mode. The
+                // vignette runs from a slightly-elevated center to the base
+                // background, giving a soft "spotlight" in dark and a near-flat
+                // clean backdrop in light (the two are close there).
+                background: Color(.systemBackground),
+                vignetteCenter: Color(.secondarySystemBackground),
+                vignetteEdge: Color(.systemBackground),
                 iconGlow: .accentColor,
-                caption: .white,
-                captionSecondary: Color.white.opacity(0.7),
             ),
             onboarding: Onboarding(
                 backgroundTop: Color(.systemBackground),

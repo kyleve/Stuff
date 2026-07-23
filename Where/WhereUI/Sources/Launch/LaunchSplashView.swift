@@ -1,12 +1,13 @@
 import SwiftUI
 
 /// The Where launch screen shown for the whole launch: the user's selected app
-/// icon, gently pulsing on a dark backdrop with a "radar ping" sonar sweep
+/// icon, gently pulsing on an adaptive backdrop with a "radar ping" sonar sweep
 /// behind it.
 ///
-/// The icon respects the system color mode (the asset catalog resolves the
-/// light/dark preview art from `@Environment(\.colorScheme)`) while always
-/// sitting on a dark background, so the brand mark reads the same in either
+/// The backdrop follows the system light/dark mode (an adaptive
+/// `systemBackground` with a subtle vignette), and the icon resolves its
+/// matching light/dark preview art from the asset catalog via
+/// `@Environment(\.colorScheme)`, so the splash reads correctly in either
 /// appearance. When the runner reaches `.ready`, `RootView` removes this view
 /// with a scale-up-and-fade transition that reveals the main UI — that motion
 /// lives at the container seam, not here.
@@ -36,16 +37,12 @@ struct LaunchSplashView: View {
         stylesheet.palette.splash
     }
 
-    /// How long the splash must linger before the "taking a moment" caption
-    /// fades in, so a fast launch never flashes it.
-    private static let captionDelay = Duration.milliseconds(500)
-
     /// Preview/test seam: when `nil`, the live selected icon is resolved from
     /// `UIApplication.shared.alternateIconName` in `body` (on the main actor).
     private let injectedPreviewImageName: String?
 
     /// - Parameter previewShowsCaption: preview/test seam to render the slow-
-    ///   launch caption immediately instead of waiting out `captionDelay`.
+    ///   launch caption immediately instead of waiting out the caption delay.
     init(previewImageName: String? = nil, previewShowsCaption: Bool = false) {
         injectedPreviewImageName = previewImageName
         _showCaption = State(initialValue: previewShowsCaption)
@@ -75,7 +72,7 @@ struct LaunchSplashView: View {
             showCaption ? Strings.launchCaptionTitle : Strings.launchAccessibilityLabel,
         )
         .task {
-            try? await Task.sleep(for: Self.captionDelay)
+            try? await Task.sleep(for: stylesheet.launch.captionDelay)
             guard !Task.isCancelled else { return }
             if reduceMotion {
                 showCaption = true
@@ -94,9 +91,9 @@ struct LaunchSplashView: View {
                 .font(.headline)
             Text(Strings.launchCaptionSubtitle)
                 .font(.subheadline)
-                .foregroundStyle(splash.captionSecondary)
+                .foregroundStyle(.secondary)
         }
-        .foregroundStyle(splash.caption)
+        .foregroundStyle(.primary)
         .multilineTextAlignment(.center)
         .padding(.horizontal, stylesheet.spacing.xxxLarge)
     }

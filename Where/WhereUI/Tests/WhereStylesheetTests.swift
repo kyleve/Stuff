@@ -237,9 +237,15 @@ struct WhereStylesheetTests {
 
     @Test func motionAnimations() {
         let motion = style.motion
-        #expect(motion.reveal == .easeIn(duration: 0.18))
+        #expect(motion.reveal == .easeIn(duration: 0.16))
         #expect(motion.reducedReveal == .easeInOut(duration: 0.2))
         #expect(motion.captionFade == .easeOut(duration: 0.3))
+    }
+
+    @Test func launchTimings() {
+        let launch = style.launch
+        #expect(launch.minimumSplashDuration == .milliseconds(800))
+        #expect(launch.captionDelay == .milliseconds(1200))
     }
 
     @Test func settingsStyle() {
@@ -256,12 +262,10 @@ struct WhereStylesheetTests {
         let palette = style.palette
         #expect(palette.primary.backgroundTop == Color(red: 0.07, green: 0.08, blue: 0.13))
         #expect(palette.primary.backgroundBottom == Color(red: 0.02, green: 0.02, blue: 0.05))
-        #expect(palette.splash.background == .black)
-        #expect(palette.splash.vignetteCenter == Color(white: 0.16))
-        #expect(palette.splash.vignetteEdge == .black)
+        #expect(palette.splash.background == Color(.systemBackground))
+        #expect(palette.splash.vignetteCenter == Color(.secondarySystemBackground))
+        #expect(palette.splash.vignetteEdge == Color(.systemBackground))
         #expect(palette.splash.iconGlow == .accentColor)
-        #expect(palette.splash.caption == .white)
-        #expect(palette.splash.captionSecondary == Color.white.opacity(0.7))
         #expect(palette.onboarding.backgroundTop == Color(.systemBackground))
         #expect(palette.onboarding.backgroundBottom == Color.accentColor.opacity(0.12))
     }

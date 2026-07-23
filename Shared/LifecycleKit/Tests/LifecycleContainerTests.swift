@@ -165,6 +165,36 @@ struct LifecycleContainerTests {
         await task.value
     }
 
+    @Test func minimumSplashDurationDoesNotHoldWhenNoSplashWasShown() async throws {
+        // The minimum only holds a splash that actually appeared. A launch that's
+        // already ready when the container mounts never showed one, so even a long
+        // minimum must reveal content immediately rather than stalling on a hold
+        // for a splash the user never saw.
+        //
+        // (The other half — holding a splash that *did* appear until the minimum
+        // elapses, then revealing — is a `.task`-driven async/timing behavior that
+        // `show`'s synchronous closure can't drive deterministically; like the
+        // splash caption's own delay it's exercised on device, not host-tested.
+        // See `LaunchSplashView.previewShowsCaption`.)
+        var content = false
+        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {})
+        await runner.run()
+        #expect(runner.phase.isReady)
+
+        let container = LifecycleContainer(
+            runner,
+            minimumSplashDuration: .seconds(60),
+            splash: { EmptyView() },
+            failure: { _, _ in EmptyView() },
+        ) {
+            ProbeView { content = true }
+        }
+        try show(UIHostingController(rootView: container)) { _ in
+            try waitFor { content }
+        }
+        #expect(content)
+    }
+
     @Test func failedShowsFailureView() async throws {
         var failure = false
         var content = false
