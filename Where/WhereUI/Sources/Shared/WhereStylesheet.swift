@@ -811,15 +811,15 @@ extension WhereStylesheet {
             var backgroundBottom: Color
         }
 
-        /// The launch splash: dark backdrop, radial vignette, brand-tinted icon
-        /// glow / radar, and the reassurance caption.
+        /// The launch splash: an adaptive backdrop (follows light/dark) with a
+        /// subtle radial vignette and a brand-tinted icon glow / radar. The
+        /// reassurance caption uses inline adaptive roles (`.primary` /
+        /// `.secondary`), per the "adaptive system roles stay inline" rule.
         struct Splash: Equatable {
             var background: Color
             var vignetteCenter: Color
             var vignetteEdge: Color
             var iconGlow: Color
-            var caption: Color
-            var captionSecondary: Color
         }
 
         /// The onboarding backdrop (top → bottom).
@@ -834,12 +834,14 @@ extension WhereStylesheet {
                 backgroundBottom: Color(red: 0.02, green: 0.02, blue: 0.05),
             ),
             splash: Splash(
-                background: .black,
-                vignetteCenter: Color(white: 0.16),
-                vignetteEdge: .black,
+                // Adaptive so the splash follows the app's light/dark mode. The
+                // vignette runs from a slightly-elevated center to the base
+                // background, giving a soft "spotlight" in dark and a near-flat
+                // clean backdrop in light (the two are close there).
+                background: Color(.systemBackground),
+                vignetteCenter: Color(.secondarySystemBackground),
+                vignetteEdge: Color(.systemBackground),
                 iconGlow: .accentColor,
-                caption: .white,
-                captionSecondary: Color.white.opacity(0.7),
             ),
             onboarding: Onboarding(
                 backgroundTop: Color(.systemBackground),
