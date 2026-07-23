@@ -50,7 +50,6 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - Move `let calendar = Calendar.current` into a var on the controller? There’s a few of these
 - Move test only code behind @_spi
 - Add comments to strings in xcstrings files
-- Can we code-gen the strings.swift file somehow so we're not referencing the string keys manually?
 
 # Completed issues
 
@@ -67,5 +66,6 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - Remove `caption(forRank rank: Int) -> String?`, I don’t want the caption
 
 ## P2s (Nice to have)
+- refactor: Code-gen the strings so keys aren't referenced manually — adopted Xcode's String Catalog `LocalizedStringResource` symbol generation across the app (`STRING_CATALOG_GENERATE_SYMBOLS`), deleted the hand-maintained `Strings`/`ShareStrings`/`WidgetStrings` facades in favor of generated symbols + the `WhereFormat`/`IntentStrings` composition helpers, so a typo'd or removed key is now a compile error. (RegionKit region names stay data-driven by design.)
 - refactor: Remove get/set closure-based `Binding` values from SwiftUI views — replaced with computed properties on `@Observable` models (e.g. `SaveErrorAlertState`).
 - refactor: Clean up and centralize loggers into a logging module — added the `LogKit` facade (`WhereLog.channel`) and a DEBUG-only in-app log viewer (`LogViewerUI`, Settings → Developer → Logs)

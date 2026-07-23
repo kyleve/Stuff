@@ -70,7 +70,7 @@ WhereWidgets, WhereIntents snippets, and the main app reach Broadway only throug
 
 ### Localization architecture is consistent
 
-Module-owned `Localizable.xcstrings` + `Strings`/`IntentStrings`/`WidgetStrings`/`ShareStrings` facades. RegionKit dynamic region names are the deliberate exception (data-driven catalog).
+Module-owned `Localizable.xcstrings` resolved through Xcode's generated `LocalizedStringResource` symbols (`STRING_CATALOG_GENERATE_SYMBOLS`); composition/plural/switch logic lives in small helpers (`WhereFormat`, `IntentStrings`). RegionKit dynamic region names are the deliberate exception (data-driven catalog).
 
 ### 1:1 test-file convention holds for libraries, slips for glue
 
