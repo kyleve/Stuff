@@ -10,6 +10,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
   format:
     name: SwiftFormat Lint
@@ -23,18 +26,35 @@ jobs:
     name: Bumper Bowling
     needs: format
     runs-on: xcode-27
+    env:
+      BUMPER_CACHE_DIR: .build/bumper-cache
+      # Where evaluates in about one second; optimize the cold runner build
+      # instead of spending minutes compiling SwiftSyntax in release mode.
+      BUMPER_RUNNER_BUILD_CONFIGURATION: debug
     steps:
       - uses: actions/checkout@v4
+      - name: Restore Bumper build cache
+        id: bumper-cache
+        uses: actions/cache/restore@v4
+        with:
+          path: .build
+          key: ${{ runner.os }}-${{ runner.arch }}-bumper-${{ hashFiles('Package.swift', 'Package.resolved', 'BumperBowling.swift', '.bumper/Sources/**/*.swift', '.bumper/Tests/**/*.swift') }}
       - name: Validate configuration
         run: swift run bumper config .
       - name: Test architecture rules
         run: swift run bumper test .
+      - name: Save Bumper build cache
+        if: steps.bumper-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .build
+          key: ${{ steps.bumper-cache.outputs.cache-primary-key }}
       - name: Enforce Where architecture
         run: swift run bumper lint . --timings
 
   test:
     name: Build & Test (iOS)
-    needs: [format, architecture]
+    needs: format
     runs-on: xcode-27
     steps:
       - uses: actions/checkout@v4
