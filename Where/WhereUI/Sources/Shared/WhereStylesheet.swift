@@ -730,7 +730,7 @@ extension WhereStylesheet {
         var captionFade: Animation
 
         static let standard = Motion(
-            reveal: .easeIn(duration: 0.33),
+            reveal: .easeIn(duration: 0.16),
             reducedReveal: .easeInOut(duration: 0.2),
             captionFade: .easeOut(duration: 0.3),
         )
@@ -753,8 +753,8 @@ extension WhereStylesheet {
         var captionDelay: Duration
 
         static let standard = LaunchStyle(
-            minimumSplashDuration: .seconds(1),
-            captionDelay: .milliseconds(1500),
+            minimumSplashDuration: .milliseconds(800),
+            captionDelay: .milliseconds(1200),
         )
     }
 }

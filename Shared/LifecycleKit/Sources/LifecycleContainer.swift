@@ -174,7 +174,10 @@ public struct LifecycleContainer<Content: View, Splash: View, Failure: View>: Vi
                 try? await Task.sleep(for: remaining)
                 guard !Task.isCancelled else { return }
             }
-            minimumSplashElapsed = true
+            // Drive the reveal in an explicit transaction: `.animation(_:value:)`
+            // doesn't reliably animate this async, `.task`-driven flip, so the
+            // splash would be removed without its reveal transition.
+            withAnimation(animation) { minimumSplashElapsed = true }
         }
     }
 
