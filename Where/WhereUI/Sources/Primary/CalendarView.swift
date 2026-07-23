@@ -301,6 +301,7 @@ private struct MonthFooter: View {
     var body: some View {
         VStack(spacing: calendar.month.footerSpacing) {
             Divider()
+                .padding(.bottom, calendar.month.footerDividerSpacing)
             ForEach(totals) { tally in
                 row(for: tally)
             }

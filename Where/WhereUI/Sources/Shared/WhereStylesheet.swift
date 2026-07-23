@@ -326,6 +326,9 @@ extension WhereStylesheet {
             var cornerRadius: CGFloat
             /// Wash behind the current month.
             var currentMonthHighlight: Color
+            /// Extra space below the footer's divider, so the tally rows don't
+            /// butt right up against it.
+            var footerDividerSpacing: CGFloat
             /// Spacing between footer rows.
             var footerSpacing: CGFloat
             /// Spacing within a footer row (dot ↔ label).
@@ -373,6 +376,7 @@ extension WhereStylesheet {
                 padding: 16,
                 cornerRadius: 22,
                 currentMonthHighlight: Color.accentColor.opacity(0.08),
+                footerDividerSpacing: 8,
                 footerSpacing: 4,
                 footerRowSpacing: 6,
                 unfocusedRowOpacity: 0.55,

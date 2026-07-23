@@ -131,6 +131,7 @@ struct WhereStylesheetTests {
         #expect(month.padding == 16)
         #expect(month.cornerRadius == 22)
         #expect(month.currentMonthHighlight == Color.accentColor.opacity(0.08))
+        #expect(month.footerDividerSpacing == 8)
         #expect(month.footerSpacing == 4)
         #expect(month.footerRowSpacing == 6)
         #expect(month.unfocusedRowOpacity == 0.55)
