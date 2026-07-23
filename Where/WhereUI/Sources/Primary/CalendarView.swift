@@ -305,21 +305,14 @@ private struct MonthGridView: View {
         }
         .padding(calendar.month.padding)
         .background {
+            // Past and future months share the plain card; the current one
+            // gets the accent card (bluer wash, heavier border).
+            let card = month.isCurrentMonth ? calendar.month.current : calendar.month.plain
             RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
-                .fill(
-                    month.isCurrentMonth
-                        ? calendar.month.currentMonthHighlight
-                        : calendar.month.background,
-                )
+                .fill(card.fill)
                 .overlay {
                     RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
-                        .strokeBorder(
-                            month.isCurrentMonth ? calendar.month.currentBorder : calendar.month
-                                .border,
-                            lineWidth: month.isCurrentMonth
-                                ? calendar.month.currentBorderWidth
-                                : calendar.month.borderWidth,
-                        )
+                        .strokeBorder(card.border, lineWidth: card.borderWidth)
                 }
         }
     }

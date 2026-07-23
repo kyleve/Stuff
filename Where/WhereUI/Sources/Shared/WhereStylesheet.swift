@@ -299,17 +299,11 @@ extension WhereStylesheet {
             var gridSpacing: CGFloat
             var padding: CGFloat
             var cornerRadius: CGFloat
-            /// Subtle wash behind every month, so each reads as its own card.
-            var background: Color
-            /// Border around every month card (a touch darker than `background`).
-            var border: Color
-            var borderWidth: CGFloat
-            /// Wash behind the current month — a bluer accent tint so it stands
-            /// out from the plain months.
-            var currentMonthHighlight: Color
-            /// The current month's heavier accent border.
-            var currentBorder: Color
-            var currentBorderWidth: CGFloat
+            /// Card treatment for a past or future month — the plain wash + rim.
+            var plain: Card
+            /// Card treatment for the current month — a bluer accent wash and a
+            /// heavier accent border so it stands out from the plain months.
+            var current: Card
             /// Opacity of the next-month "teaser" peek, dimming it so it clearly
             /// hasn't happened yet.
             var futureOpacity: Double
@@ -325,6 +319,18 @@ extension WhereStylesheet {
             var footerRowSpacing: CGFloat
             /// Opacity of an unfocused footer row while a region is focused.
             var unfocusedRowOpacity: Double
+
+            /// One month card's fill + border, so the same treatment can be
+            /// applied by state: `plain` for past/future months, `current` for
+            /// the current one. The grid picks a `Card` and reads both from it,
+            /// rather than ternary-ing each property against `isCurrentMonth`.
+            struct Card: Equatable {
+                /// Wash behind the month, so each reads as its own card.
+                var fill: Color
+                /// Border around the card (a touch darker than `fill`).
+                var border: Color
+                var borderWidth: CGFloat
+            }
         }
 
         /// Geometry and colors of a single day cell: the number chip, its region
@@ -400,12 +406,16 @@ extension WhereStylesheet {
                 gridSpacing: 6,
                 padding: 16,
                 cornerRadius: 21,
-                background: Color.primary.opacity(0.03),
-                border: Color.primary.opacity(0.12),
-                borderWidth: 2,
-                currentMonthHighlight: Color.accentColor.opacity(0.08),
-                currentBorder: Color.accentColor.opacity(0.7),
-                currentBorderWidth: 4,
+                plain: MonthStyle.Card(
+                    fill: Color.primary.opacity(0.03),
+                    border: Color.primary.opacity(0.12),
+                    borderWidth: 2,
+                ),
+                current: MonthStyle.Card(
+                    fill: Color.accentColor.opacity(0.08),
+                    border: Color.accentColor.opacity(0.7),
+                    borderWidth: 4,
+                ),
                 futureOpacity: 0.55,
                 teaserPeekHeight: 150,
                 footerDividerSpacing: 8,
