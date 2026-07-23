@@ -208,7 +208,8 @@ struct CalendarContentView: View {
                 LinearGradient(
                     stops: [
                         .init(color: .black, location: 0),
-                        .init(color: .black, location: 0.35),
+                        .init(color: .black.opacity(0.7), location: 0.5),
+                        .init(color: .black.opacity(0.25), location: 0.85),
                         .init(color: .clear, location: 1),
                     ],
                     startPoint: .top,
