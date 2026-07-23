@@ -4,7 +4,7 @@ Random apps and stuff.
 
 ## Requirements
 
-- Xcode 26+ (a full Xcode.app, not just the Command Line Tools)
+- Xcode 27+ (a full Xcode.app, not just the Command Line Tools)
 - iOS 26.0+
 - [mise](https://mise.jdx.dev) — pins Tuist, SwiftFormat, and Ruby;
   installed for you by `./ide --bootstrap` (see below)
