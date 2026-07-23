@@ -59,7 +59,9 @@ older OS's AppKit doesn't vend them yet. Fixes:
 - Running CLI builds (`tuist` / `./ide`): point the command-line tools at
   it — `sudo xcode-select -s /Applications/Xcode.app`.
 
-CI is unaffected — it runs on `macos-26` with the matching Xcode.
+CI is unaffected — it runs the iOS-simulator `Stuff-iOS-Tests` scheme on the
+`xcode-27` image and never launches the Catalyst app, so the build-SDK / running-OS
+skew above doesn't apply there.
 
 ## How it works
 
