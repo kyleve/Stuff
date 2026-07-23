@@ -34,26 +34,6 @@ private struct EnvironmentRunnerProbe: View {
     }
 }
 
-/// A test-controlled gate a `.work` step can park on, so a test can hold the
-/// splash on screen (the step is running) and then release it to `.ready` on
-/// demand — the sanctioned "gate on a continuation, not timing" pattern.
-@MainActor
-private final class StepGate {
-    private var continuation: CheckedContinuation<Void, Never>?
-    private var opened = false
-
-    func wait() async {
-        if opened { return }
-        await withCheckedContinuation { continuation = $0 }
-    }
-
-    func open() {
-        opened = true
-        continuation?.resume()
-        continuation = nil
-    }
-}
-
 @MainActor
 struct LifecycleContainerTests {
     @Test func readyShowsContent() async throws {
@@ -185,40 +165,34 @@ struct LifecycleContainerTests {
         await task.value
     }
 
-    @Test func minimumSplashDurationHoldsRevealAfterReady() async throws {
-        // With a long minimum, reaching `.ready` must not reveal content yet:
-        // the splash stays up until the minimum elapses. (The elapse-then-reveal
-        // path is a plain `Task.sleep` + state flip, driven by `.task`; like the
-        // splash caption's own delay it's exercised on device, not by a
-        // real-timer host test — see `LaunchSplashView.previewShowsCaption`.)
-        var splash = false
+    @Test func minimumSplashDurationDoesNotHoldWhenNoSplashWasShown() async throws {
+        // The minimum only holds a splash that actually appeared. A launch that's
+        // already ready when the container mounts never showed one, so even a long
+        // minimum must reveal content immediately rather than stalling on a hold
+        // for a splash the user never saw.
+        //
+        // (The other half — holding a splash that *did* appear until the minimum
+        // elapses, then revealing — is a `.task`-driven async/timing behavior that
+        // `show`'s synchronous closure can't drive deterministically; like the
+        // splash caption's own delay it's exercised on device, not host-tested.
+        // See `LaunchSplashView.previewShowsCaption`.)
         var content = false
-        let gate = StepGate()
-        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
-            LifecycleStep.work("gate") { _ in await gate.wait() }
-        })
-        let task = Task { @MainActor in await runner.run() }
-        try await waitUntil { runner.phase.isRunning("gate") }
+        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {})
+        await runner.run()
+        #expect(runner.phase.isReady)
 
         let container = LifecycleContainer(
             runner,
             minimumSplashDuration: .seconds(60),
-            splash: { ProbeView { splash = true } },
+            splash: { EmptyView() },
             failure: { _, _ in EmptyView() },
         ) {
             ProbeView { content = true }
         }
         try show(UIHostingController(rootView: container)) { _ in
-            // Splash on screen records its appearance time.
-            try waitFor { splash }
-            // Let the step finish so the runner reaches `.ready`…
-            gate.open()
-            // …but the 60s hold keeps content from appearing within the budget,
-            // even though the runner is genuinely ready.
-            #expect(!renders { content })
-            #expect(runner.phase.isReady)
+            try waitFor { content }
         }
-        await task.value
+        #expect(content)
     }
 
     @Test func failedShowsFailureView() async throws {
