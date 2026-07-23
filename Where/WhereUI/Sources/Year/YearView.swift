@@ -87,16 +87,19 @@ private struct YearModePicker: View {
                 segment(candidate)
             }
         }
+        .padding(stylesheet.spacing.xxSmall)
         // A single selection capsule that follows the selected segment's frame,
         // so changing selection slides it across (rather than a per-segment
-        // capsule fading in/out). Black in light mode, white in dark.
+        // capsule fading in/out). Real black in light mode / white in dark — it
+        // sits *above* the glass layer (below) so the glass doesn't frost it grey.
         .background {
             Capsule()
                 .fill(Color.primary)
                 .matchedGeometryEffect(id: mode, in: selection, isSource: false)
         }
-        .padding(stylesheet.spacing.xxSmall)
-        .glassEffect(.regular, in: .capsule)
+        .background {
+            Color.clear.glassEffect(.regular, in: .capsule)
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(Strings.yearSegmentPickerLabel)
     }
