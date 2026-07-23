@@ -329,9 +329,12 @@ extension WhereStylesheet {
             /// Wash behind the current month — a bluer accent tint so it stands
             /// out from the plain months.
             var currentMonthHighlight: Color
-            /// Opacity applied to months entirely in the future, dimming them so
-            /// it's clear they haven't happened yet.
+            /// Opacity of the next-month "teaser" peek, dimming it so it clearly
+            /// hasn't happened yet.
             var futureOpacity: Double
+            /// Height the next month is clipped to — a peek the grid can only
+            /// scroll partway into, faded out over it.
+            var teaserPeekHeight: CGFloat
             /// Extra space below the footer's divider, so the tally rows don't
             /// butt right up against it.
             var footerDividerSpacing: CGFloat
@@ -384,6 +387,7 @@ extension WhereStylesheet {
                 background: Color.primary.opacity(0.05),
                 currentMonthHighlight: Color.accentColor.opacity(0.14),
                 futureOpacity: 0.55,
+                teaserPeekHeight: 150,
                 footerDividerSpacing: 8,
                 footerSpacing: 4,
                 footerRowSpacing: 6,

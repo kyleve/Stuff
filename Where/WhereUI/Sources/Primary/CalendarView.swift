@@ -150,21 +150,17 @@ struct CalendarContentView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
-        // Start of the month containing "today", so months after it read as
-        // future. `nil` (no interval) falls back to never dimming.
-        let currentMonthStart = report.calendar
-            .dateInterval(of: .month, for: report.referenceDate)?
-            .start
+        let shown = shownMonths(months)
         return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
-                    ForEach(months) { month in
-                        MonthGridView(
-                            month: month,
-                            focusedRegion: focusedRegion,
-                            isFuture: currentMonthStart.map { month.startOfMonth > $0 } ?? false,
-                        )
-                        .id(month.id)
+                    ForEach(shown.full) { month in
+                        MonthGridView(month: month, focusedRegion: focusedRegion)
+                            .id(month.id)
+                    }
+                    if let teaser = shown.teaser {
+                        teaserMonth(teaser)
+                            .id(teaser.id)
                     }
                 }
                 .padding()
@@ -174,6 +170,53 @@ struct CalendarContentView: View {
             .opacity(scrolledForYear == report.selectedYear ? 1 : 0)
             .onAppear { positionToCurrentMonthIfNeeded(proxy, months: months) }
         }
+    }
+
+    /// The months to show: every month up to and including the current one,
+    /// plus the single month immediately after it as a "teaser" — later months
+    /// are dropped. A year with no current month (a past year) shows them all
+    /// with no teaser.
+    private func shownMonths(_ months: [CalendarMonth])
+        -> (full: [CalendarMonth], teaser: CalendarMonth?)
+    {
+        guard
+            let currentMonthStart = report.calendar
+            .dateInterval(of: .month, for: report.referenceDate)?
+            .start
+        else {
+            return (months, nil)
+        }
+        var full: [CalendarMonth] = []
+        var teaser: CalendarMonth?
+        for month in months {
+            if month.startOfMonth <= currentMonthStart {
+                full.append(month)
+            } else if teaser == nil {
+                teaser = month
+            }
+        }
+        return (full, teaser)
+    }
+
+    /// The next month rendered as a peek: clipped to a short height (so the grid
+    /// can only scroll partway into it), dimmed, and faded out over that height.
+    private func teaserMonth(_ month: CalendarMonth) -> some View {
+        MonthGridView(month: month, focusedRegion: focusedRegion)
+            .frame(height: stylesheet.calendar.month.teaserPeekHeight, alignment: .top)
+            .clipped()
+            .mask(
+                LinearGradient(
+                    stops: [
+                        .init(color: .black, location: 0),
+                        .init(color: .black, location: 0.35),
+                        .init(color: .clear, location: 1),
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom,
+                ),
+            )
+            .opacity(stylesheet.calendar.month.futureOpacity)
+            .allowsHitTesting(false)
     }
 
     /// Scrolls to the current month once per year while the grid is still hidden
@@ -201,8 +244,6 @@ private struct MonthGridView: View {
     let month: CalendarMonth
     /// The region the calendar is focused on, if any — emphasized in the footer.
     var focusedRegion: Region?
-    /// Whether this month is entirely in the future (dimmed when so).
-    var isFuture: Bool
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -247,11 +288,12 @@ private struct MonthGridView: View {
         .padding(calendar.month.padding)
         .background {
             RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
-                .fill(month.isCurrentMonth ? calendar.month.currentMonthHighlight : calendar.month
-                    .background)
+                .fill(
+                    month.isCurrentMonth
+                        ? calendar.month.currentMonthHighlight
+                        : calendar.month.background,
+                )
         }
-        // Dim months that haven't happened yet.
-        .opacity(isFuture ? calendar.month.futureOpacity : 1)
     }
 
     /// The stay-pill geometry for the day at `index`: a run is contiguous days
