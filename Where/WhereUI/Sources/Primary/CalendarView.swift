@@ -198,11 +198,12 @@ struct CalendarContentView: View {
         return (full, teaser)
     }
 
-    /// The next month rendered as a peek: clipped to a short height (so the grid
-    /// can only scroll partway into it), dimmed, and faded out over that height.
+    /// The next month rendered as a peek: clipped to a fraction of its own
+    /// rendered height (so the grid can only scroll partway into it), dimmed, and
+    /// faded out over that height.
     private func teaserMonth(_ month: CalendarMonth) -> some View {
         MonthGridView(month: month, focusedRegion: focusedRegion)
-            .modifier(TeaserPeek(height: stylesheet.calendar.month.futurePeekHeight))
+            .modifier(TeaserPeek(fraction: stylesheet.calendar.month.futurePeekFraction))
             .opacity(stylesheet.calendar.month.futureOpacity)
             .allowsHitTesting(false)
     }
@@ -226,22 +227,40 @@ struct CalendarContentView: View {
     }
 }
 
-/// Clips the next-month peek to `height` and fades it out over that *same*
-/// height, so the fade and the visual cutoff are derived from one number and
-/// can't drift into a hard cutoff line: the gradient reaches fully transparent
-/// exactly where the content is clipped.
+/// Reveals `fraction` of the next month's *rendered* height as a peek and fades
+/// it out over that revealed height, so the fade and the visual cutoff are
+/// derived from one number and can't drift into a hard cutoff line: the gradient
+/// reaches fully transparent exactly where the content is clipped.
+///
+/// The pixel height depends on layout (how tall that month renders), so it's
+/// measured at view time rather than baked into the stylesheet: the month is
+/// `fixedSize`d to its natural height (decoupling it from the clamped frame
+/// below, so measuring doesn't feed back), and the peek is `naturalHeight *
+/// fraction`. Hidden until measured so the full month never flashes.
 private struct TeaserPeek: ViewModifier {
-    let height: CGFloat
+    let fraction: CGFloat
+
+    @State private var naturalHeight: CGFloat?
 
     func body(content: Content) -> some View {
         content
-            .frame(height: height, alignment: .top)
+            // Lay the month out at its own height regardless of the clamped frame
+            // below, so the measurement is the natural height and can't loop.
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { naturalHeight = $0 }
+            .frame(height: peekHeight, alignment: .top)
             .clipped()
             .mask(fade)
+            .opacity(naturalHeight == nil ? 0 : 1)
+    }
+
+    /// The revealed height, once the month's natural height is known.
+    private var peekHeight: CGFloat? {
+        naturalHeight.map { $0 * fraction }
     }
 
     /// A top-anchored fade that stays solid through the first third, then eases
-    /// to fully clear right at the bottom edge (`location: 1` == `height`).
+    /// to fully clear right at the bottom edge (`location: 1` == `peekHeight`).
     private var fade: LinearGradient {
         LinearGradient(
             stops: [
