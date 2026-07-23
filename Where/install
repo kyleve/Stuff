@@ -48,7 +48,8 @@ Options:
   --no-optimize            Build without forcing optimizations (use the
                            configuration's own optimization level)
   --no-launch              Install only; don't launch the app afterwards
-  -y, --yes                Skip the "unlock your device" confirmation prompt
+  -y, --yes, --no-wait     Skip the "unlock your device" confirmation prompt
+                           (don't wait for you to unlock the device first)
   -h, --help               Show this help
 
 Examples:
@@ -75,7 +76,7 @@ while [ $# -gt 0 ]; do
         --optimize) OPTIMIZE=true ;;
         --no-optimize) OPTIMIZE=false ;;
         --no-launch) LAUNCH=false ;;
-        -y|--yes) ASSUME_YES=true ;;
+        -y|--yes|--no-wait) ASSUME_YES=true ;;
         -h|--help) usage; exit 0 ;;
         *) echo "error: unknown option '$1' (see ./Where/install --help)" >&2; exit 1 ;;
     esac
