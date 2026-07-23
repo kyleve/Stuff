@@ -34,7 +34,7 @@ struct YearView: View {
             .toolbarBackground(.visible, for: .navigationBar)
             .safeAreaInset(edge: .bottom, alignment: .center) {
                 YearModePicker(mode: $mode)
-                    .padding(.bottom, stylesheet.spacing.small)
+                    .padding(.bottom, stylesheet.spacing.xLarge)
             }
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -87,6 +87,14 @@ private struct YearModePicker: View {
                 segment(candidate)
             }
         }
+        // A single selection capsule that follows the selected segment's frame,
+        // so changing selection slides it across (rather than a per-segment
+        // capsule fading in/out). Black in light mode, white in dark.
+        .background {
+            Capsule()
+                .fill(Color.primary)
+                .matchedGeometryEffect(id: mode, in: selection, isSource: false)
+        }
         .padding(stylesheet.spacing.xxSmall)
         .glassEffect(.regular, in: .capsule)
         .accessibilityElement(children: .contain)
@@ -100,20 +108,16 @@ private struct YearModePicker: View {
         } label: {
             Label(candidate.title, systemImage: candidate.systemImage)
                 .labelStyle(.titleAndIcon)
+                .imageScale(.large)
                 .font(.subheadline.weight(.medium))
                 .padding(.horizontal, stylesheet.spacing.medium)
                 .padding(.vertical, stylesheet.spacing.small)
-                .foregroundStyle(isSelected ? Color.white : Color.primary)
-                .background {
-                    if isSelected {
-                        Capsule()
-                            .fill(Color.accentColor)
-                            .matchedGeometryEffect(id: "selectedSegment", in: selection)
-                    }
-                }
+                // Contrast against the black/white selection capsule.
+                .foregroundStyle(isSelected ? Color(.systemBackground) : Color.primary)
                 .contentShape(.capsule)
         }
         .buttonStyle(.plain)
+        .matchedGeometryEffect(id: candidate, in: selection, isSource: true)
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
