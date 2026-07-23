@@ -293,6 +293,21 @@ private struct MonthGridView: View {
                         ? calendar.month.currentMonthHighlight
                         : calendar.month.background,
                 )
+                .overlay {
+                    RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
+                        .strokeBorder(
+                            month.isCurrentMonth ? calendar.month.currentBorder : calendar.month
+                                .border,
+                            lineWidth: month.isCurrentMonth
+                                ? calendar.month.currentBorderWidth
+                                : calendar.month.borderWidth,
+                        )
+                }
+                // Only the current month glows (accent-tinted outer shadow).
+                .shadow(
+                    color: month.isCurrentMonth ? calendar.month.currentGlow : .clear,
+                    radius: month.isCurrentMonth ? calendar.month.currentGlowRadius : 0,
+                )
         }
     }
 

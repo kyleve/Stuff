@@ -326,9 +326,18 @@ extension WhereStylesheet {
             var cornerRadius: CGFloat
             /// Subtle wash behind every month, so each reads as its own card.
             var background: Color
+            /// Border around every month card (a touch darker than `background`).
+            var border: Color
+            var borderWidth: CGFloat
             /// Wash behind the current month — a bluer accent tint so it stands
             /// out from the plain months.
             var currentMonthHighlight: Color
+            /// The current month's heavier accent border and its matching outer
+            /// glow (an accent-tinted shadow).
+            var currentBorder: Color
+            var currentBorderWidth: CGFloat
+            var currentGlow: Color
+            var currentGlowRadius: CGFloat
             /// Opacity of the next-month "teaser" peek, dimming it so it clearly
             /// hasn't happened yet.
             var futureOpacity: Double
@@ -384,8 +393,14 @@ extension WhereStylesheet {
                 gridSpacing: 6,
                 padding: 16,
                 cornerRadius: 22,
-                background: Color.primary.opacity(0.05),
+                background: Color.primary.opacity(0.03),
+                border: Color.primary.opacity(0.12),
+                borderWidth: 2,
                 currentMonthHighlight: Color.accentColor.opacity(0.14),
+                currentBorder: Color.accentColor,
+                currentBorderWidth: 4,
+                currentGlow: Color.accentColor.opacity(0.4),
+                currentGlowRadius: 10,
                 futureOpacity: 0.55,
                 teaserPeekHeight: 150,
                 footerDividerSpacing: 8,
