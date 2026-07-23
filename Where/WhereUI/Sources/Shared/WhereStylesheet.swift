@@ -324,8 +324,14 @@ extension WhereStylesheet {
             var gridSpacing: CGFloat
             var padding: CGFloat
             var cornerRadius: CGFloat
-            /// Wash behind the current month.
+            /// Subtle wash behind every month, so each reads as its own card.
+            var background: Color
+            /// Wash behind the current month — a bluer accent tint so it stands
+            /// out from the plain months.
             var currentMonthHighlight: Color
+            /// Opacity applied to months entirely in the future, dimming them so
+            /// it's clear they haven't happened yet.
+            var futureOpacity: Double
             /// Extra space below the footer's divider, so the tally rows don't
             /// butt right up against it.
             var footerDividerSpacing: CGFloat
@@ -375,7 +381,9 @@ extension WhereStylesheet {
                 gridSpacing: 6,
                 padding: 16,
                 cornerRadius: 22,
-                currentMonthHighlight: Color.accentColor.opacity(0.08),
+                background: Color.primary.opacity(0.05),
+                currentMonthHighlight: Color.accentColor.opacity(0.14),
+                futureOpacity: 0.55,
                 footerDividerSpacing: 8,
                 footerSpacing: 4,
                 footerRowSpacing: 6,

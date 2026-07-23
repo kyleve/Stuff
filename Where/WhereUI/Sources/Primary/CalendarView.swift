@@ -150,12 +150,21 @@ struct CalendarContentView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
-        ScrollViewReader { proxy in
+        // Start of the month containing "today", so months after it read as
+        // future. `nil` (no interval) falls back to never dimming.
+        let currentMonthStart = report.calendar
+            .dateInterval(of: .month, for: report.referenceDate)?
+            .start
+        return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
                     ForEach(months) { month in
-                        MonthGridView(month: month, focusedRegion: focusedRegion)
-                            .id(month.id)
+                        MonthGridView(
+                            month: month,
+                            focusedRegion: focusedRegion,
+                            isFuture: currentMonthStart.map { month.startOfMonth > $0 } ?? false,
+                        )
+                        .id(month.id)
                     }
                 }
                 .padding()
@@ -192,6 +201,8 @@ private struct MonthGridView: View {
     let month: CalendarMonth
     /// The region the calendar is focused on, if any — emphasized in the footer.
     var focusedRegion: Region?
+    /// Whether this month is entirely in the future (dimmed when so).
+    var isFuture: Bool
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -235,11 +246,12 @@ private struct MonthGridView: View {
         }
         .padding(calendar.month.padding)
         .background {
-            if month.isCurrentMonth {
-                RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
-                    .fill(calendar.month.currentMonthHighlight)
-            }
+            RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
+                .fill(month.isCurrentMonth ? calendar.month.currentMonthHighlight : calendar.month
+                    .background)
         }
+        // Dim months that haven't happened yet.
+        .opacity(isFuture ? calendar.month.futureOpacity : 1)
     }
 
     /// The stay-pill geometry for the day at `index`: a run is contiguous days
