@@ -12,20 +12,39 @@ import WhereCore
 enum Strings {
     // MARK: Tabs
 
-    static var tabPrimary: String {
-        localized("tab.primary")
-    }
-
-    static var tabElsewhere: String {
-        localized("tab.elsewhere")
-    }
-
+    /// Used as the Locations toolbar Resolve button's accessibility label — the
+    /// former Resolve tab is now a toolbar action.
     static var tabResolution: String {
         localized("tab.resolution")
     }
 
     static var tabSettings: String {
         localized("tab.settings")
+    }
+
+    static var tabLocations: String {
+        String(localized: "tab.locations", defaultValue: "Locations", bundle: .module)
+    }
+
+    static var tabYear: String {
+        String(localized: "tab.year", defaultValue: "Your Year", bundle: .module)
+    }
+
+    /// Accessibility label for the Your Year tab's Calendar/Timeline control.
+    static var yearSegmentPickerLabel: String {
+        String(localized: "year.segmentPicker", defaultValue: "Year view", bundle: .module)
+    }
+
+    /// Subtitle on the Locations tab's Elsewhere entry card, e.g. "3 regions"
+    /// (grammatically agreed for a single region). Counts regions, not days:
+    /// a day can fall in several regions, so summing per-region days would
+    /// overstate the total.
+    static func elsewhereCardSubtitle(regions: Int) -> String {
+        String(
+            localized: "locations.elsewhere.subtitle",
+            defaultValue: "^[\(regions) region](inflect: true)",
+            bundle: .module,
+        )
     }
 
     // MARK: Shared
@@ -101,11 +120,20 @@ enum Strings {
     }
 
     /// Shown when there's tracked data, but none of it lands in a primary
-    /// region — points the user at the Elsewhere tab.
+    /// region; the Locations screen offers an Elsewhere link beneath it.
     static func primaryElsewhereOnlyDescription(count: Int) -> String {
         String(
             localized: "primary.elsewhereOnly.description",
-            defaultValue: "\(count) days logged this year, but none in a headline spot yet. Peek at the Elsewhere tab.",
+            defaultValue: "\(count) days logged this year, but none in a headline spot yet.",
+            bundle: .module,
+        )
+    }
+
+    /// Button on the Locations elsewhere-only state that opens the Elsewhere list.
+    static var primaryElsewhereOnlyOpen: String {
+        String(
+            localized: "primary.elsewhereOnly.open",
+            defaultValue: "See Elsewhere",
             bundle: .module,
         )
     }
@@ -534,6 +562,32 @@ enum Strings {
         String(localized: "settings.regions.section", defaultValue: "Regions", bundle: .module)
     }
 
+    /// Row title for the attachments (evidence) screen in the Settings Data group.
+    static var settingsAttachmentsRow: String {
+        String(localized: "settings.attachments.row", defaultValue: "Attachments", bundle: .module)
+    }
+
+    static var settingsKeywordsAttachments: String {
+        String(
+            localized: "settings.keywords.attachments",
+            defaultValue: "attachments, evidence, receipt, boarding pass, ticket, photo",
+            bundle: .module,
+        )
+    }
+
+    /// Row title for the hand-logged-days screen in the Settings Data group.
+    static var settingsLoggedDaysRow: String {
+        String(localized: "settings.loggedDays.row", defaultValue: "Logged Days", bundle: .module)
+    }
+
+    static var settingsKeywordsLoggedDays: String {
+        String(
+            localized: "settings.keywords.loggedDays",
+            defaultValue: "logged days, manual, override, entry, backfill",
+            bundle: .module,
+        )
+    }
+
     static var settingsRegionsRow: String {
         String(
             localized: "settings.regions.row",
@@ -682,14 +736,6 @@ enum Strings {
         String(
             localized: "settings.keywords.findIssues",
             defaultValue: "scan, find, issues, check, resolve",
-            bundle: .module,
-        )
-    }
-
-    static var settingsKeywordsHideTabs: String {
-        String(
-            localized: "settings.keywords.hideTabs",
-            defaultValue: "tabs, hide, empty, elsewhere, resolve",
             bundle: .module,
         )
     }
@@ -1120,30 +1166,6 @@ enum Strings {
         String(
             localized: "settings.issueAlerts.deniedFooter",
             defaultValue: "Notifications are turned off for Where, so issue alerts can't appear. Turn them on in Settings.",
-            bundle: .module,
-        )
-    }
-
-    static var settingsTabsHeader: String {
-        String(
-            localized: "settings.tabs.header",
-            defaultValue: "Tabs",
-            bundle: .module,
-        )
-    }
-
-    static var settingsTabsToggle: String {
-        String(
-            localized: "settings.tabs.toggle",
-            defaultValue: "Hide empty tabs",
-            bundle: .module,
-        )
-    }
-
-    static var settingsTabsFooter: String {
-        String(
-            localized: "settings.tabs.footer",
-            defaultValue: "Hide the Elsewhere and Resolve tabs while they have nothing to show. Turn this off to always keep them in the tab bar.",
             bundle: .module,
         )
     }
@@ -1784,24 +1806,12 @@ enum Strings {
 
     // MARK: Timeline
 
-    static var timelineDone: String {
-        localized("timeline.done")
-    }
-
     static var timelineEmptyTitle: String {
         localized("timeline.empty.title")
     }
 
     static var timelineEmptyDescription: String {
         localized("timeline.empty.description")
-    }
-
-    static func timelineTitle(year: Int) -> String {
-        String(
-            localized: "timeline.title",
-            defaultValue: "Timeline · \(yearText(year))",
-            bundle: .module,
-        )
     }
 
     static func timelineRowAccessibility(region: String, range: String, days: Int) -> String {

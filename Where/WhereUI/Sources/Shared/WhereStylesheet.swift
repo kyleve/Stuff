@@ -21,6 +21,7 @@ struct WhereStylesheet: BStylesheet {
     var regionMap = RegionMapStyle.standard
     var regionPicker = RegionPickerStyle.standard
     var evidence = EvidenceStyle.standard
+    var elsewhereCard = ElsewhereCardStyle.standard
     var palette = Palette.standard
     var motion = Motion.standard
     var typography = Typography.standard
@@ -36,7 +37,7 @@ struct WhereStylesheet: BStylesheet {
 
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
-            calendar.dayMinHeight = 56
+            calendar.day.minHeight = 56
         }
 
         // Reduce Transparency flattens the cards: drop the decorative rim-glow
@@ -85,13 +86,13 @@ extension WhereStylesheet {
 extension WhereStylesheet {
     /// The complete visual spec for a `RegionSummaryCard`. Bundling every value
     /// the card's appearance depends on into one type — with a `.regular` variant
-    /// (the big Primary cards) and a `.compact` variant (the Elsewhere list) —
+    /// (the big Locations cards) and a `.compact` variant (the Elsewhere list) —
     /// lets the view read a single resolved `CardStyle` instead of branching on a
     /// `compact` flag across ~30 tokens. Non-varying generic spacing (the inner
     /// header/number stacks) still comes from ``Spacing``.
     struct CardStyle: Equatable {
-        /// Which card the stylesheet vends: the Primary tab uses `.regular`, the
-        /// Elsewhere tab `.compact`.
+        /// Which card the stylesheet vends: the Locations cards use `.regular`,
+        /// the Elsewhere list `.compact`.
         enum Variant {
             case regular
             case compact
@@ -281,23 +282,13 @@ extension WhereStylesheet {
         /// Vertical spacing between month sections in the scroll.
         var monthSpacing: CGFloat
         var month: MonthStyle
-        /// Min height (tap target) of a day cell — grows at accessibility
-        /// Dynamic Type sizes.
-        var dayMinHeight: CGFloat
-        /// Diameter of a region-presence dot.
+        /// Diameter of a region-presence dot in the month footer tally.
         var dotSize: CGFloat
-        /// Spacing inside a day cell (the number over its dots).
-        var dayContentSpacing: CGFloat
-        /// Edge of the rounded day-number chip.
-        var dayNumberSize: CGFloat
-        /// Fill behind today's day number, and the color of that number.
-        var todayMarker: Color
-        var todayNumberColor: Color
-        /// Fill behind a day that needs attention (unresolved), and its number.
-        var unresolvedDayMarker: Color
-        var unresolvedNumberColor: Color
-        /// The small badge marking a day that carries evidence.
-        var evidenceBadge: EvidenceBadge
+        /// The subtle "stay" pill drawn behind contiguous same-region days.
+        var regionBand: RegionBand
+        /// Geometry and colors of a single day cell (the number chip, its region
+        /// dots, the today/unresolved markers, and the evidence badge).
+        var day: DayStyle
 
         /// Style for one month section: the header/grid/footer stack, its
         /// current-month highlight, and the tally footer.
@@ -308,14 +299,93 @@ extension WhereStylesheet {
             var gridSpacing: CGFloat
             var padding: CGFloat
             var cornerRadius: CGFloat
-            /// Wash behind the current month.
-            var currentMonthHighlight: Color
+            /// Card treatment for a past or future month — the plain wash + rim.
+            var plain: Card
+            /// Card treatment for the current month — a bluer accent wash and a
+            /// heavier accent border so it stands out from the plain months.
+            var current: Card
+            /// Opacity of the next-month "teaser" peek, dimming it so it clearly
+            /// hasn't happened yet.
+            var futureOpacity: Double
+            /// Fraction of the future (next) month's *rendered* height revealed as
+            /// a peek — the grid can only scroll partway into it, faded out over
+            /// it. Dimensionless on purpose: the absolute pixel height depends on
+            /// layout (how tall that month renders), so it's computed at view time
+            /// from this fraction rather than hardcoded here.
+            var futurePeekFraction: CGFloat
+            /// Extra space below the footer's divider, so the tally rows don't
+            /// butt right up against it.
+            var footerDividerSpacing: CGFloat
             /// Spacing between footer rows.
             var footerSpacing: CGFloat
             /// Spacing within a footer row (dot ↔ label).
             var footerRowSpacing: CGFloat
             /// Opacity of an unfocused footer row while a region is focused.
             var unfocusedRowOpacity: Double
+
+            /// One month card's fill + border, so the same treatment can be
+            /// applied by state: `plain` for past/future months, `current` for
+            /// the current one. The grid picks a `Card` and reads both from it,
+            /// rather than ternary-ing each property against `isCurrentMonth`.
+            struct Card: Equatable {
+                /// Wash behind the month, so each reads as its own card.
+                var fill: Color
+                /// Border around the card (a touch darker than `fill`).
+                var border: Color
+                var borderWidth: CGFloat
+            }
+        }
+
+        /// Geometry and colors of a single day cell: the number chip, its region
+        /// dots beneath the number, the today/unresolved markers behind the
+        /// number, and the evidence badge in the corner.
+        struct DayStyle: Equatable {
+            /// Min height (tap target) of a day cell — grows at accessibility
+            /// Dynamic Type sizes.
+            var minHeight: CGFloat
+            /// Edge of the rounded day-number chip.
+            var numberSize: CGFloat
+            /// Vertical gap between the day number and its dots — small so the
+            /// dots tuck up close beneath the date.
+            var numberDotSpacing: CGFloat
+            /// Diameter of a region-presence dot under a day number (a touch
+            /// larger than the footer dots so days scan easily).
+            var dotSize: CGFloat
+            /// How far adjacent day dots overlap on a multi-region day, so
+            /// several regions read as an overlapping cluster.
+            var dotOverlap: CGFloat
+            /// Background-colored rim on each dot of an overlapping cluster, so
+            /// the overlap reads as distinct coins rather than a merged blob.
+            var dotStrokeWidth: CGFloat
+            /// Spacing between region dots on a single-region day (unused for the
+            /// overlapping multi-region cluster).
+            var contentSpacing: CGFloat
+            /// Fill behind today's day number, and the color of that number.
+            var todayMarker: Color
+            var todayNumberColor: Color
+            /// Fill behind a day that needs attention (unresolved), and its
+            /// number.
+            var unresolvedMarker: Color
+            var unresolvedNumberColor: Color
+            /// The small badge marking a day that carries evidence.
+            var evidenceBadge: EvidenceBadge
+        }
+
+        /// The subtle region-tinted pill drawn behind a run of contiguous days
+        /// sharing the same region(s), so a "stay" reads as one connected shape.
+        /// The run's true ends get `cornerRadius`; where a run spills onto the
+        /// next (or from the previous) week row, that edge gets the smaller
+        /// `continuationRadius` to imply it carries on.
+        struct RegionBand: Equatable {
+            /// Opacity of the region tint — kept low so it sits behind the dots.
+            var opacity: Double
+            /// Radius at a run's true start/end.
+            var cornerRadius: CGFloat
+            /// Radius at a week-boundary edge where the run continues.
+            var continuationRadius: CGFloat
+            /// Padding between the day content (number + dots) and the pill's
+            /// top/bottom edges, so the pill doesn't butt against the dots.
+            var verticalInset: CGFloat
         }
 
         /// The paperclip badge in a day cell's top-trailing corner marking a day
@@ -338,24 +408,48 @@ extension WhereStylesheet {
                 sectionSpacing: 8,
                 gridSpacing: 6,
                 padding: 16,
-                cornerRadius: 22,
-                currentMonthHighlight: Color.accentColor.opacity(0.08),
+                cornerRadius: 21,
+                plain: MonthStyle.Card(
+                    fill: Color.primary.opacity(0.03),
+                    border: Color.primary.opacity(0.12),
+                    borderWidth: 2,
+                ),
+                current: MonthStyle.Card(
+                    fill: Color.accentColor.opacity(0.08),
+                    border: Color.accentColor.opacity(0.7),
+                    borderWidth: 4,
+                ),
+                futureOpacity: 0.55,
+                futurePeekFraction: 0.5,
+                footerDividerSpacing: 8,
                 footerSpacing: 4,
                 footerRowSpacing: 6,
                 unfocusedRowOpacity: 0.55,
             ),
-            dayMinHeight: 44,
             dotSize: 6,
-            dayContentSpacing: 2,
-            dayNumberSize: 26,
-            todayMarker: .accentColor,
-            todayNumberColor: .white,
-            unresolvedDayMarker: Color.red.opacity(0.15),
-            unresolvedNumberColor: .red,
-            evidenceBadge: EvidenceBadge(
-                iconSize: 8,
-                padding: 2,
-                offset: CGSize(width: 3, height: -2),
+            regionBand: RegionBand(
+                opacity: 0.16,
+                cornerRadius: 14,
+                continuationRadius: 3,
+                verticalInset: 4,
+            ),
+            day: DayStyle(
+                minHeight: 44,
+                numberSize: 26,
+                numberDotSpacing: 0,
+                dotSize: 8,
+                dotOverlap: 2,
+                dotStrokeWidth: 1.5,
+                contentSpacing: 2,
+                todayMarker: .accentColor,
+                todayNumberColor: .white,
+                unresolvedMarker: Color.red.opacity(0.15),
+                unresolvedNumberColor: .red,
+                evidenceBadge: EvidenceBadge(
+                    iconSize: 8,
+                    padding: 2,
+                    offset: CGSize(width: 3, height: -2),
+                ),
             ),
         )
     }
@@ -593,6 +687,28 @@ extension WhereStylesheet {
             onboardingIcon: .system(size: 72),
             widgetHeroRegion: .system(.headline, design: .serif).weight(.semibold),
             widgetTotalNumber: .system(.body, design: .rounded, weight: .bold),
+        )
+    }
+}
+
+// MARK: - Elsewhere entry card
+
+extension WhereStylesheet {
+    /// The compact entry card at the bottom of the Locations tab that links to
+    /// the Elsewhere list. A small self-contained group (it doesn't borrow the
+    /// passport `CardStyle`, which is a different, heavier component).
+    struct ElsewhereCardStyle: Equatable {
+        /// Corner radius of the glass card.
+        var cornerRadius: CGFloat
+        /// Inset of the card's contents from its edge.
+        var padding: CGFloat
+        /// Point size of the leading globe glyph.
+        var iconPointSize: CGFloat
+
+        static let standard = ElsewhereCardStyle(
+            cornerRadius: 22,
+            padding: 18,
+            iconPointSize: 28,
         )
     }
 }

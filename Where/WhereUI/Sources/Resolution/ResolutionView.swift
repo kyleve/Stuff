@@ -12,6 +12,7 @@ import WhereCore
 struct ResolutionView: View {
     let report: YearReportModel
     @State private var resolve: ResolveModel
+    @Environment(\.dismiss) private var dismiss
 
     init(report: YearReportModel) {
         self.report = report
@@ -34,6 +35,11 @@ struct ResolutionView: View {
         NavigationStack {
             screen
                 .navigationTitle(Strings.resolutionTitle)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(Strings.commonDone) { dismiss() }
+                    }
+                }
                 .task(id: report.dataIssueScanInputs) {
                     await resolve.load(
                         year: report.selectedYear,

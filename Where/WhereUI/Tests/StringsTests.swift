@@ -9,7 +9,7 @@ import WhereCore
 /// years are formatted without a grouping separator.
 struct StringsTests {
     @Test func simpleKeysResolveToCatalogValues() {
-        #expect(Strings.tabElsewhere == "Elsewhere")
+        #expect(Strings.tabSettings == "Settings")
         #expect(Strings.loadErrorTitle == "Couldn't load your year")
         #expect(Strings.commonOK == "OK")
         #expect(Strings.manualSaveErrorTitle == "Couldn't save that day")
@@ -19,13 +19,11 @@ struct StringsTests {
     @Test func elsewhereOnlyDescriptionUsesPluralVariations() {
         #expect(
             Strings.primaryElsewhereOnlyDescription(count: 1)
-                ==
-                "1 day logged this year, but none in a headline spot yet. Peek at the Elsewhere tab.",
+                == "1 day logged this year, but none in a headline spot yet.",
         )
         #expect(
             Strings.primaryElsewhereOnlyDescription(count: 9)
-                ==
-                "9 days logged this year, but none in a headline spot yet. Peek at the Elsewhere tab.",
+                == "9 days logged this year, but none in a headline spot yet.",
         )
     }
 
@@ -40,7 +38,6 @@ struct StringsTests {
     }
 
     @Test func yearsAreFormattedWithoutGroupingSeparator() {
-        #expect(Strings.timelineTitle(year: 2026) == "Timeline · 2026")
         #expect(Strings.calendarTitle(year: 2026) == "Calendar · 2026")
         #expect(Strings.settingsDataErase(year: 2026) == "Erase 2026 data")
     }

@@ -83,15 +83,6 @@ public final class WherePreferences {
         set { store.set(newValue, forKey: Keys.issueAlertsEnabled.rawValue) }
     }
 
-    /// Whether the Elsewhere and Resolve tabs are hidden while they have nothing
-    /// to show (no "elsewhere" regions / no unresolved issues). Defaults to
-    /// `true` so the tab bar stays focused out of the box; turning it off keeps
-    /// both tabs permanently visible.
-    public var hideEmptyTabs: Bool {
-        get { store.object(forKey: Keys.hideEmptyTabs.rawValue) as? Bool ?? true }
-        set { store.set(newValue, forKey: Keys.hideEmptyTabs.rawValue) }
-    }
-
     /// GPS border-drift detection threshold in meters. Defaults to 10 km.
     public var driftThresholdMeters: Int {
         get {
@@ -125,7 +116,6 @@ public final class WherePreferences {
         case summaryHour = "where.summaryHour"
         case summaryMinute = "where.summaryMinute"
         case issueAlertsEnabled = "where.issueAlertsEnabled"
-        case hideEmptyTabs = "where.hideEmptyTabs"
         case driftThresholdMeters = "where.driftThresholdMeters"
     }
 }

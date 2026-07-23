@@ -3,11 +3,10 @@ import RegionKit
 import SwiftUI
 import WhereCore
 
-/// A scrollable year calendar: one month grid per month, with colored dots for
-/// each region present on a day, and a per-month footer tallying the days spent
-/// in each region. Tapping a day pushes the full-year timeline auto-scrolled to
-/// that month. Presented as a sheet from the Primary tab — either unfiltered
-/// (toolbar) or focused on a single region (tapping a region card).
+/// A sheet wrapper around ``CalendarContentView`` for the region-focused
+/// calendar presented from the Locations tab: it owns the `NavigationStack`,
+/// the region/year title, and the Done button. The unfocused, full-year
+/// calendar is hosted inline by the Your Year tab via ``CalendarContentView``.
 struct CalendarView: View {
     /// When set, the day grid only shows dots for this region (so it reads as
     /// "just the days I spent here"); the per-month footer still lists every
@@ -17,10 +16,50 @@ struct CalendarView: View {
     let report: YearReportModel
 
     @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            CalendarContentView(focusedRegion: focusedRegion, report: report)
+                .navigationTitle(navigationTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(Strings.commonDone) { dismiss() }
+                    }
+                }
+        }
+    }
+
+    private var navigationTitle: String {
+        if let focusedRegion {
+            Strings.calendarRegionTitle(region: focusedRegion, year: report.selectedYear)
+        } else {
+            Strings.calendarTitle(year: report.selectedYear)
+        }
+    }
+}
+
+/// A scrollable year calendar: one month grid per month, with colored dots for
+/// each region present on a day, and a per-month footer tallying the days spent
+/// in each region. Chrome-free (no `NavigationStack` / Done) so it can be hosted
+/// inline in the Your Year tab or inside the ``CalendarView`` sheet wrapper.
+struct CalendarContentView: View {
+    /// When set, the day grid only shows dots for this region (so it reads as
+    /// "just the days I spent here"); the per-month footer still lists every
+    /// region. `nil` shows every region's dots.
+    var focusedRegion: Region?
+
+    let report: YearReportModel
+
     @Environment(\.stylesheet) private var stylesheet
 
-    @State private var timelineTarget: TimelineMonthTarget?
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
+    /// The year we've already positioned to the current month. Doubles as the
+    /// reveal gate: the grid stays hidden until it's scrolled into place (so the
+    /// jump isn't visible), then shows. Guarded per year so returning to the tab
+    /// keeps the user's scroll instead of re-hiding/re-jumping; a year switch
+    /// rebuilds the grid and positions afresh.
+    @State private var scrolledForYear: Int?
 
     private static let logger = WhereLog.session(CalendarViewLog.self)
 
@@ -33,77 +72,48 @@ struct CalendarView: View {
         let focusedRegion: Region?
     }
 
-    private struct TimelineMonthTarget: Hashable, Identifiable {
-        let startOfMonth: Date
-        var id: Date {
-            startOfMonth
-        }
-    }
-
     var body: some View {
-        NavigationStack {
-            Group {
-                if let yearReport = report.report {
-                    Group {
-                        switch monthsLoad {
-                            case let .success(months):
-                                calendarContent(months: months)
-                            case let .failure(error):
-                                calendarLayoutError(error)
-                            case nil:
-                                AppIconLoadingView(caption: Strings.primaryLoading)
-                        }
-                    }
-                    .task(id: calendarLoadID(report: yearReport)) {
-                        let result = loadCalendarMonths(from: yearReport)
-                        guard !Task.isCancelled else { return }
-                        monthsLoad = result
-                    }
-                } else if report.loadState == .loading {
-                    AppIconLoadingView(caption: Strings.primaryLoading)
-                } else if case let .failed(error) = report.loadState {
-                    ContentUnavailableView {
-                        Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
-                    } description: {
-                        Text(error.message)
-                    }
-                } else {
-                    ContentUnavailableView {
-                        Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
-                    } description: {
-                        Text(Strings.calendarUnavailableDescription)
-                    }
-                    .onAppear {
-                        Self.logger {
-                            .openedWithoutReport(loadState: String(describing: report.loadState))
-                        }
+        Group {
+            if let yearReport = report.report {
+                Group {
+                    switch monthsLoad {
+                        case let .success(months):
+                            calendarContent(months: months)
+                        case let .failure(error):
+                            calendarLayoutError(error)
+                        case nil:
+                            AppIconLoadingView(caption: Strings.primaryLoading)
                     }
                 }
-            }
-            .navigationTitle(navigationTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(Strings.commonDone) { dismiss() }
+                .task(id: calendarLoadID(report: yearReport)) {
+                    let result = loadCalendarMonths(from: yearReport)
+                    guard !Task.isCancelled else { return }
+                    monthsLoad = result
                 }
-            }
-            .navigationDestination(item: $timelineTarget) { target in
-                PresenceTimelineList(report: report, scrollToMonth: target.startOfMonth)
-                    .navigationTitle(Strings.timelineTitle(year: report.selectedYear))
-                    .navigationBarTitleDisplayMode(.inline)
+            } else if report.loadState == .loading {
+                AppIconLoadingView(caption: Strings.primaryLoading)
+            } else if case let .failed(error) = report.loadState {
+                ContentUnavailableView {
+                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                } description: {
+                    Text(error.message)
+                }
+            } else {
+                ContentUnavailableView {
+                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                } description: {
+                    Text(Strings.calendarUnavailableDescription)
+                }
+                .onAppear {
+                    Self.logger {
+                        .openedWithoutReport(loadState: String(describing: report.loadState))
+                    }
+                }
             }
         }
         // Log View Mode: reveal an inspect badge for this calendar's events. A
         // no-op in release.
         .debugLogInspectable(WhereLog.session(CalendarViewLog.self))
-    }
-
-    private var navigationTitle: String {
-        if let focusedRegion {
-            Strings.calendarRegionTitle(region: focusedRegion, year: report.selectedYear)
-        } else {
-            Strings.calendarTitle(year: report.selectedYear)
-        }
     }
 
     private func calendarLoadID(report yearReport: YearReport) -> CalendarLoadID {
@@ -140,30 +150,128 @@ struct CalendarView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
-        ScrollViewReader { proxy in
+        let shown = shownMonths(months)
+        return ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
-                    ForEach(months) { month in
-                        MonthGridView(month: month, focusedRegion: focusedRegion) { _ in
-                            timelineTarget = TimelineMonthTarget(startOfMonth: month.startOfMonth)
-                        }
-                        .id(month.id)
+                    ForEach(shown.full) { month in
+                        MonthGridView(month: month, focusedRegion: focusedRegion)
+                            .id(month.id)
+                    }
+                    if let teaser = shown.teaser {
+                        teaserMonth(teaser)
+                            .id(teaser.id)
                     }
                 }
                 .padding()
             }
-            .onAppear {
-                scrollToCurrentMonth(proxy, months: months)
-            }
+            // Hidden until positioned so the jump to the current month isn't
+            // visible; revealed once scrolled into place (see below).
+            .opacity(scrolledForYear == report.selectedYear ? 1 : 0)
+            .onAppear { positionToCurrentMonthIfNeeded(proxy, months: months) }
         }
     }
 
-    /// When viewing the current year, scrolls the grid to today's month.
-    private func scrollToCurrentMonth(_ proxy: ScrollViewProxy, months: [CalendarMonth]) {
-        guard let targetID = months.first(where: \.isCurrentMonth)?.id else { return }
-        DispatchQueue.main.async {
-            proxy.scrollTo(targetID, anchor: .top)
+    /// The months to show: every month up to and including the current one,
+    /// plus the single month immediately after it as a "teaser" — later months
+    /// are dropped. A year with no current month (a past year) shows them all
+    /// with no teaser.
+    private func shownMonths(_ months: [CalendarMonth])
+        -> (full: [CalendarMonth], teaser: CalendarMonth?)
+    {
+        guard
+            let currentMonthStart = report.calendar
+            .dateInterval(of: .month, for: report.referenceDate)?
+            .start
+        else {
+            return (months, nil)
         }
+        var full: [CalendarMonth] = []
+        var teaser: CalendarMonth?
+        for month in months {
+            if month.startOfMonth <= currentMonthStart {
+                full.append(month)
+            } else if teaser == nil {
+                teaser = month
+            }
+        }
+        return (full, teaser)
+    }
+
+    /// The next month rendered as a peek: clipped to a fraction of its own
+    /// rendered height (so the grid can only scroll partway into it), dimmed, and
+    /// faded out over that height.
+    private func teaserMonth(_ month: CalendarMonth) -> some View {
+        MonthGridView(month: month, focusedRegion: focusedRegion)
+            .modifier(TeaserPeek(fraction: stylesheet.calendar.month.futurePeekFraction))
+            .opacity(stylesheet.calendar.month.futureOpacity)
+            .allowsHitTesting(false)
+    }
+
+    /// Scrolls to the current month once per year while the grid is still hidden
+    /// (a `scrollTo` to a lazy month has to run after layout, so it's deferred a
+    /// tick), then reveals it — so the user sees the calendar appear already at
+    /// the current month rather than watching it jump there. Reappearing (a tab
+    /// return) skips this and keeps the user's scroll; a year switch rebuilds
+    /// the grid and positions afresh. A past year has no current month, so it
+    /// simply reveals from the top.
+    private func positionToCurrentMonthIfNeeded(_ proxy: ScrollViewProxy, months: [CalendarMonth]) {
+        guard scrolledForYear != report.selectedYear else { return }
+        let targetID = months.first(where: \.isCurrentMonth)?.id
+        DispatchQueue.main.async {
+            if let targetID {
+                proxy.scrollTo(targetID, anchor: .top)
+            }
+            scrolledForYear = report.selectedYear
+        }
+    }
+}
+
+/// Reveals `fraction` of the next month's *rendered* height as a peek and fades
+/// it out over that revealed height, so the fade and the visual cutoff are
+/// derived from one number and can't drift into a hard cutoff line: the gradient
+/// reaches fully transparent exactly where the content is clipped.
+///
+/// The pixel height depends on layout (how tall that month renders), so it's
+/// measured at view time rather than baked into the stylesheet: the month is
+/// `fixedSize`d to its natural height (decoupling it from the clamped frame
+/// below, so measuring doesn't feed back), and the peek is `naturalHeight *
+/// fraction`. Hidden until measured so the full month never flashes.
+private struct TeaserPeek: ViewModifier {
+    let fraction: CGFloat
+
+    @State private var naturalHeight: CGFloat?
+
+    func body(content: Content) -> some View {
+        content
+            // Lay the month out at its own height regardless of the clamped frame
+            // below, so the measurement is the natural height and can't loop.
+            .fixedSize(horizontal: false, vertical: true)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { naturalHeight = $0 }
+            .frame(height: peekHeight, alignment: .top)
+            .clipped()
+            .mask(fade)
+            .opacity(naturalHeight == nil ? 0 : 1)
+    }
+
+    /// The revealed height, once the month's natural height is known.
+    private var peekHeight: CGFloat? {
+        naturalHeight.map { $0 * fraction }
+    }
+
+    /// A top-anchored fade that stays solid through the first third, then eases
+    /// to fully clear right at the bottom edge (`location: 1` == `peekHeight`).
+    private var fade: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: .black, location: 0),
+                .init(color: .black.opacity(0.9), location: 0.35),
+                .init(color: .black.opacity(0.3), location: 0.75),
+                .init(color: .clear, location: 1),
+            ],
+            startPoint: .top,
+            endPoint: .bottom,
+        )
     }
 }
 
@@ -173,7 +281,6 @@ private struct MonthGridView: View {
     let month: CalendarMonth
     /// The region the calendar is focused on, if any — emphasized in the footer.
     var focusedRegion: Region?
-    let onSelectDay: (CalendarDayCell) -> Void
 
     @Environment(\.stylesheet) private var stylesheet
 
@@ -203,16 +310,11 @@ private struct MonthGridView: View {
 
                 ForEach(0 ..< month.leadingBlankCount, id: \.self) { _ in
                     Color.clear
-                        .frame(minHeight: calendar.dayMinHeight)
+                        .frame(minHeight: calendar.day.minHeight)
                 }
 
-                ForEach(month.days) { day in
-                    Button {
-                        onSelectDay(day)
-                    } label: {
-                        DayCell(day: day)
-                    }
-                    .buttonStyle(.plain)
+                ForEach(Array(month.days.enumerated()), id: \.element.id) { index, day in
+                    DayCell(day: day, band: bandGeometry(at: index))
                 }
             }
 
@@ -222,12 +324,65 @@ private struct MonthGridView: View {
         }
         .padding(calendar.month.padding)
         .background {
-            if month.isCurrentMonth {
-                RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
-                    .fill(calendar.month.currentMonthHighlight)
-            }
+            // Past and future months share the plain card; the current one
+            // gets the accent card (bluer wash, heavier border).
+            let card = month.isCurrentMonth ? calendar.month.current : calendar.month.plain
+            RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
+                .fill(card.fill)
+                .overlay {
+                    RoundedRectangle(cornerRadius: calendar.month.cornerRadius)
+                        .strokeBorder(card.border, lineWidth: card.borderWidth)
+                }
         }
     }
+
+    /// The stay-pill geometry for the day at `index`: a run is contiguous days
+    /// with the identical region set, so its true ends round fully while a run
+    /// spilling across a week boundary rounds subtly (and same-row neighbours
+    /// extend half the grid gap so the pill reads as one connected shape).
+    private func bandGeometry(at index: Int) -> DayBandGeometry {
+        let days = month.days
+        let day = days[index]
+        guard !day.regions.isEmpty else { return .none }
+
+        let regionSet = Set(day.regions)
+        let column = (month.leadingBlankCount + index) % month.weekdayCount
+        let isRowStart = column == 0
+        let isRowEnd = column == month.weekdayCount - 1
+        let joinsLeft = index > 0 && Set(days[index - 1].regions) == regionSet
+        let joinsRight = index < days.count - 1 && Set(days[index + 1].regions) == regionSet
+
+        let band = calendar.regionBand
+        let halfGap = calendar.month.gridSpacing / 2
+        return DayBandGeometry(
+            regions: day.regions,
+            leadingRadius: joinsLeft ? (isRowStart ? band.continuationRadius : 0) : band
+                .cornerRadius,
+            trailingRadius: joinsRight ? (isRowEnd ? band.continuationRadius : 0) : band
+                .cornerRadius,
+            extendLeading: joinsLeft && !isRowStart ? halfGap : 0,
+            extendTrailing: joinsRight && !isRowEnd ? halfGap : 0,
+        )
+    }
+}
+
+/// How to draw a day's slice of the region "stay" pill: which corners round
+/// (the run's ends) and how far to bleed into the grid gaps so a run reads as
+/// one connected shape. Empty `regions` means no pill.
+private struct DayBandGeometry {
+    var regions: [Region]
+    var leadingRadius: CGFloat
+    var trailingRadius: CGFloat
+    var extendLeading: CGFloat
+    var extendTrailing: CGFloat
+
+    static let none = DayBandGeometry(
+        regions: [],
+        leadingRadius: 0,
+        trailingRadius: 0,
+        extendLeading: 0,
+        extendTrailing: 0,
+    )
 }
 
 /// The per-month footer: one row per region present that month, showing its dot
@@ -247,6 +402,7 @@ private struct MonthFooter: View {
     var body: some View {
         VStack(spacing: calendar.month.footerSpacing) {
             Divider()
+                .padding(.bottom, calendar.month.footerDividerSpacing)
             ForEach(totals) { tally in
                 row(for: tally)
             }
@@ -282,9 +438,13 @@ private struct MonthFooter: View {
     }
 }
 
-/// One day in the month grid: the day number and region-colored dots below.
+/// One day in the month grid: the day number, region-presence dots beneath it,
+/// and a subtle region-tinted "stay" pill behind it that connects to adjacent
+/// days in the same run so a stretch in one place reads as a single shape.
 private struct DayCell: View {
     let day: CalendarDayCell
+    /// The stay-pill slice for this day (computed by the enclosing month).
+    let band: DayBandGeometry
 
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
@@ -294,19 +454,19 @@ private struct DayCell: View {
     }
 
     var body: some View {
-        VStack(spacing: calendar.dayContentSpacing) {
+        VStack(spacing: calendar.day.numberDotSpacing) {
             Text("\(day.dayOfMonth)")
                 .font(.callout)
                 .monospacedDigit()
                 .foregroundStyle(dayNumberColor)
-                .frame(width: calendar.dayNumberSize, height: calendar.dayNumberSize)
+                .frame(width: calendar.day.numberSize, height: calendar.day.numberSize)
                 .background {
                     if day.isToday {
                         Circle()
-                            .fill(calendar.todayMarker)
+                            .fill(calendar.day.todayMarker)
                     } else if day.needsAttention {
                         Circle()
-                            .fill(calendar.unresolvedDayMarker)
+                            .fill(calendar.day.unresolvedMarker)
                     }
                 }
                 // A day carrying an attachment gets a small paperclip badge in
@@ -315,30 +475,26 @@ private struct DayCell: View {
                 .overlay(alignment: .topTrailing) {
                     if day.hasEvidence {
                         Image(systemName: "paperclip")
-                            .font(.system(size: calendar.evidenceBadge.iconSize, weight: .bold))
+                            .font(.system(size: calendar.day.evidenceBadge.iconSize, weight: .bold))
                             .foregroundStyle(Color.accentColor)
-                            .padding(calendar.evidenceBadge.padding)
+                            .padding(calendar.day.evidenceBadge.padding)
                             .background(Circle().fill(Color(.systemBackground)))
                             .offset(
-                                x: calendar.evidenceBadge.offset.width,
-                                y: calendar.evidenceBadge.offset.height,
+                                x: calendar.day.evidenceBadge.offset.width,
+                                y: calendar.day.evidenceBadge.offset.height,
                             )
                     }
                 }
 
-            HStack(spacing: calendar.dayContentSpacing) {
-                ForEach(day.regions, id: \.self) { region in
-                    Circle()
-                        .fill(regionStyles.style(for: region).tint)
-                        .frame(
-                            width: calendar.dotSize,
-                            height: calendar.dotSize,
-                        )
-                }
-            }
-            .frame(height: calendar.dotSize)
+            dots
         }
-        .frame(maxWidth: .infinity, minHeight: calendar.dayMinHeight)
+        // Pad the content, then back it with the pill so the pill hugs the
+        // content with a little vertical breathing room (rather than butting
+        // into the dots); the outer frame is the tap target.
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, calendar.regionBand.verticalInset)
+        .background { stayPill }
+        .frame(minHeight: calendar.day.minHeight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
@@ -351,11 +507,69 @@ private struct DayCell: View {
         )
     }
 
+    /// Region-presence dots beneath the day number (one per region the day
+    /// counts for), each with a subtle background-colored rim. On a multi-region
+    /// day the dots overlap into a cluster, the rims keeping them distinct.
+    /// Empty days keep the row height so the grid baseline is even.
+    private var dots: some View {
+        let isCluster = day.regions.count > 1
+        return HStack(spacing: isCluster ? -calendar.day.dotOverlap : calendar.day.contentSpacing) {
+            ForEach(day.regions, id: \.self) { region in
+                Circle()
+                    .fill(regionStyles.style(for: region).tint)
+                    .frame(width: calendar.day.dotSize, height: calendar.day.dotSize)
+                    .overlay {
+                        Circle().stroke(
+                            Color(.systemBackground),
+                            lineWidth: calendar.day.dotStrokeWidth,
+                        )
+                    }
+            }
+        }
+        .frame(height: calendar.day.dotSize)
+    }
+
+    /// The subtle region-tinted pill spanning this day's slice of a stay run —
+    /// tinted per region (a soft blend on multi-region days), its corners
+    /// rounded per `band`, inset vertically, and bled `extend…` points into the
+    /// grid gaps so same-run neighbours join into one shape. A `GeometryReader`
+    /// gives the exact cell size to size and offset the overflow precisely.
+    @ViewBuilder
+    private var stayPill: some View {
+        if !band.regions.isEmpty {
+            GeometryReader { proxy in
+                UnevenRoundedRectangle(
+                    topLeadingRadius: band.leadingRadius,
+                    bottomLeadingRadius: band.leadingRadius,
+                    bottomTrailingRadius: band.trailingRadius,
+                    topTrailingRadius: band.trailingRadius,
+                )
+                .fill(pillFill)
+                .opacity(calendar.regionBand.opacity)
+                .frame(
+                    width: proxy.size.width + band.extendLeading + band.extendTrailing,
+                    height: proxy.size.height,
+                )
+                .offset(x: -band.extendLeading)
+            }
+        }
+    }
+
+    /// The pill's tint: one region reads as a solid wash; a multi-region day
+    /// (rare — a travel day) softly blends its regions left-to-right.
+    private var pillFill: LinearGradient {
+        LinearGradient(
+            colors: band.regions.map { regionStyles.style(for: $0).tint },
+            startPoint: .leading,
+            endPoint: .trailing,
+        )
+    }
+
     private var dayNumberColor: Color {
         if day.isToday {
-            calendar.todayNumberColor
+            calendar.day.todayNumberColor
         } else if day.needsAttention {
-            calendar.unresolvedNumberColor
+            calendar.day.unresolvedNumberColor
         } else {
             .primary
         }
@@ -363,7 +577,7 @@ private struct DayCell: View {
 }
 
 #if DEBUG
-    #Preview("Loaded") {
+    #Preview("Sheet") {
         CalendarView(report: PreviewSupport.loadedYearReportModel())
     }
 
@@ -371,11 +585,21 @@ private struct DayCell: View {
         CalendarView(focusedRegion: .california, report: PreviewSupport.loadedYearReportModel())
     }
 
-    #Preview("Empty") {
-        CalendarView(report: PreviewSupport.emptyYearReportModel())
+    #Preview("Content loaded") {
+        NavigationStack {
+            CalendarContentView(report: PreviewSupport.loadedYearReportModel())
+        }
     }
 
-    #Preview("Missing days") {
-        CalendarView(report: PreviewSupport.missingDaysYearReportModel())
+    #Preview("Content empty") {
+        NavigationStack {
+            CalendarContentView(report: PreviewSupport.emptyYearReportModel())
+        }
+    }
+
+    #Preview("Content missing days") {
+        NavigationStack {
+            CalendarContentView(report: PreviewSupport.missingDaysYearReportModel())
+        }
     }
 #endif

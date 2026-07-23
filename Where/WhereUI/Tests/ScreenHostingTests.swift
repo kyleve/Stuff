@@ -13,16 +13,17 @@ import WhereCore
 /// (Settings) also read the `WhereSession` coordinator from the environment.
 @MainActor
 struct ScreenHostingTests {
-    @Test func primaryViewHostsWithData() throws {
+    @Test func locationsViewHostsWithData() throws {
         let report = PreviewSupport.loadedYearReportModel()
-        try show(UIHostingController(rootView: PrimaryView(report: report))) { hosted in
+        try show(UIHostingController(rootView: LocationsView(report: report))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
-    @Test func secondaryViewHostsWithData() throws {
+    @Test func elsewhereViewHostsWithData() throws {
         let report = PreviewSupport.loadedYearReportModel()
-        try show(UIHostingController(rootView: SecondaryView(report: report))) { hosted in
+        let rootView = NavigationStack { ElsewhereView(report: report) }
+        try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }
@@ -62,7 +63,7 @@ struct ScreenHostingTests {
 
     @Test func appearanceSettingsViewHosts() throws {
         let rootView = NavigationStack {
-            AppearanceSettingsView(report: PreviewSupport.loadedYearReportModel())
+            AppearanceSettingsView()
         }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
@@ -121,16 +122,16 @@ struct ScreenHostingTests {
         }
     }
 
-    @Test func primaryViewHostsWithElsewhereOnlyData() throws {
+    @Test func locationsViewHostsWithElsewhereOnlyData() throws {
         let report = PreviewSupport.elsewhereOnlyYearReportModel()
-        try show(UIHostingController(rootView: PrimaryView(report: report))) { hosted in
+        try show(UIHostingController(rootView: LocationsView(report: report))) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
-    @Test func primaryViewHostsWithMissingDays() throws {
+    @Test func locationsViewHostsWithMissingDays() throws {
         let report = PreviewSupport.missingDaysYearReportModel()
-        try show(UIHostingController(rootView: PrimaryView(report: report))) { hosted in
+        try show(UIHostingController(rootView: LocationsView(report: report))) { hosted in
             #expect(hosted.view != nil)
         }
     }
@@ -244,9 +245,10 @@ struct ScreenHostingTests {
         }
     }
 
-    @Test func presenceTimelineViewHostsWithData() throws {
+    @Test func presenceTimelineListHostsWithData() throws {
         let report = PreviewSupport.loadedYearReportModel()
-        try show(UIHostingController(rootView: PresenceTimelineView(report: report))) { hosted in
+        let rootView = NavigationStack { PresenceTimelineList(report: report) }
+        try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }
@@ -254,6 +256,28 @@ struct ScreenHostingTests {
     @Test func calendarViewHostsWithData() throws {
         let report = PreviewSupport.loadedYearReportModel()
         try show(UIHostingController(rootView: CalendarView(report: report))) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func calendarContentViewHostsWithData() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        let rootView = NavigationStack { CalendarContentView(report: report) }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func yearViewHostsWithData() throws {
+        let report = PreviewSupport.loadedYearReportModel()
+        try show(UIHostingController(rootView: YearView(report: report))) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func elsewhereSummaryCardHosts() throws {
+        let rootView = ElsewhereSummaryCard(regionCount: 3)
+        try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }

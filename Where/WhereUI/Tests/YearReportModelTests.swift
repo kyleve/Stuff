@@ -235,35 +235,6 @@ struct YearReportModelTests {
         #expect(preferences.driftThresholdMeters == DriftThreshold.km25.rawValue)
     }
 
-    @Test func hideEmptyTabsDefaultsOnAndPersistsAcrossModels() throws {
-        let store = try TestStore()
-        let services = WhereServices(
-            store: store,
-            locationSource: ScriptedLocationSource(),
-            reminderScheduler: NoopLoggingReminderScheduler(),
-            widgetRefresher: NoopWidgetTimelineRefresher(),
-        )
-        let preferences = WherePreferences(store: InMemoryKeyValueStore())
-        let report = YearReportModel(
-            services: services,
-            selectedYear: 2026,
-            preferences: preferences,
-        )
-
-        // Hidden out of the box, and the setter writes through to preferences.
-        #expect(report.hideEmptyTabs)
-        report.hideEmptyTabs = false
-        #expect(!preferences.hideEmptyTabs)
-
-        // A model rebuilt over the same preferences reads the persisted choice.
-        let rebuilt = YearReportModel(
-            services: services,
-            selectedYear: 2026,
-            preferences: preferences,
-        )
-        #expect(!rebuilt.hideEmptyTabs)
-    }
-
     /// The Resolve list keys its scan `.task(id:)` on `dataIssueScanInputs`, so a
     /// drift-threshold change must change that identity — otherwise the list keeps
     /// a stale scan while the badge count moves and the two visibly disagree. The

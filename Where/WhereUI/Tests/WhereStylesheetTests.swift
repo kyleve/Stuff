@@ -103,15 +103,25 @@ struct WhereStylesheetTests {
     @Test func calendarStyle() {
         let calendar = style.calendar
         #expect(calendar.monthSpacing == 16)
-        #expect(calendar.dayMinHeight == 44)
         #expect(calendar.dotSize == 6)
-        #expect(calendar.dayContentSpacing == 2)
-        #expect(calendar.dayNumberSize == 26)
-        #expect(calendar.todayMarker == .accentColor)
-        #expect(calendar.todayNumberColor == .white)
-        #expect(calendar.unresolvedDayMarker == Color.red.opacity(0.15))
-        #expect(calendar.unresolvedNumberColor == .red)
-        #expect(calendar.evidenceBadge == .init(
+        #expect(calendar.regionBand.opacity == 0.16)
+        #expect(calendar.regionBand.cornerRadius == 14)
+        #expect(calendar.regionBand.continuationRadius == 3)
+        #expect(calendar.regionBand.verticalInset == 4)
+
+        let day = calendar.day
+        #expect(day.minHeight == 44)
+        #expect(day.numberSize == 26)
+        #expect(day.numberDotSpacing == 0)
+        #expect(day.dotSize == 8)
+        #expect(day.dotOverlap == 2)
+        #expect(day.dotStrokeWidth == 1.5)
+        #expect(day.contentSpacing == 2)
+        #expect(day.todayMarker == .accentColor)
+        #expect(day.todayNumberColor == .white)
+        #expect(day.unresolvedMarker == Color.red.opacity(0.15))
+        #expect(day.unresolvedNumberColor == .red)
+        #expect(day.evidenceBadge == .init(
             iconSize: 8,
             padding: 2,
             offset: CGSize(width: 3, height: -2),
@@ -121,8 +131,16 @@ struct WhereStylesheetTests {
         #expect(month.sectionSpacing == 8)
         #expect(month.gridSpacing == 6)
         #expect(month.padding == 16)
-        #expect(month.cornerRadius == 22)
-        #expect(month.currentMonthHighlight == Color.accentColor.opacity(0.08))
+        #expect(month.cornerRadius == 21)
+        #expect(month.plain.fill == Color.primary.opacity(0.03))
+        #expect(month.plain.border == Color.primary.opacity(0.12))
+        #expect(month.plain.borderWidth == 2)
+        #expect(month.current.fill == Color.accentColor.opacity(0.08))
+        #expect(month.current.border == Color.accentColor.opacity(0.7))
+        #expect(month.current.borderWidth == 4)
+        #expect(month.futureOpacity == 0.55)
+        #expect(month.futurePeekFraction == 0.5)
+        #expect(month.footerDividerSpacing == 8)
         #expect(month.footerSpacing == 4)
         #expect(month.footerRowSpacing == 6)
         #expect(month.unfocusedRowOpacity == 0.55)
@@ -203,6 +221,13 @@ struct WhereStylesheetTests {
         #expect(evidence.loadingMinHeight == 200)
     }
 
+    @Test func elsewhereCardStyle() {
+        let card = style.elsewhereCard
+        #expect(card.cornerRadius == 22)
+        #expect(card.padding == 18)
+        #expect(card.iconPointSize == 28)
+    }
+
     @Test func typographyFaces() {
         let typography = style.typography
         #expect(typography.onboardingIcon == .system(size: 72))
@@ -260,7 +285,7 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
-        #expect(resolved.calendar.dayMinHeight == 56)
+        #expect(resolved.calendar.day.minHeight == 56)
     }
 
     @MainActor
@@ -335,7 +360,7 @@ private struct StylesheetProbe: View {
 
     var body: some View {
         Color.clear
-            .onChange(of: stylesheet.calendar.dayMinHeight, initial: true) { _, newValue in
+            .onChange(of: stylesheet.calendar.day.minHeight, initial: true) { _, newValue in
                 box.calendarDayMinHeight = newValue
             }
     }

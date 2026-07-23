@@ -8,12 +8,12 @@ struct RegionSummaryCard: View {
     let regionDays: RegionDays
     var caption: String?
     /// An optional reverse-geocoded "where" teaser (e.g. "Paris, France"),
-    /// shown beneath the caption. Used on the Elsewhere cards; `nil` on
-    /// Primary, which intentionally stays a pure passport stamp.
+    /// shown beneath the caption. Used on the Elsewhere cards; `nil` on the
+    /// Locations cards, which intentionally stay a pure passport stamp.
     var places: String?
 
-    /// Which card spec to render — the big `.regular` Primary card or the
-    /// `.compact` Elsewhere one. The caller (tab) picks; the view reads the one
+    /// Which card spec to render — the big `.regular` Locations card or the
+    /// `.compact` Elsewhere one. The caller picks; the view reads the one
     /// resolved ``WhereStylesheet/CardStyle`` and never branches on it again.
     var variant: WhereStylesheet.CardStyle.Variant = .regular
 

@@ -3,26 +3,26 @@ import WhereCore
 
 /// The logged-in tab bar — the launch *destination* once the runner reaches
 /// `.ready`, not a launch step. Owns the scene-scoped ``YearReportModel`` as
-/// `@State`, drives its store-change subscription from `scenePhase` (active →
+/// `@State` and drives its store-change subscription from `scenePhase` (active →
 /// subscribe + pull, background → cancel — closing the headless-relaunch rescan
-/// leak), and renders the Resolve badge from its count.
+/// leak).
 ///
-/// The four tabs receive the report by explicit init injection (compile-checked
-/// wiring); the always-on `WhereSession` coordinator stays in the environment.
+/// Three fixed tabs — Locations, Your Year, Settings. Elsewhere is folded into
+/// Locations (an entry card) and Resolve into a Locations toolbar button; the
+/// data screens (attachments, logged days, regions) live in the Settings "Data"
+/// group. The tabs receive the report by explicit init injection (compile-
+/// checked wiring); the always-on `WhereSession` coordinator stays in the
+/// environment.
 struct MainTabs: View {
-    /// Identity for the tab-bar selection. The Elsewhere and Resolve tabs are
-    /// conditional (see `body`), so a stable value lets the selection survive a
-    /// tab appearing/disappearing and lets `body` keep a tab mounted while the
-    /// user is still on it.
+    /// Identity for the tab-bar selection.
     private enum TabID: Hashable {
-        case primary
-        case elsewhere
-        case resolution
+        case locations
+        case year
         case settings
     }
 
     @State private var report: YearReportModel
-    @State private var selection: TabID = .primary
+    @State private var selection: TabID = .locations
     @Environment(\.scenePhase) private var scenePhase
 
     /// Build the scene's report model from the coordinator's service layer.
@@ -40,36 +40,14 @@ struct MainTabs: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            Tab(Strings.tabPrimary, systemImage: "star.fill", value: TabID.primary) {
-                PrimaryView(report: report)
+            Tab(Strings.tabLocations, systemImage: "location.fill", value: TabID.locations) {
+                LocationsView(report: report)
                     .reportingDeveloperTabBarInset()
             }
 
-            // With "hide empty tabs" on (the default), Elsewhere and Resolve
-            // appear only when they have something to show — but stay mounted
-            // while they're the current selection, so resolving the last issue
-            // (or emptying Elsewhere) never yanks the user off the tab they're on;
-            // the tab drops out the next time they switch away. With the setting
-            // off, both tabs are always present.
-            if !report.hideEmptyTabs || !report.ranking.secondary.isEmpty
-                || selection == .elsewhere
-            {
-                Tab(
-                    Strings.tabElsewhere,
-                    systemImage: "globe.americas.fill",
-                    value: TabID.elsewhere,
-                ) {
-                    SecondaryView(report: report)
-                        .reportingDeveloperTabBarInset()
-                }
-            }
-
-            if !report.hideEmptyTabs || report.dataIssueCount > 0 || selection == .resolution {
-                Tab(Strings.tabResolution, systemImage: "checklist", value: TabID.resolution) {
-                    ResolutionView(report: report)
-                        .reportingDeveloperTabBarInset()
-                }
-                .badge(report.dataIssueCount)
+            Tab(Strings.tabYear, systemImage: "calendar", value: TabID.year) {
+                YearView(report: report)
+                    .reportingDeveloperTabBarInset()
             }
 
             Tab(Strings.tabSettings, systemImage: "gearshape.fill", value: TabID.settings) {
@@ -77,7 +55,8 @@ struct MainTabs: View {
                     .reportingDeveloperTabBarInset()
             }
         }
-        .tabBarMinimizeBehavior(.onScrollDown)
+        // Keep the tab bar fixed — don't minimize it as content scrolls.
+        .tabBarMinimizeBehavior(.never)
         // Subscribe + pull once the scene is on screen, and again whenever it
         // returns to the foreground; cancel the subscription on background so a
         // backgrounded scene drives no refreshes.

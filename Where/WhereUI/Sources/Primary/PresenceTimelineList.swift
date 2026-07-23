@@ -3,33 +3,9 @@ import WhereCore
 
 /// A chronological list of continuous stays (`RegionStint`s) for the selected
 /// year — "California, Jan 1 – Feb 3", "New York, Feb 3 – Mar 10", and so on.
-/// Presented as a sheet from the Primary tab.
-struct PresenceTimelineView: View {
-    let report: YearReportModel
-
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            PresenceTimelineList(report: report)
-                .navigationTitle(Strings.timelineTitle(year: report.selectedYear))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.timelineDone) { dismiss() }
-                    }
-                }
-        }
-    }
-}
-
-/// The stint list shared by `PresenceTimelineView` and the calendar drill-in.
-/// When `scrollToMonth` is set, scrolls to the first stint overlapping that
-/// month on appear.
+/// Hosted as the Timeline segment of the Your Year tab.
 struct PresenceTimelineList: View {
     let report: YearReportModel
-
-    var scrollToMonth: Date?
 
     private var stints: [RegionStint] {
         guard let report = report.report else { return [] }
@@ -44,26 +20,9 @@ struct PresenceTimelineList: View {
                 Text(Strings.timelineEmptyDescription)
             }
         } else {
-            ScrollViewReader { proxy in
-                List(stints) { stint in
-                    StintRow(stint: stint)
-                }
-                .onAppear {
-                    scrollToTargetMonth(proxy)
-                }
+            List(stints) { stint in
+                StintRow(stint: stint)
             }
-        }
-    }
-
-    private func scrollToTargetMonth(_ proxy: ScrollViewProxy) {
-        guard let startOfMonth = scrollToMonth else { return }
-        let calendar = Calendar.current
-        guard let nextMonth = calendar.date(byAdding: .month, value: 1, to: startOfMonth)
-        else { return }
-        guard let target = stints.first(where: { $0.end >= startOfMonth && $0.start < nextMonth })
-        else { return }
-        DispatchQueue.main.async {
-            proxy.scrollTo(target.id, anchor: .top)
         }
     }
 }
@@ -130,6 +89,8 @@ private struct StintRow: View {
 
 #if DEBUG
     #Preview {
-        PresenceTimelineView(report: PreviewSupport.loadedYearReportModel())
+        NavigationStack {
+            PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+        }
     }
 #endif

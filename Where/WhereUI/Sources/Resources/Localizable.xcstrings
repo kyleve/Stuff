@@ -935,6 +935,18 @@
         }
       }
     },
+    "locations.elsewhere.subtitle" : {
+      "comment" : "Subtitle on the Locations tab's Elsewhere entry card: region count.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "^[%lld region](inflect: true)"
+          }
+        }
+      }
+    },
     "loggedDays.add" : {
       "extractionState" : "extracted_with_value",
       "localizations" : {
@@ -1669,16 +1681,28 @@
               "one" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld day logged this year, but none in a headline spot yet. Peek at the Elsewhere tab."
+                  "value" : "%lld day logged this year, but none in a headline spot yet."
                 }
               },
               "other" : {
                 "stringUnit" : {
                   "state" : "translated",
-                  "value" : "%lld days logged this year, but none in a headline spot yet. Peek at the Elsewhere tab."
+                  "value" : "%lld days logged this year, but none in a headline spot yet."
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "primary.elsewhereOnly.open" : {
+      "comment" : "Button on the Locations elsewhere-only state that opens the Elsewhere list.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See Elsewhere"
           }
         }
       }
@@ -3446,6 +3470,52 @@
         }
       }
     },
+    "settings.attachments.row" : {
+      "comment" : "Row title for the attachments (evidence) screen in the Settings Data group.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attachments"
+          }
+        }
+      }
+    },
+    "settings.keywords.attachments" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "attachments, evidence, receipt, boarding pass, ticket, photo"
+          }
+        }
+      }
+    },
+    "settings.keywords.loggedDays" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "logged days, manual, override, entry, backfill"
+          }
+        }
+      }
+    },
+    "settings.loggedDays.row" : {
+      "comment" : "Row title for the hand-logged-days screen in the Settings Data group.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Logged Days"
+          }
+        }
+      }
+    },
     "settings.regions.section" : {
       "comment" : "Label for the settings option to manage your regions.",
       "extractionState" : "extracted_with_value",
@@ -3724,39 +3794,6 @@
         }
       }
     },
-    "settings.tabs.footer" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide the Elsewhere and Resolve tabs while they have nothing to show. Turn this off to always keep them in the tab bar."
-          }
-        }
-      }
-    },
-    "settings.tabs.header" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tabs"
-          }
-        }
-      }
-    },
-    "settings.tabs.toggle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide empty tabs"
-          }
-        }
-      }
-    },
     "settings.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3801,24 +3838,13 @@
         }
       }
     },
-    "tab.elsewhere" : {
+    "tab.locations" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Elsewhere"
-          }
-        }
-      }
-    },
-    "tab.primary" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Primary"
+            "value" : "Locations"
           }
         }
       }
@@ -3846,13 +3872,13 @@
         }
       }
     },
-    "timeline.done" : {
+    "tab.year" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Done"
+            "value" : "Your Year"
           }
         }
       }
@@ -3886,17 +3912,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@, %2$@, %3$@"
-          }
-        }
-      }
-    },
-    "timeline.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Timeline · %@"
           }
         }
       }
@@ -3949,6 +3964,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Days in %@"
+          }
+        }
+      }
+    },
+    "year.segmentPicker" : {
+      "comment" : "Accessibility label for the Your Year tab's segmented control.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year view"
           }
         }
       }

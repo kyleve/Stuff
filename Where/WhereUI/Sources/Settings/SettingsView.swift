@@ -3,10 +3,10 @@ import SwiftUI
 import WhereCore
 
 /// Settings tab: an iOS-Settings-style top-level list of icon rows that drill
-/// into grouped sub-screens (location, regions, reminders, alerts & data
-/// resolution, appearance, report year, backup, data), plus a search field that
-/// filters individual settings and deep-links to the screen — and the row —
-/// containing each.
+/// into grouped sub-screens — a Data group at the top (attachments, logged days,
+/// regions), then location, alerts, appearance, report year, backup, and erase
+/// — plus a search field that filters individual settings and deep-links to the
+/// screen — and the row — containing each.
 ///
 /// The top level owns nothing but navigation; behavior lives in the sub-screens
 /// (`LocationSettingsView`, `AlertsSettingsView`, …). The scene's report model and
@@ -106,7 +106,7 @@ struct SettingsView: View {
         switch destination {
             case .regions:
                 showRegions = true
-            case .location, .alerts, .appearance, .year, .backup, .data:
+            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .backup, .data:
                 assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
@@ -139,7 +139,7 @@ struct SettingsView: View {
                 )
             case .year:
                 report.selectedYear.formatted(.number.grouping(.never))
-            case .regions, .alerts, .appearance, .backup, .data:
+            case .attachments, .loggedDays, .regions, .alerts, .appearance, .backup, .data:
                 nil
         }
     }
@@ -165,6 +165,10 @@ struct SettingsView: View {
     @ViewBuilder
     private func destination(for route: SettingsRoute) -> some View {
         switch route.destination {
+            case .attachments:
+                EvidenceListView(report: report)
+            case .loggedDays:
+                LoggedDaysView(report: report)
             case .location:
                 LocationSettingsView(focus: route.focus)
             case .regions:
@@ -174,7 +178,7 @@ struct SettingsView: View {
             case .alerts:
                 AlertsSettingsView(report: report, reminders: reminders, focus: route.focus)
             case .appearance:
-                AppearanceSettingsView(report: report, focus: route.focus)
+                AppearanceSettingsView(focus: route.focus)
             case .year:
                 VisibleYearSettingsView(report: report, focus: route.focus)
             case .backup:
