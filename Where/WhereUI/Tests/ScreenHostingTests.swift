@@ -253,16 +253,20 @@ struct ScreenHostingTests {
         }
     }
 
-    @Test func calendarViewHostsWithData() throws {
+    @Test func calendarContentViewHostsWithData() throws {
         let report = PreviewSupport.loadedYearReportModel()
-        try show(UIHostingController(rootView: CalendarView(report: report))) { hosted in
+        let rootView = NavigationStack { CalendarContentView(report: report) }
+        try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
-    @Test func calendarContentViewHostsWithData() throws {
+    @Test func calendarContentViewHostsRegionFocused() throws {
+        // The Locations tab pushes the region-focused calendar as a nested view.
         let report = PreviewSupport.loadedYearReportModel()
-        let rootView = NavigationStack { CalendarContentView(report: report) }
+        let rootView = NavigationStack {
+            CalendarContentView(focusedRegion: .california, report: report)
+        }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }

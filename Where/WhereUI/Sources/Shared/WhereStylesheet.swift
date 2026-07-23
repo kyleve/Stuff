@@ -273,7 +273,7 @@ extension WhereStylesheet {
 // MARK: - Calendar
 
 extension WhereStylesheet {
-    /// Style for the year calendar (`CalendarView`): `month` covers one month
+    /// Style for the year calendar (`CalendarContentView`): `month` covers one month
     /// section, and the remaining properties cover the day cells shared across
     /// every month. Grouping the component's appearance here (rather than reading
     /// scattered generic tokens) keeps its full spec in one place and gives a
@@ -401,7 +401,7 @@ extension WhereStylesheet {
         }
 
         /// The fixed calendar geometry, migrated from the former generic
-        /// spacing/size tokens and inline colors in `CalendarView`.
+        /// spacing/size tokens and inline colors in `CalendarContentView`.
         static let standard = CalendarStyle(
             monthSpacing: 16,
             month: MonthStyle(
