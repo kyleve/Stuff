@@ -307,9 +307,9 @@ extension WhereStylesheet {
             /// Opacity of the next-month "teaser" peek, dimming it so it clearly
             /// hasn't happened yet.
             var futureOpacity: Double
-            /// Height the next month is clipped to — a peek the grid can only
-            /// scroll partway into, faded out over it.
-            var teaserPeekHeight: CGFloat
+            /// Height the future (next) month is clipped to — a peek the grid can
+            /// only scroll partway into, faded out over it.
+            var futurePeekHeight: CGFloat
             /// Extra space below the footer's divider, so the tally rows don't
             /// butt right up against it.
             var footerDividerSpacing: CGFloat
@@ -417,7 +417,7 @@ extension WhereStylesheet {
                     borderWidth: 4,
                 ),
                 futureOpacity: 0.55,
-                teaserPeekHeight: 150,
+                futurePeekHeight: 150,
                 footerDividerSpacing: 8,
                 footerSpacing: 4,
                 footerRowSpacing: 6,

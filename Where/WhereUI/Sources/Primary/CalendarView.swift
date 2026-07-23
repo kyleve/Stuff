@@ -202,7 +202,7 @@ struct CalendarContentView: View {
     /// can only scroll partway into it), dimmed, and faded out over that height.
     private func teaserMonth(_ month: CalendarMonth) -> some View {
         MonthGridView(month: month, focusedRegion: focusedRegion)
-            .modifier(TeaserPeek(height: stylesheet.calendar.month.teaserPeekHeight))
+            .modifier(TeaserPeek(height: stylesheet.calendar.month.futurePeekHeight))
             .opacity(stylesheet.calendar.month.futureOpacity)
             .allowsHitTesting(false)
     }
