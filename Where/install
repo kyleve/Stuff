@@ -29,7 +29,7 @@ CONFIGURATION="Debug"
 OPTIMIZE=true   # force compiler optimizations on regardless of configuration
 DEVICE=""       # name, UDID, or identifier; empty = auto-pick the sole device
 LAUNCH=true
-ASSUME_YES=false
+SKIP_WAIT=false # skip the interactive "unlock your device" prompt
 
 usage() {
     cat <<'USAGE'
@@ -48,7 +48,7 @@ Options:
   --no-optimize            Build without forcing optimizations (use the
                            configuration's own optimization level)
   --no-launch              Install only; don't launch the app afterwards
-  -y, --yes, --no-wait     Skip the "unlock your device" confirmation prompt
+  -f, --no-wait            Skip the "unlock your device" confirmation prompt
                            (don't wait for you to unlock the device first)
   -h, --help               Show this help
 
@@ -76,7 +76,7 @@ while [ $# -gt 0 ]; do
         --optimize) OPTIMIZE=true ;;
         --no-optimize) OPTIMIZE=false ;;
         --no-launch) LAUNCH=false ;;
-        -y|--yes|--no-wait) ASSUME_YES=true ;;
+        -f|--no-wait) SKIP_WAIT=true ;;
         -h|--help) usage; exit 0 ;;
         *) echo "error: unknown option '$1' (see ./Where/install --help)" >&2; exit 1 ;;
     esac
@@ -212,8 +212,8 @@ DEVICE_NAME="${DEVICE_SELECTION#*$'\t'}"
 
 # devicectl needs the device unlocked (and this Mac trusted); a locked phone
 # fails partway through the install. Give the user a beat to unlock it first.
-# Skip when non-interactive (no TTY) or when --yes is passed.
-if [ "$ASSUME_YES" = false ] && [ -t 0 ]; then
+# Skip when non-interactive (no TTY) or when --no-wait is passed.
+if [ "$SKIP_WAIT" = false ] && [ -t 0 ]; then
     printf 'Make sure "%s" is unlocked and trusts this Mac.\n' "$DEVICE_NAME"
     read -r -p "Press Enter to install, or Ctrl-C to cancel... " _
 fi

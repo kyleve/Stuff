@@ -212,8 +212,8 @@ simulators are ignored) and prompts you to unlock it before installing; pass
 `--configuration <name>` to build a different configuration (e.g. `Release`),
 `--no-optimize` to leave the configuration's own optimization level alone,
 `--device <name|udid>` to disambiguate, `--no-launch` to install without
-launching, `--yes` (alias `--no-wait`) to skip the unlock prompt without
-waiting for you to unlock the device first.
+launching, `--no-wait` (alias `-f`) to skip the unlock prompt without waiting
+for you to unlock the device first.
 
 ## Testing
 
