@@ -107,12 +107,17 @@ private struct YearModePicker: View {
     private func segment(_ candidate: YearMode) -> some View {
         let isSelected = candidate == mode
         return Button {
-            withAnimation(.snappy(duration: 0.28)) { mode = candidate }
+            // A non-overshooting spring so the sliding capsule doesn't squish
+            // (which briefly truncated the label as its frame animated).
+            withAnimation(.smooth(duration: 0.3)) { mode = candidate }
         } label: {
             Label(candidate.title, systemImage: candidate.systemImage)
                 .labelStyle(.titleAndIcon)
                 .imageScale(.large)
                 .font(.subheadline.weight(.medium))
+                // Keep the label at its intrinsic width so it never truncates
+                // while the segment's frame animates.
+                .fixedSize()
                 .padding(.horizontal, stylesheet.spacing.medium)
                 .padding(.vertical, stylesheet.spacing.small)
                 // Contrast against the black/white selection capsule.
