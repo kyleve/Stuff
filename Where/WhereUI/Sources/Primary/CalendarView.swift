@@ -202,20 +202,7 @@ struct CalendarContentView: View {
     /// can only scroll partway into it), dimmed, and faded out over that height.
     private func teaserMonth(_ month: CalendarMonth) -> some View {
         MonthGridView(month: month, focusedRegion: focusedRegion)
-            .frame(height: stylesheet.calendar.month.teaserPeekHeight, alignment: .top)
-            .clipped()
-            .mask(
-                LinearGradient(
-                    stops: [
-                        .init(color: .black, location: 0),
-                        .init(color: .black.opacity(0.7), location: 0.5),
-                        .init(color: .black.opacity(0.25), location: 0.85),
-                        .init(color: .clear, location: 1),
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom,
-                ),
-            )
+            .modifier(TeaserPeek(height: stylesheet.calendar.month.teaserPeekHeight))
             .opacity(stylesheet.calendar.month.futureOpacity)
             .allowsHitTesting(false)
     }
@@ -236,6 +223,36 @@ struct CalendarContentView: View {
             }
             scrolledForYear = report.selectedYear
         }
+    }
+}
+
+/// Clips the next-month peek to `height` and fades it out over that *same*
+/// height, so the fade and the visual cutoff are derived from one number and
+/// can't drift into a hard cutoff line: the gradient reaches fully transparent
+/// exactly where the content is clipped.
+private struct TeaserPeek: ViewModifier {
+    let height: CGFloat
+
+    func body(content: Content) -> some View {
+        content
+            .frame(height: height, alignment: .top)
+            .clipped()
+            .mask(fade)
+    }
+
+    /// A top-anchored fade that stays solid through the first third, then eases
+    /// to fully clear right at the bottom edge (`location: 1` == `height`).
+    private var fade: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: .black, location: 0),
+                .init(color: .black.opacity(0.9), location: 0.35),
+                .init(color: .black.opacity(0.3), location: 0.75),
+                .init(color: .clear, location: 1),
+            ],
+            startPoint: .top,
+            endPoint: .bottom,
+        )
     }
 }
 
@@ -304,11 +321,6 @@ private struct MonthGridView: View {
                                 : calendar.month.borderWidth,
                         )
                 }
-                // Only the current month glows (accent-tinted outer shadow).
-                .shadow(
-                    color: month.isCurrentMonth ? calendar.month.currentGlow : .clear,
-                    radius: month.isCurrentMonth ? calendar.month.currentGlowRadius : 0,
-                )
         }
     }
 

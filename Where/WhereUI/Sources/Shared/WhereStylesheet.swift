@@ -332,12 +332,9 @@ extension WhereStylesheet {
             /// Wash behind the current month — a bluer accent tint so it stands
             /// out from the plain months.
             var currentMonthHighlight: Color
-            /// The current month's heavier accent border and its matching outer
-            /// glow (an accent-tinted shadow).
+            /// The current month's heavier accent border.
             var currentBorder: Color
             var currentBorderWidth: CGFloat
-            var currentGlow: Color
-            var currentGlowRadius: CGFloat
             /// Opacity of the next-month "teaser" peek, dimming it so it clearly
             /// hasn't happened yet.
             var futureOpacity: Double
@@ -399,8 +396,6 @@ extension WhereStylesheet {
                 currentMonthHighlight: Color.accentColor.opacity(0.08),
                 currentBorder: Color.accentColor.opacity(0.7),
                 currentBorderWidth: 4,
-                currentGlow: Color.accentColor.opacity(0.55),
-                currentGlowRadius: 10,
                 futureOpacity: 0.55,
                 teaserPeekHeight: 150,
                 footerDividerSpacing: 8,
