@@ -57,6 +57,7 @@ let bumper = BumperProject {
             MayDependOn(.regionKit, .whereCore, .whereUI)
             Applies(.whereAdapterLayer)
             DoesNotUse("CoreLocation")
+            DoesNotUse("BroadwayCore", "BroadwayUI")
         }
 
         Component(.app) {
@@ -71,6 +72,7 @@ let bumper = BumperProject {
             Modules("WhereWidgets")
             MayDependOn(.regionKit, .whereCore, .whereUI)
             Applies(.whereAdapterLayer)
+            DoesNotUse("BroadwayCore", "BroadwayUI")
         }
 
         Component(.shareExtension) {

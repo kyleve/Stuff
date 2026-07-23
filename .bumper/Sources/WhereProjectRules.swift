@@ -19,7 +19,11 @@ let whereProjectRules = RuleSet {
     )
     productionStoreOpeningRule
     checkedConcurrencyBoundaryRule
-    intentCalendarRule
+    gregorianCalendarRule
+    storeTransactionBoundaryRule
+    appShortcutsProviderOwnershipRule
+    loggingFacadeRule
+    previewCoverageRule
 }
 
 private let whereServicesConstructionScope = RuleScope
@@ -109,11 +113,10 @@ private let checkedConcurrencyBoundaryRule = Rules.files(
     return preconcurrencyFailures + unsafeNonisolatedFailures
 }
 
-private let intentCalendarRule = Rules.files(
-    "where.intents_calendar",
+private let gregorianCalendarRule = Rules.files(
+    "where.gregorian_calendar",
     severity: .error,
-    summary: "Where intents use the Gregorian current-time-zone calendar shared with aggregation.",
-    scope: .component(WhereComponent.whereIntents)
+    summary: "Where day and year calculations do not use the device's potentially non-Gregorian current calendar."
 ) { file in
     SyntaxQuery<MemberAccessExprSyntax>()
         .filter { match in
@@ -123,11 +126,165 @@ private let intentCalendarRule = Rules.files(
         .matches(in: file)
         .map { match in
             match.failure(
-                message: "WhereIntents uses Calendar.current instead of Calendar.whereIntents.",
+                message: "Where uses Calendar.current instead of an explicit Gregorian calendar.",
                 evidence: ViolationEvidence(
                     observed: match.node.trimmedDescription,
-                    expectation: "Calendar.whereIntents"
+                    expectation: "an injected Gregorian calendar or Calendar.whereIntents"
                 )
             )
         }
+}
+
+private let whereStoreMutatingMethods: Set<String> = [
+    "add",
+    "write",
+    "setManualDay",
+    "clearManualDay",
+    "clear",
+    "clearAll",
+    "setIssueDismissed",
+    "restoreDismissedIssue",
+    "setTrackedRegion",
+    "setPrimaryRegions",
+]
+
+private let storeTransactionBoundaryRule = Rules.files(
+    "where.store_transaction_boundary",
+    severity: .error,
+    summary: "WhereStore mutations occur inside the transaction owned by store.perform."
+) { file in
+    functionCalls()
+        .filter { match in
+            guard
+                let access = match.node.calledExpression.as(MemberAccessExprSyntax.self),
+                ["store", "self.store"].contains(access.base?.trimmedDescription),
+                whereStoreMutatingMethods.contains(access.declName.baseName.text)
+            else {
+                return false
+            }
+            return !isInsideStorePerform(match.node)
+        }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "WhereStore mutation occurs outside store.perform.",
+                evidence: ViolationEvidence(
+                    observed: match.node.calledExpression.trimmedDescription,
+                    expectation: "call the mutation from inside store.perform { ... }"
+                )
+            )
+        }
+}
+
+private func isInsideStorePerform(_ node: FunctionCallExprSyntax) -> Bool {
+    var ancestor = Syntax(node).parent
+    while let current = ancestor {
+        if
+            let call = current.as(FunctionCallExprSyntax.self),
+            let access = call.calledExpression.as(MemberAccessExprSyntax.self),
+            ["store", "self.store"].contains(access.base?.trimmedDescription),
+            access.declName.baseName.text == "perform"
+        {
+            return true
+        }
+        ancestor = current.parent
+    }
+    return false
+}
+
+private let appShortcutsProviderOwnershipRule = Rules.files(
+    "where.app_shortcuts_provider_ownership",
+    severity: .error,
+    summary: "AppShortcutsProvider conformances live in the Where app target."
+) { file in
+    guard file.component.rawValue != WhereComponent.app.rawValue else { return [] }
+    return SyntaxQuery<InheritedTypeSyntax>()
+        .filter { $0.node.type.trimmedDescription == "AppShortcutsProvider" }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "AppShortcutsProvider conformance is outside the Where app target.",
+                evidence: ViolationEvidence(
+                    observed: file.path.rawValue,
+                    expectation: "a source owned by the Where app component"
+                )
+            )
+        }
+}
+
+private let loggingFacadeRule = Rules.files(
+    "where.logging_facade",
+    severity: .error,
+    summary: "Where production logging goes through its typed Periscope facades."
+) { file in
+    let rawLoggingImports = SyntaxQuery<ImportDeclSyntax>()
+        .filter { $0.node.path.trimmedDescription == "OSLog" }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "Where production code imports OSLog directly.",
+                evidence: ViolationEvidence(
+                    observed: "import OSLog",
+                    expectation: "WhereLog or RegionLog"
+                )
+            )
+        }
+
+    let printCalls = functionCalls()
+        .filter { $0.node.calledExpression.trimmedDescription == "print" }
+        .matches(in: file)
+        .map { match in
+            match.failure(
+                message: "Where production code prints directly.",
+                evidence: ViolationEvidence(
+                    observed: "print",
+                    expectation: "a typed WhereLog or RegionLog event"
+                )
+            )
+        }
+
+    return rawLoggingImports + printCalls
+}
+
+private let previewScope = RuleScope
+    .component(WhereComponent.whereUI)
+    .union(.component(WhereComponent.widgets))
+
+private let previewCoverageRule = Rules.files(
+    "where.preview_coverage",
+    severity: .error,
+    summary: "Every WhereUI or widget source file declaring a previewable component includes a #Preview.",
+    scope: previewScope
+) { file in
+    let previewableDeclarations = SyntaxQuery<StructDeclSyntax>()
+        .filter { match in
+            let inheritedTypes = match.node.inheritanceClause?.inheritedTypes ?? []
+            return inheritedTypes.contains { inherited in
+                ["View", "Widget", "WidgetBundle"].contains(inherited.type.trimmedDescription)
+            }
+        }
+        .matches(in: file)
+    let hasPreviewDeclaration = !SyntaxQuery<MacroExpansionDeclSyntax>()
+        .filter { match in match.node.macroName.text == "Preview" }
+        .matches(in: file)
+        .isEmpty
+    let hasPreviewExpression = !SyntaxQuery<MacroExpansionExprSyntax>()
+        .filter { match in match.node.macroName.text == "Preview" }
+        .matches(in: file)
+        .isEmpty
+    let hasPreview = hasPreviewDeclaration || hasPreviewExpression
+
+    guard !previewableDeclarations.isEmpty, !hasPreview else {
+        return []
+    }
+
+    return previewableDeclarations.map { match in
+        match.failure(
+            message: "\(match.node.name.text) has no #Preview in its source file.",
+            evidence: ViolationEvidence(
+                observed: file.path.rawValue,
+                expectation: "at least one #Preview in the same file"
+            )
+        )
+    }
 }

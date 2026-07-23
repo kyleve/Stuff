@@ -92,18 +92,62 @@ These use Bumper's standard `constructionOwnership` shaper. TheButtonHeist's
 as the analogous lower-level ownership check and retained; the standard shaper
 fully expresses Where's constructor facts.
 
-## Intent calendar
+## Gregorian calendar
 
-`where.intents_calendar` rejects `Calendar.current` inside WhereIntents.
-Intent year/day math must use `Calendar.whereIntents`, whose Gregorian calendar
-and current time zone match `DayAggregator`.
+`where.gregorian_calendar` rejects `Calendar.current` throughout Where's
+production sources. Day and year math uses an injected Gregorian calendar or,
+inside WhereIntents, `Calendar.whereIntents`.
 
-Repair a violation by using `Calendar.whereIntents`. Delete the rule if the
-calendar choice becomes an injected, compiler-required dependency. The
-architecture DSL and standard shapers cannot distinguish two static members of
-the same Foundation type, so this uses a typed `MemberAccessExprSyntax` query.
-TheButtonHeist's `buttonheist.demo_accessibility_identifier` member-reference
-rule was audited and retained as the closest lower-level pattern.
+The current source tree intentionally contains three violations. They are left
+visible during this bootstrap so the live Bumper lint demonstrates the
+difference between a documented decision and an enforced one. The rule suite
+still passes because its fixtures assert both accepted Gregorian construction
+and rejected `Calendar.current` access.
+
+The architecture DSL and standard shapers cannot distinguish two static
+members of the same Foundation type, so this uses a typed
+`MemberAccessExprSyntax` query. TheButtonHeist's
+`buttonheist.demo_accessibility_identifier` member-reference rule was audited
+and retained as the closest lower-level pattern.
+
+## Store transaction boundary
+
+`where.store_transaction_boundary` requires calls to the mutating `WhereStore`
+surface through `store` or `self.store` to be lexically contained by
+`store.perform { ... }`.
+
+The checked methods are `add`, `write`, `setManualDay`, `clearManualDay`,
+`clear`, `clearAll`, `setIssueDismissed`, `restoreDismissedIssue`,
+`setTrackedRegion`, and `setPrimaryRegions`.
+
+## App Shortcuts provider ownership
+
+`where.app_shortcuts_provider_ownership` allows `AppShortcutsProvider`
+conformance only in the Where app component.
+
+## Logging facade
+
+`where.logging_facade` rejects direct `OSLog` imports and `print(...)` calls in
+Where production sources. Production logging uses the typed `WhereLog` or
+`RegionLog` Periscope facades.
+
+This complements `where.logging_type_ownership`, which controls where the
+typed event declarations live.
+
+## Preview coverage
+
+`where.preview_coverage` requires every WhereUI or WhereWidgets source file
+that declares a `View`, `Widget`, or `WidgetBundle` struct to contain at least
+one `#Preview`.
+
+The current source tree intentionally contains preview-coverage violations.
+They remain visible during this bootstrap alongside the calendar violations so
+the live lint demonstrates documented rules finding existing drift.
+
+## Transitive Broadway ownership
+
+WhereIntents and WhereWidgets explicitly forbid direct `BroadwayCore` and
+`BroadwayUI` imports through the built-in `forbidden_import` rule.
 
 ## Logging vocabulary ownership
 

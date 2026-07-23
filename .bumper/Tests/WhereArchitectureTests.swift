@@ -65,3 +65,27 @@ func `WhereUI cannot import persistence`() throws {
     #expect(violation.rule.id == .forbiddenImport)
     #expect(violation.path.rawValue == "Where/WhereUI/Sources/Screen.swift")
 }
+
+@Test
+func `Where adapters cannot link Broadway directly`() throws {
+    let report = try bumper.evaluate(
+        RepositoryInput(
+            architecture: bumper.architecture,
+            files: [
+                SourceInput(
+                    path: "Where/WhereWidgets/Sources/Widget.swift",
+                    component: try ComponentID(WhereComponent.widgets.rawValue),
+                    source: "import BroadwayUI\nstruct Widget {}"
+                ),
+                SourceInput(
+                    path: "Where/WhereIntents/Sources/Intent.swift",
+                    component: try ComponentID(WhereComponent.whereIntents.rawValue),
+                    source: "import BroadwayCore\nstruct Intent {}"
+                ),
+            ]
+        )
+    )
+
+    #expect(report.violations.count == 2)
+    #expect(report.violations.allSatisfy { $0.rule.id == .forbiddenImport })
+}
