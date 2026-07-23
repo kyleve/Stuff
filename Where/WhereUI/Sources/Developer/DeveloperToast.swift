@@ -133,4 +133,19 @@
                 : "exclamationmark.triangle.fill"
         }
     }
+
+    #Preview {
+        let center = DeveloperToastCenter(lifetime: .seconds(3600))
+        center.show(DeveloperToastCenter.Toast(
+            level: .warning,
+            title: "Location sample delayed",
+            message: "The background location stream has not produced a sample recently.",
+        ))
+        center.show(DeveloperToastCenter.Toast(
+            level: .error,
+            title: "Store write failed",
+            message: "The latest presence sample could not be persisted.",
+        ))
+        return DeveloperToastOverlay(center: center)
+    }
 #endif

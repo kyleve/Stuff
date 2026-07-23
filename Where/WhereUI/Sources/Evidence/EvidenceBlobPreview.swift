@@ -108,3 +108,14 @@ private struct PDFDocumentView: UIViewRepresentable {
         view.document = PDFDocument(data: data)
     }
 }
+
+#if DEBUG
+    #Preview("Plain text") {
+        EvidenceBlobPreview(
+            data: Data("SFO → JFK\nSeat 14C\nFebruary 3, 2026".utf8),
+            contentType: .plainText,
+        )
+        .padding()
+        .whereBroadwayRoot()
+    }
+#endif
