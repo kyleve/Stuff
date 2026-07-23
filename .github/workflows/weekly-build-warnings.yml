@@ -1,0 +1,145 @@
+name: Weekly Build Warnings
+
+# Triggered by a weekly Cursor automation (see .github/workflows/README.md).
+# Cloud agents run on Linux and can't build this iOS/macOS project, so the
+# automation offloads the actual build here, on a macOS runner, and runs the
+# Cursor CLI agent on the runner to fix compiler warnings and open a PR.
+#
+# The automation dispatches this via `gh workflow run weekly-build-warnings.yml`
+# (or the REST `.../dispatches` endpoint). `on: schedule` is intentionally left
+# out so scheduling lives in the Cursor automation; uncomment it to run without
+# an automation.
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "Cursor CLI model (blank = agent default, e.g. gpt-5.6-sol, sonnet-4.5)."
+        required: false
+        default: ""
+  # schedule:
+  #   - cron: "0 9 * * 0" # Sundays 09:00 UTC
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  fix-build-warnings:
+    name: Fix build warnings
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: jdx/mise-action@v3
+
+      # The xcode-27 image is a public-preview image whose CoreSimulator can
+      # need a nudge to rebuild its device cache before a destination resolves.
+      - name: Warm up CoreSimulator
+        run: xcrun simctl list > /dev/null
+
+      # Generate the Xcode project so the agent can build immediately.
+      - name: Generate Xcode project
+        run: mise exec -- tuist generate --no-open
+
+      - name: Install Cursor CLI
+        run: |
+          curl https://cursor.com/install -fsS | bash
+          echo "$HOME/.cursor/bin" >> "$GITHUB_PATH"
+
+      # Restricted autonomy: the agent may build and edit files, but git/PR
+      # operations are handled deterministically by the next step.
+      - name: Fix build warnings with Cursor agent
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          MODEL: ${{ inputs.model }}
+        run: |
+          set -euo pipefail
+          PROMPT="$(cat <<'PROMPT'
+          You are running in CI on a macOS runner with the Xcode toolchain, mise,
+          and Tuist available. The Xcode project has already been generated.
+
+          Goal: eliminate compiler build warnings in this repository.
+
+          1. Build the whole tree and collect warnings:
+             mise exec -- tuist build Stuff-iOS-Tests -- -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0'
+          2. Identify every compiler `warning:` emitted by that build.
+          3. Fix the root cause of each warning with a minimal, correct change
+             (unused values, deprecations, implicit conversions, etc.). Do NOT
+             silence warnings by disabling diagnostics, adding blanket ignore
+             comments, or `-w`/`-suppress` flags — prefer real fixes.
+          4. Follow the conventions in AGENTS.md and any module-level AGENTS.md.
+             Do not change runtime behavior.
+          5. Rebuild with the same command to verify your fixes compile and the
+             warnings are gone. Iterate until the build is warning-free or every
+             warning you can safely fix has been addressed.
+          6. If there are NO warnings to begin with, make no changes at all.
+
+          Constraints:
+          - IMPORTANT: Only modify files in the working directory. Do NOT run git,
+            do NOT create branches, commit, push, or open PRs, and do NOT run
+            swiftformat — later CI steps handle formatting and publishing.
+          - If a warning cannot be safely fixed, leave it and explain why.
+
+          Finally, write a concise markdown summary of the warnings you found and,
+          for each, what you changed (or why you left it) to `agent-summary.md`.
+          PROMPT
+          )"
+          if [ -n "${MODEL}" ]; then
+            cursor-agent -p --force --output-format text --model "${MODEL}" "${PROMPT}"
+          else
+            cursor-agent -p --force --output-format text "${PROMPT}"
+          fi
+          # Move the summary out of the working tree so it is neither committed
+          # nor mistaken for a "warning fix" by the git status check below.
+          if [ -f agent-summary.md ]; then
+            mv agent-summary.md "${RUNNER_TEMP}/agent-summary.md"
+          fi
+
+      - name: Format
+        run: ./swiftformat
+
+      - name: Open PR if warnings were fixed
+        env:
+          GH_TOKEN: ${{ secrets.WORKFLOW_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No warning fixes to publish — the build is already clean."
+            exit 0
+          fi
+
+          BRANCH="bot/build-warnings-$(date +%Y%m%d)-${GITHUB_RUN_ID}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add -A
+          git commit -m "chore: fix build warnings"
+
+          # Push via the token in the URL so a PAT (when configured) is used and
+          # the resulting PR triggers CI. The default GITHUB_TOKEN opens the PR
+          # but will not trigger downstream workflows.
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:${BRANCH}"
+
+          {
+            echo "Automated by the weekly **fix build warnings** Cursor automation → GitHub Action."
+            echo "See \`.github/workflows/weekly-build-warnings.yml\`."
+            echo
+            echo "## Agent summary"
+            echo
+            if [ -f "${RUNNER_TEMP}/agent-summary.md" ]; then
+              cat "${RUNNER_TEMP}/agent-summary.md"
+            else
+              echo "_The agent did not produce a summary file._"
+            fi
+          } > pr-body.md
+
+          gh pr create \
+            --title "Fix build warnings" \
+            --body-file pr-body.md \
+            --base main \
+            --head "$BRANCH"
