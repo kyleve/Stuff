@@ -54,8 +54,12 @@ struct CalendarContentView: View {
     @Environment(\.stylesheet) private var stylesheet
 
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
-    /// The year whose grid we've already auto-scrolled to the current month, so
-    /// the jump happens once per year rather than on every reappearance (e.g.
+    /// Bound to the grid's scroll position (the top-most month's id). Seeded to
+    /// the current month *before* the grid first renders, so it opens already
+    /// scrolled there with no post-appear jump; then it just tracks scrolling.
+    @State private var scrollPositionID: CalendarMonth.ID?
+    /// The year we've already seeded `scrollPositionID` for, so the jump-to-
+    /// current-month happens once per year — not on every reappearance (e.g.
     /// returning to the tab), which would clobber the user's scroll position.
     @State private var scrolledForYear: Int?
 
@@ -86,6 +90,15 @@ struct CalendarContentView: View {
                 .task(id: calendarLoadID(report: yearReport)) {
                     let result = loadCalendarMonths(from: yearReport)
                     guard !Task.isCancelled else { return }
+                    // Seed the initial scroll target *before* publishing the
+                    // months, so the grid renders already scrolled to the
+                    // current month (once per year) rather than jumping after.
+                    if case let .success(months) = result,
+                       scrolledForYear != report.selectedYear
+                    {
+                        scrolledForYear = report.selectedYear
+                        scrollPositionID = months.first(where: \.isCurrentMonth)?.id
+                    }
                     monthsLoad = result
                 }
             } else if report.loadState == .loading {
@@ -148,34 +161,18 @@ struct CalendarContentView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
-                    ForEach(months) { month in
-                        MonthGridView(month: month, focusedRegion: focusedRegion)
-                            .id(month.id)
-                    }
+        ScrollView {
+            LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
+                ForEach(months) { month in
+                    MonthGridView(month: month, focusedRegion: focusedRegion)
+                        .id(month.id)
                 }
-                .padding()
             }
-            .onAppear {
-                scrollToCurrentMonthIfNeeded(proxy, months: months)
-            }
+            .padding()
         }
-    }
-
-    /// When viewing the current year, scrolls the grid to today's month — but
-    /// only the first time this year's grid appears. Reappearing (returning to
-    /// the tab, re-showing the calendar) must keep the user's scroll position,
-    /// so it's guarded by the year already scrolled. A report-year switch tears
-    /// this content down and rebuilds it, so the new year scrolls afresh.
-    private func scrollToCurrentMonthIfNeeded(_ proxy: ScrollViewProxy, months: [CalendarMonth]) {
-        guard scrolledForYear != report.selectedYear else { return }
-        scrolledForYear = report.selectedYear
-        guard let targetID = months.first(where: \.isCurrentMonth)?.id else { return }
-        DispatchQueue.main.async {
-            proxy.scrollTo(targetID, anchor: .top)
-        }
+        // Opens already scrolled to the current month (seeded in `.task` above),
+        // then tracks the user's scrolling; no post-appear jump.
+        .scrollPosition(id: $scrollPositionID, anchor: .top)
     }
 }
 
