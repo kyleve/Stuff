@@ -34,6 +34,26 @@ private struct EnvironmentRunnerProbe: View {
     }
 }
 
+/// A test-controlled gate a `.work` step can park on, so a test can hold the
+/// splash on screen (the step is running) and then release it to `.ready` on
+/// demand — the sanctioned "gate on a continuation, not timing" pattern.
+@MainActor
+private final class StepGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var opened = false
+
+    func wait() async {
+        if opened { return }
+        await withCheckedContinuation { continuation = $0 }
+    }
+
+    func open() {
+        opened = true
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
 @MainActor
 struct LifecycleContainerTests {
     @Test func readyShowsContent() async throws {
@@ -162,6 +182,42 @@ struct LifecycleContainerTests {
         #expect(!content)
 
         runner.phase.runningBridge?.complete()
+        await task.value
+    }
+
+    @Test func minimumSplashDurationHoldsRevealAfterReady() async throws {
+        // With a long minimum, reaching `.ready` must not reveal content yet:
+        // the splash stays up until the minimum elapses. (The elapse-then-reveal
+        // path is a plain `Task.sleep` + state flip, driven by `.task`; like the
+        // splash caption's own delay it's exercised on device, not by a
+        // real-timer host test — see `LaunchSplashView.previewShowsCaption`.)
+        var splash = false
+        var content = false
+        let gate = StepGate()
+        let runner = LifecycleRunner(reason: .userForeground, sequence: LifecycleSteps {
+            LifecycleStep.work("gate") { _ in await gate.wait() }
+        })
+        let task = Task { @MainActor in await runner.run() }
+        try await waitUntil { runner.phase.isRunning("gate") }
+
+        let container = LifecycleContainer(
+            runner,
+            minimumSplashDuration: .seconds(60),
+            splash: { ProbeView { splash = true } },
+            failure: { _, _ in EmptyView() },
+        ) {
+            ProbeView { content = true }
+        }
+        try show(UIHostingController(rootView: container)) { _ in
+            // Splash on screen records its appearance time.
+            try waitFor { splash }
+            // Let the step finish so the runner reaches `.ready`…
+            gate.open()
+            // …but the 60s hold keeps content from appearing within the budget,
+            // even though the runner is genuinely ready.
+            #expect(!renders { content })
+            #expect(runner.phase.isReady)
+        }
         await task.value
     }
 

@@ -24,6 +24,7 @@ struct WhereStylesheet: BStylesheet {
     var elsewhereCard = ElsewhereCardStyle.standard
     var palette = Palette.standard
     var motion = Motion.standard
+    var launch = LaunchStyle.standard
     var typography = Typography.standard
     var settings = SettingsStyle.standard
 
@@ -729,9 +730,31 @@ extension WhereStylesheet {
         var captionFade: Animation
 
         static let standard = Motion(
-            reveal: .easeIn(duration: 0.18),
+            reveal: .easeIn(duration: 0.33),
             reducedReveal: .easeInOut(duration: 0.2),
             captionFade: .easeOut(duration: 0.3),
+        )
+    }
+}
+
+// MARK: - Launch
+
+extension WhereStylesheet {
+    /// Timings for the launch splash (`LaunchSplashView`) and how long it lingers
+    /// before the app reveals. Kept as tokens so the durations aren't hardcoded
+    /// across the splash view and the `LifecycleContainer` seam.
+    struct LaunchStyle: Equatable {
+        /// The least time the splash stays up before the app reveals, passed to
+        /// `LifecycleContainer`. Optimized launches finish near-instantly, so
+        /// without this the splash (and its reveal) would flash past unseen.
+        var minimumSplashDuration: Duration
+        /// How long the splash lingers before the "getting things ready" caption
+        /// fades in, so a normal fast launch never flashes it.
+        var captionDelay: Duration
+
+        static let standard = LaunchStyle(
+            minimumSplashDuration: .seconds(1),
+            captionDelay: .milliseconds(1500),
         )
     }
 }

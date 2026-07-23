@@ -63,6 +63,7 @@ public struct RootView: View {
                 launcher,
                 transition: revealTransition,
                 animation: revealAnimation,
+                minimumSplashDuration: stylesheet.launch.minimumSplashDuration,
                 splash: { LaunchSplashView() },
                 failure: { LifecycleFailureView(failure: $0, retry: $1) },
             ) {

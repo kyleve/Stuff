@@ -172,6 +172,17 @@ LifecycleContainer(
 ) { MainTabView() }
 ```
 
+A fast launch can finish before the splash is ever seen (an optimized build may
+reach `.ready` in a few frames), so its reveal flashes past. Pass
+`minimumSplashDuration` to hold the splash up for at least that long once it
+first appears, then play the reveal — it defaults to `.zero` (reveal as soon as
+the runner is ready). The hold is per-appearance, so a reset relaunch (or the
+return from an onboarding step) gets its own minimum:
+
+```swift
+LifecycleContainer(runner, minimumSplashDuration: .seconds(1)) { MainTabView() }
+```
+
 The container also publishes the runner into the environment as
 `\.lifecycleRunner`, a `LifecycleRunnerProxy` (not a bare optional), letting
 nested views reach `retry()`/`teardown()` without prop-drilling. When no

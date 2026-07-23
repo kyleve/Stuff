@@ -36,16 +36,12 @@ struct LaunchSplashView: View {
         stylesheet.palette.splash
     }
 
-    /// How long the splash must linger before the "taking a moment" caption
-    /// fades in, so a fast launch never flashes it.
-    private static let captionDelay = Duration.milliseconds(500)
-
     /// Preview/test seam: when `nil`, the live selected icon is resolved from
     /// `UIApplication.shared.alternateIconName` in `body` (on the main actor).
     private let injectedPreviewImageName: String?
 
     /// - Parameter previewShowsCaption: preview/test seam to render the slow-
-    ///   launch caption immediately instead of waiting out `captionDelay`.
+    ///   launch caption immediately instead of waiting out the caption delay.
     init(previewImageName: String? = nil, previewShowsCaption: Bool = false) {
         injectedPreviewImageName = previewImageName
         _showCaption = State(initialValue: previewShowsCaption)
@@ -75,7 +71,7 @@ struct LaunchSplashView: View {
             showCaption ? Strings.launchCaptionTitle : Strings.launchAccessibilityLabel,
         )
         .task {
-            try? await Task.sleep(for: Self.captionDelay)
+            try? await Task.sleep(for: stylesheet.launch.captionDelay)
             guard !Task.isCancelled else { return }
             if reduceMotion {
                 showCaption = true

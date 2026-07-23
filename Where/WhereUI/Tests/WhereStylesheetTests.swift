@@ -237,9 +237,15 @@ struct WhereStylesheetTests {
 
     @Test func motionAnimations() {
         let motion = style.motion
-        #expect(motion.reveal == .easeIn(duration: 0.18))
+        #expect(motion.reveal == .easeIn(duration: 0.33))
         #expect(motion.reducedReveal == .easeInOut(duration: 0.2))
         #expect(motion.captionFade == .easeOut(duration: 0.3))
+    }
+
+    @Test func launchTimings() {
+        let launch = style.launch
+        #expect(launch.minimumSplashDuration == .seconds(1))
+        #expect(launch.captionDelay == .milliseconds(1500))
     }
 
     @Test func settingsStyle() {
