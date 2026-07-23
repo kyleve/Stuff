@@ -54,13 +54,11 @@ struct CalendarContentView: View {
     @Environment(\.stylesheet) private var stylesheet
 
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
-    /// Bound to the grid's scroll position (the top-most month's id). Seeded to
-    /// the current month *before* the grid first renders, so it opens already
-    /// scrolled there with no post-appear jump; then it just tracks scrolling.
-    @State private var scrollPositionID: CalendarMonth.ID?
-    /// The year we've already seeded `scrollPositionID` for, so the jump-to-
-    /// current-month happens once per year — not on every reappearance (e.g.
-    /// returning to the tab), which would clobber the user's scroll position.
+    /// The year we've already positioned to the current month. Doubles as the
+    /// reveal gate: the grid stays hidden until it's scrolled into place (so the
+    /// jump isn't visible), then shows. Guarded per year so returning to the tab
+    /// keeps the user's scroll instead of re-hiding/re-jumping; a year switch
+    /// rebuilds the grid and positions afresh.
     @State private var scrolledForYear: Int?
 
     private static let logger = WhereLog.session(CalendarViewLog.self)
@@ -90,15 +88,6 @@ struct CalendarContentView: View {
                 .task(id: calendarLoadID(report: yearReport)) {
                     let result = loadCalendarMonths(from: yearReport)
                     guard !Task.isCancelled else { return }
-                    // Seed the initial scroll target *before* publishing the
-                    // months, so the grid renders already scrolled to the
-                    // current month (once per year) rather than jumping after.
-                    if case let .success(months) = result,
-                       scrolledForYear != report.selectedYear
-                    {
-                        scrolledForYear = report.selectedYear
-                        scrollPositionID = months.first(where: \.isCurrentMonth)?.id
-                    }
                     monthsLoad = result
                 }
             } else if report.loadState == .loading {
@@ -161,18 +150,39 @@ struct CalendarContentView: View {
     }
 
     private func calendarContent(months: [CalendarMonth]) -> some View {
-        ScrollView {
-            LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
-                ForEach(months) { month in
-                    MonthGridView(month: month, focusedRegion: focusedRegion)
-                        .id(month.id)
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: stylesheet.calendar.monthSpacing) {
+                    ForEach(months) { month in
+                        MonthGridView(month: month, focusedRegion: focusedRegion)
+                            .id(month.id)
+                    }
                 }
+                .padding()
             }
-            .padding()
+            // Hidden until positioned so the jump to the current month isn't
+            // visible; revealed once scrolled into place (see below).
+            .opacity(scrolledForYear == report.selectedYear ? 1 : 0)
+            .onAppear { positionToCurrentMonthIfNeeded(proxy, months: months) }
         }
-        // Opens already scrolled to the current month (seeded in `.task` above),
-        // then tracks the user's scrolling; no post-appear jump.
-        .scrollPosition(id: $scrollPositionID, anchor: .top)
+    }
+
+    /// Scrolls to the current month once per year while the grid is still hidden
+    /// (a `scrollTo` to a lazy month has to run after layout, so it's deferred a
+    /// tick), then reveals it — so the user sees the calendar appear already at
+    /// the current month rather than watching it jump there. Reappearing (a tab
+    /// return) skips this and keeps the user's scroll; a year switch rebuilds
+    /// the grid and positions afresh. A past year has no current month, so it
+    /// simply reveals from the top.
+    private func positionToCurrentMonthIfNeeded(_ proxy: ScrollViewProxy, months: [CalendarMonth]) {
+        guard scrolledForYear != report.selectedYear else { return }
+        let targetID = months.first(where: \.isCurrentMonth)?.id
+        DispatchQueue.main.async {
+            if let targetID {
+                proxy.scrollTo(targetID, anchor: .top)
+            }
+            scrolledForYear = report.selectedYear
+        }
     }
 }
 
