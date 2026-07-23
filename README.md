@@ -4,7 +4,7 @@ Random apps and stuff.
 
 ## Requirements
 
-- Xcode 26+
+- Xcode 27+
 - [mise](https://mise.jdx.dev) (pins Tuist and SwiftFormat)
 - iOS 26.0+
 

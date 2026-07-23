@@ -293,9 +293,9 @@ prefix even when the comment is short or factual.
 ## Cursor Cloud specific instructions
 
 Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 26** with
-**Xcode 26+** and **Tuist** (macOS-only). Treat Linux as a partial dev
+**Xcode 27+** and **Tuist** (macOS-only). Treat Linux as a partial dev
 environment: formatting and agent sync work; builds, tests, and running the
-**Where** app require macOS (as in CI on `macos-26`).
+**Where** app require macOS (as in CI on the `xcode-27` runner image).
 
 ### What works on Linux
 
@@ -324,5 +324,5 @@ mise install
 ./ide --no-open
 ./swiftformat --lint
 mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
-  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0'
 ```
