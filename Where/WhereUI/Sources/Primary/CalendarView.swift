@@ -374,7 +374,7 @@ private struct DayCell: View {
     }
 
     var body: some View {
-        VStack(spacing: calendar.dayContentSpacing) {
+        VStack(spacing: calendar.dayNumberDotSpacing) {
             Text("\(day.dayOfMonth)")
                 .font(.callout)
                 .monospacedDigit()
@@ -408,8 +408,13 @@ private struct DayCell: View {
 
             dots
         }
-        .frame(maxWidth: .infinity, minHeight: calendar.dayMinHeight)
+        // Pad the content, then back it with the pill so the pill hugs the
+        // content with a little vertical breathing room (rather than butting
+        // into the dots); the outer frame is the tap target.
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, calendar.regionBand.verticalInset)
         .background { stayPill }
+        .frame(minHeight: calendar.dayMinHeight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
@@ -454,7 +459,6 @@ private struct DayCell: View {
     @ViewBuilder
     private var stayPill: some View {
         if !band.regions.isEmpty {
-            let inset = calendar.regionBand.verticalInset
             GeometryReader { proxy in
                 UnevenRoundedRectangle(
                     topLeadingRadius: band.leadingRadius,
@@ -466,9 +470,9 @@ private struct DayCell: View {
                 .opacity(calendar.regionBand.opacity)
                 .frame(
                     width: proxy.size.width + band.extendLeading + band.extendTrailing,
-                    height: max(proxy.size.height - inset * 2, 0),
+                    height: proxy.size.height,
                 )
-                .offset(x: -band.extendLeading, y: inset)
+                .offset(x: -band.extendLeading)
             }
         }
     }

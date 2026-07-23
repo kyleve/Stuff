@@ -296,9 +296,13 @@ extension WhereStylesheet {
         /// Background-colored rim on each dot of an overlapping cluster, so the
         /// overlap reads as distinct coins rather than a merged blob.
         var dayDotStrokeWidth: CGFloat
+        /// Vertical gap between the day number and its dots — small so the dots
+        /// tuck up close beneath the date.
+        var dayNumberDotSpacing: CGFloat
         /// The subtle "stay" pill drawn behind contiguous same-region days.
         var regionBand: RegionBand
-        /// Spacing inside a day cell (the number over its dots).
+        /// Spacing between region dots on a single-region day (unused for the
+        /// overlapping multi-region cluster).
         var dayContentSpacing: CGFloat
         /// Edge of the rounded day-number chip.
         var dayNumberSize: CGFloat
@@ -342,7 +346,8 @@ extension WhereStylesheet {
             var cornerRadius: CGFloat
             /// Radius at a week-boundary edge where the run continues.
             var continuationRadius: CGFloat
-            /// Vertical inset of the pill within the day cell.
+            /// Padding between the day content (number + dots) and the pill's
+            /// top/bottom edges, so the pill doesn't butt against the dots.
             var verticalInset: CGFloat
         }
 
@@ -377,11 +382,12 @@ extension WhereStylesheet {
             dayDotSize: 8,
             dayDotOverlap: 2,
             dayDotStrokeWidth: 1.5,
+            dayNumberDotSpacing: 0,
             regionBand: RegionBand(
                 opacity: 0.16,
                 cornerRadius: 14,
                 continuationRadius: 3,
-                verticalInset: 3,
+                verticalInset: 4,
             ),
             dayContentSpacing: 2,
             dayNumberSize: 26,
