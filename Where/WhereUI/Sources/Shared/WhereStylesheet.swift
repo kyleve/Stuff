@@ -396,7 +396,7 @@ extension WhereStylesheet {
                 background: Color.primary.opacity(0.03),
                 border: Color.primary.opacity(0.12),
                 borderWidth: 2,
-                currentMonthHighlight: Color.accentColor.opacity(0.1),
+                currentMonthHighlight: Color.accentColor.opacity(0.08),
                 currentBorder: Color.accentColor.opacity(0.7),
                 currentBorderWidth: 4,
                 currentGlow: Color.accentColor.opacity(0.55),
