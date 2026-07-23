@@ -37,7 +37,7 @@ struct WhereStylesheet: BStylesheet {
 
         // Grow day-grid tap targets at accessibility Dynamic Type sizes.
         if traits.contentSizeCategory.isAccessibilitySize {
-            calendar.dayMinHeight = 56
+            calendar.day.minHeight = 56
         }
 
         // Reduce Transparency flattens the cards: drop the decorative rim-glow
@@ -282,38 +282,13 @@ extension WhereStylesheet {
         /// Vertical spacing between month sections in the scroll.
         var monthSpacing: CGFloat
         var month: MonthStyle
-        /// Min height (tap target) of a day cell — grows at accessibility
-        /// Dynamic Type sizes.
-        var dayMinHeight: CGFloat
         /// Diameter of a region-presence dot in the month footer tally.
         var dotSize: CGFloat
-        /// Diameter of a region-presence dot under a day number (a touch larger
-        /// than the footer dots so days scan easily).
-        var dayDotSize: CGFloat
-        /// How far adjacent day dots overlap on a multi-region day, so several
-        /// regions read as an overlapping cluster.
-        var dayDotOverlap: CGFloat
-        /// Background-colored rim on each dot of an overlapping cluster, so the
-        /// overlap reads as distinct coins rather than a merged blob.
-        var dayDotStrokeWidth: CGFloat
-        /// Vertical gap between the day number and its dots — small so the dots
-        /// tuck up close beneath the date.
-        var dayNumberDotSpacing: CGFloat
         /// The subtle "stay" pill drawn behind contiguous same-region days.
         var regionBand: RegionBand
-        /// Spacing between region dots on a single-region day (unused for the
-        /// overlapping multi-region cluster).
-        var dayContentSpacing: CGFloat
-        /// Edge of the rounded day-number chip.
-        var dayNumberSize: CGFloat
-        /// Fill behind today's day number, and the color of that number.
-        var todayMarker: Color
-        var todayNumberColor: Color
-        /// Fill behind a day that needs attention (unresolved), and its number.
-        var unresolvedDayMarker: Color
-        var unresolvedNumberColor: Color
-        /// The small badge marking a day that carries evidence.
-        var evidenceBadge: EvidenceBadge
+        /// Geometry and colors of a single day cell (the number chip, its region
+        /// dots, the today/unresolved markers, and the evidence badge).
+        var day: DayStyle
 
         /// Style for one month section: the header/grid/footer stack, its
         /// current-month highlight, and the tally footer.
@@ -350,6 +325,41 @@ extension WhereStylesheet {
             var footerRowSpacing: CGFloat
             /// Opacity of an unfocused footer row while a region is focused.
             var unfocusedRowOpacity: Double
+        }
+
+        /// Geometry and colors of a single day cell: the number chip, its region
+        /// dots beneath the number, the today/unresolved markers behind the
+        /// number, and the evidence badge in the corner.
+        struct DayStyle: Equatable {
+            /// Min height (tap target) of a day cell — grows at accessibility
+            /// Dynamic Type sizes.
+            var minHeight: CGFloat
+            /// Edge of the rounded day-number chip.
+            var numberSize: CGFloat
+            /// Vertical gap between the day number and its dots — small so the
+            /// dots tuck up close beneath the date.
+            var numberDotSpacing: CGFloat
+            /// Diameter of a region-presence dot under a day number (a touch
+            /// larger than the footer dots so days scan easily).
+            var dotSize: CGFloat
+            /// How far adjacent day dots overlap on a multi-region day, so
+            /// several regions read as an overlapping cluster.
+            var dotOverlap: CGFloat
+            /// Background-colored rim on each dot of an overlapping cluster, so
+            /// the overlap reads as distinct coins rather than a merged blob.
+            var dotStrokeWidth: CGFloat
+            /// Spacing between region dots on a single-region day (unused for the
+            /// overlapping multi-region cluster).
+            var contentSpacing: CGFloat
+            /// Fill behind today's day number, and the color of that number.
+            var todayMarker: Color
+            var todayNumberColor: Color
+            /// Fill behind a day that needs attention (unresolved), and its
+            /// number.
+            var unresolvedMarker: Color
+            var unresolvedNumberColor: Color
+            /// The small badge marking a day that carries evidence.
+            var evidenceBadge: EvidenceBadge
         }
 
         /// The subtle region-tinted pill drawn behind a run of contiguous days
@@ -403,28 +413,30 @@ extension WhereStylesheet {
                 footerRowSpacing: 6,
                 unfocusedRowOpacity: 0.55,
             ),
-            dayMinHeight: 44,
             dotSize: 6,
-            dayDotSize: 8,
-            dayDotOverlap: 2,
-            dayDotStrokeWidth: 1.5,
-            dayNumberDotSpacing: 0,
             regionBand: RegionBand(
                 opacity: 0.16,
                 cornerRadius: 14,
                 continuationRadius: 3,
                 verticalInset: 4,
             ),
-            dayContentSpacing: 2,
-            dayNumberSize: 26,
-            todayMarker: .accentColor,
-            todayNumberColor: .white,
-            unresolvedDayMarker: Color.red.opacity(0.15),
-            unresolvedNumberColor: .red,
-            evidenceBadge: EvidenceBadge(
-                iconSize: 8,
-                padding: 2,
-                offset: CGSize(width: 3, height: -2),
+            day: DayStyle(
+                minHeight: 44,
+                numberSize: 26,
+                numberDotSpacing: 0,
+                dotSize: 8,
+                dotOverlap: 2,
+                dotStrokeWidth: 1.5,
+                contentSpacing: 2,
+                todayMarker: .accentColor,
+                todayNumberColor: .white,
+                unresolvedMarker: Color.red.opacity(0.15),
+                unresolvedNumberColor: .red,
+                evidenceBadge: EvidenceBadge(
+                    iconSize: 8,
+                    padding: 2,
+                    offset: CGSize(width: 3, height: -2),
+                ),
             ),
         )
     }

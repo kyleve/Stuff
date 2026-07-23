@@ -291,7 +291,7 @@ private struct MonthGridView: View {
 
                 ForEach(0 ..< month.leadingBlankCount, id: \.self) { _ in
                     Color.clear
-                        .frame(minHeight: calendar.dayMinHeight)
+                        .frame(minHeight: calendar.day.minHeight)
                 }
 
                 ForEach(Array(month.days.enumerated()), id: \.element.id) { index, day in
@@ -442,19 +442,19 @@ private struct DayCell: View {
     }
 
     var body: some View {
-        VStack(spacing: calendar.dayNumberDotSpacing) {
+        VStack(spacing: calendar.day.numberDotSpacing) {
             Text("\(day.dayOfMonth)")
                 .font(.callout)
                 .monospacedDigit()
                 .foregroundStyle(dayNumberColor)
-                .frame(width: calendar.dayNumberSize, height: calendar.dayNumberSize)
+                .frame(width: calendar.day.numberSize, height: calendar.day.numberSize)
                 .background {
                     if day.isToday {
                         Circle()
-                            .fill(calendar.todayMarker)
+                            .fill(calendar.day.todayMarker)
                     } else if day.needsAttention {
                         Circle()
-                            .fill(calendar.unresolvedDayMarker)
+                            .fill(calendar.day.unresolvedMarker)
                     }
                 }
                 // A day carrying an attachment gets a small paperclip badge in
@@ -463,13 +463,13 @@ private struct DayCell: View {
                 .overlay(alignment: .topTrailing) {
                     if day.hasEvidence {
                         Image(systemName: "paperclip")
-                            .font(.system(size: calendar.evidenceBadge.iconSize, weight: .bold))
+                            .font(.system(size: calendar.day.evidenceBadge.iconSize, weight: .bold))
                             .foregroundStyle(Color.accentColor)
-                            .padding(calendar.evidenceBadge.padding)
+                            .padding(calendar.day.evidenceBadge.padding)
                             .background(Circle().fill(Color(.systemBackground)))
                             .offset(
-                                x: calendar.evidenceBadge.offset.width,
-                                y: calendar.evidenceBadge.offset.height,
+                                x: calendar.day.evidenceBadge.offset.width,
+                                y: calendar.day.evidenceBadge.offset.height,
                             )
                     }
                 }
@@ -482,7 +482,7 @@ private struct DayCell: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, calendar.regionBand.verticalInset)
         .background { stayPill }
-        .frame(minHeight: calendar.dayMinHeight)
+        .frame(minHeight: calendar.day.minHeight)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
@@ -501,20 +501,20 @@ private struct DayCell: View {
     /// Empty days keep the row height so the grid baseline is even.
     private var dots: some View {
         let isCluster = day.regions.count > 1
-        return HStack(spacing: isCluster ? -calendar.dayDotOverlap : calendar.dayContentSpacing) {
+        return HStack(spacing: isCluster ? -calendar.day.dotOverlap : calendar.day.contentSpacing) {
             ForEach(day.regions, id: \.self) { region in
                 Circle()
                     .fill(regionStyles.style(for: region).tint)
-                    .frame(width: calendar.dayDotSize, height: calendar.dayDotSize)
+                    .frame(width: calendar.day.dotSize, height: calendar.day.dotSize)
                     .overlay {
                         Circle().stroke(
                             Color(.systemBackground),
-                            lineWidth: calendar.dayDotStrokeWidth,
+                            lineWidth: calendar.day.dotStrokeWidth,
                         )
                     }
             }
         }
-        .frame(height: calendar.dayDotSize)
+        .frame(height: calendar.day.dotSize)
     }
 
     /// The subtle region-tinted pill spanning this day's slice of a stay run —
@@ -555,9 +555,9 @@ private struct DayCell: View {
 
     private var dayNumberColor: Color {
         if day.isToday {
-            calendar.todayNumberColor
+            calendar.day.todayNumberColor
         } else if day.needsAttention {
-            calendar.unresolvedNumberColor
+            calendar.day.unresolvedNumberColor
         } else {
             .primary
         }

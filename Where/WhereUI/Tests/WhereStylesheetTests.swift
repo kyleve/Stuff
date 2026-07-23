@@ -103,23 +103,25 @@ struct WhereStylesheetTests {
     @Test func calendarStyle() {
         let calendar = style.calendar
         #expect(calendar.monthSpacing == 16)
-        #expect(calendar.dayMinHeight == 44)
         #expect(calendar.dotSize == 6)
-        #expect(calendar.dayDotSize == 8)
-        #expect(calendar.dayDotOverlap == 2)
-        #expect(calendar.dayDotStrokeWidth == 1.5)
-        #expect(calendar.dayNumberDotSpacing == 0)
         #expect(calendar.regionBand.opacity == 0.16)
         #expect(calendar.regionBand.cornerRadius == 14)
         #expect(calendar.regionBand.continuationRadius == 3)
         #expect(calendar.regionBand.verticalInset == 4)
-        #expect(calendar.dayContentSpacing == 2)
-        #expect(calendar.dayNumberSize == 26)
-        #expect(calendar.todayMarker == .accentColor)
-        #expect(calendar.todayNumberColor == .white)
-        #expect(calendar.unresolvedDayMarker == Color.red.opacity(0.15))
-        #expect(calendar.unresolvedNumberColor == .red)
-        #expect(calendar.evidenceBadge == .init(
+
+        let day = calendar.day
+        #expect(day.minHeight == 44)
+        #expect(day.numberSize == 26)
+        #expect(day.numberDotSpacing == 0)
+        #expect(day.dotSize == 8)
+        #expect(day.dotOverlap == 2)
+        #expect(day.dotStrokeWidth == 1.5)
+        #expect(day.contentSpacing == 2)
+        #expect(day.todayMarker == .accentColor)
+        #expect(day.todayNumberColor == .white)
+        #expect(day.unresolvedMarker == Color.red.opacity(0.15))
+        #expect(day.unresolvedNumberColor == .red)
+        #expect(day.evidenceBadge == .init(
             iconSize: 8,
             padding: 2,
             offset: CGSize(width: 3, height: -2),
@@ -283,7 +285,7 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
-        #expect(resolved.calendar.dayMinHeight == 56)
+        #expect(resolved.calendar.day.minHeight == 56)
     }
 
     @MainActor
@@ -358,7 +360,7 @@ private struct StylesheetProbe: View {
 
     var body: some View {
         Color.clear
-            .onChange(of: stylesheet.calendar.dayMinHeight, initial: true) { _, newValue in
+            .onChange(of: stylesheet.calendar.day.minHeight, initial: true) { _, newValue in
                 box.calendarDayMinHeight = newValue
             }
     }
