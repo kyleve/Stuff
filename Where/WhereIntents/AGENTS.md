@@ -68,7 +68,8 @@ layering, localization, and the WhereUI duplicate-metadata rule).
 - **App Intents static metadata is literal; dialog copy is catalog-backed.**
   Titles, parameter titles, and type/case display names are `LocalizedStringResource`
   literals (the framework extracts/localizes them and requires constants).
-  Runtime `IntentDialog` copy goes through `IntentStrings` (`bundle: .module`).
+  Runtime `IntentDialog` copy goes through `IntentStrings`, which composes this
+  module's generated `LocalizedStringResource` symbols.
 
 ## Testing
 
