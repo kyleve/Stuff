@@ -37,6 +37,21 @@ struct WhereFormatTests {
         #expect(WhereFormat.dayUnit(2) == "days")
     }
 
+    /// The one string that agrees grammatically via automatic inflection
+    /// (`^[%lld region](inflect: true)`) rather than an explicit plural
+    /// variation, so both forms are worth pinning.
+    @Test func elsewhereCardSubtitleInflectsTheRegionCount() {
+        // Pre-existing bug, not a migration regression: the catalog entry is
+        // byte-identical on main, and the compiled Localizable.strings keeps the
+        // markup verbatim, so flattening the resource to a String never runs the
+        // inflection engine and the card renders "^[3 region](inflect: true)".
+        // Tracked in Where/TODOs.md; this trips once the rendering is fixed.
+        withKnownIssue("Inflection markup isn't applied when flattened to a String") {
+            #expect(WhereFormat.elsewhereCardSubtitle(regions: 1) == "1 region")
+            #expect(WhereFormat.elsewhereCardSubtitle(regions: 3) == "3 regions")
+        }
+    }
+
     @Test func yearsAreFormattedWithoutGroupingSeparator() {
         #expect(WhereFormat.calendarTitle(year: 2026) == "Calendar · 2026")
         #expect(WhereFormat.settingsDataErase(year: 2026) == "Erase 2026 data")
