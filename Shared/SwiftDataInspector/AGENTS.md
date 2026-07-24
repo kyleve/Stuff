@@ -14,8 +14,12 @@ system, formatting, and global conventions. Read that first.
 - Pure **SwiftUI + SwiftData + Foundation + Observation** (UIKit only for font
   metrics). It must **not** import WhereCore or any app code — app wiring
   comes in via the configuration.
-- Only `SwiftDataInspectorConfiguration` and `SwiftDataInspectorView` are
-  `public`; everything else is internal. The root view expects an ambient
+- `SwiftDataInspectorConfiguration` and `SwiftDataInspectorView` are the SwiftUI
+  surface. The headless engine is also public: `SwiftDataInspectorReader` (an
+  `actor`) plus its `Sendable` snapshots (`InspectorEntity`, `InspectorRow`,
+  `InspectorRowSet`, `InspectorRelatedRows`) — so a non-UI consumer (the Porthole
+  SwiftData connector) can browse a store without SwiftUI. The reflection and the
+  SwiftUI views remain internal. The root view expects an ambient
   `NavigationStack` the consumer owns.
 - **Intended for DEBUG / developer surfaces** — it uses contained private-API
   reflection and shows raw stored data, so consumers gate it behind
@@ -48,5 +52,6 @@ system, formatting, and global conventions. Read that first.
 
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`: build an
 in-memory `ModelContainer` with local `@Model` fixtures, drive
-`SwiftDataInspectorModel`, and assert on the returned snapshots. Real-app
-wiring is covered from the consumer side (`WhereUITests`).
+`SwiftDataInspectorModel` (UI) or `SwiftDataInspectorReader` (headless), and
+assert on the returned snapshots. Real-app wiring is covered from the consumer
+side (`WhereUITests`).

@@ -10,13 +10,16 @@ import SwiftData
 /// stay on a single actor, so the context is created and used entirely inside
 /// here and never escapes. Each call opens a fresh read-only context, so results
 /// reflect the latest committed store state and nothing is ever mutated.
-actor SwiftDataInspectorReader {
+public actor SwiftDataInspectorReader {
     private let container: ModelContainer
     private let modelTypes: [any PersistentModel.Type]?
     private let rowLimit: Int?
     private let valueFormatter: (@Sendable (Any) -> String?)?
 
-    init(
+    /// Creates a read-only reader over `container`. Mirrors
+    /// ``SwiftDataInspectorConfiguration``'s fields so a headless consumer (e.g.
+    /// a Porthole connector) can browse a store without the SwiftUI layer.
+    public init(
         container: ModelContainer,
         modelTypes: [any PersistentModel.Type]?,
         rowLimit: Int?,
@@ -30,7 +33,7 @@ actor SwiftDataInspectorReader {
 
     /// Enumerate the store's entities with live counts and column headers, sorted
     /// by name.
-    func loadEntities() -> [InspectorEntity] {
+    public func loadEntities() -> [InspectorEntity] {
         let context = ModelContext(container)
         let entitiesByName = Self.entitiesByName(in: container.schema)
 
@@ -57,7 +60,7 @@ actor SwiftDataInspectorReader {
     /// view needs to size columns. `pageCount` powers "load more": the table
     /// re-requests with a higher count and replaces its rows with this longer,
     /// single-fetch prefix. `isTruncated` reports whether rows remain beyond it.
-    func rows(for entity: InspectorEntity, pageCount: Int = 1) -> InspectorRowSet {
+    public func rows(for entity: InspectorEntity, pageCount: Int = 1) -> InspectorRowSet {
         let context = ModelContext(container)
         let limit = rowLimit.map { $0 * max(pageCount, 1) }
         let models = context.inspectorFetch(entity.type, limit: limit)
@@ -97,7 +100,7 @@ actor SwiftDataInspectorReader {
     /// Returns an empty result (no entity, no rows) if the source row is gone or
     /// the relationship is empty/unreadable, so the detail view degrades to an
     /// empty state rather than trapping.
-    func relatedRows(
+    public func relatedRows(
         of rowID: PersistentIdentifier,
         relationship name: String,
         sourceType: any PersistentModel.Type,

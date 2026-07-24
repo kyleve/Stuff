@@ -77,6 +77,17 @@ by `./sync-agents`.
 | Platform                     | Minimum OS  |
 |------------------------------|-------------|
 | iPhone, iPad, Mac Catalyst   | iOS 26.0    |
+| macOS (Catalyst app + CLI)   | macOS 26.0  |
+
+The root [`Package.swift`](Package.swift) targets both `.iOS(.v26)` and
+`.macOS(.v26)`: most library targets are iOS-first, but the **Porthole** suite
+(under `Shared/Porthole/`, see [`Shared/Porthole/README.md`](Shared/Porthole/README.md))
+adds macOS-capable libraries plus a `.commandLineTool` (`porthole`) and a Mac
+Catalyst app (`PortholeApp`, productName `Porthole`) in
+[`Project.swift`](Project.swift). Those macOS-only targets aren't in the iOS
+test scheme; CI builds them in a separate **`macos`** job
+(`.github/workflows/ci.yml`) — `tuist build PortholeCLI` +
+`tuist build PortholeApp` for Mac Catalyst.
 
 Install the Where app to a connected iPhone from the CLI (no Xcode UI) with
 `./Where/install` — it builds + code-signs Release and installs/launches via

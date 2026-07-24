@@ -924,6 +924,10 @@ enum Strings {
         localized("developer.regionMapLink")
     }
 
+    static var developerPortholeLink: String {
+        String(localized: "developer.portholeLink", defaultValue: "Porthole", bundle: .module)
+    }
+
     /// Accessibility label for the floating, collapsed developer button.
     static var developerButtonLabel: String {
         localized("developer.button.label")

@@ -6,6 +6,7 @@ let package = Package(
     defaultLocalization: "en",
     platforms: [
         .iOS(.v26),
+        .macOS(.v26),
     ],
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
@@ -22,9 +23,28 @@ let package = Package(
         .library(name: "WhereIntents", targets: ["WhereIntents"]),
         .library(name: "BroadwayCore", targets: ["BroadwayCore"]),
         .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
+        .library(name: "PortholeCore", targets: ["PortholeCore"]),
+        .library(name: "PortholeKit", targets: ["PortholeKit"]),
+        .library(name: "PortholeKitUI", targets: ["PortholeKitUI"]),
+        .library(name: "PortholeClientKit", targets: ["PortholeClientKit"]),
+        .library(name: "PortholeMCP", targets: ["PortholeMCP"]),
+        .library(name: "PortholeCLICore", targets: ["PortholeCLICore"]),
+        .library(name: "PortholeLifecycle", targets: ["PortholeLifecycle"]),
+        .library(name: "PortholeSwiftData", targets: ["PortholeSwiftData"]),
+        .library(name: "PortholePeriscope", targets: ["PortholePeriscope"]),
+        .library(name: "WherePorthole", targets: ["WherePorthole"]),
     ],
     dependencies: [
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
+        .package(url: "https://github.com/apple/swift-argument-parser", from: "1.8.2"),
+        // Pinned to a main revision rather than 0.9.0: that release's
+        // NetworkTransport has a Swift 6 strict-concurrency error under the
+        // current toolchain, fixed on main (a `MainFlag` reference replaced a
+        // captured `var`). Move to the next tagged release that includes it.
+        .package(
+            url: "https://github.com/modelcontextprotocol/swift-sdk",
+            revision: "a0ae212ebf6eab5f754c3129608bc5557637e605",
+        ),
     ],
     targets: [
         .target(
@@ -108,6 +128,17 @@ let package = Package(
                 .target(name: "PeriscopeUI"),
                 .target(name: "RegionKit"),
                 .target(name: "SwiftDataInspector"),
+                // Porthole (DEBUG developer surface). Everything reaches the app
+                // *through* WhereUI (a dynamic framework) so a duplicate copy of
+                // any of these can't split type-keyed metadata — see the root
+                // AGENTS.md "Targets" note. The app target and WhereUITests add
+                // nothing new.
+                .target(name: "PortholeKit"),
+                .target(name: "PortholeKitUI"),
+                .target(name: "PortholePeriscope"),
+                .target(name: "PortholeSwiftData"),
+                .target(name: "PortholeLifecycle"),
+                .target(name: "WherePorthole"),
             ],
             path: "Where/WhereUI/Sources",
             resources: [
@@ -137,6 +168,82 @@ let package = Package(
                 .target(name: "BroadwayCore"),
             ],
             path: "Shared/Broadway/BroadwayUI/Sources",
+        ),
+        .target(
+            name: "PortholeCore",
+            path: "Shared/Porthole/PortholeCore/Sources",
+        ),
+        .target(
+            name: "PortholeKit",
+            dependencies: [
+                .target(name: "PortholeCore"),
+            ],
+            path: "Shared/Porthole/PortholeKit/Sources",
+        ),
+        .target(
+            name: "PortholeKitUI",
+            dependencies: [
+                .target(name: "PortholeKit"),
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
+            ],
+            path: "Shared/Porthole/PortholeKitUI/Sources",
+        ),
+        .target(
+            name: "PortholeClientKit",
+            dependencies: [
+                .target(name: "PortholeCore"),
+            ],
+            path: "Shared/Porthole/PortholeClientKit/Sources",
+        ),
+        .target(
+            name: "PortholeMCP",
+            dependencies: [
+                .target(name: "PortholeClientKit"),
+                .product(name: "MCP", package: "swift-sdk"),
+            ],
+            path: "Shared/Porthole/PortholeMCP/Sources",
+        ),
+        .target(
+            name: "PortholeCLICore",
+            dependencies: [
+                .target(name: "PortholeClientKit"),
+                .target(name: "PortholeMCP"),
+                .product(name: "ArgumentParser", package: "swift-argument-parser"),
+            ],
+            path: "Shared/Porthole/PortholeCLICore/Sources",
+        ),
+        .target(
+            name: "PortholeLifecycle",
+            dependencies: [
+                .target(name: "PortholeKit"),
+                .target(name: "LifecycleKit"),
+            ],
+            path: "Shared/Porthole/PortholeLifecycle/Sources",
+        ),
+        .target(
+            name: "PortholeSwiftData",
+            dependencies: [
+                .target(name: "PortholeKit"),
+                .target(name: "SwiftDataInspector"),
+            ],
+            path: "Shared/Porthole/PortholeSwiftData/Sources",
+        ),
+        .target(
+            name: "PortholePeriscope",
+            dependencies: [
+                .target(name: "PortholeKit"),
+                .target(name: "PeriscopeCore"),
+            ],
+            path: "Shared/Porthole/PortholePeriscope/Sources",
+        ),
+        .target(
+            name: "WherePorthole",
+            dependencies: [
+                .target(name: "PortholeKit"),
+                .target(name: "WhereCore"),
+            ],
+            path: "Where/WherePorthole/Sources",
         ),
     ],
 )
