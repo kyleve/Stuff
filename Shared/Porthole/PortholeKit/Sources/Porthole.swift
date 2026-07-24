@@ -36,6 +36,9 @@ public final class Porthole {
         self.configuration = configuration
         self.credentials = credentials
         register(AppInfoConnector(appName: configuration.appName, bundleID: configuration.bundleID))
+        #if canImport(UIKit)
+            register(ViewTreeConnector())
+        #endif
     }
 
     /// Registers a connector. A duplicate id is a programmer error (asserts in
