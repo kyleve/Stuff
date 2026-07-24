@@ -142,7 +142,16 @@ work lives on a background `SwiftDataInspectorReader` actor that owns a fresh,
 read-only `ModelContext` per call. Because `ModelContext`/`PersistentModel`
 aren't `Sendable`, the context never leaves the actor — only `Sendable` snapshots
 (`InspectorEntity`, `InspectorRowSet`, `InspectorRelatedRows`) come back to the
-UI. The result: opening even a 500-row entity (or resolving a relationship) does
+UI.
+
+### Headless use
+
+`SwiftDataInspectorReader` and its snapshot types are **public**, so a non-UI
+consumer can browse a store without SwiftUI: construct a reader with the same
+inputs as the configuration (`container`, optional `modelTypes`, `rowLimit`,
+`valueFormatter`), then call `loadEntities()` and `rows(for:pageCount:)`. The
+Porthole SwiftData connector uses exactly this to expose entities and paged rows
+over the network; the reflection and the SwiftUI views stay internal. The result: opening even a 500-row entity (or resolving a relationship) does
 its DB fetch and reflection off main, and the main thread only renders (showing a
 `ProgressView` while loading).
 
