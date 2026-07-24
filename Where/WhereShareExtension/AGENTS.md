@@ -31,7 +31,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   mirror; the app's container syncs the shared store's history.
 - **`NSExtensionPrincipalClass` is `$(PRODUCT_MODULE_NAME).ShareViewController`**
   — keep the class name and Info.plist in sync. Save/cancel bridge to
-  `extensionContext` completion; the root view has no `@Environment(.dismiss)`.
+  `extensionContext` completion; the root view has no `@Environment(\.dismiss)`.
 - **A share with no loadable bytes still composes** a metadata-only note rather
   than failing.
 

@@ -16,10 +16,10 @@ layering, localization, and the WhereUI duplicate-metadata rule).
   so it must **not** link `BroadwayUI`/`BroadwayCore` directly (a second copy
   would split Broadway's type-keyed metadata; see the root AGENTS "Targets"
   note).
-- Intents stay **thin adapters**: they resolve `WhereServices.forIntents()` and
-  delegate to its collaborators. Domain rules, persistence, and aggregation stay
-  in `WhereCore`; presentation (the card bodies) stays in `WhereUI`. Don't
-  reimplement any of that here.
+- Intents stay **thin adapters**: they `await intentServices.current()` and
+  delegate to that `WhereServices`' collaborators. Domain rules, persistence,
+  and aggregation stay in `WhereCore`; presentation (the card bodies) stays in
+  `WhereUI`. Don't reimplement any of that here.
 
 ## Invariants
 
@@ -27,9 +27,10 @@ layering, localization, and the WhereUI duplicate-metadata rule).
   (`Where/Where/Sources/WhereShortcuts.swift`), not here, so App Intents
   metadata extraction reliably discovers the phrases. Intent/entity/enum types
   are `public` so it can reference them.
-- **Intents never start GPS.** `WhereServices.forIntents()` wires
-  `IdleLocationSource`; a manual entry logged from an intent records a
-  `ManualEntryAudit` with a "Logged with Siri" note and no captured location.
+- **Intents never start GPS.** `WhereServices.forIntents(sharingStoreOf:)`
+  swaps the session's location source for an `IdleLocationSource`; a manual
+  entry logged from an intent records a `ManualEntryAudit` with a "Logged with
+  Siri" note and no captured location.
 - **Resolve services through the `@Dependency`-injected `IntentServices`;
   intents never open a store.** The app's `AppDelegate` owns the one
   `IntentServices` instance and registers it with `AppDependencyManager` in

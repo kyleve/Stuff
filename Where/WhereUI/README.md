@@ -19,9 +19,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 ### App shell & view models
 
 - **`RootView`** — the app root: the launch sequence (via
-  [`LifecycleKit`](../../Shared/LifecycleKit)) gated in front of the Liquid
-  Glass tab bar over the four top-level screens (Primary, Elsewhere, Resolve,
-  Settings). The app injects the launch-built model + runner
+  [`LifecycleKit`](../../Shared/LifecycleKit)) gated in front of `MainTabs`, the
+  Liquid Glass tab bar over three tabs — Locations, Your Year, Settings.
+  Elsewhere is an entry card on Locations, Resolve a Locations toolbar button,
+  and the data screens (attachments, logged days, regions) sit in the Settings
+  "Data" group. The app injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
 - **`WhereModel`** — app-level state: the onboarding flag, the owned

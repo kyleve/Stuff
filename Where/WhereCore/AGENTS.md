@@ -128,10 +128,15 @@ internal shape.
   data (one `SDTrackedRegion` row per region so concurrent cross-device edits
   merge; read as a `Set`, defaulting to the four when unset). `RegionAttribution`
   derives the attributor from them and rebuilds on `changes()`; assemble via the
-  async `WhereServices.make(...)` (which reads the set) so the app and the App
-  Intents layer (`WhereServices.forIntents()`, also async) attribute against
-  the same synced set. Detection is naturally scoped to it — the attributor only
-  loads tracked-region geometry, so `distanceToBoundary` is `nil` elsewhere.
+  async `WhereServices.make(...)`, which reads the set. The App Intents stack
+  does **not** re-read it: `WhereServices.forIntents(sharingStoreOf:)` is
+  synchronous and non-throwing precisely because it reuses the assembled
+  layer's store, attributor, aggregator, and clock, swapping in only an
+  `IdleLocationSource` — so the two can't drift apart, and installing the stack
+  has no failure path. (`makeForIntents(store:now:)` is the async test seam
+  that derives attribution from a seeded store instead.) Detection is naturally
+  scoped to the set — the attributor only loads tracked-region geometry, so
+  `distanceToBoundary` is `nil` elsewhere.
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are
   `async throws` so the CloudKit-backed store can report I/O failure; a `catch`
   must log via a `WhereLog` typed `LogEvent` (PII-free, `.public`) and leave

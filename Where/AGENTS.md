@@ -56,8 +56,12 @@ Rules the code enforces and agents must preserve:
   (`location`, `reminders`, `backup`, `widgets`, `session`, `evidence`,
   `recentActivity`) that each collaborator derives a typed `LogEvent` leaf from
   (`WhereLog.<group>(SomeLog.self)` / `WhereLog.root(SomeLog.self)`), never a
-  raw string. Each module keeps its facade and `*Log.swift` event types together
-  in its own `Sources/Logging/` folder. Events log as `.public`, so keep PII out; catch-path events carry
+  raw string. `WhereCore` owns the facade itself
+  (`WhereCore/Sources/Logging/WhereLog.swift`); every module that logs through
+  it — WhereUI, WhereIntents, WhereWidgets, WhereShareExtension — keeps its own
+  `*Log.swift` event types in its own `Sources/Logging/` folder rather than
+  beside the collaborator that emits them, so a module's logging vocabulary
+  sits in one place. Events log as `.public`, so keep PII out; catch-path events carry
   a `LogAttachment.error(_:)`. `info` = success of an important operation,
   `warning` = degraded-but-handled, `error`/`fault` = outright failure; hot
   paths (per-sample persist, widget throttle) stay quiet by design. **RegionKit**
@@ -93,6 +97,20 @@ Rules the code enforces and agents must preserve:
   caps collapsed region transitions so a long window's prompt still fits the
   model's context, and model unavailability surfaces as a typed reason — never
   a silent empty summary.
+
+## Navigation
+
+The logged-in shell is `MainTabs` — **three fixed tabs**: Locations, Your Year,
+Settings. Everything else hangs off one of them: Elsewhere is an entry card on
+Locations, Resolve a Locations toolbar button, and the data screens
+(attachments, logged days, regions) live in the Settings "Data" group. `MainTabs`
+owns the scene-scoped `YearReportModel` and passes it to each tab by explicit
+init injection, so the wiring is compile-checked; the always-on `WhereSession`
+coordinator travels in the environment instead.
+
+A new screen belongs *inside* that shape — a destination pushed from a tab, a
+sheet, or a Settings row. Adding a fourth tab is a product decision, not a
+refactor: raise it before building.
 
 ## Localization
 
@@ -138,8 +156,8 @@ literals in SwiftUI `Text` or `errorDescription`.
 - **Inject `Calendar`, don't reach for globals** — the scene's
   `YearReportModel` owns the calendar (Gregorian, current time zone) its
   missing-day math uses; layout types carry the calendar they were built with.
-  Prefer calendar APIs over hardcoding day/weekday counts (`Calendar.dayCount`
-  derives 365/366 rather than assuming a length).
+  Prefer calendar APIs over hardcoding day/weekday counts
+  (`Calendar.dayCount(ofYear:)` derives 365/366 rather than assuming a length).
 - **Core layout APIs throw on failure**; views surface
   `ContentUnavailableView` + log, never `!`.
 - Appearance tokens live in `WhereStylesheet` — see
@@ -185,8 +203,8 @@ path.
   [`Project.swift`](../Project.swift) via the `unitTests` helper.
 - **New region:** it's **pure data** now — add geometry under
   `RegionKit/Tools/source/`, run `ruby Where/RegionKit/Tools/generate-regions.rb`
-  to regenerate `Resources/regions/` + `regions.json` (extend the script's id
-  map / `NON_US` list as needed), optionally add a `region.<key>` string +
+  to regenerate `RegionKit/Sources/Resources/regions/` + `regions.json` (extend
+  the script's id map / `NON_US` list as needed), optionally add a `region.<key>` string +
   `localizationKey`, and add a `RegionAttributorTests` spot-check. No `Region`
   case, no code — `RegionStyle`, region pickers, and the App Intents
   `RegionEntity` all derive from the catalog. (See
