@@ -433,6 +433,13 @@ let project = Project(
             extraPackageProducts: ["PortholeKit", "PortholeCore", "LifecycleKit"],
         ),
         unitTests(
+            name: "PortholeSwiftDataTests",
+            bundleIdSuffix: "porthole.swiftdata",
+            productDependency: "PortholeSwiftData",
+            sources: ["Shared/Porthole/PortholeSwiftData/Tests/**"],
+            extraPackageProducts: ["PortholeKit", "PortholeCore", "SwiftDataInspector"],
+        ),
+        unitTests(
             name: "PortholeCLICoreTests",
             bundleIdSuffix: "porthole.cli",
             productDependency: "PortholeCLICore",
@@ -532,6 +539,7 @@ let project = Project(
                 "PortholeClientKitTests",
                 "PortholeMCPTests",
                 "PortholeLifecycleTests",
+                "PortholeSwiftDataTests",
                 "PortholeCLICoreTests",
             ]),
             testAction: .targets([
@@ -556,6 +564,7 @@ let project = Project(
                 "PortholeClientKitTests",
                 "PortholeMCPTests",
                 "PortholeLifecycleTests",
+                "PortholeSwiftDataTests",
                 "PortholeCLICoreTests",
             ]),
         ),
@@ -592,6 +601,7 @@ let project = Project(
         testScheme(name: "PortholeClientKitTests"),
         testScheme(name: "PortholeMCPTests"),
         testScheme(name: "PortholeLifecycleTests"),
+        testScheme(name: "PortholeSwiftDataTests"),
         testScheme(name: "PortholeCLICoreTests"),
     ],
 )

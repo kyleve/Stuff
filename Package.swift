@@ -30,6 +30,7 @@ let package = Package(
         .library(name: "PortholeMCP", targets: ["PortholeMCP"]),
         .library(name: "PortholeCLICore", targets: ["PortholeCLICore"]),
         .library(name: "PortholeLifecycle", targets: ["PortholeLifecycle"]),
+        .library(name: "PortholeSwiftData", targets: ["PortholeSwiftData"]),
     ],
     dependencies: [
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
@@ -206,6 +207,14 @@ let package = Package(
                 .target(name: "LifecycleKit"),
             ],
             path: "Shared/Porthole/PortholeLifecycle/Sources",
+        ),
+        .target(
+            name: "PortholeSwiftData",
+            dependencies: [
+                .target(name: "PortholeKit"),
+                .target(name: "SwiftDataInspector"),
+            ],
+            path: "Shared/Porthole/PortholeSwiftData/Sources",
         ),
     ],
 )
