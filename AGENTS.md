@@ -524,14 +524,29 @@ simulator **by name is ambiguous**, so:
 UDID=$(xcrun simctl list devices available --json \
   | jq -r '.devices["com.apple.CoreSimulator.SimRuntime.iOS-27-0"][]
            | select(.name == "iPhone 17") | .udid')
-xcrun simctl boot "$UDID"    # let it settle (~20s) before the run
+xcrun simctl bootstatus "$UDID" -b   # boots if needed, waits for boot to finish
 mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
   -destination "platform=iOS Simulator,id=$UDID"
 ```
+
+Wait on `bootstatus -b`, not a fixed sleep — same "wait for conditions, not
+timing" rule the tests follow.
 
 - **If you keep a name-based `-destination`, always include `OS=`** so
   *xcodebuild* resolves unambiguously — but that only disambiguates the test
   destination, not any `simctl` command you run alongside it.
 
-This is a **local-machine** concern: CI on `macos-26` provisions a single
-simulator, so its `name=…,OS=…` destination is already unambiguous.
+**CI is not exempt.** The `xcode-27` image ships a single iPhone 17 today, so a
+`name=…,OS=…` destination does resolve — but *booting* is the expensive half,
+and a cold or wedged CoreSimulator has stretched the ~10-minute test job to
+**3.5–5 hours** on that image (runs on 2026-07-23, i.e. after the
+`xcrun simctl list` cache warm-up was already in place — that nudge fixes
+destination *resolution*, not a slow boot). So CI does the same thing this
+section prescribes: resolve the UDID, `bootstatus -b` it, and pass
+`-destination "…,id=$UDID"`, under a `timeout-minutes` cap so a stuck boot
+fails fast instead of holding a runner. See
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+The symptom to recognize either way: the run is **not** failing on your code —
+the suites that execute are green, and the wall time is spent before/around
+them.
