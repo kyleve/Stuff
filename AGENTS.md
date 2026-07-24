@@ -499,3 +499,36 @@ mise install
 mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
   -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0'
 ```
+
+### Selecting a simulator — address it by UDID, not name
+
+A dev machine often has **several simulators sharing one device name** across
+runtimes (e.g. an "iPhone 17" on each installed iOS — 26.x, 27.0, …), which is
+a legitimate setup for testing multiple OS versions. When it does, resolving a
+simulator **by name is ambiguous**, so:
+
+- **Any `xcrun simctl` command matches by name only.** `simctl boot "iPhone
+  17"` (or `shutdown` / `erase`) may act on a *different* device than the one
+  under test, leaving a device mid-transition. That surfaces as
+  `Application failed preflight checks (Busy)` or `Mach error -308 — server
+  died` / `crashed with signal kill before establishing connection` — launch
+  failures that look like test failures but aren't (the suites that do run
+  are green). Always pass a **UDID** to `simctl`, never a name.
+- **Prefer pre-booting the exact target and running by `id=`.** This is the
+  reliable recipe when a run is flaking; `simctl shutdown` is async, so poll
+  until the device actually reads `(Shutdown)` before `erase`/`boot`:
+
+```bash
+UDID=$(xcrun simctl list devices available --json \
+  | jq -r '.devices[] | .[] | select(.name=="iPhone 17") | .udid' | head -1)  # pin the OS you want
+xcrun simctl boot "$UDID"    # let it settle (~20s) before the run
+mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
+  -destination "platform=iOS Simulator,id=$UDID"
+```
+
+- **If you keep a name-based `-destination`, always include `OS=`** so
+  *xcodebuild* resolves unambiguously — but that only disambiguates the test
+  destination, not any `simctl` command you run alongside it.
+
+This is a **local-machine** concern: CI on `macos-26` provisions a single
+simulator, so its `name=…,OS=…` destination is already unambiguous.
