@@ -179,7 +179,7 @@ Actionable follow-ups from this audit. Items marked `[x]` were open in the June 
 
 - [ ] **WhereWidgets** — Optional unit test for timeline/midnight policy with injectable store (**medium**, test, **needs-design**)
 - [ ] **WhereWidgets** — Handle stale snapshot after midnight in provider or document UI graceful degradation (**medium**, bug, **needs-design** — product decision)
-- [ ] **Where app** — Add module-level `Where/Where/README.md` (**medium**, docs, **quick-win**)
+- [x] **Where app** — Add module-level `Where/Where/README.md` (**medium**, docs, **quick-win**) — *added alongside `Where/Where/AGENTS.md`*
 - [x] **Where app** — Replace placeholder `WhereTests` with launch-reason smoke tests (**medium**, test, **quick-win**)
 - [x] **WhereWidgets** — Add `README.md` and `AGENTS.md` (**medium**, convention, **quick-win**)
 - [x] **WhereWidgets** — Localize widget gallery strings (**medium**, localization, **quick-win**)
@@ -434,7 +434,7 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 
 | Target | Path | Source | Test | README | AGENTS |
 |--------|------|-------:|-----:|:------:|:------:|
-| Where | `Where/Where/` | 3 | 1 | ✗ | ✗ |
+| Where | `Where/Where/` | 3 | 1 | ✓ | ✓ |
 | WhereWidgets | `Where/WhereWidgets/` | 7 | 0 | ✓ | ✓ |
 | WhereShareExtension | `Where/WhereShareExtension/` | 5 | 0 | ✓ | ✓ |
 | RegionViewer | `Where/RegionViewer/` | 1 | 0 | ✓ | ✓ |
