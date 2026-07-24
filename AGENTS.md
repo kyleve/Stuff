@@ -104,31 +104,19 @@ being present.
 
 ### Never double-link a product a dynamic framework already carries
 
-**The rule:** a test bundle that depends on **WhereUI** must not also list any
-of WhereUI's own dependencies in `extraPackageProducts`. Reach them
-transitively. This is worth stating at length because the failure is silent,
-looks nothing like a linking problem, and cost ~2 hours to find once.
+A target that depends on **WhereUI** must not also list any of WhereUI's own
+dependencies (WhereCore, Broadway, LifecycleKit, Periscope, SwiftDataInspector,
+…) in `extraPackageProducts` — reach them transitively. A second copy splits the
+module's type metadata across the WhereUI boundary and every type-keyed lookup
+(SwiftUI `EnvironmentKey`s, Broadway's `BTraits`/`BThemes`/`BStylesheets`)
+silently resolves against the wrong one.
 
-- **What goes wrong.** Xcode's default SPM integration (how `Package.local` is
-  wired here) embeds a product's code into *every* image that links it. WhereUI
-  is a dynamic framework that statically embeds its dependencies (WhereCore,
-  BroadwayCore/BroadwayUI, LifecycleKit, PeriscopeCore/PeriscopeUI/
-  PeriscopeTools, SwiftDataInspector, …), so re-listing one of those puts a
-  **second copy** in the test bundle.
-- **Why that breaks at runtime.** The shared **StuffTestHost** loads several
-  `.xctest` bundles into one process, so the duplicate leaves two sets of
-  **type metadata** for the module. Any *type-keyed lookup that crosses the
-  WhereUI boundary* — SwiftUI `EnvironmentKey`s, `UITraitBridgedEnvironmentKey`
-  bridging, the type-keyed `BTraits`/`BThemes`/`BStylesheets` containers — then
-  resolves against the wrong copy and quietly returns the default: the writer
-  stores under one copy's key *type*, the reader looks it up under another's.
-- **Why it hides.** It reproduces only in the **full multi-bundle scheme**, not
-  an isolated `tuist test WhereUITests` run, and newer Xcode linkers paper over
-  it.
-- **The guard.**
-  `WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot` reads a
-  `\.stylesheet` (→ `\.bContext`) across the boundary and fails if a duplicate
-  copy answers. Keep it.
+Worth knowing rather than rediscovering: it reproduces only in the full
+multi-bundle scheme, never in an isolated `tuist test WhereUITests`. The
+mechanism is written out at the call site you'd be editing — the `WhereUITests`
+comment in [`Project.swift`](Project.swift) — and
+`WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot` is the guard
+that fails if a duplicate copy answers.
 
 ## Deployment
 
@@ -236,15 +224,12 @@ scope and invariants on top rather than restating these.
 - **Wait for conditions, not timing.** Prefer polling a predicate (`waitUntil`,
   `waitFor`, `waitForResolution`) over fixed run-loop counts or `sleep` — fixed
   delays flake under load.
-- **Injectable test knobs.** Capacities, clocks, and failure injection belong
-  behind `@_spi(Testing)` (with `#if DEBUG` when release must not ship them);
-  tests inject small values (e.g. a retry-queue size of 20) instead of
-  hardcoding production limits.
-- **Testing-only APIs use `@_spi(Testing)`.** Hooks meant exclusively for unit
-  tests or previews (direct store mutation, failure injection, queue
-  introspection, etc.) are marked `@_spi(Testing)`; wrap in `#if DEBUG` when
-  they must not ship in release. Callers outside the defining module import
-  with `@_spi(Testing) import <Module>`.
+- **Test-only API is `@_spi(Testing)`, not a production parameter.** Hooks that
+  exist for tests or previews — direct store mutation, failure injection, queue
+  introspection, a capacity or clock override — are marked `@_spi(Testing)`, in
+  `#if DEBUG` when release must not ship them, and imported as
+  `@_spi(Testing) import <Module>`. Tests inject small values (a retry-queue
+  size of 20) rather than hardcoding the production limit.
 - **Test doubles conform to the production protocol.** Model a seam as a
   protocol the real and fake both conform to (`LocationSource` /
   `ScriptedLocationSource`) — never an enum switch inside a production type

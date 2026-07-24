@@ -49,10 +49,10 @@ use `PeriscopeStylesheet.default`.
 - **Color decisions live in `Palette`**, not on `LogLevel` / `SpanExit.Mode` —
   `tint(forLevel:)` bands by severity so custom levels inherit a sensible color.
 - Because PeriscopeTools links Broadway as a **static** library it can seed
-  Broadway directly. If it ever becomes a dynamic framework or is embedded in
-  one (e.g. hosted inside WhereUI), follow WhereUI's rule: consumers must not
-  re-link BroadwayCore/BroadwayUI, or the type-keyed environment splits and the
-  stylesheet stops resolving across the boundary.
+  Broadway directly. Were it ever to become a dynamic framework, or be embedded
+  in one, the root
+  [double-linking rule](../../../AGENTS.md#never-double-link-a-product-a-dynamic-framework-already-carries)
+  would start applying to its consumers.
 
 ## Invariants
 

@@ -51,34 +51,29 @@ Rules the code enforces and agents must preserve:
   refresh inline. The scene's `YearReportModel` subscribes while it's active;
   `DataIssueScanner` drops its cache on the same signal. Launch is driven by
   [`LifecycleKit`](../Shared/LifecycleKit) (see `WhereLaunch` in WhereUI).
-- **All logging goes through [Periscope](../Shared/Periscope)** via the
-  `WhereLog` facade — a `"Where"` root `Log` scope with grouping scopes
-  (`location`, `reminders`, `backup`, `widgets`, `session`, `evidence`,
-  `recentActivity`) that each collaborator derives a typed `LogEvent` leaf from
-  (`WhereLog.<group>(SomeLog.self)` / `WhereLog.root(SomeLog.self)`), never a
-  raw string. `WhereCore` owns the facade itself
-  (`WhereCore/Sources/Logging/WhereLog.swift`); every module that logs through
-  it — WhereUI, WhereIntents, WhereWidgets, WhereShareExtension — keeps its own
-  `*Log.swift` event types in its own `Sources/Logging/` folder rather than
-  beside the collaborator that emits them, so a module's logging vocabulary
-  sits in one place. Events log as `.public`, so keep PII out; catch-path events carry
-  a `LogAttachment.error(_:)`. `info` = success of an important operation,
-  `warning` = degraded-but-handled, `error`/`fault` = outright failure; hot
-  paths (per-sample persist, widget throttle) stay quiet by design. **RegionKit**
-  emits through its own `RegionLog` facade (a separate `"RegionKit"` root scope)
-  since it can't see `WhereLog`, but into the *same* process-wide
-  `Periscope.shared` — the app attaches one `PeriscopeStore` sink at launch, and
-  the DEBUG developer surface (`PeriscopeViewer`) shows every scope subtree in a
-  single stream. Widgets, the share extension, and the intents surface run in
-  their own processes, so their `Periscope.shared` stays OSLog-only (no store).
-  An event that concerns a store object stamps its `externalID` with the
-  object's canonical `store://` identity — `DataIssueID.storeURL` for dismissals,
-  and `WhereStoreID` (`store://days/…`, `store://years/…`, `store://evidence/…`,
-  `store://samples/…`) for the other families — so inspect-by-object shares the
-  same key the store and backups use. **RegionKit** can't see the app's
-  `store://` types, so it owns a parallel `region://` scheme (`RegionURL`,
-  `Region.regionURL` → `region://regions/<id>`) and `RegionAttributorLog` keys on
-  that — a separate namespace, since regions are a bundled catalog, not store rows.
+- **All logging goes through [Periscope](../Shared/Periscope)** via `WhereCore`'s
+  `WhereLog` facade — never a raw string. A collaborator derives a typed
+  `LogEvent` leaf off a grouping scope (`WhereLog.<group>(SomeLog.self)` /
+  `WhereLog.root(SomeLog.self)`; the groups are the `WhereLog` cases), and each
+  module keeps its own `*Log.swift` types in its `Sources/Logging/` folder rather
+  than beside the collaborator that emits them. The parts you can't read off the
+  source:
+  - Events log as `.public`, so **keep PII out**. `info` = success of an
+    important operation, `warning` = degraded-but-handled, `error`/`fault` =
+    outright failure; catch-path events carry a `LogAttachment.error(_:)`. Hot
+    paths (per-sample persist, widget throttle) stay quiet by design.
+  - **One process-wide system, several root scopes.** RegionKit can't see
+    `WhereLog`, so it owns a `"RegionKit"` root — but emits into the *same*
+    `Periscope.shared`, so the single `PeriscopeStore` sink the app attaches at
+    launch (and `PeriscopeViewer`) sees every subtree in one stream.
+  - **Only the app process gets a store.** Widgets, the share extension, and
+    intents run in their own processes, where `Periscope.shared` stays
+    OSLog-only.
+  - **An event about a store object stamps its `externalID` with that object's
+    canonical `store://` identity** (`DataIssueID.storeURL`, otherwise
+    `WhereStoreID`), so inspect-by-object shares the store's and backups' keys.
+    RegionKit's parallel `region://` scheme exists because it can't see those
+    types — see [`RegionKit/AGENTS.md`](RegionKit/AGENTS.md).
 - **Location comes through the `LocationSource` protocol** — production is
   `CoreLocationSource`; tests and previews use `ScriptedLocationSource`. Besides
   the passive `sampleStream`, it offers a best-effort one-shot
@@ -242,14 +237,11 @@ launching, `--yes` to skip the unlock prompt.
 
 ## Testing
 
+Root [testing conventions](../AGENTS.md#testing) apply. What's specific here:
+
 - Test bundles run in `StuffTestHost` via the `unitTests` helper in
   `Project.swift` and link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
-  The `InMemoryKeyValueStore` test double lives in `WhereCore` behind
-  `@_spi(Testing)` (`#if DEBUG`) — import it with `@_spi(Testing) import WhereCore`.
 - Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()` — never
   `CoreLocationSource` or the user's on-disk/CloudKit store. The CloudKit
   remote-import path is exercised with the `@_spi(Testing)`
   `inMemory(remoteChangeSource:)` + `ScriptedStoreRemoteChangeSource`.
-- Root rules apply: 1:1 test files, shared fixtures in `*TestSupport.swift`,
-  wait for conditions rather than fixed delays, inject small limits via
-  `@_spi(Testing)`.

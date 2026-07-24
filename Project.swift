@@ -343,7 +343,8 @@ let project = Project(
         // (BroadwayCore/BroadwayUI, LifecycleKit, PeriscopeCore/UI/Tools,
         // SwiftDataInspector, RegionKit + its GeoJSON bundle) is reached
         // transitively through WhereUI.
-        // See the root AGENTS.md "Targets" note.
+        // See "Never double-link a product a dynamic framework already
+        // carries" in the root AGENTS.md.
         unitTests(
             name: "WhereUITests",
             bundleIdSuffix: "whereui",
@@ -355,7 +356,8 @@ let project = Project(
         // `extraPackageProducts`: WhereUI/WhereCore/RegionKit/Broadway all arrive
         // transitively, and re-listing any of them would land a duplicate copy
         // that splits the module's type metadata across the WhereUI boundary.
-        // See the root AGENTS.md "Targets" note.
+        // See "Never double-link a product a dynamic framework already
+        // carries" in the root AGENTS.md.
         unitTests(
             name: "WhereIntentsTests",
             bundleIdSuffix: "whereintents",
