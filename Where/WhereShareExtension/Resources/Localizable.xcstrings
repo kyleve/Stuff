@@ -1,186 +1,186 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "share.attachment.fallbackName" : {
-      "comment" : "Stand-in name for a shared attachment the provider gave no filename for.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Attachment"
+  "sourceLanguage": "en",
+  "strings": {
+    "share.attachment.fallbackName": {
+      "comment": "Stand-in name for a shared attachment the provider gave no filename for.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attachment"
           }
         }
       }
     },
-    "share.attachment.header" : {
-      "comment" : "Section header above the shared attachment summary (one item).",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Attachment"
+    "share.attachment.header": {
+      "comment": "Section header above the shared attachment summary (one item).",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attachment"
           }
         }
       }
     },
-    "share.attachment.headerPlural" : {
-      "comment" : "Section header above the shared attachments (more than one item).",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Attachments"
+    "share.attachment.headerPlural": {
+      "comment": "Section header above the shared attachments (more than one item).",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Attachments"
           }
         }
       }
     },
-    "share.attachment.none" : {
-      "comment" : "Shown when the share carried nothing loadable, so only metadata is saved.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No attachment — this will save a note only."
+    "share.attachment.none": {
+      "comment": "Shown when the share carried nothing loadable, so only metadata is saved.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No attachment — this will save a note only."
           }
         }
       }
     },
-    "share.cancel" : {
-      "comment" : "Cancel button dismissing the share sheet without saving.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancel"
+    "share.cancel": {
+      "comment": "Cancel button dismissing the share sheet without saving.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
           }
         }
       }
     },
-    "share.form.date" : {
-      "comment" : "Date picker label for when the evidence was captured.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Date"
+    "share.form.date": {
+      "comment": "Date picker label for when the evidence was captured.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date"
           }
         }
       }
     },
-    "share.form.kind" : {
-      "comment" : "Picker label for the evidence kind.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Kind"
+    "share.form.kind": {
+      "comment": "Picker label for the evidence kind.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Kind"
           }
         }
       }
     },
-    "share.form.noteHeader" : {
-      "comment" : "Section header above the optional note field.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Note"
+    "share.form.noteHeader": {
+      "comment": "Section header above the optional note field.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Note"
           }
         }
       }
     },
-    "share.form.notePlaceholder" : {
-      "comment" : "Placeholder for the optional note text field.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add a note (optional)"
+    "share.form.notePlaceholder": {
+      "comment": "Placeholder for the optional note text field.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add a note (optional)"
           }
         }
       }
     },
-    "share.form.otherLabel" : {
-      "comment" : "Placeholder for the free-text label shown when the kind is Other.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Label"
+    "share.form.otherLabel": {
+      "comment": "Placeholder for the free-text label shown when the kind is Other.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Label"
           }
         }
       }
     },
-    "share.loading" : {
-      "comment" : "Progress label while the shared attachment is being read.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Preparing…"
+    "share.loading": {
+      "comment": "Progress label while the shared attachment is being read.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing…"
           }
         }
       }
     },
-    "share.ok" : {
-      "comment" : "Dismiss button on the save-failure alert.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OK"
+    "share.ok": {
+      "comment": "Dismiss button on the save-failure alert.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
           }
         }
       }
     },
-    "share.save" : {
-      "comment" : "Save button persisting the shared evidence.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Save"
+    "share.save": {
+      "comment": "Save button persisting the shared evidence.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save"
           }
         }
       }
     },
-    "share.saveError.title" : {
-      "comment" : "Title of the alert shown when saving the shared evidence fails.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Couldn't save"
+    "share.saveError.title": {
+      "comment": "Title of the alert shown when saving the shared evidence fails.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't save"
           }
         }
       }
     },
-    "share.title" : {
-      "comment" : "Navigation title of the share compose sheet.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Save to Where"
+    "share.title": {
+      "comment": "Navigation title of the share compose sheet.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save to Where"
           }
         }
       }
     }
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

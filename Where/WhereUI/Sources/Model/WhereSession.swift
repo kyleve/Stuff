@@ -15,8 +15,9 @@ import WhereCore
 /// It deliberately holds **no presentation state**. Everything scoped to the
 /// visible UI lives in child observables the scene / views own:
 /// - the selected year's `YearReport`, ranking, missing days, day-write intents,
-///   and the Resolve badge count → scene-scoped ``YearReportModel`` (owned by
-///   `MainTabs`, created only once the real UI is on screen);
+///   and the data-issue count (drives the Locations tab's Resolve toolbar
+///   badge) → scene-scoped ``YearReportModel`` (owned by `MainTabs`, created
+///   only once the real UI is on screen);
 /// - the Resolve issue list → view-scoped ``ResolveModel``;
 /// - the reminder/summary editing surface → view-scoped ``RemindersSettingsModel``;
 /// - backup export/import progress → view-scoped ``BackupModel``.
@@ -455,7 +456,7 @@ public final class WhereSession {
             return SwiftDataInspectorConfiguration(
                 container: container,
                 modelTypes: SwiftDataStore.inspectorModelTypes,
-                title: Strings.developerInspectorTitle,
+                title: String(localized: .developerInspectorTitle),
             )
         }
     }

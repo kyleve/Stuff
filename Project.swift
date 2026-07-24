@@ -15,9 +15,23 @@ private let stuffPackage = Package.local(path: .relativeToRoot("."))
 /// Xcode falls back to its defaults.
 private let developmentTeam = Environment.developmentTeam.getString(default: "")
 
-private let projectSettings: Settings? = developmentTeam.isEmpty
-    ? nil
-    : .settings(base: ["DEVELOPMENT_TEAM": .string(developmentTeam)])
+/// Base build settings applied to every Tuist-generated target.
+///
+/// `STRING_CATALOG_GENERATE_SYMBOLS` turns on Xcode's type-safe String Catalog
+/// symbol generation for the app and app-extension targets (Where, WhereWidgets,
+/// WhereShareExtension, …). The SwiftPM package targets declared in `Package.swift`
+/// (WhereUI, WhereCore, RegionKit, LifecycleKit) get symbol generation automatically
+/// from the toolchain, so this only needs to reach the Tuist-native targets.
+///
+/// `DEVELOPMENT_TEAM` is threaded in from the environment when present (see above).
+private let projectSettings: Settings = .settings(
+    base: developmentTeam.isEmpty
+        ? ["STRING_CATALOG_GENERATE_SYMBOLS": "YES"]
+        : [
+            "STRING_CATALOG_GENERATE_SYMBOLS": "YES",
+            "DEVELOPMENT_TEAM": .string(developmentTeam),
+        ],
+)
 
 /// App Group shared by the Where app, its widget extension, and its share
 /// extension so every process sees the same on-disk SwiftData store (see
@@ -336,7 +350,8 @@ let project = Project(
         // (BroadwayCore/BroadwayUI, LifecycleKit/LifecycleKitUI, PeriscopeCore/UI/Tools,
         // SwiftDataInspector, RegionKit + its GeoJSON bundle) is reached
         // transitively through WhereUI.
-        // See the root AGENTS.md "Targets" note.
+        // See "Never double-link a product a dynamic framework already
+        // carries" in the root AGENTS.md.
         unitTests(
             name: "WhereUITests",
             bundleIdSuffix: "whereui",
@@ -348,7 +363,8 @@ let project = Project(
         // `extraPackageProducts`: WhereUI/WhereCore/RegionKit/Broadway all arrive
         // transitively, and re-listing any of them would land a duplicate copy
         // that splits the module's type metadata across the WhereUI boundary.
-        // See the root AGENTS.md "Targets" note.
+        // See "Never double-link a product a dynamic framework already
+        // carries" in the root AGENTS.md.
         unitTests(
             name: "WhereIntentsTests",
             bundleIdSuffix: "whereintents",

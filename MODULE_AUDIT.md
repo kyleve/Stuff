@@ -70,7 +70,7 @@ WhereWidgets, WhereIntents snippets, and the main app reach Broadway only throug
 
 ### Localization architecture is consistent
 
-Module-owned `Localizable.xcstrings` + `Strings`/`IntentStrings`/`WidgetStrings`/`ShareStrings` facades. RegionKit dynamic region names are the deliberate exception (data-driven catalog).
+Module-owned `Localizable.xcstrings` resolved through Xcode's generated `LocalizedStringResource` symbols (`STRING_CATALOG_GENERATE_SYMBOLS`); composition/plural/switch logic lives in small helpers (`WhereFormat`, `IntentStrings`). RegionKit dynamic region names are the deliberate exception (data-driven catalog).
 
 ### 1:1 test-file convention holds for libraries, slips for glue
 
@@ -179,7 +179,7 @@ Actionable follow-ups from this audit. Items marked `[x]` were open in the June 
 
 - [ ] **WhereWidgets** — Optional unit test for timeline/midnight policy with injectable store (**medium**, test, **needs-design**)
 - [ ] **WhereWidgets** — Handle stale snapshot after midnight in provider or document UI graceful degradation (**medium**, bug, **needs-design** — product decision)
-- [ ] **Where app** — Add module-level `Where/Where/README.md` (**medium**, docs, **quick-win**)
+- [x] **Where app** — Add module-level `Where/Where/README.md` (**medium**, docs, **quick-win**) — *added alongside `Where/Where/AGENTS.md`*
 - [x] **Where app** — Replace placeholder `WhereTests` with launch-reason smoke tests (**medium**, test, **quick-win**)
 - [x] **WhereWidgets** — Add `README.md` and `AGENTS.md` (**medium**, convention, **quick-win**)
 - [x] **WhereWidgets** — Localize widget gallery strings (**medium**, localization, **quick-win**)
@@ -268,7 +268,7 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 |----------|----------|-------|------------|
 | convention | `AppIconOption` / `AppIconModel` | Silent empty picker on catalog load failure | Log + honest empty state |
 | performance | `RegionSummaryCard` Canvas | Many concentric rings | Profile before optimizing |
-| localization | `IntentSnippets` preview button | Hardcoded English in snippet preview | Route through `Strings` if shipped |
+| localization | `IntentSnippets` preview button | Hardcoded English in snippet preview | Route through a catalog symbol if shipped |
 
 **Verified OK:** `SaveErrorAlertState` replaces closure bindings; `YearReportModel.LoadState` modeling; scene-scoped refresh; `#Preview` coverage; `ScreenHostingTests` for manual/relabel; Core logic stays in models/services.
 
@@ -434,7 +434,7 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 
 | Target | Path | Source | Test | README | AGENTS |
 |--------|------|-------:|-----:|:------:|:------:|
-| Where | `Where/Where/` | 3 | 1 | ✗ | ✗ |
+| Where | `Where/Where/` | 3 | 1 | ✓ | ✓ |
 | WhereWidgets | `Where/WhereWidgets/` | 7 | 0 | ✓ | ✓ |
 | WhereShareExtension | `Where/WhereShareExtension/` | 5 | 0 | ✓ | ✓ |
 | RegionViewer | `Where/RegionViewer/` | 1 | 0 | ✓ | ✓ |

@@ -44,15 +44,26 @@ public struct LifecycleContainer<
     private let runner: LifecycleRunner<Launch>
     private let transition: AnyTransition
     private let animation: Animation?
+    private let minimumSplashDuration: Duration
     private let splash: (LifecycleStepContext?) -> Splash
     private let failureView: (LifecycleFailure) -> Failure
     private let gates: [GateRegistration]
     private let content: (Launch) -> Content
 
+    /// When the splash surface first became visible this launch, and whether
+    /// `minimumSplashDuration` has since elapsed. Together they gate holding the
+    /// `.ready` reveal until the splash has shown for its minimum.
+    @State private var splashAppearedAt: ContinuousClock.Instant?
+    @State private var minimumSplashElapsed = false
+
     /// - Parameters:
     ///   - transition: how each surface enters/leaves. Defaults to a crossfade.
     ///   - animation: the animation driving `transition`. Pass `nil` to swap
     ///     surfaces instantly (no animation).
+    ///   - minimumSplashDuration: the least time the splash stays up before the
+    ///     `.ready` reveal, so a very fast launch still shows the splash (and
+    ///     its reveal) rather than flashing past. `.zero` (the default) reveals
+    ///     as soon as the runner is ready.
     ///   - splash: the waiting surface; receives the running step's context
     ///     (nil between steps) so it can show a caption/progress.
     ///   - failure: the (terminal) error surface, given the failure. There is
@@ -63,6 +74,7 @@ public struct LifecycleContainer<
         _ runner: LifecycleRunner<Launch>,
         transition: AnyTransition = .opacity,
         animation: Animation? = .default,
+        minimumSplashDuration: Duration = .zero,
         @ViewBuilder splash: @escaping (LifecycleStepContext?) -> Splash,
         @ViewBuilder failure: @escaping (LifecycleFailure) -> Failure,
         @GateRegistrationsBuilder gates: () -> [GateRegistration] = { [] },
@@ -71,6 +83,7 @@ public struct LifecycleContainer<
         self.runner = runner
         self.transition = transition
         self.animation = animation
+        self.minimumSplashDuration = minimumSplashDuration
         self.splash = splash
         failureView = failure
         self.gates = gates()
@@ -99,7 +112,67 @@ public struct LifecycleContainer<
             }
         }
         .environment(\.lifecycle, LifecycleProxy(runner))
-        .animation(animation, value: runner.phase.surfaceIdentity)
+        .animation(animation, value: displayedSurfaceIdentity)
+        // Record when the splash first shows so the reveal can be held for at
+        // least `minimumSplashDuration`. Resets each time the splash reappears
+        // (a reset relaunch, or the return from a gate) so every episode gets
+        // its own minimum.
+        .onChange(of: isShowingSplash, initial: true) { _, showing in
+            guard showing else { return }
+            splashAppearedAt = ContinuousClock.now
+            minimumSplashElapsed = false
+        }
+        // Once the runner is ready, hold the splash for the remainder of its
+        // minimum (if any), then release the reveal.
+        .task(id: isReadyPhase) {
+            guard isReadyPhase,
+                  minimumSplashDuration > .zero,
+                  !minimumSplashElapsed,
+                  let appearedAt = splashAppearedAt
+            else { return }
+            let remaining = minimumSplashDuration - appearedAt.duration(to: ContinuousClock.now)
+            if remaining > .zero {
+                try? await Task.sleep(for: remaining)
+                guard !Task.isCancelled else { return }
+            }
+            // Drive the reveal in an explicit transaction: `.animation(_:value:)`
+            // doesn't reliably animate this async, `.task`-driven flip, so the
+            // splash would be removed without its reveal transition.
+            withAnimation(animation) { minimumSplashElapsed = true }
+        }
+    }
+
+    /// Whether the splash is actually on screen right now: a launch that builds
+    /// a view tree, parked on `.launching` or running a step (which always shows
+    /// the splash — step UI lives in gates, which have their own surface).
+    private var isShowingSplash: Bool {
+        guard !runner.reason.buildsNoViewTree else { return false }
+        switch runner.phase {
+            case .launching, .running: return true
+            case .awaitingGate, .failed, .ready: return false
+        }
+    }
+
+    private var isReadyPhase: Bool {
+        if case .ready = runner.phase { return true }
+        return false
+    }
+
+    /// Whether the app content may be revealed: no minimum was requested, no
+    /// splash was ever shown, or the minimum has now elapsed.
+    private var canRevealReady: Bool {
+        minimumSplashDuration <= .zero || splashAppearedAt == nil || minimumSplashElapsed
+    }
+
+    /// The surface actually on screen, for `.animation(_:value:)`. While the
+    /// `.ready` reveal is held behind `minimumSplashDuration` this stays
+    /// `.splash`, so the reveal transition fires when the hold releases — not
+    /// the instant the runner reports `.ready`.
+    private var displayedSurfaceIdentity: LifecycleRunner<Launch>.Phase.SurfaceIdentity {
+        if isReadyPhase, !canRevealReady {
+            return .splash
+        }
+        return runner.phase.surfaceIdentity
     }
 
     /// Launch surfaces (splash / gate view / failure) sit above the app
@@ -120,9 +193,9 @@ public struct LifecycleContainer<
     @ViewBuilder private var phaseContent: some View {
         switch runner.phase {
             case .launching:
-                splash(nil).transition(transition).zIndex(Self.launchSurfaceZIndex)
+                splashSurface(nil)
             case let .running(context):
-                splash(context).transition(transition).zIndex(Self.launchSurfaceZIndex)
+                splashSurface(context)
             case let .awaitingGate(handle):
                 gateView(for: handle).transition(transition).zIndex(Self.launchSurfaceZIndex)
             case let .failed(failure):
@@ -130,8 +203,18 @@ public struct LifecycleContainer<
                     .transition(transition)
                     .zIndex(Self.launchSurfaceZIndex)
             case let .ready(value):
-                content(value).transition(transition).zIndex(Self.contentZIndex)
+                // Keep the splash up until its minimum has elapsed (see
+                // `minimumSplashDuration`), then reveal the app content.
+                if canRevealReady {
+                    content(value).transition(transition).zIndex(Self.contentZIndex)
+                } else {
+                    splashSurface(nil)
+                }
         }
+    }
+
+    private func splashSurface(_ context: LifecycleStepContext?) -> some View {
+        splash(context).transition(transition).zIndex(Self.launchSurfaceZIndex)
     }
 
     /// The registered view for the parked gate. A parked gate with no

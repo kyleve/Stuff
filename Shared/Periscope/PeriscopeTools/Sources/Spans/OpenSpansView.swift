@@ -21,6 +21,7 @@ public struct OpenSpansView: View {
         }
         .navigationTitle("Open Spans")
         .navigationBarTitleDisplayMode(.inline)
+        .periscopeBroadwayRoot()
     }
 
     @ViewBuilder
@@ -52,29 +53,33 @@ private struct OpenSpanRow: View {
     let now: ContinuousClock.Instant
     let scopePath: String
 
+    @Environment(\.stylesheet) private var stylesheet
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 8) {
+        let row = stylesheet.row.comfortable
+        let type = stylesheet.typography
+        VStack(alignment: .leading, spacing: row.lineSpacing) {
+            HStack(spacing: row.headerSpacing) {
                 Text(span.name)
-                    .font(.callout.weight(.medium))
+                    .font(type.spanName)
                 Spacer()
                 Text((now - span.start).formatted())
-                    .font(.caption)
+                    .font(type.spanAge)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
-            HStack(spacing: 8) {
+            HStack(spacing: row.headerSpacing) {
                 Text(lifetimeLabel)
-                    .font(.caption2)
+                    .font(type.spanDetail)
                     .foregroundStyle(.secondary)
                 if !scopePath.isEmpty {
                     Text(scopePath)
-                        .font(.caption2)
+                        .font(type.spanDetail)
                         .foregroundStyle(.tertiary)
                 }
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, row.verticalPadding)
     }
 
     private var lifetimeLabel: String {

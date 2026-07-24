@@ -81,7 +81,8 @@ its day-count query.
   catalog.
 - **Runtime dialog copy** (the spoken/`IntentDialog` results) resolves through
   this module's [`Resources/Localizable.xcstrings`](Sources/Resources/Localizable.xcstrings)
-  (`IntentStrings`, `bundle: .module`), interpolating dynamic values.
+  via `IntentStrings`, which composes the catalog's generated symbols,
+  interpolating dynamic values.
 - **Region names** always come from `RegionKit`'s `Region.localizedName` — never
   restated here.
 

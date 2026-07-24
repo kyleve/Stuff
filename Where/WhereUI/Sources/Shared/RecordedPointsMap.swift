@@ -48,7 +48,7 @@ struct RecordedPointsMap: View {
         }
         .mapStyle(.standard(pointsOfInterest: .excludingAll))
         .frame(height: regionMap.height)
-        .accessibilityLabel(Strings.secondaryRegionMapAccessibility)
+        .accessibilityLabel(String(localized: .secondaryRegionMapAccessibility))
     }
 
     private var pins: [Pin] {

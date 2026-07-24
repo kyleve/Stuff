@@ -46,12 +46,9 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 - **Missing/corrupt bundled geometry (or manifest) is a programmer error** — the
   loader logs a `fault` via `RegionLog` *and* `assertionFailure`s (debug),
   degrading to `.other`/an empty catalog in release rather than crashing.
-- **Logging goes through `RegionLog`** — a Periscope facade with a `"RegionKit"`
-  root scope and one typed `LogEvent` per collaborator, emitted into
-  `Periscope.shared`. RegionKit owns its own root scope, never `WhereLog`, but
-  shares the process-wide store (the app wires the `PeriscopeStore` sink). The
-  `RegionLog` facade and the `*Log.swift` event types live together in
-  `Sources/Logging/`.
+- **Logging goes through `RegionLog`**, RegionKit's own `"RegionKit"` root
+  scope — never `WhereLog`, which it can't see — emitted into the shared
+  `Periscope.shared` so the app's sink still captures it.
 - **Object identities are `region://` URLs** — `RegionURL` (RegionKit's local
   analog of WhereCore's `StoreURL`) builds/parses `region://<collection>/<type>`
   URLs, and `Region.regionURL` vends `region://regions/<id>`. Used to key a

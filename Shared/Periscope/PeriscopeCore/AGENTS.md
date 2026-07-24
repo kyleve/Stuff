@@ -10,11 +10,13 @@ the build system, formatting, and global conventions. Read that first.
 
 ## Scope & dependencies
 
-- **Foundation + os + SwiftData + Network + JournalKit only** (plus the
-  ObjectiveC runtime, for `LogContextProviding`'s deallocation trackers and
-  `NotificationAmbientSource`'s target/selector observation). No SwiftUI, no
-  app code. UIKit is allowed **only** inside `#if canImport(UIKit)`
-  (ambient sources, the image-attachment convenience).
+- **Foundation + os + SwiftData + Network + CryptoKit + JournalKit only**
+  (plus the ObjectiveC runtime, for `LogContextProviding`'s deallocation
+  trackers and `NotificationAmbientSource`'s target/selector observation).
+  CryptoKit is used by exactly one file — `ScopeID.swift`, for the
+  deterministic scope hash. No SwiftUI, no app code. UIKit is allowed **only**
+  inside `#if canImport(UIKit)` (ambient sources, the image-attachment
+  convenience).
 - Layering: `PeriscopeUI` and `PeriscopeTools` depend on this module — never
   the reverse.
 
@@ -29,6 +31,12 @@ the build system, formatting, and global conventions. Read that first.
 - **Scope IDs are deterministic** (hash of parent + name) — the same path is
   the same scope across processes and launches; `begin`/`end` span pairing
   and cross-layer links rely on this.
+- **`sequence` is store-global and monotonic.** Every write takes the next
+  value past the highest stored (resuming across launches), so a freshly
+  inserted event always outranks everything already persisted. That is what
+  makes `LogQuery.afterSequence` a valid incremental cursor: "sequence >
+  what I last merged" is exactly "everything appended since", and live
+  viewers advance it instead of re-reading the store each commit.
 - **Persistence must retain the full hierarchy** — events reference scopes
   many-to-many (links), and scopes keep their parent chain.
 - **Custom levels are values, not cases.** `LogLevel` is a struct ordered by

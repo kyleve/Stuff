@@ -81,10 +81,6 @@ public actor DataIssueAlertReconciler {
     /// The alert body, pluralized on the issue count (e.g. "1 issue to resolve"
     /// / "3 issues to resolve").
     private static func body(count: Int) -> String {
-        String(
-            localized: "dataIssues.notification.body",
-            defaultValue: "\(count) issues to resolve",
-            bundle: .module,
-        )
+        String(localized: .dataIssuesNotificationBody(count))
     }
 }

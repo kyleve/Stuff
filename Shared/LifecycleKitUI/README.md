@@ -60,6 +60,25 @@ LifecycleContainer(
   Launch surfaces sit above `content` so a leaving splash plays its removal
   transition over the entering app.
 
+## Holding the splash on a fast launch
+
+A fast launch can finish before the splash is ever seen (an optimized build
+may reach `.ready` in a few frames), so its reveal flashes past. Pass
+`minimumSplashDuration` to hold the splash up for at least that long once it
+first appears, then play the reveal — it defaults to `.zero` (reveal as soon
+as the runner is ready). The hold is per-appearance, so a reset relaunch (or
+the return from a gate) gets its own minimum:
+
+```swift
+LifecycleContainer(runner, minimumSplashDuration: .seconds(1)) { session in
+    MainTabs(session: session)
+}
+```
+
+While the hold is in effect the container keeps reporting the *splash* surface
+identity, so the reveal transition fires when the hold releases rather than the
+instant the runner reports `.ready`.
+
 ## Reaching the runner from nested views
 
 `LifecycleContainer` publishes a `LifecycleProxy` under

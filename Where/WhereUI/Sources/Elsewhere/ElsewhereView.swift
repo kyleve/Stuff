@@ -3,9 +3,11 @@ import RegionKit
 import SwiftUI
 import WhereCore
 
-/// Elsewhere tab: every region outside your primary spots, shown as compact
-/// Liquid Glass cards for the selected year.
-struct SecondaryView: View {
+/// Elsewhere: every region outside your primary spots, shown as compact Liquid
+/// Glass cards for the selected year. Pushed from the Locations tab's Elsewhere
+/// entry card, so it renders inside that tab's `NavigationStack` (no stack of
+/// its own).
+struct ElsewhereView: View {
     let report: YearReportModel
 
     /// Reverse-geocoded "where" teaser per region, loaded asynchronously so
@@ -16,15 +18,13 @@ struct SecondaryView: View {
     @Environment(\.stylesheet) private var stylesheet
 
     var body: some View {
-        NavigationStack {
-            screen
-                .navigationTitle(Strings.secondaryTitle)
-        }
-        .task(id: report.report) { await loadPlaceNames() }
-        // Log View Mode: reveal an inspect badge for the year-report events
-        // backing the Elsewhere tab (representative-coordinate loads). A no-op
-        // in release.
-        .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
+        screen
+            .navigationTitle(String(localized: .secondaryTitle))
+            .task(id: report.report) { await loadPlaceNames() }
+            // Log View Mode: reveal an inspect badge for the year-report events
+            // backing Elsewhere (representative-coordinate loads). A no-op in
+            // release.
+            .debugLogInspectable(WhereLog.session(YearReportModelLog.self))
     }
 
     /// Pick each secondary region's most-sampled spot and reverse-geocode it,
@@ -48,11 +48,14 @@ struct SecondaryView: View {
     private var screen: some View {
         switch report.loadState {
             case .loading where report.report == nil:
-                ProgressView(Strings.secondaryLoading)
+                ProgressView(String(localized: .secondaryLoading))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .failed(error):
                 ContentUnavailableView {
-                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                    Label(
+                        String(localized: .commonLoadErrorTitle),
+                        systemImage: "exclamationmark.icloud",
+                    )
                 } description: {
                     Text(error.message)
                 }
@@ -68,7 +71,7 @@ struct SecondaryView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: stylesheet.spacing.xLarge) {
-                Text(Strings.secondaryHeader(year: report.selectedYear))
+                Text(WhereFormat.secondaryHeader(year: report.selectedYear))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -99,24 +102,28 @@ struct SecondaryView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(Strings.secondaryEmptyTitle, systemImage: "globe.americas")
+            Label(String(localized: .secondaryEmptyTitle), systemImage: "globe.americas")
         } description: {
-            Text(Strings.secondaryEmptyDescription)
+            Text(String(localized: .secondaryEmptyDescription))
         }
     }
 
     /// Light whimsy for the briefest stays.
     private func caption(for item: RegionDays) -> String? {
-        item.days <= 3 ? Strings.secondaryCaptionPassingThrough : nil
+        item.days <= 3 ? String(localized: .secondaryCaptionPassingThrough) : nil
     }
 }
 
 #if DEBUG
     #Preview("Loaded") {
-        SecondaryView(report: PreviewSupport.loadedYearReportModel())
+        NavigationStack {
+            ElsewhereView(report: PreviewSupport.loadedYearReportModel())
+        }
     }
 
     #Preview("Empty") {
-        SecondaryView(report: PreviewSupport.emptyYearReportModel())
+        NavigationStack {
+            ElsewhereView(report: PreviewSupport.emptyYearReportModel())
+        }
     }
 #endif

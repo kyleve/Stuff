@@ -38,44 +38,34 @@ struct LocationStatusRow: View {
 
     private var presentation: Presentation {
         // Active tracking trumps the raw status: it's the happy path.
+        let title = Self.statusTitle(status: status, isTracking: isTracking)
         if isTracking {
-            return Presentation(
-                symbol: "location.fill",
-                tint: .green,
-                title: Strings.settingsStatusTracking,
-            )
+            return Presentation(symbol: "location.fill", tint: .green, title: title)
         }
         switch status {
             case .always:
-                return Presentation(
-                    symbol: "location.fill",
-                    tint: .green,
-                    title: Strings.settingsStatusAlwaysPaused,
-                )
+                return Presentation(symbol: "location.fill", tint: .green, title: title)
             case .whenInUse:
-                return Presentation(
-                    symbol: "location",
-                    tint: .orange,
-                    title: Strings.settingsStatusWhenInUse,
-                )
+                return Presentation(symbol: "location", tint: .orange, title: title)
             case .notDetermined:
-                return Presentation(
-                    symbol: "location.slash",
-                    tint: .secondary,
-                    title: Strings.settingsStatusNotDetermined,
-                )
+                return Presentation(symbol: "location.slash", tint: .secondary, title: title)
             case .denied:
-                return Presentation(
-                    symbol: "location.slash.fill",
-                    tint: .red,
-                    title: Strings.settingsStatusDenied,
-                )
+                return Presentation(symbol: "location.slash.fill", tint: .red, title: title)
             case .restricted:
-                return Presentation(
-                    symbol: "lock.fill",
-                    tint: .red,
-                    title: Strings.settingsStatusRestricted,
-                )
+                return Presentation(symbol: "lock.fill", tint: .red, title: title)
+        }
+    }
+
+    /// The status line's title, shared with the Settings location row subtitle so
+    /// the drill-in row summarizes the same state the screen shows.
+    static func statusTitle(status: LocationAuthorizationStatus, isTracking: Bool) -> String {
+        if isTracking { return String(localized: .settingsStatusTracking) }
+        switch status {
+            case .always: return String(localized: .settingsStatusAlwaysPaused)
+            case .whenInUse: return String(localized: .settingsStatusWhenInUse)
+            case .notDetermined: return String(localized: .settingsStatusNotDetermined)
+            case .denied: return String(localized: .settingsStatusDenied)
+            case .restricted: return String(localized: .settingsStatusRestricted)
         }
     }
 }

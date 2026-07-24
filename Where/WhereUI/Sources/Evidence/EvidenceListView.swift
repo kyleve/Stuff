@@ -1,9 +1,11 @@
 import SwiftUI
 import WhereCore
 
-/// A sheet listing every piece of evidence captured in the selected year, newest
-/// first, with a "+" to compose a new one in-app. Tapping a row pushes its
-/// detail (metadata + attachment preview). Presented from the Primary tab.
+/// Lists every piece of evidence captured in the selected year, newest first,
+/// with a "+" to compose a new one in-app. Tapping a row pushes its detail
+/// (metadata + attachment preview). A drill-in from the Settings "Data" section
+/// (the Attachments row), so it renders inside that `NavigationStack` and owns
+/// only its title and toolbar.
 ///
 /// The list reloads whenever the year's evidence day-keys change (any committed
 /// write, including a share-extension add synced back) and again each time the
@@ -12,7 +14,6 @@ import WhereCore
 struct EvidenceListView: View {
     let report: YearReportModel
 
-    @Environment(\.dismiss) private var dismiss
     @State private var model: EvidenceListModel
     @State private var showingAdd = false
 
@@ -36,31 +37,26 @@ struct EvidenceListView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            content
-                .navigationTitle(Strings.evidenceListTitle(year: report.selectedYear))
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.commonDone) { dismiss() }
+        content
+            .navigationTitle(WhereFormat.evidenceListTitle(year: report.selectedYear))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingAdd = true
+                    } label: {
+                        Label(String(localized: .evidenceAdd), systemImage: "plus")
                     }
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button {
-                            showingAdd = true
-                        } label: {
-                            Label(Strings.evidenceAdd, systemImage: "plus")
-                        }
-                        .accessibilityIdentifier("where_add_evidence_button")
-                    }
+                    .accessibilityIdentifier("where_add_evidence_button")
                 }
-                .navigationDestination(for: Evidence.self) { evidence in
-                    EvidenceDetailView(evidence: evidence, report: report)
-                }
-        }
-        .task(id: loadID) { await model.load(for: report.selectedYear) }
-        .sheet(isPresented: $showingAdd, onDismiss: reloadAfterCompose) {
-            AddEvidenceView(report: report)
-        }
+            }
+            .navigationDestination(for: Evidence.self) { evidence in
+                EvidenceDetailView(evidence: evidence, report: report)
+            }
+            .task(id: loadID) { await model.load(for: report.selectedYear) }
+            .sheet(isPresented: $showingAdd, onDismiss: reloadAfterCompose) {
+                AddEvidenceView(report: report)
+            }
     }
 
     private var loadID: LoadID {
@@ -77,14 +73,17 @@ struct EvidenceListView: View {
     private var content: some View {
         switch model.loadState {
             case .idle, .loading:
-                AppIconLoadingView(caption: Strings.primaryLoading)
+                AppIconLoadingView(caption: String(localized: .primaryLoading))
             case let .loaded(items):
                 list(items)
             case .empty:
                 emptyState
             case let .failed(message):
                 ContentUnavailableView {
-                    Label(Strings.evidenceFailedTitle, systemImage: "exclamationmark.icloud")
+                    Label(
+                        String(localized: .evidenceFailedTitle),
+                        systemImage: "exclamationmark.icloud",
+                    )
                 } description: {
                     Text(message)
                 }
@@ -106,11 +105,33 @@ struct EvidenceListView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(Strings.evidenceEmptyTitle, systemImage: "paperclip")
+            Label(String(localized: .evidenceEmptyTitle), systemImage: "paperclip")
         } description: {
-            Text(Strings.evidenceEmptyDescription)
+            Text(String(localized: .evidenceEmptyDescription))
         } actions: {
-            Button(Strings.evidenceAdd) { showingAdd = true }
+            Button(String(localized: .evidenceAdd)) { showingAdd = true }
+        }
+    }
+}
+
+extension EvidenceListView: SettingsSection {
+    static var destination: SettingsDestination {
+        .attachments
+    }
+
+    enum Item: SettingsItem {
+        case attachments
+
+        var title: String {
+            switch self {
+                case .attachments: String(localized: .settingsAttachmentsRow)
+            }
+        }
+
+        var keywords: [String] {
+            switch self {
+                case .attachments: splitKeywords(String(localized: .settingsKeywordsAttachments))
+            }
         }
     }
 }
@@ -144,7 +165,7 @@ private struct EvidenceRow: View {
         .padding(.vertical, stylesheet.spacing.xxSmall)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            Strings.evidenceRowAccessibility(kind: evidence.kind, date: evidence.capturedAt),
+            WhereFormat.evidenceRowAccessibility(kind: evidence.kind, date: evidence.capturedAt),
         )
         // Log View Mode: reveal an inspect badge that opens this archive's
         // evidence-scope events. A no-op in release.
@@ -154,24 +175,30 @@ private struct EvidenceRow: View {
 
 #if DEBUG
     #Preview("Loaded") {
-        EvidenceListView(
-            report: PreviewSupport.loadedYearReportModel(),
-            model: PreviewSupport
-                .evidenceListModel(state: .loaded(PreviewSupport.sampleEvidence())),
-        )
+        NavigationStack {
+            EvidenceListView(
+                report: PreviewSupport.loadedYearReportModel(),
+                model: PreviewSupport
+                    .evidenceListModel(state: .loaded(PreviewSupport.sampleEvidence())),
+            )
+        }
     }
 
     #Preview("Empty") {
-        EvidenceListView(
-            report: PreviewSupport.loadedYearReportModel(),
-            model: PreviewSupport.evidenceListModel(state: .empty),
-        )
+        NavigationStack {
+            EvidenceListView(
+                report: PreviewSupport.loadedYearReportModel(),
+                model: PreviewSupport.evidenceListModel(state: .empty),
+            )
+        }
     }
 
     #Preview("Failed") {
-        EvidenceListView(
-            report: PreviewSupport.loadedYearReportModel(),
-            model: PreviewSupport.evidenceListModel(state: .failed("iCloud is unavailable.")),
-        )
+        NavigationStack {
+            EvidenceListView(
+                report: PreviewSupport.loadedYearReportModel(),
+                model: PreviewSupport.evidenceListModel(state: .failed("iCloud is unavailable.")),
+            )
+        }
     }
 #endif

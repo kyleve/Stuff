@@ -20,15 +20,18 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 - **`RootView`** — the app root: the typed launch plan (via
   [`LifecycleKit`](../../Shared/LifecycleKit), rendered by
-  [`LifecycleKitUI`](../../Shared/LifecycleKitUI)'s container) gated in front
-  of the Liquid Glass tab bar over the four top-level screens (Primary,
-  Elsewhere, Resolve, Settings); the tab bar is built from the `WhereSession`
-  the launch's `.ready` carries. The app injects the launch-built model +
-  runner (`init(model:launcher:)`); a no-arg `init()` builds its own for
-  previews and the hosted UI test.
+  [`LifecycleKitUI`](../../Shared/LifecycleKitUI)'s container) gated in front of
+  `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
+  Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
+  button, and the data screens (attachments, logged days, regions) sit in the
+  Settings "Data" group. `MainTabs` is built from the `WhereSession` the
+  launch's `.ready` carries. The app injects the launch-built model + runner
+  (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
+  the hosted UI test.
 - **`WhereModel`** — app-level state: the onboarding flag, the owned
   `WhereSession`, and the lifecycle intents (`attach(services:)`,
-  `startSession()` / `endSession()`, `eraseAllData()`, `resetPreferences()`).
+  `startSession(services:)` — which *returns* the session the launch's
+  `start-session` step threads onward — `endSession()`, `resetPreferences()`).
 - **`WhereSession`** — the always-on coordinator: tracking + location
   authorization state and the intents that drive them (`requestPermission()`,
   `startTracking()` / `stopTracking()`, `refreshWidgetSnapshot()`). It holds no

@@ -4,7 +4,8 @@ import WhereCore
 /// Home-screen widget content: year-to-date day counts per region — the
 /// number a residency-audit user wants at a glance. Renders from a
 /// `WidgetSnapshot` value; ranking reuses `RegionRanking.ranked` so the
-/// widget orders regions exactly like the app's Primary/Elsewhere tabs.
+/// widget orders regions exactly like the app's Locations tab (primary
+/// regions first, then Elsewhere).
 public struct YearTotalsWidgetView: View {
     private let snapshot: WidgetSnapshot
     private let maxRows: Int
@@ -25,7 +26,7 @@ public struct YearTotalsWidgetView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-            Text(Strings.widgetYearTitle(year: snapshot.year))
+            Text(WhereFormat.widgetYearTitle(year: snapshot.year))
                 .font(.caption2.weight(.semibold))
                 .textCase(.uppercase)
                 .tracking(1)
@@ -63,7 +64,7 @@ public struct YearTotalsWidgetView: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(
-                    Strings.regionDaysAccessibility(
+                    WhereFormat.regionDaysAccessibility(
                         region: entry.region.localizedName,
                         days: entry.days,
                     ),
@@ -78,7 +79,7 @@ public struct YearTotalsWidgetView: View {
                 .font(.title3)
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
-            Text(Strings.widgetYearEmpty)
+            Text(String(localized: .widgetYearEmpty))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
         }

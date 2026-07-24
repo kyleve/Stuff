@@ -69,6 +69,8 @@ let package = Package(
             dependencies: [
                 .target(name: "PeriscopeCore"),
                 .target(name: "PeriscopeUI"),
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
             ],
             path: "Shared/Periscope/PeriscopeTools/Sources",
         ),

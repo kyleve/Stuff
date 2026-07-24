@@ -50,10 +50,19 @@ system, formatting, and global conventions. Read that first.
 - **Detached children are off the critical path by construction:** they never
   block `.ready`, never fail the drive, and surface failures only on
   `detachedFailures`.
-- **Promotion is foreground-only and idempotent.** `enterForeground()` no-ops
-  for a foreground launch; consumers must only call it once the scene is
-  genuinely `.active` (see `RootView` in WhereUI for the `scenePhase` gating
-  pattern).
+- **`.undetermined` is the honest UIScene launch reason.** Under the UIScene
+  lifecycle `UIApplication.applicationState` reads `.background` at
+  `didFinishLaunching` even for a user tap, so a consumer that can't yet tell a
+  headless wake from a user launch should launch `.undetermined` rather than
+  fabricate a `.background(cause)`. It gates to the background-safe nodes and
+  builds no view tree until `enterForeground()` promotes it; if no scene ever
+  connects it honestly stays `.undetermined`, never claiming a cause it didn't
+  observe.
+- **Promotion resolves a not-yet-foreground launch and is idempotent.**
+  `enterForeground()` no-ops once the reason *is* `.userForeground`, so a
+  repeat call costs nothing while `.background` and `.undetermined` both
+  promote; consumers must only call it once the scene is genuinely `.active`
+  (see `RootView` in WhereUI for the `scenePhase` gating pattern).
 
 ## Testing
 

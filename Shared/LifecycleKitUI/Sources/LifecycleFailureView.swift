@@ -12,10 +12,7 @@ public struct LifecycleFailureView: View {
 
     public var body: some View {
         ContentUnavailableView {
-            Label(
-                String(localized: "failure.launch.title", bundle: .module),
-                systemImage: "exclamationmark.triangle",
-            )
+            Label(.failureLaunchTitle, systemImage: "exclamationmark.triangle")
         } description: {
             Text(failure.error.localizedDescription)
         }

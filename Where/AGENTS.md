@@ -54,30 +54,29 @@ Rules the code enforces and agents must preserve:
   `WhereLaunch` in WhereUI: each step is a type whose `Input`/`Output` thread
   the store scope → session scope through the trunk), rendered by
   [`LifecycleKitUI`](../Shared/LifecycleKitUI)'s container in `RootView`.
-- **All logging goes through [Periscope](../Shared/Periscope)** via the
-  `WhereLog` facade — a `"Where"` root `Log` scope with grouping scopes
-  (`location`, `reminders`, `backup`, `widgets`, `session`, `evidence`,
-  `recentActivity`) that each collaborator derives a typed `LogEvent` leaf from
-  (`WhereLog.<group>(SomeLog.self)` / `WhereLog.root(SomeLog.self)`), never a
-  raw string. Each module keeps its facade and `*Log.swift` event types together
-  in its own `Sources/Logging/` folder. Events log as `.public`, so keep PII out; catch-path events carry
-  a `LogAttachment.error(_:)`. `info` = success of an important operation,
-  `warning` = degraded-but-handled, `error`/`fault` = outright failure; hot
-  paths (per-sample persist, widget throttle) stay quiet by design. **RegionKit**
-  emits through its own `RegionLog` facade (a separate `"RegionKit"` root scope)
-  since it can't see `WhereLog`, but into the *same* process-wide
-  `Periscope.shared` — the app attaches one `PeriscopeStore` sink at launch, and
-  the DEBUG developer surface (`PeriscopeViewer`) shows every scope subtree in a
-  single stream. Widgets, the share extension, and the intents surface run in
-  their own processes, so their `Periscope.shared` stays OSLog-only (no store).
-  An event that concerns a store object stamps its `externalID` with the
-  object's canonical `store://` identity — `DataIssueID.storeURL` for dismissals,
-  and `WhereStoreID` (`store://days/…`, `store://years/…`, `store://evidence/…`,
-  `store://samples/…`) for the other families — so inspect-by-object shares the
-  same key the store and backups use. **RegionKit** can't see the app's
-  `store://` types, so it owns a parallel `region://` scheme (`RegionURL`,
-  `Region.regionURL` → `region://regions/<id>`) and `RegionAttributorLog` keys on
-  that — a separate namespace, since regions are a bundled catalog, not store rows.
+- **All logging goes through [Periscope](../Shared/Periscope)** via `WhereCore`'s
+  `WhereLog` facade — never a raw string. A collaborator derives a typed
+  `LogEvent` leaf off a grouping scope (`WhereLog.<group>(SomeLog.self)` /
+  `WhereLog.root(SomeLog.self)`; the groups are the `WhereLog` cases), and each
+  module keeps its own `*Log.swift` types in its `Sources/Logging/` folder rather
+  than beside the collaborator that emits them. The parts you can't read off the
+  source:
+  - Events log as `.public`, so **keep PII out**. `info` = success of an
+    important operation, `warning` = degraded-but-handled, `error`/`fault` =
+    outright failure; catch-path events carry a `LogAttachment.error(_:)`. Hot
+    paths (per-sample persist, widget throttle) stay quiet by design.
+  - **One process-wide system, several root scopes.** RegionKit can't see
+    `WhereLog`, so it owns a `"RegionKit"` root — but emits into the *same*
+    `Periscope.shared`, so the single `PeriscopeStore` sink the app attaches at
+    launch (and `PeriscopeViewer`) sees every subtree in one stream.
+  - **Only the app process gets a store.** Widgets, the share extension, and
+    intents run in their own processes, where `Periscope.shared` stays
+    OSLog-only.
+  - **An event about a store object stamps its `externalID` with that object's
+    canonical `store://` identity** (`DataIssueID.storeURL`, otherwise
+    `WhereStoreID`), so inspect-by-object shares the store's and backups' keys.
+    RegionKit's parallel `region://` scheme exists because it can't see those
+    types — see [`RegionKit/AGENTS.md`](RegionKit/AGENTS.md).
 - **Location comes through the `LocationSource` protocol** — production is
   `CoreLocationSource`; tests and previews use `ScriptedLocationSource`. Besides
   the passive `sampleStream`, it offers a best-effort one-shot
@@ -97,29 +96,51 @@ Rules the code enforces and agents must preserve:
   model's context, and model unavailability surfaces as a typed reason — never
   a silent empty summary.
 
+## Navigation
+
+The logged-in shell is `MainTabs` — **three fixed tabs**: Locations, Your Year,
+Settings. Everything else hangs off one of them: Elsewhere is an entry card on
+Locations, Resolve a Locations toolbar button, and the data screens
+(attachments, logged days, regions) live in the Settings "Data" group. `MainTabs`
+owns the scene-scoped `YearReportModel` and passes it to each tab by explicit
+init injection, so the wiring is compile-checked; the always-on `WhereSession`
+coordinator travels in the environment instead.
+
+A new screen belongs *inside* that shape — a destination pushed from a tab, a
+sheet, or a Settings row. Adding a fourth tab is a product decision, not a
+refactor: raise it before building.
+
 ## Localization
 
-All user-facing copy resolves through module string catalogs — no literals in
-views or thrown errors.
+All user-facing copy resolves through each module's `Localizable.xcstrings` via
+Xcode's **generated `LocalizedStringResource` symbols** (`STRING_CATALOG_GENERATE_SYMBOLS`,
+set project-wide in `Project.swift`; SwiftPM package targets get it from the
+toolchain). A manual catalog key `some.key` generates a `.someKey` symbol, so a
+typo'd or removed key is a **compile error**, not a runtime fallback — never
+write a raw `String(localized: "literal.key")` or a hand-maintained key facade.
 
-- **WhereUI:** funnel every string through `Strings.swift` (keys in the module
-  `Localizable.xcstrings`, `bundle: .module`). Counts use catalog plural
-  variations; years use a grouping-free number style ("2026", not "2,026").
-- **WhereCore:** user-visible errors use static
-  `String(localized:bundle: .module)` keys in its own catalog.
+- **WhereUI:** reference the generated symbol directly — `Text(.tabYear)`,
+  `String(localized: .commonOk)`. Strings that need composition, pluralization,
+  a `switch`, or non-catalog number/coordinate formatting go through
+  [`WhereFormat`](WhereUI/Sources/Shared/WhereFormat.swift), which composes the
+  symbols (years use a grouping-free number style — "2026", not "2,026"; counts
+  use catalog plural variations).
+- **WhereCore:** user-visible errors use `String(localized: .symbol)` from its
+  own catalog.
 - **RegionKit:** region names (`Region.localizedName`) come from the
   `regions.json` manifest, with an optional `localizationKey` overriding from
   RegionKit's own `Localizable.xcstrings` (`bundle: .module`) — so, unlike the
-  other modules, region names lose static string-catalog extraction (a
-  deliberate trade-off for a data-driven catalog).
-- **Extensions** (WhereWidgets, WhereShareExtension) keep their chrome in
-  their own catalogs and reuse WhereUI's public presentation helpers for
-  shared copy.
+  other modules, region names are resolved **dynamically** and lose static
+  string-catalog symbols (a deliberate trade-off for a data-driven catalog).
+- **Extensions** (WhereWidgets, WhereShareExtension) reference their own
+  generated symbols for chrome and reuse WhereUI's public presentation helpers
+  for shared copy.
 - **DEBUG-only UI** still gets catalog entries — don't bypass localization
   because a surface is dev-only.
 
-Add the key to the catalog first, then reference it — never ship English
-literals in SwiftUI `Text` or `errorDescription`.
+Add the key to the catalog as a **manual** entry first (so its symbol
+generates), then reference `.thatSymbol` — never ship English literals in
+SwiftUI `Text` or `errorDescription`, and never reintroduce a raw-key facade.
 
 ## Dates & presentation
 
@@ -141,8 +162,8 @@ literals in SwiftUI `Text` or `errorDescription`.
 - **Inject `Calendar`, don't reach for globals** — the scene's
   `YearReportModel` owns the calendar (Gregorian, current time zone) its
   missing-day math uses; layout types carry the calendar they were built with.
-  Prefer calendar APIs over hardcoding day/weekday counts (`Calendar.dayCount`
-  derives 365/366 rather than assuming a length).
+  Prefer calendar APIs over hardcoding day/weekday counts
+  (`Calendar.dayCount(ofYear:)` derives 365/366 rather than assuming a length).
 - **Core layout APIs throw on failure**; views surface
   `ContentUnavailableView` + log, never `!`.
 - Appearance tokens live in `WhereStylesheet` — see
@@ -188,8 +209,8 @@ path.
   [`Project.swift`](../Project.swift) via the `unitTests` helper.
 - **New region:** it's **pure data** now — add geometry under
   `RegionKit/Tools/source/`, run `ruby Where/RegionKit/Tools/generate-regions.rb`
-  to regenerate `Resources/regions/` + `regions.json` (extend the script's id
-  map / `NON_US` list as needed), optionally add a `region.<key>` string +
+  to regenerate `RegionKit/Sources/Resources/regions/` + `regions.json` (extend
+  the script's id map / `NON_US` list as needed), optionally add a `region.<key>` string +
   `localizationKey`, and add a `RegionAttributorTests` spot-check. No `Region`
   case, no code — `RegionStyle`, region pickers, and the App Intents
   `RegionEntity` all derive from the catalog. (See
@@ -200,16 +221,30 @@ path.
   [`AGENTS.md`](../AGENTS.md#managing-app-icons)) — never hand-edit the
   catalogs or manifest.
 
+## Installing to a device
+
+`./Where/install` builds the app and installs it on a connected iPhone
+straight from the CLI — no Xcode UI. It regenerates the project, builds +
+code-signs the `Where` scheme with `xcodebuild` (the Debug configuration with
+compiler optimizations forced on by default, so the DEBUG-only developer
+surfaces survive while the app still runs at roughly Release speed;
+`-allowProvisioningUpdates` so the app + extensions provision automatically),
+then copies and launches it via `xcrun devicectl` (see `./Where/install
+--help`). macOS-only, and it needs a signing team configured once via `./ide
+--team-id <ABCDE12345>`. Auto-picks the sole paired physical iPhone (booted
+simulators are ignored) and prompts you to unlock it before installing; pass
+`--configuration <name>` to build a different configuration (e.g. `Release`),
+`--no-optimize` to leave the configuration's own optimization level alone,
+`--device <name|udid>` to disambiguate, `--no-launch` to install without
+launching, `--yes` to skip the unlock prompt.
+
 ## Testing
+
+Root [testing conventions](../AGENTS.md#testing) apply. What's specific here:
 
 - Test bundles run in `StuffTestHost` via the `unitTests` helper in
   `Project.swift` and link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
-  The `InMemoryKeyValueStore` test double lives in `WhereCore` behind
-  `@_spi(Testing)` (`#if DEBUG`) — import it with `@_spi(Testing) import WhereCore`.
 - Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()` — never
   `CoreLocationSource` or the user's on-disk/CloudKit store. The CloudKit
   remote-import path is exercised with the `@_spi(Testing)`
   `inMemory(remoteChangeSource:)` + `ScriptedStoreRemoteChangeSource`.
-- Root rules apply: 1:1 test files, shared fixtures in `*TestSupport.swift`,
-  wait for conditions rather than fixed delays, inject small limits via
-  `@_spi(Testing)`.

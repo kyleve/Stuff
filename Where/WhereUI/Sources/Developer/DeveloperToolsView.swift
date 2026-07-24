@@ -22,22 +22,30 @@
         @Environment(WhereSession.self) private var session: WhereSession?
         @Environment(\.periscopeInspector) private var inspector
 
+        /// Extra bottom scroll inset so the last rows clear the floating HUD's
+        /// resize grip. Zero (the default) when hosted without the overlay chrome
+        /// (previews, tests, full screen).
+        var bottomContentInset: CGFloat = 0
+
         var body: some View {
             NavigationStack {
                 List {
                     Section {
                         if let store = model?.logStore {
                             NavigationLink {
-                                PeriscopeViewer(store: store, title: Strings.developerLogsTitle)
+                                PeriscopeViewer(
+                                    store: store,
+                                    title: String(localized: .developerLogsTitle),
+                                )
                             } label: {
-                                Label(Strings.developerLogsLink, systemImage: "ladybug")
+                                Label(String(localized: .developerLogsLink), systemImage: "ladybug")
                             }
                         }
 
                         NavigationLink {
                             OpenSpansView(system: .shared)
                         } label: {
-                            Label(Strings.developerOpenSpansLink, systemImage: "timer")
+                            Label(String(localized: .developerOpenSpansLink), systemImage: "timer")
                         }
 
                         if let configuration = session?.swiftDataInspectorConfiguration {
@@ -45,7 +53,7 @@
                                 SwiftDataInspectorView(configuration: configuration)
                             } label: {
                                 Label(
-                                    Strings.developerInspectorLink,
+                                    String(localized: .developerInspectorLink),
                                     systemImage: "cylinder.split.1x2",
                                 )
                             }
@@ -54,18 +62,21 @@
                         NavigationLink {
                             RegionMapView()
                         } label: {
-                            Label(Strings.developerRegionMapLink, systemImage: "map")
+                            Label(String(localized: .developerRegionMapLink), systemImage: "map")
                         }
                     } footer: {
-                        Text(Strings.developerFooter)
+                        Text(String(localized: .developerFooter))
                     }
 
                     if let inspector {
                         LogViewModeSection(inspector: inspector)
                     }
                 }
-                .navigationTitle(Strings.developerTitle)
+                .navigationTitle(String(localized: .developerTitle))
                 .navigationBarTitleDisplayMode(.inline)
+                // Let the HUD's glass surface show through the list.
+                .scrollContentBackground(.hidden)
+                .contentMargins(.bottom, bottomContentInset, for: .scrollContent)
             }
         }
     }
@@ -79,9 +90,9 @@
 
         var body: some View {
             Section {
-                Toggle(Strings.developerLogViewMode, isOn: $inspector.isEnabled)
+                Toggle(String(localized: .developerLogViewMode), isOn: $inspector.isEnabled)
             } footer: {
-                Text(Strings.developerLogViewModeFooter)
+                Text(String(localized: .developerLogViewModeFooter))
             }
         }
     }

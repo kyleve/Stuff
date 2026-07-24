@@ -75,7 +75,9 @@ public final class WhereModel {
     }
 
     public static var currentYear: Int {
-        Calendar.current.component(.year, from: Date())
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .current
+        return calendar.component(.year, from: Date())
     }
 
     /// The app-level model: no services yet (the launch assembles them).

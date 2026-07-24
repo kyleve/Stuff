@@ -71,6 +71,22 @@
             WhereSession(services: previewServices())
         }
 
+        // MARK: - Settings models (reminders / backup sub-screens)
+
+        /// A reminders/summary editing model over in-memory services, for the
+        /// Settings reminders and alerts sub-screen previews/tests.
+        @MainActor
+        public static func remindersSettingsModel() -> RemindersSettingsModel {
+            RemindersSettingsModel(services: previewServices(), preferences: WherePreferences())
+        }
+
+        /// A backup export/import model over in-memory services, for the Settings
+        /// backup sub-screen previews/tests.
+        @MainActor
+        public static func backupModel() -> BackupModel {
+            BackupModel(services: previewServices())
+        }
+
         // MARK: - Region picker / customization
 
         /// A primary-region selection model seeded with a few US picks + looks,
