@@ -23,6 +23,7 @@ let package = Package(
         .library(name: "WhereIntents", targets: ["WhereIntents"]),
         .library(name: "BroadwayCore", targets: ["BroadwayCore"]),
         .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
+        .library(name: "PortholeCore", targets: ["PortholeCore"]),
     ],
     dependencies: [
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
@@ -138,6 +139,10 @@ let package = Package(
                 .target(name: "BroadwayCore"),
             ],
             path: "Shared/Broadway/BroadwayUI/Sources",
+        ),
+        .target(
+            name: "PortholeCore",
+            path: "Shared/Porthole/PortholeCore/Sources",
         ),
     ],
 )

@@ -391,6 +391,12 @@ let project = Project(
                 "BroadwayCore",
             ],
         ),
+        unitTests(
+            name: "PortholeCoreTests",
+            bundleIdSuffix: "porthole.core",
+            productDependency: "PortholeCore",
+            sources: ["Shared/Porthole/PortholeCore/Tests/**"],
+        ),
     ],
     // Tuist's autogeneration doesn't emit working standalone test actions for
     // these unit-test bundles (only the aggregate `Stuff-Workspace` scheme
@@ -433,6 +439,7 @@ let project = Project(
                 "BroadwayCoreTests",
                 "BroadwayUITests",
                 "BroadwayCatalogTests",
+                "PortholeCoreTests",
             ]),
             testAction: .targets([
                 "StuffCoreTests",
@@ -450,6 +457,7 @@ let project = Project(
                 "BroadwayCoreTests",
                 "BroadwayUITests",
                 "BroadwayCatalogTests",
+                "PortholeCoreTests",
             ]),
         ),
         testScheme(name: "StuffCoreTests"),
@@ -467,5 +475,6 @@ let project = Project(
         testScheme(name: "BroadwayCoreTests"),
         testScheme(name: "BroadwayUITests"),
         testScheme(name: "BroadwayCatalogTests"),
+        testScheme(name: "PortholeCoreTests"),
     ],
 )
