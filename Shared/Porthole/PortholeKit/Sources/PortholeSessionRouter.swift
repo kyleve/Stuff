@@ -103,6 +103,8 @@ actor PortholeSessionRouter {
                 }
                 do {
                     return try await .actionResult(action.handler(parameters))
+                } catch let error as PortholeError {
+                    return .failure(error)
                 } catch {
                     return .failure(.handlerFailed(String(describing: error)))
                 }
@@ -126,6 +128,8 @@ actor PortholeSessionRouter {
                 }
                 do {
                     return try await .queryResult(source.fetch(query))
+                } catch let error as PortholeError {
+                    return .failure(error)
                 } catch {
                     return .failure(.handlerFailed(String(describing: error)))
                 }
