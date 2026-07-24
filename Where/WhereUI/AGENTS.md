@@ -15,11 +15,10 @@ extended.
 - Presentation layer only — no domain rules, persistence, or store I/O here
   (see [Layering](../AGENTS.md#layering)). Dependencies live in the root
   [`Package.swift`](../../Package.swift).
-- Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI (a
-  dynamic framework) and must **not** link `BroadwayUI`/`BroadwayCore`
-  themselves — a second copy would split Broadway's type-keyed environment
-  metadata and the stylesheet would stop resolving across the boundary. This
-  is why `whereBroadwayRoot()` lives here rather than being called as
+- Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI and
+  must **not** link `BroadwayUI`/`BroadwayCore` themselves (see the root
+  [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-a-dynamic-framework-already-carries)).
+  That's why `whereBroadwayRoot()` lives here rather than being called as
   `broadwayRoot` at each site.
 
 ## Design system — `WhereStylesheet`

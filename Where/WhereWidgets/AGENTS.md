@@ -36,8 +36,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   `#Preview` timelines like any other WhereUI view.
 - **Seed the Broadway root via WhereUI's `whereBroadwayRoot()`** (applied in each
   widget's `StaticConfiguration` content) so the shared WhereUI views resolve
-  trait-aware `@Environment(\.stylesheet)` tokens instead of `.default`. Do **not**
-  add a direct `BroadwayCore`/`BroadwayUI` dependency — the extension already gets
-  Broadway through `WhereUI` (a dynamic framework), and a second copy would split
-  Broadway's type-keyed environment metadata (see the root `AGENTS.md` "Targets"
-  note). That's why the seam lives in WhereUI, not a `broadwayRoot` call here.
+  trait-aware `@Environment(\.stylesheet)` tokens instead of `.default`. Never
+  add a direct `BroadwayCore`/`BroadwayUI` dependency — Broadway arrives through
+  `WhereUI`, which is why the seam lives there rather than a `broadwayRoot` call
+  here (see the root
+  [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-a-dynamic-framework-already-carries)).
