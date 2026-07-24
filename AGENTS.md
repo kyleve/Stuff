@@ -519,8 +519,11 @@ simulator **by name is ambiguous**, so:
   until the device actually reads `(Shutdown)` before `erase`/`boot`:
 
 ```bash
+# Pin the runtime key to the OS you test against (match CI — currently 27.0),
+# so this resolves the *right* iPhone 17 even when older runtimes also have one.
 UDID=$(xcrun simctl list devices available --json \
-  | jq -r '.devices[] | .[] | select(.name=="iPhone 17") | .udid' | head -1)  # pin the OS you want
+  | jq -r '.devices["com.apple.CoreSimulator.SimRuntime.iOS-27-0"][]
+           | select(.name == "iPhone 17") | .udid')
 xcrun simctl boot "$UDID"    # let it settle (~20s) before the run
 mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
   -destination "platform=iOS Simulator,id=$UDID"
