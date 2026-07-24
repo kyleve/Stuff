@@ -20,8 +20,9 @@ private let developmentTeam = Environment.developmentTeam.getString(default: "")
 /// `STRING_CATALOG_GENERATE_SYMBOLS` turns on Xcode's type-safe String Catalog
 /// symbol generation for the app and app-extension targets (Where, WhereWidgets,
 /// WhereShareExtension, …). The SwiftPM package targets declared in `Package.swift`
-/// (WhereUI, WhereCore, RegionKit, LifecycleKit) get symbol generation automatically
-/// from the toolchain, so this only needs to reach the Tuist-native targets.
+/// (WhereUI, WhereCore, RegionKit, LifecycleKitUI) get symbol generation
+/// automatically from the toolchain, so this only needs to reach the
+/// Tuist-native targets.
 ///
 /// `DEVELOPMENT_TEAM` is threaded in from the environment when present (see above).
 private let projectSettings: Settings = .settings(

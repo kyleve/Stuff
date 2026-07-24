@@ -54,10 +54,7 @@ public struct MissingGateViewError: Error, LocalizedError {
     public let gateID: AnyHashable
 
     public var errorDescription: String? {
-        String(
-            localized: "failure.gate.unregistered \(String(describing: gateID))",
-            bundle: .module,
-        )
+        String(localized: .failureGateUnregistered(String(describing: gateID)))
     }
 }
 

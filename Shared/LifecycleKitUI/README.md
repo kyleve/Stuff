@@ -15,7 +15,9 @@ import LifecycleKitUI
 LifecycleContainer(
     runner,                                   // LifecycleRunner<WhereSession>
     splash: { context in
-        LaunchSplashView(caption: context?.message)
+        // The running step's context is handed in so a splash can show a
+        // caption/progress; Where's own splash ignores it and self-manages.
+        MySplashView(status: context?.message)
     },
     failure: { failure in
         LifecycleFailureView(failure: failure)   // terminal — no retry

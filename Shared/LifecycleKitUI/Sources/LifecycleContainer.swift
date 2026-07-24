@@ -50,11 +50,10 @@ public struct LifecycleContainer<
     private let gates: [GateRegistration]
     private let content: (Launch) -> Content
 
-    /// When the splash surface first became visible this launch, and whether
-    /// `minimumSplashDuration` has since elapsed. Together they gate holding the
-    /// `.ready` reveal until the splash has shown for its minimum.
-    @State private var splashAppearedAt: ContinuousClock.Instant?
-    @State private var minimumSplashElapsed = false
+    /// When the splash may be dismissed: the deadline the current appearance's
+    /// `minimumSplashDuration` set. `nil` means nothing is holding the reveal —
+    /// no minimum was requested, no splash was shown, or the hold has elapsed.
+    @State private var splashHoldUntil: ContinuousClock.Instant?
 
     /// - Parameters:
     ///   - transition: how each surface enters/leaves. Defaults to a crossfade.
@@ -113,55 +112,45 @@ public struct LifecycleContainer<
         }
         .environment(\.lifecycle, LifecycleProxy(runner))
         .animation(animation, value: displayedSurfaceIdentity)
-        // Record when the splash first shows so the reveal can be held for at
-        // least `minimumSplashDuration`. Resets each time the splash reappears
-        // (a reset relaunch, or the return from a gate) so every episode gets
-        // its own minimum.
+        // Arm the hold each time the splash appears, so every episode (a reset
+        // relaunch, the return from a gate) gets its own minimum.
         .onChange(of: isShowingSplash, initial: true) { _, showing in
-            guard showing else { return }
-            splashAppearedAt = ContinuousClock.now
-            minimumSplashElapsed = false
+            guard showing, minimumSplashDuration > .zero else { return }
+            splashHoldUntil = ContinuousClock.now.advanced(by: minimumSplashDuration)
         }
-        // Once the runner is ready, hold the splash for the remainder of its
-        // minimum (if any), then release the reveal.
-        .task(id: isReadyPhase) {
-            guard isReadyPhase,
-                  minimumSplashDuration > .zero,
-                  !minimumSplashElapsed,
-                  let appearedAt = splashAppearedAt
-            else { return }
-            let remaining = minimumSplashDuration - appearedAt.duration(to: ContinuousClock.now)
-            if remaining > .zero {
-                try? await Task.sleep(for: remaining)
-                guard !Task.isCancelled else { return }
+        // Once the runner is ready, wait out whatever is left of the hold, then
+        // release the reveal.
+        .task(id: runner.phase.isReady) {
+            guard runner.phase.isReady, let deadline = splashHoldUntil else { return }
+            do {
+                // Returns immediately once the deadline has passed, so a launch
+                // slower than the minimum reveals without waiting.
+                try await Task.sleep(until: deadline, clock: .continuous)
+            } catch {
+                return // Superseded — a new appearance re-armed the hold.
             }
             // Drive the reveal in an explicit transaction: `.animation(_:value:)`
             // doesn't reliably animate this async, `.task`-driven flip, so the
             // splash would be removed without its reveal transition.
-            withAnimation(animation) { minimumSplashElapsed = true }
+            withAnimation(animation) { splashHoldUntil = nil }
         }
     }
 
-    /// Whether the splash is actually on screen right now: a launch that builds
-    /// a view tree, parked on `.launching` or running a step (which always shows
-    /// the splash — step UI lives in gates, which have their own surface).
+    /// Whether the *runner* wants the splash on screen: a launch that builds a
+    /// view tree, parked on `.launching` or running a step (step UI lives in
+    /// gates, which have their own surface).
+    ///
+    /// Deliberately reads the runner's own surface, not `displayedSurfaceIdentity`
+    /// — that reports `.splash` for a held `.ready`, which would re-arm the hold
+    /// from its own release and never reveal.
     private var isShowingSplash: Bool {
-        guard !runner.reason.buildsNoViewTree else { return false }
-        switch runner.phase {
-            case .launching, .running: return true
-            case .awaitingGate, .failed, .ready: return false
-        }
+        !runner.reason.buildsNoViewTree && runner.phase.surfaceIdentity == .splash
     }
 
-    private var isReadyPhase: Bool {
-        if case .ready = runner.phase { return true }
-        return false
-    }
-
-    /// Whether the app content may be revealed: no minimum was requested, no
-    /// splash was ever shown, or the minimum has now elapsed.
+    /// Whether the app content may be revealed: nothing is holding it — no
+    /// minimum was requested, no splash was shown, or the hold has elapsed.
     private var canRevealReady: Bool {
-        minimumSplashDuration <= .zero || splashAppearedAt == nil || minimumSplashElapsed
+        splashHoldUntil == nil
     }
 
     /// The surface actually on screen, for `.animation(_:value:)`. While the
@@ -169,7 +158,7 @@ public struct LifecycleContainer<
     /// `.splash`, so the reveal transition fires when the hold releases — not
     /// the instant the runner reports `.ready`.
     private var displayedSurfaceIdentity: LifecycleRunner<Launch>.Phase.SurfaceIdentity {
-        if isReadyPhase, !canRevealReady {
+        if runner.phase.isReady, !canRevealReady {
             return .splash
         }
         return runner.phase.surfaceIdentity
@@ -257,11 +246,13 @@ extension LifecycleContainer where Splash == LifecycleSplash, Failure == Lifecyc
     /// Convenience initializer using the built-in splash and failure views.
     public init(
         _ runner: LifecycleRunner<Launch>,
+        minimumSplashDuration: Duration = .zero,
         @GateRegistrationsBuilder gates: () -> [GateRegistration] = { [] },
         @ViewBuilder content: @escaping (Launch) -> Content,
     ) {
         self.init(
             runner,
+            minimumSplashDuration: minimumSplashDuration,
             splash: { _ in LifecycleSplash() },
             failure: { LifecycleFailureView(failure: $0) },
             gates: gates,
@@ -275,12 +266,14 @@ extension LifecycleContainer where Failure == LifecycleFailureView {
     /// view.
     public init(
         _ runner: LifecycleRunner<Launch>,
+        minimumSplashDuration: Duration = .zero,
         @ViewBuilder splash: @escaping (LifecycleStepContext?) -> Splash,
         @GateRegistrationsBuilder gates: () -> [GateRegistration] = { [] },
         @ViewBuilder content: @escaping (Launch) -> Content,
     ) {
         self.init(
             runner,
+            minimumSplashDuration: minimumSplashDuration,
             splash: splash,
             failure: { LifecycleFailureView(failure: $0) },
             gates: gates,

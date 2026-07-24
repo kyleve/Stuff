@@ -8,8 +8,8 @@ import WhereCore
     import PeriscopeTools
 #endif
 
-/// The app's root: the launch sequence gated in front of a Liquid Glass tab bar
-/// over the four top-level screens (Primary, Elsewhere, Resolve, Settings).
+/// The app's root: the launch plan gated in front of `MainTabs`, the Liquid
+/// Glass tab bar over three tabs (Locations, Your Year, Settings).
 ///
 /// `LifecycleContainer` renders the splash / onboarding UI while the
 /// `LifecycleRunner` runs, then the `TabView` (the real "logged-in" UI — the

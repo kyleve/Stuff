@@ -24,6 +24,14 @@ build system, formatting, and global conventions. Read that first.
   re-read from shared state. Don't add a code path that renders the app
   surface without the launch output in hand.
 - **No view tree when `reason.buildsNoViewTree`** — even at `.ready`.
+- **`minimumSplashDuration` only holds a splash that was actually shown.** The
+  hold is armed when the splash *appears*, so a launch already `.ready` when the
+  container mounts reveals immediately rather than stalling behind a minimum for
+  a splash nobody saw (`minimumSplashDurationDoesNotHoldWhenNoSplashWasShown`
+  guards this; the timing half is device-verified, not host-testable). `isShowingSplash`
+  must read the runner's own surface, never `displayedSurfaceIdentity` — that
+  reports `.splash` for a held `.ready`, which would re-arm the hold from its own
+  release and never reveal.
 - **Gate views resolve only their own handle.** The registry hands each gate
   view the parked `LifecycleGateHandle`; a superseded drive's handle no-ops,
   so don't route gate resolution through anything but the handle.
