@@ -68,7 +68,10 @@ cd "$(dirname "$0")"
 
 WORKSPACE="Stuff.xcworkspace"
 SCHEME="Stuff-Workspace"
-DESTINATION="platform=iOS Simulator,name=$DEVICE,OS=$OS"
+# Boot the target up front and address it by UDID: a cold simulator otherwise
+# lands in the timings as build/test cost, and a name-based destination can
+# resolve to a same-named device on another runtime (see ./simulator).
+DESTINATION="platform=iOS Simulator,id=$(./simulator --device "$DEVICE" --os "$OS")"
 
 WORKDIR="${TMPDIR:-/tmp}/where-profile"
 DERIVED="$WORKDIR/DerivedData"

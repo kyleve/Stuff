@@ -29,10 +29,12 @@ Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise),
 `sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`),
 `profile` (prints build/test hot spots — slowest build phases, slowest
 tests, and slow type-check sites; see `./profile --help`), `icons`
-(adds/removes selectable app icons; see `./icons --help`), and `flaky`
+(adds/removes selectable app icons; see `./icons --help`), `flaky`
 (detects flaky tests by re-running the suite and tight-looping any test that
 ever fails, then writes the counts to `FLAKY_TESTS.md`; report-only, see
-`./flaky --help`).
+`./flaky --help`), and `simulator` (resolves the target simulator by UDID,
+boots it, and prints the UDID; see [Selecting a
+simulator](#selecting-a-simulator--address-it-by-udid-not-name)).
 
 ### Managing app icons
 
@@ -518,19 +520,21 @@ simulator **by name is ambiguous**, so:
   reliable recipe when a run is flaking; `simctl shutdown` is async, so poll
   until the device actually reads `(Shutdown)` before `erase`/`boot`:
 
+**Use `./simulator` rather than hand-rolling this.** It resolves the device for
+a given name + OS to a single UDID, boots it, waits for the boot to *finish*
+(`simctl bootstatus -b` — a condition, not a fixed sleep), and prints only the
+UDID, so it composes into any destination:
+
 ```bash
-# Pin the runtime key to the OS you test against (match CI — currently 27.0),
-# so this resolves the *right* iPhone 17 even when older runtimes also have one.
-UDID=$(xcrun simctl list devices available --json \
-  | jq -r '.devices["com.apple.CoreSimulator.SimRuntime.iOS-27-0"][]
-           | select(.name == "iPhone 17") | .udid')
-xcrun simctl bootstatus "$UDID" -b   # boots if needed, waits for boot to finish
 mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
-  -destination "platform=iOS Simulator,id=$UDID"
+  -destination "platform=iOS Simulator,id=$(./simulator)"
 ```
 
-Wait on `bootstatus -b`, not a fixed sleep — same "wait for conditions, not
-timing" rule the tests follow.
+It defaults to the CI pairing (iPhone 17 / iOS 27.0); pass `--device` / `--os`
+to target another, `--no-boot` to just resolve the UDID, and see
+`./simulator --help`. `./profile`, `./flaky`, and CI all go through it, so a
+local repro targets the device the same way CI does — don't reintroduce a
+`name=…` destination or a bare `simctl <name>` call in a script.
 
 - **If you keep a name-based `-destination`, always include `OS=`** so
   *xcodebuild* resolves unambiguously — but that only disambiguates the test

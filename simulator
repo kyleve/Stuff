@@ -1,0 +1,100 @@
+#!/bin/bash
+set -euo pipefail
+
+# simulator — resolve the iOS Simulator our build/test commands should target,
+# boot it, and print its UDID.
+#
+# Why this exists: a machine with several runtimes installed usually has an
+# "iPhone 17" on each of them, and `xcrun simctl` matches by *name* only — so a
+# name-based command can shut down, erase, or boot a different device than the
+# one under test, which surfaces as `Application failed preflight checks (Busy)`
+# or `Mach error -308` (launch failures that look like test failures). Booting
+# is also the slow half: letting a run race a cold CoreSimulator has stretched a
+# ~10 minute test job past 3 hours. So every caller resolves a UDID once, waits
+# for the device to finish booting, and passes `-destination "…,id=$UDID"`.
+# See "Selecting a simulator" in AGENTS.md.
+#
+# Only the UDID goes to stdout, so this composes:
+#
+#     -destination "platform=iOS Simulator,id=$(./simulator)"
+#
+# Progress and warnings go to stderr.
+
+DEVICE="iPhone 17"
+OS="27.0"
+BOOT=true
+
+usage() {
+    cat <<'USAGE'
+Usage: ./simulator [options]
+
+Resolves the target iOS Simulator by UDID (never by name), boots it, waits for
+the boot to finish, and prints the UDID on stdout.
+
+Options:
+  --device NAME   Simulator device name (default: "iPhone 17")
+  --os VERSION    Simulator iOS version (default: "27.0")
+  --no-boot       Only resolve and print the UDID; don't boot or wait
+  -h, --help      Show this help
+
+Examples:
+  ./simulator
+  ./simulator --device 'iPhone 17 Pro' --os 27.0
+  xcodebuild test -destination "platform=iOS Simulator,id=$(./simulator)" …
+
+Requires jq (brew install jq).
+USAGE
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --device) shift; DEVICE="${1:?--device requires a value}" ;;
+        --os) shift; OS="${1:?--os requires a value}" ;;
+        --no-boot) BOOT=false ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "error: unknown option '$1' (see ./simulator --help)" >&2; exit 1 ;;
+    esac
+    shift
+done
+
+if ! command -v jq >/dev/null 2>&1; then
+    echo "error: jq is required (brew install jq)" >&2
+    exit 1
+fi
+
+# Listing also nudges CoreSimulator into rebuilding its device cache, which a
+# freshly provisioned machine (notably the xcode-27 CI image) needs before a
+# destination will resolve at all.
+devices_json="$(xcrun simctl list devices available --json)"
+
+runtime_key="com.apple.CoreSimulator.SimRuntime.iOS-${OS//./-}"
+udids="$(
+    printf '%s' "$devices_json" \
+        | jq -r --arg key "$runtime_key" --arg name "$DEVICE" \
+            '.devices[$key][]? | select(.name == $name) | .udid'
+)"
+
+if [ -z "$udids" ]; then
+    echo "error: no available '$DEVICE' on the iOS $OS runtime." >&2
+    echo "Available devices:" >&2
+    xcrun simctl list devices available >&2
+    exit 1
+fi
+
+udid="$(printf '%s\n' "$udids" | head -1)"
+
+# Same name *and* same runtime is a genuinely ambiguous setup (usually a
+# hand-created duplicate). Pick one deterministically, but say so — silently
+# choosing is how you end up debugging the wrong device.
+if [ "$(printf '%s\n' "$udids" | wc -l | tr -d ' ')" -gt 1 ]; then
+    echo "warning: several '$DEVICE' devices on iOS $OS; using $udid" >&2
+fi
+
+if [ "$BOOT" = true ]; then
+    echo "==> Booting $DEVICE / iOS $OS ($udid)" >&2
+    # `-b` boots the device if needed, then waits for boot to finish — a
+    # condition to wait on rather than a fixed sleep.
+    xcrun simctl bootstatus "$udid" -b >&2
+fi
+
+printf '%s\n' "$udid"
