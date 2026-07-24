@@ -37,6 +37,10 @@ public final class Porthole {
         self.credentials = credentials
         register(AppInfoConnector(appName: configuration.appName, bundleID: configuration.bundleID))
         register(FileBrowserConnector(appGroupIdentifiers: configuration.appGroupIdentifiers))
+        register(PermissionsConnector())
+        #if canImport(UserNotifications)
+            register(NotificationsConnector())
+        #endif
         #if canImport(UIKit)
             register(ViewTreeConnector())
         #endif
