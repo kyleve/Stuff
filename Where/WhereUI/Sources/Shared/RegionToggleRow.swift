@@ -17,3 +17,13 @@ struct RegionToggleRow: View {
         }
     }
 }
+
+#if DEBUG
+    #Preview {
+        Form {
+            RegionToggleRow(item: RegionToggleItem(region: .california, isOn: true))
+            RegionToggleRow(item: RegionToggleItem(region: .newYork, isOn: false))
+        }
+        .whereBroadwayRoot()
+    }
+#endif

@@ -11,3 +11,11 @@ struct WhereWidgetsBundle: WidgetBundle {
         YearTotalsWidget()
     }
 }
+
+#if DEBUG
+    #Preview("Where widgets", as: .systemSmall) {
+        TodayWidget()
+    } timeline: {
+        WhereWidgetEntry.sample
+    }
+#endif

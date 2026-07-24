@@ -75,3 +75,23 @@ struct MainTabs: View {
         }
     }
 }
+
+#if DEBUG
+    private struct MainTabsPreview: View {
+        private let session = PreviewSupport.loadedSession()
+
+        var body: some View {
+            MainTabs(
+                session: session,
+                initialReport: PreviewSupport.sampleReport(),
+                selectedYear: PreviewSupport.year,
+            )
+            .environment(session)
+            .whereBroadwayRoot()
+        }
+    }
+
+    #Preview {
+        MainTabsPreview()
+    }
+#endif
