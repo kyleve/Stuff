@@ -24,6 +24,7 @@ let package = Package(
         .library(name: "BroadwayCore", targets: ["BroadwayCore"]),
         .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
         .library(name: "PortholeCore", targets: ["PortholeCore"]),
+        .library(name: "PortholeKit", targets: ["PortholeKit"]),
     ],
     dependencies: [
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
@@ -143,6 +144,13 @@ let package = Package(
         .target(
             name: "PortholeCore",
             path: "Shared/Porthole/PortholeCore/Sources",
+        ),
+        .target(
+            name: "PortholeKit",
+            dependencies: [
+                .target(name: "PortholeCore"),
+            ],
+            path: "Shared/Porthole/PortholeKit/Sources",
         ),
     ],
 )
