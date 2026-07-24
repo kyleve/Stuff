@@ -447,6 +447,13 @@ let project = Project(
             extraPackageProducts: ["PortholeKit", "PortholeCore", "PeriscopeCore"],
         ),
         unitTests(
+            name: "WherePortholeTests",
+            bundleIdSuffix: "where.porthole",
+            productDependency: "WherePorthole",
+            sources: ["Where/WherePorthole/Tests/**"],
+            extraPackageProducts: ["PortholeKit", "PortholeCore", "WhereCore", "RegionKit"],
+        ),
+        unitTests(
             name: "PortholeCLICoreTests",
             bundleIdSuffix: "porthole.cli",
             productDependency: "PortholeCLICore",
@@ -548,6 +555,7 @@ let project = Project(
                 "PortholeLifecycleTests",
                 "PortholeSwiftDataTests",
                 "PortholePeriscopeTests",
+                "WherePortholeTests",
                 "PortholeCLICoreTests",
             ]),
             testAction: .targets([
@@ -574,6 +582,7 @@ let project = Project(
                 "PortholeLifecycleTests",
                 "PortholeSwiftDataTests",
                 "PortholePeriscopeTests",
+                "WherePortholeTests",
                 "PortholeCLICoreTests",
             ]),
         ),
@@ -612,6 +621,7 @@ let project = Project(
         testScheme(name: "PortholeLifecycleTests"),
         testScheme(name: "PortholeSwiftDataTests"),
         testScheme(name: "PortholePeriscopeTests"),
+        testScheme(name: "WherePortholeTests"),
         testScheme(name: "PortholeCLICoreTests"),
     ],
 )

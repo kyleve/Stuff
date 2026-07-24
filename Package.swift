@@ -32,6 +32,7 @@ let package = Package(
         .library(name: "PortholeLifecycle", targets: ["PortholeLifecycle"]),
         .library(name: "PortholeSwiftData", targets: ["PortholeSwiftData"]),
         .library(name: "PortholePeriscope", targets: ["PortholePeriscope"]),
+        .library(name: "WherePorthole", targets: ["WherePorthole"]),
     ],
     dependencies: [
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
@@ -127,6 +128,17 @@ let package = Package(
                 .target(name: "PeriscopeUI"),
                 .target(name: "RegionKit"),
                 .target(name: "SwiftDataInspector"),
+                // Porthole (DEBUG developer surface). Everything reaches the app
+                // *through* WhereUI (a dynamic framework) so a duplicate copy of
+                // any of these can't split type-keyed metadata — see the root
+                // AGENTS.md "Targets" note. The app target and WhereUITests add
+                // nothing new.
+                .target(name: "PortholeKit"),
+                .target(name: "PortholeKitUI"),
+                .target(name: "PortholePeriscope"),
+                .target(name: "PortholeSwiftData"),
+                .target(name: "PortholeLifecycle"),
+                .target(name: "WherePorthole"),
             ],
             path: "Where/WhereUI/Sources",
             resources: [
@@ -224,6 +236,14 @@ let package = Package(
                 .target(name: "PeriscopeCore"),
             ],
             path: "Shared/Porthole/PortholePeriscope/Sources",
+        ),
+        .target(
+            name: "WherePorthole",
+            dependencies: [
+                .target(name: "PortholeKit"),
+                .target(name: "WhereCore"),
+            ],
+            path: "Where/WherePorthole/Sources",
         ),
     ],
 )

@@ -61,6 +61,15 @@
                         } label: {
                             Label(Strings.developerRegionMapLink, systemImage: "map")
                         }
+
+                        NavigationLink {
+                            PortholeDeveloperView()
+                        } label: {
+                            Label(
+                                Strings.developerPortholeLink,
+                                systemImage: "point.3.connected.trianglepath.dotted",
+                            )
+                        }
                     } footer: {
                         Text(Strings.developerFooter)
                     }

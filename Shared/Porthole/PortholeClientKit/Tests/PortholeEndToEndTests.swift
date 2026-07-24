@@ -78,7 +78,8 @@ struct PortholeEndToEndTests {
 
         let (device, client) = LoopbackTransport.makePair()
         let deviceTask = harness.serve(transport: device)
-        let psk = try #require(clientStore.key(for: paired.pairingID))
+        let storedKey = try clientStore.key(for: paired.pairingID)
+        let psk = try #require(storedKey)
         let session = try await withE2ETimeout {
             try await PortholeClient(credentials: clientStore).connect(
                 over: client,
@@ -111,7 +112,8 @@ struct PortholeEndToEndTests {
 
         let (device, client) = LoopbackTransport.makePair()
         let deviceTask = harness.serve(transport: device)
-        let psk = try #require(clientStore.key(for: paired.pairingID))
+        let storedKey = try clientStore.key(for: paired.pairingID)
+        let psk = try #require(storedKey)
         let session = try await withE2ETimeout {
             try await PortholeClient(credentials: clientStore).connect(
                 over: client,
@@ -171,7 +173,8 @@ struct PortholeEndToEndTests {
 
         let (device, client) = LoopbackTransport.makePair()
         let deviceTask = harness.serve(transport: device)
-        let psk = try #require(clientStore.key(for: paired.pairingID))
+        let storedKey = try clientStore.key(for: paired.pairingID)
+        let psk = try #require(storedKey)
         await #expect(throws: PortholeError.self) {
             try await withE2ETimeout {
                 _ = try await PortholeClient(credentials: clientStore).connect(
