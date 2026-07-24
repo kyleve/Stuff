@@ -10,10 +10,6 @@ Complements the root [`AGENTS.md`](../../../AGENTS.md) and the group
 
 ## Scope & invariants
 
-- **Public API is `public`.** The module is iOS-only and imports UIKit
-  unconditionally (no `#if canImport` guards): `BContext+UITraits.swift`
-  bridges `BContext` into the UIKit trait system as a `UITraitDefinition`, and
-  the `Traits/` files map `UITraitCollection` onto `BTraits`.
 - **`BContext` keeps its `BStylesheets` lookup key in sync.** Every `didSet` on
   `baseTraits` / `traitOverrides` / `themes` calls `updateTraits` /
   `updateThemes`; `stylesheets` is `@EquatableIgnored`, so it stays out of
