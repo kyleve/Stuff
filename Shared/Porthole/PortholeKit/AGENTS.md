@@ -37,7 +37,16 @@ first.
   unsubscribed or the connection closes (every start has a stop).
 - **The request router is transport-agnostic** and tested over
   `LoopbackTransport` via `attach(transport:)`; keep the real network transport
-  a thin adapter so the tested core carries the logic.
+  (`NWConnectionTransport`) and Bonjour listener (`PortholeServer`) thin adapters
+  so the tested core carries the logic.
+- **The pairing/session handshake (`DevicePairingManager`) is pure of `Network`
+  types** so it runs over loopback in tests: one human code active at a time,
+  wrong guesses accumulate and burn it after 3, it expires after 120 s, and the
+  code is published (awaited) *before* the challenge is sent. A session
+  re-derives a fresh key from the stored PSK; the `PortholeSecureChannel` then
+  continues the *same* frame reader (see `TransportFrameReader`) so the plaintext
+  handshake and the encrypted session share one connection without a second
+  iterator.
 
 ## Testing
 

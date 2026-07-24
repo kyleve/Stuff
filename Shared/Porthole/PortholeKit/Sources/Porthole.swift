@@ -17,10 +17,24 @@ public final class Porthole {
     public let state = PortholeState()
 
     private let registry = ConnectorRegistry()
+    private let credentials: PortholeCredentialStore
     private var sessionTasks: [Task<Void, Never>] = []
+    private var server: PortholeServer?
+    private var pairingManager: DevicePairingManager?
 
-    public init(configuration: PortholeConfiguration) {
+    public convenience init(configuration: PortholeConfiguration) {
+        self.init(
+            configuration: configuration,
+            credentials: KeychainCredentialStore(service: "com.stuff.porthole.device"),
+        )
+    }
+
+    /// Testing/advanced seam: inject a credential store (e.g. in-memory) instead
+    /// of the login Keychain.
+    @_spi(Testing)
+    public init(configuration: PortholeConfiguration, credentials: PortholeCredentialStore) {
         self.configuration = configuration
+        self.credentials = credentials
         register(AppInfoConnector(appName: configuration.appName, bundleID: configuration.bundleID))
     }
 
@@ -30,19 +44,82 @@ public final class Porthole {
         registry.register(connector)
     }
 
-    /// Starts advertising and accepting connections. Wired in the network layer.
+    /// Starts advertising over Bonjour and accepting connections.
     public func start() throws {
-        // Implemented in the network layer (PortholeServer).
+        guard server == nil else { return }
+        let manager = DevicePairingManager(
+            credentials: credentials,
+            onCodeChange: { [weak self] code in await self?.setPendingCode(code) },
+            onPairedHostsChange: { [weak self] in await self?.refreshPairedHosts() },
+        )
+        let server = PortholeServer(
+            configuration: configuration,
+            pairingManager: manager,
+            connectors: registry.resolve(),
+            hello: helloReply,
+            onSessionCountChange: { [weak self] count in await self?.setSessionCount(count) },
+        )
+        try server.start()
+        pairingManager = manager
+        self.server = server
+        state.isAdvertising = true
+        Task { await refreshPairedHosts() }
     }
 
     /// Stops advertising and closes active sessions.
     public func stop() {
+        server?.stop()
+        server = nil
+        pairingManager = nil
         for task in sessionTasks {
             task.cancel()
         }
         sessionTasks.removeAll()
         state.activeSessionCount = 0
+        state.pendingPairingCode = nil
         state.isAdvertising = false
+    }
+
+    /// Revokes a pairing so the host can no longer connect.
+    public func revoke(_ pairingID: UUID) async throws {
+        try credentials.delete(pairingID: pairingID)
+        await refreshPairedHosts()
+    }
+
+    private func setPendingCode(_ code: String?) {
+        state.pendingPairingCode = code
+    }
+
+    private func setSessionCount(_ count: Int) {
+        state.activeSessionCount = count
+    }
+
+    private func refreshPairedHosts() async {
+        if let pairingManager {
+            state.pairedHosts = await pairingManager.pairedHosts()
+        } else {
+            state.pairedHosts = loadPairedHosts()
+        }
+    }
+
+    private func loadPairedHosts() -> [PairedHost] {
+        (try? credentials.all())?.compactMap { record in
+            guard let metadata = try? JSONDecoder().decode(
+                PairedHostMetadata.self,
+                from: record.metadata,
+            ) else {
+                return PairedHost(
+                    pairingID: record.pairingID,
+                    name: "Unknown",
+                    createdAt: .distantPast,
+                )
+            }
+            return PairedHost(
+                pairingID: record.pairingID,
+                name: metadata.name,
+                createdAt: metadata.createdAt,
+            )
+        } ?? []
     }
 
     var helloReply: HelloReply {

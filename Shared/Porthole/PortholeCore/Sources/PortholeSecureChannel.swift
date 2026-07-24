@@ -34,14 +34,36 @@ public final class PortholeSecureChannel: PortholeTransport, @unchecked Sendable
 
     public let incoming: AsyncThrowingStream<Data, Error>
 
-    private let inner: any PortholeTransport
+    private let sendClosure: @Sendable (Data) async throws -> Void
+    private let closeClosure: @Sendable () async -> Void
     private let key: SymmetricKey
     private let sendTag: [UInt8]
     private let sendLock = NSLock()
     private var sendCounter: UInt64 = 0
 
-    public init(wrapping inner: some PortholeTransport, key: SymmetricKey, role: Role) {
-        self.inner = inner
+    /// Wraps a whole transport dedicated to this channel: the channel owns the
+    /// only reader over its `incoming`.
+    public convenience init(wrapping inner: some PortholeTransport, key: SymmetricKey, role: Role) {
+        self.init(
+            reader: TransportFrameReader(inner),
+            send: { try await inner.send($0) },
+            close: { await inner.close() },
+            key: key,
+            role: role,
+        )
+    }
+
+    /// Builds a channel over an existing frame reader — the handoff a plaintext
+    /// handshake uses to continue the *same* connection as an encrypted session.
+    public init(
+        reader: TransportFrameReader,
+        send: @escaping @Sendable (Data) async throws -> Void,
+        close: @escaping @Sendable () async -> Void,
+        key: SymmetricKey,
+        role: Role,
+    ) {
+        sendClosure = send
+        closeClosure = close
         self.key = key
         sendTag = role.sendTag
         let receiveTag = role.receiveTag
@@ -52,7 +74,7 @@ public final class PortholeSecureChannel: PortholeTransport, @unchecked Sendable
         Task {
             var counter: UInt64 = 0
             do {
-                for try await sealed in inner.incoming {
+                while let sealed = try await reader.next() {
                     let plaintext = try Self.open(
                         sealed,
                         key: key,
@@ -81,11 +103,11 @@ public final class PortholeSecureChannel: PortholeTransport, @unchecked Sendable
         var payload = Data()
         payload.append(box.ciphertext)
         payload.append(box.tag)
-        try await inner.send(payload)
+        try await sendClosure(payload)
     }
 
     public func close() async {
-        await inner.close()
+        await closeClosure()
     }
 
     // MARK: - Record cipher
