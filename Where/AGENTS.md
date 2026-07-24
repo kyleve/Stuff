@@ -51,30 +51,29 @@ Rules the code enforces and agents must preserve:
   refresh inline. The scene's `YearReportModel` subscribes while it's active;
   `DataIssueScanner` drops its cache on the same signal. Launch is driven by
   [`LifecycleKit`](../Shared/LifecycleKit) (see `WhereLaunch` in WhereUI).
-- **All logging goes through [Periscope](../Shared/Periscope)** via the
-  `WhereLog` facade — a `"Where"` root `Log` scope with grouping scopes
-  (`location`, `reminders`, `backup`, `widgets`, `session`, `evidence`,
-  `recentActivity`) that each collaborator derives a typed `LogEvent` leaf from
-  (`WhereLog.<group>(SomeLog.self)` / `WhereLog.root(SomeLog.self)`), never a
-  raw string. Each module keeps its facade and `*Log.swift` event types together
-  in its own `Sources/Logging/` folder. Events log as `.public`, so keep PII out; catch-path events carry
-  a `LogAttachment.error(_:)`. `info` = success of an important operation,
-  `warning` = degraded-but-handled, `error`/`fault` = outright failure; hot
-  paths (per-sample persist, widget throttle) stay quiet by design. **RegionKit**
-  emits through its own `RegionLog` facade (a separate `"RegionKit"` root scope)
-  since it can't see `WhereLog`, but into the *same* process-wide
-  `Periscope.shared` — the app attaches one `PeriscopeStore` sink at launch, and
-  the DEBUG developer surface (`PeriscopeViewer`) shows every scope subtree in a
-  single stream. Widgets, the share extension, and the intents surface run in
-  their own processes, so their `Periscope.shared` stays OSLog-only (no store).
-  An event that concerns a store object stamps its `externalID` with the
-  object's canonical `store://` identity — `DataIssueID.storeURL` for dismissals,
-  and `WhereStoreID` (`store://days/…`, `store://years/…`, `store://evidence/…`,
-  `store://samples/…`) for the other families — so inspect-by-object shares the
-  same key the store and backups use. **RegionKit** can't see the app's
-  `store://` types, so it owns a parallel `region://` scheme (`RegionURL`,
-  `Region.regionURL` → `region://regions/<id>`) and `RegionAttributorLog` keys on
-  that — a separate namespace, since regions are a bundled catalog, not store rows.
+- **All logging goes through [Periscope](../Shared/Periscope)** via `WhereCore`'s
+  `WhereLog` facade — never a raw string. A collaborator derives a typed
+  `LogEvent` leaf off a grouping scope (`WhereLog.<group>(SomeLog.self)` /
+  `WhereLog.root(SomeLog.self)`; the groups are the `WhereLog` cases), and each
+  module keeps its own `*Log.swift` types in its `Sources/Logging/` folder rather
+  than beside the collaborator that emits them. The parts you can't read off the
+  source:
+  - Events log as `.public`, so **keep PII out**. `info` = success of an
+    important operation, `warning` = degraded-but-handled, `error`/`fault` =
+    outright failure; catch-path events carry a `LogAttachment.error(_:)`. Hot
+    paths (per-sample persist, widget throttle) stay quiet by design.
+  - **One process-wide system, several root scopes.** RegionKit can't see
+    `WhereLog`, so it owns a `"RegionKit"` root — but emits into the *same*
+    `Periscope.shared`, so the single `PeriscopeStore` sink the app attaches at
+    launch (and `PeriscopeViewer`) sees every subtree in one stream.
+  - **Only the app process gets a store.** Widgets, the share extension, and
+    intents run in their own processes, where `Periscope.shared` stays
+    OSLog-only.
+  - **An event about a store object stamps its `externalID` with that object's
+    canonical `store://` identity** (`DataIssueID.storeURL`, otherwise
+    `WhereStoreID`), so inspect-by-object shares the store's and backups' keys.
+    RegionKit's parallel `region://` scheme exists because it can't see those
+    types — see [`RegionKit/AGENTS.md`](RegionKit/AGENTS.md).
 - **Location comes through the `LocationSource` protocol** — production is
   `CoreLocationSource`; tests and previews use `ScriptedLocationSource`. Besides
   the passive `sampleStream`, it offers a best-effort one-shot
@@ -93,6 +92,20 @@ Rules the code enforces and agents must preserve:
   caps collapsed region transitions so a long window's prompt still fits the
   model's context, and model unavailability surfaces as a typed reason — never
   a silent empty summary.
+
+## Navigation
+
+The logged-in shell is `MainTabs` — **three fixed tabs**: Locations, Your Year,
+Settings. Everything else hangs off one of them: Elsewhere is an entry card on
+Locations, Resolve a Locations toolbar button, and the data screens
+(attachments, logged days, regions) live in the Settings "Data" group. `MainTabs`
+owns the scene-scoped `YearReportModel` and passes it to each tab by explicit
+init injection, so the wiring is compile-checked; the always-on `WhereSession`
+coordinator travels in the environment instead.
+
+A new screen belongs *inside* that shape — a destination pushed from a tab, a
+sheet, or a Settings row. Adding a fourth tab is a product decision, not a
+refactor: raise it before building.
 
 ## Localization
 
@@ -146,8 +159,8 @@ SwiftUI `Text` or `errorDescription`, and never reintroduce a raw-key facade.
 - **Inject `Calendar`, don't reach for globals** — the scene's
   `YearReportModel` owns the calendar (Gregorian, current time zone) its
   missing-day math uses; layout types carry the calendar they were built with.
-  Prefer calendar APIs over hardcoding day/weekday counts (`Calendar.dayCount`
-  derives 365/366 rather than assuming a length).
+  Prefer calendar APIs over hardcoding day/weekday counts
+  (`Calendar.dayCount(ofYear:)` derives 365/366 rather than assuming a length).
 - **Core layout APIs throw on failure**; views surface
   `ContentUnavailableView` + log, never `!`.
 - Appearance tokens live in `WhereStylesheet` — see
@@ -193,8 +206,8 @@ path.
   [`Project.swift`](../Project.swift) via the `unitTests` helper.
 - **New region:** it's **pure data** now — add geometry under
   `RegionKit/Tools/source/`, run `ruby Where/RegionKit/Tools/generate-regions.rb`
-  to regenerate `Resources/regions/` + `regions.json` (extend the script's id
-  map / `NON_US` list as needed), optionally add a `region.<key>` string +
+  to regenerate `RegionKit/Sources/Resources/regions/` + `regions.json` (extend
+  the script's id map / `NON_US` list as needed), optionally add a `region.<key>` string +
   `localizationKey`, and add a `RegionAttributorTests` spot-check. No `Region`
   case, no code — `RegionStyle`, region pickers, and the App Intents
   `RegionEntity` all derive from the catalog. (See
@@ -224,14 +237,11 @@ launching, `--yes` to skip the unlock prompt.
 
 ## Testing
 
+Root [testing conventions](../AGENTS.md#testing) apply. What's specific here:
+
 - Test bundles run in `StuffTestHost` via the `unitTests` helper in
   `Project.swift` and link `TestHostSupport` (`show(_:perform:)`, `waitFor`).
-  The `InMemoryKeyValueStore` test double lives in `WhereCore` behind
-  `@_spi(Testing)` (`#if DEBUG`) — import it with `@_spi(Testing) import WhereCore`.
 - Use `ScriptedLocationSource` and `SwiftDataStore.inMemory()` — never
   `CoreLocationSource` or the user's on-disk/CloudKit store. The CloudKit
   remote-import path is exercised with the `@_spi(Testing)`
   `inMemory(remoteChangeSource:)` + `ScriptedStoreRemoteChangeSource`.
-- Root rules apply: 1:1 test files, shared fixtures in `*TestSupport.swift`,
-  wait for conditions rather than fixed delays, inject small limits via
-  `@_spi(Testing)`.

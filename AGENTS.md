@@ -1,13 +1,36 @@
 # Stuff – Repository Shape
 
+This file is the repo-wide contract: the build system, the conventions all
+Swift here follows, and how to work (branches, commits, PRs, CI). **Every
+module also carries its own `AGENTS.md`** covering its scope, layering, and
+invariants. Read this file first, then the module's — they deliberately don't
+repeat each other, so neither is sufficient alone.
+
+Roughly, this file covers:
+
+- **Building and testing** — [Build system](#build-system),
+  [Formatting](#formatting), [Targets](#targets), [Deployment](#deployment),
+  [Generating the Xcode project](#generating-the-xcode-project),
+  [Selecting a simulator](#selecting-a-simulator--address-it-by-udid-not-name),
+  and the [Linux/Cloud caveats](#cursor-cloud-specific-instructions).
+- **Writing code** — [Per-module docs](#per-module-docs) (and the module layout),
+  [Repo-level docs](#repo-level-docs), and [Conventions](#conventions)
+  (including [Modeling state](#modeling-state) and
+  [Composition](#composition-create-once-inject-down)).
+- **Working** — [Working in this repo](#working-in-this-repo): commits, GitHub
+  and PRs, and what to suspect when a failure isn't yours.
+
 ## Build system
 
-| Tool        | Version  | Pinned via   |
-|-------------|----------|--------------|
-| Tuist       | 4.200.5  | `.mise.toml` |
-| SwiftFormat | 0.60.1   | `.mise.toml` |
-| Ruby        | 3.4.10   | `.mise.toml` |
-| Swift PM    | 6.2      | `Package.swift` (`swift-tools-version`) |
+| Tool        | Pinned via   |
+|-------------|--------------|
+| Tuist       | `.mise.toml` |
+| SwiftFormat | `.mise.toml` |
+| Ruby        | `.mise.toml` |
+| Swift PM    | `Package.swift` (`swift-tools-version`) |
+
+Read the exact pinned versions out of those files rather than trusting a copy
+in prose — a version transcribed into a doc goes stale silently.
 
 Library targets live in the root [`Package.swift`](Package.swift) (one local
 package); apps, app extensions, and test bundles are Tuist targets in
@@ -16,24 +39,18 @@ references the package via `Package.local(path: .relativeToRoot("."))`. The
 two manifests are the authoritative target catalog — it is deliberately not
 duplicated here.
 
-Run `./ide` (or `./ide -i` to also install dependencies) to regenerate the
-Xcode project, install external agent skills, and point Git at `.githooks/`.
-Pass `--no-open` to skip launching Xcode (see [Generating the Xcode
-project](#generating-the-xcode-project)). On a fresh machine run `./ide
---bootstrap` (alias `--setup`) first: it verifies a full Xcode is installed
-and selected, installs `mise` (via its official installer, no Homebrew) and
-the pinned tools, then falls through to the normal generate flow. Plain
-`./ide` fails fast when `mise` is missing, pointing at `--bootstrap`.
+`./ide` regenerates the Xcode project *and* does the surrounding setup —
+external agent skills, `core.hooksPath` — so it's the way to regenerate, not
+`tuist generate` alone. Agents must always pass `--no-open` (see [Generating the
+Xcode project](#generating-the-xcode-project)). A fresh machine needs `./ide
+--bootstrap` first, which installs `mise` and the pinned tools before
+generating; plain `./ide` fails fast pointing at it.
 
-Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise),
-`sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`),
-`profile` (prints build/test hot spots — slowest build phases, slowest
-tests, and slow type-check sites; see `./profile --help`), `icons`
-(adds/removes selectable app icons; see `./icons --help`), `flaky`
-(detects flaky tests by re-running the suite and tight-looping any test that
-ever fails, then writes the counts to `FLAKY_TESTS.md`; report-only, see
-`./flaky --help`), and `simulator` (resolves the target simulator by UDID,
-boots it, and prints the UDID; see [Selecting a
+The executables in the repo root are the dev scripts — `ide`, `swiftformat`,
+`sync-agents`, `profile`, `icons`, `flaky`, `simulator` — and each takes
+`--help`. Reach for one rather than hand-rolling its job: `icons` and
+`simulator` in particular own state that is easy to corrupt by hand (see
+[Managing app icons](#managing-app-icons) and [Selecting a
 simulator](#selecting-a-simulator--address-it-by-udid-not-name)).
 
 ### Managing app icons
@@ -64,6 +81,12 @@ by `./sync-agents`.
 - `./sync-agents --add <url> [name]` — add an external skill from GitHub.
 - `./sync-agents --update` — re-fetch all external skills to the latest commit.
 
+`.agents/external-skills.json` pins those external skills to a commit —
+currently Swift references (SwiftUI, Swift concurrency, Swift Testing,
+SwiftData). They are a **Claude Code** surface: Cursor reads `AGENTS.md`
+natively and never loads them, so no rule in this repo may depend on a skill
+being present.
+
 ## Targets
 
 - For the current list of library products, apps, extensions, and test
@@ -72,43 +95,37 @@ by `./sync-agents`.
   `AGENTS.md` says what it is and how it may be used.
 - Add SPM library targets in `Package.swift` and wire apps/tests in `Project.swift` (see existing `unitTests` helper). A new module also ships a root `README.md` and `AGENTS.md` — see [Per-module docs](#per-module-docs).
 - **CI scheme**: CI runs the explicit shared **Stuff-iOS-Tests** scheme (all test bundles) rather than the autogenerated `Stuff-Workspace` scheme. New test bundles must be added to the `Stuff-iOS-Tests` scheme in `Project.swift` or CI won't run them.
-- **Never double-link a package product into a test bundle that already gets it through a dynamic-framework dependency.** Xcode's default SPM integration (how `Package.local` is wired here) embeds a product's code into *every* image that links it. **WhereUI** is a dynamic framework that statically embeds its own dependencies (WhereCore, BroadwayCore/BroadwayUI, LifecycleKit, PeriscopeCore/PeriscopeUI/PeriscopeTools, SwiftDataInspector, …), so a `*Tests` bundle that depends on **WhereUI** *and* re-lists one of those in `extraPackageProducts` ends up with a **second copy** of it. When the shared **StuffTestHost** loads several `.xctest` bundles into one process, that leaves duplicate **type metadata** for the module, and any *type-keyed runtime lookup that crosses the WhereUI boundary* — SwiftUI `EnvironmentKey`s, `UITraitBridgedEnvironmentKey` bridging, the type-keyed `BTraits`/`BThemes`/`BStylesheets` containers — silently resolves against the wrong copy and returns the default (the writer stores under one copy's key *type*, the reader looks it up under another's). It only reproduces in the **full multi-bundle scheme** (not isolated `tuist test WhereUITests` runs) and is papered over by newer Xcode linkers, so it is brutal to diagnose (it cost ~2 hours once). **Depend on such products only transitively via `WhereUI`; keep them out of `extraPackageProducts`.** `WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot` is the regression guard — it exercises a `\.stylesheet` (→ `\.bContext`) read across the boundary and fails if a duplicate copy returns.
+
+### Never double-link a product a dynamic framework already carries
+
+A target that depends on **WhereUI** must not also list any of WhereUI's own
+dependencies (WhereCore, Broadway, LifecycleKit, Periscope, SwiftDataInspector,
+…) in `extraPackageProducts` — reach them transitively. A second copy splits the
+module's type metadata across the WhereUI boundary and every type-keyed lookup
+(SwiftUI `EnvironmentKey`s, Broadway's `BTraits`/`BThemes`/`BStylesheets`)
+silently resolves against the wrong one.
+
+Worth knowing rather than rediscovering: it reproduces only in the full
+multi-bundle scheme, never in an isolated `tuist test WhereUITests`. The
+mechanism is written out at the call site you'd be editing — the `WhereUITests`
+comment in [`Project.swift`](Project.swift) — and
+`WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot` is the guard
+that fails if a duplicate copy answers.
 
 ## Deployment
 
-| Platform                     | Minimum OS  |
-|------------------------------|-------------|
-| iPhone, iPad, Mac Catalyst   | iOS 26.0    |
-
-Install the Where app to a connected iPhone from the CLI (no Xcode UI) with
-`./Where/install` — it builds + code-signs Release and installs/launches via
-`xcodebuild` + `xcrun devicectl`. macOS-only; needs a signing team configured
-via `./ide --team-id`. See [`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device).
-
-## Directory layout
-
-Every module — shared ones under `Shared/`, feature ones under a top-level
-folder per feature (e.g. `Where/`) — follows this skeleton, and a new module
-must too:
-
-```
-Shared/<TargetName>/
-  README.md   – human-facing overview & usage (see Per-module docs)
-  AGENTS.md   – agent-facing module shape (see Per-module docs)
-  Sources/    – production code
-  Tests/      – unit tests (Swift Testing, not XCTest)
-
-<Feature>/<TargetName>/
-  README.md
-  AGENTS.md
-  Sources/
-  Tests/
-  Resources/  – asset catalogs, etc. (apps only)
-```
+Platforms and minimum OS live in [`Project.swift`](Project.swift). To get the
+app onto a connected iPhone without the Xcode UI, use
+[`./Where/install`](Where/install) — macOS-only, and it needs a signing team
+configured once via `./ide --team-id` (see
+[`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device)).
 
 ## Per-module docs
 
-Every module carries two docs at its root, and **a new module must add both**:
+Shared modules live under `Shared/`, feature modules under a top-level folder
+per feature (`Where/`). **Every module is a folder containing `Sources/`,
+`Tests/`, `README.md`, and `AGENTS.md`** (apps additionally carry `Resources/`),
+and a new module must add both docs:
 
 - `README.md` — the human-facing overview: what the module is, install, a quick
   start, the public API, how it works, and any contracts/limitations.
@@ -121,6 +138,11 @@ Every module carries two docs at its root, and **a new module must add both**:
   it; it does **not** repeat global rules, catalog the module's types, or
   restate behavior the source already documents — agents read code for that.
 
+A module group that spans several targets (`Shared/Broadway/`,
+`Shared/Periscope/`) carries the same pair one level up, covering only what the
+group shares — the dependency graph between its modules and the invariants no
+single module owns.
+
 Keep both **current as the code changes** — treat stale docs as a bug. When you
 change a module's architecture, public API, conventions, or a documented
 behavior, update that module's `README.md` and `AGENTS.md` in the *same* change;
@@ -128,7 +150,40 @@ if you change a global rule, a target, or the build/test flow, update this root
 `AGENTS.md` too. After adding or renaming an `AGENTS.md`, run `./sync-agents` so
 the generated (gitignored) `CLAUDE.md` is produced next to it.
 
+**Point at the source instead of copying it.** The lists that rot fastest are
+the ones the code already owns — every style group on a stylesheet, every
+collaborator on a service, a pinned tool version. Name the one or two worth
+learning from and say where the live list is. An exhaustive copy reads
+authoritative long after it stops being true, which is worse than no list.
+
+## Repo-level docs
+
+A few files outside the module pair carry *state* rather than rules:
+
+- **`TODOs.md`** — the durable backlog for a feature or module group, living at
+  that area's root. Anything deliberately deferred there is filed rather than
+  dropped (see [GitHub](#github)). Each one restates the shared format in its own
+  `Usage` header: tag an item with a conventional-commit type
+  (`feat`/`fix`/`refactor`/`perf`/`test`/`docs`), bucket it under `P0s` (must) /
+  `P1s` (should) / `P2s` (nice to have) / `PX` (exploratory), nest dependent
+  tasks under their parent, and **never delete a completed item** — move it to
+  "Completed issues" at the bottom. A new area's `TODOs.md` copies that header.
+- **`FLAKY_TESTS.md`** — generated by `./flaky`. Never hand-edit it; re-run the
+  script.
+- **`MODULE_AUDIT.md`** — a read-only audit across every module, useful for
+  finding known gaps and their severity. A weekly automation re-runs it and
+  opens a PR, refreshing the `TODOs.md` files alongside it, so the audit is
+  current to its header date rather than to `HEAD` — and sections survive a
+  refresh, so it still carries entries for `Shared/LogKit` and
+  `Shared/LogViewerUI`, which Periscope replaced. Verify a finding against
+  current source before acting on it.
+
 ## Conventions
+
+Global rules for all Swift in this repo. A module's own `AGENTS.md` layers its
+scope and invariants on top rather than restating these.
+
+### Testing
 
 - **Swift Testing** (`import Testing`) for all unit tests – do not use XCTest.
 - **Test files are 1:1 with implementation files.** A type in `Foo.swift` is
@@ -141,21 +196,21 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
 - **Wait for conditions, not timing.** Prefer polling a predicate (`waitUntil`,
   `waitFor`, `waitForResolution`) over fixed run-loop counts or `sleep` — fixed
   delays flake under load.
-- **Injectable test knobs.** Capacities, clocks, and failure injection belong
-  behind `@_spi(Testing)` (with `#if DEBUG` when release must not ship them);
-  tests inject small values (e.g. a retry-queue size of 20) instead of
-  hardcoding production limits.
+- **Test-only API is `@_spi(Testing)`, not a production parameter.** Hooks that
+  exist for tests or previews — direct store mutation, failure injection, queue
+  introspection, a capacity or clock override — are marked `@_spi(Testing)`, in
+  `#if DEBUG` when release must not ship them, and imported as
+  `@_spi(Testing) import <Module>`. Tests inject small values (a retry-queue
+  size of 20) rather than hardcoding the production limit.
 - **Test doubles conform to the production protocol.** Model a seam as a
   protocol the real and fake both conform to (`LocationSource` /
   `ScriptedLocationSource`) — never an enum switch inside a production type
   that branches to fake behavior.
 - State machines with many branches (launch runners, lifecycle drives) benefit
   from **seeded fuzz/adversarial tests** that replay failures exactly.
-- **Non-obvious types get a brief doc comment** on the type — detectors,
-  geometry/algorithm helpers, and the like state what they do and their key
-  invariants.
-- Generated `.xcodeproj` and `Derived/` are git-ignored; never commit them.
-- Bundle IDs follow `com.stuff.<suffix>`.
+
+### Types, state, and API design
+
 - Prefer small named structs over tuples for any value with more than
   one field or that escapes a single function — tuples are fine as
   ad-hoc inline returns but should not appear in property types,
@@ -170,15 +225,61 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   and any `Hashable` converts to `AnyHashable` implicitly at the call site.
   (e.g. `LifecycleStep.id` is `AnyHashable`; the Where app keys its launch steps
   with the `LaunchStepID` enum, and `WherePreferences` keys with a `Keys` enum.)
-- Prefer compiler-**synthesized `Codable`** for domain and persisted types.
-  Reserve a hand-written conformance for two cases: (a) a single-value wire
-  shape — a bare id string or UUID rather than a wrapped object (e.g.
-  `Region` encodes as `"us-CA"`, not `{"rawValue":…}`); and (b) a composite
-  identity key, which should be a `store://` URL via Where's
-  `WhereStoreURLCodable` (parsed/built with `StoreURL`) — never an ad-hoc
-  joined `type:value` string. Don't hand-roll a keyed `Codable` to paper over
-  missing fields from an older shape; reshape the data instead (see the
-  no-in-app-migration rule in [`Where/WhereCore/AGENTS.md`](Where/WhereCore/AGENTS.md)).
+- **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
+  arguments so new behavior isn't silently opted into. Reserve defaults for
+  SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
+  omission can't change semantics. Test overrides use `@_spi(Testing)` hooks or
+  dedicated test factories — not production parameter defaults.
+- **`didSet` must skip work when the value is unchanged.** When the stored
+  type is `Equatable`, guard `oldValue != newValue` before invalidation,
+  logging, or other side effects — reassigning the same value should be a no-op.
+- Don't use a bare `default:` in a `switch` over an enum — enumerate every case
+  so adding one is a compile error, not a silent fall-through. For non-frozen
+  enums from other modules (e.g. `UNAuthorizationStatus`), handle known cases
+  explicitly plus `@unknown default:`, which still flags newly added cases.
+- **Non-obvious types get a brief doc comment** on the type — detectors,
+  geometry/algorithm helpers, and the like state what they do and their key
+  invariants.
+
+### Errors and failure
+
+- **Never silently swallow errors.** Core APIs surface failure by `throw`ing
+  (or returning a `Result`/typed error) — never absorb it into a benign-looking
+  default like `[]`, `nil`, or `false`. Don't discard errors with `try?` or an
+  empty `catch {}` that hides the failure: at minimum a `catch` must log
+  (a `warning`/`error` on the relevant `WhereLog` scope, ideally a typed
+  `LogEvent` carrying a `LogAttachment.error`) *and* leave observable state honest (preserve the
+  last good value or move to a `failed` state — not a default that reads as
+  success, e.g. an empty list rendering as "all clear"). Callers decide *how* to
+  react (rethrow, log + keep state, set a `failed` case), but the failure must
+  always be observable — in logs, in state, or both.
+- **Distinguish user failures from programmer errors.** User/recoverable failures
+  must throw (or surface honest UI state) and log. Impossible/misconfigured
+  states — corrupt bundled resources, duplicate step IDs, invalid invariants —
+  use `precondition` / `assertionFailure` in debug with a minimal safe fallback
+  in release; don't paper over them with silent `??` defaults that read as
+  success. "Degraded but handled" recovery belongs at `warning`, not hidden.
+
+### Persistence and wire formats
+
+- **Prefer compiler-synthesized `Codable`.** A hand-written conformance needs a
+  load-bearing reason, documented on the conformance itself (see
+  `LogJournalEntry`); a simple struct of primitives just uses the synthesized
+  one (see `CalendarDay`). Two reasons qualify: **(a) a single-value wire
+  shape** — a bare id string or UUID rather than a wrapped object (`Region`
+  encodes as `"us-CA"`, not `{"rawValue":…}`); and **(b) a composite identity
+  key**, which should be a `store://` URL via Where's `WhereStoreURLCodable`
+  (parsed/built with `StoreURL`), never an ad-hoc joined `type:value` string.
+- **Keep persisted formats rename-safe.** Anything persisted (journals,
+  backups, stored preferences) must survive Swift-side renames — synthesized
+  coding of an enum with associated values freezes the *case names* into the
+  wire format, so renaming a case silently breaks old data. And don't hand-roll
+  a keyed `Codable` to paper over missing fields from an older shape; reshape
+  the data instead (see the no-in-app-migration rule in
+  [`Where/WhereCore/AGENTS.md`](Where/WhereCore/AGENTS.md)).
+
+### SwiftUI, UIKit, and lifetime
+
 - Don't build closure-based `Binding(get:set:)` values in SwiftUI views; bind
   directly to observable state (`$model.foo`). For a derived binding (e.g.
   mapping an optional error to the `Bool` an `.alert` wants), expose a computed
@@ -190,6 +291,19 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   in `viewWillLayoutSubviews()` rather than pinning four edge constraints. For a
   full-bleed single child it's simpler, cheaper, and keeps the layout in one
   obvious place (see `WhereShareExtension`'s `ShareViewController`).
+- **Observe with a target/selector, not a retained token; every `start` has
+  a `stop`.** Register via `addObserver(_:selector:name:object:)` with `self`
+  as the observer so teardown is one `removeObserver(self)` — no opaque
+  tokens to keep, and a restart removes-before-re-adding so it replaces
+  rather than doubles (see `NotificationAmbientSource`, which every built-in
+  notification-based ambient source subclasses). Avoid block-based
+  `addObserver(forName:)`: its observation stays alive in the center whether
+  or not you keep the returned token, so dropping the token makes it
+  unremovable and immortalizes everything the block captured. Any
+  `start…`-style observation API gets a paired `stop()` that removes it.
+
+### Architecture and reuse
+
 - **Core behavior belongs in the model/controller layer, not in views.**
   Persistence, domain rules, detection, and side effects live in the feature's
   core module (for Where: `WhereCore` collaborators on `WhereServices`). UI
@@ -210,56 +324,11 @@ the generated (gitignored) `CLAUDE.md` is produced next to it.
   right, **flag it and align before building** rather than shipping the
   duplicate. (This is the reflex behind `ManualDayView`'s add/edit modes and the
   shared `ManualEntryAuditSection`.)
-- **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
-  arguments so new behavior isn't silently opted into. Reserve defaults for
-  SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
-  omission can't change semantics. Test overrides use `@_spi(Testing)` hooks or
-  dedicated test factories — not production parameter defaults.
-- **Never silently swallow errors.** Core APIs surface failure by `throw`ing
-  (or returning a `Result`/typed error) — never absorb it into a benign-looking
-  default like `[]`, `nil`, or `false`. Don't discard errors with `try?` or an
-  empty `catch {}` that hides the failure: at minimum a `catch` must log
-  (a `warning`/`error` on the relevant `WhereLog` scope, ideally a typed
-  `LogEvent` carrying a `LogAttachment.error`) *and* leave observable state honest (preserve the
-  last good value or move to a `failed` state — not a default that reads as
-  success, e.g. an empty list rendering as "all clear"). Callers decide *how* to
-  react (rethrow, log + keep state, set a `failed` case), but the failure must
-  always be observable — in logs, in state, or both.
-- **Distinguish user failures from programmer errors.** User/recoverable failures
-  must throw (or surface honest UI state) and log. Impossible/misconfigured
-  states — corrupt bundled resources, duplicate step IDs, invalid invariants —
-  use `precondition` / `assertionFailure` in debug with a minimal safe fallback
-  in release; don't paper over them with silent `??` defaults that read as
-  success. "Degraded but handled" recovery belongs at `warning`, not hidden.
-- **`didSet` must skip work when the value is unchanged.** When the stored
-  type is `Equatable`, guard `oldValue != newValue` before invalidation,
-  logging, or other side effects — reassigning the same value should be a no-op.
-- **Prefer synthesized `Codable`; keep persisted formats rename-safe.**
-  Anything persisted (journals, backups, stored preferences) must survive
-  Swift-side renames — synthesized coding of an enum with associated values
-  freezes the *case names* into the wire format, so renaming a case silently
-  breaks old data. A hand-written conformance needs a load-bearing reason,
-  documented on the conformance (see `LogJournalEntry`); simple structs of
-  primitives should just use the synthesized one (see `CalendarDay`).
-- **Observe with a target/selector, not a retained token; every `start` has
-  a `stop`.** Register via `addObserver(_:selector:name:object:)` with `self`
-  as the observer so teardown is one `removeObserver(self)` — no opaque
-  tokens to keep, and a restart removes-before-re-adding so it replaces
-  rather than doubles (see `NotificationAmbientSource`, which every built-in
-  notification-based ambient source subclasses). Avoid block-based
-  `addObserver(forName:)`: its observation stays alive in the center whether
-  or not you keep the returned token, so dropping the token makes it
-  unremovable and immortalizes everything the block captured. Any
-  `start…`-style observation API gets a paired `stop()` that removes it.
-- **Testing-only APIs use `@_spi(Testing)`.** Hooks meant exclusively for unit
-  tests or previews (direct store mutation, failure injection, queue
-  introspection, etc.) are marked `@_spi(Testing)`; wrap in `#if DEBUG` when
-  they must not ship in release. Callers outside the defining module import
-  with `@_spi(Testing) import <Module>`.
-- Don't use a bare `default:` in a `switch` over an enum — enumerate every case
-  so adding one is a compile error, not a silent fall-through. For non-frozen
-  enums from other modules (e.g. `UNAuthorizationStatus`), handle known cases
-  explicitly plus `@unknown default:`, which still flags newly added cases.
+
+### Repo hygiene
+
+- Generated `.xcodeproj` and `Derived/` are git-ignored; never commit them.
+- Bundle IDs follow `com.stuff.<suffix>`.
 
 ### Modeling state
 
@@ -347,162 +416,49 @@ disrupts the user's session. Always pass `--no-open` when regenerating:
 `tuist test` / `tuist build` are CLI-only and do not open Xcode, so no
 flag is needed there.
 
-## Acting on requests
+## Working in this repo
 
-The "don't be proactive" rules below scope to *unprompted* actions. A direct
-request is itself the go-ahead — carry it to a sensible stopping point rather
-than pausing to re-confirm what you were just asked to do.
+- **Never commit on `main`.** Branch first (`git checkout -b <name>`) and keep
+  every commit for one piece of work on that one branch.
+- **`./swiftformat --lint` and the matching `tuist test` scheme(s) are part of
+  "done".** Never commit a red tree.
+- **Multi-step work lands one commit per step**, so history stays bisectable and
+  can land piecewise — including pure-groundwork steps, which say so in the body.
+- **Commit when asked, or when working through a plan.** If it's unclear whether
+  a commit is wanted, make the change and ask rather than committing silently.
 
-For non-plan work, leave the tree formatted and the change complete. Commit
-when asked or when working a plan; if it's unclear whether you want a commit,
-make the change and ask rather than committing silently.
+### GitHub
 
-## Working on plans
+- Use the `gh` CLI for all GitHub interaction — PRs, issues, checks, releases,
+  review comments.
+- **Open PRs ready-for-review, not draft.**
+- **Keep an open PR current:** push each commit as it lands, and refresh the
+  title/body once the branch outgrows them — describing the end state rather
+  than a changelog of the conversation, and folding into any human edits rather
+  than overwriting them. A branch with no PR waits for the user before pushing.
+- **Don't act on review comments the user hasn't pointed you at.** Summarize
+  what's there and ask which to take on; reading them to write that summary is
+  expected. When a commit resolves one, reply to it naming the commit. Anything
+  deliberately not addressed gets filed in the area's
+  [`TODOs.md`](#repo-level-docs) — never dropped.
+- **Don't block the conversation polling CI.** Report what's running and hand
+  the turn back; delegate a genuine watch to a background subagent.
 
-Multi-step plans (e.g. a `/plan` to-do list) land one commit per to-do so
-history stays bisectable and can land piecewise. The loop for each to-do:
-mark `in_progress`, implement, run local checks, commit, mark `completed`.
+### Posting under the user's identity
 
-- Branch first: `git rev-parse --abbrev-ref HEAD` must not be `main`/`master`.
-  If it is, `git checkout -b <name>` before staging. Branch once; keep every
-  commit on it.
-- Pre-commit checks are part of "done": `./swiftformat --lint` and the matching
-  `tuist test` scheme(s). A red bar means not done — never commit a broken tree.
-- Pure-groundwork steps (no behavior change) still get their own commit; say so
-  in the body.
-- Name the plan step each commit closes (the to-do title is fine).
-- Pushing follows the [GitHub](#github) rules: a branch with an open PR gets
-  every commit pushed as it lands; otherwise don't push until the user asks —
-  unless the plan says otherwise, or the request clearly implies it
-  (e.g. "open a PR", "ship it").
+Anything posted as the user — PR replies, issue comments, review responses —
+opens with a line marking it AI-generated, e.g. `> _Posted by an AI agent on
+$USER's behalf._`. No exception for short or purely factual comments.
 
-## GitHub
+### When a failure isn't yours
 
-- Use the `gh` CLI for **all** GitHub interaction — PRs, issues, checks,
-  releases, review comments — not raw API calls or the web UI.
-- Open PRs in **ready-for-review** mode, not draft.
-- **Keep open PRs current.** When the current branch has an open PR, push each
-  local commit as it lands so the PR never goes stale. A branch without a PR
-  still waits for the user before pushing (see [Working on
-  plans](#working-on-plans)).
+**CI merges `main` into the branch before it runs**, so green-locally /
+red-on-CI usually means `main` moved rather than that you broke something. Merge
+the latest `main` in locally and rebuild before digging further — a renamed
+module, a relocated test helper, or a changed shared signature shows up
+immediately, and no amount of clearing DerivedData will surface it.
 
-## Working on PR feedback
-
-Don't act on PR review comments (bot or human) that the user hasn't asked you
-to address — summarize what's there and ask which to take on. Reading the
-comments and surrounding code to write that summary is expected; the gate is on
-editing and pushing, not on understanding. Once the user points you at feedback
-(names comments, says "address these", etc.), that's your go-ahead — do the
-work end to end without re-asking per comment.
-
-- **When a commit resolves an issue a comment called out, reply to that
-  comment** saying so — name the commit and what changed — using the AI-agent
-  prefix from [Posting on the user's behalf](#posting-on-the-users-behalf).
-- **Deferred feedback gets filed, never dropped.** If a comment is deliberately
-  not addressed, record it somewhere durable (the module's `TODOs.md` or the
-  review-tracking file) and reply linking where it's tracked.
-
-## Keeping the PR description current
-
-A PR's title and description are the durable record of what it does — keep them
-matching the branch, not just the first commit.
-
-- **When the PR changes beyond a small bug fix, update the description in the
-  same turn you push.** New behavior, a new/changed public API or data model, a
-  migration, a scope change, a follow-up feature, or review fixes that alter the
-  approach all warrant refreshing the body (and the title if the scope shifted).
-  A trivial fix — a typo, a one-line bug fix, a test tweak that doesn't change
-  what the PR is — doesn't.
-- **Reflect the end state, not a changelog of the conversation.** Describe what
-  the PR now does; note notable decisions/trade-offs and testing. Don't leave a
-  stale body that only describes the initial commit.
-- **Preserve human edits.** If someone edited the title/description in the
-  GitHub UI, fold your update into theirs rather than overwriting — only correct
-  what's now inaccurate.
-- Use the PR tooling when it works; otherwise `gh pr edit <n> --body-file`.
-
-## Debugging build/test/CI failures
-
-**Check `git status` and recent history first — before analyzing the error.** A
-baffling build/test failure (a module that won't resolve, a symbol that
-vanished, a type that stopped conforming) is often a *logical conflict with a
-recent `main` change*, not your own edits or a broken toolchain.
-
-- Run `git status -sb` and `git log --oneline -15`: confirm which branch you're
-  on and whether a **merge of `main` you didn't make** is already in the history
-  (a teammate, tooling, or a rebase may have landed one). `git merge-base
-  --is-ancestor <main-sha> HEAD` answers "is that commit already in my branch?".
-- Skim recent `main` commits (`git log origin/main`) for **structural changes**
-  — a renamed/moved/deleted module or target, relocated test scaffolding, a
-  changed shared helper — then check whether the failing file still references
-  the old shape. That's usually the fix.
-- **CI merges `main` into the branch before it runs**, so green-locally /
-  red-on-CI almost always means `main` moved. Reproduce by merging (or rebasing)
-  the latest `main` into the branch locally, then rebuild — don't debug CI
-  against a stale base.
-- Only after ruling the above out should you reach for heavier remedies
-  (clearing DerivedData / module caches, regenerating the project). Wiping
-  caches to chase a logical conflict just adds cold-build noise.
-
-## Waiting on CI
-
-Do **not** block the main conversation polling for CI to finish (GitHub
-Actions checks, PR mergeability, etc.). After pushing, report what's
-running and hand the turn back. If CI genuinely needs to be watched to
-completion before continuing, delegate it to a background subagent so
-the main conversation stays responsive.
-
-This rule is specific to remote CI. Local commands — `tuist test`,
-`swift build`, `./swiftformat --lint`, etc. — should still be awaited
-inline in the main conversation.
-
-## Posting on the user's behalf
-
-Anything an agent posts under the user's identity (GitHub PR replies,
-issue comments, review responses, Slack messages, etc.) must be
-prefixed so the reader knows it was AI-generated, not the user
-speaking. Use a short tag like `> _Posted by an AI agent on $USER's
-behalf._` as the first line, then the actual content. Do not omit the
-prefix even when the comment is short or factual.
-
-## Cursor Cloud specific instructions
-
-Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 26** with
-**Xcode 27+** and **Tuist** (macOS-only). Treat Linux as a partial dev
-environment: formatting and agent sync work; builds, tests, and running the
-**Where** app require macOS (as in CI on the `xcode-27` runner image).
-
-### What works on Linux
-
-| Check | Command |
-|-------|---------|
-| Trust mise config | `mise trust` (once per clone) |
-| Install SwiftFormat | `mise install swiftformat@0.60.1` |
-| Format lint (CI `format` job equivalent) | `mise exec swiftformat -- swiftformat --lint .` |
-| Agent file sync | `./sync-agents` or `./sync-agents --install` |
-| Git hooks path | `git config core.hooksPath .githooks` (also done by `./ide`) |
-
-Install **Ruby** if missing (`apt-get install ruby`) — required by `sync-agents`.
-
-### What does not work on Linux
-
-- **Tuist** (`mise install` / `mise install tuist` fails: `unsupported env: linux/amd64`)
-- `./ide`, `./swiftformat`, and the pre-commit hook — they call `mise exec -- …`, which tries to install **all** tools from `.mise.toml` including Tuist
-- `tuist test`, `tuist build`, iOS Simulator, and running the **Where** app
-
-### Full build & test (macOS only)
-
-Matches CI `.github/workflows/ci.yml`:
-
-```bash
-mise install
-./ide --no-open
-./swiftformat --lint
-mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
-  -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0'
-```
-
-### Selecting a simulator — address it by UDID, not name
+## Selecting a simulator — address it by UDID, not name
 
 A dev machine often has **several simulators sharing one device name** across
 runtimes (e.g. an "iPhone 17" on each installed iOS — 26.x, 27.0, …), which is
@@ -516,9 +472,13 @@ simulator **by name is ambiguous**, so:
   died` / `crashed with signal kill before establishing connection` — launch
   failures that look like test failures but aren't (the suites that do run
   are green). Always pass a **UDID** to `simctl`, never a name.
-- **Prefer pre-booting the exact target and running by `id=`.** This is the
-  reliable recipe when a run is flaking; `simctl shutdown` is async, so poll
-  until the device actually reads `(Shutdown)` before `erase`/`boot`:
+- **Prefer pre-booting the exact target and running by `id=`.** That's the
+  reliable recipe when a run is flaking. Doing it by hand means remembering
+  that `simctl shutdown` is async — poll until the device actually reads
+  `(Shutdown)` before `erase`/`boot`.
+- **If you keep a name-based `-destination`, always include `OS=`** so
+  *xcodebuild* resolves unambiguously — but that only disambiguates the test
+  destination, not any `simctl` command you run alongside it.
 
 **Use `./simulator` rather than hand-rolling this.** It resolves the device for
 a given name + OS to a single UDID, boots it, waits for the boot to *finish*
@@ -536,10 +496,6 @@ to target another, `--no-boot` to just resolve the UDID, and see
 local repro targets the device the same way CI does — don't reintroduce a
 `name=…` destination or a bare `simctl <name>` call in a script.
 
-- **If you keep a name-based `-destination`, always include `OS=`** so
-  *xcodebuild* resolves unambiguously — but that only disambiguates the test
-  destination, not any `simctl` command you run alongside it.
-
 **CI is not exempt.** The `xcode-27` image ships a single iPhone 17 today, so a
 `name=…,OS=…` destination does resolve — but *booting* is the expensive half,
 and a cold or wedged CoreSimulator has stretched the ~10-minute test job to
@@ -554,3 +510,47 @@ fails fast instead of holding a runner. See
 The symptom to recognize either way: the run is **not** failing on your code —
 the suites that execute are green, and the wall time is spent before/around
 them.
+
+## Cursor Cloud specific instructions
+
+Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 26** with
+**Xcode 27+** and **Tuist** (macOS-only). Treat Linux as a partial dev
+environment: formatting and agent sync work; builds, tests, and running the
+**Where** app require macOS (as in CI on the `xcode-27` runner image).
+
+### What works on Linux
+
+| Check | Command |
+|-------|---------|
+| Trust mise config | `mise trust` (once per clone) |
+| Install SwiftFormat | `mise install swiftformat` (uses the `.mise.toml` pin) |
+| Format lint (CI `format` job equivalent) | `mise exec swiftformat -- swiftformat --lint .` |
+| Agent file sync | `./sync-agents` or `./sync-agents --install` |
+| Git hooks path | `git config core.hooksPath .githooks` (also done by `./ide`) |
+
+Install **Ruby** if missing (`apt-get install ruby`) — required by `sync-agents`.
+
+### What does not work on Linux
+
+- **Tuist** (`mise install` / `mise install tuist` fails: `unsupported env: linux/amd64`)
+- `./ide`, `./swiftformat`, and the pre-commit hook — they call `mise exec -- …`, which tries to install **all** tools from `.mise.toml` including Tuist
+- `tuist test`, `tuist build`, iOS Simulator, and running the **Where** app
+
+These are limits of the **VM**, not of cloud agents generally: a remote-control
+session runs iOS, so anything that needs the app actually running — reproducing
+a bug, checking a screen, exercising a flow by hand — goes there rather than
+being written off as untestable from a cloud agent.
+
+### Full build & test (macOS only)
+
+Matches CI `.github/workflows/ci.yml` — which boots the simulator by UDID
+first, per [Selecting a
+simulator](#selecting-a-simulator--address-it-by-udid-not-name):
+
+```bash
+mise install
+./ide --no-open
+./swiftformat --lint
+mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
+  -destination "platform=iOS Simulator,id=$(./simulator --os 27.0)"
+```

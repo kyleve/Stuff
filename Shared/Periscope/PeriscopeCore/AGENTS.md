@@ -10,11 +10,13 @@ the build system, formatting, and global conventions. Read that first.
 
 ## Scope & dependencies
 
-- **Foundation + os + SwiftData + Network + JournalKit only** (plus the
-  ObjectiveC runtime, for `LogContextProviding`'s deallocation trackers and
-  `NotificationAmbientSource`'s target/selector observation). No SwiftUI, no
-  app code. UIKit is allowed **only** inside `#if canImport(UIKit)`
-  (ambient sources, the image-attachment convenience).
+- **Foundation + os + SwiftData + Network + CryptoKit + JournalKit only**
+  (plus the ObjectiveC runtime, for `LogContextProviding`'s deallocation
+  trackers and `NotificationAmbientSource`'s target/selector observation).
+  CryptoKit is used by exactly one file — `ScopeID.swift`, for the
+  deterministic scope hash. No SwiftUI, no app code. UIKit is allowed **only**
+  inside `#if canImport(UIKit)` (ambient sources, the image-attachment
+  convenience).
 - Layering: `PeriscopeUI` and `PeriscopeTools` depend on this module — never
   the reverse.
 
