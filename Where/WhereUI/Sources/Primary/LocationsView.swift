@@ -58,10 +58,13 @@ struct LocationsView: View {
     private var screen: some View {
         switch report.loadState {
             case .loading where report.report == nil:
-                AppIconLoadingView(caption: Strings.primaryLoading)
+                AppIconLoadingView(caption: String(localized: .primaryLoading))
             case let .failed(error):
                 ContentUnavailableView {
-                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                    Label(
+                        String(localized: .commonLoadErrorTitle),
+                        systemImage: "exclamationmark.icloud",
+                    )
                 } description: {
                     Text(error.message)
                 }
@@ -132,7 +135,7 @@ struct LocationsView: View {
                                     y: card.lift.offsetY,
                                 )
                         }
-                        .accessibilityHint(Strings.primaryCardCalendarHint)
+                        .accessibilityHint(String(localized: .primaryCardCalendarHint))
                     }
 
                     // Fold Elsewhere in at the bottom — only when there's
@@ -160,29 +163,31 @@ struct LocationsView: View {
     /// stack's back gesture collapses it again.
     private func calendarDestination(_ region: Region) -> some View {
         CalendarContentView(focusedRegion: region, report: report)
-            .navigationTitle(Strings.calendarRegionTitle(region: region, year: report.selectedYear))
+            .navigationTitle(
+                WhereFormat.calendarRegionTitle(region: region, year: report.selectedYear),
+            )
             .navigationBarTitleDisplayMode(.inline)
             .navigationTransition(.zoom(sourceID: region, in: calendarTransition))
     }
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(Strings.primaryEmptyTitle(year: report.selectedYear), systemImage: "map")
+            Label(WhereFormat.primaryEmptyTitle(year: report.selectedYear), systemImage: "map")
         } description: {
-            Text(Strings.primaryEmptyDescription)
+            Text(String(localized: .primaryEmptyDescription))
         }
     }
 
     private var elsewhereOnlyState: some View {
         ContentUnavailableView {
-            Label(Strings.primaryElsewhereOnlyTitle, systemImage: "globe.americas")
+            Label(String(localized: .primaryElsewhereOnlyTitle), systemImage: "globe.americas")
         } description: {
-            Text(Strings.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
+            Text(WhereFormat.primaryElsewhereOnlyDescription(count: report.trackedDayCount))
         } actions: {
             // Everything tracked is Elsewhere, so surface the list directly —
             // there's no Elsewhere tab to send them to anymore.
             if !report.ranking.secondary.isEmpty {
-                NavigationLink(Strings.primaryElsewhereOnlyOpen) {
+                NavigationLink(String(localized: .primaryElsewhereOnlyOpen)) {
                     ElsewhereView(report: report)
                 }
                 .buttonStyle(.borderedProminent)
@@ -211,7 +216,7 @@ private struct ResolveToolbarLabel: View {
                     .offset(x: stylesheet.spacing.small, y: -stylesheet.spacing.small)
                     .accessibilityHidden(true)
             }
-            .accessibilityLabel(Strings.tabResolution)
+            .accessibilityLabel(String(localized: .tabResolution))
             .accessibilityValue(Text(count, format: .number))
     }
 }

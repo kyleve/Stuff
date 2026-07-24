@@ -21,7 +21,10 @@ struct LocationSettingsView: View {
                     )
 
                     Toggle(isOn: $session.trackingEnabled) {
-                        Label(Strings.settingsLocationToggle, systemImage: "location.fill")
+                        Label(
+                            String(localized: .settingsLocationToggle),
+                            systemImage: "location.fill",
+                        )
                     }
                     .settingsRow(Item.tracking)
 
@@ -30,7 +33,7 @@ struct LocationSettingsView: View {
                             Task { await session.requestPermission() }
                         } label: {
                             Label(
-                                Strings.settingsLocationGrant,
+                                String(localized: .settingsLocationGrant),
                                 systemImage: "location.magnifyingglass",
                             )
                         }
@@ -40,27 +43,35 @@ struct LocationSettingsView: View {
                         Button {
                             openSystemSettings(openURL)
                         } label: {
-                            Label(Strings.settingsPermissionAlertOpenSettings, systemImage: "gear")
+                            Label(
+                                String(localized: .settingsPermissionAlertOpenSettings),
+                                systemImage: "gear",
+                            )
                         }
                     }
                 } header: {
-                    Text(Strings.settingsLocationHeader)
+                    Text(String(localized: .settingsLocationHeader))
                 } footer: {
-                    Text(Strings.settingsLocationFooter)
+                    Text(String(localized: .settingsLocationFooter))
                 }
             }
         }
-        .navigationTitle(Strings.settingsLocationHeader)
+        .navigationTitle(String(localized: .settingsLocationHeader))
         .navigationBarTitleDisplayMode(.inline)
         // `session.permissionDenied` is only ever raised by the Grant button /
         // tracking toggle on this screen (an external Settings-app toggle flows
         // through the authorization observer, which never sets it), so the alert
         // belongs here rather than on the always-mounted settings root.
-        .alert(Strings.settingsPermissionAlertTitle, isPresented: $session.permissionDenied) {
-            Button(Strings.settingsPermissionAlertOpenSettings) { openSystemSettings(openURL) }
-            Button(Strings.settingsPermissionAlertNotNow, role: .cancel) {}
+        .alert(
+            String(localized: .settingsPermissionAlertTitle),
+            isPresented: $session.permissionDenied,
+        ) {
+            Button(String(localized: .settingsPermissionAlertOpenSettings)) {
+                openSystemSettings(openURL)
+            }
+            Button(String(localized: .settingsPermissionAlertNotNow), role: .cancel) {}
         } message: {
-            Text(Strings.settingsPermissionAlertMessage)
+            Text(String(localized: .settingsPermissionAlertMessage))
         }
     }
 
@@ -92,13 +103,13 @@ extension LocationSettingsView: SettingsSection {
 
         var title: String {
             switch self {
-                case .tracking: Strings.settingsLocationToggle
+                case .tracking: String(localized: .settingsLocationToggle)
             }
         }
 
         var keywords: [String] {
             switch self {
-                case .tracking: splitKeywords(Strings.settingsKeywordsTracking)
+                case .tracking: splitKeywords(String(localized: .settingsKeywordsTracking))
             }
         }
     }

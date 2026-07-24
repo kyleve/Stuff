@@ -56,9 +56,12 @@ struct RegionDaysView: View {
     private var content: some View {
         if days.isEmpty {
             ContentUnavailableView {
-                Label(Strings.secondaryRegionEmptyTitle, systemImage: "checkmark.circle")
+                Label(
+                    String(localized: .secondaryRegionEmptyTitle),
+                    systemImage: "checkmark.circle",
+                )
             } description: {
-                Text(Strings.secondaryRegionEmptyDescription)
+                Text(String(localized: .secondaryRegionEmptyDescription))
             }
         } else {
             VStack(spacing: 0) {
@@ -81,7 +84,7 @@ struct RegionDaysView: View {
                     }
                 }
             } footer: {
-                Text(Strings.secondaryRegionFooter)
+                Text(String(localized: .secondaryRegionFooter))
             }
         }
         .accessibilityIdentifier("where_region_days_list")
@@ -113,7 +116,7 @@ private struct DayRow: View {
                         .font(.subheadline)
                         .foregroundStyle(.primary)
                 }
-                Text(Strings.secondaryRegionCurrent(regions: regionsText))
+                Text(WhereFormat.secondaryRegionCurrent(regions: regionsText))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

@@ -106,8 +106,11 @@ struct SettingsFocusScope<Content: View>: View {
     #Preview {
         SettingsFocusScope(focus: SettingsFocus(LocationSettingsView.Item.tracking)) {
             List {
-                Label(Strings.settingsLocationToggle, systemImage: "location.fill")
-                    .settingsRow(LocationSettingsView.Item.tracking)
+                Label(
+                    String(localized: .settingsLocationToggle),
+                    systemImage: "location.fill",
+                )
+                .settingsRow(LocationSettingsView.Item.tracking)
             }
         }
         .whereBroadwayRoot()

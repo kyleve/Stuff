@@ -304,7 +304,7 @@
                     Image(systemName: "xmark.circle.fill")
                         .symbolRenderingMode(.hierarchical)
                 }
-                .accessibilityLabel(Strings.developerClose)
+                .accessibilityLabel(String(localized: .developerClose))
 
                 Spacer(minLength: 0)
 
@@ -317,8 +317,11 @@
                         ? "arrow.down.right.and.arrow.up.left"
                         : "arrow.up.left.and.arrow.down.right")
                 }
-                .accessibilityLabel(isFullScreen ? Strings.developerCollapse : Strings
-                    .developerExpand)
+                .accessibilityLabel(
+                    isFullScreen
+                        ? String(localized: .developerCollapse)
+                        : String(localized: .developerExpand),
+                )
             }
             .font(.title3)
             .buttonStyle(.plain)
@@ -349,7 +352,7 @@
                             .onChanged { onMove($0.translation, false) }
                             .onEnded { onMove($0.translation, true) },
                     )
-                    .accessibilityLabel(Strings.developerDragHandle)
+                    .accessibilityLabel(String(localized: .developerDragHandle))
             }
         }
 
@@ -367,7 +370,7 @@
                         .onChanged { onResize($0.translation, false) }
                         .onEnded { onResize($0.translation, true) },
                 )
-                .accessibilityLabel(Strings.developerResizeHandle)
+                .accessibilityLabel(String(localized: .developerResizeHandle))
         }
     }
 

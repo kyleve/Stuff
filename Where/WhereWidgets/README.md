@@ -34,10 +34,10 @@ app never wakes.
 ## Localization
 
 - **In-widget copy** — resolved from [`WhereUI`](../WhereUI/)'s
-  `Localizable.xcstrings` (`Strings.widgetTodayTitle`, etc.).
+  `Localizable.xcstrings` (shared views and `WhereFormat`).
 - **Widget gallery name/description** — resolved from this extension's
-  [`Resources/Localizable.xcstrings`](Resources/Localizable.xcstrings) via
-  `WidgetStrings` (`bundle: .module`).
+  [`Resources/Localizable.xcstrings`](Resources/Localizable.xcstrings) via its
+  generated symbols (`String(localized: .widgetGalleryTodayName)`).
 
 ## Installation
 
