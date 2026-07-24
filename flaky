@@ -84,7 +84,12 @@ done
 cd "$(dirname "$0")"
 
 WORKSPACE="Stuff.xcworkspace"
-DESTINATION="platform=iOS Simulator,name=$DEVICE,OS=$OS"
+# Boot the target up front and address it by UDID. This matters most here: a
+# name-based `simctl`/destination can hit a same-named device on another
+# runtime, and the resulting `Application failed preflight checks (Busy)` /
+# `Mach error -308` launch failures look exactly like the flakes this script
+# hunts (see ./simulator).
+DESTINATION="platform=iOS Simulator,id=$(./simulator --device "$DEVICE" --os "$OS")"
 
 WORKDIR="${TMPDIR:-/tmp}/where-flaky"
 DERIVED="$WORKDIR/DerivedData"
