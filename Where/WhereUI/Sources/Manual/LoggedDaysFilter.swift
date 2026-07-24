@@ -16,9 +16,9 @@ enum LoggedDaysFilter: CaseIterable, Identifiable {
     /// overridden so the tag and the filter never drift apart.
     var title: String {
         switch self {
-            case .all: Strings.loggedDaysFilterAll
-            case .logged: Strings.loggedDaysKindLogged
-            case .overridden: Strings.loggedDaysKindOverridden
+            case .all: String(localized: .loggedDaysFilterAll)
+            case .logged: String(localized: .loggedDaysKindLogged)
+            case .overridden: String(localized: .loggedDaysKindOverridden)
         }
     }
 

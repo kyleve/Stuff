@@ -9,13 +9,16 @@ struct ManualEntryAuditSection: View {
 
     var body: some View {
         Section {
-            LabeledContent(Strings.auditRecordedAt, value: recordedAtText(audit.recordedAt))
+            LabeledContent(
+                String(localized: .auditRecordedAt),
+                value: recordedAtText(audit.recordedAt),
+            )
             if let note = audit.note {
-                LabeledContent(Strings.auditNote, value: note)
+                LabeledContent(String(localized: .auditNote), value: note)
             }
-            LabeledContent(Strings.auditLocation, value: locationText(audit.location))
+            LabeledContent(String(localized: .auditLocation), value: locationText(audit.location))
         } header: {
-            Text(Strings.auditHeader)
+            Text(String(localized: .auditHeader))
         }
     }
 
@@ -24,8 +27,8 @@ struct ManualEntryAuditSection: View {
     }
 
     private func locationText(_ location: CapturedLocation?) -> String {
-        guard let location else { return Strings.auditLocationUnavailable }
-        return Strings.auditCoordinate(
+        guard let location else { return String(localized: .auditLocationUnavailable) }
+        return WhereFormat.auditCoordinate(
             latitude: location.coordinate.latitude,
             longitude: location.coordinate.longitude,
         )

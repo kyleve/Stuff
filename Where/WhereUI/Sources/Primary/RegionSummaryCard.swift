@@ -30,7 +30,7 @@ struct RegionSummaryCard: View {
 
     /// The calendar year being summarized, inked onto the entry stamp. Callers
     /// pass `WhereSession.selectedYear`; the default is only for previews.
-    var year = Calendar.current.component(.year, from: Date())
+    var year = WhereModel.currentYear
 
     /// Drives the holographic stamp sheen. The Primary tab passes its live
     /// `TiltProvider`; Elsewhere (and previews) pass `nil`, leaving a gentle
@@ -217,7 +217,7 @@ struct RegionSummaryCard: View {
                     .font(card.heroNumberFont)
                     .contentTransition(.numericText())
                     .foregroundStyle(style.tint)
-                Text(Strings.dayUnit(regionDays.days))
+                Text(WhereFormat.dayUnit(regionDays.days))
                     .font(card.dayUnitFont)
                     .foregroundStyle(.secondary)
             }
@@ -267,7 +267,7 @@ struct RegionSummaryCard: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            Strings.regionDaysAccessibility(
+            WhereFormat.regionDaysAccessibility(
                 region: regionDays.region.localizedName,
                 days: regionDays.days,
             ),

@@ -23,9 +23,9 @@ struct ElsewhereSummaryCard: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-                Text(Strings.secondaryTitle)
+                Text(String(localized: .secondaryTitle))
                     .font(.headline)
-                Text(Strings.elsewhereCardSubtitle(regions: regionCount))
+                Text(WhereFormat.elsewhereCardSubtitle(regions: regionCount))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
             }

@@ -70,23 +70,23 @@ struct DayRelabelView: View {
             }
             form
         }
-        .navigationTitle(Strings.relabelTitle)
+        .navigationTitle(String(localized: .relabelTitle))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 if pending == .saving {
                     ProgressView()
                 } else {
-                    Button(Strings.manualSave) { save() }
+                    Button(String(localized: .manualSave)) { save() }
                         .disabled(!canSave)
                 }
             }
         }
         .alert(
-            Strings.manualSaveErrorTitle,
+            String(localized: .manualSaveErrorTitle),
             isPresented: $saveError.isPresented,
         ) {
-            Button(Strings.commonOK, role: .cancel) {}
+            Button(String(localized: .commonOk), role: .cancel) {}
         } message: {
             if let saveError = saveError.message {
                 Text(saveError)
@@ -100,7 +100,7 @@ struct DayRelabelView: View {
             reasonBanner
 
             Section {
-                LabeledContent(Strings.relabelTitle, value: dateText)
+                LabeledContent(String(localized: .relabelTitle), value: dateText)
             }
 
             Section {
@@ -108,38 +108,38 @@ struct DayRelabelView: View {
                     RegionToggleRow(item: item)
                 }
             } header: {
-                Text(Strings.relabelRegionsHeader)
+                Text(String(localized: .relabelRegionsHeader))
             } footer: {
-                Text(Strings.relabelRegionsFooter)
+                Text(String(localized: .relabelRegionsFooter))
             }
 
             Section {
                 TextField(
-                    Strings.manualNotePlaceholder,
+                    String(localized: .manualNotePlaceholder),
                     text: $note,
                     axis: .vertical,
                 )
                 .lineLimit(3, reservesSpace: true)
                 .disabled(pending != nil)
             } header: {
-                Text(Strings.manualNoteHeader)
+                Text(String(localized: .manualNoteHeader))
             } footer: {
-                Text(Strings.manualNoteFooter)
+                Text(String(localized: .manualNoteFooter))
             }
 
             if pending == .saving {
                 Section {
-                    SavingStatusRow(text: Strings.manualSavingStatus)
+                    SavingStatusRow(text: String(localized: .manualSavingStatus))
                 }
             }
 
             auditSection
 
             Section {
-                Button(Strings.relabelReset, role: .destructive) { reset() }
+                Button(String(localized: .relabelReset), role: .destructive) { reset() }
                     .disabled(pending != nil)
             } footer: {
-                Text(Strings.relabelResetFooter)
+                Text(String(localized: .relabelResetFooter))
             }
         }
         .animation(.default, value: pending)
@@ -156,15 +156,18 @@ struct DayRelabelView: View {
             case let .borderDrift(region, meters):
                 banner(
                     icon: "location.circle",
-                    text: Strings.relabelReasonBorderDrift(
+                    text: WhereFormat.relabelReasonBorderDrift(
                         region: region.localizedName,
                         distance: meters.map(Self.formattedDistance),
                     ),
                 )
             case .travelDay:
-                banner(icon: "arrow.triangle.swap", text: Strings.relabelReasonTravelDay)
+                banner(
+                    icon: "arrow.triangle.swap",
+                    text: String(localized: .relabelReasonTravelDay),
+                )
             case let .flight(removed):
-                banner(icon: "airplane", text: Strings.relabelReasonFlight(removed: removed))
+                banner(icon: "airplane", text: WhereFormat.relabelReasonFlight(removed: removed))
         }
     }
 
@@ -178,7 +181,7 @@ struct DayRelabelView: View {
             }
             .font(.subheadline)
         } header: {
-            Text(Strings.relabelReasonTitle)
+            Text(String(localized: .relabelReasonTitle))
         }
     }
 

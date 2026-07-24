@@ -68,7 +68,16 @@ layering, localization, and the WhereUI duplicate-metadata rule).
 - **App Intents static metadata is literal; dialog copy is catalog-backed.**
   Titles, parameter titles, and type/case display names are `LocalizedStringResource`
   literals (the framework extracts/localizes them and requires constants).
-  Runtime `IntentDialog` copy goes through `IntentStrings` (`bundle: .module`).
+  Runtime `IntentDialog` copy goes through `IntentStrings`, which composes this
+  module's generated `LocalizedStringResource` symbols.
+- **Only the `dialog.*` / `snippet.*` / `audit.*` keys are `manual`; leave the
+  rest of the catalog alone.** Symbol generation runs on `manual` keys, so a new
+  key `IntentStrings` reads must be marked `manual` to get a symbol. Do **not**
+  normalize the catalog wholesale: the App Intents metadata keys are the
+  framework's own extracted literals (keyed by their English text), and one of
+  them is `%@` — marking that `manual` fails the build with *"Unable to derive a
+  symbol name from this key. It only contains characters that are invalid in
+  Swift."*
 
 ## Testing
 

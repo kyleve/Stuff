@@ -41,7 +41,7 @@ struct YearView: View {
                     Button {
                         showingRecentActivity = true
                     } label: {
-                        Label(Strings.primaryRecentActivity, systemImage: "sparkles")
+                        Label(String(localized: .primaryRecentActivity), systemImage: "sparkles")
                     }
                     .accessibilityIdentifier("where_recent_activity_button")
                 }
@@ -60,8 +60,8 @@ private enum YearMode: String, Hashable, CaseIterable {
 
     var title: String {
         switch self {
-            case .calendar: Strings.primaryCalendar
-            case .timeline: Strings.primaryTimeline
+            case .calendar: String(localized: .primaryCalendar)
+            case .timeline: String(localized: .primaryTimeline)
         }
     }
 
@@ -101,7 +101,7 @@ private struct YearModePicker: View {
             Color.clear.glassEffect(.regular, in: .capsule)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel(Strings.yearSegmentPickerLabel)
+        .accessibilityLabel(String(localized: .yearSegmentPicker))
     }
 
     private func segment(_ candidate: YearMode) -> some View {

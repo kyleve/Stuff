@@ -24,6 +24,6 @@ extension EvidenceKind {
 
     /// Localized, user-facing name (the `.other` label when one was supplied).
     public var displayName: String {
-        Strings.evidenceKind(self)
+        WhereFormat.evidenceKind(self)
     }
 }

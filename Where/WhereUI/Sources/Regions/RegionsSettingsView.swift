@@ -37,10 +37,10 @@ struct RegionsSettingsView: View {
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .navigationTitle(Strings.regionsManageTitle)
+                        .navigationTitle(String(localized: .regionsManageTitle))
                         .toolbar {
                             ToolbarItem(placement: .cancellationAction) {
-                                Button(Strings.commonCancel) { dismiss() }
+                                Button(String(localized: .commonCancel)) { dismiss() }
                             }
                         }
                 }
@@ -57,13 +57,13 @@ struct RegionsSettingsView: View {
         switch phase {
             case .pick:
                 RegionPickerView(model: model)
-                    .navigationTitle(Strings.regionsManageTitle)
+                    .navigationTitle(String(localized: .regionsManageTitle))
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button(Strings.commonCancel) { dismiss() }
+                            Button(String(localized: .commonCancel)) { dismiss() }
                         }
                         ToolbarItem(placement: .confirmationAction) {
-                            Button(Strings.onboardingNext) { phase = .customize }
+                            Button(String(localized: .onboardingNext)) { phase = .customize }
                                 .disabled(!model.hasSelection)
                         }
                     }
@@ -122,13 +122,13 @@ extension RegionsSettingsView: SettingsSection {
 
         var title: String {
             switch self {
-                case .regions: Strings.settingsRegionsSection
+                case .regions: String(localized: .settingsRegionsSection)
             }
         }
 
         var keywords: [String] {
             switch self {
-                case .regions: splitKeywords(Strings.settingsKeywordsRegions)
+                case .regions: splitKeywords(String(localized: .settingsKeywordsRegions))
             }
         }
     }

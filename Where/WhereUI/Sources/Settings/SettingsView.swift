@@ -61,8 +61,8 @@ struct SettingsView: View {
                     }
                 }
             }
-            .navigationTitle(Strings.settingsTitle)
-            .searchable(text: $searchText, prompt: Strings.settingsSearchPrompt)
+            .navigationTitle(String(localized: .settingsTitle))
+            .searchable(text: $searchText, prompt: String(localized: .settingsSearchPrompt))
             .overlay {
                 if isSearching, searchResults.isEmpty {
                     ContentUnavailableView.search(text: searchQuery)
