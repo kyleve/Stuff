@@ -37,6 +37,11 @@ public final class PortholeClient: Sendable {
         ) }
     }
 
+    /// Forgets a pairing locally (removes the stored credential).
+    public func unpair(_ paired: PairedApp) throws {
+        try credentials.delete(pairingID: paired.pairingID)
+    }
+
     /// Re-discovers the paired app on the network and opens a session.
     public func connect(
         to paired: PairedApp,

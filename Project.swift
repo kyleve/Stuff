@@ -411,6 +411,25 @@ let project = Project(
             sources: ["Shared/Porthole/PortholeClientKit/Tests/**"],
             extraPackageProducts: ["PortholeCore", "PortholeKit"],
         ),
+        unitTests(
+            name: "PortholeCLICoreTests",
+            bundleIdSuffix: "porthole.cli",
+            productDependency: "PortholeCLICore",
+            sources: ["Shared/Porthole/PortholeCLICore/Tests/**"],
+            extraPackageProducts: ["PortholeClientKit", "PortholeCore"],
+        ),
+        .target(
+            name: "PortholeCLI",
+            destinations: [.mac],
+            product: .commandLineTool,
+            productName: "porthole",
+            bundleId: "com.stuff.porthole.cli",
+            deploymentTargets: .macOS("26.0"),
+            sources: ["Shared/Porthole/PortholeCLI/Sources/**"],
+            dependencies: [
+                .package(product: "PortholeCLICore"),
+            ],
+        ),
     ],
     // Tuist's autogeneration doesn't emit working standalone test actions for
     // these unit-test bundles (only the aggregate `Stuff-Workspace` scheme
@@ -456,6 +475,7 @@ let project = Project(
                 "PortholeCoreTests",
                 "PortholeKitTests",
                 "PortholeClientKitTests",
+                "PortholeCLICoreTests",
             ]),
             testAction: .targets([
                 "StuffCoreTests",
@@ -476,7 +496,14 @@ let project = Project(
                 "PortholeCoreTests",
                 "PortholeKitTests",
                 "PortholeClientKitTests",
+                "PortholeCLICoreTests",
             ]),
+        ),
+        .scheme(
+            name: "PortholeCLI",
+            shared: true,
+            buildAction: .buildAction(targets: ["PortholeCLI"]),
+            runAction: .runAction(executable: "PortholeCLI"),
         ),
         testScheme(name: "StuffCoreTests"),
         testScheme(name: "LifecycleKitTests"),
@@ -496,5 +523,6 @@ let project = Project(
         testScheme(name: "PortholeCoreTests"),
         testScheme(name: "PortholeKitTests"),
         testScheme(name: "PortholeClientKitTests"),
+        testScheme(name: "PortholeCLICoreTests"),
     ],
 )
