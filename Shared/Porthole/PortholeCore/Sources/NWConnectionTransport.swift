@@ -1,22 +1,22 @@
 import Foundation
 import Network
-import PortholeCore
 
 /// A ``PortholeTransport`` over an `NWConnection`. It applies the length-prefix
 /// framing on the way out and reassembles whole frames on the way in, so the
-/// layers above it (handshake, secure channel, router) speak only in frames.
+/// layers above it (handshake, secure channel, session, router) speak only in
+/// whole frames. Shared by the device (`PortholeServer`) and the Mac client.
 ///
 /// Deliberately thin: all protocol logic lives above it and is tested over
 /// `LoopbackTransport`, so this adapter is exercised only in real end-to-end use.
-final class NWConnectionTransport: PortholeTransport, @unchecked Sendable {
-    let incoming: AsyncThrowingStream<Data, Error>
+public final class NWConnectionTransport: PortholeTransport, @unchecked Sendable {
+    public let incoming: AsyncThrowingStream<Data, Error>
 
     private let connection: NWConnection
     private let continuation: AsyncThrowingStream<Data, Error>.Continuation
     private let framerLock = NSLock()
     private var framer = PortholeFramer()
 
-    init(connection: NWConnection, queue: DispatchQueue) {
+    public init(connection: NWConnection, queue: DispatchQueue) {
         self.connection = connection
         (incoming, continuation) = AsyncThrowingStream.makeStream()
 
@@ -65,7 +65,7 @@ final class NWConnectionTransport: PortholeTransport, @unchecked Sendable {
             }
     }
 
-    func send(_ frame: Data) async throws {
+    public func send(_ frame: Data) async throws {
         let framed = try PortholeFraming.encode(frame)
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<
             Void,
@@ -81,7 +81,7 @@ final class NWConnectionTransport: PortholeTransport, @unchecked Sendable {
         }
     }
 
-    func close() async {
+    public func close() async {
         connection.cancel()
     }
 }
