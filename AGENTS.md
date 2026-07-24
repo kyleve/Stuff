@@ -13,8 +13,8 @@ Roughly, this file covers:
   [Generating the Xcode project](#generating-the-xcode-project),
   [Selecting a simulator](#selecting-a-simulator--address-it-by-udid-not-name),
   and the [Linux/Cloud caveats](#cursor-cloud-specific-instructions).
-- **Writing code** — [Directory layout](#directory-layout),
-  [Per-module docs](#per-module-docs), and [Conventions](#conventions)
+- **Writing code** — [Per-module docs](#per-module-docs) (and the module layout),
+  [Repo-level docs](#repo-level-docs), and [Conventions](#conventions)
   (including [Modeling state](#modeling-state) and
   [Composition](#composition-create-once-inject-down)).
 - **Working** — [Working in this repo](#working-in-this-repo): commits, GitHub
@@ -39,14 +39,12 @@ references the package via `Package.local(path: .relativeToRoot("."))`. The
 two manifests are the authoritative target catalog — it is deliberately not
 duplicated here.
 
-Run `./ide` (or `./ide -i` to also install dependencies) to regenerate the
-Xcode project, install external agent skills, and point Git at `.githooks/`.
-Pass `--no-open` to skip launching Xcode (see [Generating the Xcode
-project](#generating-the-xcode-project)). On a fresh machine run `./ide
---bootstrap` (alias `--setup`) first: it verifies a full Xcode is installed
-and selected, installs `mise` (via its official installer, no Homebrew) and
-the pinned tools, then falls through to the normal generate flow. Plain
-`./ide` fails fast when `mise` is missing, pointing at `--bootstrap`.
+`./ide` regenerates the Xcode project *and* does the surrounding setup —
+external agent skills, `core.hooksPath` — so it's the way to regenerate, not
+`tuist generate` alone. Agents must always pass `--no-open` (see [Generating the
+Xcode project](#generating-the-xcode-project)). A fresh machine needs `./ide
+--bootstrap` first, which installs `mise` and the pinned tools before
+generating; plain `./ide` fails fast pointing at it.
 
 The executables in the repo root are the dev scripts — `ide`, `swiftformat`,
 `sync-agents`, `profile`, `icons`, `flaky`, `simulator` — and each takes
@@ -122,16 +120,12 @@ app onto a connected iPhone without the Xcode UI, use
 configured once via `./ide --team-id` (see
 [`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device)).
 
-## Directory layout
+## Per-module docs
 
 Shared modules live under `Shared/`, feature modules under a top-level folder
 per feature (`Where/`). **Every module is a folder containing `Sources/`,
-`Tests/`, `README.md`, and `AGENTS.md`** — a new one matches that, including the
-two docs. Apps additionally carry `Resources/`.
-
-## Per-module docs
-
-Every module carries two docs at its root, and **a new module must add both**:
+`Tests/`, `README.md`, and `AGENTS.md`** (apps additionally carry `Resources/`),
+and a new module must add both docs:
 
 - `README.md` — the human-facing overview: what the module is, install, a quick
   start, the public API, how it works, and any contracts/limitations.
