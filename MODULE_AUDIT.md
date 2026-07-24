@@ -268,7 +268,7 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 |----------|----------|-------|------------|
 | convention | `AppIconOption` / `AppIconModel` | Silent empty picker on catalog load failure | Log + honest empty state |
 | performance | `RegionSummaryCard` Canvas | Many concentric rings | Profile before optimizing |
-| localization | `IntentSnippets` preview button | Hardcoded English in snippet preview | Route through `Strings` if shipped |
+| localization | `IntentSnippets` preview button | Hardcoded English in snippet preview | Route through a catalog symbol if shipped |
 
 **Verified OK:** `SaveErrorAlertState` replaces closure bindings; `YearReportModel.LoadState` modeling; scene-scoped refresh; `#Preview` coverage; `ScreenHostingTests` for manual/relabel; Core logic stays in models/services.
 

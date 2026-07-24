@@ -10,8 +10,9 @@ Roughly, this file covers:
 
 - **Building and testing** — [Build system](#build-system),
   [Formatting](#formatting), [Targets](#targets), [Deployment](#deployment),
-  [Generating the Xcode project](#generating-the-xcode-project), and the
-  [Linux/Cloud caveats](#cursor-cloud-specific-instructions).
+  [Generating the Xcode project](#generating-the-xcode-project),
+  [Selecting a simulator](#selecting-a-simulator--address-it-by-udid-not-name),
+  and the [Linux/Cloud caveats](#cursor-cloud-specific-instructions).
 - **Writing code** — [Directory layout](#directory-layout),
   [Per-module docs](#per-module-docs), and [Conventions](#conventions)
   (including [Modeling state](#modeling-state) and
@@ -576,6 +577,59 @@ speaking. Use a short tag like `> _Posted by an AI agent on $USER's
 behalf._` as the first line, then the actual content. Do not omit the
 prefix even when the comment is short or factual.
 
+## Selecting a simulator — address it by UDID, not name
+
+A dev machine often has **several simulators sharing one device name** across
+runtimes (e.g. an "iPhone 17" on each installed iOS — 26.x, 27.0, …), which is
+a legitimate setup for testing multiple OS versions. When it does, resolving a
+simulator **by name is ambiguous**, so:
+
+- **Any `xcrun simctl` command matches by name only.** `simctl boot "iPhone
+  17"` (or `shutdown` / `erase`) may act on a *different* device than the one
+  under test, leaving a device mid-transition. That surfaces as
+  `Application failed preflight checks (Busy)` or `Mach error -308 — server
+  died` / `crashed with signal kill before establishing connection` — launch
+  failures that look like test failures but aren't (the suites that do run
+  are green). Always pass a **UDID** to `simctl`, never a name.
+- **Prefer pre-booting the exact target and running by `id=`.** That's the
+  reliable recipe when a run is flaking. Doing it by hand means remembering
+  that `simctl shutdown` is async — poll until the device actually reads
+  `(Shutdown)` before `erase`/`boot`.
+- **If you keep a name-based `-destination`, always include `OS=`** so
+  *xcodebuild* resolves unambiguously — but that only disambiguates the test
+  destination, not any `simctl` command you run alongside it.
+
+**Use `./simulator` rather than hand-rolling this.** It resolves the device for
+a given name + OS to a single UDID, boots it, waits for the boot to *finish*
+(`simctl bootstatus -b` — a condition, not a fixed sleep), and prints only the
+UDID, so it composes into any destination:
+
+```bash
+mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
+  -destination "platform=iOS Simulator,id=$(./simulator)"
+```
+
+It defaults to the CI pairing (iPhone 17 / iOS 27.0); pass `--device` / `--os`
+to target another, `--no-boot` to just resolve the UDID, and see
+`./simulator --help`. `./profile`, `./flaky`, and CI all go through it, so a
+local repro targets the device the same way CI does — don't reintroduce a
+`name=…` destination or a bare `simctl <name>` call in a script.
+
+**CI is not exempt.** The `xcode-27` image ships a single iPhone 17 today, so a
+`name=…,OS=…` destination does resolve — but *booting* is the expensive half,
+and a cold or wedged CoreSimulator has stretched the ~10-minute test job to
+**3.5–5 hours** on that image (runs on 2026-07-23, i.e. after the
+`xcrun simctl list` cache warm-up was already in place — that nudge fixes
+destination *resolution*, not a slow boot). So CI does the same thing this
+section prescribes: resolve the UDID, `bootstatus -b` it, and pass
+`-destination "…,id=$UDID"`, under a `timeout-minutes` cap so a stuck boot
+fails fast instead of holding a runner. See
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
+The symptom to recognize either way: the run is **not** failing on your code —
+the suites that execute are green, and the wall time is spent before/around
+them.
+
 ## Cursor Cloud specific instructions
 
 Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 26** with
@@ -603,65 +657,14 @@ Install **Ruby** if missing (`apt-get install ruby`) — required by `sync-agent
 
 ### Full build & test (macOS only)
 
-Matches CI `.github/workflows/ci.yml`:
+Matches CI `.github/workflows/ci.yml` — which boots the simulator by UDID
+first, per [Selecting a
+simulator](#selecting-a-simulator--address-it-by-udid-not-name):
 
 ```bash
 mise install
 ./ide --no-open
 ./swiftformat --lint
 mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
-  -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0'
+  -destination "platform=iOS Simulator,id=$(./simulator --os 27.0)"
 ```
-
-### Selecting a simulator — address it by UDID, not name
-
-A dev machine often has **several simulators sharing one device name** across
-runtimes (e.g. an "iPhone 17" on each installed iOS — 26.x, 27.0, …), which is
-a legitimate setup for testing multiple OS versions. When it does, resolving a
-simulator **by name is ambiguous**, so:
-
-- **Any `xcrun simctl` command matches by name only.** `simctl boot "iPhone
-  17"` (or `shutdown` / `erase`) may act on a *different* device than the one
-  under test, leaving a device mid-transition. That surfaces as
-  `Application failed preflight checks (Busy)` or `Mach error -308 — server
-  died` / `crashed with signal kill before establishing connection` — launch
-  failures that look like test failures but aren't (the suites that do run
-  are green). Always pass a **UDID** to `simctl`, never a name.
-- **Prefer pre-booting the exact target and running by `id=`.** This is the
-  reliable recipe when a run is flaking; `simctl shutdown` is async, so poll
-  until the device actually reads `(Shutdown)` before `erase`/`boot`:
-
-**Use `./simulator` rather than hand-rolling this.** It resolves the device for
-a given name + OS to a single UDID, boots it, waits for the boot to *finish*
-(`simctl bootstatus -b` — a condition, not a fixed sleep), and prints only the
-UDID, so it composes into any destination:
-
-```bash
-mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
-  -destination "platform=iOS Simulator,id=$(./simulator)"
-```
-
-It defaults to the CI pairing (iPhone 17 / iOS 27.0); pass `--device` / `--os`
-to target another, `--no-boot` to just resolve the UDID, and see
-`./simulator --help`. `./profile`, `./flaky`, and CI all go through it, so a
-local repro targets the device the same way CI does — don't reintroduce a
-`name=…` destination or a bare `simctl <name>` call in a script.
-
-- **If you keep a name-based `-destination`, always include `OS=`** so
-  *xcodebuild* resolves unambiguously — but that only disambiguates the test
-  destination, not any `simctl` command you run alongside it.
-
-**CI is not exempt.** The `xcode-27` image ships a single iPhone 17 today, so a
-`name=…,OS=…` destination does resolve — but *booting* is the expensive half,
-and a cold or wedged CoreSimulator has stretched the ~10-minute test job to
-**3.5–5 hours** on that image (runs on 2026-07-23, i.e. after the
-`xcrun simctl list` cache warm-up was already in place — that nudge fixes
-destination *resolution*, not a slow boot). So CI does the same thing this
-section prescribes: resolve the UDID, `bootstatus -b` it, and pass
-`-destination "…,id=$UDID"`, under a `timeout-minutes` cap so a stuck boot
-fails fast instead of holding a runner. See
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
-
-The symptom to recognize either way: the run is **not** failing on your code —
-the suites that execute are green, and the wall time is spent before/around
-them.
