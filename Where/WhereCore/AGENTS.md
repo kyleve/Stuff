@@ -112,12 +112,18 @@ internal shape.
   sorted by timestamp), the one field that keeps per-fix timestamps. Manual and
   evidence-implied samples are excluded so `FlightDayDetector`'s speed math
   isn't skewed by user-asserted timestamps.
-- **Post-write reconciliation is defined once.** Every write and import routes
-  through `DayJournal.reconcileAfterDayChange()` (or its widget-less subset
-  `reconcileIssueState()` for dismiss/restore paths) — never copy the reconcile
+- **Post-write reconciliation is defined once.** A write or import reconciles by
+  calling `DayJournal.reconcileAfterDayChange()` (or its widget-less subset
+  `reconcileIssueState()` for dismiss/restore paths) — never by copying the
   fan-out into a new write path. Cross-collaborator hooks take a single closure
   wired at the composition root (`BackupCoordinator.onImport`), not an injected
-  list of reconcilers.
+  list of reconcilers. **Two known paths don't yet honor this**, so don't read
+  it as "reconciliation has already happened" when working nearby:
+  `WhereServices.setPrimaryRegions(_:)` commits and pings `changes()` without
+  the fan-out, and the daily summary reconciles only on launch/foreground
+  `configure` and settings edits. Both are tracked in
+  [`../TODOs.md`](../TODOs.md); a new write path should route through the fan-out
+  rather than copy their omission.
 - **`LocationSource` abstracts GPS.** Production is `CoreLocationSource` (Visits
   + significant-change); tests/previews use `ScriptedLocationSource`. The
   one-shot `requestCurrentLocation()` returns `nil` (never throws) when no fix
