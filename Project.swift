@@ -444,6 +444,38 @@ let project = Project(
                 .package(product: "PortholeCLICore"),
             ],
         ),
+        .target(
+            name: "PortholeApp",
+            // The Porthole Mac client app. Catalyst so it shares SwiftUI +
+            // Broadway with the on-device UI and can later run on iPad; the built
+            // product is named "Porthole". Unsandboxed (a dev tool) so it shares
+            // the login keychain + metadata with the CLI and MCP.
+            destinations: [.iPhone, .iPad, .macCatalyst],
+            product: .app,
+            productName: "Porthole",
+            bundleId: "com.stuff.porthole",
+            deploymentTargets: deployment,
+            infoPlist: .extendingDefault(with: [
+                "UILaunchScreen": .dictionary([:]),
+                "UIApplicationSupportsIndirectInputEvents": .boolean(true),
+                "NSLocalNetworkUsageDescription": .string(
+                    "Porthole connects to paired apps advertising on your local network.",
+                ),
+                "NSBonjourServices": .array([.string("_porthole._tcp")]),
+            ]),
+            sources: ["Shared/Porthole/PortholeApp/Sources/**"],
+            dependencies: [
+                .package(product: "PortholeClientKit"),
+                .package(product: "BroadwayCore"),
+                .package(product: "BroadwayUI"),
+            ],
+            // No custom app icon / accent color yet — clear the names actool
+            // otherwise requires (mirrors RegionViewer).
+            settings: .settings(base: [
+                "ASSETCATALOG_COMPILER_APPICON_NAME": "",
+                "ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME": "",
+            ]),
+        ),
     ],
     // Tuist's autogeneration doesn't emit working standalone test actions for
     // these unit-test bundles (only the aggregate `Stuff-Workspace` scheme
@@ -486,6 +518,7 @@ let project = Project(
                 "BroadwayCoreTests",
                 "BroadwayUITests",
                 "BroadwayCatalogTests",
+                "PortholeApp",
                 "PortholeCoreTests",
                 "PortholeKitTests",
                 "PortholeKitUITests",
@@ -522,6 +555,12 @@ let project = Project(
             shared: true,
             buildAction: .buildAction(targets: ["PortholeCLI"]),
             runAction: .runAction(executable: "PortholeCLI"),
+        ),
+        .scheme(
+            name: "PortholeApp",
+            shared: true,
+            buildAction: .buildAction(targets: ["PortholeApp"]),
+            runAction: .runAction(executable: "PortholeApp"),
         ),
         testScheme(name: "StuffCoreTests"),
         testScheme(name: "LifecycleKitTests"),

@@ -58,3 +58,18 @@ jobs:
           path: diagnostics
           if-no-files-found: warn
           retention-days: 7
+
+  macos:
+    name: Build (macOS)
+    needs: format
+    runs-on: xcode-27
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+      # The Porthole suite adds macOS-only targets that the iOS test scheme
+      # can't build: the `porthole` command-line tool and the Mac Catalyst
+      # `Porthole` app. Build both so a break in the Mac client is caught.
+      - name: Build Porthole CLI (macOS)
+        run: mise exec -- tuist build PortholeCLI -- -destination 'platform=macOS'
+      - name: Build Porthole app (Mac Catalyst)
+        run: mise exec -- tuist build PortholeApp -- -destination 'platform=macOS,variant=Mac Catalyst'
