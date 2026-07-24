@@ -29,6 +29,7 @@ let package = Package(
         .library(name: "PortholeClientKit", targets: ["PortholeClientKit"]),
         .library(name: "PortholeMCP", targets: ["PortholeMCP"]),
         .library(name: "PortholeCLICore", targets: ["PortholeCLICore"]),
+        .library(name: "PortholeLifecycle", targets: ["PortholeLifecycle"]),
     ],
     dependencies: [
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
@@ -197,6 +198,14 @@ let package = Package(
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
             ],
             path: "Shared/Porthole/PortholeCLICore/Sources",
+        ),
+        .target(
+            name: "PortholeLifecycle",
+            dependencies: [
+                .target(name: "PortholeKit"),
+                .target(name: "LifecycleKit"),
+            ],
+            path: "Shared/Porthole/PortholeLifecycle/Sources",
         ),
     ],
 )
