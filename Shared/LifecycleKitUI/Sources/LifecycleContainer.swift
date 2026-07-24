@@ -18,7 +18,8 @@ import SwiftUI
 /// registry recovers each gate's `Value` statically, so the gate view
 /// receives `(handle, value)` rather than trusting shared state. A proxy for
 /// the runner is published into the environment (`\.lifecycle`) for nested
-/// views to reach `retry()`/`teardown(_:input:)`.
+/// views to reach `enterForeground()`/`teardown(_:input:)`. A failed launch
+/// is terminal — the failure surface offers no retry.
 ///
 /// Surface changes (splash → gate → failure → app `content`) are animated
 /// with the caller-supplied `transition`/`animation` (a crossfade by
@@ -44,7 +45,7 @@ public struct LifecycleContainer<
     private let transition: AnyTransition
     private let animation: Animation?
     private let splash: (LifecycleStepContext?) -> Splash
-    private let failureView: (LifecycleFailure, @escaping () -> Void) -> Failure
+    private let failureView: (LifecycleFailure) -> Failure
     private let gates: [GateRegistration]
     private let content: (Launch) -> Content
 
@@ -54,7 +55,8 @@ public struct LifecycleContainer<
     ///     surfaces instantly (no animation).
     ///   - splash: the waiting surface; receives the running step's context
     ///     (nil between steps) so it can show a caption/progress.
-    ///   - failure: the error surface, given the failure and a retry action.
+    ///   - failure: the (terminal) error surface, given the failure. There is
+    ///     no retry — the recovery for a failed launch is relaunching the app.
     ///   - gates: the gate-type → view registrations (`GateView(for:content:)`).
     ///   - content: the app's destination UI, given the launch's output.
     public init(
@@ -62,7 +64,7 @@ public struct LifecycleContainer<
         transition: AnyTransition = .opacity,
         animation: Animation? = .default,
         @ViewBuilder splash: @escaping (LifecycleStepContext?) -> Splash,
-        @ViewBuilder failure: @escaping (LifecycleFailure, @escaping () -> Void) -> Failure,
+        @ViewBuilder failure: @escaping (LifecycleFailure) -> Failure,
         @GateRegistrationsBuilder gates: () -> [GateRegistration] = { [] },
         @ViewBuilder content: @escaping (Launch) -> Content,
     ) {
@@ -124,7 +126,7 @@ public struct LifecycleContainer<
             case let .awaitingGate(handle):
                 gateView(for: handle).transition(transition).zIndex(Self.launchSurfaceZIndex)
             case let .failed(failure):
-                failureView(failure) { runner.retry() }
+                failureView(failure)
                     .transition(transition)
                     .zIndex(Self.launchSurfaceZIndex)
             case let .ready(value):
@@ -136,8 +138,8 @@ public struct LifecycleContainer<
     /// registration is a programmer error (the plan gates on something the
     /// UI can't render); rather than an indefinite splash that reads as
     /// progress, log it and fail the gate's handle so the launch lands on
-    /// the failure surface — visible, retryable, and named. Identical in
-    /// debug and release, which also keeps the path testable.
+    /// the failure surface — visible and named (though terminal). Identical
+    /// in debug and release, which also keeps the path testable.
     ///
     /// The handle is failed from `onAppear`, not during `body`: `fail(_:)`
     /// only resumes the drive's parked continuation, so the phase change it
@@ -178,7 +180,7 @@ extension LifecycleContainer where Splash == LifecycleSplash, Failure == Lifecyc
         self.init(
             runner,
             splash: { _ in LifecycleSplash() },
-            failure: { LifecycleFailureView(failure: $0, retry: $1) },
+            failure: { LifecycleFailureView(failure: $0) },
             gates: gates,
             content: content,
         )
@@ -197,7 +199,7 @@ extension LifecycleContainer where Failure == LifecycleFailureView {
         self.init(
             runner,
             splash: splash,
-            failure: { LifecycleFailureView(failure: $0, retry: $1) },
+            failure: { LifecycleFailureView(failure: $0) },
             gates: gates,
             content: content,
         )

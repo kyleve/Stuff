@@ -10,8 +10,9 @@ combinators check the data flow at compile time, so the classic launch bugs —
 a step running before the thing it needs exists, a skipped step leaving a
 hole downstream, the app UI rendering off an optional that "should" have been
 set — are unrepresentable rather than merely avoided. A thrown trunk step
-parks the runner in a failure phase with retry; logout/erase is the same
-machinery run over a teardown plan.
+parks the runner in a terminal failure phase (no retry — the recovery is
+relaunching the app); logout/erase is the same machinery run over a teardown
+plan.
 
 LifecycleKit depends only on Foundation + Observation — **no SwiftUI, no app
 code**. Everything rendered lives in [LifecycleKitUI](../LifecycleKitUI).
@@ -94,7 +95,7 @@ Add it to a target's dependencies in [`Package.swift`](../../Package.swift):
         case launching                          // splash
         case running(LifecycleStepContext)      // splash + caption/progress
         case awaitingGate(LifecycleGateHandle)  // the gate's registered view
-        case failed(LifecycleFailure)           // failure UI + retry
+        case failed(LifecycleFailure)           // terminal failure UI (no retry)
         case ready(Launch)                      // the app, handed the launch's output
     }
     public private(set) var phase: Phase
@@ -103,7 +104,6 @@ Add it to a target's dependencies in [`Package.swift`](../../Package.swift):
                 initializePrerequisites: @MainActor () -> Void = {},
                 plan: LaunchPlan<Void, Launch>)
     public func run() async                 // walk the plan; idempotent
-    public func retry()                     // resume from the failed node, same input
     public func enterForeground() async     // promote a background/undetermined launch
     public func teardown<In>(_ plan: LaunchPlan<In, some Sendable>, input: In) async
 }
@@ -195,25 +195,27 @@ await runner.teardown(
 )
 ```
 
-If a teardown node throws, the runner parks in `.failed` and does **not**
-relaunch; `retry()` resumes the teardown from the failed node, then
-relaunches. A teardown's detached children drain *before* the relaunch, so no
-torn-down-world work overlaps the fresh launch. On success the retained plan
-and input are released (the input is typically the dead session).
+If a teardown node throws, the runner parks in the terminal `.failed` and
+does **not** relaunch — a thrown erase never reaches the session drop, so
+state stays intact and relaunching the app returns to the working app rather
+than a half-erased one. A teardown's detached children drain *before* the
+relaunch, so no torn-down-world work overlaps the fresh launch.
 
-Teardown node IDs must not reuse launch node IDs — the run-once memo is keyed
-by ID across both walks, so a collision would silently skip the teardown node
-and corrupt the typed trunk value. The runner `precondition`s disjointness
-when a teardown is requested (use one ID enum for both plans, as Where's
-`LaunchStepID` does, and the collision is impossible to write twice).
+Teardown starts from an empty run-once set (the launch attempt is over), so a
+teardown plan may freely reuse launch node IDs — there is no retry re-walk
+that would consult a live launch memo, so no cross-plan disjointness
+precondition is needed.
 
 ## Correctness points designed in deliberately
 
-- **Retry resumes with the same input.** Every completed node's output is
-  memoized for the current attempt; `retry()` re-runs the failed node with
-  the value it originally got, and nodes that already completed never run
-  twice — across `retry()` *and* `enterForeground()` promotion. A fresh
-  attempt (first `run()`, the relaunch after a teardown) clears the memo.
+- **Failure is terminal.** A thrown node parks `.failed` with no retry — the
+  recovery is relaunching the app. (Retry's original customer, a fresh
+  install's transient store-open race, was fixed structurally by injection;
+  genuinely retryable work belongs to the layer that understands it.)
+- **Promotion re-walks with the memo** skipping completed nodes, so completed
+  work never runs twice within an attempt (the memo exists only for
+  promotion — a fresh launch never re-walks a node). A fresh attempt (first
+  `run()`, the start of a teardown, the relaunch after it) clears the memo.
 - **Skipping can't corrupt the data flow.** Only pass-through positions
   (`thenKeeping`, gates, detached children) may be mode-gated or
   conditional; a skipped gate is *not* memoized, so `isNeeded` re-evaluates
@@ -222,8 +224,8 @@ when a teardown is requested (use one ID enum for both plans, as Where's
 - **`.ready` never waits for the fan, and the fan can't regress it.**
   `.ready(Launch)` publishes the moment the trunk finishes; detached children
   drain behind it and report failures only on `detachedFailures`.
-- **Drives never overlap.** All drives (`run` / `enterForeground` / `retry`
-  / `teardown`) serialize through a single internal task; a new drive cancels
+- **Drives never overlap.** All drives (`run` / `enterForeground` /
+  `teardown`) serialize through a single internal task; a new drive cancels
   the in-flight one and awaits it draining first. A parked gate's wait throws
   `CancellationError` on cancellation — "drive cancelled" (stop quietly) is
   distinct from a node throwing (→ `.failed`) — which is what lets
@@ -241,10 +243,9 @@ when a teardown is requested (use one ID enum for both plans, as Where's
 ## Testing
 
 The engine is exercised with Swift Testing: targeted suites for ordering,
-value threading, mode gating, gates, detached isolation, promotion, retry
-memoization, and teardown — plus seeded fuzz suites that drive randomized
-plans against an independent model (200 seeds) and drain randomized flaky
-failures through `retry()` (120 seeds). Because a real gate suspends, drive
+value threading, mode gating, gates, detached isolation, promotion (memo
+run-once), terminal failure, and teardown (including reusing launch node
+IDs) — plus a seeded fuzz suite that drives randomized plans against an
+independent model (200 seeds). Because a real gate suspends, drive
 the runner from a `Task` and poll `runner.phase` until it parks, then resolve
-the handle. `@_spi(Testing) injectFailureForTesting(_:)` covers the
-failed-with-no-resume-point path.
+the handle.

@@ -30,23 +30,26 @@ system, formatting, and global conventions. Read that first.
   steps must keep `modes == .all` (plan-construction `precondition`) — a
   skipped producer would leave a hole in the data flow. Don't add a skip path
   for them.
+- **Failure is terminal.** A thrown node parks `.failed` with no retry — the
+  recovery is relaunching the app. A failed teardown likewise parks and does
+  not relaunch (a thrown erase leaves state intact). Don't reintroduce a
+  resume/retry path; if a node is genuinely flaky, retry inside it at the
+  layer that understands the failure.
 - **All drives funnel through a single in-flight task** (cancel-and-drain):
   two drives never overlap, and `teardown()`/`enterForeground()` can
   interrupt a launch parked on a gate. A cancelled drive is distinct from a
   thrown node (`.failed`), a superseded drive never writes the phase the new
   drive owns, and a superseded drive's gate handle resolves to a no-op.
   Don't add a drive path that bypasses that serialization.
-- **Memoized run-once, per attempt.** Completed nodes' outputs are memoized;
-  `retry()` resumes the failed node with its original input and promotion
-  never repeats completed work. Skipped gates are deliberately *not*
-  memoized so they re-evaluate on promotion. Fresh attempts (first `run()`,
-  post-teardown relaunch) clear the memo. The memo is keyed by node ID across
-  both walks, so teardown plans must not reuse launch node IDs — the runner
-  `precondition`s disjointness when a teardown is requested.
+- **Memoized run-once, for promotion.** Completed nodes' outputs are
+  memoized so an `enterForeground()` promotion's re-walk skips completed
+  work; skipped gates are deliberately *not* memoized so they re-evaluate on
+  promotion. Fresh attempts (first `run()`, the start of a teardown, the
+  post-teardown relaunch) clear the memo — so teardown plans may freely reuse
+  launch node IDs (no live shared memo, since there is no retry re-walk).
 - **Detached children are off the critical path by construction:** they never
   block `.ready`, never fail the drive, and surface failures only on
-  `detachedFailures`. A successful teardown releases the retained teardown
-  plan + input (the input is typically the dead session).
+  `detachedFailures`.
 - **Promotion is foreground-only and idempotent.** `enterForeground()` no-ops
   for a foreground launch; consumers must only call it once the scene is
   genuinely `.active` (see `RootView` in WhereUI for the `scenePhase` gating

@@ -45,7 +45,7 @@ public struct GateRegistration {
 /// A gate parked but its type has no `GateView` registration — a
 /// misconfiguration (the plan gates on something the UI can't render). The
 /// container fails the gate's handle with this error, so the launch lands on
-/// the failure surface (visible, retryable, named) instead of an indefinite
+/// the failure surface (visible and named, though terminal) instead of an indefinite
 /// splash that reads as progress; the behavior is identical in debug and
 /// release.
 public struct MissingGateViewError: Error, LocalizedError {
