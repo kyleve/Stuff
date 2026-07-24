@@ -17,8 +17,8 @@ Roughly, this file covers:
   [Per-module docs](#per-module-docs), and [Conventions](#conventions)
   (including [Modeling state](#modeling-state) and
   [Composition](#composition-create-once-inject-down)).
-- **Working** — everything from [Acting on requests](#acting-on-requests)
-  down: plans, GitHub, PR feedback and descriptions, debugging failures, CI.
+- **Working** — [Working in this repo](#working-in-this-repo): commits, GitHub
+  and PRs, and what to suspect when a failure isn't yours.
 
 ## Build system
 
@@ -191,7 +191,7 @@ A few files outside the module pair carry *state* rather than rules:
   [`Where/TODOs.md`](Where/TODOs.md) and
   [`Shared/Periscope/TODOs.md`](Shared/Periscope/TODOs.md). Anything
   deliberately deferred in those areas is filed there rather than dropped (see
-  [Working on PR feedback](#working-on-pr-feedback)). Both share one format,
+  [GitHub](#github)). Both share one format,
   restated in their own `Usage` header: tag each item with a
   conventional-commit type (`feat`/`fix`/`refactor`/`perf`/`test`/`docs`),
   bucket it under `P0s` (must) / `P1s` (should) / `P2s` (nice to have) / `PX`
@@ -444,123 +444,47 @@ disrupts the user's session. Always pass `--no-open` when regenerating:
 `tuist test` / `tuist build` are CLI-only and do not open Xcode, so no
 flag is needed there.
 
-## Acting on requests
+## Working in this repo
 
-The "don't be proactive" rules below scope to *unprompted* actions. A direct
-request is itself the go-ahead — carry it to a sensible stopping point rather
-than pausing to re-confirm what you were just asked to do.
+- **Never commit on `main`.** Branch first (`git checkout -b <name>`) and keep
+  every commit for one piece of work on that one branch.
+- **`./swiftformat --lint` and the matching `tuist test` scheme(s) are part of
+  "done".** Never commit a red tree.
+- **Multi-step work lands one commit per step**, so history stays bisectable and
+  can land piecewise — including pure-groundwork steps, which say so in the body.
+- **Commit when asked, or when working through a plan.** If it's unclear whether
+  a commit is wanted, make the change and ask rather than committing silently.
 
-For non-plan work, leave the tree formatted and the change complete. Commit
-when asked or when working a plan; if it's unclear whether you want a commit,
-make the change and ask rather than committing silently.
+### GitHub
 
-## Working on plans
+- Use the `gh` CLI for all GitHub interaction — PRs, issues, checks, releases,
+  review comments.
+- **Open PRs ready-for-review, not draft.**
+- **Keep an open PR current:** push each commit as it lands, and refresh the
+  title/body once the branch outgrows them — describing the end state rather
+  than a changelog of the conversation, and folding into any human edits rather
+  than overwriting them. A branch with no PR waits for the user before pushing.
+- **Don't act on review comments the user hasn't pointed you at.** Summarize
+  what's there and ask which to take on; reading them to write that summary is
+  expected. When a commit resolves one, reply to it naming the commit. Anything
+  deliberately not addressed gets filed in the area's
+  [`TODOs.md`](#repo-level-docs) — never dropped.
+- **Don't block the conversation polling CI.** Report what's running and hand
+  the turn back; delegate a genuine watch to a background subagent.
 
-Multi-step plans (e.g. a `/plan` to-do list) land one commit per to-do so
-history stays bisectable and can land piecewise. The loop for each to-do:
-mark `in_progress`, implement, run local checks, commit, mark `completed`.
+### Posting under the user's identity
 
-- Branch first: `git rev-parse --abbrev-ref HEAD` must not be `main`/`master`.
-  If it is, `git checkout -b <name>` before staging. Branch once; keep every
-  commit on it.
-- Pre-commit checks are part of "done": `./swiftformat --lint` and the matching
-  `tuist test` scheme(s). A red bar means not done — never commit a broken tree.
-- Pure-groundwork steps (no behavior change) still get their own commit; say so
-  in the body.
-- Name the plan step each commit closes (the to-do title is fine).
-- Pushing follows the [GitHub](#github) rules: a branch with an open PR gets
-  every commit pushed as it lands; otherwise don't push until the user asks —
-  unless the plan says otherwise, or the request clearly implies it
-  (e.g. "open a PR", "ship it").
+Anything posted as the user — PR replies, issue comments, review responses —
+opens with a line marking it AI-generated, e.g. `> _Posted by an AI agent on
+$USER's behalf._`. No exception for short or purely factual comments.
 
-## GitHub
+### When a failure isn't yours
 
-- Use the `gh` CLI for **all** GitHub interaction — PRs, issues, checks,
-  releases, review comments — not raw API calls or the web UI.
-- Open PRs in **ready-for-review** mode, not draft.
-- **Keep open PRs current.** When the current branch has an open PR, push each
-  local commit as it lands so the PR never goes stale. A branch without a PR
-  still waits for the user before pushing (see [Working on
-  plans](#working-on-plans)).
-
-## Working on PR feedback
-
-Don't act on PR review comments (bot or human) that the user hasn't asked you
-to address — summarize what's there and ask which to take on. Reading the
-comments and surrounding code to write that summary is expected; the gate is on
-editing and pushing, not on understanding. Once the user points you at feedback
-(names comments, says "address these", etc.), that's your go-ahead — do the
-work end to end without re-asking per comment.
-
-- **When a commit resolves an issue a comment called out, reply to that
-  comment** saying so — name the commit and what changed — using the AI-agent
-  prefix from [Posting on the user's behalf](#posting-on-the-users-behalf).
-- **Deferred feedback gets filed, never dropped.** If a comment is deliberately
-  not addressed, record it somewhere durable (the module's `TODOs.md` or the
-  review-tracking file) and reply linking where it's tracked.
-
-## Keeping the PR description current
-
-A PR's title and description are the durable record of what it does — keep them
-matching the branch, not just the first commit.
-
-- **When the PR changes beyond a small bug fix, update the description in the
-  same turn you push.** New behavior, a new/changed public API or data model, a
-  migration, a scope change, a follow-up feature, or review fixes that alter the
-  approach all warrant refreshing the body (and the title if the scope shifted).
-  A trivial fix — a typo, a one-line bug fix, a test tweak that doesn't change
-  what the PR is — doesn't.
-- **Reflect the end state, not a changelog of the conversation.** Describe what
-  the PR now does; note notable decisions/trade-offs and testing. Don't leave a
-  stale body that only describes the initial commit.
-- **Preserve human edits.** If someone edited the title/description in the
-  GitHub UI, fold your update into theirs rather than overwriting — only correct
-  what's now inaccurate.
-- Use the PR tooling when it works; otherwise `gh pr edit <n> --body-file`.
-
-## Debugging build/test/CI failures
-
-**Check `git status` and recent history first — before analyzing the error.** A
-baffling build/test failure (a module that won't resolve, a symbol that
-vanished, a type that stopped conforming) is often a *logical conflict with a
-recent `main` change*, not your own edits or a broken toolchain.
-
-- Run `git status -sb` and `git log --oneline -15`: confirm which branch you're
-  on and whether a **merge of `main` you didn't make** is already in the history
-  (a teammate, tooling, or a rebase may have landed one). `git merge-base
-  --is-ancestor <main-sha> HEAD` answers "is that commit already in my branch?".
-- Skim recent `main` commits (`git log origin/main`) for **structural changes**
-  — a renamed/moved/deleted module or target, relocated test scaffolding, a
-  changed shared helper — then check whether the failing file still references
-  the old shape. That's usually the fix.
-- **CI merges `main` into the branch before it runs**, so green-locally /
-  red-on-CI almost always means `main` moved. Reproduce by merging (or rebasing)
-  the latest `main` into the branch locally, then rebuild — don't debug CI
-  against a stale base.
-- Only after ruling the above out should you reach for heavier remedies
-  (clearing DerivedData / module caches, regenerating the project). Wiping
-  caches to chase a logical conflict just adds cold-build noise.
-
-## Waiting on CI
-
-Do **not** block the main conversation polling for CI to finish (GitHub
-Actions checks, PR mergeability, etc.). After pushing, report what's
-running and hand the turn back. If CI genuinely needs to be watched to
-completion before continuing, delegate it to a background subagent so
-the main conversation stays responsive.
-
-This rule is specific to remote CI. Local commands — `tuist test`,
-`swift build`, `./swiftformat --lint`, etc. — should still be awaited
-inline in the main conversation.
-
-## Posting on the user's behalf
-
-Anything an agent posts under the user's identity (GitHub PR replies,
-issue comments, review responses, Slack messages, etc.) must be
-prefixed so the reader knows it was AI-generated, not the user
-speaking. Use a short tag like `> _Posted by an AI agent on $USER's
-behalf._` as the first line, then the actual content. Do not omit the
-prefix even when the comment is short or factual.
+**CI merges `main` into the branch before it runs**, so green-locally /
+red-on-CI usually means `main` moved rather than that you broke something. Merge
+the latest `main` in locally and rebuild before digging further — a renamed
+module, a relocated test helper, or a changed shared signature shows up
+immediately, and no amount of clearing DerivedData will surface it.
 
 ## Selecting a simulator — address it by UDID, not name
 
