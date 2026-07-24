@@ -25,6 +25,7 @@ let package = Package(
         .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
         .library(name: "PortholeCore", targets: ["PortholeCore"]),
         .library(name: "PortholeKit", targets: ["PortholeKit"]),
+        .library(name: "PortholeKitUI", targets: ["PortholeKitUI"]),
         .library(name: "PortholeClientKit", targets: ["PortholeClientKit"]),
         .library(name: "PortholeMCP", targets: ["PortholeMCP"]),
         .library(name: "PortholeCLICore", targets: ["PortholeCLICore"]),
@@ -163,6 +164,15 @@ let package = Package(
                 .target(name: "PortholeCore"),
             ],
             path: "Shared/Porthole/PortholeKit/Sources",
+        ),
+        .target(
+            name: "PortholeKitUI",
+            dependencies: [
+                .target(name: "PortholeKit"),
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
+            ],
+            path: "Shared/Porthole/PortholeKitUI/Sources",
         ),
         .target(
             name: "PortholeClientKit",
