@@ -21,12 +21,12 @@ struct DataSettingsView: View {
                 resetSection
             }
         }
-        .navigationTitle(Strings.settingsDataHeader)
+        .navigationTitle(String(localized: .settingsDataHeader))
         .navigationBarTitleDisplayMode(.inline)
     }
 
     private var eraseTitle: String {
-        Strings.settingsDataErase(year: report.selectedYear)
+        WhereFormat.settingsDataErase(year: report.selectedYear)
     }
 
     private var dataSection: some View {
@@ -45,14 +45,14 @@ struct DataSettingsView: View {
                 Button(eraseTitle, role: .destructive) {
                     Task { await report.clearSelectedYear() }
                 }
-                Button(Strings.settingsDataCancel, role: .cancel) {}
+                Button(String(localized: .settingsDataCancel), role: .cancel) {}
             } message: {
-                Text(Strings.settingsDataConfirmMessage(year: report.selectedYear))
+                Text(WhereFormat.settingsDataConfirmMessage(year: report.selectedYear))
             }
         } header: {
-            Text(Strings.settingsDataHeader)
+            Text(String(localized: .settingsDataHeader))
         } footer: {
-            Text(Strings.settingsDataFooter(year: report.selectedYear))
+            Text(WhereFormat.settingsDataFooter(year: report.selectedYear))
         }
     }
 
@@ -65,23 +65,23 @@ struct DataSettingsView: View {
             Button(role: .destructive) {
                 showResetConfirmation = true
             } label: {
-                Label(Strings.settingsResetErase, systemImage: "arrow.counterclockwise")
+                Label(String(localized: .settingsResetErase), systemImage: "arrow.counterclockwise")
             }
             .settingsRow(Item.resetApp)
             .confirmationDialog(
-                Strings.settingsResetErase,
+                String(localized: .settingsResetErase),
                 isPresented: $showResetConfirmation,
                 titleVisibility: .visible,
             ) {
-                Button(Strings.settingsResetConfirm, role: .destructive) {
+                Button(String(localized: .settingsResetConfirm), role: .destructive) {
                     requestReset()
                 }
-                Button(Strings.settingsDataCancel, role: .cancel) {}
+                Button(String(localized: .settingsDataCancel), role: .cancel) {}
             } message: {
-                Text(Strings.settingsResetMessage)
+                Text(String(localized: .settingsResetMessage))
             }
         } footer: {
-            Text(Strings.settingsResetFooter)
+            Text(String(localized: .settingsResetFooter))
         }
     }
 
@@ -101,15 +101,15 @@ extension DataSettingsView: SettingsSection {
 
         var title: String {
             switch self {
-                case .eraseYear: Strings.settingsEraseYearTitle
-                case .resetApp: Strings.settingsResetErase
+                case .eraseYear: String(localized: .settingsEraseYearTitle)
+                case .resetApp: String(localized: .settingsResetErase)
             }
         }
 
         var keywords: [String] {
             switch self {
-                case .eraseYear: splitKeywords(Strings.settingsKeywordsEraseYear)
-                case .resetApp: splitKeywords(Strings.settingsKeywordsReset)
+                case .eraseYear: splitKeywords(String(localized: .settingsKeywordsEraseYear))
+                case .resetApp: splitKeywords(String(localized: .settingsKeywordsReset))
             }
         }
     }

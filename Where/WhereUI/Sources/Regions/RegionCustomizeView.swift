@@ -22,13 +22,13 @@ struct RegionAppearanceEditor: View {
             VStack(spacing: stylesheet.spacing.xLarge) {
                 preview
 
-                section(Strings.regionCustomizeColor) {
+                section(String(localized: .regionCustomizeColor)) {
                     colorGrid
                 }
-                section(Strings.regionCustomizeEmoji) {
+                section(String(localized: .regionCustomizeEmoji)) {
                     emojiGrid
                 }
-                section(Strings.regionCustomizeSymbol) {
+                section(String(localized: .regionCustomizeSymbol)) {
                     symbolGrid
                 }
             }
@@ -39,7 +39,7 @@ struct RegionAppearanceEditor: View {
     private var preview: some View {
         RegionSummaryCard(
             regionDays: RegionDays(region: region, days: 128),
-            caption: Strings.regionCustomizeSubtitle(region: region.localizedName),
+            caption: WhereFormat.regionCustomizeSubtitle(region: region.localizedName),
             styleOverride: RegionStyle(appearance),
         )
         .animation(stylesheet.motion.captionFade, value: appearance)
@@ -91,7 +91,7 @@ struct RegionAppearanceEditor: View {
                         }
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(Strings.regionColorAccessibility(token))
+                .accessibilityLabel(WhereFormat.regionColorAccessibility(token))
                 .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
             }
         }
@@ -182,26 +182,32 @@ struct RegionCustomizeView: View {
             } else {
                 // No selection to customize — nothing to step through.
                 ContentUnavailableView(
-                    Strings.regionPickerTitle,
+                    String(localized: .regionPickerTitle),
                     systemImage: "map",
-                    description: Text(Strings.regionPickerSubtitle),
+                    description: Text(String(localized: .regionPickerSubtitle)),
                 )
             }
         }
         .animation(stylesheet.motion.captionFade, value: index)
-        .navigationTitle(currentRegion?.localizedName ?? Strings.regionCustomizeTitle)
+        .navigationTitle(currentRegion?.localizedName ?? String(localized: .regionCustomizeTitle))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
-                Button(Strings.onboardingBack, action: goBack)
+                Button(String(localized: .onboardingBack), action: goBack)
             }
             ToolbarItem(placement: .principal) {
-                Text(Strings.regionCustomizeStep(current: effectiveIndex + 1, total: regions.count))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.secondary)
+                Text(WhereFormat.regionCustomizeStep(
+                    current: effectiveIndex + 1,
+                    total: regions.count,
+                ))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
             }
             ToolbarItem(placement: .confirmationAction) {
-                Button(isLast ? Strings.commonDone : Strings.onboardingNext, action: goNext)
+                Button(
+                    isLast ? String(localized: .commonDone) : String(localized: .onboardingNext),
+                    action: goNext,
+                )
             }
         }
     }

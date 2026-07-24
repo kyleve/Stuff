@@ -15,9 +15,12 @@ struct PresenceTimelineList: View {
     var body: some View {
         if stints.isEmpty {
             ContentUnavailableView {
-                Label(Strings.timelineEmptyTitle, systemImage: "calendar.day.timeline.left")
+                Label(
+                    String(localized: .timelineEmptyTitle),
+                    systemImage: "calendar.day.timeline.left",
+                )
             } description: {
-                Text(Strings.timelineEmptyDescription)
+                Text(String(localized: .timelineEmptyDescription))
             }
         } else {
             List(stints) { stint in
@@ -66,7 +69,7 @@ private struct StintRow: View {
 
             Spacer(minLength: timeline.trailingMinSpacing)
 
-            Text(Strings.dayCount(stint.dayCount))
+            Text(WhereFormat.dayCount(stint.dayCount))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
                 .monospacedDigit()
@@ -74,7 +77,7 @@ private struct StintRow: View {
         .padding(.vertical, timeline.rowVerticalPadding)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            Strings.timelineRowAccessibility(
+            WhereFormat.timelineRowAccessibility(
                 region: stint.region.localizedName,
                 range: dateRange,
                 days: stint.dayCount,

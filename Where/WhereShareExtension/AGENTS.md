@@ -16,7 +16,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   (typed `ShareExtensionLog` events); as a separate process its
   `Periscope.shared` is OSLog-only (no store).
 - Presentation reuses WhereUI's public `EvidenceKind.symbolName`/`displayName`;
-  only extension chrome lives in this target's `ShareStrings` + catalog.
+  only extension chrome lives in this target's catalog, referenced through its
+  generated `LocalizedStringResource` symbols.
 - No test bundle; the write path is covered from **WhereCore** store tests and
   the **WhereUI** compose model.
 

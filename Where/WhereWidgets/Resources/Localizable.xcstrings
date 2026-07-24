@@ -1,54 +1,54 @@
 {
-  "sourceLanguage" : "en",
-  "strings" : {
-    "widget.gallery.today.description" : {
-      "comment" : "Widget gallery description for the Today widget.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Which region today counts for."
+  "sourceLanguage": "en",
+  "strings": {
+    "widget.gallery.today.description": {
+      "comment": "Widget gallery description for the Today widget.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Which region today counts for."
           }
         }
       }
     },
-    "widget.gallery.today.name" : {
-      "comment" : "Widget gallery name for the Today widget.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Today"
+    "widget.gallery.today.name": {
+      "comment": "Widget gallery name for the Today widget.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today"
           }
         }
       }
     },
-    "widget.gallery.yearTotals.description" : {
-      "comment" : "Widget gallery description for the year totals widget.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Days spent in each region this year."
+    "widget.gallery.yearTotals.description": {
+      "comment": "Widget gallery description for the year totals widget.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Days spent in each region this year."
           }
         }
       }
     },
-    "widget.gallery.yearTotals.name" : {
-      "comment" : "Widget gallery name for the year totals widget.",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Day Counts"
+    "widget.gallery.yearTotals.name": {
+      "comment": "Widget gallery name for the year totals widget.",
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Day Counts"
           }
         }
       }
     }
   },
-  "version" : "1.1"
+  "version": "1.1"
 }

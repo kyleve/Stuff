@@ -114,27 +114,35 @@ refactor: raise it before building.
 
 ## Localization
 
-All user-facing copy resolves through module string catalogs — no literals in
-views or thrown errors.
+All user-facing copy resolves through each module's `Localizable.xcstrings` via
+Xcode's **generated `LocalizedStringResource` symbols** (`STRING_CATALOG_GENERATE_SYMBOLS`,
+set project-wide in `Project.swift`; SwiftPM package targets get it from the
+toolchain). A manual catalog key `some.key` generates a `.someKey` symbol, so a
+typo'd or removed key is a **compile error**, not a runtime fallback — never
+write a raw `String(localized: "literal.key")` or a hand-maintained key facade.
 
-- **WhereUI:** funnel every string through `Strings.swift` (keys in the module
-  `Localizable.xcstrings`, `bundle: .module`). Counts use catalog plural
-  variations; years use a grouping-free number style ("2026", not "2,026").
-- **WhereCore:** user-visible errors use static
-  `String(localized:bundle: .module)` keys in its own catalog.
+- **WhereUI:** reference the generated symbol directly — `Text(.tabYear)`,
+  `String(localized: .commonOk)`. Strings that need composition, pluralization,
+  a `switch`, or non-catalog number/coordinate formatting go through
+  [`WhereFormat`](WhereUI/Sources/Shared/WhereFormat.swift), which composes the
+  symbols (years use a grouping-free number style — "2026", not "2,026"; counts
+  use catalog plural variations).
+- **WhereCore:** user-visible errors use `String(localized: .symbol)` from its
+  own catalog.
 - **RegionKit:** region names (`Region.localizedName`) come from the
   `regions.json` manifest, with an optional `localizationKey` overriding from
   RegionKit's own `Localizable.xcstrings` (`bundle: .module`) — so, unlike the
-  other modules, region names lose static string-catalog extraction (a
-  deliberate trade-off for a data-driven catalog).
-- **Extensions** (WhereWidgets, WhereShareExtension) keep their chrome in
-  their own catalogs and reuse WhereUI's public presentation helpers for
-  shared copy.
+  other modules, region names are resolved **dynamically** and lose static
+  string-catalog symbols (a deliberate trade-off for a data-driven catalog).
+- **Extensions** (WhereWidgets, WhereShareExtension) reference their own
+  generated symbols for chrome and reuse WhereUI's public presentation helpers
+  for shared copy.
 - **DEBUG-only UI** still gets catalog entries — don't bypass localization
   because a surface is dev-only.
 
-Add the key to the catalog first, then reference it — never ship English
-literals in SwiftUI `Text` or `errorDescription`.
+Add the key to the catalog as a **manual** entry first (so its symbol
+generates), then reference `.thatSymbol` — never ship English literals in
+SwiftUI `Text` or `errorDescription`, and never reintroduce a raw-key facade.
 
 ## Dates & presentation
 

@@ -21,8 +21,8 @@ struct YearTotalsWidget: Widget {
                     regionStyles: RegionStyleResolver(appearances: entry.snapshot.appearances),
                 )
         }
-        .configurationDisplayName(WidgetStrings.yearTotalsGalleryName)
-        .description(WidgetStrings.yearTotalsGalleryDescription)
+        .configurationDisplayName(String(localized: .widgetGalleryYearTotalsName))
+        .description(String(localized: .widgetGalleryYearTotalsDescription))
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
     }
 }

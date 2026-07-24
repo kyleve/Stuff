@@ -19,7 +19,7 @@ struct ElsewhereView: View {
 
     var body: some View {
         screen
-            .navigationTitle(Strings.secondaryTitle)
+            .navigationTitle(String(localized: .secondaryTitle))
             .task(id: report.report) { await loadPlaceNames() }
             // Log View Mode: reveal an inspect badge for the year-report events
             // backing Elsewhere (representative-coordinate loads). A no-op in
@@ -48,11 +48,14 @@ struct ElsewhereView: View {
     private var screen: some View {
         switch report.loadState {
             case .loading where report.report == nil:
-                ProgressView(Strings.secondaryLoading)
+                ProgressView(String(localized: .secondaryLoading))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .failed(error):
                 ContentUnavailableView {
-                    Label(Strings.loadErrorTitle, systemImage: "exclamationmark.icloud")
+                    Label(
+                        String(localized: .commonLoadErrorTitle),
+                        systemImage: "exclamationmark.icloud",
+                    )
                 } description: {
                     Text(error.message)
                 }
@@ -68,7 +71,7 @@ struct ElsewhereView: View {
     private var content: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: stylesheet.spacing.xLarge) {
-                Text(Strings.secondaryHeader(year: report.selectedYear))
+                Text(WhereFormat.secondaryHeader(year: report.selectedYear))
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -99,15 +102,15 @@ struct ElsewhereView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(Strings.secondaryEmptyTitle, systemImage: "globe.americas")
+            Label(String(localized: .secondaryEmptyTitle), systemImage: "globe.americas")
         } description: {
-            Text(Strings.secondaryEmptyDescription)
+            Text(String(localized: .secondaryEmptyDescription))
         }
     }
 
     /// Light whimsy for the briefest stays.
     private func caption(for item: RegionDays) -> String? {
-        item.days <= 3 ? Strings.secondaryCaptionPassingThrough : nil
+        item.days <= 3 ? String(localized: .secondaryCaptionPassingThrough) : nil
     }
 }
 

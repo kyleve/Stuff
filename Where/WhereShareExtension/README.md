@@ -31,7 +31,8 @@ Host app Share sheet
 - **`ShareEvidenceView`** is the compose form; kind names/symbols reuse
   WhereUI's public `EvidenceKind` presentation helpers so they read identically
   to the in-app "Add evidence" sheet. Extension-only chrome resolves through
-  `ShareStrings` from this target's own catalog.
+  this target's own catalog via its generated symbols
+  (`String(localized: .shareTitle)`).
 
 ## Why write to the store directly
 

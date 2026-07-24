@@ -25,7 +25,7 @@
                 .glassEffect(.regular.interactive(), in: Circle())
                 .contentShape(Circle())
                 .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
-                .accessibilityLabel(Strings.developerButtonLabel)
+                .accessibilityLabel(String(localized: .developerButtonLabel))
                 .accessibilityAddTraits(.isButton)
         }
     }

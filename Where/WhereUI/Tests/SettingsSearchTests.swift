@@ -28,7 +28,7 @@ struct SettingsSearchTests {
     }
 
     @Test func matchesOnTitle() {
-        let results = SettingsCatalog.results(matching: Strings.settingsBackupExport)
+        let results = SettingsCatalog.results(matching: String(localized: .settingsBackupExport))
         #expect(results.contains { $0.destination == .backup })
     }
 

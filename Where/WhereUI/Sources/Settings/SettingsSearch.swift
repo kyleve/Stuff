@@ -19,15 +19,15 @@ enum SettingsDestination: Hashable, CaseIterable {
     /// group label under a search result.
     var rowTitle: String {
         switch self {
-            case .attachments: Strings.settingsAttachmentsRow
-            case .loggedDays: Strings.settingsLoggedDaysRow
-            case .location: Strings.settingsLocationHeader
-            case .regions: Strings.settingsRegionsSection
-            case .alerts: Strings.settingsAlertsGroup
-            case .appearance: Strings.settingsAppearanceGroup
-            case .year: Strings.settingsYearHeader
-            case .backup: Strings.settingsBackupHeader
-            case .data: Strings.settingsDataHeader
+            case .attachments: String(localized: .settingsAttachmentsRow)
+            case .loggedDays: String(localized: .settingsLoggedDaysRow)
+            case .location: String(localized: .settingsLocationHeader)
+            case .regions: String(localized: .settingsRegionsSection)
+            case .alerts: String(localized: .settingsAlertsGroup)
+            case .appearance: String(localized: .settingsAppearanceGroup)
+            case .year: String(localized: .settingsYearHeader)
+            case .backup: String(localized: .settingsBackupHeader)
+            case .data: String(localized: .settingsDataHeader)
         }
     }
 

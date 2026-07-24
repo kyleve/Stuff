@@ -50,14 +50,14 @@ struct LoggedDaysView: View {
         @Bindable var deleteError = deleteError
 
         content
-            .navigationTitle(Strings.loggedDaysTitle(year: report.selectedYear))
+            .navigationTitle(WhereFormat.loggedDaysTitle(year: report.selectedYear))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingAdd = true
                     } label: {
-                        Label(Strings.loggedDaysAdd, systemImage: "plus")
+                        Label(String(localized: .loggedDaysAdd), systemImage: "plus")
                     }
                     .accessibilityIdentifier("where_add_logged_day_button")
                 }
@@ -85,10 +85,10 @@ struct LoggedDaysView: View {
                 }
             }
             .alert(
-                Strings.loggedDaysDeleteErrorTitle,
+                String(localized: .loggedDaysDeleteErrorTitle),
                 isPresented: $deleteError.isPresented,
             ) {
-                Button(Strings.commonOK, role: .cancel) {}
+                Button(String(localized: .commonOk), role: .cancel) {}
             } message: {
                 if let message = deleteError.message {
                     Text(message)
@@ -103,14 +103,17 @@ struct LoggedDaysView: View {
     private var content: some View {
         switch model.loadState {
             case .idle, .loading:
-                AppIconLoadingView(caption: Strings.primaryLoading)
+                AppIconLoadingView(caption: String(localized: .primaryLoading))
             case let .loaded(days):
                 loaded(days)
             case .empty:
                 emptyState
             case let .failed(message):
                 ContentUnavailableView {
-                    Label(Strings.loggedDaysFailedTitle, systemImage: "exclamationmark.icloud")
+                    Label(
+                        String(localized: .loggedDaysFailedTitle),
+                        systemImage: "exclamationmark.icloud",
+                    )
                 } description: {
                     Text(message)
                 }
@@ -123,7 +126,7 @@ struct LoggedDaysView: View {
     private func loaded(_ days: [DayPresence]) -> some View {
         let matches = days.filter(filter.matches)
         return VStack(spacing: 0) {
-            Picker(Strings.loggedDaysFilterLabel, selection: $filter) {
+            Picker(String(localized: .loggedDaysFilterLabel), selection: $filter) {
                 ForEach(LoggedDaysFilter.allCases) { option in
                     Text(option.title).tag(option)
                 }
@@ -145,11 +148,11 @@ struct LoggedDaysView: View {
     private var noMatchesState: some View {
         ContentUnavailableView {
             Label(
-                Strings.loggedDaysNoMatchesTitle,
+                String(localized: .loggedDaysNoMatchesTitle),
                 systemImage: "line.3.horizontal.decrease.circle",
             )
         } description: {
-            Text(Strings.loggedDaysNoMatchesDescription)
+            Text(String(localized: .loggedDaysNoMatchesDescription))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -174,11 +177,11 @@ struct LoggedDaysView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(Strings.loggedDaysEmptyTitle, systemImage: "calendar.badge.plus")
+            Label(String(localized: .loggedDaysEmptyTitle), systemImage: "calendar.badge.plus")
         } description: {
-            Text(Strings.loggedDaysEmptyDescription)
+            Text(String(localized: .loggedDaysEmptyDescription))
         } actions: {
-            Button(Strings.loggedDaysAdd) { showingAdd = true }
+            Button(String(localized: .loggedDaysAdd)) { showingAdd = true }
         }
     }
 
@@ -209,13 +212,13 @@ extension LoggedDaysView: SettingsSection {
 
         var title: String {
             switch self {
-                case .loggedDays: Strings.settingsLoggedDaysRow
+                case .loggedDays: String(localized: .settingsLoggedDaysRow)
             }
         }
 
         var keywords: [String] {
             switch self {
-                case .loggedDays: splitKeywords(Strings.settingsKeywordsLoggedDays)
+                case .loggedDays: splitKeywords(String(localized: .settingsKeywordsLoggedDays))
             }
         }
     }
@@ -268,7 +271,9 @@ private struct LoggedDayRow: View {
     }
 
     private var kindText: String {
-        day.isAuthoritative ? Strings.loggedDaysKindOverridden : Strings.loggedDaysKindLogged
+        day
+            .isAuthoritative ? String(localized: .loggedDaysKindOverridden) :
+            String(localized: .loggedDaysKindLogged)
     }
 
     /// Region names joined in canonical order so the caption is stable.

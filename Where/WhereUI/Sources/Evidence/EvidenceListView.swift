@@ -38,14 +38,14 @@ struct EvidenceListView: View {
 
     var body: some View {
         content
-            .navigationTitle(Strings.evidenceListTitle(year: report.selectedYear))
+            .navigationTitle(WhereFormat.evidenceListTitle(year: report.selectedYear))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showingAdd = true
                     } label: {
-                        Label(Strings.evidenceAdd, systemImage: "plus")
+                        Label(String(localized: .evidenceAdd), systemImage: "plus")
                     }
                     .accessibilityIdentifier("where_add_evidence_button")
                 }
@@ -73,14 +73,17 @@ struct EvidenceListView: View {
     private var content: some View {
         switch model.loadState {
             case .idle, .loading:
-                AppIconLoadingView(caption: Strings.primaryLoading)
+                AppIconLoadingView(caption: String(localized: .primaryLoading))
             case let .loaded(items):
                 list(items)
             case .empty:
                 emptyState
             case let .failed(message):
                 ContentUnavailableView {
-                    Label(Strings.evidenceFailedTitle, systemImage: "exclamationmark.icloud")
+                    Label(
+                        String(localized: .evidenceFailedTitle),
+                        systemImage: "exclamationmark.icloud",
+                    )
                 } description: {
                     Text(message)
                 }
@@ -102,11 +105,11 @@ struct EvidenceListView: View {
 
     private var emptyState: some View {
         ContentUnavailableView {
-            Label(Strings.evidenceEmptyTitle, systemImage: "paperclip")
+            Label(String(localized: .evidenceEmptyTitle), systemImage: "paperclip")
         } description: {
-            Text(Strings.evidenceEmptyDescription)
+            Text(String(localized: .evidenceEmptyDescription))
         } actions: {
-            Button(Strings.evidenceAdd) { showingAdd = true }
+            Button(String(localized: .evidenceAdd)) { showingAdd = true }
         }
     }
 }
@@ -121,13 +124,13 @@ extension EvidenceListView: SettingsSection {
 
         var title: String {
             switch self {
-                case .attachments: Strings.settingsAttachmentsRow
+                case .attachments: String(localized: .settingsAttachmentsRow)
             }
         }
 
         var keywords: [String] {
             switch self {
-                case .attachments: splitKeywords(Strings.settingsKeywordsAttachments)
+                case .attachments: splitKeywords(String(localized: .settingsKeywordsAttachments))
             }
         }
     }
@@ -162,7 +165,7 @@ private struct EvidenceRow: View {
         .padding(.vertical, stylesheet.spacing.xxSmall)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            Strings.evidenceRowAccessibility(kind: evidence.kind, date: evidence.capturedAt),
+            WhereFormat.evidenceRowAccessibility(kind: evidence.kind, date: evidence.capturedAt),
         )
         // Log View Mode: reveal an inspect badge that opens this archive's
         // evidence-scope events. A no-op in release.
