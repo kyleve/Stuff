@@ -48,15 +48,11 @@ and selected, installs `mise` (via its official installer, no Homebrew) and
 the pinned tools, then falls through to the normal generate flow. Plain
 `./ide` fails fast when `mise` is missing, pointing at `--bootstrap`.
 
-Root dev scripts: `ide`, `swiftformat` (runs SwiftFormat via mise),
-`sync-agents` (keeps Claude Code–oriented files in sync with `AGENTS.md`),
-`profile` (prints build/test hot spots — slowest build phases, slowest
-tests, and slow type-check sites; see `./profile --help`), `icons`
-(adds/removes selectable app icons; see `./icons --help`), `flaky`
-(detects flaky tests by re-running the suite and tight-looping any test that
-ever fails, then writes the counts to `FLAKY_TESTS.md`; report-only, see
-`./flaky --help`), and `simulator` (resolves the target simulator by UDID,
-boots it, and prints the UDID; see [Selecting a
+The executables in the repo root are the dev scripts — `ide`, `swiftformat`,
+`sync-agents`, `profile`, `icons`, `flaky`, `simulator` — and each takes
+`--help`. Reach for one rather than hand-rolling its job: `icons` and
+`simulator` in particular own state that is easy to corrupt by hand (see
+[Managing app icons](#managing-app-icons) and [Selecting a
 simulator](#selecting-a-simulator--address-it-by-udid-not-name)).
 
 ### Managing app icons
@@ -120,35 +116,18 @@ that fails if a duplicate copy answers.
 
 ## Deployment
 
-| Platform                     | Minimum OS  |
-|------------------------------|-------------|
-| iPhone, iPad, Mac Catalyst   | iOS 26.0    |
-
-Install the Where app to a connected iPhone from the CLI (no Xcode UI) with
-`./Where/install` — it builds + code-signs Release and installs/launches via
-`xcodebuild` + `xcrun devicectl`. macOS-only; needs a signing team configured
-via `./ide --team-id`. See [`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device).
+Platforms and minimum OS live in [`Project.swift`](Project.swift). To get the
+app onto a connected iPhone without the Xcode UI, use
+[`./Where/install`](Where/install) — macOS-only, and it needs a signing team
+configured once via `./ide --team-id` (see
+[`Where/AGENTS.md`](Where/AGENTS.md#installing-to-a-device)).
 
 ## Directory layout
 
-Every module — shared ones under `Shared/`, feature ones under a top-level
-folder per feature (e.g. `Where/`) — follows this skeleton, and a new module
-must too:
-
-```
-Shared/<TargetName>/
-  README.md   – human-facing overview & usage (see Per-module docs)
-  AGENTS.md   – agent-facing module shape (see Per-module docs)
-  Sources/    – production code
-  Tests/      – unit tests (Swift Testing, not XCTest)
-
-<Feature>/<TargetName>/
-  README.md
-  AGENTS.md
-  Sources/
-  Tests/
-  Resources/  – asset catalogs, etc. (apps only)
-```
+Shared modules live under `Shared/`, feature modules under a top-level folder
+per feature (`Where/`). **Every module is a folder containing `Sources/`,
+`Tests/`, `README.md`, and `AGENTS.md`** — a new one matches that, including the
+two docs. Apps additionally carry `Resources/`.
 
 ## Per-module docs
 
