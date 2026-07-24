@@ -37,10 +37,10 @@ system, formatting, and global conventions. Read that first.
   connects it honestly stays `.undetermined`, never claiming a cause it didn't
   observe.
 - **Promotion resolves a not-yet-foreground launch and is idempotent.**
-  `enterForeground()` no-ops unless the reason is already `.userForeground`
-  (so `.background` and `.undetermined` both promote); consumers must only call
-  it once the scene is genuinely `.active` (see `RootView` in WhereUI for the
-  `scenePhase` gating pattern).
+  `enterForeground()` no-ops once the reason *is* `.userForeground`, so a
+  repeat call costs nothing while `.background` and `.undetermined` both
+  promote; consumers must only call it once the scene is genuinely `.active`
+  (see `RootView` in WhereUI for the `scenePhase` gating pattern).
 - **Each step runs at most once per launch attempt.** A completed step is
   recorded in `completedStepIDs`, and a re-drive (`enterForeground()` promotion)
   skips it — so a work step that already serviced the windowless drive isn't
