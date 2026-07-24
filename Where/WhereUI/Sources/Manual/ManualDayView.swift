@@ -49,7 +49,7 @@ struct ManualDayView: View {
     init(report: YearReportModel, mode: Mode, showsCancelButton: Bool = false) {
         self.report = report
         self.showsCancelButton = showsCancelButton
-        _fields = State(initialValue: Fields(mode: mode))
+        _fields = State(initialValue: Fields(mode: mode, calendar: report.calendar))
     }
 
     var body: some View {
@@ -426,9 +426,10 @@ extension ManualDayView {
         case add(AddFields)
         case edit(EditFields)
 
-        init(mode: Mode) {
+        init(mode: Mode, calendar: Calendar) {
             switch mode {
-                case let .add(prefill): self = .add(AddFields(prefill: prefill))
+                case let .add(prefill):
+                    self = .add(AddFields(prefill: prefill, calendar: calendar))
                 case let .edit(day): self = .edit(EditFields(day: day))
             }
         }
@@ -443,12 +444,14 @@ extension ManualDayView {
         var endDate: Date
         var regions: RegionSelectionState
         var note: String
+        private let calendar: Calendar
 
-        init(prefill: MissingDayRange?) {
+        init(prefill: MissingDayRange?, calendar: Calendar) {
+            self.calendar = calendar
             if let prefill {
                 dateSpan = prefill.dayCount > 1 ? .range : .singleDay
-                startDate = prefill.start.startOfDay(in: .current)
-                endDate = prefill.end.startOfDay(in: .current)
+                startDate = prefill.start.startOfDay(in: calendar)
+                endDate = prefill.end.startOfDay(in: calendar)
             } else {
                 dateSpan = .singleDay
                 startDate = Date()
@@ -461,7 +464,6 @@ extension ManualDayView {
         /// Inclusive day count of the current range (or 1 for a single day),
         /// for the footer.
         var dayCount: Int {
-            let calendar = Calendar.current
             let start = calendar.startOfDay(for: startDate)
             let end = calendar.startOfDay(for: endDate)
             let span = calendar.dateComponents([.day], from: start, to: end).day ?? 0

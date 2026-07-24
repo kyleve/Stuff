@@ -30,7 +30,7 @@ struct RegionSummaryCard: View {
 
     /// The calendar year being summarized, inked onto the entry stamp. Callers
     /// pass `WhereSession.selectedYear`; the default is only for previews.
-    var year = Calendar.current.component(.year, from: Date())
+    var year = WhereModel.currentYear
 
     /// Drives the holographic stamp sheen. The Primary tab passes its live
     /// `TiltProvider`; Elsewhere (and previews) pass `nil`, leaving a gentle

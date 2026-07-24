@@ -11,22 +11,18 @@ struct LocationsView: View {
     let report: YearReportModel
 
     @State private var showingResolution = false
-    @State private var calendarFocus: CalendarFocus?
 
     /// Drives the region cards' tilt-reactive holographic sheen. Started/stopped
     /// with the view's lifecycle; a no-op on hardware without device motion.
     @State private var tilt = TiltProvider()
 
-    @Environment(\.stylesheet) private var stylesheet
+    /// Pairs a tapped card with its pushed calendar so the navigation uses a
+    /// matched-geometry zoom (the card expands into the calendar) rather than a
+    /// plain slide.
+    @Namespace private var calendarTransition
 
-    /// Identifies which region's calendar to present as a sheet. `Region` isn't
-    /// `Identifiable`, and `.sheet(item:)` needs identity.
-    private struct CalendarFocus: Identifiable {
-        let region: Region
-        var id: Region {
-            region
-        }
-    }
+    @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     var body: some View {
         NavigationStack {
@@ -50,9 +46,6 @@ struct LocationsView: View {
         }
         .onAppear { tilt.start() }
         .onDisappear { tilt.stop() }
-        .sheet(item: $calendarFocus) { focus in
-            CalendarView(focusedRegion: focus.region, report: report)
-        }
         .sheet(isPresented: $showingResolution) {
             ResolutionView(report: report)
         }
@@ -92,12 +85,15 @@ struct LocationsView: View {
     }
 
     private var content: some View {
+        // `.defaultScrollAnchor(.center)` vertically centers a short list (one or
+        // two cards) rather than pinning it to the top, while a longer list still
+        // scrolls from the top.
         ScrollView {
             GlassEffectContainer(spacing: stylesheet.spacing.xxLarge) {
                 VStack(spacing: stylesheet.spacing.xxLarge) {
                     ForEach(report.ranking.primary) { item in
-                        Button {
-                            calendarFocus = CalendarFocus(region: item.region)
+                        NavigationLink {
+                            calendarDestination(item.region)
                         } label: {
                             RegionSummaryCard(
                                 regionDays: item,
@@ -107,9 +103,38 @@ struct LocationsView: View {
                                 tilt: tilt,
                             )
                         }
-                        // Plain so the card's interactive Liquid Glass owns the
-                        // press feel rather than the button adding its own.
+                        // Plain so the card's interactive Liquid Glass owns
+                        // the press feel rather than the button adding its own.
                         .buttonStyle(.plain)
+                        // The card is the zoom source: tapping it expands the
+                        // card into the pushed calendar (matched geometry). The
+                        // configuration re-states the card's rounded shape and
+                        // its glow/lift shadows so the transition interpolates
+                        // them — without it, the zoom clips the source to a bare
+                        // rectangle and the card's soft shadow pops on/off.
+                        .matchedTransitionSource(
+                            id: item.region,
+                            in: calendarTransition,
+                        ) { source in
+                            let card = stylesheet.card.regular
+                            let tint = regionStyles.style(for: item.region).tint
+                            return source
+                                .clipShape(
+                                    RoundedRectangle(
+                                        cornerRadius: card.cornerRadius,
+                                        style: .continuous,
+                                    ),
+                                )
+                                .shadow(
+                                    color: tint.opacity(card.glow.opacity),
+                                    radius: card.glow.radius,
+                                )
+                                .shadow(
+                                    color: tint.opacity(card.lift.opacity),
+                                    radius: card.lift.radius,
+                                    y: card.lift.offsetY,
+                                )
+                        }
                         .accessibilityHint(String(localized: .primaryCardCalendarHint))
                     }
 
@@ -126,8 +151,23 @@ struct LocationsView: View {
                 }
             }
             .padding()
+            .frame(maxWidth: .infinity)
         }
+        .defaultScrollAnchor(.center)
+        .scrollBounceBehavior(.basedOnSize)
         .accessibilityIdentifier("where_root_title")
+    }
+
+    /// The region's calendar, pushed as a nested view. It's the zoom
+    /// destination: the tapped card expands into it via matched geometry, and the
+    /// stack's back gesture collapses it again.
+    private func calendarDestination(_ region: Region) -> some View {
+        CalendarContentView(focusedRegion: region, report: report)
+            .navigationTitle(
+                WhereFormat.calendarRegionTitle(region: region, year: report.selectedYear),
+            )
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationTransition(.zoom(sourceID: region, in: calendarTransition))
     }
 
     private var emptyState: some View {

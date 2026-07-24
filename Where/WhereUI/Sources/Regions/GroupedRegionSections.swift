@@ -49,3 +49,21 @@ struct GroupedRegionSections<Row: View>: View {
         .task { showMore = grouping.hasNoGroupsBeforeOther }
     }
 }
+
+#if DEBUG
+    #Preview {
+        Form {
+            GroupedRegionSections(
+                grouping: RegionGrouping(
+                    available: [.california, .newYork, .canada, .europeanUnion, .other],
+                    primary: [.california, .newYork],
+                    usedThisYear: [.canada],
+                ),
+                yoursFooter: nil,
+            ) { region in
+                Text(region.localizedName)
+            }
+        }
+        .whereBroadwayRoot()
+    }
+#endif

@@ -105,18 +105,30 @@ public struct LifecycleContainer<Content: View, Splash: View, Failure: View>: Vi
     private let runner: LifecycleRunner
     private let transition: AnyTransition
     private let animation: Animation?
+    private let minimumSplashDuration: Duration
     private let splash: () -> Splash
     private let failureView: (LifecycleFailure, @escaping () -> Void) -> Failure
     private let content: () -> Content
+
+    /// When the splash surface first became visible this launch, and whether
+    /// `minimumSplashDuration` has since elapsed. Together they gate holding the
+    /// `.ready` reveal until the splash has shown for its minimum.
+    @State private var splashAppearedAt: ContinuousClock.Instant?
+    @State private var minimumSplashElapsed = false
 
     /// - Parameters:
     ///   - transition: how each surface enters/leaves. Defaults to a crossfade.
     ///   - animation: the animation driving `transition`. Pass `nil` to swap
     ///     surfaces instantly (no animation).
+    ///   - minimumSplashDuration: the least time the splash stays up before the
+    ///     `.ready` reveal, so a very fast launch still shows the splash (and
+    ///     its reveal) rather than flashing past. `.zero` (the default) reveals
+    ///     as soon as the runner is ready.
     public init(
         _ runner: LifecycleRunner,
         transition: AnyTransition = .opacity,
         animation: Animation? = .default,
+        minimumSplashDuration: Duration = .zero,
         @ViewBuilder splash: @escaping () -> Splash,
         @ViewBuilder failure: @escaping (LifecycleFailure, @escaping () -> Void) -> Failure,
         @ViewBuilder content: @escaping () -> Content,
@@ -124,6 +136,7 @@ public struct LifecycleContainer<Content: View, Splash: View, Failure: View>: Vi
         self.runner = runner
         self.transition = transition
         self.animation = animation
+        self.minimumSplashDuration = minimumSplashDuration
         self.splash = splash
         failureView = failure
         self.content = content
@@ -138,7 +151,68 @@ public struct LifecycleContainer<Content: View, Splash: View, Failure: View>: Vi
             }
         }
         .environment(\.lifecycleRunner, LifecycleRunnerProxy(runner))
-        .animation(animation, value: runner.phase.surfaceIdentity)
+        .animation(animation, value: displayedSurfaceIdentity)
+        // Record when the splash first shows so the reveal can be held for at
+        // least `minimumSplashDuration`. Resets each time the splash reappears
+        // (a reset relaunch, or the return from onboarding) so every episode
+        // gets its own minimum.
+        .onChange(of: isShowingSplash, initial: true) { _, showing in
+            guard showing else { return }
+            splashAppearedAt = ContinuousClock.now
+            minimumSplashElapsed = false
+        }
+        // Once the runner is ready, hold the splash for the remainder of its
+        // minimum (if any), then release the reveal.
+        .task(id: isReadyPhase) {
+            guard isReadyPhase,
+                  minimumSplashDuration > .zero,
+                  !minimumSplashElapsed,
+                  let appearedAt = splashAppearedAt
+            else { return }
+            let remaining = minimumSplashDuration - appearedAt.duration(to: ContinuousClock.now)
+            if remaining > .zero {
+                try? await Task.sleep(for: remaining)
+                guard !Task.isCancelled else { return }
+            }
+            // Drive the reveal in an explicit transaction: `.animation(_:value:)`
+            // doesn't reliably animate this async, `.task`-driven flip, so the
+            // splash would be removed without its reveal transition.
+            withAnimation(animation) { minimumSplashElapsed = true }
+        }
+    }
+
+    /// Whether the splash is actually on screen right now: a launch that builds a
+    /// view tree, parked on `.launching` or a `.running` step not showing its own
+    /// presentation.
+    private var isShowingSplash: Bool {
+        guard !runner.reason.buildsNoViewTree else { return false }
+        switch runner.phase {
+            case .launching: return true
+            case let .running(_, bridge): return bridge.presentation == nil
+            case .failed, .ready: return false
+        }
+    }
+
+    private var isReadyPhase: Bool {
+        if case .ready = runner.phase { return true }
+        return false
+    }
+
+    /// Whether the app content may be revealed: no minimum was requested, no
+    /// splash was ever shown, or the minimum has now elapsed.
+    private var canRevealReady: Bool {
+        minimumSplashDuration <= .zero || splashAppearedAt == nil || minimumSplashElapsed
+    }
+
+    /// The surface actually on screen, for `.animation(_:value:)`. While the
+    /// `.ready` reveal is held behind `minimumSplashDuration` this stays
+    /// `.splash`, so the reveal transition fires when the hold releases — not the
+    /// instant the runner reports `.ready`.
+    private var displayedSurfaceIdentity: LifecyclePhase.SurfaceIdentity {
+        if isReadyPhase, !canRevealReady {
+            return .splash
+        }
+        return runner.phase.surfaceIdentity
     }
 
     /// Launch surfaces (splash / step presentation / failure) sit above the
@@ -159,7 +233,7 @@ public struct LifecycleContainer<Content: View, Splash: View, Failure: View>: Vi
     @ViewBuilder private var phaseContent: some View {
         switch runner.phase {
             case .launching:
-                splash().transition(transition).zIndex(Self.launchSurfaceZIndex)
+                splashSurface
             case let .running(_, bridge):
                 // Show the step's active presentation if it has one, otherwise
                 // fall back to the splash. Reading `bridge.presentation` makes
@@ -168,15 +242,25 @@ public struct LifecycleContainer<Content: View, Splash: View, Failure: View>: Vi
                 if let presentation = bridge.presentation {
                     presentation.transition(transition).zIndex(Self.launchSurfaceZIndex)
                 } else {
-                    splash().transition(transition).zIndex(Self.launchSurfaceZIndex)
+                    splashSurface
                 }
             case let .failed(failure):
                 failureView(failure) { runner.retry() }
                     .transition(transition)
                     .zIndex(Self.launchSurfaceZIndex)
             case .ready:
-                content().transition(transition).zIndex(Self.contentZIndex)
+                // Keep the splash up until its minimum has elapsed (see
+                // `minimumSplashDuration`), then reveal the app content.
+                if canRevealReady {
+                    content().transition(transition).zIndex(Self.contentZIndex)
+                } else {
+                    splashSurface
+                }
         }
+    }
+
+    private var splashSurface: some View {
+        splash().transition(transition).zIndex(Self.launchSurfaceZIndex)
     }
 }
 

@@ -101,3 +101,18 @@ struct SettingsFocusScope<Content: View>: View {
         withAnimation(animation) { highlighted = nil }
     }
 }
+
+#if DEBUG
+    #Preview {
+        SettingsFocusScope(focus: SettingsFocus(LocationSettingsView.Item.tracking)) {
+            List {
+                Label(
+                    String(localized: .settingsLocationToggle),
+                    systemImage: "location.fill",
+                )
+                .settingsRow(LocationSettingsView.Item.tracking)
+            }
+        }
+        .whereBroadwayRoot()
+    }
+#endif
