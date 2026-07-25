@@ -1,6 +1,9 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
+    "App content" : {
+
+    },
     "failure.launch.retry" : {
       "extractionState" : "manual",
       "localizations" : {
