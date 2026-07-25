@@ -51,6 +51,7 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - Move `let calendar = Calendar.current` into a var on the controller? There’s a few of these
 - Move test only code behind @_spi
 - Add comments to strings in xcstrings files
+- fix: Four literals in source get auto-extracted into the catalogs as value-less entries, which is why an IDE build had anything to write back at all (see the serialization normalization PR). They're committed as Xcode writes them; removing an entry for good means removing the literal. `Marker("", coordinate:)` in `RecordedPointsMap` produces the empty `""` key (an unlabeled dev-map pin — `Annotation` with an explicit accessibility label would say what it means); `Text("\(group.outlineCount)")` in `RegionMapView` and `Text("\(day.dayOfMonth)")` in `CalendarContentView` produce `%lld` and bypass `WhereFormat`'s number styling; and a `Button("Log today here")` in an `IntentSnippets` `#Preview` hardcodes copy the `snippet.logTodayHere` symbol already owns. `App content` comes from a `LifecycleContainer` `#Preview` in LifecycleKit.
 
 # Completed issues
 
