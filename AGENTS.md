@@ -47,8 +47,8 @@ Xcode project](#generating-the-xcode-project)). A fresh machine needs `./ide
 generating; plain `./ide` fails fast pointing at it.
 
 The executables in the repo root are the dev scripts — `ide`, `swiftformat`,
-`sync-agents`, `profile`, `icons`, `flaky`, `simulator` — and each takes
-`--help`. Reach for one rather than hand-rolling its job: `icons` and
+`sync-agents`, `profile`, `icons`, `flaky`, `simulator`, `xcstrings` — and each
+takes `--help`. Reach for one rather than hand-rolling its job: `icons` and
 `simulator` in particular own state that is easy to corrupt by hand (see
 [Managing app icons](#managing-app-icons) and [Selecting a
 simulator](#selecting-a-simulator--address-it-by-udid-not-name)).
@@ -66,6 +66,14 @@ Run `./ide --no-open` after adding one.
   format the tree, or `./swiftformat --lint` to check only (as in CI).
 - The pre-commit hook (enabled by `./ide` via `core.hooksPath`) formats staged
   `*.swift` files in place and re-stages them.
+- **String Catalogs are stored exactly as Xcode serializes them**, and
+  `./xcstrings` (`--lint` in CI) enforces it. Xcode rewrites a `.xcstrings` in
+  place during an *IDE* build whenever extraction finds a key the catalog
+  lacks — writing the entire file with its own serializer — so a catalog
+  written by anything else (a migration script's `json.dump`, a hand edit)
+  parses fine but turns the next build into thousands of lines of whitespace
+  churn around the one real entry. Write a catalog through Xcode, or normalize
+  it afterwards; the script only touches formatting, never content.
 
 ## Agent instructions sync
 

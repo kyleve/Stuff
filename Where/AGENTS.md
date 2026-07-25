@@ -142,6 +142,16 @@ Add the key to the catalog as a **manual** entry first (so its symbol
 generates), then reference `.thatSymbol` — never ship English literals in
 SwiftUI `Text` or `errorDescription`, and never reintroduce a raw-key facade.
 
+The catalogs also carry a few **auto-extracted** entries with no
+`extractionState` and no value — `""`, `%lld`, an English literal from a
+`#Preview`. Those are Xcode's, not ours: extraction picks up every string
+literal that could be a key (`Marker("", …)`, `Text("\(count)")`), and an IDE
+build re-adds any that's missing, so deleting one by hand just brings it back
+with a full reserialization behind it. Remove the *source* literal if you want
+the entry gone — interpolating an `Int` into `Text` is worth fixing anyway (it
+skips `WhereFormat`'s number styling). Catalog files stay byte-identical to
+Xcode's own serialization; see [Formatting](../AGENTS.md#formatting).
+
 ## Dates & presentation
 
 - **A logical day is a `CalendarDay` (Y-M-D), not a `Date`.** It is the
