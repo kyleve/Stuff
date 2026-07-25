@@ -190,8 +190,11 @@ for url in targets {
 }
 
 if offenders.isEmpty {
-    print("\(targets.count) catalog\(targets.count == 1 ? "" : "s") already match Xcode's serialization.")
+    let subject = targets.count == 1 ? "catalog already matches" : "catalogs already match"
+    print("\(targets.count) \(subject) Xcode's serialization.")
 } else if lintOnly {
-    FileHandle.standardError.write(Data("\(offenders.count) catalog(s) not normalized — run ./xcstrings\n".utf8))
+    let subject = offenders.count == 1 ? "catalog isn't" : "catalogs aren't"
+    fflush(stdout) // Keep the summary below the files it counts.
+    FileHandle.standardError.write(Data("\(offenders.count) \(subject) normalized — run ./xcstrings\n".utf8))
     exit(1)
 }
