@@ -1,6 +1,24 @@
 {
-  "originHash" : "290f4f4f567766c3af06cda2e9b5ef722f18cb0b6a0ccb699a3fdb0cbbf6d528",
+  "originHash" : "b2be7cf63ebbd239c5e4c21fcdbce60d67400fbc6fea658a26a69954a39b6acf",
   "pins" : [
+    {
+      "identity" : "bumperbowling",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RoyalPineapple/BumperBowling.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "8a0725ff6aa86727745c1547abfbc2930b3f08dc"
+      }
+    },
+    {
+      "identity" : "swift-syntax",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/swiftlang/swift-syntax.git",
+      "state" : {
+        "revision" : "79e4b74a295b6eb74a8b585e3a39d29e70c1dbd1",
+        "version" : "603.0.2"
+      }
+    },
     {
       "identity" : "zipfoundation",
       "kind" : "remoteSourceControl",

@@ -28,6 +28,8 @@ Roughly, this file covers:
 | SwiftFormat | `.mise.toml` |
 | Ruby        | `.mise.toml` |
 | Swift PM    | `Package.swift` (`swift-tools-version`) |
+| Bumper Bowling | `Package.swift` / `Package.resolved` |
+
 
 Read the exact pinned versions out of those files rather than trusting a copy
 in prose — a version transcribed into a doc goes stale silently.
@@ -74,6 +76,20 @@ Run `./ide --no-open` after adding one.
   parses fine but turns the next build into thousands of lines of whitespace
   churn around the one real entry. Write a catalog through Xcode, or normalize
   it afterwards; the script only touches formatting, never content.
+
+## Architecture lint
+
+Bumper Bowling enforces the production Where module graph and selected
+source-level invariants. The entry point is
+[`BumperBowling.swift`](BumperBowling.swift), repository-owned shapes and rules
+live in [`.bumper/Sources`](.bumper/Sources), and
+[`.bumper/RULES.md`](.bumper/RULES.md) is the rule catalog.
+
+Run `swift run bumper config .`, `swift run bumper test .`, and
+`swift run bumper lint . --timings` after changing a Where dependency,
+composition root, or documented concurrency boundary. Keep the relevant
+`AGENTS.md`, the executable rule, its catalog entry, and its mutation test in
+the same change.
 
 ## Agent instructions sync
 

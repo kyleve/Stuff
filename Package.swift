@@ -24,6 +24,10 @@ let package = Package(
         .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
     ],
     dependencies: [
+        .package(
+            url: "https://github.com/RoyalPineapple/BumperBowling.git",
+            branch: "main",
+        ),
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
     ],
     targets: [
