@@ -23,8 +23,11 @@ public struct YearTotalsRectangularAccessoryView: View {
 
     public var body: some View {
         if ranked.isEmpty {
-            Label(Strings.widgetYearEmpty, systemImage: "calendar.badge.exclamationmark")
-                .font(.caption)
+            Label(
+                String(localized: .widgetYearEmpty),
+                systemImage: "calendar.badge.exclamationmark",
+            )
+            .font(.caption)
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(ranked) { entry in
@@ -43,7 +46,7 @@ public struct YearTotalsRectangularAccessoryView: View {
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel(
-                        Strings.regionDaysAccessibility(
+                        WhereFormat.regionDaysAccessibility(
                             region: entry.region.localizedName,
                             days: entry.days,
                         ),

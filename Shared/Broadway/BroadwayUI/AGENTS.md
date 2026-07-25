@@ -27,7 +27,6 @@ Complements the root [`AGENTS.md`](../../../AGENTS.md) and the group
   mirrors it into the UIKit trait system so it also reaches nested UIKit views.
   With none set, it falls back to the UIKit trait-bridged value (so a
   `BRootViewController`-set context still reaches SwiftUI).
-- Public API is `public`.
 
 Tests: `BroadwayUITests` in `StuffTestHost`, linking `TestHostSupport`
 (`tuist test BroadwayUITests`).

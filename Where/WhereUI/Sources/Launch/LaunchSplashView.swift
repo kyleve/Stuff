@@ -69,7 +69,8 @@ struct LaunchSplashView: View {
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            showCaption ? Strings.launchCaptionTitle : Strings.launchAccessibilityLabel,
+            showCaption ? String(localized: .launchCaptionTitle) :
+                String(localized: .launchAccessibilityLabel),
         )
         .task {
             try? await Task.sleep(for: stylesheet.launch.captionDelay)
@@ -87,9 +88,9 @@ struct LaunchSplashView: View {
     /// light since the backdrop is always dark.
     private var caption: some View {
         VStack(spacing: stylesheet.spacing.small) {
-            Text(Strings.launchCaptionTitle)
+            Text(String(localized: .launchCaptionTitle))
                 .font(.headline)
-            Text(Strings.launchCaptionSubtitle)
+            Text(String(localized: .launchCaptionSubtitle))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }

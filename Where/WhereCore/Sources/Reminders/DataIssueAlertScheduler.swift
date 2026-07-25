@@ -145,7 +145,7 @@ public final class UserNotificationDataIssueAlertScheduler: DataIssueAlertSchedu
         components.minute = time.minute
 
         let content = UNMutableNotificationContent()
-        content.title = String(localized: "dataIssues.notification.title", bundle: .module)
+        content.title = String(localized: .dataIssuesNotificationTitle)
         content.body = body
         content.sound = .default
 

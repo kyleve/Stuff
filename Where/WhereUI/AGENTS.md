@@ -15,11 +15,10 @@ extended.
 - Presentation layer only — no domain rules, persistence, or store I/O here
   (see [Layering](../AGENTS.md#layering)). Dependencies live in the root
   [`Package.swift`](../../Package.swift).
-- Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI (a
-  dynamic framework) and must **not** link `BroadwayUI`/`BroadwayCore`
-  themselves — a second copy would split Broadway's type-keyed environment
-  metadata and the stylesheet would stop resolving across the boundary. This
-  is why `whereBroadwayRoot()` lives here rather than being called as
+- Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI and
+  must **not** link `BroadwayUI`/`BroadwayCore` themselves (see the root
+  [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-a-dynamic-framework-already-carries)).
+  That's why `whereBroadwayRoot()` lives here rather than being called as
   `broadwayRoot` at each site.
 
 ## Design system — `WhereStylesheet`
@@ -48,9 +47,11 @@ not back inline in a view.
 ### Adding tokens — prefer per-component style groups
 
 Group a component's whole appearance into one nested `Equatable` struct instead
-of adding loose properties to the top level. The existing groups —
-`CardStyle` / `CardStyles`, `CalendarStyle`, `AppIconStyle`, `TimelineStyle`,
-`RegionMapStyle`, `RegionPickerStyle` — are the template. To add one:
+of adding loose properties to the top level. The stored properties declared at
+the top of `WhereStylesheet` are the live list of groups — read them there
+rather than trusting a copy here. Two are worth copying as templates:
+`CardStyles` (a variant axis behind a `subscript`) and `CalendarStyle` (nested
+sub-parts). To add one:
 
 1. Define the struct in a `WhereStylesheet` extension with a doc comment saying
    which component it styles and any invariants; nest further structs for

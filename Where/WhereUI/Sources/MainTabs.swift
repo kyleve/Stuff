@@ -40,17 +40,25 @@ struct MainTabs: View {
 
     var body: some View {
         TabView(selection: $selection) {
-            Tab(Strings.tabLocations, systemImage: "location.fill", value: TabID.locations) {
+            Tab(
+                String(localized: .tabLocations),
+                systemImage: "location.fill",
+                value: TabID.locations,
+            ) {
                 LocationsView(report: report)
                     .reportingDeveloperTabBarInset()
             }
 
-            Tab(Strings.tabYear, systemImage: "calendar", value: TabID.year) {
+            Tab(String(localized: .tabYear), systemImage: "calendar", value: TabID.year) {
                 YearView(report: report)
                     .reportingDeveloperTabBarInset()
             }
 
-            Tab(Strings.tabSettings, systemImage: "gearshape.fill", value: TabID.settings) {
+            Tab(
+                String(localized: .tabSettings),
+                systemImage: "gearshape.fill",
+                value: TabID.settings,
+            ) {
                 SettingsView(report: report)
                     .reportingDeveloperTabBarInset()
             }

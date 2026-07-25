@@ -17,16 +17,16 @@ struct AppearanceSettingsView: View {
                     Button {
                         showAppIcon = true
                     } label: {
-                        Label(Strings.settingsAppIconLink, systemImage: "app.badge")
+                        Label(String(localized: .settingsAppIconLink), systemImage: "app.badge")
                     }
                     .tint(.primary)
                     .settingsRow(Item.appIcon)
                 } footer: {
-                    Text(Strings.settingsAppIconFooter)
+                    Text(String(localized: .settingsAppIconFooter))
                 }
             }
         }
-        .navigationTitle(Strings.settingsAppearanceGroup)
+        .navigationTitle(String(localized: .settingsAppearanceGroup))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showAppIcon) {
             AppIconView()
@@ -44,13 +44,13 @@ extension AppearanceSettingsView: SettingsSection {
 
         var title: String {
             switch self {
-                case .appIcon: Strings.settingsAppIconLink
+                case .appIcon: String(localized: .settingsAppIconLink)
             }
         }
 
         var keywords: [String] {
             switch self {
-                case .appIcon: splitKeywords(Strings.settingsKeywordsAppIcon)
+                case .appIcon: splitKeywords(String(localized: .settingsKeywordsAppIcon))
             }
         }
     }

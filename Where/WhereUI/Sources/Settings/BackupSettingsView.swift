@@ -30,7 +30,7 @@ struct BackupSettingsView: View {
                 backupSection
             }
         }
-        .navigationTitle(Strings.settingsBackupHeader)
+        .navigationTitle(String(localized: .settingsBackupHeader))
         .navigationBarTitleDisplayMode(.inline)
         .fileImporter(
             isPresented: $showImporter,
@@ -38,27 +38,28 @@ struct BackupSettingsView: View {
             onCompletion: handleImportSelection,
         )
         .confirmationDialog(
-            Strings.settingsBackupImportStrategyTitle,
+            String(localized: .settingsBackupImportStrategyTitle),
             isPresented: $showStrategyDialog,
             titleVisibility: .visible,
             presenting: pendingImportURL,
         ) { url in
-            Button(Strings.settingsBackupMerge) { runImport(url: url, strategy: .merge) }
-            Button(Strings.settingsBackupReplace, role: .destructive) {
+            Button(String(localized: .settingsBackupMerge)) { runImport(url: url, strategy: .merge)
+            }
+            Button(String(localized: .settingsBackupReplace), role: .destructive) {
                 runImport(url: url, strategy: .replace)
             }
-            Button(Strings.settingsDataCancel, role: .cancel) { pendingImportURL = nil }
+            Button(String(localized: .settingsDataCancel), role: .cancel) { pendingImportURL = nil }
         } message: { _ in
-            Text(Strings.settingsBackupImportStrategyMessage)
+            Text(String(localized: .settingsBackupImportStrategyMessage))
         }
         .alert(
-            Strings.settingsBackupImportedTitle,
+            String(localized: .settingsBackupImportedTitle),
             isPresented: $backup.isShowingImportSuccess,
             presenting: backup.lastImportSummary,
         ) { _ in
-            Button(Strings.commonOK, role: .cancel) {}
+            Button(String(localized: .commonOk), role: .cancel) {}
         } message: { summary in
-            Text(Strings.settingsBackupImportedMessage(
+            Text(WhereFormat.settingsBackupImportedMessage(
                 samples: summary.sampleCount,
                 evidence: summary.evidenceCount,
                 manualDays: summary.manualDayCount,
@@ -67,11 +68,11 @@ struct BackupSettingsView: View {
             ))
         }
         .alert(
-            Strings.settingsBackupErrorTitle,
+            String(localized: .settingsBackupErrorTitle),
             isPresented: $backup.isShowingBackupError,
             presenting: backup.backupError,
         ) { _ in
-            Button(Strings.commonOK, role: .cancel) {}
+            Button(String(localized: .commonOk), role: .cancel) {}
         } message: { message in
             Text(message)
         }
@@ -88,11 +89,14 @@ struct BackupSettingsView: View {
             } label: {
                 if backup.backupState == .exporting {
                     backupProgressLabel(
-                        Strings.settingsBackupExporting,
+                        String(localized: .settingsBackupExporting),
                         systemImage: "square.and.arrow.up",
                     )
                 } else {
-                    Label(Strings.settingsBackupExport, systemImage: "square.and.arrow.up")
+                    Label(
+                        String(localized: .settingsBackupExport),
+                        systemImage: "square.and.arrow.up",
+                    )
                 }
             }
             .disabled(backup.backupState != .idle)
@@ -101,9 +105,12 @@ struct BackupSettingsView: View {
             if backup.backupState == .idle, let url = exportedArchiveURL {
                 ShareLink(
                     item: BackupArchiveFile(url: url),
-                    preview: SharePreview(Strings.settingsBackupShareTitle),
+                    preview: SharePreview(String(localized: .settingsBackupShareTitle)),
                 ) {
-                    Label(Strings.settingsBackupShare, systemImage: "square.and.arrow.up.on.square")
+                    Label(
+                        String(localized: .settingsBackupShare),
+                        systemImage: "square.and.arrow.up.on.square",
+                    )
                 }
             }
 
@@ -112,19 +119,22 @@ struct BackupSettingsView: View {
             } label: {
                 if backup.backupState == .importing {
                     backupProgressLabel(
-                        Strings.settingsBackupImporting,
+                        String(localized: .settingsBackupImporting),
                         systemImage: "square.and.arrow.down",
                     )
                 } else {
-                    Label(Strings.settingsBackupImport, systemImage: "square.and.arrow.down")
+                    Label(
+                        String(localized: .settingsBackupImport),
+                        systemImage: "square.and.arrow.down",
+                    )
                 }
             }
             .disabled(backup.backupState != .idle)
             .settingsRow(Item.importBackup)
         } header: {
-            Text(Strings.settingsBackupHeader)
+            Text(String(localized: .settingsBackupHeader))
         } footer: {
-            Text(Strings.settingsBackupFooter)
+            Text(String(localized: .settingsBackupFooter))
         }
         // A finished export lingers in the temp directory; stop offering it (and
         // reclaim the file) after a while so a stale link can't be shared. The
@@ -202,15 +212,15 @@ extension BackupSettingsView: SettingsSection {
 
         var title: String {
             switch self {
-                case .exportBackup: Strings.settingsBackupExport
-                case .importBackup: Strings.settingsBackupImport
+                case .exportBackup: String(localized: .settingsBackupExport)
+                case .importBackup: String(localized: .settingsBackupImport)
             }
         }
 
         var keywords: [String] {
             switch self {
-                case .exportBackup: splitKeywords(Strings.settingsKeywordsExport)
-                case .importBackup: splitKeywords(Strings.settingsKeywordsImport)
+                case .exportBackup: splitKeywords(String(localized: .settingsKeywordsExport))
+                case .importBackup: splitKeywords(String(localized: .settingsKeywordsImport))
             }
         }
     }

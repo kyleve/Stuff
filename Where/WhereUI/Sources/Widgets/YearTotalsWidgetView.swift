@@ -26,7 +26,7 @@ public struct YearTotalsWidgetView: View {
 
     public var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
-            Text(Strings.widgetYearTitle(year: snapshot.year))
+            Text(WhereFormat.widgetYearTitle(year: snapshot.year))
                 .font(.caption2.weight(.semibold))
                 .textCase(.uppercase)
                 .tracking(1)
@@ -64,7 +64,7 @@ public struct YearTotalsWidgetView: View {
                 }
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel(
-                    Strings.regionDaysAccessibility(
+                    WhereFormat.regionDaysAccessibility(
                         region: entry.region.localizedName,
                         days: entry.days,
                     ),
@@ -79,7 +79,7 @@ public struct YearTotalsWidgetView: View {
                 .font(.title3)
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
-            Text(Strings.widgetYearEmpty)
+            Text(String(localized: .widgetYearEmpty))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
         }

@@ -28,6 +28,7 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 
 ## P1s (Should do)
 - fix: `WhereServices.setPrimaryRegions(_:)` commits atomically but skips `DayJournal.reconcileAfterDayChange()` — widgets/reminders/summary don't refresh until foreground/configure. Route picker commits through the unified fan-out (or document intentional deferral).
+- fix: The Elsewhere entry card renders raw inflection markup instead of an agreed region count — it shows literally `^[3 region](inflect: true)`. `locations.elsewhere.subtitle` is authored for automatic grammar agreement (`^[%lld region](inflect: true)`), but the string-catalog compiler passes that markup through **verbatim** into the compiled `Localizable.strings` (unlike a real plural such as `primary.elsewhereOnly.description`, which compiles to an `NSStringLocalizedFormatKey` dict), and flattening the resource to a `String` never runs the inflection engine. Pre-existing — the catalog entry is byte-identical on `main` and predates the String Catalog symbol migration. Fix by either rendering the resource directly so SwiftUI applies inflection (`Text(.locationsElsewhereSubtitle(regionCount))` in `ElsewhereSummaryCard`, dropping the `WhereFormat` hop) or replacing the markup with an explicit plural variation. `WhereFormatTests.elsewhereCardSubtitleInflectsTheRegionCount` pins the expected output behind `withKnownIssue`, so it trips as soon as this is fixed.
 - `WhereModel` is also getting quite large. Break it up into one parent with children we can pass down.
 - refactor: Split `WhereSession` into an always-on coordinator + a presentation view-model whose lifetime scopes its subscriptions. **Partial progress (July 2026):** `YearReportModel` is now scene-scoped in `MainTabs` — `activate()` / `deactivate()` on `scenePhase` drive `observeDataChanges()` and refresh, closing the headless-relaunch rescan leak that previously wired the subscription through launch `syncAuth`. `ResolveModel`, `BackupModel`, and `RemindersSettingsModel` are already view-scoped. Remaining: the coordinator is still ~460 lines mixing tracking intent, authorization, reset, and region-style mirrors; finish extracting presentation collaborators and drive any leftover reactive work from scene lifetime. Pairs with the `WhereModel` break-up below.
 - Rewrite controller layer to be a state machine so invariants can’t exist
@@ -50,7 +51,7 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - Move `let calendar = Calendar.current` into a var on the controller? There’s a few of these
 - Move test only code behind @_spi
 - Add comments to strings in xcstrings files
-- Can we code-gen the strings.swift file somehow so we're not referencing the string keys manually?
+- fix: Four literals in source get auto-extracted into the catalogs as value-less entries, which is why an IDE build had anything to write back at all (see the serialization normalization PR). They're committed as Xcode writes them; removing an entry for good means removing the literal. `Marker("", coordinate:)` in `RecordedPointsMap` produces the empty `""` key (an unlabeled dev-map pin — `Annotation` with an explicit accessibility label would say what it means); `Text("\(group.outlineCount)")` in `RegionMapView` and `Text("\(day.dayOfMonth)")` in `CalendarContentView` produce `%lld` and bypass `WhereFormat`'s number styling; and a `Button("Log today here")` in an `IntentSnippets` `#Preview` hardcodes copy the `snippet.logTodayHere` symbol already owns. `App content` comes from a `LifecycleContainer` `#Preview` in LifecycleKit.
 
 # Completed issues
 
@@ -67,5 +68,6 @@ This feels like it might result in a cleaner "pipeline-esque" code layout, and a
 - Remove `caption(forRank rank: Int) -> String?`, I don’t want the caption
 
 ## P2s (Nice to have)
+- refactor: Code-gen the strings so keys aren't referenced manually — adopted Xcode's String Catalog `LocalizedStringResource` symbol generation across the app (`STRING_CATALOG_GENERATE_SYMBOLS`), deleted the hand-maintained `Strings`/`ShareStrings`/`WidgetStrings` facades in favor of generated symbols + the `WhereFormat`/`IntentStrings` composition helpers, so a typo'd or removed key is now a compile error. (RegionKit region names stay data-driven by design.)
 - refactor: Remove get/set closure-based `Binding` values from SwiftUI views — replaced with computed properties on `@Observable` models (e.g. `SaveErrorAlertState`).
 - refactor: Clean up and centralize loggers into a logging module — added the `LogKit` facade (`WhereLog.channel`) and a DEBUG-only in-app log viewer (`LogViewerUI`, Settings → Developer → Logs)

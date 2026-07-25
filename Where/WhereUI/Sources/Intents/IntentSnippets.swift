@@ -61,7 +61,7 @@ public struct DaysInRegionSnippetView: View {
     }
 
     private var caption: String {
-        let unit = Strings.dayUnit(snapshot.dayCount)
+        let unit = WhereFormat.dayUnit(snapshot.dayCount)
         let yearText = snapshot.year.formatted(.number.grouping(.never))
         return "\(unit) in \(region.localizedName) · \(yearText)"
     }
@@ -145,7 +145,7 @@ public struct RegionsSnippetView: View {
             Image(systemName: "location.slash")
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
-            Text(Strings.widgetTodayEmpty)
+            Text(String(localized: .widgetTodayEmpty))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -156,7 +156,7 @@ extension RegionsSnippetView {
     /// The "today's regions" snippet — titled with the shared widget "Today"
     /// string.
     public static func today(regions: [Region]) -> RegionsSnippetView {
-        RegionsSnippetView(title: Strings.widgetTodayTitle, regions: regions)
+        RegionsSnippetView(title: String(localized: .widgetTodayTitle), regions: regions)
     }
 
     /// The "regions on a date" snippet — titled with the wide-format date.
