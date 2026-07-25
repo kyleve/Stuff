@@ -275,23 +275,47 @@ public final class LedgerServices {
         )
     }
 
-    /// The models by usage for the current cycle, as relative shares.
-    /// Best-effort: the per-model breakdown is supplementary, so a failure (or
-    /// an unknown cycle start) logs and yields an empty list rather than
-    /// failing the whole load.
+    /// The models by usage for the current cycle, as relative shares, derived
+    /// from the (fresh) per-event endpoint. Best-effort: the per-model breakdown
+    /// is supplementary, so a failure (or an unknown cycle start) logs and
+    /// yields an empty list rather than failing the whole load.
     private func modelShares(cycleStart: Date?, token: SessionToken) async -> [ModelShare] {
         guard let cycleStart else { return [] }
         do {
-            let usage = try await provider.aggregatedUsage(
-                startDate: cycleStart,
-                endDate: now(),
-                token: token,
-            )
-            return usage.modelShares()
+            let events = try await cycleEvents(since: cycleStart, token: token)
+            return ModelShare.shares(from: events)
         } catch {
             Self.logger.warning("Couldn't load per-model usage: \(error.localizedDescription)")
             return []
         }
+    }
+
+    /// Fetches all usage events from `cycleStart` to now, paginating newest-first
+    /// until the reported total is covered (capped to bound request count).
+    private func cycleEvents(
+        since cycleStart: Date,
+        token: SessionToken,
+    ) async throws -> [UsageEvent] {
+        let pageSize = 250
+        let maxPages = 40
+        let end = now()
+        var events: [UsageEvent] = []
+        var page = 1
+        while page <= maxPages {
+            let result = try await provider.usageEvents(
+                startDate: cycleStart,
+                endDate: end,
+                page: page,
+                pageSize: pageSize,
+                token: token,
+            )
+            events.append(contentsOf: result.usageEventsDisplay)
+            if result.usageEventsDisplay.isEmpty || events.count >= result.totalUsageEventsCount {
+                break
+            }
+            page += 1
+        }
+        return events
     }
 
     // MARK: - Token

@@ -13,26 +13,26 @@
         }
 
         private let outcome: Outcome
-        private let aggregated: AggregatedUsage
-        /// When set, only `aggregatedUsage` throws it — exercises the
-        /// best-effort per-model path (summary/invoices still succeed).
-        private let aggregatedFailure: DashboardError?
+        private let events: [UsageEvent]
+        /// When set, only `usageEvents` throws it — exercises the best-effort
+        /// per-model path (the summary still succeeds).
+        private let eventsFailure: DashboardError?
 
         public init(
             _ outcome: Outcome,
-            aggregated: AggregatedUsage = AggregatedUsage(aggregations: [], totalCostCents: 0),
-            aggregatedFailure: DashboardError? = nil,
+            events: [UsageEvent] = [],
+            eventsFailure: DashboardError? = nil,
         ) {
             self.outcome = outcome
-            self.aggregated = aggregated
-            self.aggregatedFailure = aggregatedFailure
+            self.events = events
+            self.eventsFailure = eventsFailure
         }
 
         /// Convenience: a successful summary.
         public init(summary: UsageSummary) {
             outcome = .success(summary: summary)
-            aggregated = AggregatedUsage(aggregations: [], totalCostCents: 0)
-            aggregatedFailure = nil
+            events = []
+            eventsFailure = nil
         }
 
         public func usageSummary(token _: SessionToken) async throws -> UsageSummary {
@@ -42,14 +42,18 @@
             }
         }
 
-        public func aggregatedUsage(
+        public func usageEvents(
             startDate _: Date,
             endDate _: Date,
+            page: Int,
+            pageSize _: Int,
             token _: SessionToken,
-        ) async throws -> AggregatedUsage {
-            if let aggregatedFailure { throw aggregatedFailure }
+        ) async throws -> UsageEventsPage {
+            if let eventsFailure { throw eventsFailure }
             if case let .failure(error) = outcome { throw error }
-            return aggregated
+            // All events on page 1; later pages are empty (single-page fixture).
+            let display = page == 1 ? events : []
+            return UsageEventsPage(usageEventsDisplay: display, totalUsageEventsCount: events.count)
         }
     }
 
@@ -130,14 +134,10 @@
         }
     }
 
-    extension AggregatedUsage {
-        /// A per-model aggregation from `[model: costCents]` pairs.
-        public static func fixture(_ modelCents: KeyValuePairs<String, Double>) -> AggregatedUsage {
-            let models = modelCents.map { ModelUsage(modelIntent: $0.key, totalCents: $0.value) }
-            return AggregatedUsage(
-                aggregations: models,
-                totalCostCents: models.reduce(0) { $0 + $1.totalCents },
-            )
+    public enum UsageEventFixture {
+        /// Builds usage events from `[model: costCents]` pairs (one event each).
+        public static func events(_ modelCents: KeyValuePairs<String, Double>) -> [UsageEvent] {
+            modelCents.map { UsageEvent(model: $0.key, chargedCents: $0.value) }
         }
     }
 #endif

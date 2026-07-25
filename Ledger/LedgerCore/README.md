@@ -12,8 +12,8 @@ lives in the [`Ledger`](../Ledger) app target and binds this tree directly.
   (`state.vscdb` → `cursorAuth/accessToken`), or a value you **paste** into
   Settings (stored in the Keychain, which overrides auto-detect).
 - Calls `GET /api/usage-summary` for the current cycle's dates, plan type, and
-  live usage-based spend, and `POST /api/dashboard/get-aggregated-usage-events`
-  for the per-model breakdown (best-effort).
+  live usage-based spend, and `POST /api/dashboard/get-filtered-usage-events`
+  (paginated over the cycle) for the per-model breakdown (best-effort).
 - Reduces it all to one observable `LoadState` (`idle` / `loading` /
   `loaded(SpendSnapshot)` / `failed(LoadError)`).
 
@@ -42,7 +42,7 @@ auto-token", surfaced as `LoadError.missingCredentials`.
 - `DashboardProvider` + `CursorDashboardAPI` — the network seam.
 - `ModelName` — parses a raw model id (`claude-opus-4-8-thinking-xhigh`,
   `github_bugbot`, …) into a friendly `displayName` + `badges` (effort/speed/mode).
-- `UsageSummary`, `AggregatedUsage`, `SpendSnapshot` — the wire + view models
+- `UsageSummary`, `UsageEvent`/`UsageEventsPage`, `SpendSnapshot` — the wire + view models
   (cents are integers).
 - `KeychainStore` / `SystemKeychainStore` — a pasted token's storage.
 - `LedgerSettings` / `LedgerConfiguration` / `LedgerConfigStore` — the persisted
@@ -69,12 +69,14 @@ auto-token", surfaced as `LoadError.missingCredentials`.
   year" (it can even go negative). Rather than show a wrong number, Ledger omits
   it.
 
-- **Model shares** = `get-aggregated-usage-events` over the cycle window, each
-  model's **share** of that endpoint's total (all models, highest first; the UI
-  rolls sub-20% shares into one bar). This is deliberately dollar-free: its
-  `totalCostCents` measures compute differently from the billed on-demand
-  figure, so it must not be presented as spend. Best-effort — a failure logs
-  and yields an empty list rather than failing the whole load.
+- **Model shares** = per-event `chargedCents` from `get-filtered-usage-events`
+  (paginated over the cycle), summed per model, each shown as a **share** of the
+  total (all models, highest first; the UI rolls sub-20% shares into one bar).
+  Deliberately dollar-free: that summed cost is *total usage value* (included
+  allowance + on-demand), so it exceeds the billed on-demand headline and must
+  not be presented as spend. (The older `get-aggregated-usage-events` was
+  dropped — it goes stale and omits recently released models.) Best-effort — a
+  failure logs and yields an empty list rather than failing the whole load.
 
 All money is cents. Note: on a plan with usage-based pricing off, these `$`
 figures reflect included-compute value, not money owed.

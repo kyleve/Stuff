@@ -20,9 +20,10 @@
                         apiPercentUsed: 100,
                     ),
                 ),
-                aggregated: .fixture([
+                events: UsageEventFixture.events([
                     "claude-opus-4-8-thinking-xhigh": 28929,
                     "claude-fable-5-thinking-xhigh": 21082,
+                    "claude-opus-5-thinking-high": 16800,
                     "composer-2.5-fast": 8008,
                     "github_bugbot": 606,
                 ]),

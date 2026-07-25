@@ -73,7 +73,7 @@ struct LedgerServicesTests {
     @Test func loadsModelSharesSortedByShare() async {
         let provider = ScriptedDashboardProvider(
             .success(summary: .fixture(onDemandCents: 5000)),
-            aggregated: .fixture(["a": 75, "b": 25]),
+            events: UsageEventFixture.events(["a": 75, "b": 25]),
         )
         let services = makeServices(
             provider: provider,
@@ -94,7 +94,7 @@ struct LedgerServicesTests {
         // the headline.
         let provider = ScriptedDashboardProvider(
             .success(summary: .fixture(onDemandCents: 5000)),
-            aggregatedFailure: .http(500),
+            eventsFailure: .http(500),
         )
         let services = makeServices(
             provider: provider,
@@ -240,12 +240,14 @@ private final class MutableDashboardProvider: DashboardProvider, @unchecked Send
         try result.get()
     }
 
-    func aggregatedUsage(
+    func usageEvents(
         startDate _: Date,
         endDate _: Date,
+        page _: Int,
+        pageSize _: Int,
         token _: SessionToken,
-    ) async throws -> AggregatedUsage {
-        AggregatedUsage(aggregations: [], totalCostCents: 0)
+    ) async throws -> UsageEventsPage {
+        UsageEventsPage(usageEventsDisplay: [], totalUsageEventsCount: 0)
     }
 }
 
@@ -280,12 +282,14 @@ private final class GatedDashboardProvider: DashboardProvider, @unchecked Sendab
         return summary
     }
 
-    func aggregatedUsage(
+    func usageEvents(
         startDate _: Date,
         endDate _: Date,
+        page _: Int,
+        pageSize _: Int,
         token _: SessionToken,
-    ) async throws -> AggregatedUsage {
-        AggregatedUsage(aggregations: [], totalCostCents: 0)
+    ) async throws -> UsageEventsPage {
+        UsageEventsPage(usageEventsDisplay: [], totalUsageEventsCount: 0)
     }
 
     func release() {

@@ -18,9 +18,15 @@ public enum DashboardError: Error, Equatable, Sendable {
 public protocol DashboardProvider: Sendable {
     /// The current billing cycle's usage summary.
     func usageSummary(token: SessionToken) async throws -> UsageSummary
-    /// Per-model usage aggregated over `[startDate, endDate]`.
-    func aggregatedUsage(startDate: Date, endDate: Date, token: SessionToken) async throws
-        -> AggregatedUsage
+    /// One page of individual usage events in `[startDate, endDate]` (newest
+    /// first). Pages are 1-based.
+    func usageEvents(
+        startDate: Date,
+        endDate: Date,
+        page: Int,
+        pageSize: Int,
+        token: SessionToken,
+    ) async throws -> UsageEventsPage
 }
 
 /// The production ``DashboardProvider``: the same undocumented endpoints the
@@ -50,24 +56,28 @@ public struct CursorDashboardAPI: DashboardProvider {
         return try await send(request, decoding: UsageSummary.self)
     }
 
-    public func aggregatedUsage(
+    public func usageEvents(
         startDate: Date,
         endDate: Date,
+        page: Int,
+        pageSize: Int,
         token: SessionToken,
-    ) async throws -> AggregatedUsage {
-        // `teamId: -1` selects individual usage; dates are epoch milliseconds.
+    ) async throws -> UsageEventsPage {
+        // Dates are epoch milliseconds. Note: this endpoint must NOT be sent a
+        // `teamId` for an individual account — including it 401s.
         let body = try JSONSerialization.data(withJSONObject: [
-            "teamId": -1,
             "startDate": Int(startDate.timeIntervalSince1970 * 1000),
             "endDate": Int(endDate.timeIntervalSince1970 * 1000),
+            "page": page,
+            "pageSize": pageSize,
         ])
         let request = makeRequest(
-            path: "/api/dashboard/get-aggregated-usage-events",
+            path: "/api/dashboard/get-filtered-usage-events",
             method: "POST",
             token: token,
             body: body,
         )
-        return try await send(request, decoding: AggregatedUsage.self)
+        return try await send(request, decoding: UsageEventsPage.self)
     }
 
     private func makeRequest(

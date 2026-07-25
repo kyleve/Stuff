@@ -71,10 +71,10 @@ There's intentionally no year-to-date total: the monthly-invoice endpoint is a
 billing ledger with cross-month credit/adjustment lines, so summing it isn't a
 meaningful "spend this year" (see `LedgerCore`'s README).
 
-The per-model rows are shown as **relative shares**, not dollars: the dashboard's
-per-model figure (`get-aggregated-usage-events`) measures compute differently
-from the billed on-demand headline, so showing its dollars alongside the
-headline would look like they don't add up.
+The per-model rows are shown as **relative shares**, not dollars: their summed
+cost (from `get-filtered-usage-events`) is total usage value — more than the
+billed on-demand headline (by the included allowance) — so showing dollars
+alongside the headline would look like they don't add up.
 
 ## Design notes
 

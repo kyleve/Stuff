@@ -12,7 +12,7 @@ per-type detail.
 LedgerServices ── LedgerSettings (refresh interval)
        ├────────── SessionTokenSource ── CursorLocalTokenSource (state.vscdb, read-only)
        ├────────── KeychainStore (a pasted token override)
-       ├────────── DashboardProvider ── CursorDashboardAPI (usage-summary, get-aggregated-usage-events)
+       ├────────── DashboardProvider ── CursorDashboardAPI (usage-summary, get-filtered-usage-events)
        └────────── LoginItemController (SMAppService)
 ```
 
@@ -52,15 +52,17 @@ build system, formatting, and global conventions. Read that first.
 - **Today/this-week spend is differenced from local history, not the API.**
   `onDemand.used` is a cycle-cumulative running total, so `SpendHistory` diffs
   recorded `SpendSample`s (baseline scoped to the current cycle) to get
-  per-window spend — real billed dollars, unlike the aggregated compute measure.
+  per-window spend — real billed dollars, unlike the per-model usage figures.
   A window with no baseline returns `nil` (hidden), never a guessed number;
   deltas clamp at 0. History persistence (`SpendHistoryStore`) is best-effort.
-- **Per-model usage is a dollar-free share, and best-effort.**
-  `get-aggregated-usage-events`' `totalCostCents` measures compute differently
-  from the billed on-demand figure (they don't reconcile), so `ModelShare`
-  carries only a fraction — never present it as spend next to the headline. A
-  failure to fetch it logs a warning and yields no models; it must not fail the
-  whole load.
+- **Per-model usage is a dollar-free share, from the fresh per-event endpoint.**
+  `ModelShare.shares(from:)` sums `get-filtered-usage-events`' per-event
+  `chargedCents` per model (the aggregated endpoint is stale for some accounts
+  and omits recent models). That summed cost is *total usage value* (included
+  allowance + on-demand), which exceeds the billed on-demand headline, so
+  `ModelShare` carries only a fraction — never present it as spend next to the
+  headline. `LedgerServices.cycleEvents` paginates the cycle (capped,
+  newest-first, no `teamId`); best-effort — a failure logs and yields no models.
 - **Failures are observable, never swallowed.** Transport/HTTP/decode failures
   become a typed `DashboardError`, mapped into a `LoadError` and logged; 401
   maps to `.notAuthenticated` (expired session). A slow response superseded by a

@@ -17,25 +17,38 @@ struct DashboardProviderTests {
         }
     }
 
-    @Test func scriptedProviderReturnsScriptedAggregatedUsage() async throws {
+    @Test func scriptedProviderReturnsScriptedEvents() async throws {
         let provider = ScriptedDashboardProvider(
-            summary: .fixture(onDemandCents: 0),
+            .success(summary: .fixture(onDemandCents: 0)),
+            events: UsageEventFixture.events(["a": 100]),
         )
-        // The convenience init supplies empty aggregation.
-        let usage = try await provider.aggregatedUsage(startDate: .now, endDate: .now, token: token)
-        #expect(usage.aggregations.isEmpty)
+        let page = try await provider.usageEvents(
+            startDate: .now,
+            endDate: .now,
+            page: 1,
+            pageSize: 250,
+            token: token,
+        )
+        #expect(page.usageEventsDisplay.count == 1)
+        #expect(page.totalUsageEventsCount == 1)
     }
 
-    @Test func scriptedProviderCanFailOnlyAggregated() async throws {
+    @Test func scriptedProviderCanFailOnlyEvents() async throws {
         let provider = ScriptedDashboardProvider(
             .success(summary: .fixture(onDemandCents: 10)),
-            aggregatedFailure: .http(500),
+            eventsFailure: .http(500),
         )
         // Summary still succeeds…
         _ = try await provider.usageSummary(token: token)
-        // …while the per-model call fails.
+        // …while the per-model events call fails.
         await #expect(throws: DashboardError.http(500)) {
-            try await provider.aggregatedUsage(startDate: .now, endDate: .now, token: token)
+            try await provider.usageEvents(
+                startDate: .now,
+                endDate: .now,
+                page: 1,
+                pageSize: 250,
+                token: token,
+            )
         }
     }
 }

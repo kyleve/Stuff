@@ -79,31 +79,36 @@ enum DashboardFixture {
     }
     """
 
-    /// A `get-aggregated-usage-events` body — token fields are strings on the wire.
-    static let aggregatedJSON = """
+    /// A `get-filtered-usage-events` body — with fields Ledger ignores, to
+    /// prove decoding tolerates them.
+    static let usageEventsJSON = """
     {
-      "aggregations": [
+      "totalUsageEventsCount": 40,
+      "usageEventsDisplay": [
         {
-          "modelIntent": "claude-opus-4-8-thinking-xhigh",
-          "inputTokens": "1846267",
-          "outputTokens": "2088128",
-          "cacheWriteTokens": "12919376",
-          "cacheReadTokens": "316915979",
-          "totalCents": 28929.15,
-          "tier": 1
+          "timestamp": "1784939309797",
+          "model": "claude-opus-5-thinking-high",
+          "kind": "USAGE_EVENT_KIND_USAGE_BASED",
+          "requestsCosts": 53.69,
+          "usageBasedCosts": "$5.37",
+          "isTokenBasedCall": true,
+          "chargedCents": 536.9,
+          "isChargeable": true
         },
         {
-          "modelIntent": "composer-2.5-fast",
-          "inputTokens": "8294988",
-          "outputTokens": "809154",
-          "cacheReadTokens": "86124639",
-          "totalCents": 8008.45,
-          "tier": 2
+          "timestamp": "1784939000000",
+          "model": "claude-opus-4-8-thinking-high",
+          "kind": "USAGE_EVENT_KIND_USAGE_BASED",
+          "usageBasedCosts": "$5.08",
+          "chargedCents": 508.28
+        },
+        {
+          "timestamp": "1784938000000",
+          "model": "github_bugbot",
+          "usageBasedCosts": "$0.00",
+          "chargedCents": 0
         }
-      ],
-      "totalInputTokens": "10141255",
-      "totalOutputTokens": "2897282",
-      "totalCostCents": 36937.6
+      ]
     }
     """
 }
