@@ -17,8 +17,8 @@
 ///   downstream can depend on a fire-and-forget step.
 ///
 /// Types are erased *inside* the plan (one place, `LaunchPlanNode`), so the
-/// runner can memoize heterogeneous outputs and resume a retry mid-trunk; the
-/// combinators' constraints guarantee every internal cast.
+/// runner can memoize heterogeneous outputs and re-walk the trunk on a
+/// promotion; the combinators' constraints guarantee every internal cast.
 @MainActor
 public struct LaunchPlan<Input: Sendable, Output: Sendable> {
     /// The erased node list the runner walks. Order is trunk order; detached
@@ -45,8 +45,8 @@ public struct LaunchPlan<Input: Sendable, Output: Sendable> {
 
     /// Run `step` after the trunk so far, its `Input` fed by the current
     /// trunk `Output`; the trunk value becomes the step's output. Required
-    /// semantics: a throw fails the drive, and `retry()` resumes here with
-    /// the memoized upstream value.
+    /// semantics: a throw fails the drive terminally — the recovery for a
+    /// failed launch is relaunching the app, not resuming here.
     public func then<S: LifecycleStep>(_ step: S) -> LaunchPlan<Input, S.Output>
         where S.Input == Output
     {
@@ -91,9 +91,9 @@ public struct LaunchPlan<Input: Sendable, Output: Sendable> {
         return copy
     }
 
-    /// Node IDs must be unique within a plan: retry resumption, run-once
-    /// memoization, and gate-view registration all key on them, so a
-    /// duplicate would make those ambiguous. A duplicate is a programmer
+    /// Node IDs must be unique within a plan: run-once memoization and
+    /// gate-view registration both key on them, so a duplicate would make
+    /// those ambiguous. A duplicate is a programmer
     /// error — fail fast at plan construction.
     private mutating func append(_ node: LaunchPlanNode) {
         var seen = Set(nodes.flatMap(\.ids))

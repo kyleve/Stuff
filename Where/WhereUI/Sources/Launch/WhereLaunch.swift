@@ -143,8 +143,9 @@ public enum WhereLaunch {
     /// than in the app delegate) puts app-lifecycle wiring in one place.
     ///
     /// `onServicesReady` fires from the `start-session` step every time a
-    /// session is (re)started over the assembled services — first launch, a
-    /// retry after a failed launch, and the reset relaunch. The app uses it to
+    /// session is (re)started over the assembled services — first launch, the
+    /// fresh process after a failed (terminal) launch, and the in-process reset
+    /// relaunch. The app uses it to
     /// hand the service layer to consumers WhereUI can't see (deriving and
     /// installing the App Intents stack — see the app's `AppDelegate`);
     /// previews and tests omit it.

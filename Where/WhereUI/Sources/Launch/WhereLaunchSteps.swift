@@ -149,8 +149,10 @@ struct WidgetSnapshotStep: LifecycleStep {
 /// Stop GPS, wipe the store, and drop the session. Takes the session being
 /// erased as the teardown plan's root input — handed in by Settings, not
 /// re-read from an optional. If the erase throws the runner parks in
-/// `.failed` with the session and preferences intact, so a retry re-erases
-/// rather than stranding the user in onboarding atop un-erased data.
+/// `.failed` (terminally — teardown runs fire-once) with the session and
+/// preferences *intact*, so the reset is simply re-invocable from Settings
+/// after relaunching, rather than stranding the user in onboarding atop
+/// un-erased data.
 struct EraseDataStep: LifecycleStep {
     let model: WhereModel
 

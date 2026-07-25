@@ -19,8 +19,8 @@ public protocol LifecycleStep {
     /// What finishing this step proves. `Void` for side-effect-only steps.
     associatedtype Output: Sendable
 
-    /// Stable identity used for retry resumption, run-once memoization, and
-    /// tests. Typed as `AnyHashable` so steps carry a real `Hashable` token (a
+    /// Stable identity used for run-once memoization and tests. Typed as
+    /// `AnyHashable` so steps carry a real `Hashable` token (a
     /// typed enum case is preferred over a raw string); any `Hashable`
     /// converts implicitly.
     var id: AnyHashable { get }
@@ -60,8 +60,8 @@ public protocol LifecycleGate {
     /// The trunk value at this gate's position, passed through untouched.
     associatedtype Value: Sendable
 
-    /// Stable identity used for retry resumption, run-once memoization, and
-    /// tests. Same conventions as `LifecycleStep.id`.
+    /// Stable identity used for run-once memoization and tests. Same
+    /// conventions as `LifecycleStep.id`.
     var id: AnyHashable { get }
 
     /// Which launch reasons this gate applies to. Defaults to `.foreground`:
