@@ -66,14 +66,20 @@ struct LifecycleContainerTests {
         // elapses, then revealing — is a `.task`-driven async/timing behavior that
         // `show`'s synchronous closure can't drive deterministically; like the
         // splash caption's own delay it's exercised on device, not host-tested.)
+        //
+        // Asserted via the *splash*, not via `content`: content is built as soon
+        // as the runner produces its value — behind the splash while a hold is up,
+        // so that the hold warms the destination — so building it no longer
+        // distinguishes "revealed" from "held". An absent splash does.
         var content = false
+        var splashShown = false
         let runner = await makeReadyRunner()
         #expect(runner.phase.isReady)
 
         let container = LifecycleContainer(
             runner,
             minimumSplashDuration: .seconds(60),
-            splash: { _ in EmptyView() },
+            splash: { _ in ProbeView { splashShown = true } },
             failure: { _ in EmptyView() },
         ) { _ in
             ProbeView { content = true }
@@ -82,6 +88,9 @@ struct LifecycleContainerTests {
             try waitFor { content }
         }
         #expect(content)
+        // Nothing covering it: the reveal happened rather than stalling behind a
+        // 60-second hold for a splash the user never saw.
+        #expect(!splashShown)
     }
 
     @Test func launchingShowsSplash() throws {

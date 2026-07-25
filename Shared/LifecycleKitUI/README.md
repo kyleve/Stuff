@@ -81,6 +81,13 @@ While the hold is in effect the container keeps reporting the *splash* surface
 identity, so the reveal transition fires when the hold releases rather than the
 instant the runner reports `.ready`.
 
+The hold isn't dead time. `content` is built as soon as the launch produces its
+value — beneath the splash that's still covering it — so the destination's
+`.task`s and first layout happen *during* the hold instead of in the frame the
+reveal animation starts. It stays gated on the launch's output either way
+(that value is only readable from `.ready`), so nothing is built speculatively:
+the hold just stops being a stall and starts being a warm-up.
+
 ## Reaching the runner from nested views
 
 `LifecycleContainer` publishes a `LifecycleProxy` under

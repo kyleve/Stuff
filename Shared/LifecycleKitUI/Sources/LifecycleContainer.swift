@@ -62,7 +62,9 @@ public struct LifecycleContainer<
     ///   - minimumSplashDuration: the least time the splash stays up before the
     ///     `.ready` reveal, so a very fast launch still shows the splash (and
     ///     its reveal) rather than flashing past. `.zero` (the default) reveals
-    ///     as soon as the runner is ready.
+    ///     as soon as the runner is ready. The hold isn't dead time: `content`
+    ///     is already built beneath the splash, so the destination warms up
+    ///     during it rather than in the frame the reveal starts.
     ///   - splash: the waiting surface; receives the running step's context
     ///     (nil between steps) so it can show a caption/progress.
     ///   - failure: the (terminal) error surface, given the failure. There is
@@ -179,31 +181,66 @@ public struct LifecycleContainer<
         0
     }
 
-    @ViewBuilder private var phaseContent: some View {
-        switch runner.phase {
-            case .launching:
-                splashSurface(nil)
-            case let .running(context):
-                splashSurface(context)
-            case let .awaitingGate(handle):
-                gateView(for: handle).transition(transition).zIndex(Self.launchSurfaceZIndex)
-            case let .failed(failure):
-                failureView(failure)
+    /// The app content beneath whatever launch surface is up.
+    ///
+    /// Built as soon as the launch *produces* its value rather than when the
+    /// splash hold releases, so the hold warms the destination — its `.task`s,
+    /// its first layout — instead of paying for it in the same frame the reveal
+    /// animation starts. It's still gated on the launch's own output:
+    /// `readyValue` is non-nil only in `.ready`, so `content` can no more be
+    /// built without the value than before.
+    ///
+    /// One `content` call site on purpose: rendering it from two branches
+    /// (held vs. revealed) would give SwiftUI two identities and rebuild the
+    /// whole destination when the hold releases, which is exactly what
+    /// building it early is meant to avoid.
+    private var phaseContent: some View {
+        ZStack {
+            if let value = runner.phase.readyValue {
+                content(value)
                     .transition(transition)
-                    .zIndex(Self.launchSurfaceZIndex)
-            case let .ready(value):
-                // Keep the splash up until its minimum has elapsed (see
-                // `minimumSplashDuration`), then reveal the app content.
-                if canRevealReady {
-                    content(value).transition(transition).zIndex(Self.contentZIndex)
-                } else {
-                    splashSurface(nil)
-                }
+                    .zIndex(Self.contentZIndex)
+            }
+            launchSurface
         }
     }
 
-    private func splashSurface(_ context: LifecycleStepContext?) -> some View {
-        splash(context).transition(transition).zIndex(Self.launchSurfaceZIndex)
+    /// Which launch surface covers the content right now. Exhaustive over the
+    /// phase, so a new case is a compile error here — and every splash-showing
+    /// state resolves to the *same* `.splash` case, so the splash keeps one
+    /// identity (and its animation/caption timers) from `.launching` through
+    /// the steps and the hold, instead of remounting at each boundary.
+    private enum LaunchOverlay {
+        case splash(LifecycleStepContext?)
+        case gate(LifecycleGateHandle)
+        case failure(LifecycleFailure)
+        /// Nothing covers the content — the reveal has happened.
+        case revealed
+    }
+
+    private var launchOverlay: LaunchOverlay {
+        switch runner.phase {
+            case .launching: .splash(nil)
+            case let .running(context): .splash(context)
+            case let .awaitingGate(handle): .gate(handle)
+            case let .failed(failure): .failure(failure)
+            // Held behind `minimumSplashDuration`? Keep the splash on top
+            // until it elapses; otherwise nothing covers the content.
+            case .ready: canRevealReady ? .revealed : .splash(nil)
+        }
+    }
+
+    @ViewBuilder private var launchSurface: some View {
+        switch launchOverlay {
+            case let .splash(context):
+                splash(context).transition(transition).zIndex(Self.launchSurfaceZIndex)
+            case let .gate(handle):
+                gateView(for: handle).transition(transition).zIndex(Self.launchSurfaceZIndex)
+            case let .failure(failure):
+                failureView(failure).transition(transition).zIndex(Self.launchSurfaceZIndex)
+            case .revealed:
+                EmptyView()
+        }
     }
 
     /// The registered view for the parked gate. A parked gate with no
