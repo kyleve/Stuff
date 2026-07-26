@@ -95,8 +95,8 @@ Motion.
 view reaching for `@Environment(\.accessibilityReduceMotion)` to choose between
 two token sets is doing the sheet's job — vend one resolved token instead, and
 make it a *single* token when the setting changes more than one value
-(`CardStyles.DayCountStyle` pairs a content transition with the animation that
-runs it, because Reduce Motion swaps both). The `motion` group keeps the older
+(`CardStyles.DayCountStyle` pairs the count's morph with the animation that runs
+it, because Reduce Motion swaps both). The `motion` group keeps the older
 shape — full-motion values a view picks between (`motion.reducedReveal` over
 `motion.reveal`, skipping `motion.captionFade`) — because the launch reveal's
 fallback also swaps an `AnyTransition`, which isn't `Equatable` and so can't be a

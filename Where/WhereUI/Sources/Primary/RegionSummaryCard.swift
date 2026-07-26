@@ -221,7 +221,7 @@ struct RegionSummaryCard: View {
             HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
                 Text(regionDays.days, format: .number)
                     .font(card.heroNumberFont)
-                    .contentTransition(dayCount.transition)
+                    .contentTransition(dayCount.transition(days: regionDays.days))
                     .foregroundStyle(style.tint)
                 Text(WhereFormat.dayUnit(regionDays.days))
                     .font(card.dayUnitFont)

@@ -51,7 +51,7 @@ struct WhereStylesheet: BStylesheet {
         // Reduce Motion stops the cards' day count rolling its digits; it
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
-            card.dayCount = .crossFaded
+            card.dayCount = .reducedMotion
         }
     }
 
@@ -170,7 +170,7 @@ extension WhereStylesheet {
         /// Fill opacities of the two security-print rosettes.
         var rosetteFill: RosetteFill
         /// How the day count changes while the card is on screen; resolves to
-        /// ``DayCountStyle/crossFaded`` under Reduce Motion.
+        /// ``DayCountStyle/reducedMotion`` under Reduce Motion.
         var dayCount: DayCountStyle
 
         /// The passport-style frame drawn over the card: a heavy outer line, a
@@ -206,23 +206,39 @@ extension WhereStylesheet {
         /// fade). The animation also sweeps the ambient bar, which reads the same
         /// count, in the same beat.
         struct DayCountStyle: Equatable {
-            /// The count `Text`'s content transition.
-            var transition: ContentTransition
+            /// Which way the count changes.
+            var morph: Morph
             /// The animation that runs it.
             var animation: Animation
 
-            /// The digits roll from the old count to the new one.
-            static let rolling = DayCountStyle(
-                transition: .numericText(),
+            enum Morph: Equatable {
+                /// The digits roll from the old count to the new one.
+                case rollingDigits
+                /// The old count fades into the new one, with nothing travelling
+                /// across the card.
+                case crossFade
+            }
+
+            /// The count `Text`'s content transition. Takes the count because the
+            /// roll reads it for a direction — a day added spins the digits up, a
+            /// correction spins them down.
+            func transition(days: Int) -> ContentTransition {
+                switch morph {
+                    case .rollingDigits: .numericText(value: Double(days))
+                    case .crossFade: .opacity
+                }
+            }
+
+            static let standard = DayCountStyle(
+                morph: .rollingDigits,
                 // Long enough for the digits to read as rolling, short enough
                 // that a card tapped mid-roll doesn't feel held up.
                 animation: .easeOut(duration: 0.3),
             )
 
-            /// The Reduce-Motion pairing: the old count fades into the new one,
-            /// with nothing travelling across the card.
-            static let crossFaded = DayCountStyle(
-                transition: .opacity,
+            /// The Reduce-Motion pairing.
+            static let reducedMotion = DayCountStyle(
+                morph: .crossFade,
                 animation: .easeInOut(duration: 0.2),
             )
         }
@@ -308,7 +324,7 @@ extension WhereStylesheet {
                 innerDash: [5, 4],
             ),
             rosetteFill: RosetteFill(primary: 0.12, secondary: 0.08),
-            dayCount: .rolling,
+            dayCount: .standard,
         )
     }
 }
