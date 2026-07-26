@@ -41,7 +41,26 @@ public struct CursorDashboardAPI: DashboardProvider {
 
     private static let logger = LedgerLog.channel(.spendAPI)
 
-    public init(baseURL: URL = CursorDashboardAPI.defaultBaseURL, session: URLSession = .shared) {
+    /// A session dedicated to the dashboard API: ephemeral with **no cookie
+    /// storage**, because auth is the `Cookie` header we set explicitly. Left
+    /// to the shared session, URLSession's own cookie handling could store a
+    /// `Set-Cookie` from a response and then send *that* in place of the token
+    /// we resolved — an intermittent 401 that would read as "session expired"
+    /// with no trace of the substitution. The timeout is well under the 60s
+    /// default since a per-model fetch chains several requests.
+    public static func makeSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.httpCookieStorage = nil
+        configuration.httpShouldSetCookies = false
+        configuration.httpCookieAcceptPolicy = .never
+        configuration.timeoutIntervalForRequest = 30
+        return URLSession(configuration: configuration)
+    }
+
+    public init(
+        baseURL: URL = CursorDashboardAPI.defaultBaseURL,
+        session: URLSession = CursorDashboardAPI.makeSession(),
+    ) {
         self.baseURL = baseURL
         self.session = session
     }
@@ -88,6 +107,9 @@ public struct CursorDashboardAPI: DashboardProvider {
     ) -> URLRequest {
         var request = URLRequest(url: baseURL.appendingPathComponent(path))
         request.httpMethod = method
+        // Our `Cookie` header is the only credential; never let URLSession
+        // substitute a stored one (see `makeSession()`).
+        request.httpShouldHandleCookies = false
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("*/*", forHTTPHeaderField: "Accept")
         request.setValue("https://cursor.com", forHTTPHeaderField: "Origin")
