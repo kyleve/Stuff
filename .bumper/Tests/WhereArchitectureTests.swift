@@ -9,16 +9,16 @@ func `Where architecture accepts downward dependencies`() throws {
             files: [
                 SourceInput(
                     path: "Where/WhereCore/Sources/Service.swift",
-                    component: ComponentID(WhereComponent.whereCore.rawValue),
-                    source: "import RegionKit\nstruct Service {}",
+                    component: try ComponentID(WhereComponent.whereCore.rawValue),
+                    source: "import RegionKit\nstruct Service {}"
                 ),
                 SourceInput(
                     path: "Where/WhereUI/Sources/Screen.swift",
-                    component: ComponentID(WhereComponent.whereUI.rawValue),
-                    source: "import WhereCore\nimport SwiftUI\nstruct Screen {}",
+                    component: try ComponentID(WhereComponent.whereUI.rawValue),
+                    source: "import WhereCore\nimport SwiftUI\nstruct Screen {}"
                 ),
-            ],
-        ),
+            ]
+        )
     )
 
     #expect(report.violations.isEmpty)
@@ -32,11 +32,11 @@ func `RegionKit cannot depend upward on WhereCore`() throws {
             files: [
                 SourceInput(
                     path: "Where/RegionKit/Sources/Region.swift",
-                    component: ComponentID(WhereComponent.regionKit.rawValue),
-                    source: "import WhereCore\nstruct Region {}",
+                    component: try ComponentID(WhereComponent.regionKit.rawValue),
+                    source: "import WhereCore\nstruct Region {}"
                 ),
-            ],
-        ),
+            ]
+        )
     )
 
     let violation = try #require(report.violations.first)
@@ -53,11 +53,11 @@ func `WhereUI cannot import persistence`() throws {
             files: [
                 SourceInput(
                     path: "Where/WhereUI/Sources/Screen.swift",
-                    component: ComponentID(WhereComponent.whereUI.rawValue),
-                    source: "import SwiftData\nstruct Screen {}",
+                    component: try ComponentID(WhereComponent.whereUI.rawValue),
+                    source: "import SwiftData\nstruct Screen {}"
                 ),
-            ],
-        ),
+            ]
+        )
     )
 
     let violation = try #require(report.violations.first)
@@ -74,16 +74,16 @@ func `Where adapters cannot link Broadway directly`() throws {
             files: [
                 SourceInput(
                     path: "Where/WhereWidgets/Sources/Widget.swift",
-                    component: ComponentID(WhereComponent.widgets.rawValue),
-                    source: "import BroadwayUI\nstruct Widget {}",
+                    component: try ComponentID(WhereComponent.widgets.rawValue),
+                    source: "import BroadwayUI\nstruct Widget {}"
                 ),
                 SourceInput(
                     path: "Where/WhereIntents/Sources/Intent.swift",
-                    component: ComponentID(WhereComponent.whereIntents.rawValue),
-                    source: "import BroadwayCore\nstruct Intent {}",
+                    component: try ComponentID(WhereComponent.whereIntents.rawValue),
+                    source: "import BroadwayCore\nstruct Intent {}"
                 ),
-            ],
-        ),
+            ]
+        )
     )
 
     #expect(report.violations.count == 2)

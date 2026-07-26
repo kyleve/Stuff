@@ -2,20 +2,21 @@ import BumperBowlingCore
 import BumperBowlingTestSupport
 import Testing
 
+@Suite("Where project rules")
 struct WhereProjectRulesTests {
     @Test
     func `production store opens at process composition roots`() throws {
         let allowed = try evaluate(
             path: "Where/WhereUI/Sources/Launch/WhereLaunch.swift",
             component: .whereUI,
-            source: "func open() throws { _ = try SwiftDataStore.make() }",
+            source: "func open() throws { _ = try SwiftDataStore.make() }"
         )
         let rejectedPath: RelativeFilePath =
             "Where/WhereUI/Sources/Model/CompetingStoreOwner.swift"
         let rejected = try evaluate(
             path: rejectedPath,
             component: .whereUI,
-            source: "func open() throws { _ = try SwiftDataStore.make() }",
+            source: "func open() throws { _ = try SwiftDataStore.make() }"
         )
 
         #expect(allowed.violations.isEmpty)
@@ -27,8 +28,8 @@ struct WhereProjectRulesTests {
         #expect(
             violation.evidence == ViolationEvidence(
                 observed: "SwiftDataStore.make in \(rejectedPath.rawValue)",
-                expectation: "open the production store in WhereLaunch or ShareEvidenceModel",
-            ),
+                expectation: "open the production store in WhereLaunch or ShareEvidenceModel"
+            )
         )
     }
 
@@ -37,14 +38,14 @@ struct WhereProjectRulesTests {
         let allowed = try evaluate(
             path: "Where/WhereUI/Sources/Model/WhereSession.swift",
             component: .whereUI,
-            source: "final class Session { nonisolated(unsafe) var task: Task<Void, Never>? }",
+            source: "final class Session { nonisolated(unsafe) var task: Task<Void, Never>? }"
         )
         let rejectedPath: RelativeFilePath =
             "Where/WhereUI/Sources/Model/CompetingSession.swift"
         let rejected = try evaluate(
             path: rejectedPath,
             component: .whereUI,
-            source: "final class Session { nonisolated(unsafe) var task: Task<Void, Never>? }",
+            source: "final class Session { nonisolated(unsafe) var task: Task<Void, Never>? }"
         )
 
         #expect(allowed.violations.isEmpty)
@@ -62,7 +63,7 @@ struct WhereProjectRulesTests {
         let report = try evaluate(
             path: path,
             component: .whereCore,
-            source: "@preconcurrency import Foundation",
+            source: "@preconcurrency import Foundation"
         )
 
         let violation = try #require(report.violations.first)
@@ -77,19 +78,19 @@ struct WhereProjectRulesTests {
         let core = try evaluate(
             path: "Where/WhereCore/Sources/WhereServices.swift",
             component: .whereCore,
-            source: "func assemble() { _ = WhereServices() }",
+            source: "func assemble() { _ = WhereServices() }"
         )
         let preview = try evaluate(
             path: "Where/WhereUI/Sources/Preview/PreviewSupport.swift",
             component: .whereUI,
-            source: "func preview() { _ = WhereServices() }",
+            source: "func preview() { _ = WhereServices() }"
         )
         let rejectedPath: RelativeFilePath =
             "Where/WhereIntents/Sources/CompetingServices.swift"
         let rejected = try evaluate(
             path: rejectedPath,
             component: .whereIntents,
-            source: "func assemble() { _ = WhereServices() }",
+            source: "func assemble() { _ = WhereServices() }"
         )
 
         #expect(core.violations.isEmpty)
@@ -105,14 +106,14 @@ struct WhereProjectRulesTests {
         let allowed = try evaluate(
             path: "Where/WhereUI/Sources/Launch/WhereLaunch.swift",
             component: .whereUI,
-            source: "func assemble() { _ = CoreLocationSource() }",
+            source: "func assemble() { _ = CoreLocationSource() }"
         )
         let rejectedPath: RelativeFilePath =
             "Where/WhereIntents/Sources/CompetingLocationSource.swift"
         let rejected = try evaluate(
             path: rejectedPath,
             component: .whereIntents,
-            source: "func assemble() { _ = CoreLocationSource() }",
+            source: "func assemble() { _ = CoreLocationSource() }"
         )
 
         #expect(allowed.violations.isEmpty)
@@ -127,14 +128,14 @@ struct WhereProjectRulesTests {
         let allowed = try evaluate(
             path: "Where/WhereUI/Sources/Logging/ScreenLog.swift",
             component: .whereUI,
-            source: "enum ScreenLog {}",
+            source: "enum ScreenLog {}"
         )
         let rejectedPath: RelativeFilePath =
             "Where/WhereUI/Sources/Model/ScreenLog.swift"
         let rejected = try evaluate(
             path: rejectedPath,
             component: .whereUI,
-            source: "enum ScreenLog {}",
+            source: "enum ScreenLog {}"
         )
 
         #expect(allowed.violations.isEmpty)
@@ -149,26 +150,26 @@ struct WhereProjectRulesTests {
         let intentsAllowed = try evaluate(
             path: "Where/WhereIntents/Sources/CalendarUse.swift",
             component: .whereIntents,
-            source: "let calendar = Calendar.whereIntents",
+            source: "let calendar = Calendar.whereIntents"
         )
         let uiAllowed = try evaluate(
             path: "Where/WhereUI/Sources/CalendarUse.swift",
             component: .whereUI,
-            source: "let calendar = Calendar(identifier: .gregorian)",
+            source: "let calendar = Calendar(identifier: .gregorian)"
         )
         let intentsRejectedPath: RelativeFilePath =
             "Where/WhereIntents/Sources/DriftingCalendar.swift"
         let intentsRejected = try evaluate(
             path: intentsRejectedPath,
             component: .whereIntents,
-            source: "let calendar = Calendar.current",
+            source: "let calendar = Calendar.current"
         )
         let uiRejectedPath: RelativeFilePath =
             "Where/WhereUI/Sources/DriftingCalendar.swift"
         let uiRejected = try evaluate(
             path: uiRejectedPath,
             component: .whereUI,
-            source: "let calendar = Calendar.current",
+            source: "let calendar = Calendar.current"
         )
 
         #expect(intentsAllowed.violations.isEmpty)
@@ -180,8 +181,8 @@ struct WhereProjectRulesTests {
         #expect(
             intentsViolation.evidence == ViolationEvidence(
                 observed: "Calendar.current",
-                expectation: "an injected Gregorian calendar or Calendar.whereIntents",
-            ),
+                expectation: "an injected Gregorian calendar or Calendar.whereIntents"
+            )
         )
         let uiViolation = try #require(uiRejected.violations.first)
         #expect(uiRejected.violations.count == 1)
@@ -194,14 +195,14 @@ struct WhereProjectRulesTests {
         let allowed = try evaluate(
             path: "Where/WhereCore/Sources/Journal.swift",
             component: .whereCore,
-            source: "func save() async throws { try await store.perform { try await store.add(sample: sample) } }",
+            source: "func save() async throws { try await store.perform { try await store.add(sample: sample) } }"
         )
         let rejectedPath: RelativeFilePath =
             "Where/WhereCore/Sources/CompetingWriter.swift"
         let rejected = try evaluate(
             path: rejectedPath,
             component: .whereCore,
-            source: "func save() async throws { try await store.add(sample: sample) }",
+            source: "func save() async throws { try await store.add(sample: sample) }"
         )
 
         #expect(allowed.violations.isEmpty)
@@ -216,14 +217,14 @@ struct WhereProjectRulesTests {
         let allowed = try evaluate(
             path: "Where/Where/Sources/WhereShortcuts.swift",
             component: .app,
-            source: "struct WhereShortcuts: AppShortcutsProvider {}",
+            source: "struct WhereShortcuts: AppShortcutsProvider {}"
         )
         let rejectedPath: RelativeFilePath =
             "Where/WhereIntents/Sources/WhereShortcuts.swift"
         let rejected = try evaluate(
             path: rejectedPath,
             component: .whereIntents,
-            source: "struct WhereShortcuts: AppShortcutsProvider {}",
+            source: "struct WhereShortcuts: AppShortcutsProvider {}"
         )
 
         #expect(allowed.violations.isEmpty)
@@ -238,17 +239,17 @@ struct WhereProjectRulesTests {
         let allowed = try evaluate(
             path: "Where/WhereCore/Sources/Worker.swift",
             component: .whereCore,
-            source: "func run() { WhereLog.root(WorkerLog.self) { .completed } }",
+            source: "func run() { WhereLog.root(WorkerLog.self) { .completed } }"
         )
         let printRejected = try evaluate(
             path: "Where/WhereCore/Sources/PrintingWorker.swift",
             component: .whereCore,
-            source: "func run() { print(\"done\") }",
+            source: "func run() { print(\"done\") }"
         )
         let osLogRejected = try evaluate(
             path: "Where/WhereUI/Sources/LoggingScreen.swift",
             component: .whereUI,
-            source: "import OSLog\nstruct LoggingScreen {}",
+            source: "import OSLog\nstruct LoggingScreen {}"
         )
 
         #expect(allowed.violations.isEmpty)
@@ -261,19 +262,19 @@ struct WhereProjectRulesTests {
         let allowed = try evaluate(
             path: "Where/WhereUI/Sources/PreviewedView.swift",
             component: .whereUI,
-            source: "struct PreviewedView: View {}\n#Preview { PreviewedView() }",
+            source: "struct PreviewedView: View {}\n#Preview { PreviewedView() }"
         )
         let rejectedPath: RelativeFilePath =
             "Where/WhereUI/Sources/UnpreviewedView.swift"
         let rejected = try evaluate(
             path: rejectedPath,
             component: .whereUI,
-            source: "struct UnpreviewedView: View {}",
+            source: "struct UnpreviewedView: View {}"
         )
         let coreView = try evaluate(
             path: "Where/WhereCore/Sources/DomainView.swift",
             component: .whereCore,
-            source: "struct DomainView: View {}",
+            source: "struct DomainView: View {}"
         )
 
         #expect(allowed.violations.isEmpty)
@@ -287,12 +288,12 @@ struct WhereProjectRulesTests {
     private func evaluate(
         path: RelativeFilePath,
         component: WhereComponent,
-        source: String,
+        source: String
     ) throws -> RuleReport {
         try RuleTestHarness(whereProjectRules).evaluate(
             VirtualRepository {
                 VirtualSourceFile.swift(path, component: component, source: source)
-            },
+            }
         )
     }
 }
