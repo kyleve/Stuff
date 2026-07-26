@@ -101,7 +101,9 @@ by `./sync-agents`.
 - `./sync-agents` — generate `CLAUDE.md` next to each `AGENTS.md` and mirror
   `.agents/skills/` into `.claude/skills/`.
 - `./sync-agents --install` — fetch external skills listed in
-  `.agents/external-skills.json` (run automatically by `./ide`).
+  `.agents/external-skills.json`. Rarely run by hand: `mise install` calls it
+  from a `postinstall` hook, so installing tools also installs skills, on a dev
+  machine and a cloud agent alike.
 - `./sync-agents --add <url> [name]` — add an external skill from GitHub.
 - `./sync-agents --update` — re-fetch all external skills to the latest commit.
 
@@ -117,8 +119,8 @@ adding or editing a skill, and edit the source rather than the mirror. (Cursor
 *also* loads `.claude/skills/` for Claude compatibility, so a synced skill is
 discoverable twice and the winning copy is undocumented — one more reason not to
 let the two drift.) A fresh clone carries only the repo-owned skills: `CLAUDE.md`
-and `.claude/skills/` are gitignored, and the external four come back with
-`./sync-agents --install`.
+and `.claude/skills/` are gitignored, and the external four arrive with the
+first `mise install`.
 
 A skill carries **procedure** — the steps of a job someone does occasionally.
 Rules an agent must follow belong in an `AGENTS.md` or a `TODOs.md` instead, so
@@ -562,21 +564,25 @@ environment: formatting and agent sync work; builds, tests, and running the
 
 ### What works on Linux
 
+**Tuist is scoped to `os = ["macos"]`** in `.mise.toml`, and mise skips an
+OS-restricted tool entirely rather than failing on it — so `mise install` and
+every `mise exec --` now succeed here instead of dying on `unsupported env:
+linux/amd64`. `mise install` also fires the `postinstall` hook that fetches the
+external agent skills, which are gitignored and so absent from a bare checkout.
+
 | Check | Command |
 |-------|---------|
-| Trust mise config | `mise trust` (once per clone) |
-| Install SwiftFormat | `mise install swiftformat` (uses the `.mise.toml` pin) |
-| Format lint (CI `format` job equivalent) | `mise exec swiftformat -- swiftformat --lint .` |
+| Install the pinned tools | `mise install` (Ruby + SwiftFormat; skips Tuist) |
+| Format lint (CI `format` job equivalent) | `./swiftformat --lint` |
 | Agent file sync | `./sync-agents` or `./sync-agents --install` |
-| Git hooks path | `git config core.hooksPath .githooks` (also done by `./ide`) |
-
-Install **Ruby** if missing (`apt-get install ruby`) — required by `sync-agents`.
+| Pre-commit hook | works — `mise exec --` no longer pulls in Tuist |
 
 ### What does not work on Linux
 
-- **Tuist** (`mise install` / `mise install tuist` fails: `unsupported env: linux/amd64`)
-- `./ide`, `./swiftformat`, and the pre-commit hook — they call `mise exec -- …`, which tries to install **all** tools from `.mise.toml` including Tuist
-- `tuist test`, `tuist build`, iOS Simulator, and running the **Where** app
+- **Tuist** — `tuist test`, `tuist build`, and `./ide` (which generates the
+  Xcode project)
+- iOS Simulator, and running the **Where** app
+- Anything else needing Xcode
 
 These are limits of the **VM**, not of cloud agents generally: a remote-control
 session runs iOS, so anything that needs the app actually running — reproducing
