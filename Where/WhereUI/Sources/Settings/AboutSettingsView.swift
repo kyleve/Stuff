@@ -1,15 +1,20 @@
+import CreditKit
 import RegionKit
 import SwiftUI
 import WhereCore
 
 /// Settings drill-in for what the app *is* rather than what it does: which build
-/// is running, the open-source libraries it links, and where its bundled region
-/// boundaries came from.
+/// is running, the third-party work it is built with, and where its bundled
+/// region boundaries came from.
 ///
-/// Every fact here is vended by the module that owns it — `BuildInfo` and
-/// `SoftwareCredit` from `WhereCore`, `RegionDataSource` from `RegionKit` — so
-/// this screen only renders and localizes. Adding a dependency or a dataset
-/// means updating that module's credit, not this view.
+/// Every fact here is vended by the module that owns it — `BuildInfo` from
+/// `WhereCore`, `SoftwareCredit` from `CreditKit`, `RegionDataSource` from
+/// `RegionKit` — so this screen only renders and localizes. Adding a dependency
+/// or a dataset means regenerating that module's data, not editing this view.
+///
+/// Credits are split by `SoftwareCredit.Kind` into two sections rather than one
+/// combined list, because a development tool is *not* in the binary the reader
+/// is running; merging them would credit honestly but describe the app falsely.
 struct AboutSettingsView: View {
     var focus: SettingsFocus?
 
@@ -25,7 +30,7 @@ struct AboutSettingsView: View {
     init(
         focus: SettingsFocus?,
         buildInfo: BuildInfo = .current(bundle: .main),
-        credits: [SoftwareCredit] = SoftwareCredit.all,
+        credits: [SoftwareCredit] = CreditCatalog.shared.credits,
         dataSources: [RegionDataSource] = RegionDataSource.all,
     ) {
         self.focus = focus
@@ -39,6 +44,7 @@ struct AboutSettingsView: View {
             Form {
                 versionSection
                 dependenciesSection
+                developmentToolsSection
                 dataSourcesSection
             }
         }
@@ -76,8 +82,32 @@ struct AboutSettingsView: View {
     // MARK: Open source
 
     private var dependenciesSection: some View {
+        creditSection(
+            kind: .library,
+            header: String(localized: .settingsAboutDependenciesHeader),
+            footer: String(localized: .settingsAboutDependenciesFooter),
+        )
+        .settingsRow(Item.dependencies)
+    }
+
+    // MARK: Development tools
+
+    private var developmentToolsSection: some View {
+        creditSection(
+            kind: .developmentTool,
+            header: String(localized: .settingsAboutDevelopmentToolsHeader),
+            footer: String(localized: .settingsAboutDevelopmentToolsFooter),
+        )
+        .settingsRow(Item.developmentTools)
+    }
+
+    private func creditSection(
+        kind: SoftwareCredit.Kind,
+        header: String,
+        footer: String,
+    ) -> some View {
         Section {
-            ForEach(credits) { credit in
+            ForEach(credits.filter { $0.kind == kind }) { credit in
                 // A closure-form link, not a `SettingsRoute`: routes are the
                 // top-level group vocabulary, and a leaf pushed from inside one
                 // group would need its own `navigationDestination` to match.
@@ -90,11 +120,10 @@ struct AboutSettingsView: View {
                 }
             }
         } header: {
-            Text(String(localized: .settingsAboutDependenciesHeader))
+            Text(header)
         } footer: {
-            Text(String(localized: .settingsAboutDependenciesFooter))
+            Text(footer)
         }
-        .settingsRow(Item.dependencies)
     }
 
     // MARK: Data sources
@@ -147,12 +176,15 @@ extension AboutSettingsView: SettingsSection {
     enum Item: SettingsItem {
         case version
         case dependencies
+        case developmentTools
         case dataSources
 
         var title: String {
             switch self {
                 case .version: String(localized: .settingsAboutVersionHeader)
                 case .dependencies: String(localized: .settingsAboutDependenciesHeader)
+                case .developmentTools:
+                    String(localized: .settingsAboutDevelopmentToolsHeader)
                 case .dataSources: String(localized: .settingsAboutDataSourcesHeader)
             }
         }
@@ -162,6 +194,8 @@ extension AboutSettingsView: SettingsSection {
                 case .version: splitKeywords(String(localized: .settingsKeywordsAboutVersion))
                 case .dependencies:
                     splitKeywords(String(localized: .settingsKeywordsAboutDependencies))
+                case .developmentTools:
+                    splitKeywords(String(localized: .settingsKeywordsAboutDevelopmentTools))
                 case .dataSources:
                     splitKeywords(String(localized: .settingsKeywordsAboutDataSources))
             }

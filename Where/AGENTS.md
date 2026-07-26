@@ -114,13 +114,19 @@ fill in rather than a screen you can forget to register. **About is deliberately
 the last block**, below everything actionable.
 
 **Credits are vended by the module that owns the thing being credited**, and the
-About screen only renders them: `SoftwareCredit` (WhereCore) for a linked
-library plus its bundled notice, `RegionDataSource` (RegionKit) for bundled
-geometry, `BuildInfo` (WhereCore) for the running build. Adding a dependency or
-a dataset means adding its credit *there* — see
-[`WhereCore/AGENTS.md`](WhereCore/AGENTS.md) and
+About screen only renders them: `SoftwareCredit` (CreditKit) for third-party
+software plus its notice, `RegionDataSource` (RegionKit) for bundled geometry,
+`BuildInfo` (WhereCore) for the running build. Adding a dependency or a dataset
+means updating it *there* — see
+[`CreditKit/AGENTS.md`](../Shared/CreditKit/AGENTS.md) and
 [`RegionKit/AGENTS.md`](RegionKit/AGENTS.md) — never a list hard-coded in the
 view.
+
+CreditKit distinguishes a **linked library** from a **development tool** (the
+agent skills `./sync-agents` vendors), and the About screen renders them as
+separate sections. Keep them separate: a development tool is credited because
+the repository copies it, not because it is in the binary, and one merged list
+would tell a reader something untrue about the app they are running.
 
 ## Localization
 

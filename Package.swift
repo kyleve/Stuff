@@ -9,6 +9,7 @@ let package = Package(
     ],
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
+        .library(name: "CreditKit", targets: ["CreditKit"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "JournalKit", targets: ["JournalKit"]),
         .library(name: "PeriscopeCore", targets: ["PeriscopeCore"]),
@@ -34,6 +35,16 @@ let package = Package(
         .target(
             name: "StuffCore",
             path: "Shared/StuffCore/Sources",
+        ),
+        .target(
+            name: "CreditKit",
+            dependencies: [
+                .target(name: "PeriscopeCore"),
+            ],
+            path: "Shared/CreditKit/Sources",
+            resources: [
+                .process("Resources"),
+            ],
         ),
         .target(
             name: "LifecycleKit",
@@ -106,6 +117,7 @@ let package = Package(
                 .target(name: "WhereCore"),
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
+                .target(name: "CreditKit"),
                 .target(name: "LifecycleKit"),
                 .target(name: "PeriscopeCore"),
                 .target(name: "PeriscopeTools"),

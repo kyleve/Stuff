@@ -1,9 +1,9 @@
+import CreditKit
 import SwiftUI
-import WhereCore
 
-/// The full license notice for one third-party library, pushed from Settings >
-/// About. Permissive licenses require the notice verbatim, so it is rendered as
-/// plain monospaced text, unreflowed and untruncated.
+/// The full license notice for one credited work, pushed from Settings > About.
+/// Permissive licenses require the notice verbatim, so it is rendered as plain
+/// monospaced text, unreflowed and untruncated.
 struct LicenseView: View {
     let credit: SoftwareCredit
 
@@ -56,7 +56,7 @@ struct LicenseView: View {
 #if DEBUG
     #Preview {
         NavigationStack {
-            if let credit = SoftwareCredit.all.first {
+            if let credit = CreditCatalog.shared.credits.first {
                 LicenseView(credit: credit)
             }
         }

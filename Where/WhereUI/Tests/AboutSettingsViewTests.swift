@@ -1,3 +1,4 @@
+import CreditKit
 import RegionKit
 import SwiftUI
 import TestHostSupport
@@ -32,7 +33,7 @@ struct AboutSettingsViewTests {
     @Test func searchFindsTheAboutSettingsByKeyword() {
         // None of these words appear in the section titles, so a match proves the
         // keyword lists are wired rather than the titles happening to overlap.
-        for query in ["licenses", "sha", "geojson"] {
+        for query in ["licenses", "sha", "geojson", "skills"] {
             let destinations = Set(SettingsCatalog.results(matching: query).map(\.destination))
             #expect(destinations.contains(.about), "no About result for \"\(query)\"")
         }
@@ -89,7 +90,22 @@ struct AboutSettingsViewTests {
 
     @Test func creditsTheLiveDependencyAndDataSourceLists() {
         // The screen shows what the owning modules vend, not a copy of its own.
-        #expect(!SoftwareCredit.all.isEmpty)
+        #expect(!CreditCatalog.shared.credits.isEmpty)
         #expect(!RegionDataSource.all.isEmpty)
+    }
+
+    @Test func separatesLinkedLibrariesFromDevelopmentTools() {
+        // The two kinds must reach the screen as distinct sections: a development
+        // tool isn't in the binary, so listing it under "Open Source" alongside
+        // the libraries would describe the running app inaccurately.
+        for kind in SoftwareCredit.Kind.allCases {
+            #expect(
+                !CreditCatalog.shared.credits(ofKind: kind).isEmpty,
+                "nothing credited for \(kind), so the section would render empty",
+            )
+        }
+        let titles = Set(AboutSettingsView.Item.allCases.map(\.title))
+        #expect(titles.contains(String(localized: .settingsAboutDevelopmentToolsHeader)))
+        #expect(titles.contains(String(localized: .settingsAboutDependenciesHeader)))
     }
 }

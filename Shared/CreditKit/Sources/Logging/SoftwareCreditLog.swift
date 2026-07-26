@@ -1,10 +1,10 @@
 import PeriscopeCore
 
-/// Structured events for loading a bundled third-party license text. A credit
-/// naming a resource the bundle doesn't carry is a programmer error (the credit
-/// and the file went out of sync), so it logs at `.fault` to match the paired
-/// `assertionFailure` — and it matters: shipping a dependency without its
-/// license text is a licensing problem, not a cosmetic one.
+/// Structured events for loading a vendored third-party license text. A credit
+/// naming a resource the bundle doesn't carry is a programmer error (the
+/// manifest and the vendored files went out of sync), so it logs at `.fault` to
+/// match the paired `assertionFailure` — and it matters: shipping a dependency
+/// without its license text is a licensing problem, not a cosmetic one.
 enum SoftwareCreditLog: LogEvent {
     /// The credit's license file is absent from the bundle.
     case missingLicense(credit: String, resource: String)

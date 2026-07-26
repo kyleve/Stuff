@@ -96,6 +96,35 @@ read these keys.
   churn around the one real entry. Write a catalog through Xcode, or normalize
   it afterwards; the script only touches formatting, never content.
 
+## Attribution
+
+Third-party attribution lives in **one** place —
+[`Shared/CreditKit`](Shared/CreditKit/AGENTS.md) — rather than wherever a
+dependency happened to be introduced. It is a leaf module anything may depend
+on, so a package pulled in by *any* module can be credited without inverting the
+dependency that introduced it.
+
+Its manifest and license notices are **generated, never hand-edited**:
+
+```bash
+ruby Shared/CreditKit/Tools/generate-credits.rb
+```
+
+The script derives what to credit from what the repo already declares — packages
+a target links via `.product(name:package:)` (pinned by `Package.resolved`) and
+the agent skills in `.agents/external-skills.json` — and fetches each notice at
+the **pinned revision**. So a new dependency is credited wherever it lands, and
+a package resolved only for tooling (BumperBowling, swift-syntax) correctly
+isn't. **Re-run it and commit the result whenever you add or bump a package or a
+skill**; nothing fails a build if you forget, but `CreditKitTests` pins the
+expected names and will.
+
+`SoftwareCredit.Kind` keeps a **linked library** apart from a **development
+tool**, and that distinction must survive into any UI: a tool is credited
+because the repo copies it, not because it ships. Data-source provenance for
+bundled geometry is separate and stays with its data, in
+[`RegionKit`](Where/RegionKit/AGENTS.md).
+
 ## Architecture lint
 
 Bumper Bowling enforces the production Where module graph and selected
@@ -131,6 +160,13 @@ currently Swift references (SwiftUI, Swift concurrency, Swift Testing,
 SwiftData) — and `.agents/skills/.gitignore` excludes those fetched copies, so
 anything else under `.agents/skills/` is a **repo-owned** skill and is committed
 (currently `todo-triage`).
+
+That manifest is also an **attribution** input: external skills are third-party
+work the repo vendors, so `CreditKit` credits them (as *development tools*,
+distinct from libraries the app links). After adding a skill or running
+`./sync-agents --update`, re-run `ruby Shared/CreditKit/Tools/generate-credits.rb`
+and commit the regenerated manifest and notices — see
+[`Attribution`](#attribution).
 
 **Cursor reads `.agents/skills/` natively** — that directory is the real home. The
 `.claude/skills/` mirror exists for Claude Code, so run `./sync-agents` after

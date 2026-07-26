@@ -292,6 +292,12 @@ let project = Project(
             sources: ["Shared/StuffCore/Tests/**"],
         ),
         unitTests(
+            name: "CreditKitTests",
+            bundleIdSuffix: "creditkit",
+            productDependency: "CreditKit",
+            sources: ["Shared/CreditKit/Tests/**"],
+        ),
+        unitTests(
             name: "LifecycleKitTests",
             bundleIdSuffix: "lifecyclekit",
             productDependency: "LifecycleKit",
@@ -450,6 +456,7 @@ let project = Project(
                 "RegionViewer",
                 "StuffTestHost",
                 "StuffCoreTests",
+                "CreditKitTests",
                 "LifecycleKitTests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
@@ -468,6 +475,7 @@ let project = Project(
             ]),
             testAction: .targets([
                 "StuffCoreTests",
+                "CreditKitTests",
                 "LifecycleKitTests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
@@ -485,6 +493,7 @@ let project = Project(
             ]),
         ),
         testScheme(name: "StuffCoreTests"),
+        testScheme(name: "CreditKitTests"),
         testScheme(name: "LifecycleKitTests"),
         testScheme(name: "JournalKitTests"),
         testScheme(name: "PeriscopeCoreTests"),

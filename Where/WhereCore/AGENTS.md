@@ -134,14 +134,14 @@ internal shape.
   that derives attribution from a seeded store instead.) Detection is naturally
   scoped to the set — the attributor only loads tracked-region geometry, so
   `distanceToBoundary` is `nil` elsewhere.
-- **Adding an external package means adding a credit.** A running app can't read
-  `Package.resolved`, so `SoftwareCredit.all` is hand-maintained against the root
-  [`Package.swift`](../../Package.swift): a new third-party dependency needs an
-  entry *and* its license notice vendored verbatim into
-  `Sources/Resources/Licenses/`, or the app ships a library whose license it
-  doesn't reproduce. `SoftwareCreditTests` pins the list and asserts every
-  credit's text loads. Build identity is the neighbouring `BuildInfo`, which
-  reads keys the app target's stamp script writes — see [Version and build
+- **Adding an external package means regenerating the credits.** WhereCore links
+  the app's only third-party package (ZIPFoundation), but it does **not** own
+  attribution — that is [`CreditKit`](../../Shared/CreditKit/AGENTS.md), whose
+  `Tools/generate-credits.rb` derives the credit and vendors the notice from the
+  root [`Package.swift`](../../Package.swift) and `Package.resolved`. Run it and
+  commit the result, or the app ships a library whose license it doesn't
+  reproduce. Build *identity* does live here, in `BuildInfo`, which reads keys
+  the app target's stamp script writes — see [Version and build
   metadata](../../AGENTS.md#version-and-build-metadata).
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are
   `async throws` so the CloudKit-backed store can report I/O failure; a `catch`

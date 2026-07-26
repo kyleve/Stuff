@@ -3174,6 +3174,28 @@
         }
       }
     },
+    "settings.about.developmentTools.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tools used to build Where. They aren't part of the app on your device, but the project ships copies of them, so their licenses are included here."
+          }
+        }
+      }
+    },
+    "settings.about.developmentTools.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Development Tools"
+          }
+        }
+      }
+    },
     "settings.about.header" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3679,6 +3701,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "license, licenses, open source, credits, acknowledgements, libraries, dependencies, third party"
+          }
+        }
+      }
+    },
+    "settings.keywords.aboutDevelopmentTools" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tools, development, build, agent, skills, license, licenses, credits, acknowledgements, third party"
           }
         }
       }
