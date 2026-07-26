@@ -39,6 +39,14 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   (dev viewer/tests); `.shared` the default four. It's UI-free: `BoundingBox` /
   `LongitudeSpan` expose the min/max math, but MapKit conversion lives in the UI
   layer. `RegionAttributing` lets `WhereCore` supply a live, swappable attributor.
+- **Bundled geometry is credited in code, not only in prose.** `RegionDataSource`
+  states each boundary set's origin, license, and fidelity, and derives its
+  coverage from the catalog — the US sources by the `us-` id prefix the generator
+  mints, everything else by an explicit id list, deliberately *not* an
+  "everything else" fallback that would silently mis-credit a new region.
+  `RegionDataSourceTests` fails when a region is covered zero times or twice, so
+  regenerating the catalog can't ship uncredited data. Keep it in step with the
+  [README](README.md#source-data-not-bundled) provenance notes.
 - **Region names are manifest data (a documented trade-off).** `localizedName`
   resolves a manifest entry's optional `localizationKey` from the string catalog,
   else the manifest's English `name` — so dynamic ids cost static string-catalog
