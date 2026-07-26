@@ -199,6 +199,10 @@ private struct AccountSettingsPane: SettingsPane {
         }
         .formStyle(.grouped)
         .navigationTitle(Self.title)
+        // The Cursor session can change while Ledger runs (signing in or out),
+        // and the token is otherwise read only on demand — so re-read it
+        // whenever this pane comes on screen.
+        .onAppear { session.refreshTokenStatus() }
     }
 
     private func saveToken() {

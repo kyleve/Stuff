@@ -125,6 +125,9 @@ public final class LedgerServices {
     @ObservationIgnored private var refreshLoop: Task<Void, Never>?
     /// Increments per fetch so a slow earlier response can't clobber a newer one.
     @ObservationIgnored private var requestGeneration = 0
+    /// The resolved credential, cached so refreshes don't re-read the Keychain
+    /// and Cursor's SQLite store every time (see ``resolveToken()``).
+    @ObservationIgnored private var cachedToken: SessionToken?
     /// The last per-model breakdown, reused between throttled fetches (see
     /// ``modelRefreshInterval``) and kept when a per-model fetch fails.
     @ObservationIgnored private var cachedModelShares: [ModelShare] = []
@@ -174,7 +177,7 @@ public final class LedgerServices {
             Self.logger.error("Couldn't load spend history: \(error)")
             history = []
         }
-        refreshTokenAvailability()
+        refreshTokenStatus()
     }
 
     // MARK: - Lifecycle
@@ -207,7 +210,6 @@ public final class LedgerServices {
     /// bypasses that throttle. Safe to call concurrently: a stale response is
     /// dropped without touching state or recorded history.
     public func refresh(force: Bool) async {
-        refreshTokenAvailability()
         guard let token = resolveToken() else {
             applyFailure(.missingCredentials)
             return
@@ -256,6 +258,12 @@ public final class LedgerServices {
             loadError = nil
         } catch let error as DashboardError {
             guard generation == requestGeneration else { return }
+            if error == .notAuthenticated {
+                // The credential we cached was rejected — drop it so the next
+                // refresh re-reads (the user may have signed back in to Cursor,
+                // rotating the stored token).
+                cachedToken = nil
+            }
             applyFailure(error.asLoadError)
         } catch {
             guard generation == requestGeneration else { return }
@@ -365,13 +373,38 @@ public final class LedgerServices {
 
     // MARK: - Token
 
-    /// A pasted token (Keychain) wins as an explicit override; otherwise the
-    /// auto-detected local Cursor session is used.
+    /// The session token, read once and then cached. Reading it touches the
+    /// Keychain *and* opens Cursor's SQLite store, and the value doesn't change
+    /// between refreshes — so the cache is dropped only when it actually can
+    /// change: the user edits the pasted token, the API rejects it (401), or
+    /// Settings asks for a fresh read.
     private func resolveToken() -> SessionToken? {
-        if let manual = manualToken(), let token = SessionToken(rawToken: manual) {
+        if let cachedToken { return cachedToken }
+        cachedToken = readToken()
+        return cachedToken
+    }
+
+    /// Reads both credential sources — a pasted token (Keychain) overrides the
+    /// auto-detected local Cursor session — and mirrors what it found onto the
+    /// observable availability flags.
+    private func readToken() -> SessionToken? {
+        let manual = manualToken()
+        hasManualToken = manual != nil
+        let auto = tokenSource.currentToken()
+        autoTokenAvailable = auto != nil
+
+        if let manual, let token = SessionToken(rawToken: manual) {
             return token
         }
-        return tokenSource.currentToken()
+        return auto
+    }
+
+    /// Re-reads the credential sources now, refreshing ``hasManualToken`` and
+    /// ``autoTokenAvailable``. Settings calls this when it appears, since the
+    /// underlying state changes outside the app (signing in/out of Cursor).
+    public func refreshTokenStatus() {
+        cachedToken = nil
+        _ = resolveToken()
     }
 
     private func manualToken() -> String? {
@@ -387,18 +420,13 @@ public final class LedgerServices {
     /// Stores (or clears, for an empty string) a pasted session token.
     public func setManualToken(_ token: String) throws {
         try keychain.write(token)
-        refreshTokenAvailability()
+        refreshTokenStatus()
     }
 
     /// Removes any pasted token (falling back to auto-detection).
     public func clearManualToken() throws {
         try keychain.remove()
-        refreshTokenAvailability()
-    }
-
-    private func refreshTokenAvailability() {
-        hasManualToken = manualToken() != nil
-        autoTokenAvailable = tokenSource.currentToken() != nil
+        refreshTokenStatus()
     }
 
     // MARK: - Login item

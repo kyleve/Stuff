@@ -126,6 +126,12 @@ final class LedgerSession {
         services.refreshLoginItemStatus()
     }
 
+    /// Re-reads the credential sources so the Account pane reflects reality —
+    /// the user can sign in/out of Cursor while Ledger runs.
+    func refreshTokenStatus() {
+        services.refreshTokenStatus()
+    }
+
     func openSystemSettingsLoginItems() {
         services.openSystemSettingsLoginItems()
     }

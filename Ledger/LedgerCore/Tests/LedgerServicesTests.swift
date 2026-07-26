@@ -8,6 +8,7 @@ struct LedgerServicesTests {
         provider: any DashboardProvider = ScriptedDashboardProvider(.failure(.network("unused"))),
         manualToken: String? = nil,
         autoToken: SessionToken? = nil,
+        tokenSource: (any SessionTokenSource)? = nil,
         historyStore: SpendHistoryStore? = nil,
     ) -> LedgerServices {
         let directory = FileManager.default.temporaryDirectory
@@ -16,7 +17,7 @@ struct LedgerServicesTests {
         return LedgerServices(
             configStore: store,
             keychain: InMemoryKeychainStore(secret: manualToken),
-            tokenSource: StubTokenSource(token: autoToken),
+            tokenSource: tokenSource ?? StubTokenSource(token: autoToken),
             provider: provider,
             loginItem: LoginItemController(backend: LoginItemRecorder()),
             historyStore: historyStore ?? SpendHistoryStore(directory: directory),
@@ -326,6 +327,57 @@ struct LedgerServicesTests {
         #expect(abs((snapshot.modelShares.first?.fraction ?? 0) - 2.0 / 3.0) < 0.0001)
     }
 
+    // MARK: - Token caching
+
+    @Test func readsTheTokenOnceAcrossRefreshes() async {
+        let source = CountingTokenSource(token: SessionToken(cookieValue: "auto::jwt"))
+        let services = makeServices(
+            provider: ScriptedDashboardProvider(summary: .fixture(onDemandCents: 5000)),
+            tokenSource: source,
+        )
+        // Resolved once during init…
+        #expect(source.reads == 1)
+
+        await services.refresh(force: false)
+        await services.refresh(force: false)
+
+        // …and reused after that: reading it opens Cursor's SQLite store, which
+        // shouldn't happen on every refresh.
+        #expect(source.reads == 1)
+    }
+
+    @Test func reReadsTheTokenAfterItIsRejected() async {
+        let source = CountingTokenSource(token: SessionToken(cookieValue: "stale::jwt"))
+        let provider = MutableDashboardProvider(.failure(.notAuthenticated))
+        let services = makeServices(provider: provider, tokenSource: source)
+        #expect(source.reads == 1)
+
+        // A 401 means the cached credential is no good — the user may have
+        // signed back in to Cursor since.
+        await services.refresh(force: false)
+        #expect(services.loadState == .failed(.notAuthenticated))
+
+        source.token = SessionToken(cookieValue: "fresh::jwt")
+        provider.result = .success(.fixture(onDemandCents: 4200))
+        await services.refresh(force: false)
+
+        #expect(source.reads == 2)
+        #expect(isLoaded(services.loadState))
+    }
+
+    @Test func refreshTokenStatusRereadsTheSources() {
+        let source = CountingTokenSource(token: nil)
+        let services = makeServices(tokenSource: source)
+        #expect(!services.autoTokenAvailable)
+
+        // The user signs in to Cursor while Ledger runs; Settings asks again.
+        source.token = SessionToken(cookieValue: "auto::jwt")
+        services.refreshTokenStatus()
+
+        #expect(services.autoTokenAvailable)
+        #expect(source.reads == 2)
+    }
+
     // MARK: - Superseded refreshes
 
     @Test func aSupersededRefreshDoesNotRecordHistory() async {
@@ -364,6 +416,34 @@ struct LedgerServicesTests {
         for _ in 0 ..< 1000 {
             if predicate() { return }
             await Task.yield()
+        }
+    }
+}
+
+/// A `SessionTokenSource` that counts reads and can change its token, so a
+/// test can prove the credential is cached rather than re-read every refresh.
+private final class CountingTokenSource: SessionTokenSource, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _token: SessionToken?
+    private var _reads = 0
+
+    init(token: SessionToken?) {
+        _token = token
+    }
+
+    var reads: Int {
+        lock.withLock { _reads }
+    }
+
+    var token: SessionToken? {
+        get { lock.withLock { _token } }
+        set { lock.withLock { _token = newValue } }
+    }
+
+    func currentToken() -> SessionToken? {
+        lock.withLock {
+            _reads += 1
+            return _token
         }
     }
 }
