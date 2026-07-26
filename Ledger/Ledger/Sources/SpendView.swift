@@ -1,10 +1,11 @@
 import LedgerCore
 import SwiftUI
 
-/// The menu-bar popover: the current billing cycle's Cursor spend and the
-/// year-to-date total, plus a footer with Refresh, Settings, and Quit. Renders
-/// the single ``LedgerServices/LoadState`` — spinner, error, or value — so the
-/// three states can never overlap.
+/// The menu-bar popover: the current billing cycle's Cursor spend, today's and
+/// this week's spend, the included-usage pools, and the per-model breakdown,
+/// plus a footer with Refresh, Settings, and Quit. Renders the single
+/// ``LedgerServices/LoadState`` — spinner, error, or value — so the three
+/// states can never overlap.
 struct SpendView: View {
     @Bindable var session: LedgerSession
 

@@ -60,8 +60,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         session.stop()
     }
 
-    /// Status-item click: dismiss the popover when it's open, otherwise show
-    /// it anchored to the button (and refresh spend as it opens).
+    /// Status-item click: dismiss the popover when it's open, otherwise show it
+    /// anchored to the button. Deliberately does not fetch — see below.
     @objc private func togglePopover() {
         guard let button = statusItem?.button else { return }
         let popover = popover ?? makePopover()

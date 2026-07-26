@@ -31,8 +31,6 @@ public struct SpendDeltas: Equatable, Sendable {
         self.thisWeekCents = thisWeekCents
     }
 
-    public static let none = SpendDeltas(todayCents: nil, thisWeekCents: nil)
-
     public var todayDollars: Double? {
         todayCents.map { Double($0) / 100 }
     }
