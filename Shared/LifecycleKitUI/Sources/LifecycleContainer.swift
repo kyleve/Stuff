@@ -194,14 +194,26 @@ public struct LifecycleContainer<
     /// (held vs. revealed) would give SwiftUI two identities and rebuild the
     /// whole destination when the hold releases, which is exactly what
     /// building it early is meant to avoid.
+    ///
+    /// Because it's in the tree early, it's explicitly hidden from VoiceOver
+    /// and hit-testing while a surface covers it — an opaque splash hides it
+    /// visually, but not from assistive technology.
     private var phaseContent: some View {
-        ZStack {
+        let overlay = launchOverlay
+        return ZStack {
             if let value = runner.phase.readyValue {
                 content(value)
+                    // Warmed up beneath the launch surface, but not *reachable*
+                    // through it. An opaque splash hides the content visually;
+                    // without these it stays in the accessibility tree and the
+                    // hit-test path, so during the hold VoiceOver could focus an
+                    // app the user can't see yet.
+                    .accessibilityHidden(overlay.coversContent)
+                    .allowsHitTesting(!overlay.coversContent)
                     .transition(transition)
                     .zIndex(Self.contentZIndex)
             }
-            launchSurface
+            launchSurface(overlay)
         }
     }
 
@@ -210,16 +222,36 @@ public struct LifecycleContainer<
     /// state resolves to the *same* `.splash` case, so the splash keeps one
     /// identity (and its animation/caption timers) from `.launching` through
     /// the steps and the hold, instead of remounting at each boundary.
-    private enum LaunchOverlay {
+    enum LaunchOverlay {
         case splash(LifecycleStepContext?)
         case gate(LifecycleGateHandle)
         case failure(LifecycleFailure)
         /// Nothing covers the content — the reveal has happened.
         case revealed
+
+        /// Whether this surface stands between the user and `content`. Drives
+        /// the content's accessibility/hit-testing so "covered" means covered
+        /// for every input method, not just visually.
+        var coversContent: Bool {
+            switch self {
+                case .splash, .gate, .failure: true
+                case .revealed: false
+            }
+        }
     }
 
     private var launchOverlay: LaunchOverlay {
-        switch runner.phase {
+        Self.overlay(for: runner.phase, canRevealReady: canRevealReady)
+    }
+
+    /// Pure so the surface decision — including the held-`.ready` case, which
+    /// depends on view `@State` and can't be reached from a test otherwise —
+    /// is checkable without hosting the container.
+    static func overlay(
+        for phase: LifecycleRunner<Launch>.Phase,
+        canRevealReady: Bool,
+    ) -> LaunchOverlay {
+        switch phase {
             case .launching: .splash(nil)
             case let .running(context): .splash(context)
             case let .awaitingGate(handle): .gate(handle)
@@ -230,8 +262,8 @@ public struct LifecycleContainer<
         }
     }
 
-    @ViewBuilder private var launchSurface: some View {
-        switch launchOverlay {
+    @ViewBuilder private func launchSurface(_ overlay: LaunchOverlay) -> some View {
+        switch overlay {
             case let .splash(context):
                 splash(context).transition(transition).zIndex(Self.launchSurfaceZIndex)
             case let .gate(handle):

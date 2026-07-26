@@ -93,6 +93,27 @@ struct LifecycleContainerTests {
         #expect(!splashShown)
     }
 
+    @Test func aCoveringSurfaceHidesTheContentBeneathIt() {
+        // `content` is built as soon as the launch produces its value — including
+        // while a surface still covers it, so the hold warms it up — which means
+        // "covered" has to hold for VoiceOver and touches too, not just visually:
+        // an opaque splash doesn't take the content out of the accessibility tree.
+        typealias Container = LifecycleContainer<String, EmptyView, EmptyView, EmptyView>
+        let context = LifecycleStepContext(stepID: "open", reason: .userForeground)
+        let handle = LifecycleGateHandle(id: "onboarding", reason: .userForeground)
+        let failure = LifecycleFailure(stepID: "boom", error: ProbeError())
+
+        #expect(Container.overlay(for: .launching, canRevealReady: true).coversContent)
+        #expect(Container.overlay(for: .running(context), canRevealReady: true).coversContent)
+        #expect(Container.overlay(for: .awaitingGate(handle), canRevealReady: true).coversContent)
+        #expect(Container.overlay(for: .failed(failure), canRevealReady: true).coversContent)
+        // The case that regressed: ready (so `content` exists) but still held
+        // behind `minimumSplashDuration`, with the splash on top of it.
+        #expect(Container.overlay(for: .ready("session"), canRevealReady: false).coversContent)
+        // Revealed — nothing between the user and the app.
+        #expect(!Container.overlay(for: .ready("session"), canRevealReady: true).coversContent)
+    }
+
     @Test func launchingShowsSplash() throws {
         var splash = false
         var content = false
