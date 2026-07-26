@@ -280,8 +280,8 @@ struct ScreenHostingTests {
     }
 
     /// A region card's count can change with the card on screen, which now runs
-    /// an animated morph (`DayCountMorph`) rather than a cut — so re-render one
-    /// with a new count and confirm the hosted card survives the update.
+    /// an animated morph (`CardStyles.DayCountStyle`) rather than a cut — so
+    /// re-render one with a new count and confirm the card survives the update.
     @Test func regionSummaryCardHostsAChangingDayCount() throws {
         func card(days: Int) -> RegionSummaryCard {
             RegionSummaryCard(regionDays: RegionDays(region: .california, days: days), year: 2026)

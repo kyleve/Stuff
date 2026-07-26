@@ -201,9 +201,9 @@ path.
 - **A displayed value that can change under the user morphs, too.** Live counts
   (a region's day count as a sample lands) get a `.contentTransition` — but one
   animates *only* inside a transaction, so it needs a paired
-  `.animation(_:value:)` on an ancestor or it silently hard-cuts. Pick the
-  transition and its animation together and honor Reduce Motion in both (see
-  `DayCountMorph`, which `RegionSummaryCard` resolves once).
+  `.animation(_:value:)` on an ancestor or it silently hard-cuts. The transition
+  and its animation are one stylesheet token, since Reduce Motion changes both
+  (see `CardStyles.DayCountStyle`, which `RegionSummaryCard` reads resolved).
 - **Derive UI dimensions; don't repeat them.** A repeated dimension gets one
   named home; real chrome is measured from the live UI via a preference key /
   `onGeometryChange` (see `DeveloperTabBarInset`) rather than hardcoding its

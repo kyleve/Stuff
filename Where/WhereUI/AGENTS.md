@@ -86,11 +86,21 @@ hardcoded per-region look in a view.
 Most tokens are fixed, but a slice derives from the `BContext` traits in
 `init(context:)`. Start from the fixed set (property defaults / `.standard`),
 then adjust only the reactive slice, so a default/system context reproduces
-`WhereStylesheet.default`. Current derivations: larger day-grid tap targets at
-accessibility Dynamic Type sizes, and a flattened card glow under Reduce
-Transparency. Views still decide *when* to apply motion and honor Reduce Motion
-(they pick `motion.reducedReveal`, skip `motion.captionFade`) — the tokens carry
-the full-motion values.
+`WhereStylesheet.default`. Read the live set off `init(context:)`; today it grows
+day-grid tap targets at accessibility Dynamic Type sizes, flattens the card glow
+under Reduce Transparency, and crossfades the cards' day count under Reduce
+Motion.
+
+**Prefer deriving an accessibility setting here over reading it in the view.** A
+view reaching for `@Environment(\.accessibilityReduceMotion)` to choose between
+two token sets is doing the sheet's job — vend one resolved token instead, and
+make it a *single* token when the setting changes more than one value
+(`CardStyles.DayCountStyle` pairs a content transition with the animation that
+runs it, because Reduce Motion swaps both). The `motion` group keeps the older
+shape — full-motion values a view picks between (`motion.reducedReveal` over
+`motion.reveal`, skipping `motion.captionFade`) — because the launch reveal's
+fallback also swaps an `AnyTransition`, which isn't `Equatable` and so can't be a
+token.
 
 `WhereThemes` is deliberately empty for now — the sheet derives from traits, not
 themes. It is the seam a future app-wide or seasonal palette/typography theme

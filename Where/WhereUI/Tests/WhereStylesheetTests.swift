@@ -98,6 +98,15 @@ struct WhereStylesheetTests {
             innerWidth: 1,
             innerDash: [5, 4],
         ))
+        #expect(card.dayCount == .rolling)
+        #expect(card.dayCount.transition == .numericText())
+        #expect(card.dayCount.animation == .easeOut(duration: 0.3))
+    }
+
+    @Test func theCrossFadedDayCountDropsTheRoll() {
+        let crossFaded = WhereStylesheet.CardStyles.DayCountStyle.crossFaded
+        #expect(crossFaded.transition == .opacity)
+        #expect(crossFaded.animation == .easeInOut(duration: 0.2))
     }
 
     @Test func calendarStyle() {
@@ -240,8 +249,6 @@ struct WhereStylesheetTests {
         #expect(motion.reveal == .easeIn(duration: 0.16))
         #expect(motion.reducedReveal == .easeInOut(duration: 0.2))
         #expect(motion.captionFade == .easeOut(duration: 0.3))
-        #expect(motion.dayCountChange == .easeOut(duration: 0.3))
-        #expect(motion.reducedDayCountChange == .easeInOut(duration: 0.2))
     }
 
     @Test func launchTimings() {
@@ -301,6 +308,14 @@ struct WhereStylesheetTests {
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.regular.glow.radius == 0)
         #expect(resolved.card.compact.glow.radius == 0)
+    }
+
+    @MainActor
+    @Test func crossFadesTheCardDayCountUnderReduceMotion() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: true)
+        let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.card.dayCount == .crossFaded)
     }
 }
 
