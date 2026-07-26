@@ -20,8 +20,9 @@ private let developmentTeam = Environment.developmentTeam.getString(default: "")
 /// `STRING_CATALOG_GENERATE_SYMBOLS` turns on Xcode's type-safe String Catalog
 /// symbol generation for the app and app-extension targets (Where, WhereWidgets,
 /// WhereShareExtension, …). The SwiftPM package targets declared in `Package.swift`
-/// (WhereUI, WhereCore, RegionKit, LifecycleKit) get symbol generation automatically
-/// from the toolchain, so this only needs to reach the Tuist-native targets.
+/// (WhereUI, WhereCore, RegionKit, LifecycleKitUI) get symbol generation
+/// automatically from the toolchain, so this only needs to reach the
+/// Tuist-native targets.
 ///
 /// `DEVELOPMENT_TEAM` is threaded in from the environment when present (see above).
 private let projectSettings: Settings = .settings(
@@ -292,6 +293,13 @@ let project = Project(
             sources: ["Shared/LifecycleKit/Tests/**"],
         ),
         unitTests(
+            name: "LifecycleKitUITests",
+            bundleIdSuffix: "lifecyclekitui",
+            productDependency: "LifecycleKitUI",
+            sources: ["Shared/LifecycleKitUI/Tests/**"],
+            extraPackageProducts: ["LifecycleKit"],
+        ),
+        unitTests(
             name: "JournalKitTests",
             bundleIdSuffix: "journalkit",
             productDependency: "JournalKit",
@@ -373,7 +381,7 @@ let project = Project(
         // BTraits/BThemes/BStylesheets containers) then silently resolves against
         // the wrong copy — the writer stores under one copy's key type, the
         // reader looks it up under another's. Everything the tests need
-        // (BroadwayCore/BroadwayUI, LifecycleKit, PeriscopeCore/UI/Tools,
+        // (BroadwayCore/BroadwayUI, LifecycleKit/LifecycleKitUI, PeriscopeCore/UI/Tools,
         // SwiftDataInspector, RegionKit + its GeoJSON bundle) is reached
         // transitively through WhereUI.
         // See "Never double-link a product a dynamic framework already
@@ -496,6 +504,7 @@ let project = Project(
                 "StuffTestHost",
                 "StuffCoreTests",
                 "LifecycleKitTests",
+                "LifecycleKitUITests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
@@ -516,6 +525,7 @@ let project = Project(
             testAction: .targets([
                 "StuffCoreTests",
                 "LifecycleKitTests",
+                "LifecycleKitUITests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
@@ -535,6 +545,7 @@ let project = Project(
         ),
         testScheme(name: "StuffCoreTests"),
         testScheme(name: "LifecycleKitTests"),
+        testScheme(name: "LifecycleKitUITests"),
         testScheme(name: "JournalKitTests"),
         testScheme(name: "PeriscopeCoreTests"),
         testScheme(name: "PeriscopeUITests"),

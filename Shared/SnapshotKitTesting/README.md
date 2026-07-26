@@ -85,7 +85,7 @@ xcodebuild passes any `TEST_RUNNER_`-prefixed variable through, so in this repo
 ```bash
 TEST_RUNNER_SNAPSHOT_RECORD=failed mise exec -- tuist test WhereUISnapshotTests \
   --no-selective-testing -- \
-  -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0'
+  -destination "platform=iOS Simulator,id=$(./simulator --os 27.0)"
 ```
 
 Values map onto `SnapshotTestingConfiguration.Record`: `all` (rewrite

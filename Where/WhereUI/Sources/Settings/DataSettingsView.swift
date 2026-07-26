@@ -1,4 +1,4 @@
-import LifecycleKit
+import LifecycleKitUI
 import SwiftUI
 import WhereCore
 
@@ -9,7 +9,11 @@ struct DataSettingsView: View {
     var focus: SettingsFocus?
 
     @Environment(WhereModel.self) private var model
-    @Environment(\.lifecycleRunner) private var runner
+    // The reset plan is rooted at the session being torn down, so this screen
+    // reads it from the environment (it only renders at `.ready`, where the
+    // session is present) rather than the teardown re-reading an optional.
+    @Environment(WhereSession.self) private var session
+    @Environment(\.lifecycle) private var lifecycle
 
     @State private var showClearConfirmation = false
     @State private var showResetConfirmation = false
@@ -57,9 +61,9 @@ struct DataSettingsView: View {
     }
 
     /// Whole-app teardown: wipes every year's data and returns to first-run
-    /// onboarding, run through the `LifecycleRunner` published into the
-    /// environment by `LifecycleContainer`. The runner proxy asserts in debug /
-    /// no-ops in release when no container is above (e.g. previews).
+    /// onboarding, run through the `LifecycleProxy` that `LifecycleContainer`
+    /// publishes under `\.lifecycle`. The proxy asserts in debug / no-ops in
+    /// release when no container is above (e.g. previews).
     private var resetSection: some View {
         Section {
             Button(role: .destructive) {
@@ -86,7 +90,7 @@ struct DataSettingsView: View {
     }
 
     private func requestReset() {
-        Task { await runner.teardown(WhereLaunch.resetSequence(for: model)) }
+        Task { await lifecycle.teardown(WhereLaunch.resetPlan(for: model), input: session) }
     }
 }
 
@@ -120,6 +124,7 @@ extension DataSettingsView: SettingsSection {
         NavigationStack {
             DataSettingsView(report: PreviewSupport.loadedYearReportModel())
                 .environment(PreviewSupport.loadedModel())
+                .environment(PreviewSupport.loadedSession())
         }
         .whereBroadwayRoot()
     }

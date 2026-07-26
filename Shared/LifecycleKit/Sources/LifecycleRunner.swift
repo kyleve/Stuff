@@ -1,7 +1,6 @@
 import Observation
-import SwiftUI
 
-/// Drives a `LifecycleSteps` to completion, publishing a single observable
+/// Drives a `LaunchPlan` to completion, publishing a single observable
 /// `phase` the host renders. The engine and every step run on the main actor;
 /// heavy work is expected to be delegated to actors from inside a step's body.
 ///
@@ -9,28 +8,56 @@ import SwiftUI
 /// - The synchronous `initializePrerequisites` runs at `init`, before any
 ///   async work — use it for the cheap, must-exist-now wiring a background
 ///   relaunch can't wait for (e.g. installing a `CLLocationManager` delegate).
-/// - `run()` walks the steps in order, skipping those whose `modes` don't
-///   include the launch reason or whose async `condition` is false, awaiting
-///   each remaining step's body. A thrown error parks the runner in
-///   `.failed`; `retry()` resumes from the step that failed.
+/// - `run()` walks the plan's trunk in order, threading each node's typed
+///   output into the next node's input and skipping nodes whose `modes`
+///   don't include the launch reason (only pass-through nodes may gate — see
+///   `LaunchPlan`). Detached groups fan out concurrently and never block the
+///   trunk. A thrown trunk step parks the runner in `.failed` — a **terminal**
+///   state: there is no retry, so the recovery for a failed launch is
+///   relaunching the app.
 /// - `enterForeground()` promotes a runner that started headless (its
-///   `reason` was `.background`) once a window actually appears, re-driving the
-///   sequence so the now-applicable foreground-only steps (onboarding, etc.)
-///   run.
+///   `reason` was `.background` or `.undetermined`) once a window actually
+///   appears, re-driving the plan so the now-applicable foreground-only
+///   nodes (gates, foreground work) run. (Promotion is the *only* reason the
+///   memo exists — a fresh launch never re-walks a node.)
 ///
 /// Drives never overlap. The internal `State` folds the launch reason, the
 /// "has run" flag, and the in-flight drive task into one value so invalid
 /// combinations are unrepresentable; `reason` and `phase` are its public
-/// projections. A new drive (`run`/`retry`/`enterForeground`/`teardown`) cancels
-/// the in-flight one and awaits it draining before starting — cooperative
-/// cancellation (a parked `waitForResolution()` throws `CancellationError`)
-/// keeps that drain from hanging behind an interactive step waiting on a tap
-/// that will never come.
+/// projections. A new drive (`run`/`enterForeground`/`teardown`) cancels the
+/// in-flight one and awaits it draining before starting — cooperative
+/// cancellation (a parked gate's `waitForResolution()` throws
+/// `CancellationError`) keeps that drain from hanging behind a gate waiting
+/// on a tap that will never come.
 @MainActor
 @Observable
-public final class LifecycleRunner {
+public final class LifecycleRunner<Launch: Sendable> {
+    /// The single value the host renders. Each case carries exactly what its
+    /// surface needs — and `.ready` carries the trunk's final value, so the
+    /// app surface cannot be rendered without the proof the launch produced.
+    public enum Phase {
+        /// Before (or between) trunk nodes — show the splash.
+        case launching
+        /// A trunk step is running; its context feeds splash caption/progress.
+        case running(LifecycleStepContext)
+        /// A gate parked the trunk; the UI resolves the handle to continue.
+        case awaitingGate(LifecycleGateHandle)
+        /// A trunk node threw. Terminal — the host shows an error surface (no
+        /// retry); the recovery is relaunching the app.
+        case failed(LifecycleFailure)
+        /// The trunk finished — hand its output to the app's main UI.
+        /// Detached children may still be draining; they can't regress this.
+        case ready(Launch)
+    }
+
     /// The single value the host renders.
-    public private(set) var phase: LifecyclePhase = .launching
+    public private(set) var phase: Phase = .launching
+
+    /// Failures from detached (fire-and-forget) children. Deliberately *off*
+    /// the phase: a detached failure is observable here (and worth logging by
+    /// the consumer) but never fails the drive or blocks `.ready`. Reset when
+    /// a fresh attempt begins, like the memoized outputs.
+    public private(set) var detachedFailures: [LifecycleFailure] = []
 
     /// The runner's drive lifecycle. One value so e.g. "not started yet" can't
     /// also hold a drive task, and the launch reason always travels with it.
@@ -54,43 +81,36 @@ public final class LifecycleRunner {
 
     private var state: State
 
-    /// Why the app launched this time. A not-yet-foreground launch (`.background`
-    /// or `.undetermined`) can be promoted to a foreground one via
-    /// `enterForeground()`; the container observes this to stop rendering
-    /// `EmptyView()` and start building real UI.
+    /// Why the app launched this time. A not-yet-foreground launch
+    /// (`.background` or `.undetermined`) can be promoted to a foreground one
+    /// via `enterForeground()`; the container observes this to stop rendering
+    /// nothing and start building real UI.
     public var reason: LifecycleReason {
         state.reason
     }
 
-    @ObservationIgnored private let steps: [LifecycleStep]
-    /// The most recent teardown sequence handed to `teardown(_:)`, retained so a
-    /// `retry()` after a thrown teardown step resumes the teardown (and the
-    /// relaunch that follows) rather than re-driving the launch sequence over
-    /// un-torn-down state. Empty until the first `teardown(_:)`.
-    @ObservationIgnored private var teardownSteps: [LifecycleStep] = []
+    @ObservationIgnored private let launchNodes: [LaunchPlanNode]
 
-    /// Steps that have already finished during the current launch attempt, so a
-    /// re-drive doesn't repeat completed work. It's what lets `enterForeground()`
-    /// promote a headless/undetermined launch — which re-drives from the top so
-    /// the now-applicable foreground-only steps run — without running a work
-    /// step that already serviced the launch a second time.
+    /// The output of every node that ran to completion during the current
+    /// attempt, keyed by node ID — the run-once set that lets an
+    /// `enterForeground()` promotion's re-walk skip completed work and thread
+    /// the recorded value into the next node.
     ///
-    /// Only steps that actually *ran to completion* are recorded; a step skipped
-    /// by mode/condition gating (e.g. a foreground-only step during a background
-    /// drive) or one that was cancelled mid-flight is not, so it still runs (and
-    /// its condition still re-evaluates) once the launch is promoted. Reset when
-    /// a *fresh* attempt begins (first `run()`, and the relaunch after a
-    /// teardown) so a reset genuinely re-runs everything; preserved across
-    /// `enterForeground()` and `retry()`, which continue the same attempt.
-    @ObservationIgnored private var completedStepIDs: Set<AnyHashable> = []
+    /// Only nodes that actually *ran to completion* are recorded; a node
+    /// skipped by mode gating or a gate whose `isNeeded` was false is not, so
+    /// it re-evaluates once the launch is promoted. Reset when a *fresh*
+    /// attempt begins (first `run()`, the start of a teardown, and the
+    /// relaunch after it), so each fresh walk starts from an empty set —
+    /// which is why a teardown plan may freely reuse launch node IDs.
+    @ObservationIgnored private var memo: [AnyHashable: any Sendable] = [:]
 
     public init(
         reason: LifecycleReason,
         initializePrerequisites: @MainActor () -> Void = {},
-        sequence: LifecycleSteps,
+        plan: LaunchPlan<some Hashable & Sendable, Void, Launch>,
     ) {
         state = .notStarted(reason)
-        steps = sequence.steps
+        launchNodes = plan.nodes
         initializePrerequisites()
     }
 
@@ -100,70 +120,61 @@ public final class LifecycleRunner {
         if case let .running(_, task) = state { task } else { nil }
     }
 
-    /// Walk the sequence once. Safe to call repeatedly; only the first call
-    /// drives the steps, and later callers await that drive instead of
-    /// starting a second one.
+    /// Walk the plan once. Safe to call repeatedly; only the first call
+    /// drives the nodes, and later callers await that drive instead of
+    /// starting a second one. Returns once the trunk *and* its detached
+    /// children have drained (`.ready` is published as soon as the trunk
+    /// finishes, before the children do).
     public func run() async {
         switch state {
             case let .notStarted(reason):
                 // A fresh attempt starts with a clean slate; nothing has run yet.
-                completedStepIDs.removeAll()
-                await drive(reason: reason, from: 0)
+                memo.removeAll()
+                detachedFailures.removeAll()
+                await drive(reason: reason)
             case let .running(_, task):
                 await task.value
         }
     }
 
-    /// Promote a not-yet-foreground launch (`.background` or `.undetermined`) to
-    /// a foreground one and re-drive the sequence so foreground-only steps (e.g.
-    /// onboarding) now run. No-op for a runner that already launched in the
-    /// foreground.
+    /// Promote a not-yet-foreground launch (`.background` or `.undetermined`)
+    /// to a foreground one and re-drive the plan so foreground-only nodes
+    /// (gates, foreground work) now run. No-op for a runner that already
+    /// launched in the foreground.
     ///
-    /// Call this from the root view's `.task`: it fires only once a window
-    /// exists, which is exactly when a background/undetermined launch has become
-    /// a user-visible one. The re-drive skips steps that already completed (see
-    /// `completedStepIDs`), so a work step serviced during the headless drive
+    /// Call this only once the scene is genuinely active: it fires when a
+    /// window exists, which is exactly when a background/undetermined launch
+    /// has become a user-visible one. The re-drive skips nodes that already
+    /// completed (see `memo`), so work serviced during the headless drive
     /// isn't run a second time.
     public func enterForeground() async {
         guard reason != .userForeground else { return }
-        await drive(reason: .userForeground, from: 0)
+        await drive(reason: .userForeground)
     }
 
-    /// Resume from the step that failed. No-op unless the runner is currently in
-    /// `.failed`.
+    /// Run a teardown `plan` rooted at `input` (logout / erase), then
+    /// relaunch from the top so the app returns to its initial state — e.g.
+    /// first-run onboarding shows again once the teardown clears the "has
+    /// onboarded" flag.
     ///
-    /// If the failure was in a teardown step (from `teardown(_:)`), the teardown
-    /// is resumed from that step and the relaunch still follows — so a failed
-    /// erase re-erases rather than dropping the user back into the app over
-    /// un-torn-down state. Otherwise the launch sequence is resumed from the
-    /// failed step.
-    public func retry() {
-        guard case let .failed(failure) = phase else { return }
-        if let teardownIndex = teardownSteps.firstIndex(where: { $0.id == failure.stepID }) {
-            Task { await driveTeardown(fromTeardownIndex: teardownIndex) }
-        } else if let startIndex = steps.firstIndex(where: { $0.id == failure.stepID }) {
-            let reason = reason
-            Task { await drive(reason: reason, from: startIndex) }
-        }
+    /// If a teardown node throws, the runner parks in the terminal `.failed`
+    /// and does not relaunch — the erase leaves prior state intact (a thrown
+    /// erase never reaches the session drop), so relaunching the app returns
+    /// to the working app rather than a half-erased one. The teardown's
+    /// detached children (if any) are drained *before* the relaunch begins,
+    /// so no torn-down-world work overlaps the fresh launch.
+    public func teardown<Input: Sendable>(
+        _ plan: LaunchPlan<some Hashable & Sendable, Input, some Sendable>,
+        input: Input,
+    ) async {
+        await teardownErased(nodes: plan.nodes, input: input)
     }
 
-    /// Run a teardown `sequence` (logout / erase), then relaunch from the top
-    /// so the app returns to its initial state — e.g. first-run onboarding
-    /// shows again once the teardown clears the "has onboarded" flag.
-    ///
-    /// The teardown steps are retained so a `retry()` after a thrown teardown
-    /// step resumes the teardown (then the relaunch). If a teardown step throws,
-    /// the runner parks in `.failed` and does not relaunch.
-    public func teardown(_ sequence: LifecycleSteps) async {
-        teardownSteps = sequence.steps
-        await driveTeardown(fromTeardownIndex: 0)
-    }
-
-    /// Cancel any in-flight drive, drain it, then run the retained `teardown`
-    /// from `startIndex` followed by a fresh launch from the top — landing in
-    /// `.ready` only if both complete. Shared by `teardown(_:)` and a `retry()`
-    /// resuming a failed teardown step, so the two stay in lockstep.
-    private func driveTeardown(fromTeardownIndex startIndex: Int) async {
+    /// `teardown(_:input:)` after erasure — the `LifecycleDriving` seam the
+    /// UI proxy forwards through (see `LifecycleDriving`). Cancels any
+    /// in-flight drive, drains it, walks the teardown once, then relaunches
+    /// from the top — landing in `.ready` only if both complete.
+    package func teardownErased(nodes: [LaunchPlanNode], input: any Sendable) async {
         let previous = currentTask
         previous?.cancel()
         let reason = reason
@@ -171,191 +182,261 @@ public final class LifecycleRunner {
         let task = Task { [weak self] in
             guard let self else { return }
             await previous?.value
-            guard case .completed = await runSteps(teardownSteps, from: startIndex) else { return }
-            // The relaunch is a fresh attempt: clear the completed set so every
-            // launch step re-runs over the torn-down state rather than being
-            // skipped as "already done" from before the teardown.
-            completedStepIDs.removeAll()
-            if case .completed = await runSteps(steps, from: 0) {
-                phase = .ready
+            // Teardown starts from an empty run-once set: the launch attempt
+            // is over (its drive drained above), so clearing here means a
+            // teardown node may freely reuse a launch node's ID — there is no
+            // shared-memo collision, which is why the combinator engine no
+            // longer needs a cross-plan disjointness precondition. Teardown
+            // runs exactly once (no retry), so nothing re-reads these entries.
+            memo.removeAll()
+            let tornDown = await withDiscardingTaskGroup(returning: Bool.self) { group in
+                let outcome = await self.walk(nodes, input: input, group: &group)
+                guard case .completed = outcome, !Task.isCancelled else { return false }
+                return true
             }
+            guard tornDown else { return }
+            // The relaunch is a fresh attempt: clear the teardown's entries so
+            // every launch node re-runs over the torn-down state.
+            memo.removeAll()
+            detachedFailures.removeAll()
+            await runLaunchPlan()
         }
         state = .running(reason: reason, task: task)
         await task.value
     }
 
-    /// Cancel any in-flight drive, then drive `self.steps` from `startIndex` on
-    /// a fresh task, landing in `.ready` if every applicable step completes.
-    /// The new task drains the cancelled one before running, so two drives
-    /// never overlap.
-    private func drive(reason newReason: LifecycleReason, from startIndex: Int) async {
+    /// Cancel any in-flight drive, then drive the launch plan on a fresh
+    /// task, landing in `.ready` if the trunk completes. The new task drains
+    /// the cancelled one before running, so two drives never overlap.
+    private func drive(reason newReason: LifecycleReason) async {
         let previous = currentTask
         previous?.cancel()
         phase = .launching
         let task = Task { [weak self] in
             guard let self else { return }
             await previous?.value
-            if case .completed = await runSteps(steps, from: startIndex) {
-                phase = .ready
-            }
+            await runLaunchPlan()
         }
         state = .running(reason: newReason, task: task)
         await task.value
     }
 
-    /// The outcome of running a single step or a whole sequence — the cases line
-    /// up, so `runStep`/`runSteps` share it.
-    private enum DriveOutcome {
-        /// The step (or every applicable step) finished.
-        case completed
-        /// A step threw a non-cancellation error; `phase` is now `.failed`.
+    /// Walk the launch trunk inside a task group (the group owns any detached
+    /// children it spawns), publishing `.ready` with the trunk's output as
+    /// soon as the trunk completes — *before* the children drain, which
+    /// happens on scope exit. A superseded (cancelled) walk publishes nothing.
+    private func runLaunchPlan() async {
+        await withDiscardingTaskGroup { group in
+            let outcome = await self.walk(self.launchNodes, input: (), group: &group)
+            guard case let .completed(value) = outcome, !Task.isCancelled else { return }
+            self.phase = .ready(value as! Launch)
+        }
+    }
+
+    /// The outcome of walking a trunk.
+    private enum WalkOutcome {
+        /// Every applicable node finished; carries the trunk value after the
+        /// last one.
+        case completed(any Sendable)
+        /// A node threw a non-cancellation error; `phase` is now `.failed`
+        /// (terminally).
         case failed
         /// The drive was superseded (cancelled); `phase` is left for the
         /// drive that cancelled it to set.
         case cancelled
     }
 
-    /// Walk `steps` from `startIndex`, honoring mode/condition gating and
-    /// delegating each applicable step to `runStep`.
-    private func runSteps(_ steps: [LifecycleStep], from startIndex: Int) async -> DriveOutcome {
-        var index = startIndex
-        while index < steps.count {
+    /// Walk `nodes` in order, threading the trunk value through steps and
+    /// gates, spawning detached children into `group`, and honoring the
+    /// memoized run-once set.
+    private func walk(
+        _ nodes: [LaunchPlanNode],
+        input: any Sendable,
+        group: inout DiscardingTaskGroup,
+    ) async -> WalkOutcome {
+        var value = input
+        var index = 0
+        while index < nodes.count {
             if Task.isCancelled { return .cancelled }
 
-            let step = steps[index]
+            switch nodes[index] {
+                case let .step(node):
+                    // Already finished this attempt (e.g. before an
+                    // `enterForeground()` promotion re-drove from the top) —
+                    // don't run it again; adopt its recorded output.
+                    if let memoized = memo[node.id] {
+                        value = memoized
+                        break
+                    }
+                    // Only pass-through steps can carry a narrowed mode set
+                    // (LaunchPlan preconditions the rest), so skipping here
+                    // never leaves a hole in the data flow.
+                    guard node.modes.contains(reason.modeSet) else { break }
+                    let context = LifecycleStepContext(stepID: node.id, reason: reason)
+                    phase = .running(context)
+                    do {
+                        let output = try await node.run(value, context)
+                        memo[node.id] = output
+                        value = output
+                    } catch is CancellationError {
+                        return .cancelled
+                    } catch {
+                        // A superseded drive can still throw a *real* error
+                        // from its in-flight step (the work isn't required to
+                        // be cancellation-responsive). The superseding drive
+                        // owns `phase` now, so a dying drive must report
+                        // `.cancelled` rather than clobber the new drive's
+                        // state with `.failed`.
+                        guard !Task.isCancelled else { return .cancelled }
+                        phase = .failed(LifecycleFailure(stepID: node.id, error: error))
+                        return .failed
+                    }
 
-            // Already finished this attempt (e.g. a background-safe step that
-            // ran before an `enterForeground()` promotion re-drove from the
-            // top) — don't run it again.
-            guard !completedStepIDs.contains(step.id) else {
-                index += 1
-                continue
-            }
-            guard step.appliesTo(reason) else {
-                index += 1
-                continue
-            }
-            guard await step.condition() else {
-                index += 1
-                continue
-            }
+                case let .gate(node):
+                    if memo[node.id] != nil { break }
+                    guard node.modes.contains(reason.modeSet) else { break }
+                    // A skipped gate is *not* memoized: `isNeeded` re-evaluates
+                    // on the promotion re-drive, so a gate skipped headless
+                    // still shows once the launch is user-visible.
+                    guard await node.isNeeded(value) else { break }
+                    if Task.isCancelled { return .cancelled }
+                    let handle = LifecycleGateHandle(node: node, reason: reason, value: value)
+                    phase = .awaitingGate(handle)
+                    do {
+                        try await handle.waitForResolution()
+                        memo[node.id] = value
+                    } catch is CancellationError {
+                        return .cancelled
+                    } catch {
+                        guard !Task.isCancelled else { return .cancelled }
+                        phase = .failed(LifecycleFailure(stepID: node.id, error: error))
+                        return .failed
+                    }
 
-            switch await runStep(step) {
-                case .completed:
-                    completedStepIDs.insert(step.id)
-                    index += 1
-                case .failed: return .failed
-                case .cancelled: return .cancelled
+                case let .detached(children):
+                    // Fan out and keep walking: children never block the trunk.
+                    for child in children {
+                        guard memo[child.id] == nil,
+                              child.modes.contains(reason.modeSet) else { continue }
+                        spawnDetached(child, value: value, group: &group)
+                    }
             }
+            index += 1
         }
-        return .completed
+        return .completed(value)
     }
 
-    /// Publish a single applicable step, manage its presentation, await its
-    /// body, then hold the presentation for `minVisible`.
-    ///
-    /// The presentation bookkeeping is a *local* `ActivePresentation`, created
-    /// here and torn down on every exit path via `defer` — so a step's
-    /// deferred-timer/`minVisible` state can't outlive the step that owns it
-    /// (the invariant that previously lived in scattered stored properties).
-    private func runStep(_ step: LifecycleStep) async -> DriveOutcome {
-        let bridge = LifecycleStepUIBridge(reason: reason)
-        phase = .running(step, bridge)
-
-        let presentation = ActivePresentation(for: step, bridge: bridge)
-        defer { presentation.cancel() }
-
-        do {
-            try await step.perform(bridge)
-        } catch is CancellationError {
-            return .cancelled
-        } catch {
-            // A superseded drive can still throw a *real* error from its
-            // in-flight step (the work isn't required to be cancellation-
-            // responsive). The superseding drive owns `phase` now, so a dying
-            // drive must report `.cancelled` rather than clobber the new
-            // drive's state with `.failed` — the new drive re-runs the step
-            // and surfaces its own outcome.
-            guard !Task.isCancelled else { return .cancelled }
-            phase = .failed(LifecycleFailure(stepID: step.id, error: error))
-            return .failed
+    /// Run one detached child in `group`. Success is memoized (a re-drive
+    /// doesn't repeat it); a real failure is recorded on `detachedFailures`
+    /// — observable, never fatal; a failed child is *not* memoized, so the
+    /// next re-drive retries it. A cancelled child (its drive was superseded)
+    /// records nothing, mirroring the trunk's cancelled-is-not-failed rule.
+    private func spawnDetached(
+        _ child: DetachedNode,
+        value: any Sendable,
+        group: inout DiscardingTaskGroup,
+    ) {
+        let reason = reason
+        // Formed as a main-actor `@Sendable` closure so it may capture the
+        // (non-`Sendable`, main-actor-confined) node; the group task then
+        // captures only this closure, which crosses safely.
+        let operation: @Sendable @MainActor () async -> Void = { [weak self] in
+            let context = LifecycleStepContext(stepID: child.id, reason: reason)
+            do {
+                try await child.run(value, context)
+                self?.memo[child.id] = ()
+            } catch is CancellationError {
+                // Superseded drive draining — deliberately not a failure.
+            } catch {
+                guard !Task.isCancelled, let self else { return }
+                detachedFailures.append(LifecycleFailure(stepID: child.id, error: error))
+            }
         }
-
-        await presentation.hold()
-        return .completed
+        group.addTask {
+            await operation()
+        }
     }
 }
 
-#if DEBUG
-    extension LifecycleRunner {
-        /// Injects a failure for SPI-enabled tests (e.g. stale step IDs in `retry()`).
-        @_spi(Testing) public func injectFailureForTesting(_ failure: LifecycleFailure) {
-            phase = .failed(failure)
-        }
-    }
-#endif
+// MARK: - Phase inspection
 
-/// Per-step presentation bookkeeping, owned for the lifetime of one running
-/// step. Activating the step's presentation (immediately, on a `when:`
-/// predicate, or after a delay), stamping when it appeared, and enforcing
-/// `minVisible` all live here so the runner doesn't carry transient
-/// presentation state between steps — it can only exist while a step runs.
 @MainActor
-private final class ActivePresentation {
-    private let minVisible: Duration
-    /// The deferred-trigger timer, if the step uses `presenting(after:)`. Nil for
-    /// immediate/`when:`/no-presentation steps and once cancelled.
-    private var pendingTimer: Task<Void, Never>?
-    /// When the view actually appeared (any trigger); nil while nothing is on
-    /// screen (deferred-and-not-yet-fired, or a `when:` predicate that was
-    /// false), so there's nothing to hold.
-    private var shownAt: ContinuousClock.Instant?
-
-    /// Activate `step`'s presentation per its trigger. With no presentation this
-    /// is inert: `hold()`/`cancel()` then do nothing.
-    init(for step: LifecycleStep, bridge: LifecycleStepUIBridge) {
-        guard let presentation = step.presentation else {
-            minVisible = .zero
-            return
-        }
-        minVisible = presentation.minVisible
-        switch presentation.trigger {
-            case .always:
-                show(presentation, on: bridge)
-            case let .when(predicate):
-                if predicate() {
-                    show(presentation, on: bridge)
-                }
-            case let .after(delay):
-                pendingTimer = Task { [weak self, weak bridge] in
-                    try? await Task.sleep(for: delay)
-                    guard !Task.isCancelled, let self, let bridge else { return }
-                    show(presentation, on: bridge)
-                }
-        }
+extension LifecycleRunner.Phase {
+    public var isLaunching: Bool {
+        if case .launching = self { true } else { false }
     }
 
-    /// Put the view on screen and stamp when, so `hold()` can honor `minVisible`
-    /// regardless of which trigger fired.
-    private func show(_ presentation: LifecycleStepPresentation, on bridge: LifecycleStepUIBridge) {
-        bridge.presentation = presentation.build(bridge)
-        shownAt = .now
+    public var isReady: Bool {
+        if case .ready = self { true } else { false }
     }
 
-    /// If the presentation actually appeared, keep it up until its `minVisible`
-    /// window elapses, so a step that finishes right after the UI appears
-    /// doesn't flash it away.
-    func hold() async {
-        guard let shownAt else { return }
-        let remaining = minVisible - shownAt.duration(to: .now)
-        if remaining > .zero {
-            try? await Task.sleep(for: remaining)
+    /// The trunk's output, once the launch finished.
+    public var readyValue: Launch? {
+        if case let .ready(value) = self { value } else { nil }
+    }
+
+    /// The context of the currently running trunk step, if any.
+    public var runningContext: LifecycleStepContext? {
+        if case let .running(context) = self { context } else { nil }
+    }
+
+    /// The id of the currently running trunk step, if any.
+    public var runningStepID: AnyHashable? {
+        runningContext?.stepID
+    }
+
+    /// The handle of the gate the trunk is parked at, if any.
+    public var gateHandle: LifecycleGateHandle? {
+        if case let .awaitingGate(handle) = self { handle } else { nil }
+    }
+
+    /// The failure, if the launch failed.
+    public var failure: LifecycleFailure? {
+        if case let .failed(failure) = self { failure } else { nil }
+    }
+
+    /// Whether the step with `id` is the one currently running. Handy in
+    /// tests that drive the runner until a particular step is active, and
+    /// reads better than comparing the `AnyHashable` `runningStepID` to a
+    /// raw token.
+    public func isRunning(_ id: AnyHashable) -> Bool {
+        runningStepID == id
+    }
+
+    /// Whether the trunk is parked at the gate with `id`.
+    public func isAwaitingGate(_ id: AnyHashable) -> Bool {
+        gateHandle?.id == id
+    }
+
+    /// Whether the launch failed in the node with `id`.
+    public func failed(at id: AnyHashable) -> Bool {
+        failure?.stepID == id
+    }
+}
+
+@MainActor
+extension LifecycleRunner.Phase {
+    /// A value identity for the *surface* the container renders, so it can
+    /// animate transitions between surfaces with `.animation(_:value:)` (the
+    /// phase itself isn't `Equatable`).
+    ///
+    /// `launching` and `running` collapse to `.splash`: a step advancing
+    /// keeps showing the splash, so it must not retrigger a top-level
+    /// transition and flash it. Reaching a gate, `.failed`, or `.ready` is a
+    /// real surface change and animates.
+    package enum SurfaceIdentity: Hashable {
+        case splash
+        case gate(AnyHashable)
+        case failed(AnyHashable)
+        case ready
+    }
+
+    package var surfaceIdentity: SurfaceIdentity {
+        switch self {
+            case .launching, .running: .splash
+            case let .awaitingGate(handle): .gate(handle.id)
+            case let .failed(failure): .failed(failure.stepID)
+            case .ready: .ready
         }
-    }
-
-    /// Cancel the deferred timer (if any). Called on every step exit path.
-    func cancel() {
-        pendingTimer?.cancel()
-        pendingTimer = nil
     }
 }

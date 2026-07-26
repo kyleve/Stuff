@@ -4,23 +4,27 @@ import Testing
 private struct Boom: Error {}
 
 @MainActor
-struct LifecycleStepUIBridgeTests {
+struct LifecycleGateHandleTests {
+    private func makeHandle() -> LifecycleGateHandle {
+        LifecycleGateHandle(id: "gate", reason: .userForeground)
+    }
+
     @Test func completeResumesWaiter() async throws {
-        let bridge = LifecycleStepUIBridge(reason: .userForeground)
+        let handle = makeHandle()
         let waiter = Task { @MainActor in
-            try await bridge.waitForResolution()
+            try await handle.waitForResolution()
             return true
         }
         await Task.yield()
-        bridge.complete()
+        handle.complete()
         #expect(try await waiter.value)
     }
 
     @Test func failThrowsFromWaiter() async {
-        let bridge = LifecycleStepUIBridge(reason: .userForeground)
+        let handle = makeHandle()
         let waiter = Task { @MainActor in
             do {
-                try await bridge.waitForResolution()
+                try await handle.waitForResolution()
                 return false
             } catch is Boom {
                 return true
@@ -29,36 +33,36 @@ struct LifecycleStepUIBridgeTests {
             }
         }
         await Task.yield()
-        bridge.fail(Boom())
+        handle.fail(Boom())
         #expect(await waiter.value)
     }
 
     @Test func resolvingBeforeWaitingStillDelivers() async throws {
-        let bridge = LifecycleStepUIBridge(reason: .userForeground)
-        bridge.complete()
-        try await bridge.waitForResolution()
+        let handle = makeHandle()
+        handle.complete()
+        try await handle.waitForResolution()
     }
 
     @Test func failingBeforeWaitingStillThrows() async {
-        let bridge = LifecycleStepUIBridge(reason: .userForeground)
-        bridge.fail(Boom())
+        let handle = makeHandle()
+        handle.fail(Boom())
         await #expect(throws: Boom.self) {
-            try await bridge.waitForResolution()
+            try await handle.waitForResolution()
         }
     }
 
     @Test func secondResolutionIsIgnored() async throws {
-        let bridge = LifecycleStepUIBridge(reason: .userForeground)
-        bridge.complete()
-        bridge.fail(Boom())
-        try await bridge.waitForResolution()
+        let handle = makeHandle()
+        handle.complete()
+        handle.fail(Boom())
+        try await handle.waitForResolution()
     }
 
     @Test func cancellingTheWaiterThrowsCancellationError() async {
-        let bridge = LifecycleStepUIBridge(reason: .userForeground)
+        let handle = makeHandle()
         let waiter = Task { @MainActor in
             do {
-                try await bridge.waitForResolution()
+                try await handle.waitForResolution()
                 return "resolved"
             } catch is CancellationError {
                 return "cancelled"
@@ -69,5 +73,11 @@ struct LifecycleStepUIBridgeTests {
         await Task.yield()
         waiter.cancel()
         #expect(await waiter.value == "cancelled")
+    }
+
+    @Test func previewHandleCarriesNoGateType() {
+        let handle = makeHandle()
+        #expect(handle.gateType == nil)
+        #expect(handle.value == nil)
     }
 }

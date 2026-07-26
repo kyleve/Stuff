@@ -29,7 +29,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// The launch engine, built in `didFinishLaunching` (launching
     /// `.undetermined`, since the UIScene lifecycle can't yet tell a user launch
     /// from a headless wake here) and handed to `RootView` via `WhereApp`.
-    private(set) var launcher: LifecycleRunner!
+    private(set) var launcher: LifecycleRunner<WhereSession>!
 
     func application(
         _: UIApplication,
@@ -70,7 +70,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // (so a queued location event isn't lost) and registers the
         // foreground-notification presenter; the rest (store open, etc.) runs as
         // async steps off this synchronous launch path.
-        // `onServicesReady` fires from the `open-store` step on every session
+        // `onServicesReady` fires from the `start-session` step on every session
         // (re)start: derive the App Intents stack from the launch's services —
         // same store, attribution, and clock; GPS-free — and install it, so
         // the launch's open is the process's *only* store open and an intent
