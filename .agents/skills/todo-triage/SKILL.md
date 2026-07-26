@@ -14,6 +14,31 @@ only the process.
 file, change the root `TODOs.md` and say so — don't improvise it into one area's
 file.
 
+## The weekly pass
+
+The weekly automation runs the whole job in one go. The order matters: the
+backlog is the source of truth, and the report is written from it, so the report
+comes last.
+
+1. **Drain `INBOX.md`** — see below.
+2. **Re-verify the open backlog**, area file by area file. Close what shipped,
+   correct line numbers that have moved, drop claims that are no longer true.
+   This is the bulk of the work.
+3. **Review the week's new surface** — the commits and merged PRs landed since
+   the last audit's header date — and file what you find, tagged
+   `(audit <date>)`.
+4. **Rewrite `MODULE_AUDIT.md`** from what the backlog now says — see below.
+5. **Update the docs the week invalidated**: a module's `README.md` /
+   `AGENTS.md` when its architecture, public API, or a documented behavior
+   changed; the root `AGENTS.md` when a global rule, a target, or the build/test
+   flow did. Run `./sync-agents` afterwards if any `AGENTS.md` changed.
+6. **Open a PR** ready-for-review with `gh`, describing the end state: what
+   moved in the backlog, what the audit now says, and what you verified rather
+   than assumed.
+
+An ad-hoc run — someone asking you to triage the inbox or file a finding — is
+just the relevant section below, not the whole pass.
+
 ## Draining the inbox
 
 `INBOX.md` holds raw human notes: terse, uncited, unverified, sometimes already
