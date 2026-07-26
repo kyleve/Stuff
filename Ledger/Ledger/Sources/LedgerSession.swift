@@ -104,8 +104,10 @@ final class LedgerSession {
     }
 
     /// Fetches spend now (the manual Refresh button, or after a token edit).
+    /// Forces the per-model breakdown too — this is explicit user intent, so it
+    /// bypasses the throttle the periodic refresh respects.
     func refresh() {
-        Task { await services.refresh() }
+        Task { await services.refresh(force: true) }
     }
 
     /// Stores (or clears, for an empty string) a pasted session token, then refreshes.

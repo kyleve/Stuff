@@ -3,9 +3,9 @@ import Observation
 
 /// The root of the Ledger model tree. Resolves a Cursor session token
 /// (auto-detected from the local Cursor app, or pasted and kept in the
-/// Keychain), fetches the current cycle's usage summary and the year's monthly
-/// invoices from the dashboard API, and exposes a single observable
-/// ``LoadState`` the UI renders.
+/// Keychain), fetches the current cycle's usage summary and per-model usage
+/// from the dashboard API, and exposes a single observable ``LoadState`` the
+/// UI renders.
 @MainActor
 @Observable
 public final class LedgerServices {
@@ -105,6 +105,13 @@ public final class LedgerServices {
 
     private static let logger = LedgerLog.channel(.services)
 
+    /// Minimum time between per-model fetches. That breakdown costs several
+    /// paginated requests (it walks every usage event in the cycle), while the
+    /// headline refreshes as often as once a minute — so it is deliberately
+    /// *not* refetched at the headline cadence. The mix changes slowly; the
+    /// manual Refresh button bypasses this, as does a new billing cycle.
+    private static let modelRefreshInterval: TimeInterval = 15 * 60
+
     @ObservationIgnored private var configuration: LedgerConfiguration
     @ObservationIgnored private let configStore: LedgerConfigStore
     @ObservationIgnored private let keychain: any KeychainStore
@@ -118,6 +125,12 @@ public final class LedgerServices {
     @ObservationIgnored private var refreshLoop: Task<Void, Never>?
     /// Increments per fetch so a slow earlier response can't clobber a newer one.
     @ObservationIgnored private var requestGeneration = 0
+    /// The last per-model breakdown, reused between throttled fetches (see
+    /// ``modelRefreshInterval``) and kept when a per-model fetch fails.
+    @ObservationIgnored private var cachedModelShares: [ModelShare] = []
+    /// When ``cachedModelShares`` was last fetched, and for which cycle.
+    @ObservationIgnored private var lastModelFetch: Date?
+    @ObservationIgnored private var cachedModelCycle: Date?
 
     public convenience init() {
         self.init(
@@ -171,7 +184,9 @@ public final class LedgerServices {
         guard refreshLoop == nil else { return }
         refreshLoop = Task { [weak self] in
             while !Task.isCancelled {
-                await self?.refresh()
+                // Periodic refreshes respect the per-model throttle; only an
+                // explicit user refresh forces that (expensive) fetch.
+                await self?.refresh(force: false)
                 guard let interval = self?.settings.refreshInterval, interval > 0 else { return }
                 try? await Task.sleep(for: .seconds(interval))
             }
@@ -186,10 +201,12 @@ public final class LedgerServices {
 
     // MARK: - Spend
 
-    /// Fetches the current cycle's usage summary and the year's invoices, then
-    /// builds a ``SpendSnapshot``. Safe to call concurrently: a stale response
-    /// is dropped.
-    public func refresh() async {
+    /// Fetches the current cycle's usage summary (and, subject to the
+    /// ``modelRefreshInterval`` throttle, the per-model breakdown), then builds
+    /// a ``SpendSnapshot``. Pass `force` for an explicit user refresh, which
+    /// bypasses that throttle. Safe to call concurrently: a stale response is
+    /// dropped without touching state or recorded history.
+    public func refresh(force: Bool) async {
         refreshTokenAvailability()
         guard let token = resolveToken() else {
             applyFailure(.missingCredentials)
@@ -212,10 +229,18 @@ public final class LedgerServices {
 
         do {
             let summary = try await provider.usageSummary(token: token)
-            let models = await modelShares(cycleStart: summary.cycleStart, token: token)
-            let deltas = recordHistory(summary: summary)
+            let models = await modelShares(
+                cycleStart: summary.cycleStart,
+                token: token,
+                force: force,
+            )
 
+            // Everything below mutates state, so it must run only for the
+            // newest request: recording history from a superseded (older)
+            // response would append a lower reading at a later timestamp and
+            // skew future day/week baselines.
             guard generation == requestGeneration else { return }
+            let deltas = recordHistory(summary: summary)
             let snapshot = SpendSnapshot(
                 currentCycleCents: summary.onDemandCents,
                 deltas: deltas,
@@ -276,18 +301,38 @@ public final class LedgerServices {
     }
 
     /// The models by usage for the current cycle, as relative shares, derived
-    /// from the (fresh) per-event endpoint. Best-effort: the per-model breakdown
-    /// is supplementary, so a failure (or an unknown cycle start) logs and
-    /// yields an empty list rather than failing the whole load.
-    private func modelShares(cycleStart: Date?, token: SessionToken) async -> [ModelShare] {
+    /// from the per-event endpoint — throttled by ``modelRefreshInterval``, so
+    /// most refreshes reuse the cached breakdown instead of re-walking every
+    /// event. Best-effort: a failure (or an unknown cycle start) logs and keeps
+    /// the last good breakdown rather than failing the whole load.
+    private func modelShares(
+        cycleStart: Date?,
+        token: SessionToken,
+        force: Bool,
+    ) async -> [ModelShare] {
         guard let cycleStart else { return [] }
+        guard shouldFetchModels(cycleStart: cycleStart, force: force) else {
+            return cachedModelShares
+        }
         do {
             let events = try await cycleEvents(since: cycleStart, token: token)
-            return ModelShare.shares(from: events)
+            cachedModelShares = ModelShare.shares(from: events)
+            cachedModelCycle = cycleStart
+            lastModelFetch = now()
+            return cachedModelShares
         } catch {
             Self.logger.warning("Couldn't load per-model usage: \(error.localizedDescription)")
-            return []
+            return cachedModelShares
         }
+    }
+
+    /// Whether the per-model breakdown is due for a refetch: on an explicit
+    /// user refresh, when the billing cycle rolled over (the cached breakdown
+    /// belongs to the previous cycle), or once the throttle window has elapsed.
+    private func shouldFetchModels(cycleStart: Date, force: Bool) -> Bool {
+        if force || cycleStart != cachedModelCycle { return true }
+        guard let lastModelFetch else { return true }
+        return now().timeIntervalSince(lastModelFetch) >= Self.modelRefreshInterval
     }
 
     /// Fetches all usage events from `cycleStart` to now, paginating newest-first

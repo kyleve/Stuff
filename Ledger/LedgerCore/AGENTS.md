@@ -62,7 +62,16 @@ build system, formatting, and global conventions. Read that first.
   allowance + on-demand), which exceeds the billed on-demand headline, so
   `ModelShare` carries only a fraction — never present it as spend next to the
   headline. `LedgerServices.cycleEvents` paginates the cycle (capped,
-  newest-first, no `teamId`); best-effort — a failure logs and yields no models.
+  newest-first, no `teamId`), which costs several requests, so it is
+  **throttled** (`modelRefreshInterval`) rather than refetched at the headline
+  cadence — the cache is reused in between, and bypassed only by an explicit
+  `refresh(force: true)` or a cycle rollover. Best-effort — a failure logs and
+  keeps the last good breakdown.
+- **Only the newest refresh may mutate state.** `refresh` stamps a generation
+  and everything after the fetch — recording history included — runs behind the
+  `generation == requestGeneration` guard. A superseded response recording
+  history would append an older reading at a later timestamp and skew future
+  day/week baselines.
 - **Failures are observable, never swallowed.** Transport/HTTP/decode failures
   become a typed `DashboardError`, mapped into a `LoadError` and logged; 401
   maps to `.notAuthenticated` (expired session). A slow response superseded by a

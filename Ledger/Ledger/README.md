@@ -61,7 +61,9 @@ shortcut to System Settings if macOS needs you to approve the login item.
   maxed while the other is barely used), **top models
   this cycle** as usage shares (each model ≥20% gets its own bar; smaller ones
   roll into a single multi-colored "Other models" bar with a legend), and when
-  it last updated. A **Refresh** button forces an immediate fetch. If a refresh
+  it last updated. A **Refresh** button forces an immediate fetch (including the
+  model breakdown, which the automatic refresh only re-walks every 15 minutes
+  since it costs several requests). If a refresh
   fails (e.g. you go offline) the last figures stay on screen and the "Updated…"
   caption turns into an amber stale warning rather than blanking. The full error
   screen (with a shortcut to Settings) shows only before anything has loaded —

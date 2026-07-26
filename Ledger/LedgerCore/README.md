@@ -76,7 +76,13 @@ auto-token", surfaced as `LoadError.missingCredentials`.
   allowance + on-demand), so it exceeds the billed on-demand headline and must
   not be presented as spend. (The older `get-aggregated-usage-events` was
   dropped — it goes stale and omits recently released models.) Best-effort — a
-  failure logs and yields an empty list rather than failing the whole load.
+  failure logs and keeps the last good breakdown rather than failing the load.
+
+  Walking every event costs several paginated requests, so this fetch is
+  **throttled to at most every 15 minutes** instead of running at the headline
+  refresh cadence (which can be as fast as once a minute). The cached breakdown
+  is reused in between; the popover's **Refresh** button forces a fresh fetch,
+  as does a new billing cycle.
 
 All money is cents. Note: on a plan with usage-based pricing off, these `$`
 figures reflect included-compute value, not money owed.
