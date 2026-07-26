@@ -6,10 +6,6 @@ import Testing
 import WhereCore
 @testable import WhereUI
 
-/// Image snapshot for the DEBUG generic `SwiftDataInspector` surface (a
-/// third-party `SwiftDataInspector` view, so no WhereUI `SnapshotProviding`
-/// conformance — the inline overload is used), recorded against a live, seeded
-/// in-memory store.
 @MainActor
 @Suite(.snapshots(record: .missing))
 struct SwiftDataInspectorSnapshotTests {
