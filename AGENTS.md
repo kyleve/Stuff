@@ -109,8 +109,16 @@ by `./sync-agents`.
 currently Swift references (SwiftUI, Swift concurrency, Swift Testing,
 SwiftData) — and `.agents/skills/.gitignore` excludes those fetched copies, so
 anything else under `.agents/skills/` is a **repo-owned** skill and is committed
-(currently `todo-triage`). Both kinds reach an agent through the generated
-`.claude/skills/` mirror, so run `./sync-agents` after adding one.
+(currently `todo-triage`).
+
+**Cursor reads `.agents/skills/` natively** — that directory is the real home. The
+`.claude/skills/` mirror exists for Claude Code, so run `./sync-agents` after
+adding or editing a skill, and edit the source rather than the mirror. (Cursor
+*also* loads `.claude/skills/` for Claude compatibility, so a synced skill is
+discoverable twice and the winning copy is undocumented — one more reason not to
+let the two drift.) A fresh clone carries only the repo-owned skills: `CLAUDE.md`
+and `.claude/skills/` are gitignored, and the external four come back with
+`./sync-agents --install`.
 
 A skill carries **procedure** — the steps of a job someone does occasionally.
 Rules an agent must follow belong in an `AGENTS.md` or a `TODOs.md` instead, so
