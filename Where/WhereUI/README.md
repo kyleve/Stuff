@@ -22,8 +22,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   [`LifecycleKit`](../../Shared/LifecycleKit)) gated in front of `MainTabs`, the
   Liquid Glass tab bar over three tabs — Locations, Your Year, Settings.
   Elsewhere is an entry card on Locations, Resolve a Locations toolbar button,
-  and the data screens (attachments, logged days, regions) sit in the Settings
-  "Data" group. The app injects the launch-built model + runner
+  the data screens (attachments, logged days, regions) sit in the Settings
+  "Data" group, and `AboutSettingsView` is the last Settings block (build
+  identity, open-source notices, and bundled-data provenance, each vended by the
+  module that owns it). The app injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
 - **`WhereModel`** — app-level state: the onboarding flag, the owned

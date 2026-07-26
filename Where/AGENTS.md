@@ -107,6 +107,21 @@ A new screen belongs *inside* that shape — a destination pushed from a tab, a
 sheet, or a Settings row. Adding a fourth tab is a product decision, not a
 refactor: raise it before building.
 
+Settings itself is a typed-route list: `SettingsSearch.swift` owns
+`SettingsDestination` / `SettingsListSection` / `SettingsRoute`, and every
+switch over them is exhaustive, so a new drill-in is a set of compile errors to
+fill in rather than a screen you can forget to register. **About is deliberately
+the last block**, below everything actionable.
+
+**Credits are vended by the module that owns the thing being credited**, and the
+About screen only renders them: `SoftwareCredit` (WhereCore) for a linked
+library plus its bundled notice, `RegionDataSource` (RegionKit) for bundled
+geometry, `BuildInfo` (WhereCore) for the running build. Adding a dependency or
+a dataset means adding its credit *there* — see
+[`WhereCore/AGENTS.md`](WhereCore/AGENTS.md) and
+[`RegionKit/AGENTS.md`](RegionKit/AGENTS.md) — never a list hard-coded in the
+view.
+
 ## Localization
 
 All user-facing copy resolves through each module's `Localizable.xcstrings` via
