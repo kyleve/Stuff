@@ -96,6 +96,12 @@ one it belongs to rather than to a god-object:
   a selectable look-back `RecentActivityWindow`.
 - **`WherePreferences`** — persisted user intent (onboarding, tracking intent,
   reminder / summary schedules) behind a `KeyValueStore`.
+- **`BuildInfo`** + **`SoftwareCredit`** — what Settings > About shows about the
+  binary itself. `BuildInfo.current(bundle:)` reads the marketing version, build
+  number, and the commit the app was built from; `SoftwareCredit.all` lists the
+  third-party libraries the app links, each with the license notice bundled
+  under `Resources/Licenses/`. (Data-source credits are RegionKit's — see
+  [`RegionDataSource`](../RegionKit/README.md).)
 - **`WhereLog`** — the Periscope logging facade: a `"Where"` root scope with
   grouping scopes (`location`, `reminders`, `backup`, `widgets`, …) and a typed
   `LogEvent` per collaborator, emitted into `Periscope.shared`.
