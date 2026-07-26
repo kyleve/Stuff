@@ -116,6 +116,7 @@ TODOs.md            Cross-area backlog — and the format every TODOs.md follows
 INBOX.md            Raw, unverified notes awaiting triage into a TODOs.md
 MODULE_AUDIT.md     Dated module inventory and themes — derived, carries no TODOs
 .githooks/          Git hooks (pre-commit)
+.cursor/            Cloud agent environment (environment.json + install.sh)
 .agents/            Agent skills — repo-owned plus the external manifest
 AGENTS.md           Repository shape for AI agents
 Shared/             Shared modules (Broadway, Periscope, LifecycleKit, …) — one
