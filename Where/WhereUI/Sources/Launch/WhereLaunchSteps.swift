@@ -23,7 +23,7 @@ struct OpenStoreStep: LifecycleStep {
     let model: WhereModel
     let bootstrap: WhereBootstrap
 
-    let id: AnyHashable = LaunchStepID.openStore
+    let id = LaunchStepID.openStore
 
     func run(_: Void, _: LifecycleStepContext) async throws -> WhereServices {
         if let services = model.services { return services }
@@ -43,7 +43,7 @@ struct StartSessionStep: LifecycleStep {
     let model: WhereModel
     let onServicesReady: @MainActor (WhereServices) async -> Void
 
-    let id: AnyHashable = LaunchStepID.startSession
+    let id = LaunchStepID.startSession
 
     func run(_ services: WhereServices, _: LifecycleStepContext) async throws -> WhereSession {
         let session = model.startSession(services: services)
@@ -60,7 +60,7 @@ struct StartSessionStep: LifecycleStep {
 struct OnboardingGate: LifecycleGate {
     let model: WhereModel
 
-    let id: AnyHashable = LaunchStepID.onboarding
+    let id = LaunchStepID.onboarding
 
     func isNeeded(_: WhereSession) async -> Bool {
         !model.hasOnboarded
@@ -71,7 +71,7 @@ struct OnboardingGate: LifecycleGate {
 /// authorization + region-style changes. Stays on the trunk: the
 /// reconcile-tracking step must see the synced authorization.
 struct SyncAuthStep: LifecycleStep {
-    let id: AnyHashable = LaunchStepID.syncAuth
+    let id = LaunchStepID.syncAuth
 
     func run(_ session: WhereSession, _: LifecycleStepContext) async throws {
         await session.syncAuthorization()
@@ -85,7 +85,7 @@ struct SyncAuthStep: LifecycleStep {
 /// Stays on the trunk, after `SyncAuthStep`, so it reconciles against the
 /// authorization that step just synced.
 struct ReconcileTrackingStep: LifecycleStep {
-    let id: AnyHashable = LaunchStepID.reconcileTracking
+    let id = LaunchStepID.reconcileTracking
 
     func run(_ session: WhereSession, _: LifecycleStepContext) async throws {
         await session.reconcileTracking()
@@ -97,7 +97,7 @@ struct ReconcileTrackingStep: LifecycleStep {
 /// launch shouldn't spend a fresh fix (a `.background` relaunch is itself
 /// the passive event); it runs once a scene promotes the launch.
 struct CaptureTodayStep: LifecycleStep {
-    let id: AnyHashable = LaunchStepID.captureToday
+    let id = LaunchStepID.captureToday
     let modes: LifecycleModeSet = .foreground
 
     func run(_ session: WhereSession, _: LifecycleStepContext) async throws {
@@ -108,7 +108,7 @@ struct CaptureTodayStep: LifecycleStep {
 /// Push the logging-reminder schedule + badge (backlog + issue count) to the
 /// reconciler.
 struct RemindersStep: LifecycleStep {
-    let id: AnyHashable = LaunchStepID.reminders
+    let id = LaunchStepID.reminders
 
     func run(_ session: WhereSession, _: LifecycleStepContext) async throws {
         await session.applyReminderConfiguration()
@@ -117,7 +117,7 @@ struct RemindersStep: LifecycleStep {
 
 /// Push the daily-summary recap to the reconciler.
 struct SummaryStep: LifecycleStep {
-    let id: AnyHashable = LaunchStepID.summary
+    let id = LaunchStepID.summary
 
     func run(_ session: WhereSession, _: LifecycleStepContext) async throws {
         await session.applySummaryConfiguration()
@@ -126,7 +126,7 @@ struct SummaryStep: LifecycleStep {
 
 /// Push the "issues to resolve" notification intent to its reconciler.
 struct IssueAlertsStep: LifecycleStep {
-    let id: AnyHashable = LaunchStepID.issueAlerts
+    let id = LaunchStepID.issueAlerts
 
     func run(_ session: WhereSession, _: LifecycleStepContext) async throws {
         await session.applyIssueAlertConfiguration()
@@ -137,7 +137,7 @@ struct IssueAlertsStep: LifecycleStep {
 /// launch with no writes this session doesn't leave the widget blank or
 /// showing the previous day's "today".
 struct WidgetSnapshotStep: LifecycleStep {
-    let id: AnyHashable = LaunchStepID.widgetSnapshot
+    let id = LaunchStepID.widgetSnapshot
 
     func run(_ session: WhereSession, _: LifecycleStepContext) async throws {
         await session.refreshWidgetSnapshot()
@@ -156,7 +156,7 @@ struct WidgetSnapshotStep: LifecycleStep {
 struct EraseDataStep: LifecycleStep {
     let model: WhereModel
 
-    let id: AnyHashable = LaunchStepID.eraseData
+    let id = LaunchStepID.eraseData
 
     func run(_ session: WhereSession, _: LifecycleStepContext) async throws {
         try await session.eraseSession()
@@ -172,7 +172,7 @@ struct EraseDataStep: LifecycleStep {
 struct ResetPreferencesStep: LifecycleStep {
     let model: WhereModel
 
-    let id: AnyHashable = LaunchStepID.resetPreferences
+    let id = LaunchStepID.resetPreferences
 
     func run(_: Void, _: LifecycleStepContext) async throws {
         model.resetPreferences()

@@ -26,6 +26,19 @@ system, formatting, and global conventions. Read that first.
   steps into `LaunchPlanNode` (package-visible for the runner and the UI
   proxy seam); their generic constraints guarantee every internal cast. Never
   add a second erasure site or a public API that traffics in `Any`.
+- **One identity domain per plan.** `LaunchPlan` is generic over
+  `ID: Hashable & Sendable` and every combinator requires the node's
+  `ID` to match, so a plan can't mix domains and a node keyed for another
+  plan can't be composed in; `nodeIDs` gives back `[ID]`, not erased keys.
+  IDs erase to `AnyHashable` *inside* `LaunchPlanNode` and stay erased from
+  there on — the runner's memo, `LifecycleFailure.stepID`,
+  `LifecycleStepContext.stepID`, and `LifecycleGateHandle.id` are all
+  `AnyHashable`, deliberately: `LifecycleDriving` (the seam behind the
+  non-generic `\.lifecycle` environment value) traffics in `[LaunchPlanNode]`,
+  so pushing `ID` past the plan would force it onto the runner, the container's
+  generic list, and every splash/failure/gate closure. If you want typed
+  `failed(at:)` / `isRunning(_:)` assertions, that's the (deliberate) cost to
+  price in — it isn't an oversight.
 - **Only pass-through positions may skip.** Value-producing (`init`/`then`)
   steps must keep `modes == .all` (plan-construction `precondition`) — a
   skipped producer would leave a hole in the data flow. Don't add a skip path

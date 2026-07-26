@@ -18,12 +18,15 @@ public protocol LifecycleStep {
     associatedtype Input: Sendable
     /// What finishing this step proves. `Void` for side-effect-only steps.
     associatedtype Output: Sendable
+    /// The identity domain this step belongs to — a typed enum per plan (e.g.
+    /// Where's `LaunchStepID`) rather than a bare `String`. A `LaunchPlan` is
+    /// generic over this, so every node in one plan must share it: a step
+    /// keyed in another plan's domain can't be composed in.
+    associatedtype ID: Hashable & Sendable
 
-    /// Stable identity used for run-once memoization and tests. Typed as
-    /// `AnyHashable` so steps carry a real `Hashable` token (a
-    /// typed enum case is preferred over a raw string); any `Hashable`
-    /// converts implicitly.
-    var id: AnyHashable { get }
+    /// Stable identity used for run-once memoization and tests. Unique within
+    /// its plan, which `LaunchPlan` `precondition`s at construction.
+    var id: ID { get }
 
     /// Which launch reasons this step runs under. Read once, when the plan is
     /// built. Only pass-through positions may gate: `LaunchPlan.thenKeeping`
@@ -59,10 +62,12 @@ extension LifecycleStep {
 public protocol LifecycleGate {
     /// The trunk value at this gate's position, passed through untouched.
     associatedtype Value: Sendable
+    /// The gate's identity domain — the plan's, same as `LifecycleStep.ID`.
+    associatedtype ID: Hashable & Sendable
 
     /// Stable identity used for run-once memoization and tests. Same
     /// conventions as `LifecycleStep.id`.
-    var id: AnyHashable { get }
+    var id: ID { get }
 
     /// Which launch reasons this gate applies to. Defaults to `.foreground`:
     /// a gate's whole job is to wait for the user, which would park a

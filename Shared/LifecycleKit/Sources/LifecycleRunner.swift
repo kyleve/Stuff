@@ -107,7 +107,7 @@ public final class LifecycleRunner<Launch: Sendable> {
     public init(
         reason: LifecycleReason,
         initializePrerequisites: @MainActor () -> Void = {},
-        plan: LaunchPlan<Void, Launch>,
+        plan: LaunchPlan<some Hashable & Sendable, Void, Launch>,
     ) {
         state = .notStarted(reason)
         launchNodes = plan.nodes
@@ -164,7 +164,7 @@ public final class LifecycleRunner<Launch: Sendable> {
     /// detached children (if any) are drained *before* the relaunch begins,
     /// so no torn-down-world work overlaps the fresh launch.
     public func teardown<Input: Sendable>(
-        _ plan: LaunchPlan<Input, some Sendable>,
+        _ plan: LaunchPlan<some Hashable & Sendable, Input, some Sendable>,
         input: Input,
     ) async {
         await teardownErased(nodes: plan.nodes, input: input)

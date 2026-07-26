@@ -64,7 +64,8 @@ Add it to a target's dependencies in [`Package.swift`](../../Package.swift):
 @MainActor public protocol LifecycleStep {
     associatedtype Input: Sendable
     associatedtype Output: Sendable
-    var id: AnyHashable { get }             // a typed enum case, ideally
+    associatedtype ID: Hashable & Sendable  // the plan's identity domain
+    var id: ID { get }                      // a typed enum case
     var modes: LifecycleModeSet { get }     // defaults to .all
     func run(_ input: Input, _ context: LifecycleStepContext) async throws -> Output
 }
@@ -73,20 +74,25 @@ Add it to a target's dependencies in [`Package.swift`](../../Package.swift):
 // Pass-through by construction; foreground-only by default.
 @MainActor public protocol LifecycleGate {
     associatedtype Value: Sendable
-    var id: AnyHashable { get }
+    associatedtype ID: Hashable & Sendable
+    var id: ID { get }
     var modes: LifecycleModeSet { get }     // defaults to .foreground
     func isNeeded(_ value: Value) async -> Bool
 }
 
-// The typed tree. Input is the root step's input (Void for a launch; a real
-// value for a teardown), Output the trunk's final value.
-@MainActor public struct LaunchPlan<Input: Sendable, Output: Sendable> {
-    public init<S: LifecycleStep>(_ step: S) where S.Input == Input, S.Output == Output
-    public func then<S>(_ step: S) -> LaunchPlan<Input, S.Output> where S.Input == Output
-    public func thenKeeping<S>(_ step: S) -> Self where S.Input == Output, S.Output == Void
-    public func gate<G: LifecycleGate>(_ gate: G) -> Self where G.Value == Output
-    public func detached(@DetachedChildrenBuilder<Output> _ children: ...) -> Self
-    public var nodeIDs: [AnyHashable]       // introspection for tests/tools
+// The typed tree. ID is the plan's identity domain (inferred from the root
+// step), Input the root step's input (Void for a launch; a real value for a
+// teardown), Output the trunk's final value.
+@MainActor public struct LaunchPlan<ID: Hashable & Sendable, Input: Sendable, Output: Sendable> {
+    public init<S: LifecycleStep>(_ step: S)
+        where S.Input == Input, S.Output == Output, S.ID == ID
+    public func then<S>(_ step: S) -> LaunchPlan<ID, Input, S.Output>
+        where S.Input == Output, S.ID == ID
+    public func thenKeeping<S>(_ step: S) -> Self
+        where S.Input == Output, S.Output == Void, S.ID == ID
+    public func gate<G: LifecycleGate>(_ gate: G) -> Self where G.Value == Output, G.ID == ID
+    public func detached(@DetachedChildrenBuilder<ID, Output> _ children: ...) -> Self
+    public var nodeIDs: [ID]                // introspection for tests/tools
 }
 
 // The engine, generic over the launch's output.
@@ -102,10 +108,11 @@ Add it to a target's dependencies in [`Package.swift`](../../Package.swift):
     public private(set) var detachedFailures: [LifecycleFailure] // off-phase diagnostics
     public init(reason: LifecycleReason,
                 initializePrerequisites: @MainActor () -> Void = {},
-                plan: LaunchPlan<Void, Launch>)
+                plan: LaunchPlan<some Hashable & Sendable, Void, Launch>)
     public func run() async                 // walk the plan; idempotent
     public func enterForeground() async     // promote a background/undetermined launch
-    public func teardown<In>(_ plan: LaunchPlan<In, some Sendable>, input: In) async
+    public func teardown<In>(_ plan: LaunchPlan<some Hashable & Sendable, In, some Sendable>,
+                             input: In) async
 }
 
 // The engine-minted token for one parked gate — the only way to resume it.
@@ -131,14 +138,14 @@ exists) and drive it:
 ```swift
 struct OpenStoreStep: LifecycleStep {
     let deps: Dependencies
-    let id: AnyHashable = StepID.openStore
+    let id = StepID.openStore
     func run(_: Void, _: LifecycleStepContext) async throws -> Services {
         try await deps.openStore()          // the process's ONE store open
     }
 }
 
 struct StartSessionStep: LifecycleStep {
-    let id: AnyHashable = StepID.startSession
+    let id = StepID.startSession
     func run(_ services: Services, _: LifecycleStepContext) async throws -> Session {
         Session(services: services)         // scope grows by embedding
     }
@@ -146,7 +153,7 @@ struct StartSessionStep: LifecycleStep {
 
 struct OnboardingGate: LifecycleGate {
     let deps: Dependencies
-    let id: AnyHashable = StepID.onboarding
+    let id = StepID.onboarding
     func isNeeded(_: Session) async -> Bool { !deps.hasOnboarded }
 }
 

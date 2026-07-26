@@ -321,7 +321,7 @@ extension LifecycleContainer where Failure == LifecycleFailureView {
 
 #if DEBUG
     private struct PreviewStep: LifecycleStep {
-        let id: AnyHashable = "open"
+        let id = "open"
 
         func run(_: Void, _: LifecycleStepContext) async throws -> String {
             "session"

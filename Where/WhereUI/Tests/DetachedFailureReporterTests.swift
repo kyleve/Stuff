@@ -24,7 +24,7 @@ private func waitUntil(
 /// A minimal typed root so a reporter test can drive a real runner without
 /// Where's services.
 private struct RootStep: LifecycleStep {
-    let id: AnyHashable = "root"
+    let id = "root"
 
     func run(_: Void, _: LifecycleStepContext) async throws -> String {
         "value"
@@ -33,7 +33,7 @@ private struct RootStep: LifecycleStep {
 
 /// A detached child that always throws, landing on `detachedFailures`.
 private struct ThrowingChildStep: LifecycleStep {
-    let id: AnyHashable
+    let id: String
 
     func run(_: String, _: LifecycleStepContext) async throws {
         throw FanError()

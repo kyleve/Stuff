@@ -4,12 +4,12 @@
 /// and a closure body, so each test declares exactly the behavior it needs
 /// without minting a one-off conforming type.
 struct FixtureStep<Input: Sendable, Output: Sendable>: LifecycleStep {
-    let id: AnyHashable
+    let id: String
     var modes: LifecycleModeSet = .all
     let body: @MainActor (Input, LifecycleStepContext) async throws -> Output
 
     init(
-        _ id: AnyHashable,
+        _ id: String,
         modes: LifecycleModeSet = .all,
         body: @escaping @MainActor (Input, LifecycleStepContext) async throws -> Output,
     ) {
@@ -25,12 +25,12 @@ struct FixtureStep<Input: Sendable, Output: Sendable>: LifecycleStep {
 
 /// A configurable gate for engine/plan tests, mirroring `FixtureStep`.
 struct FixtureGate<Value: Sendable>: LifecycleGate {
-    let id: AnyHashable
+    let id: String
     var modes: LifecycleModeSet = .foreground
     var needed: @MainActor (Value) async -> Bool
 
     init(
-        _ id: AnyHashable,
+        _ id: String,
         modes: LifecycleModeSet = .foreground,
         needed: @escaping @MainActor (Value) async -> Bool = { _ in true },
     ) {

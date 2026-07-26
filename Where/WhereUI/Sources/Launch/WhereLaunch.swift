@@ -8,7 +8,7 @@ import WhereCore
 /// `resetPlan(for:)`. Raw strings drift silently (a typo just creates a new,
 /// untracked step); an enum makes each ID a compile-checked symbol and gives
 /// the launch/reset parity tests a single source of truth.
-public enum LaunchStepID: String {
+public enum LaunchStepID: String, Sendable {
     /// Open the SwiftData store and assemble the services — the trunk's
     /// store scope. The splash's slow-launch caption most often shows here.
     case openStore = "open-store"
@@ -191,7 +191,7 @@ public enum WhereLaunch {
         for model: WhereModel,
         bootstrap: WhereBootstrap = WhereBootstrap(),
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
-    ) -> LaunchPlan<Void, WhereSession> {
+    ) -> LaunchPlan<LaunchStepID, Void, WhereSession> {
         LaunchPlan(OpenStoreStep(model: model, bootstrap: bootstrap))
             .then(StartSessionStep(model: model, onServicesReady: onServicesReady))
             .gate(OnboardingGate(model: model))
@@ -212,7 +212,9 @@ public enum WhereLaunch {
     /// .teardown` runs these nodes, then re-drives the launch plan from the
     /// top — which, with `hasOnboarded` now cleared, parks on the onboarding
     /// gate again, returning the app to its first-run state.
-    public static func resetPlan(for model: WhereModel) -> LaunchPlan<WhereSession, Void> {
+    public static func resetPlan(for model: WhereModel)
+        -> LaunchPlan<LaunchStepID, WhereSession, Void>
+    {
         LaunchPlan(EraseDataStep(model: model))
             .then(ResetPreferencesStep(model: model))
     }

@@ -36,12 +36,12 @@ struct ProbeView: View {
 /// A configurable typed step for container tests: identity, mode gating, and
 /// a closure body (mirrors the fixture in LifecycleKit's own bundle).
 struct FixtureStep<Input: Sendable, Output: Sendable>: LifecycleStep {
-    let id: AnyHashable
+    let id: String
     var modes: LifecycleModeSet = .all
     let body: @MainActor (Input, LifecycleStepContext) async throws -> Output
 
     init(
-        _ id: AnyHashable,
+        _ id: String,
         modes: LifecycleModeSet = .all,
         body: @escaping @MainActor (Input, LifecycleStepContext) async throws -> Output,
     ) {
@@ -57,12 +57,12 @@ struct FixtureStep<Input: Sendable, Output: Sendable>: LifecycleStep {
 
 /// A configurable gate for container tests, mirroring `FixtureStep`.
 struct FixtureGate<Value: Sendable>: LifecycleGate {
-    let id: AnyHashable
+    let id: String
     var modes: LifecycleModeSet = .foreground
     var needed: @MainActor (Value) async -> Bool
 
     init(
-        _ id: AnyHashable,
+        _ id: String,
         modes: LifecycleModeSet = .foreground,
         needed: @escaping @MainActor (Value) async -> Bool = { _ in true },
     ) {

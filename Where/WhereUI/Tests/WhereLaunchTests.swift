@@ -101,7 +101,7 @@ struct WhereLaunchTests {
         let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.plan(for: model).nodeIDs
         #expect(ids == [
-            LaunchStepID.openStore,
+            .openStore,
             .startSession,
             .onboarding,
             .syncAuth,
@@ -111,7 +111,7 @@ struct WhereLaunchTests {
             .summary,
             .issueAlerts,
             .widgetSnapshot,
-        ].map { AnyHashable($0) })
+        ])
     }
 
     @Test func coldForegroundLaunchReachesReadyAndReconcilesTracking() async throws {

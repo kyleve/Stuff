@@ -53,7 +53,7 @@ public struct LifecycleProxy: Sendable {
     /// type-checked here, at the call site, and erased only to cross the
     /// non-generic environment seam.
     @MainActor public func teardown<Input: Sendable>(
-        _ plan: LaunchPlan<Input, some Sendable>,
+        _ plan: LaunchPlan<some Hashable & Sendable, Input, some Sendable>,
         input: Input,
         file: StaticString = #fileID,
         line: UInt = #line,

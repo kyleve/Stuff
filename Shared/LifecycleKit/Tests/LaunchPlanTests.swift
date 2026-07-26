@@ -92,7 +92,7 @@ struct LaunchPlanTests {
     }
 
     @Test func detachedBuilderSupportsConditionalsAndLoops() {
-        func makePlan(includeExtra: Bool) -> LaunchPlan<Void, String> {
+        func makePlan(includeExtra: Bool) -> LaunchPlan<String, Void, String> {
             LaunchPlan(FixtureStep<Void, String>("open") { _, _ in "session" })
                 .detached {
                     FixtureStep<String, Void>("always") { _, _ in }

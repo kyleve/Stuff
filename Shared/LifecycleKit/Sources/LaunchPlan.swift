@@ -4,11 +4,16 @@
 /// `Input` is what the plan's root step needs (`Void` for a launch; a
 /// teardown plan roots at a real value, e.g. the session being torn down).
 /// `Output` is the trunk value after the last node — the proof the whole
-/// launch is done, carried into `LifecycleRunner.Phase.ready`.
+/// launch is done, carried into `LifecycleRunner.Phase.ready`. `ID` is the
+/// plan's identity domain, inferred from its root step — a typed enum per
+/// plan (Where uses `LaunchStepID`) rather than a bare `String`.
 ///
 /// The combinators make invalid plans unrepresentable:
 /// - `then` requires the next step's `Input` to equal the current trunk
 ///   `Output` — a step cannot be placed before its input exists.
+/// - every combinator requires the node's `ID` to equal the plan's, so one
+///   plan can't mix identity domains and a node keyed for another plan can't
+///   be composed in.
 /// - `thenKeeping` and `gate` are pass-through (`Void`-output step / no
 ///   transformation), so they are the only trunk positions that may be
 ///   mode-gated or conditional: skipping them cannot leave a hole in the
@@ -20,25 +25,31 @@
 /// runner can memoize heterogeneous outputs and re-walk the trunk on a
 /// promotion; the combinators' constraints guarantee every internal cast.
 @MainActor
-public struct LaunchPlan<Input: Sendable, Output: Sendable> {
+public struct LaunchPlan<ID: Hashable & Sendable, Input: Sendable, Output: Sendable> {
     /// The erased node list the runner walks. Order is trunk order; detached
     /// groups occupy one position and fan out from there.
     package private(set) var nodes: [LaunchPlanNode]
 
     /// The plan's node IDs in declaration order (detached children at their
     /// group's position) — introspection for tests and tooling.
-    public var nodeIDs: [AnyHashable] {
-        nodes.flatMap(\.ids)
+    ///
+    /// Recovers `ID` from the erased nodes; every node was appended by a
+    /// combinator constrained to `S.ID == ID`, so the cast can't fail (the
+    /// same guarantee the trunk-value casts rely on).
+    public var nodeIDs: [ID] {
+        nodes.flatMap(\.ids).map { $0.base as! ID }
     }
 
     private init(nodes: [LaunchPlanNode]) {
         self.nodes = nodes
     }
 
-    /// Root the plan at `step`. The plan's `Input`/`Output` are inferred from
-    /// the step, so a launch plan starts `LaunchPlan(OpenStoreStep(...))` and
-    /// a teardown plan roots at the value it consumes.
-    public init<S: LifecycleStep>(_ step: S) where S.Input == Input, S.Output == Output {
+    /// Root the plan at `step`. The plan's `ID`/`Input`/`Output` are inferred
+    /// from the step, so a launch plan starts `LaunchPlan(OpenStoreStep(...))`
+    /// and a teardown plan roots at the value it consumes.
+    public init<S: LifecycleStep>(_ step: S)
+        where S.Input == Input, S.Output == Output, S.ID == ID
+    {
         self.init(nodes: [])
         append(.step(StepNode(producing: step)))
     }
@@ -47,10 +58,10 @@ public struct LaunchPlan<Input: Sendable, Output: Sendable> {
     /// trunk `Output`; the trunk value becomes the step's output. Required
     /// semantics: a throw fails the drive terminally — the recovery for a
     /// failed launch is relaunching the app, not resuming here.
-    public func then<S: LifecycleStep>(_ step: S) -> LaunchPlan<Input, S.Output>
-        where S.Input == Output
+    public func then<S: LifecycleStep>(_ step: S) -> LaunchPlan<ID, Input, S.Output>
+        where S.Input == Output, S.ID == ID
     {
-        LaunchPlan<Input, S.Output>(nodes: nodes)
+        LaunchPlan<ID, Input, S.Output>(nodes: nodes)
             .appending(.step(StepNode(producing: step)))
     }
 
@@ -58,8 +69,8 @@ public struct LaunchPlan<Input: Sendable, Output: Sendable> {
     /// past it. Because the value is untouched, this is the one trunk *step*
     /// position that may be mode-gated (`modes`) — a skipped step here can't
     /// break the data flow.
-    public func thenKeeping<S: LifecycleStep>(_ step: S) -> LaunchPlan<Input, Output>
-        where S.Input == Output, S.Output == Void
+    public func thenKeeping<S: LifecycleStep>(_ step: S) -> LaunchPlan<ID, Input, Output>
+        where S.Input == Output, S.Output == Void, S.ID == ID
     {
         appending(.step(StepNode(keeping: step)))
     }
@@ -68,8 +79,8 @@ public struct LaunchPlan<Input: Sendable, Output: Sendable> {
     /// (`isNeeded`), awaiting external resolution through a
     /// `LifecycleGateHandle`. Pass-through by construction — see
     /// `LifecycleGate`.
-    public func gate<G: LifecycleGate>(_ gate: G) -> LaunchPlan<Input, Output>
-        where G.Value == Output
+    public func gate<G: LifecycleGate>(_ gate: G) -> LaunchPlan<ID, Input, Output>
+        where G.Value == Output, G.ID == ID
     {
         appending(.gate(GateNode(erasing: gate)))
     }
@@ -80,8 +91,9 @@ public struct LaunchPlan<Input: Sendable, Output: Sendable> {
     /// never blocks `.ready`). The trunk continues immediately with its value
     /// unchanged.
     public func detached(
-        @DetachedChildrenBuilder<Output> _ children: @MainActor () -> [DetachedChild<Output>],
-    ) -> LaunchPlan<Input, Output> {
+        @DetachedChildrenBuilder<ID, Output> _ children: @MainActor ()
+            -> [DetachedChild<ID, Output>],
+    ) -> LaunchPlan<ID, Input, Output> {
         appending(.detached(children().map(\.node)))
     }
 
@@ -112,10 +124,12 @@ public struct LaunchPlan<Input: Sendable, Output: Sendable> {
 /// value and whose `Output` is `Void`, so a detached step that produces a
 /// value anyone could depend on is unspellable.
 @MainActor
-public struct DetachedChild<Value: Sendable> {
+public struct DetachedChild<ID: Hashable & Sendable, Value: Sendable> {
     let node: DetachedNode
 
-    public init<S: LifecycleStep>(_ step: S) where S.Input == Value, S.Output == Void {
+    public init<S: LifecycleStep>(_ step: S)
+        where S.Input == Value, S.Output == Void, S.ID == ID
+    {
         node = DetachedNode(
             id: step.id,
             modes: step.modes,
@@ -132,46 +146,52 @@ public struct DetachedChild<Value: Sendable> {
 /// constraints live.
 @resultBuilder
 @MainActor
-public enum DetachedChildrenBuilder<Value: Sendable> {
-    public static func buildExpression<S: LifecycleStep>(_ step: S) -> [DetachedChild<Value>]
-        where S.Input == Value, S.Output == Void
+public enum DetachedChildrenBuilder<ID: Hashable & Sendable, Value: Sendable> {
+    public static func buildExpression<S: LifecycleStep>(_ step: S) -> [DetachedChild<ID, Value>]
+        where S.Input == Value, S.Output == Void, S.ID == ID
     {
         [DetachedChild(step)]
     }
 
-    public static func buildExpression(_ child: DetachedChild<Value>) -> [DetachedChild<Value>] {
+    public static func buildExpression(_ child: DetachedChild<ID, Value>)
+        -> [DetachedChild<ID, Value>]
+    {
         [child]
     }
 
-    public static func buildBlock(_ children: [DetachedChild<Value>]...) -> [DetachedChild<Value>] {
+    public static func buildBlock(_ children: [DetachedChild<ID, Value>]...)
+        -> [DetachedChild<ID, Value>]
+    {
         children.flatMap(\.self)
     }
 
-    public static func buildOptional(_ children: [DetachedChild<Value>]?)
-        -> [DetachedChild<Value>]
+    public static func buildOptional(_ children: [DetachedChild<ID, Value>]?)
+        -> [DetachedChild<ID, Value>]
     {
         children ?? []
     }
 
-    public static func buildEither(first children: [DetachedChild<Value>])
-        -> [DetachedChild<Value>]
+    public static func buildEither(first children: [DetachedChild<ID, Value>])
+        -> [DetachedChild<ID, Value>]
     {
         children
     }
 
-    public static func buildEither(second children: [DetachedChild<Value>])
-        -> [DetachedChild<Value>]
+    public static func buildEither(second children: [DetachedChild<ID, Value>])
+        -> [DetachedChild<ID, Value>]
     {
         children
     }
 
-    public static func buildArray(_ children: [[DetachedChild<Value>]]) -> [DetachedChild<Value>] {
+    public static func buildArray(_ children: [[DetachedChild<ID, Value>]])
+        -> [DetachedChild<ID, Value>]
+    {
         children.flatMap(\.self)
     }
 
     public static func buildLimitedAvailability(
-        _ children: [DetachedChild<Value>],
-    ) -> [DetachedChild<Value>] {
+        _ children: [DetachedChild<ID, Value>],
+    ) -> [DetachedChild<ID, Value>] {
         children
     }
 }

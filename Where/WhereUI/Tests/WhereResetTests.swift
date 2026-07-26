@@ -75,7 +75,7 @@ struct WhereResetTests {
     @Test func resetPlanErasesThenClearsPreferences() throws {
         let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.resetPlan(for: model).nodeIDs
-        #expect(ids == [LaunchStepID.eraseData, .resetPreferences].map { AnyHashable($0) })
+        #expect(ids == [.eraseData, .resetPreferences])
     }
 
     @Test func resetPreferencesRestoresFirstInstallDefaults() throws {
@@ -289,7 +289,7 @@ struct WhereResetTests {
 /// An erase stand-in that always throws, so the teardown-failure path can be
 /// driven without corrupting a real store.
 private struct FailingEraseStep: LifecycleStep {
-    let id: AnyHashable = LaunchStepID.eraseData
+    let id = LaunchStepID.eraseData
 
     func run(_: WhereSession, _: LifecycleStepContext) async throws {
         throw CocoaError(.fileWriteUnknown)
@@ -301,7 +301,7 @@ private struct FailingEraseStep: LifecycleStep {
 private struct ResetPreferencesProbeStep: LifecycleStep {
     let model: WhereModel
 
-    let id: AnyHashable = LaunchStepID.resetPreferences
+    let id = LaunchStepID.resetPreferences
 
     func run(_: Void, _: LifecycleStepContext) async throws {
         model.resetPreferences()
