@@ -26,6 +26,11 @@ enum WhereLaunchLog: LogEvent {
     /// Retention pruning failed; the store is still usable (last good history
     /// preserved), it just isn't trimmed this launch.
     case historyPruneFailed(description: String)
+    /// A detached (fire-and-forget) launch step failed. Never fatal — the
+    /// launch reaches `.ready` regardless and the runner records it on
+    /// `detachedFailures` — but it must be visible in logs too, not just on
+    /// observable state nothing renders (see `DetachedFailureReporter`).
+    case detachedStepFailed(stepID: String, description: String)
 
     static let eventName = "WhereLaunch"
 
@@ -34,8 +39,10 @@ enum WhereLaunchLog: LogEvent {
             case .runnerCreated, .servicesAssembled, .loggingStoreReady, .historyPruned:
                 .info
             // The store is still usable when pruning fails (degraded-but-handled),
-            // unlike an outright open failure.
-            case .historyPruneFailed:
+            // unlike an outright open failure. A detached-step failure is the
+            // same shape: the launch stays healthy, one best-effort fan-out
+            // didn't land.
+            case .historyPruneFailed, .detachedStepFailed:
                 .warning
             case .servicesAssemblyFailed, .loggingStoreUnavailable:
                 .error
@@ -58,6 +65,8 @@ enum WhereLaunchLog: LogEvent {
                 "Pruned \(prunedEventCount) log event(s) past retention"
             case let .historyPruneFailed(description):
                 "Failed to prune log history: \(description)"
+            case let .detachedStepFailed(stepID, description):
+                "Detached launch step '\(stepID)' failed: \(description)"
         }
     }
 }

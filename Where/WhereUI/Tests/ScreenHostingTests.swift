@@ -89,11 +89,13 @@ struct ScreenHostingTests {
     }
 
     @Test func dataSettingsViewHosts() throws {
-        // Reads the app model (reset sequence) from the environment.
+        // Reads the app model and the session the reset plan is rooted at from
+        // the environment.
         let rootView = NavigationStack {
             DataSettingsView(report: PreviewSupport.loadedYearReportModel())
         }
         .environment(PreviewSupport.loadedModel())
+        .environment(PreviewSupport.loadedSession())
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
@@ -108,6 +110,7 @@ struct ScreenHostingTests {
             DataSettingsView(report: PreviewSupport.loadedYearReportModel(), focus: focus)
         }
         .environment(PreviewSupport.loadedModel())
+        .environment(PreviewSupport.loadedSession())
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }

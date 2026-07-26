@@ -12,18 +12,18 @@ import WhereCore
 ///
 /// When the user finishes it commits the picked regions + appearances to the
 /// store (which becomes the tracked-region set), persists `hasOnboarded`, and
-/// resolves the `LifecycleStepUIBridge` so the launch continues; the following
+/// resolves the `LifecycleGateHandle` so the launch continues; the following
 /// authorization-sync step then seeds region styling and picks up whatever
 /// permission was granted.
 public struct OnboardingView: View {
     // Onboarding straddles both: it persists the app-level `hasOnboarded` flag
-    // (model) and kicks off background tracking + the region commit through the
-    // session, which the `open-store` step has already built by the time this
-    // step runs.
+    // (model) and kicks off background tracking + the region commit through
+    // the session — handed in by the gate registration (the gate passes the
+    // trunk's session through), not trusted to be in the environment.
     @Environment(WhereModel.self) private var model
-    @Environment(WhereSession.self) private var session
     @Environment(\.stylesheet) private var stylesheet
-    private let bridge: LifecycleStepUIBridge
+    private let gate: LifecycleGateHandle
+    private let session: WhereSession
 
     /// The ordered onboarding phases. An explicit state machine (rather than
     /// loose flags) so only one screen is ever showing and the transitions are
@@ -48,8 +48,9 @@ public struct OnboardingView: View {
 
     private static let logger = WhereLog.session(OnboardingViewLog.self)
 
-    public init(bridge: LifecycleStepUIBridge) {
-        self.bridge = bridge
+    public init(gate: LifecycleGateHandle, session: WhereSession) {
+        self.gate = gate
+        self.session = session
     }
 
     private let pages = OnboardingPage.all
@@ -267,7 +268,7 @@ public struct OnboardingView: View {
                 }
             }
             model.completeOnboarding()
-            bridge.complete()
+            gate.complete()
         }
     }
 
@@ -338,8 +339,10 @@ struct OnboardingPage: Identifiable {
 
 #if DEBUG
     #Preview {
-        OnboardingView(bridge: LifecycleStepUIBridge(reason: .userForeground))
-            .environment(PreviewSupport.loadedModel())
-            .environment(PreviewSupport.loadedSession())
+        OnboardingView(
+            gate: LifecycleGateHandle(id: LaunchStepID.onboarding, reason: .userForeground),
+            session: PreviewSupport.loadedSession(),
+        )
+        .environment(PreviewSupport.loadedModel())
     }
 #endif

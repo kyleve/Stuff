@@ -94,13 +94,15 @@ struct WhereLaunchTests {
         )
     }
 
-    @Test func sequenceStepsRunInStartParityOrder() throws {
-        // The work steps mirror WhereSession.start()'s order; the only insertion
-        // is the onboarding gate.
+    @Test func planNodesRunInStartParityOrder() throws {
+        // The work steps mirror WhereSession.start()'s order; the only
+        // insertions are the start-session scope promotion and the onboarding
+        // gate.
         let model = try makeModel(preferences: makePreferences())
-        let ids = WhereLaunch.sequence(for: model).steps.map(\.id)
+        let ids = WhereLaunch.plan(for: model).nodeIDs
         #expect(ids == [
-            LaunchStepID.openStore,
+            .openStore,
+            .startSession,
             .onboarding,
             .syncAuth,
             .reconcileTracking,
@@ -109,7 +111,7 @@ struct WhereLaunchTests {
             .summary,
             .issueAlerts,
             .widgetSnapshot,
-        ].map { AnyHashable($0) })
+        ])
     }
 
     @Test func coldForegroundLaunchReachesReadyAndReconcilesTracking() async throws {
@@ -190,19 +192,21 @@ struct WhereLaunchTests {
         #expect(try await store.allSamples().isEmpty)
     }
 
-    @Test func firstRunForegroundLaunchPresentsOnboarding() async throws {
+    @Test func firstRunForegroundLaunchParksOnTheOnboardingGate() async throws {
         let model = try makeModel(status: .notDetermined, preferences: makePreferences())
         #expect(!model.hasOnboarded)
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         let task = Task { @MainActor in await launcher.run() }
 
-        try await waitUntil { launcher.phase.isRunning(LaunchStepID.onboarding) }
-        #expect(launcher.phase.runningBridge?.presentation != nil)
+        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        #expect(launcher.phase.gateHandle != nil)
 
         // Resolve the gate as OnboardingView would, letting the launch finish.
-        launcher.phase.runningBridge?.complete()
+        launcher.phase.gateHandle?.complete()
         await task.value
         #expect(launcher.phase.isReady)
+        // .ready carries the session the trunk produced.
+        #expect(launcher.phase.readyValue === model.session)
     }
 
     @Test func secondLaunchSkipsOnboarding() async throws {
@@ -231,10 +235,10 @@ struct WhereLaunchTests {
         #expect(model.logStore === store)
     }
 
-    @Test func openStoreHandsTheSessionsServicesToTheOnServicesReadyHook() async throws {
+    @Test func startSessionHandsTheSessionsServicesToTheOnServicesReadyHook() async throws {
         // A model with services attached but no session yet — the app's shape
         // when the open-store step runs (the preview/test init pre-builds the
-        // session, which would skip the step and the hook with it).
+        // session; the open-store step then reuses the injected layer).
         let store = try SwiftDataStore.inMemory()
         let services = WhereServices(
             store: store,
@@ -287,15 +291,16 @@ struct WhereLaunchTests {
         // The reset teardown drops the session and re-drives the launch; the
         // rebuilt session (over the retained, erased services) must be handed
         // to the hook again so consumers ride the fresh session. The cleared
-        // onboarding flag parks the relaunch on onboarding — resolve it as
-        // OnboardingView would.
+        // onboarding flag parks the relaunch on the onboarding gate — resolve
+        // it as OnboardingView would.
+        let session = try #require(model.session)
         let teardown = Task { @MainActor in
-            await launcher.teardown(WhereLaunch.resetSequence(for: model))
+            await launcher.teardown(WhereLaunch.resetPlan(for: model), input: session)
         }
-        try await waitUntil { launcher.phase.isRunning(LaunchStepID.onboarding) }
+        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
         #expect(hookFires == 2)
         model.completeOnboarding()
-        launcher.phase.runningBridge?.complete()
+        launcher.phase.gateHandle?.complete()
         await teardown.value
         #expect(launcher.phase.isReady)
     }

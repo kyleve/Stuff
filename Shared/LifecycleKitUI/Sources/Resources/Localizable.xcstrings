@@ -1,16 +1,13 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "App content" : {
-
-    },
-    "failure.launch.retry" : {
+    "failure.gate.unregistered %@" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Try Again"
+            "value" : "This step's screen isn't available. (%@)"
           }
         }
       }

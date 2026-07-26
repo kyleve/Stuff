@@ -139,11 +139,11 @@ that nothing in this repo depends on a skill having been loaded.
 ### Never double-link a product a dynamic framework already carries
 
 A target that depends on **WhereUI** must not also list any of WhereUI's own
-dependencies (WhereCore, Broadway, LifecycleKit, Periscope, SwiftDataInspector,
-…) in `extraPackageProducts` — reach them transitively. A second copy splits the
-module's type metadata across the WhereUI boundary and every type-keyed lookup
-(SwiftUI `EnvironmentKey`s, Broadway's `BTraits`/`BThemes`/`BStylesheets`)
-silently resolves against the wrong one.
+dependencies (WhereCore, Broadway, LifecycleKit/LifecycleKitUI, Periscope,
+SwiftDataInspector, …) in `extraPackageProducts` — reach them transitively. A
+second copy splits the module's type metadata across the WhereUI boundary and
+every type-keyed lookup (SwiftUI `EnvironmentKey`s, Broadway's
+`BTraits`/`BThemes`/`BStylesheets`) silently resolves against the wrong one.
 
 Worth knowing rather than rediscovering: it reproduces only in the full
 multi-bundle scheme, never in an isolated `tuist test WhereUITests`. The
@@ -268,8 +268,13 @@ scope and invariants on top rather than restating these.
 - Identifiers/keys are `Hashable` (ideally a typed enum) or `AnyHashable`, not
   raw `String`s — a typed token can't silently typo into a new, untracked id,
   and any `Hashable` converts to `AnyHashable` implicitly at the call site.
-  (e.g. `LifecycleStep.id` is `AnyHashable`; the Where app keys its launch steps
-  with the `LaunchStepID` enum, and `WherePreferences` keys with a `Keys` enum.)
+  Prefer carrying the *concrete* type where a generic can: `LifecycleStep`
+  declares `associatedtype ID: Hashable & Sendable` and `LaunchPlan` is generic
+  over it, so a plan's nodes must share one identity domain and `nodeIDs` hands
+  tests back typed cases instead of erased `AnyHashable`s. Reach for
+  `AnyHashable` only where a generic can't reach (a non-generic environment
+  value, a heterogeneous container). The Where app keys its launch steps with
+  the `LaunchStepID` enum, and `WherePreferences` keys with a `Keys` enum.
 - **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
   arguments so new behavior isn't silently opted into. Reserve defaults for
   SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
