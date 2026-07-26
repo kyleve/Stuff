@@ -8,8 +8,9 @@ import UIKit
 /// Asserts every case × configuration a ``SnapshotProviding`` declares, recording
 /// each against a reference image named by the case name + the configuration's
 /// identifier. Records only missing reference images by default (an
-/// existing-image mismatch always fails); override per call with `record:` or
-/// process-wide with the `SNAPSHOT_RECORD` environment variable.
+/// existing-image mismatch always fails); override per call with `record:`,
+/// process-wide with the `SNAPSHOT_RECORD` environment variable, or with
+/// swift-snapshot-testing's own `.snapshots(record:)` suite trait.
 ///
 /// `async` because the render pipeline must suspend for SwiftUI `.task`-driven
 /// content to load before capture — see
@@ -83,11 +84,18 @@ public func assertSnapshots(
     // Record-mode precedence, resolved here so callers need no per-suite trait:
     // an explicit `record:` argument wins, then the environment override
     // (`SNAPSHOT_RECORD`, forwarded as TEST_RUNNER_SNAPSHOT_RECORD on the command
-    // line, so a re-record run needs no source edits), then the `.missing`
-    // default (record only absent references; an existing-image mismatch always
-    // fails). The diff tool is env-only (TEST_RUNNER_SNAPSHOT_DIFF_TOOL); `nil`
-    // keeps the default plain output.
-    let resolvedRecord = record ?? environmentRecordMode() ?? .missing
+    // line, so a re-record run needs no source edits).
+    //
+    // A `nil` result is passed through rather than defaulted to `.missing`:
+    // `withSnapshotTesting` resolves a nil record against a `.snapshots(record:)`
+    // suite trait, then `SNAPSHOT_TESTING_RECORD`, then `.missing` — so the
+    // effective default is the same, while swift-snapshot-testing's own two
+    // overrides keep working. Substituting `.missing` here would out-rank and
+    // silently ignore both.
+    //
+    // The diff tool is env-only (TEST_RUNNER_SNAPSHOT_DIFF_TOOL); `nil` keeps the
+    // default plain output.
+    let resolvedRecord = record ?? environmentRecordMode()
     let resolvedDiffTool = environmentDiffTool()
 
     for configuration in configurations {

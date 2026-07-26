@@ -64,7 +64,8 @@ struct MyBadgeSnapshotTests {
 ```
 
 No `@Suite(.snapshots(...))` trait is needed: `assertSnapshots` resolves the
-record mode itself (see [Recording](#recording)), so a plain suite is enough.
+record mode itself (see [Recording](#recording)), so a plain suite is enough —
+though a trait still takes effect if you add one.
 Reference images are written next to the test file under `__Snapshots__/` and
 are stored in Git LFS (see the root `.gitattributes`). Recording a new image is
 a failure by design, so a run that records can't be mistaken for a pass.
@@ -89,7 +90,9 @@ everything), `failed` (rewrite only failing comparisons — the usual re-record
 mode after an intentional UI change), `missing` (only absent references), and
 `never` (record nothing; missing references fail — CI-style). Precedence: an
 explicit `record:` argument to `assertSnapshots` wins, then `SNAPSHOT_RECORD`,
-then the suite trait. Review the recorded images, then commit.
+then a `.snapshots(record:)` suite trait, then swift-snapshot-testing's own
+`SNAPSHOT_TESTING_RECORD`, then `.missing`. Review the recorded images, then
+commit.
 
 ## Diffing failures
 
