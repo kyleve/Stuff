@@ -7,7 +7,6 @@ import WhereCore
 @testable import WhereUI
 
 @MainActor
-@Suite(.snapshots(record: .missing))
 struct DebugLogViewerSnapshotTests {
     @Test func debugLogViewer() async {
         let viewer = NavigationStack {
