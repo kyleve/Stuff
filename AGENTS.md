@@ -49,10 +49,11 @@ Xcode project](#generating-the-xcode-project)). A fresh machine needs `./ide
 generating; plain `./ide` fails fast pointing at it.
 
 The executables in the repo root are the dev scripts — `ide`, `swiftformat`,
-`sync-agents`, `profile`, `icons`, `flaky`, `simulator`, `xcstrings` — and each
-takes `--help`. Reach for one rather than hand-rolling its job: `icons` and
-`simulator` in particular own state that is easy to corrupt by hand (see
-[Managing app icons](#managing-app-icons) and [Selecting a
+`sync-agents`, `profile`, `icons`, `flaky`, `simulator`, `xcstrings`,
+`attribution` — and each takes `--help`. Reach for one rather than hand-rolling
+its job: `icons`, `attribution`, and `simulator` in particular own state that is
+easy to corrupt by hand (see [Managing app icons](#managing-app-icons),
+[Attribution](#attribution), and [Selecting a
 simulator](#selecting-a-simulator--address-it-by-udid-not-name)).
 
 ### Managing app icons
@@ -98,26 +99,31 @@ read these keys.
 
 ## Attribution
 
-Third-party attribution lives in **one** place —
-[`Shared/CreditKit`](Shared/CreditKit/AGENTS.md) — rather than wherever a
-dependency happened to be introduced. It is a leaf module anything may depend
-on, so a package pulled in by *any* module can be credited without inverting the
-dependency that introduced it.
-
-Its manifest and license notices are **generated, never hand-edited**:
+An app ships an **attribution report**: every third-party work it is built with,
+each carrying its license notice inline. Regenerate every app's report with:
 
 ```bash
-ruby Shared/CreditKit/Tools/generate-credits.rb
+./attribution
 ```
 
-The script derives what to credit from what the repo already declares — packages
-a target links via `.product(name:package:)` (pinned by `Package.resolved`) and
-the agent skills in `.agents/external-skills.json` — and fetches each notice at
-the **pinned revision**. So a new dependency is credited wherever it lands, and
-a package resolved only for tooling (BumperBowling, swift-syntax) correctly
-isn't. **Re-run it and commit the result whenever you add or bump a package or a
-skill**; nothing fails a build if you forget, but `CreditKitTests` pins the
-expected names and will.
+The split matters. [`Shared/CreditKit`](Shared/CreditKit/AGENTS.md) owns the
+*types and the reporting tool* and holds **no credits of its own**; each app
+declares its sources in an `attribution-sources.json` and ships the resulting
+manifest in **its own resources** (for Where,
+`Where/Where/Resources/attribution.json`). A report describes one app's
+dependency graph, so it is that app's data — and CreditKit stays a Foundation-only
+leaf that anything may depend on, so a package pulled in by *any* module gets
+credited without inverting the dependency that introduced it.
+
+The report is derived from what the repo already declares — packages a target
+links via `.product(name:package:)` (pinned by `Package.resolved`) and the agent
+skills in `.agents/external-skills.json` — with each notice read at the **pinned
+revision**. So a new dependency is credited wherever it lands, and a package
+resolved only for tooling (BumperBowling, swift-syntax) correctly isn't.
+**Re-run `./attribution` and commit the result whenever you add or bump a
+package or a skill.** Nothing fails a build if you forget; each app asserts its
+own report instead (`AppAttributionTests` for Where), which is where that
+assertion belongs, since only the app knows what it should contain.
 
 `SoftwareCredit.Kind` keeps a **linked library** apart from a **development
 tool**, and that distinction must survive into any UI: a tool is credited
@@ -162,11 +168,10 @@ anything else under `.agents/skills/` is a **repo-owned** skill and is committed
 (currently `todo-triage`).
 
 That manifest is also an **attribution** input: external skills are third-party
-work the repo vendors, so `CreditKit` credits them (as *development tools*,
+work the repo vendors, so an app's report credits them (as *development tools*,
 distinct from libraries the app links). After adding a skill or running
-`./sync-agents --update`, re-run `ruby Shared/CreditKit/Tools/generate-credits.rb`
-and commit the regenerated manifest and notices — see
-[`Attribution`](#attribution).
+`./sync-agents --update`, re-run `./attribution` and commit the regenerated
+reports — see [`Attribution`](#attribution).
 
 **Cursor reads `.agents/skills/` natively** — that directory is the real home. The
 `.claude/skills/` mirror exists for Claude Code, so run `./sync-agents` after

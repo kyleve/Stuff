@@ -3008,6 +3008,17 @@
         }
       }
     },
+    "settings.about.attribution.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This build carries no attribution report."
+          }
+        }
+      }
+    },
     "settings.about.build.row" : {
       "extractionState" : "manual",
       "localizations" : {

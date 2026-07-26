@@ -1,0 +1,68 @@
+#!/bin/bash
+set -euo pipefail
+
+# attribution — regenerate each app's attribution report.
+#
+# A report lists every third-party work an app is built with, each carrying its
+# license notice inline, and lands in that app's own resources for the About
+# screen to decode. It is generated rather than hand-kept, which is the point: a
+# hand-maintained list silently goes stale the moment some *other* module adds a
+# dependency, whereas a re-run picks it up wherever it landed.
+#
+# Each app declares its own sources in an attribution-sources.json; the generic
+# reporting lives in CreditKit. Re-run after adding or bumping a package, or
+# after `./sync-agents --update` moves a pinned skill, and commit the result.
+#
+# Needs network and an authenticated `gh` (notices are read at the pinned
+# revision, so the text shipped is the one governing the code actually in use).
+
+cd "$(dirname "$0")"
+
+GENERATOR="Shared/CreditKit/Tools/generate-attribution.rb"
+
+# One entry per app that ships a report.
+CONFIGS=(
+    "Where/Where/attribution-sources.json"
+)
+
+usage() {
+    cat <<'USAGE'
+Usage:
+  ./attribution [config ...]
+  ./attribution --list
+  ./attribution --help
+
+Regenerates the attribution report for each configured app. With no arguments,
+regenerates every app's report; pass a config path to do just one.
+USAGE
+}
+
+case "${1-}" in
+    -h | --help)
+        usage
+        exit 0
+        ;;
+    --list)
+        printf '%s\n' "${CONFIGS[@]}"
+        exit 0
+        ;;
+esac
+
+if ! command -v gh >/dev/null 2>&1; then
+    echo "attribution: needs the GitHub CLI (gh) to read license notices" >&2
+    exit 1
+fi
+
+if [ "$#" -gt 0 ]; then
+    targets=("$@")
+else
+    targets=("${CONFIGS[@]}")
+fi
+
+# The pinned Ruby via mise when available, since the repo pins one; the system
+# Ruby otherwise, so a bare checkout can still run this.
+if command -v mise >/dev/null 2>&1; then
+    mise exec -- ruby "$GENERATOR" "${targets[@]}"
+else
+    ruby "$GENERATOR" "${targets[@]}"
+fi

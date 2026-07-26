@@ -7,10 +7,11 @@ import WhereCore
 /// is running, the third-party work it is built with, and where its bundled
 /// region boundaries came from.
 ///
-/// Every fact here is vended by the module that owns it — `BuildInfo` from
-/// `WhereCore`, `SoftwareCredit` from `CreditKit`, `RegionDataSource` from
-/// `RegionKit` — so this screen only renders and localizes. Adding a dependency
-/// or a dataset means regenerating that module's data, not editing this view.
+/// Every fact here is vended by whoever owns it — `BuildInfo` and the generated
+/// attribution report from `WhereCore`, `RegionDataSource` from `RegionKit` — so
+/// this screen only renders and localizes. Adding a dependency means re-running
+/// `./attribution`, and adding a dataset means regenerating RegionKit's; neither
+/// is a change to this view.
 ///
 /// Credits are split by `SoftwareCredit.Kind` into two sections rather than one
 /// combined list, because a development tool is *not* in the binary the reader
@@ -21,21 +22,21 @@ struct AboutSettingsView: View {
     @Environment(\.stylesheet) private var stylesheet
 
     private let buildInfo: BuildInfo
-    private let credits: [SoftwareCredit]
+    private let attribution: AttributionManifest?
     private let dataSources: [RegionDataSource]
 
     /// Defaults read the live values; the parameters exist so previews and tests
-    /// can render a stamped build and fixed credits, which an unstamped preview
-    /// bundle can't produce on its own.
+    /// can render a stamped build and a populated report, neither of which a
+    /// bundle outside the app target carries.
     init(
         focus: SettingsFocus?,
         buildInfo: BuildInfo = .current(bundle: .main),
-        credits: [SoftwareCredit] = CreditCatalog.shared.credits,
+        attribution: AttributionManifest? = AppAttribution.current(bundle: .main),
         dataSources: [RegionDataSource] = RegionDataSource.all,
     ) {
         self.focus = focus
         self.buildInfo = buildInfo
-        self.credits = credits
+        self.attribution = attribution
         self.dataSources = dataSources
     }
 
@@ -107,17 +108,25 @@ struct AboutSettingsView: View {
         footer: String,
     ) -> some View {
         Section {
-            ForEach(credits.filter { $0.kind == kind }) { credit in
-                // A closure-form link, not a `SettingsRoute`: routes are the
-                // top-level group vocabulary, and a leaf pushed from inside one
-                // group would need its own `navigationDestination` to match.
-                NavigationLink {
-                    LicenseView(credit: credit)
-                } label: {
-                    LabeledContent(credit.name) {
-                        Text(credit.version)
+            if let attribution {
+                ForEach(attribution.credits(ofKind: kind)) { credit in
+                    // A closure-form link, not a `SettingsRoute`: routes are the
+                    // top-level group vocabulary, and a leaf pushed from inside
+                    // one group would need its own `navigationDestination`.
+                    NavigationLink {
+                        LicenseView(credit: credit)
+                    } label: {
+                        LabeledContent(credit.name) {
+                            Text(credit.version)
+                        }
                     }
                 }
+            } else {
+                // No report in this bundle — `AppAttribution` has already said so.
+                // Say it here too, rather than showing an empty section that
+                // reads as "nothing to credit".
+                Text(String(localized: .settingsAboutAttributionUnavailable))
+                    .foregroundStyle(.secondary)
             }
         } header: {
             Text(header)
@@ -206,7 +215,11 @@ extension AboutSettingsView: SettingsSection {
 #if DEBUG
     #Preview("Stamped build") {
         NavigationStack {
-            AboutSettingsView(focus: nil, buildInfo: PreviewSupport.stampedBuildInfo())
+            AboutSettingsView(
+                focus: nil,
+                buildInfo: PreviewSupport.stampedBuildInfo(),
+                attribution: PreviewSupport.sampleAttribution(),
+            )
         }
         .whereBroadwayRoot()
     }
@@ -216,16 +229,21 @@ extension AboutSettingsView: SettingsSection {
             AboutSettingsView(
                 focus: nil,
                 buildInfo: PreviewSupport.stampedBuildInfo(isDirty: true),
+                attribution: PreviewSupport.sampleAttribution(),
             )
         }
         .whereBroadwayRoot()
     }
 
-    #Preview("Unstamped build") {
-        // What a bundle the stamp script never ran on shows: honest unknowns
-        // rather than blank rows.
+    #Preview("Unstamped, unattributed build") {
+        // What a bundle outside the app target shows: honest unknowns and an
+        // explicit "no report" rather than blank rows and empty sections.
         NavigationStack {
-            AboutSettingsView(focus: nil, buildInfo: PreviewSupport.unstampedBuildInfo())
+            AboutSettingsView(
+                focus: nil,
+                buildInfo: PreviewSupport.unstampedBuildInfo(),
+                attribution: nil,
+            )
         }
         .whereBroadwayRoot()
     }

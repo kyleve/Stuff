@@ -24,7 +24,7 @@ struct LicenseView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xxSmall) {
-            Text(credit.licenseName)
+            Text(credit.license.name)
                 .font(.headline)
             Text(credit.version)
                 .font(.subheadline)
@@ -38,17 +38,17 @@ struct LicenseView: View {
 
     @ViewBuilder
     private var notice: some View {
-        if let text = credit.licenseText() {
-            Text(text)
-                .font(.footnote.monospaced())
-                .textSelection(.enabled)
-        } else {
-            // The bundled file is missing or unreadable — `licenseText()` has
-            // already fault-logged it. Say so, rather than showing an empty page
-            // that reads like a license with no terms.
+        // The report carries the notice inline, so there is no file to fail to
+        // load — an empty one would mean the generator wrote a credit without
+        // text, which it refuses to do.
+        if credit.license.text.isEmpty {
             Text(String(localized: .settingsAboutLicenseUnavailable))
                 .font(.footnote)
                 .foregroundStyle(.secondary)
+        } else {
+            Text(credit.license.text)
+                .font(.footnote.monospaced())
+                .textSelection(.enabled)
         }
     }
 }
@@ -56,7 +56,7 @@ struct LicenseView: View {
 #if DEBUG
     #Preview {
         NavigationStack {
-            if let credit = CreditCatalog.shared.credits.first {
+            if let credit = PreviewSupport.sampleAttribution().credits.first {
                 LicenseView(credit: credit)
             }
         }

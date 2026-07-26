@@ -134,15 +134,20 @@ internal shape.
   that derives attribution from a seeded store instead.) Detection is naturally
   scoped to the set — the attributor only loads tracked-region geometry, so
   `distanceToBoundary` is `nil` elsewhere.
-- **Adding an external package means regenerating the credits.** WhereCore links
-  the app's only third-party package (ZIPFoundation), but it does **not** own
-  attribution — that is [`CreditKit`](../../Shared/CreditKit/AGENTS.md), whose
-  `Tools/generate-credits.rb` derives the credit and vendors the notice from the
-  root [`Package.swift`](../../Package.swift) and `Package.resolved`. Run it and
-  commit the result, or the app ships a library whose license it doesn't
-  reproduce. Build *identity* does live here, in `BuildInfo`, which reads keys
-  the app target's stamp script writes — see [Version and build
-  metadata](../../AGENTS.md#version-and-build-metadata).
+- **Adding an external package means re-running `./attribution`.** WhereCore
+  links the app's only third-party package (ZIPFoundation), but it does **not**
+  own attribution: the report format and tooling are
+  [`CreditKit`](../../Shared/CreditKit/AGENTS.md)'s, and the report itself is the
+  app target's resource. Regenerate and commit it, or the app ships a library
+  whose license it doesn't reproduce.
+- **`AppAttribution` and `BuildInfo` both read *this bundle*, and both treat
+  absence as legitimate.** Only the app target gets a stamped Info.plist and a
+  generated report, so a bundle without either (RegionViewer, `StuffTestHost`,
+  an extension) reports `nil` rather than a placeholder. `AppAttribution` splits
+  that from a report that is present and won't decode, which is a corrupt
+  resource and faults — don't collapse the two back together. See [Version and
+  build metadata](../../AGENTS.md#version-and-build-metadata) and
+  [Attribution](../../AGENTS.md#attribution).
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are
   `async throws` so the CloudKit-backed store can report I/O failure; a `catch`
   must log via a `WhereLog` typed `LogEvent` (PII-free, `.public`) and leave

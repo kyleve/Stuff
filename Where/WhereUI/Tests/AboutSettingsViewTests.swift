@@ -43,7 +43,11 @@ struct AboutSettingsViewTests {
 
     @Test func hostsAStampedBuild() throws {
         let rootView = NavigationStack {
-            AboutSettingsView(focus: nil, buildInfo: PreviewSupport.stampedBuildInfo())
+            AboutSettingsView(
+                focus: nil,
+                buildInfo: PreviewSupport.stampedBuildInfo(),
+                attribution: PreviewSupport.sampleAttribution(),
+            )
         }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
@@ -53,7 +57,11 @@ struct AboutSettingsViewTests {
     @Test func hostsAnUnstampedBuild() throws {
         // The RegionViewer / test-host case: no version keys and no commit.
         let rootView = NavigationStack {
-            AboutSettingsView(focus: nil, buildInfo: PreviewSupport.unstampedBuildInfo())
+            AboutSettingsView(
+                focus: nil,
+                buildInfo: PreviewSupport.unstampedBuildInfo(),
+                attribution: PreviewSupport.sampleAttribution(),
+            )
         }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
@@ -65,21 +73,25 @@ struct AboutSettingsViewTests {
             SettingsCatalog.results.first { $0.destination == .about },
         ).focus
         let rootView = NavigationStack {
-            AboutSettingsView(focus: focus, buildInfo: PreviewSupport.stampedBuildInfo())
+            AboutSettingsView(
+                focus: focus,
+                buildInfo: PreviewSupport.stampedBuildInfo(),
+                attribution: PreviewSupport.sampleAttribution(),
+            )
         }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
         }
     }
 
-    @Test func hostsWithNothingToCredit() throws {
-        // Defensive: an empty credit list must render empty sections rather than
-        // trip on a force-unwrapped "first" credit.
+    @Test func hostsABundleCarryingNoReport() throws {
+        // Every bundle but the app target's is in this state, so it has to render
+        // rather than trip on a force-unwrapped manifest.
         let rootView = NavigationStack {
             AboutSettingsView(
                 focus: nil,
                 buildInfo: PreviewSupport.unstampedBuildInfo(),
-                credits: [],
+                attribution: nil,
                 dataSources: [],
             )
         }
@@ -88,9 +100,24 @@ struct AboutSettingsViewTests {
         }
     }
 
-    @Test func creditsTheLiveDependencyAndDataSourceLists() {
-        // The screen shows what the owning modules vend, not a copy of its own.
-        #expect(!CreditCatalog.shared.credits.isEmpty)
+    @Test func hostsAnEmptyReport() throws {
+        let rootView = NavigationStack {
+            AboutSettingsView(
+                focus: nil,
+                buildInfo: PreviewSupport.unstampedBuildInfo(),
+                attribution: AttributionManifest(credits: []),
+                dataSources: [],
+            )
+        }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func showsTheLiveDataSourceList() {
+        // The screen shows what RegionKit vends, not a copy of its own. The
+        // software credits are the app's generated report, asserted against the
+        // real bundle in the Where app's `AppAttributionTests`.
         #expect(!RegionDataSource.all.isEmpty)
     }
 
@@ -98,14 +125,16 @@ struct AboutSettingsViewTests {
         // The two kinds must reach the screen as distinct sections: a development
         // tool isn't in the binary, so listing it under "Open Source" alongside
         // the libraries would describe the running app inaccurately.
-        for kind in SoftwareCredit.Kind.allCases {
-            #expect(
-                !CreditCatalog.shared.credits(ofKind: kind).isEmpty,
-                "nothing credited for \(kind), so the section would render empty",
-            )
-        }
         let titles = Set(AboutSettingsView.Item.allCases.map(\.title))
         #expect(titles.contains(String(localized: .settingsAboutDevelopmentToolsHeader)))
         #expect(titles.contains(String(localized: .settingsAboutDependenciesHeader)))
+
+        let sample = PreviewSupport.sampleAttribution()
+        for kind in SoftwareCredit.Kind.allCases {
+            #expect(
+                !sample.credits(ofKind: kind).isEmpty,
+                "the fixture credits nothing for \(kind), so that section goes untested",
+            )
+        }
     }
 }

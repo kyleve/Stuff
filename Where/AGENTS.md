@@ -113,20 +113,26 @@ switch over them is exhaustive, so a new drill-in is a set of compile errors to
 fill in rather than a screen you can forget to register. **About is deliberately
 the last block**, below everything actionable.
 
-**Credits are vended by the module that owns the thing being credited**, and the
-About screen only renders them: `SoftwareCredit` (CreditKit) for third-party
-software plus its notice, `RegionDataSource` (RegionKit) for bundled geometry,
-`BuildInfo` (WhereCore) for the running build. Adding a dependency or a dataset
-means updating it *there* — see
+**Nothing on the About screen is a list hard-coded in the view.** It renders
+three sources: the generated attribution report (via `WhereCore.AppAttribution`),
+`RegionDataSource` (RegionKit) for bundled geometry, and `BuildInfo` (WhereCore)
+for the running build. Adding a dependency means re-running `./attribution`;
+adding a dataset means regenerating RegionKit's — see
 [`CreditKit/AGENTS.md`](../Shared/CreditKit/AGENTS.md) and
-[`RegionKit/AGENTS.md`](RegionKit/AGENTS.md) — never a list hard-coded in the
-view.
+[`RegionKit/AGENTS.md`](RegionKit/AGENTS.md).
 
-CreditKit distinguishes a **linked library** from a **development tool** (the
-agent skills `./sync-agents` vendors), and the About screen renders them as
-separate sections. Keep them separate: a development tool is credited because
-the repository copies it, not because it is in the binary, and one merged list
-would tell a reader something untrue about the app they are running.
+The report lives in `Where/Where/Resources/attribution.json` — the **app
+target's** resources, so only the app bundle carries one. Every other bundle
+(RegionViewer, `StuffTestHost`, the extensions) reads `nil` and the screen says
+so, exactly as it does for an unstamped `BuildInfo`. `AppAttributionTests`, in
+the app's own test bundle because it is the one hosted by `Where.app`, asserts
+what the report contains.
+
+A **linked library** and a **development tool** (the agent skills
+`./sync-agents` vendors) render as separate sections. Keep them separate: a
+development tool is credited because the repository copies it, not because it is
+in the binary, and one merged list would tell a reader something untrue about
+the app they are running.
 
 ## Localization
 

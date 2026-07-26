@@ -23,9 +23,12 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   Liquid Glass tab bar over three tabs — Locations, Your Year, Settings.
   Elsewhere is an entry card on Locations, Resolve a Locations toolbar button,
   the data screens (attachments, logged days, regions) sit in the Settings
-  "Data" group, and `AboutSettingsView` is the last Settings block (build
-  identity, open-source notices, and bundled-data provenance, each vended by the
-  module that owns it). The app injects the launch-built model + runner
+  "Data" group, and `AboutSettingsView` is the last Settings block — build
+  identity, the app's generated attribution report (linked libraries and
+  development tools as separate sections), and bundled-data provenance, each
+  vended by whoever owns it rather than listed in the view. The screen renders
+  an explicit "no report" state, since only the app bundle carries one. The app
+  injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
 - **`WhereModel`** — app-level state: the onboarding flag, the owned

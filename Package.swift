@@ -38,13 +38,7 @@ let package = Package(
         ),
         .target(
             name: "CreditKit",
-            dependencies: [
-                .target(name: "PeriscopeCore"),
-            ],
             path: "Shared/CreditKit/Sources",
-            resources: [
-                .process("Resources"),
-            ],
         ),
         .target(
             name: "LifecycleKit",
@@ -102,6 +96,7 @@ let package = Package(
         .target(
             name: "WhereCore",
             dependencies: [
+                .target(name: "CreditKit"),
                 .target(name: "PeriscopeCore"),
                 .target(name: "RegionKit"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
