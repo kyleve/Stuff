@@ -30,7 +30,9 @@ One item per bullet:
 - **`(<origin> <date|ref>)`** — where the item came from: `(human 2026-07-24)`,
   `(audit 2026-07-26)`, `(pr#107 review)`. This is the human/agent split, and it
   survives the rewrite an agent gives a promoted inbox note — so you can always
-  see which items started as your own.
+  see which items started as your own. Drop the date when it genuinely isn't
+  known, as on items that predate this format: a bare `(human)` or `(agent)` is
+  honest, a guessed date isn't.
 
 Buckets carry priority. There is deliberately **no separate severity field**:
 two priority axes can disagree, and then neither is trusted.
@@ -87,6 +89,7 @@ inbox rather than here.
 # Open issues
 
 ## PX (Exploratory)
+- feat: Update the deployment target to iOS 27 — this lets us use `HistoryObserver` for CloudKit/SwiftData instead of the notification. Spans every target's minimum OS (`Package.swift`, `Project.swift`), so it sits here rather than in `Where/TODOs.md`. (human)
 
 ## P0s (Must do)
 

@@ -39,6 +39,10 @@ fixed. Take each entry under `# Open` in turn.
 5. **Bucket and tag it.** `PX`/`P0`/`P1`/`P2`, plus `quick-win` or
    `needs-design`. Tag the origin `(human <date the note was written>)` — keep
    the human's date, not today's; the point is to show where the item came from.
+   A **new** item takes the bucket its severity implies (high → `P0`, medium →
+   `P1`, low → `P2`); an item **already in the file keeps the bucket it has**.
+   Priority is a decision someone made, and a severity opinion from a later pass
+   doesn't get to silently overrule it — argue for the move in the body instead.
 6. **Remove it from `INBOX.md`.** The origin tag is the trail; don't leave a
    copy behind.
 
