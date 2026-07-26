@@ -92,9 +92,12 @@ inbox rather than here.
 - feat: Update the deployment target to iOS 27 — this lets us use `HistoryObserver` for CloudKit/SwiftData instead of the notification. Spans every target's minimum OS (`Package.swift`, `Project.swift`), so it sits here rather than in `Where/TODOs.md`. (human)
 
 ## P0s (Must do)
+- fix(Bumper) [quick-win]: `where.gregorian_calendar` matches only an explicit `Calendar` base, so it enforces nothing. It filters `MemberAccessExprSyntax` on `base?.trimmedDescription == "Calendar"` (`.bumper/Sources/WhereProjectRules.swift:121`), which catches a spelled-out `Calendar.current` but not the implicit-member form (`calendar: Calendar = .current`, `startOfDay(in: .current)`) — and after the Gregorian call-site pass (`fe99dde`) the implicit form is the only one left in the tree. CI hard-gates `bumper lint` at `severity: .error` and is green, which confirms it: the rule reports nothing while production sites drift. Also match a no-base `MemberAccessExprSyntax` whose contextual type is `Calendar`, or add a lexical `.current` check scoped to calendar parameters and arguments. A rule that reads as enforced but enforces nothing is worse than a documented convention, because it stops anyone from looking. Pairs with the `CalendarDay.displayDate` P1 in [`Where/TODOs.md`](Where/TODOs.md). (audit 2026-07-26)
+	- docs(Bumper) [quick-win]: Correct `.bumper/RULES.md:101` and `:143`, which claim three calendar violations and some preview-coverage violations are "left visible during this bootstrap". Neither exists — the lint gate is green, and `52f0136` closed the preview ones. Delete both paragraphs, and re-add the calendar one only if the widened rule genuinely finds drift. (audit 2026-07-26)
 
 ## P1s (Should do)
 
 ## P2s (Nice to have)
+- perf(StuffTestHost) [needs-design]: Two loose ends in the shared test host, both reaching the root Tuist manifest, which is why they sit here rather than in a StuffTestHost file. The WhereCore-always-embedded build trade-off is documented and verified load-bearing at `Project.swift:256` — decide whether to keep documenting it or split the host so unrelated bundles don't pay for it. Separately, the scene configuration name is spelled twice, in `Shared/StuffTestHost/Sources/AppDelegate.swift:11` and `Project.swift:244`, so the two can drift silently. (audit 2026-07-26)
 
 # Completed issues
