@@ -58,21 +58,23 @@ import SnapshotKitTesting
 import Testing
 
 @MainActor
-@Suite(.snapshots(record: .missing))
 struct MyBadgeSnapshotTests {
     @Test func variants() { assertSnapshots(of: MyBadge.self) }
 }
 ```
 
+No `@Suite(.snapshots(...))` trait is needed: `assertSnapshots` resolves the
+record mode itself (see [Recording](#recording)), so a plain suite is enough.
 Reference images are written next to the test file under `__Snapshots__/` and
 are stored in Git LFS (see the root `.gitattributes`). Recording a new image is
 a failure by design, so a run that records can't be mistaken for a pass.
 
 ## Recording
 
-The suite trait sets the baseline mode (`@Suite(.snapshots(record: .missing))`
-records only images that don't exist yet). To re-record without editing source,
-forward a `SNAPSHOT_RECORD` environment variable into the test process —
+`assertSnapshots` defaults to the `.missing` mode (records only images that
+don't exist yet; an existing-image mismatch always fails). To re-record without
+editing source, forward a `SNAPSHOT_RECORD` environment variable into the test
+process —
 xcodebuild passes any `TEST_RUNNER_`-prefixed variable through, so in this repo
 (verified working):
 
