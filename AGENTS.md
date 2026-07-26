@@ -197,10 +197,9 @@ A few files outside the module pair carry *state* rather than rules:
 - **`MODULE_AUDIT.md`** — a read-only audit across every module, useful for
   finding known gaps and their severity. A weekly automation re-runs it and
   opens a PR, refreshing the `TODOs.md` files alongside it, so the audit is
-  current to its header date rather than to `HEAD` — and sections survive a
-  refresh, so it still carries entries for `Shared/LogKit` and
-  `Shared/LogViewerUI`, which Periscope replaced. Verify a finding against
-  current source before acting on it.
+  current to its **header date**, not to `HEAD`: anything that landed since is
+  invisible to it, and a finding it lists may already be fixed. Verify against
+  current source before acting on one.
 
 ## Conventions
 
