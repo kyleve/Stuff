@@ -70,7 +70,9 @@ WORKSPACE="Stuff.xcworkspace"
 SCHEME="Stuff-Workspace"
 # Boot the target up front and address it by UDID: a cold simulator otherwise
 # lands in the timings as build/test cost, and a name-based destination can
-# resolve to a same-named device on another runtime (see ./simulator).
+# resolve to a same-named device on another runtime. `./simulator` hands back
+# the device this checkout owns (creating it the first time), so a run in
+# another checkout can't perturb these numbers by sharing it.
 DESTINATION="platform=iOS Simulator,id=$(./simulator --device "$DEVICE" --os "$OS")"
 
 WORKDIR="${TMPDIR:-/tmp}/where-profile"

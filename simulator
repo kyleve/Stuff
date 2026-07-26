@@ -1,17 +1,27 @@
 #!/bin/bash
 set -euo pipefail
 
-# simulator — resolve the iOS Simulator our build/test commands should target,
-# boot it, and print its UDID.
+# simulator — resolve the iOS Simulator *this checkout* owns, creating it on
+# first use, boot it, and print its UDID.
 #
-# Why this exists: a machine with several runtimes installed usually has an
-# "iPhone 17" on each of them, and `xcrun simctl` matches by *name* only — so a
-# name-based command can shut down, erase, or boot a different device than the
-# one under test, which surfaces as `Application failed preflight checks (Busy)`
-# or `Mach error -308` (launch failures that look like test failures). Booting
-# is also the slow half: letting a run race a cold CoreSimulator has stretched a
-# ~10 minute test job past 3 hours. So every caller resolves a UDID once, waits
-# for the device to finish booting, and passes `-destination "…,id=$UDID"`.
+# Two problems, one script:
+#
+#   1. Ambiguity. A machine with several runtimes installed usually has an
+#      "iPhone 17" on each of them, and `xcrun simctl` matches by *name* only —
+#      so a name-based command can shut down, erase, or boot a different device
+#      than the one under test, which surfaces as `Application failed preflight
+#      checks (Busy)` or `Mach error -308` (launch failures that look like test
+#      failures). Booting is also the slow half: letting a run race a cold
+#      CoreSimulator has stretched a ~10 minute test job past 3 hours.
+#
+#   2. Contention. Several checkouts on one machine — clones, worktrees, an
+#      agent working in each — otherwise resolve to the *same* device and race
+#      one another's boots, installs, and erases of the same bundle ID, which
+#      fails in exactly the ways above. So a device is a per-checkout resource:
+#      the name is derived from the checkout's path
+#      (`Stuff-<folder>-<hash>-<device>-<os>`), it's created on demand, and
+#      nothing else on the machine touches it.
+#
 # See "Selecting a simulator" in AGENTS.md.
 #
 # Only the UDID goes to stdout, so this composes:
@@ -23,23 +33,38 @@ set -euo pipefail
 DEVICE="iPhone 17"
 OS="27.0"
 BOOT=true
+SHARED=false
+MODE=resolve
 
 usage() {
     cat <<'USAGE'
 Usage: ./simulator [options]
 
-Resolves the target iOS Simulator by UDID (never by name), boots it, waits for
-the boot to finish, and prints the UDID on stdout.
+Resolves this checkout's own iOS Simulator by UDID (never by name), creating it
+if it doesn't exist yet, boots it, waits for the boot to finish, and prints the
+UDID on stdout.
+
+Every checkout — clone or worktree — owns a separate device, so parallel work
+on one machine can't collide booting, installing, or erasing the same one.
 
 Options:
   --device NAME   Simulator device name (default: "iPhone 17")
   --os VERSION    Simulator iOS version (default: "27.0")
-  --no-boot       Only resolve and print the UDID; don't boot or wait
+  --no-boot       Only resolve (creating if needed) and print the UDID
+  --shared        Target any existing device with that name instead of this
+                  checkout's own — for throwaway machines (CI) that are already
+                  isolated
+  --list          List the per-checkout devices on this machine
+  --prune         Delete devices whose checkout is gone, and forget devices
+                  that no longer exist
+  --delete        Delete this checkout's device
+  --recreate      Delete this checkout's device, then create and boot a fresh one
   -h, --help      Show this help
 
 Examples:
   ./simulator
   ./simulator --device 'iPhone 17 Pro' --os 27.0
+  ./simulator --list
   xcodebuild test -destination "platform=iOS Simulator,id=$(./simulator)" …
 USAGE
 }
@@ -49,48 +74,243 @@ while [ $# -gt 0 ]; do
         --device) shift; DEVICE="${1:?--device requires a value}" ;;
         --os) shift; OS="${1:?--os requires a value}" ;;
         --no-boot) BOOT=false ;;
+        --shared) SHARED=true ;;
+        --list) MODE=list ;;
+        --prune) MODE=prune ;;
+        --delete) MODE=delete ;;
+        --recreate) MODE=recreate ;;
         -h|--help) usage; exit 0 ;;
         *) echo "error: unknown option '$1' (see ./simulator --help)" >&2; exit 1 ;;
     esac
     shift
 done
 
-# Listing also nudges CoreSimulator into rebuilding its device cache, which a
-# freshly provisioned machine (notably the xcode-27 CI image) needs before a
-# destination will resolve at all.
-devices_json="$(xcrun simctl list devices available --json)"
+if [ "$SHARED" = true ] && [ "$MODE" != resolve ]; then
+    echo "error: --shared has no checkout of its own to $MODE (see ./simulator --help)" >&2
+    exit 1
+fi
+
+cd "$(dirname "$0")"
 
 # `jq` is deliberately unpinned: macOS ships it as an Apple-signed system binary
 # (`/usr/bin/jq`, identifier com.apple.jq) on the macOS 26 baseline this repo
-# requires, same as xcrun/simctl/plutil. The query below is stable jq syntax and
-# is exercised against both the OS build and the newer one on CI — so don't add
-# it to .mise.toml or gate it behind an install check.
+# requires, same as xcrun/simctl/plutil. The queries below are stable jq syntax
+# and are exercised against both the OS build and the newer one on CI — so don't
+# add it to .mise.toml or gate it behind an install check.
 
 runtime_key="com.apple.CoreSimulator.SimRuntime.iOS-${OS//./-}"
-udids="$(
-    printf '%s' "$devices_json" \
-        | jq -r --arg key "$runtime_key" --arg name "$DEVICE" \
-            '.devices[$key][]? | select(.name == $name) | .udid'
-)"
 
-if [ -z "$udids" ]; then
-    echo "error: no available '$DEVICE' on the iOS $OS runtime." >&2
-    echo "Available devices:" >&2
-    xcrun simctl list devices available >&2
-    exit 1
+# A worktree's toplevel is the worktree itself, so worktrees count as separate
+# checkouts — which is the point. Outside a repo (a copied tree, an archive),
+# the script's own directory is the checkout.
+checkout="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
+
+slug() { printf '%s' "$1" | tr -cs 'A-Za-z0-9.' '-' | sed 's/^-//; s/-$//'; }
+
+checkout_hash="$(printf '%s' "$checkout" | shasum -a 256 | cut -c1-8)"
+owned_name="Stuff-$(slug "$(basename "$checkout")")-$checkout_hash-$(slug "$DEVICE")-$(slug "$OS")"
+
+# An index, not a source of truth: `simctl` still answers "does this device
+# exist", and the name is derived from the checkout rather than looked up here.
+# This only records which checkout a device belongs to, so --list and --prune
+# can map one back to the other.
+registry_dir="$HOME/Library/Application Support/Stuff/simulators"
+
+# `available` hides devices whose runtime has been uninstalled — right for
+# resolving something to run on, wrong for --list/--prune, which must still see
+# (and be able to delete) a device stranded on a removed runtime.
+#
+# Listing also nudges CoreSimulator into rebuilding its device cache, which a
+# freshly provisioned machine (notably the xcode-27 CI image) needs before a
+# destination will resolve at all.
+available_devices_json() { xcrun simctl list devices available --json; }
+all_devices_json() { xcrun simctl list devices --json; }
+
+udids_named() { # <devices-json> <name>
+    printf '%s' "$1" \
+        | jq -r --arg key "$runtime_key" --arg name "$2" \
+            '.devices[$key][]? | select(.name == $name) | .udid'
+}
+
+registry_write() { # <name> <udid>
+    mkdir -p "$registry_dir"
+    cat >"$registry_dir/$1" <<EOF
+checkout=$checkout
+udid=$2
+device=$DEVICE
+os=$OS
+EOF
+}
+
+registry_field() { # <file> <key>
+    awk -v key="$2" 'index($0, key "=") == 1 { print substr($0, length(key) + 2); exit }' "$1"
+}
+
+create_device() { # <name> -> udid on stdout
+    local type_id runtime_available udid
+    type_id="$(
+        xcrun simctl list devicetypes --json \
+            | jq -r --arg name "$DEVICE" '.devicetypes[] | select(.name == $name) | .identifier' \
+            | head -1
+    )"
+    if [ -z "$type_id" ]; then
+        echo "error: no '$DEVICE' device type is installed." >&2
+        echo "Available device types:" >&2
+        xcrun simctl list devicetypes >&2
+        exit 1
+    fi
+
+    runtime_available="$(
+        xcrun simctl list runtimes --json \
+            | jq -r --arg key "$runtime_key" \
+                '.runtimes[] | select(.identifier == $key and .isAvailable == true) | .identifier'
+    )"
+    if [ -z "$runtime_available" ]; then
+        echo "error: the iOS $OS runtime ($runtime_key) isn't installed or isn't usable." >&2
+        echo "Available runtimes:" >&2
+        xcrun simctl list runtimes >&2
+        exit 1
+    fi
+
+    echo "==> Creating $1 ($DEVICE / iOS $OS) for $checkout" >&2
+    udid="$(xcrun simctl create "$1" "$type_id" "$runtime_key" | tr -d '[:space:]')"
+    if [ -z "$udid" ]; then
+        echo "error: simctl create returned no UDID for '$1'." >&2
+        exit 1
+    fi
+    printf '%s' "$udid"
+}
+
+delete_owned_device() { # reports what it did; safe when there's nothing to delete
+    local devices_json udid deleted=false
+    devices_json="$(all_devices_json)"
+    while read -r udid; do
+        [ -n "$udid" ] || continue
+        echo "==> Deleting $owned_name ($udid)" >&2
+        xcrun simctl delete "$udid" >&2
+        deleted=true
+    done <<<"$(udids_named "$devices_json" "$owned_name")"
+    rm -f "$registry_dir/$owned_name"
+    [ "$deleted" = true ] || echo "==> No device for this checkout to delete" >&2
+}
+
+# Two first runs in one checkout would otherwise each miss the lookup and create
+# a device, leaving twins that share a name — the ambiguity this script exists
+# to prevent. Serialize resolve-or-create per checkout.
+lock_dir="${TMPDIR:-/tmp}/stuff-simulator-$checkout_hash.lock"
+acquire_lock() {
+    local waited=0
+    until mkdir "$lock_dir" 2>/dev/null; do
+        if [ "$waited" -ge 120 ]; then
+            echo "error: timed out waiting for $lock_dir." >&2
+            echo "If no other ./simulator run is in flight, remove it: rmdir '$lock_dir'" >&2
+            exit 1
+        fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+    trap 'rmdir "$lock_dir" 2>/dev/null || true' EXIT
+}
+
+case "$MODE" in
+    list)
+        if [ ! -d "$registry_dir" ] || [ -z "$(ls -A "$registry_dir" 2>/dev/null)" ]; then
+            echo "No per-checkout simulators on this machine yet." >&2
+            exit 0
+        fi
+        states="$(all_devices_json | jq -r '.devices | to_entries[] | .value[] | "\(.udid) \(.state)"')"
+        printf '%-10s  %-36s  %-22s  %s\n' STATE UDID DEVICE CHECKOUT
+        for entry in "$registry_dir"/*; do
+            [ -f "$entry" ] || continue
+            entry_udid="$(registry_field "$entry" udid)"
+            entry_checkout="$(registry_field "$entry" checkout)"
+            entry_device="$(registry_field "$entry" device) / iOS $(registry_field "$entry" os)"
+            entry_state="$(printf '%s\n' "$states" | awk -v u="$entry_udid" '$1 == u { print $2 }')"
+            [ -n "$entry_state" ] || entry_state="gone"
+            [ -d "$entry_checkout" ] || entry_checkout="$entry_checkout (missing)"
+            printf '%-10s  %-36s  %-22s  %s\n' \
+                "$entry_state" "$entry_udid" "$entry_device" "$entry_checkout"
+        done
+        exit 0
+        ;;
+    prune)
+        if [ ! -d "$registry_dir" ]; then
+            echo "Nothing to prune." >&2
+            exit 0
+        fi
+        devices_json="$(all_devices_json)"
+        known_udids="$(printf '%s' "$devices_json" | jq -r '.devices | to_entries[] | .value[] | .udid')"
+        pruned=0
+        for entry in "$registry_dir"/*; do
+            [ -f "$entry" ] || continue
+            entry_udid="$(registry_field "$entry" udid)"
+            entry_checkout="$(registry_field "$entry" checkout)"
+            if [ -z "$entry_udid" ]; then
+                echo "==> Forgetting $(basename "$entry") — the entry records no UDID" >&2
+                rm -f "$entry"
+                pruned=$((pruned + 1))
+            elif printf '%s\n' "$known_udids" | grep -qx "$entry_udid"; then
+                if [ ! -d "$entry_checkout" ]; then
+                    echo "==> Deleting $(basename "$entry") ($entry_udid) — $entry_checkout is gone" >&2
+                    xcrun simctl delete "$entry_udid" >&2
+                    rm -f "$entry"
+                    pruned=$((pruned + 1))
+                fi
+            else
+                echo "==> Forgetting $(basename "$entry") — device $entry_udid no longer exists" >&2
+                rm -f "$entry"
+                pruned=$((pruned + 1))
+            fi
+        done
+        [ "$pruned" -gt 0 ] || echo "Nothing to prune." >&2
+        exit 0
+        ;;
+    delete)
+        acquire_lock
+        delete_owned_device
+        exit 0
+        ;;
+    recreate)
+        acquire_lock
+        delete_owned_device
+        ;;
+    resolve) ;;
+esac
+
+if [ "$SHARED" = true ]; then
+    # Every checkout that asks for it lands on the same device, so this is only
+    # safe where the machine itself is the isolation (a CI job's VM).
+    name="$DEVICE"
+    udids="$(udids_named "$(available_devices_json)" "$name")"
+    if [ -z "$udids" ]; then
+        echo "error: no available '$name' on the iOS $OS runtime." >&2
+        echo "Available devices:" >&2
+        xcrun simctl list devices available >&2
+        exit 1
+    fi
+else
+    name="$owned_name"
+    [ "$MODE" = recreate ] || acquire_lock
+    udids="$(udids_named "$(available_devices_json)" "$name")"
+    if [ -z "$udids" ]; then
+        udids="$(create_device "$name")"
+    fi
 fi
 
 udid="$(printf '%s\n' "$udids" | head -1)"
 
-# Same name *and* same runtime is a genuinely ambiguous setup (usually a
-# hand-created duplicate). Pick one deterministically, but say so — silently
-# choosing is how you end up debugging the wrong device.
+# Same name *and* same runtime is a genuinely ambiguous setup — routine for
+# `--shared` (a machine with two hand-made "iPhone 17"s), and a sign someone
+# duplicated a managed device otherwise. Pick one deterministically, but say so:
+# silently choosing is how you end up debugging the wrong device.
 if [ "$(printf '%s\n' "$udids" | wc -l | tr -d ' ')" -gt 1 ]; then
-    echo "warning: several '$DEVICE' devices on iOS $OS; using $udid" >&2
+    echo "warning: several '$name' devices on iOS $OS; using $udid" >&2
 fi
 
+[ "$SHARED" = true ] || registry_write "$name" "$udid"
+
 if [ "$BOOT" = true ]; then
-    echo "==> Booting $DEVICE / iOS $OS ($udid)" >&2
+    echo "==> Booting $name ($DEVICE / iOS $OS, $udid)" >&2
     # `-b` boots the device if needed, then waits for boot to finish — a
     # condition to wait on rather than a fixed sleep.
     xcrun simctl bootstatus "$udid" -b >&2
