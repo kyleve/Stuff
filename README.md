@@ -53,8 +53,8 @@ mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
 Every checkout — a second clone, a worktree — gets a device of its own, so two
 runs on one machine never fight over booting, installing to, or erasing the
 same simulator. `./simulator --list` shows them with their owning checkouts and
-`./simulator --prune` cleans up after a checkout you deleted; see
-`./simulator --help`.
+`./simulator --prune` (`--dry-run` to preview) cleans up after a checkout you
+deleted; see `./simulator --help`.
 
 Where's production architecture is checked with Bumper Bowling through the
 root Swift package:

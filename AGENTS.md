@@ -466,7 +466,12 @@ flag is needed there.
 - **Never commit on `main`.** Branch first (`git checkout -b <name>`) and keep
   every commit for one piece of work on that one branch.
 - **`./swiftformat --lint` and the matching `tuist test` scheme(s) are part of
-  "done".** Never commit a red tree.
+  "done".** Never commit a red tree. Run a scheme against this checkout's own
+  simulator — `tuist test <Bundle>Tests -- -destination "platform=iOS
+  Simulator,id=$(./simulator)"` — because a bare `tuist test` lets xcodebuild
+  pick a device, which lands you back on the machine-wide one every other
+  checkout is also using (see [Selecting a
+  simulator](#selecting-a-simulator--one-device-per-checkout-addressed-by-udid)).
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
 - **Commit when asked, or when working through a plan.** If it's unclear whether
@@ -544,9 +549,18 @@ it too, so a local repro targets a device nothing else can touch.
 - **Don't hand-create, rename, or reuse these devices.** The name is the
   ownership record; a duplicate reintroduces exactly the ambiguity above, and
   the script warns when it finds one.
-- `--list` shows every managed device with the checkout that owns it,
-  `--prune` deletes the ones whose checkout is gone (run it after deleting a
-  worktree or clone), and `--recreate` replaces a wedged device.
+- `--list` shows every managed device with the checkout that owns it, and
+  `--recreate` replaces a wedged one. `--prune` deletes the devices whose
+  checkout is gone — run it after deleting a worktree or clone, with
+  `--dry-run` first if you want to see the plan. It skips a checkout whose
+  *parent* directory is missing too, since an unmounted volume is
+  indistinguishable from a deletion and a device takes everything installed on
+  it to the grave.
+- **Renaming or moving a checkout gives it a new device**, because the name is
+  derived from the path. The old one turns up as `unowned` in `--list`;
+  `--prune` reports it but won't delete it (a cleared index makes a live
+  checkout's device look abandoned in exactly the same way), so clearing one is
+  a deliberate `xcrun simctl delete <udid>`.
 - Never reintroduce a `name=…` destination or a bare `simctl <name>` call in a
   script. If you *do* keep a name-based `-destination` by hand, always include
   `OS=` so *xcodebuild* resolves unambiguously — that disambiguates the test
