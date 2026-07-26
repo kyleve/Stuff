@@ -1,3 +1,25 @@
 [tools]
-tuist = "4.200.5"
+# Tuist is macOS-only, and mise skips an OS-restricted tool entirely rather than
+# failing on it — so scoping it here is what lets a plain `mise install` (and
+# every `mise exec --`) succeed on a Linux cloud agent instead of dying on
+# `unsupported env: linux/amd64`.
+tuist = { version = "4.200.5", os = ["macos"] }
 swiftformat = "0.60.1"
+ruby = "3.4.10"
+
+[hooks]
+# Fetch the external agent skills as part of installing tools, so a fresh clone
+# gets them without a separate step. They're pinned in
+# .agents/external-skills.json and gitignored, so a checkout alone never has
+# them; this is the seam that makes `mise install` enough on a cloud agent.
+# Idempotent by design — `--install` skips skills already present, and mise runs
+# this hook even when the install itself was a no-op.
+postinstall = "./sync-agents --install"
+
+[settings]
+# Use mise's precompiled Ruby binaries instead of building from source with
+# ruby-build. Source builds need a full C toolchain plus libyaml/openssl and
+# routinely fail (e.g. the `psych` extension), which would break `./ide
+# --bootstrap` on a fresh Mac. Precompiled is fast and self-contained (and
+# becomes mise's default in 2026.8.0).
+ruby.compile = false

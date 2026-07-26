@@ -26,14 +26,14 @@ struct GroupedRegionSections<Row: View>: View {
                 Section {
                     ForEach(grouping.primary, id: \.self, content: row)
                 } header: {
-                    Text(Strings.regionGroupYours)
+                    Text(String(localized: .regionGroupYours))
                 } footer: {
                     if let yoursFooter { Text(yoursFooter) }
                 }
             }
 
             if !grouping.usedThisYear.isEmpty {
-                Section(Strings.regionGroupUsedThisYear) {
+                Section(String(localized: .regionGroupUsedThisYear)) {
                     ForEach(grouping.usedThisYear, id: \.self, content: row)
                 }
             }
@@ -42,10 +42,28 @@ struct GroupedRegionSections<Row: View>: View {
                 DisclosureGroup(isExpanded: $showMore) {
                     ForEach(grouping.other, id: \.self, content: row)
                 } label: {
-                    Text(Strings.regionGroupMore)
+                    Text(String(localized: .regionGroupMore))
                 }
             }
         }
         .task { showMore = grouping.hasNoGroupsBeforeOther }
     }
 }
+
+#if DEBUG
+    #Preview {
+        Form {
+            GroupedRegionSections(
+                grouping: RegionGrouping(
+                    available: [.california, .newYork, .canada, .europeanUnion, .other],
+                    primary: [.california, .newYork],
+                    usedThisYear: [.canada],
+                ),
+                yoursFooter: nil,
+            ) { region in
+                Text(region.localizedName)
+            }
+        }
+        .whereBroadwayRoot()
+    }
+#endif

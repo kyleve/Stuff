@@ -36,7 +36,7 @@ set -euo pipefail
 # project generation so a run always reflects the current manifests.
 
 DEVICE="iPhone 17"
-OS="26.2"
+OS="27.0"
 TOP=15
 TEST_THRESHOLD="0.1"   # seconds — tests at/over this are flagged as hot spots
 TC_THRESHOLD=100       # milliseconds — slow type-check warn threshold
@@ -57,7 +57,7 @@ Options:
   --tests-only              Only profile the tests
   --no-snapshots            Skip the WhereUISnapshotTests leg (saves ~10-15 min)
   --device NAME             Simulator device name (default: "iPhone 17")
-  --os VERSION              Simulator iOS version (default: "26.2")
+  --os VERSION              Simulator iOS version (default: "27.0")
   --top N                   How many slowest tests to list (default: 15)
   --test-threshold SECS     Flag tests at/over this many seconds (default: 0.1)
   --typecheck-threshold MS  Warn on type-check work over this many ms (default: 100)
@@ -65,8 +65,8 @@ Options:
 
 Examples:
   ./profile
-  ./profile --tests-only --no-snapshots --top 25
-  ./profile --device 'iPhone 17 Pro' --os 26.2
+  ./profile --tests-only --no-snapshots --top 25 --test-threshold 0.2
+  ./profile --device 'iPhone 17 Pro' --os 27.0
 USAGE
 }
 
@@ -91,7 +91,10 @@ cd "$(dirname "$0")"
 WORKSPACE="Stuff.xcworkspace"
 SCHEME="Stuff-Workspace"
 SNAPSHOT_SCHEME="WhereUISnapshotTests"
-DESTINATION="platform=iOS Simulator,name=$DEVICE,OS=$OS"
+# Boot the target up front and address it by UDID: a cold simulator otherwise
+# lands in the timings as build/test cost, and a name-based destination can
+# resolve to a same-named device on another runtime (see ./simulator).
+DESTINATION="platform=iOS Simulator,id=$(./simulator --device "$DEVICE" --os "$OS")"
 
 WORKDIR="${TMPDIR:-/tmp}/where-profile"
 DERIVED="$WORKDIR/DerivedData"

@@ -36,6 +36,13 @@ public struct LogQuery: Sendable {
     /// Only events whose message matches this text
     /// (`localizedStandardContains`).
     public var messageContains: String?
+    /// Only events whose store ``StoredLogEvent/sequence`` is strictly
+    /// greater than this — the incremental "newer than" cursor. Sequences
+    /// are monotonic across the store's whole lifetime, so a live viewer
+    /// holds the highest sequence it has merged and re-queries with it to
+    /// fetch only events appended since, instead of re-reading the store.
+    /// Unset fetches from the beginning.
+    public var afterSequence: Int?
     /// Page size; unset fetches everything that matches.
     public var limit: Int?
     /// Page offset into the newest-first ordering.

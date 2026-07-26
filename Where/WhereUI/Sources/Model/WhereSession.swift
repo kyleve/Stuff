@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 #if DEBUG
     import SwiftDataInspector
 #endif
@@ -15,8 +15,9 @@ import WhereCore
 /// It deliberately holds **no presentation state**. Everything scoped to the
 /// visible UI lives in child observables the scene / views own:
 /// - the selected year's `YearReport`, ranking, missing days, day-write intents,
-///   and the Resolve badge count → scene-scoped ``YearReportModel`` (owned by
-///   `MainTabs`, created only once the real UI is on screen);
+///   and the data-issue count (drives the Locations tab's Resolve toolbar
+///   badge) → scene-scoped ``YearReportModel`` (owned by `MainTabs`, created
+///   only once the real UI is on screen);
 /// - the Resolve issue list → view-scoped ``ResolveModel``;
 /// - the reminder/summary editing surface → view-scoped ``RemindersSettingsModel``;
 /// - backup export/import progress → view-scoped ``BackupModel``.
@@ -88,7 +89,7 @@ public final class WhereSession {
     /// from another device restyles the UI without a relaunch.
     public private(set) var regionStyles: RegionStyleResolver = .default
 
-    private static let logger = WhereLog.channel(.session)
+    private static let logger = WhereLog.session(WhereSessionLog.self)
 
     /// The authorization the degradation warning was last evaluated against.
     /// `syncAuthorization()` runs on every foreground, so warning only on a
@@ -219,13 +220,11 @@ public final class WhereSession {
             case .always, .notDetermined:
                 break
             case .whenInUse:
-                Self.logger.warning(
-                    "Location authorized for When-In-Use only; background tracking unavailable",
-                )
+                Self.logger { .whenInUseOnly }
             case .denied, .restricted:
-                Self.logger.warning(
-                    "Location access \(authorizationStatus); background tracking unavailable",
-                )
+                Self.logger {
+                    .locationAccessDenied(status: String(describing: authorizationStatus))
+                }
         }
     }
 
@@ -257,7 +256,9 @@ public final class WhereSession {
             let primary = try await services.primaryRegions()
             regionStyles = RegionStyleResolver(primaryRegions: primary)
         } catch {
-            Self.logger.warning("Failed to load region appearances for styling")
+            Self.logger(attachments: [.error(error, name: "region-styles-error")]) {
+                .regionStylesLoadFailed(description: error.localizedDescription)
+            }
         }
     }
 
@@ -283,11 +284,11 @@ public final class WhereSession {
         if wantsTracking, authorizationStatus.allowsBackgroundTracking {
             await services.ingestor.start()
             isTracking = true
-            if !wasTracking { Self.logger.info("Background tracking started") }
+            if !wasTracking { Self.logger { .backgroundTrackingStarted } }
         } else {
             await services.ingestor.stop()
             isTracking = false
-            if wasTracking { Self.logger.info("Background tracking stopped") }
+            if wasTracking { Self.logger { .backgroundTrackingStopped } }
         }
     }
 
@@ -319,7 +320,7 @@ public final class WhereSession {
         await syncAuthorization()
         await reconcileTracking()
         if authorizationStatus.allowsBackgroundTracking {
-            Self.logger.info("Location permission granted (\(authorizationStatus))")
+            Self.logger { .permissionGranted(status: String(describing: authorizationStatus)) }
         }
     }
 
@@ -339,7 +340,7 @@ public final class WhereSession {
         await syncAuthorization()
         await reconcileTracking()
         if authorizationStatus.allowsBackgroundTracking {
-            Self.logger.info("Tracking enabled with background authorization")
+            Self.logger { .trackingEnabled }
         }
     }
 
@@ -347,7 +348,7 @@ public final class WhereSession {
         wantsTracking = false
         await services.ingestor.stop()
         isTracking = false
-        Self.logger.info("Stopped background tracking")
+        Self.logger { .stoppedBackgroundTracking }
     }
 
     /// Push the persisted reminder intent to the reminder reconciler and warn if
@@ -369,7 +370,7 @@ public final class WhereSession {
         let authorized = await services.reminders.isAuthorized()
         if enabled, !authorized {
             if !warnedRemindersUnauthorized {
-                Self.logger.warning("Logging reminders enabled but notifications not authorized")
+                Self.logger { .remindersUnauthorized }
                 warnedRemindersUnauthorized = true
             }
         } else {
@@ -387,7 +388,7 @@ public final class WhereSession {
         let authorized = await services.reminders.isAuthorized()
         if enabled, !authorized {
             if !warnedSummaryUnauthorized {
-                Self.logger.warning("Daily summary enabled but notifications not authorized")
+                Self.logger { .summaryUnauthorized }
                 warnedSummaryUnauthorized = true
             }
         } else {
@@ -410,7 +411,7 @@ public final class WhereSession {
         let authorized = await services.reminders.isAuthorized()
         if enabled, !authorized {
             if !warnedIssueAlertsUnauthorized {
-                Self.logger.warning("Issue alerts enabled but notifications not authorized")
+                Self.logger { .issueAlertsUnauthorized }
                 warnedIssueAlertsUnauthorized = true
             }
         } else {
@@ -430,7 +431,7 @@ public final class WhereSession {
     public func eraseSession() async throws {
         try await services.reset()
         isTracking = false
-        Self.logger.info("Erased session and reset state")
+        Self.logger { .erasedSession }
     }
 
     /// Drives the background-tracking `Toggle`. Reads the live `isTracking`
@@ -455,7 +456,7 @@ public final class WhereSession {
             return SwiftDataInspectorConfiguration(
                 container: container,
                 modelTypes: SwiftDataStore.inspectorModelTypes,
-                title: Strings.developerInspectorTitle,
+                title: String(localized: .developerInspectorTitle),
             )
         }
     }

@@ -15,9 +15,23 @@ private let stuffPackage = Package.local(path: .relativeToRoot("."))
 /// Xcode falls back to its defaults.
 private let developmentTeam = Environment.developmentTeam.getString(default: "")
 
-private let projectSettings: Settings? = developmentTeam.isEmpty
-    ? nil
-    : .settings(base: ["DEVELOPMENT_TEAM": .string(developmentTeam)])
+/// Base build settings applied to every Tuist-generated target.
+///
+/// `STRING_CATALOG_GENERATE_SYMBOLS` turns on Xcode's type-safe String Catalog
+/// symbol generation for the app and app-extension targets (Where, WhereWidgets,
+/// WhereShareExtension, …). The SwiftPM package targets declared in `Package.swift`
+/// (WhereUI, WhereCore, RegionKit, LifecycleKit) get symbol generation automatically
+/// from the toolchain, so this only needs to reach the Tuist-native targets.
+///
+/// `DEVELOPMENT_TEAM` is threaded in from the environment when present (see above).
+private let projectSettings: Settings = .settings(
+    base: developmentTeam.isEmpty
+        ? ["STRING_CATALOG_GENERATE_SYMBOLS": "YES"]
+        : [
+            "STRING_CATALOG_GENERATE_SYMBOLS": "YES",
+            "DEVELOPMENT_TEAM": .string(developmentTeam),
+        ],
+)
 
 /// App Group shared by the Where app, its widget extension, and its share
 /// extension so every process sees the same on-disk SwiftData store (see
@@ -103,7 +117,6 @@ let project = Project(
             entitlements: whereAppGroupEntitlements,
             dependencies: [
                 .package(product: "LifecycleKit"),
-                .package(product: "LogKit"),
                 .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
@@ -139,7 +152,7 @@ let project = Project(
             resources: ["Where/WhereWidgets/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
-                .package(product: "LogKit"),
+                .package(product: "PeriscopeCore"),
                 .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
@@ -175,7 +188,7 @@ let project = Project(
             resources: ["Where/WhereShareExtension/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
-                .package(product: "LogKit"),
+                .package(product: "PeriscopeCore"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
@@ -199,7 +212,6 @@ let project = Project(
             // No App Group entitlement — the viewer only reads bundled GeoJSON
             // (embedded via the RegionKit dependency), never the app's store.
             dependencies: [
-                .package(product: "LogKit"),
                 .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
@@ -278,18 +290,6 @@ let project = Project(
             bundleIdSuffix: "lifecyclekit",
             productDependency: "LifecycleKit",
             sources: ["Shared/LifecycleKit/Tests/**"],
-        ),
-        unitTests(
-            name: "LogKitTests",
-            bundleIdSuffix: "logkit",
-            productDependency: "LogKit",
-            sources: ["Shared/LogKit/Tests/**"],
-        ),
-        unitTests(
-            name: "LogViewerUITests",
-            bundleIdSuffix: "logviewerui",
-            productDependency: "LogViewerUI",
-            sources: ["Shared/LogViewerUI/Tests/**"],
         ),
         unitTests(
             name: "JournalKitTests",
@@ -372,9 +372,11 @@ let project = Project(
         // BTraits/BThemes/BStylesheets containers) then silently resolves against
         // the wrong copy — the writer stores under one copy's key type, the
         // reader looks it up under another's. Everything the tests need
-        // (BroadwayCore/BroadwayUI, LifecycleKit, LogViewerUI, SwiftDataInspector,
-        // RegionKit + its GeoJSON bundle) is reached transitively through WhereUI.
-        // See the root AGENTS.md "Targets" note.
+        // (BroadwayCore/BroadwayUI, LifecycleKit, PeriscopeCore/UI/Tools,
+        // SwiftDataInspector, RegionKit + its GeoJSON bundle) is reached
+        // transitively through WhereUI.
+        // See "Never double-link a product a dynamic framework already
+        // carries" in the root AGENTS.md.
         unitTests(
             name: "WhereUITests",
             bundleIdSuffix: "whereui",
@@ -386,7 +388,8 @@ let project = Project(
         // `extraPackageProducts`: WhereUI/WhereCore/RegionKit/Broadway all arrive
         // transitively, and re-listing any of them would land a duplicate copy
         // that splits the module's type metadata across the WhereUI boundary.
-        // See the root AGENTS.md "Targets" note.
+        // See "Never double-link a product a dynamic framework already
+        // carries" in the root AGENTS.md.
         unitTests(
             name: "WhereIntentsTests",
             bundleIdSuffix: "whereintents",
@@ -493,8 +496,6 @@ let project = Project(
                 "StuffTestHost",
                 "StuffCoreTests",
                 "LifecycleKitTests",
-                "LogKitTests",
-                "LogViewerUITests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
@@ -515,8 +516,6 @@ let project = Project(
             testAction: .targets([
                 "StuffCoreTests",
                 "LifecycleKitTests",
-                "LogKitTests",
-                "LogViewerUITests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
@@ -536,8 +535,6 @@ let project = Project(
         ),
         testScheme(name: "StuffCoreTests"),
         testScheme(name: "LifecycleKitTests"),
-        testScheme(name: "LogKitTests"),
-        testScheme(name: "LogViewerUITests"),
         testScheme(name: "JournalKitTests"),
         testScheme(name: "PeriscopeCoreTests"),
         testScheme(name: "PeriscopeUITests"),
@@ -562,7 +559,7 @@ let project = Project(
         testScheme(
             name: "WhereUISnapshotTests",
             testEnvironmentVariables: [
-                "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "26.2",
+                "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
                 "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
                 "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
                 "TZ": "America/Los_Angeles",

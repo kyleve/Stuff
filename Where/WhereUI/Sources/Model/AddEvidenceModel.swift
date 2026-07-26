@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 import WhereCore
 
 /// Bytes the user picked to attach to a new piece of evidence, plus the hints
@@ -50,7 +50,7 @@ public final class AddEvidenceModel {
     public private(set) var attachmentError: String?
 
     private let services: WhereServices
-    private static let logger = WhereLog.channel(.evidence)
+    private static let logger = WhereLog.evidence(AddEvidenceModelLog.self)
 
     init(services: WhereServices, now: @Sendable () -> Date = { Date() }) {
         self.services = services
@@ -93,7 +93,7 @@ public final class AddEvidenceModel {
 
     public func reportAttachmentError(_ message: String) {
         attachmentError = message
-        Self.logger.warning("Evidence attachment pick failed: \(message)")
+        Self.logger { .attachmentPickFailed(description: message) }
     }
 
     /// Build the `Evidence` from the form and persist it (with any attachment
@@ -105,11 +105,11 @@ public final class AddEvidenceModel {
         let evidence = buildEvidence()
         do {
             try await services.journal.addEvidence(evidence, blob: attachment?.data)
-            Self.logger.info("Saved evidence \(evidence.id) from compose form")
+            Self.logger { .saved(evidenceID: String(describing: evidence.id)) }
             return true
         } catch {
             saveState = .failed(error.localizedDescription)
-            Self.logger.warning("Failed to save evidence: \(error.localizedDescription)")
+            Self.logger { .saveFailed(description: error.localizedDescription) }
             return false
         }
     }

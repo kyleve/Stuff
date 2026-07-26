@@ -11,9 +11,11 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 - **Tuist app-extension target** ([`Project.swift`](../../Project.swift),
   bundle ID `com.stuff.where.widgets`), depending on **WhereCore**,
-  **WhereUI**, **RegionKit**, and **LogKit**.
+  **WhereUI**, **RegionKit**, and **PeriscopeCore**.
 - Must **not** import SwiftData, open the user's store, or duplicate
   aggregation logic — the app publishes; the extension only reads and renders.
+- Logs via the `WhereLog` facade (typed `WhereWidgetsLog` events); as a
+  separate WidgetKit process its `Periscope.shared` is OSLog-only (no store).
 - No test bundle; behavior is covered from **WhereCore** and **WhereUI**.
 
 ## Refresh contract
@@ -28,13 +30,14 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 - **Read-only App Group access** — only the app writes `widget-snapshot.json`.
 - **No stale-day invalidation in the provider.** A snapshot whose `day` rolled
   past today is still shown until the app republishes — intentional.
-- In-widget strings come from WhereUI `Strings`; gallery name/description from
-  this extension's own catalog. Widgets ship `#Preview` timelines like any
-  other WhereUI view.
+- In-widget strings come from WhereUI (shared views + `WhereFormat`); the
+  gallery name/description resolve through this extension's own generated
+  catalog symbols (`String(localized: .widgetGalleryTodayName)`). Widgets ship
+  `#Preview` timelines like any other WhereUI view.
 - **Seed the Broadway root via WhereUI's `whereBroadwayRoot()`** (applied in each
   widget's `StaticConfiguration` content) so the shared WhereUI views resolve
-  trait-aware `@Environment(\.stylesheet)` tokens instead of `.default`. Do **not**
-  add a direct `BroadwayCore`/`BroadwayUI` dependency — the extension already gets
-  Broadway through `WhereUI` (a dynamic framework), and a second copy would split
-  Broadway's type-keyed environment metadata (see the root `AGENTS.md` "Targets"
-  note). That's why the seam lives in WhereUI, not a `broadwayRoot` call here.
+  trait-aware `@Environment(\.stylesheet)` tokens instead of `.default`. Never
+  add a direct `BroadwayCore`/`BroadwayUI` dependency — Broadway arrives through
+  `WhereUI`, which is why the seam lives there rather than a `broadwayRoot` call
+  here (see the root
+  [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-a-dynamic-framework-already-carries)).

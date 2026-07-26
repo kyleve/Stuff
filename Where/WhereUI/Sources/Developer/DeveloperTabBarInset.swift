@@ -34,6 +34,24 @@ extension View {
         }
     }
 
+    /// Carries the floating developer window's footprint — the safe-area inset it
+    /// occupies on each edge it's docked to — from ``DeveloperOverlay`` up to
+    /// ``RootView``, which feeds it back into the app content's safe area
+    /// (`safeAreaPadding`) so screens *behind* the non-modal HUD can scroll clear
+    /// of it. The mirror image of ``DeveloperTabBarInsetKey`` (which flows the tab
+    /// bar's height the other way). Zero in the collapsed and full-screen states.
+    struct DeveloperOverlayInsetKey: PreferenceKey {
+        static let defaultValue = EdgeInsets()
+
+        static func reduce(value: inout EdgeInsets, nextValue: () -> EdgeInsets) {
+            let next = nextValue()
+            value.top = max(value.top, next.top)
+            value.bottom = max(value.bottom, next.bottom)
+            value.leading = max(value.leading, next.leading)
+            value.trailing = max(value.trailing, next.trailing)
+        }
+    }
+
     private struct DeveloperTabBarInsetReporter: ViewModifier {
         func body(content: Content) -> some View {
             content.background {

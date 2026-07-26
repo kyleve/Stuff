@@ -24,13 +24,32 @@ system, formatting, and global conventions. Read that first.
   a launch parked on an interactive step. A cancelled drive is distinct from a
   thrown step (`.failed`). Don't add a drive path that bypasses that
   serialization.
-- **Background launches build no view tree.** `LifecycleContainer` returns
-  `EmptyView()` whenever `runner.reason.isBackground` — even at `.ready` — so
+- **Launches with no window build no view tree.** `LifecycleContainer` returns
+  `EmptyView()` whenever `runner.reason.buildsNoViewTree` (a `.background`
+  relaunch, or an `.undetermined` one not yet promoted) — even at `.ready` — so
   `content()` is never constructed for a launch nobody sees.
-- **Promotion is foreground-only and idempotent.** `enterForeground()` no-ops
-  unless the reason is background; consumers must only call it once the scene
-  is genuinely `.active` (see `RootView` in WhereUI for the `scenePhase`
-  gating pattern).
+- **`.undetermined` is the honest UIScene launch reason.** Under the UIScene
+  lifecycle `UIApplication.applicationState` reads `.background` at
+  `didFinishLaunching` even for a user tap, so a consumer that can't yet tell a
+  headless wake from a user launch should launch `.undetermined` rather than
+  fabricate a `.background(cause)`. It gates to the background-safe steps and
+  builds no view tree until `enterForeground()` promotes it; if no scene ever
+  connects it honestly stays `.undetermined`, never claiming a cause it didn't
+  observe.
+- **Promotion resolves a not-yet-foreground launch and is idempotent.**
+  `enterForeground()` no-ops once the reason *is* `.userForeground`, so a
+  repeat call costs nothing while `.background` and `.undetermined` both
+  promote; consumers must only call it once the scene is genuinely `.active`
+  (see `RootView` in WhereUI for the `scenePhase` gating pattern).
+- **Each step runs at most once per launch attempt.** A completed step is
+  recorded in `completedStepIDs`, and a re-drive (`enterForeground()` promotion)
+  skips it — so a work step that already serviced the windowless drive isn't
+  repeated when foreground-only steps get their turn. Only steps that actually
+  ran to completion are recorded (a mode/condition-skipped or cancelled step
+  isn't), so promotion still runs the newly-applicable steps and re-evaluates
+  conditions. The set resets on a *fresh* attempt (first `run()`, and the
+  relaunch after `teardown()`), so a reset re-runs everything; it's preserved
+  across `retry()`, which resumes from the failed step.
 
 ## Testing
 

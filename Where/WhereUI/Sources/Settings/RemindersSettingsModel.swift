@@ -1,5 +1,4 @@
 import Foundation
-import LogKit
 import Observation
 import WhereCore
 
@@ -141,7 +140,6 @@ public final class RemindersSettingsModel {
     private let preferences: WherePreferences
     private let now: @Sendable () -> Date
     private let calendar: Calendar
-    private static let logger = WhereLog.channel(.session)
 
     public init(
         services: WhereServices,

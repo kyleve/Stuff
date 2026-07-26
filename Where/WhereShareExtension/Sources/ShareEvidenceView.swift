@@ -29,32 +29,32 @@ struct ShareEvidenceView: View {
             Group {
                 switch model.phase {
                     case .loading:
-                        ProgressView(ShareStrings.loading)
+                        ProgressView(String(localized: .shareLoading))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                     case .composing, .saving, .failed:
                         form
                 }
             }
             .animation(.default, value: model.phase)
-            .navigationTitle(ShareStrings.title)
+            .navigationTitle(String(localized: .shareTitle))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(ShareStrings.cancel) { onCancel() }
+                    Button(.shareCancel) { onCancel() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(ShareStrings.save) {
+                    Button(.shareSave) {
                         Task { if await model.save() { onSave() } }
                     }
                     .disabled(model.isSaving || model.phase == .loading)
                 }
             }
             .alert(
-                ShareStrings.saveErrorTitle,
+                String(localized: .shareSaveErrorTitle),
                 isPresented: $model.isShowingSaveError,
                 presenting: model.saveErrorMessage,
             ) { _ in
-                Button(ShareStrings.ok, role: .cancel) {}
+                Button(.shareOk, role: .cancel) {}
             } message: { message in
                 Text(message)
             }
@@ -68,25 +68,25 @@ struct ShareEvidenceView: View {
         return Form {
             attachmentSection
             Section {
-                Picker(ShareStrings.kindLabel, selection: $model.kind) {
+                Picker(String(localized: .shareFormKind), selection: $model.kind) {
                     ForEach(EvidenceKind.knownCases, id: \.self) { kind in
                         Label(kind.displayName, systemImage: kind.symbolName).tag(kind)
                     }
                 }
                 if case .other = model.kind {
-                    TextField(ShareStrings.otherLabelPlaceholder, text: $model.otherLabel)
+                    TextField(String(localized: .shareFormOtherLabel), text: $model.otherLabel)
                 }
-                DatePicker(ShareStrings.dateLabel, selection: $model.capturedAt)
+                DatePicker(String(localized: .shareFormDate), selection: $model.capturedAt)
             }
             Section {
                 TextField(
-                    ShareStrings.notePlaceholder,
+                    String(localized: .shareFormNotePlaceholder),
                     text: $model.note,
                     axis: .vertical,
                 )
                 .lineLimit(3, reservesSpace: true)
             } header: {
-                Text(ShareStrings.noteHeader)
+                Text(.shareFormNoteHeader)
             }
         }
     }
@@ -94,7 +94,7 @@ struct ShareEvidenceView: View {
     private var attachmentSection: some View {
         Section {
             if model.attachments.isEmpty {
-                Text(ShareStrings.noAttachment)
+                Text(.shareAttachmentNone)
                     .foregroundStyle(.secondary)
             } else {
                 ForEach(Array(model.attachments.enumerated()), id: \.offset) { _, attachment in
@@ -102,14 +102,15 @@ struct ShareEvidenceView: View {
                 }
             }
         } header: {
-            Text(ShareStrings.attachmentHeader(count: model.attachments.count))
+            Text(model.attachments
+                .count > 1 ? .shareAttachmentHeaderPlural : .shareAttachmentHeader)
         }
     }
 
     private func attachmentRow(_ attachment: SharedAttachment) -> some View {
         HStack {
             Label(
-                attachment.filename ?? ShareStrings.attachmentFallbackName,
+                attachment.filename ?? String(localized: .shareAttachmentFallbackName),
                 systemImage: "paperclip",
             )
             .lineLimit(1)

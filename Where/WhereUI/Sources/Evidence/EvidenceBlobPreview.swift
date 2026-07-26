@@ -39,7 +39,7 @@ struct EvidenceBlobPreview: View {
                 .scaledToFit()
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: stylesheet.evidence.previewCornerRadius))
-                .accessibilityLabel(Strings.primaryEvidence)
+                .accessibilityLabel(String(localized: .primaryEvidence))
         } else {
             failedToDecode
         }
@@ -62,17 +62,17 @@ struct EvidenceBlobPreview: View {
 
     private var unavailable: some View {
         ContentUnavailableView {
-            Label(Strings.evidenceNoPreviewTitle, systemImage: "doc.questionmark")
+            Label(String(localized: .evidenceDetailNoPreviewTitle), systemImage: "doc.questionmark")
         } description: {
-            Text(Strings.evidenceNoPreviewDescription)
+            Text(String(localized: .evidenceDetailNoPreviewDescription))
         }
     }
 
     private var failedToDecode: some View {
         ContentUnavailableView {
-            Label(Strings.evidenceNoPreviewTitle, systemImage: "doc.questionmark")
+            Label(String(localized: .evidenceDetailNoPreviewTitle), systemImage: "doc.questionmark")
         } description: {
-            Text(Strings.evidencePreviewFailed)
+            Text(String(localized: .evidenceDetailPreviewFailed))
         }
     }
 }
@@ -108,3 +108,14 @@ private struct PDFDocumentView: UIViewRepresentable {
         view.document = PDFDocument(data: data)
     }
 }
+
+#if DEBUG
+    #Preview("Plain text") {
+        EvidenceBlobPreview(
+            data: Data("SFO → JFK\nSeat 14C\nFebruary 3, 2026".utf8),
+            contentType: .plainText,
+        )
+        .padding()
+        .whereBroadwayRoot()
+    }
+#endif

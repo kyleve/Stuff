@@ -1,5 +1,5 @@
 {
-  "originHash" : "03d1099631678a38dd4f03ab04d5d7c2b4f93ad0edad933f6439a0d4ee5c0b67",
+  "originHash" : "8682bde53c2892f9c84dbdb1d853a6413f7e22acf4eb3eadb93f90a0118762fd",
   "pins" : [
     {
       "identity" : "accessibilitysnapshot",
@@ -8,6 +8,15 @@
       "state" : {
         "revision" : "38132a8505ffe780f61ac44522dd1ffa8e8be2fe",
         "version" : "0.11.0"
+      }
+    },
+    {
+      "identity" : "bumperbowling",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/RoyalPineapple/BumperBowling.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "8a0725ff6aa86727745c1547abfbc2930b3f08dc"
       }
     },
     {

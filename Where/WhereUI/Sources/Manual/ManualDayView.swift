@@ -1,4 +1,5 @@
 import Observation
+import PeriscopeCore
 import RegionKit
 import SnapshotKit
 import SwiftUI
@@ -44,12 +45,12 @@ struct ManualDayView: View {
     @State private var showDeleteConfirmation = false
     @State private var pending: PendingWrite?
 
-    private static let logger = WhereLog.channel(.model)
+    private static let logger = WhereLog.session(ManualDayViewLog.self)
 
     init(report: YearReportModel, mode: Mode, showsCancelButton: Bool = false) {
         self.report = report
         self.showsCancelButton = showsCancelButton
-        _fields = State(initialValue: Fields(mode: mode))
+        _fields = State(initialValue: Fields(mode: mode, calendar: report.calendar))
     }
 
     var body: some View {
@@ -69,7 +70,7 @@ struct ManualDayView: View {
         .toolbar {
             if showsCancelButton {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(Strings.commonCancel) { dismiss() }
+                    Button(String(localized: .commonCancel)) { dismiss() }
                         .disabled(pending != nil)
                 }
             }
@@ -77,41 +78,44 @@ struct ManualDayView: View {
                 if pending == .saving {
                     ProgressView()
                 } else {
-                    Button(Strings.manualSave) { save() }
+                    Button(String(localized: .manualSave)) { save() }
                         .disabled(!canSave)
                 }
             }
         }
         .confirmationDialog(
-            Strings.loggedDaysDelete,
+            String(localized: .loggedDaysDelete),
             isPresented: $showDeleteConfirmation,
             titleVisibility: .visible,
         ) {
-            Button(Strings.loggedDaysDelete, role: .destructive) { delete() }
-            Button(Strings.commonCancel, role: .cancel) {}
+            Button(String(localized: .loggedDaysDelete), role: .destructive) { delete() }
+            Button(String(localized: .commonCancel), role: .cancel) {}
         } message: {
-            Text(Strings.loggedDaysDeleteFooter)
+            Text(String(localized: .loggedDaysDeleteFooter))
         }
         .alert(
-            Strings.manualSaveErrorTitle,
+            String(localized: .manualSaveErrorTitle),
             isPresented: $saveError.isPresented,
         ) {
-            Button(Strings.commonOK, role: .cancel) {}
+            Button(String(localized: .commonOk), role: .cancel) {}
         } message: {
             if let message = saveError.message {
                 Text(message)
             }
         }
         .alert(
-            Strings.loggedDaysDeleteErrorTitle,
+            String(localized: .loggedDaysDeleteErrorTitle),
             isPresented: $deleteError.isPresented,
         ) {
-            Button(Strings.commonOK, role: .cancel) {}
+            Button(String(localized: .commonOk), role: .cancel) {}
         } message: {
             if let message = deleteError.message {
                 Text(message)
             }
         }
+        // Log View Mode: reveal an inspect badge for the manual-day form's
+        // events (region grouping load). A no-op in release.
+        .debugLogInspectable(WhereLog.session(ManualDayViewLog.self))
     }
 
     // MARK: - Mode-specific content
@@ -121,7 +125,7 @@ struct ManualDayView: View {
         @Bindable var add = add
 
         Section {
-            Picker(Strings.manualEntryPickerLabel, selection: $add.dateSpan) {
+            Picker(String(localized: .manualEntryPickerLabel), selection: $add.dateSpan) {
                 ForEach(DateSpan.allCases) { span in
                     Text(span.title).tag(span)
                 }
@@ -149,7 +153,10 @@ struct ManualDayView: View {
         @Bindable var edit = edit
 
         Section {
-            LabeledContent(Strings.loggedDaysEditDate, value: fixedDateText(edit.day.displayDate))
+            LabeledContent(
+                String(localized: .loggedDaysEditDate),
+                value: fixedDateText(edit.day.displayDate),
+            )
         }
 
         regionsSection(edit.regions)
@@ -159,11 +166,11 @@ struct ManualDayView: View {
             Button(role: .destructive) {
                 showDeleteConfirmation = true
             } label: {
-                Label(Strings.loggedDaysDelete, systemImage: "trash")
+                Label(String(localized: .loggedDaysDelete), systemImage: "trash")
             }
             .disabled(pending != nil)
         } footer: {
-            Text(Strings.loggedDaysDeleteFooter)
+            Text(String(localized: .loggedDaysDeleteFooter))
         }
 
         savingSection
@@ -183,20 +190,20 @@ struct ManualDayView: View {
         switch add.dateSpan {
             case .singleDay:
                 WhereDatePicker(
-                    Strings.manualDay,
+                    String(localized: .manualDay),
                     selection: $add.startDate,
                     latest: Date(),
                     displayedComponents: .date,
                 )
             case .range:
                 WhereDatePicker(
-                    Strings.manualFrom,
+                    String(localized: .manualFrom),
                     selection: $add.startDate,
                     latest: Date(),
                     displayedComponents: .date,
                 )
                 WhereDatePicker(
-                    Strings.manualThrough,
+                    String(localized: .manualThrough),
                     selection: $add.endDate,
                     earliest: add.startDate,
                     latest: Date(),
@@ -214,7 +221,7 @@ struct ManualDayView: View {
             // with day-membership toggles as the row.
             GroupedRegionSections(
                 grouping: regions.grouping,
-                yoursFooter: Strings.manualRegionsFooter,
+                yoursFooter: String(localized: .manualRegionsFooter),
             ) { region in
                 if let item = regions.item(for: region) {
                     RegionToggleRow(item: item)
@@ -226,9 +233,9 @@ struct ManualDayView: View {
             Section {
                 ForEach(regions.items) { RegionToggleRow(item: $0) }
             } header: {
-                Text(Strings.manualRegionsHeader)
+                Text(String(localized: .manualRegionsHeader))
             } footer: {
-                Text(Strings.manualRegionsFooter)
+                Text(String(localized: .manualRegionsFooter))
             }
         }
     }
@@ -258,23 +265,25 @@ struct ManualDayView: View {
             let tracked = try await report.services.primaryRegions()
             activeRegions.applyGrouping(tracked: tracked, usedThisYear: usedThisYear)
         } catch {
-            Self.logger.warning("Manual-day form couldn't load regions for grouping")
+            Self.logger(attachments: [.error(error, name: "grouping-error")]) {
+                .regionGroupingLoadFailed(description: error.localizedDescription)
+            }
         }
     }
 
     private func noteSection(note: Binding<String>) -> some View {
         Section {
             TextField(
-                Strings.manualNotePlaceholder,
+                String(localized: .manualNotePlaceholder),
                 text: note,
                 axis: .vertical,
             )
             .lineLimit(3, reservesSpace: true)
             .disabled(pending != nil)
         } header: {
-            Text(Strings.manualNoteHeader)
+            Text(String(localized: .manualNoteHeader))
         } footer: {
-            Text(Strings.manualNoteFooter)
+            Text(String(localized: .manualNoteFooter))
         }
     }
 
@@ -282,7 +291,7 @@ struct ManualDayView: View {
     private var savingSection: some View {
         if pending == .saving {
             Section {
-                SavingStatusRow(text: Strings.manualSavingStatus)
+                SavingStatusRow(text: String(localized: .manualSavingStatus))
             }
         }
     }
@@ -291,8 +300,8 @@ struct ManualDayView: View {
 
     private var navigationTitle: String {
         switch fields {
-            case .add: Strings.manualTitle
-            case .edit: Strings.loggedDaysEditTitle
+            case .add: String(localized: .manualTitle)
+            case .edit: String(localized: .loggedDaysEditTitle)
         }
     }
 
@@ -309,8 +318,8 @@ struct ManualDayView: View {
 
     private func addDateFooter(_ add: AddFields) -> String {
         switch add.dateSpan {
-            case .singleDay: Strings.manualSingleDayFooter
-            case .range: Strings.manualRangeFooter(count: add.dayCount)
+            case .singleDay: String(localized: .manualSingleDayFooter)
+            case .range: WhereFormat.manualRangeFooter(count: add.dayCount)
         }
     }
 
@@ -405,8 +414,8 @@ extension ManualDayView {
 
         var title: String {
             switch self {
-                case .singleDay: Strings.manualModeSingleDay
-                case .range: Strings.manualModeRange
+                case .singleDay: String(localized: .manualModeSingleDay)
+                case .range: String(localized: .manualModeRange)
             }
         }
     }
@@ -423,9 +432,10 @@ extension ManualDayView {
         case add(AddFields)
         case edit(EditFields)
 
-        init(mode: Mode) {
+        init(mode: Mode, calendar: Calendar) {
             switch mode {
-                case let .add(prefill): self = .add(AddFields(prefill: prefill))
+                case let .add(prefill):
+                    self = .add(AddFields(prefill: prefill, calendar: calendar))
                 case let .edit(day): self = .edit(EditFields(day: day))
             }
         }
@@ -440,12 +450,14 @@ extension ManualDayView {
         var endDate: Date
         var regions: RegionSelectionState
         var note: String
+        private let calendar: Calendar
 
-        init(prefill: MissingDayRange?) {
+        init(prefill: MissingDayRange?, calendar: Calendar) {
+            self.calendar = calendar
             if let prefill {
                 dateSpan = prefill.dayCount > 1 ? .range : .singleDay
-                startDate = prefill.start.startOfDay(in: .current)
-                endDate = prefill.end.startOfDay(in: .current)
+                startDate = prefill.start.startOfDay(in: calendar)
+                endDate = prefill.end.startOfDay(in: calendar)
             } else {
                 dateSpan = .singleDay
                 startDate = Date()
@@ -458,7 +470,6 @@ extension ManualDayView {
         /// Inclusive day count of the current range (or 1 for a single day),
         /// for the footer.
         var dayCount: Int {
-            let calendar = Calendar.current
             let start = calendar.startOfDay(for: startDate)
             let end = calendar.startOfDay(for: endDate)
             let span = calendar.dateComponents([.day], from: start, to: end).day ?? 0

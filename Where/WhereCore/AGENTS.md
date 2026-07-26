@@ -59,35 +59,28 @@ internal shape.
   no-migration-on-read rule below. Example: v2 added `primaryRegions` (per-region
   picked appearance + pick order), the tool synthesizes it from the legacy
   `trackedRegions` ids, and import restores looks from it.
-- **A logical day is a `CalendarDay`, not a `Date`.** `CalendarDay` (year-month-
-  day) is the timezone-independent identity of a day, and it is what every
-  *stored user record* and *day comparison* keys on: `DayPresence.day`,
-  `SDManualDay.dayKey`, `RegionDayLocations.day`, `MissingDayRange`, the
-  missing-day / detector present-sets, and `DataIssueID` (hence persisted
-  dismissals — a `DataIssueID` is identified by its `store://issues/…` URL over
-  `CalendarDay`s). A `Date` is an absolute instant, so persisting a day as
-  one makes it drift onto a *different* day when the device changes time zones —
-  the residency bug this exists to prevent. Reach for a `Date` only where you
-  genuinely need an instant — bucketing a GPS `sample.timestamp` into a day
-  (`CalendarDay(from:in:)` with the working calendar), calendar-grid geometry,
-  sorting, or display — and derive it via `CalendarDay.startOfDay(in:)` /
-  `DayPresence.startOfDay(in:)`; never store an instant as the key.
-  **Scope boundary:** this pins *stored user records* (manual days,
-  dismissals) to a fixed day, but a GPS `sample.timestamp` is still bucketed into
-  a `CalendarDay` by the *current* calendar at read time, so a GPS-derived day
-  can still shift by one across a time-zone change — and with it a dismissed
-  *GPS-only* border-drift / abrupt-change issue (whose id is that re-bucketed
-  day) can reappear. Only user-asserted records and their keys are
-  travel-proof; travel-proofing GPS-derived detections would mean bucketing GPS
-  by a fixed home zone, which we intentionally don't do ("where was I on this
-  *local* day?").
-- **Composite identity keys are `store://` URLs, not joined strings.** A value
-  whose identity is composite persists and round-trips as a single `store://`
-  URL via `WhereStoreURLCodable` (see `DataIssueID`), which hands the conformer
-  `Codable` and a stable SwiftData string key for free — never an ad-hoc
-  `type:value` string or a hand-written keyed `Codable`. Build/parse with
-  `StoreURL` so every conformer shares the `store://<collection>/<type>?<params>`
-  shape.
+- **A logical day is a `CalendarDay`, not a `Date`.** Every stored user record
+  and day comparison keys on `CalendarDay` (year-month-day), because a `Date` is
+  an absolute instant and persisting a day as one makes it drift onto a
+  *different* day when the device changes time zones — the residency bug this
+  exists to prevent. Reach for a `Date` only where you genuinely need an instant
+  (bucketing a GPS `sample.timestamp`, grid geometry, sorting, display) and
+  derive it via `CalendarDay.startOfDay(in:)`. `TimeZoneIndependenceTests` is
+  the guard, and its doc comment carries the original bug report.
+  - **Scope boundary an agent would get wrong:** only *user-asserted* records
+    are travel-proof. A GPS `sample.timestamp` is bucketed by the *current*
+    calendar at read time, so a GPS-derived day can still shift by one across a
+    time-zone change — and with it a dismissed GPS-only border-drift or
+    abrupt-change issue, whose id is that re-bucketed day, can reappear. Fixing
+    that would mean bucketing GPS by a fixed home zone, which we deliberately
+    don't do: the question is "where was I on this *local* day?".
+- **Composite identity keys are `store://` URLs, not joined strings.** Conform to
+  `WhereStoreURLCodable` (see `DataIssueID`) and build/parse with `StoreURL`; it
+  hands you `Codable` and a stable SwiftData string key for free, so never an
+  ad-hoc `type:value` string or a hand-written keyed `Codable`. Families with no
+  dedicated identity type (days, years, evidence, samples) get theirs from
+  `WhereStoreID`. `WhereStoreURLCodableTests` pins the shape, the round-trip, and
+  the rejection of malformed URLs.
 - **No in-app data migration or legacy recovery.** A data-shape change is not
   migrated on read or at boot: `SD….toValue()` reads only the current shape and
   drops (fault-logs) a row it can't place — e.g. an `SDManualDay` with no
@@ -98,23 +91,30 @@ internal shape.
   version). This is deliberate for pre-release; the durable, general successor
   (per-entity schema versioning) is tracked in [`../TODOs.md`](../TODOs.md).
 - **Writes await their side effects.** `DayJournal` commits, then awaits the
-  reminder reconcile + widget publish in sequence, so a reader on the next
-  `changes()` ping never observes a half-applied write. `DataIssueScanner` drops
-  its cache on the same signal *and* is invalidated inline where a caller needs
-  it provably fresh (see `WhereServices.reset()`), which is the deterministic
-  half of that pair, not redundant with it.
+  reminder reconcile and widget publish in sequence, so a reader on the next
+  `changes()` ping never sees a half-applied write
+  (`DayJournalTests.addManualDayReconcilesAndPublishes`). `DataIssueScanner`
+  drops its cache on the same signal *and* is invalidated inline where a caller
+  needs it provably fresh (`WhereServices.reset()`) — the deterministic half of
+  that pair, not redundant with it.
 - **Detectors read aggregated input; the speed-based one needs raw fixes.**
   `DataIssueScanner` builds `DataIssueInput` from the `YearReport` plus
   `daySamples` — per-day GPS fixes (`.gpsVisit` / `.gpsSignificantChange` only,
   sorted by timestamp), the one field that keeps per-fix timestamps. Manual and
   evidence-implied samples are excluded so `FlightDayDetector`'s speed math
   isn't skewed by user-asserted timestamps.
-- **Post-write reconciliation is defined once.** Every write and import routes
-  through `DayJournal.reconcileAfterDayChange()` (or its widget-less subset
-  `reconcileIssueState()` for dismiss/restore paths) — never copy the reconcile
+- **Post-write reconciliation is defined once.** A write or import reconciles by
+  calling `DayJournal.reconcileAfterDayChange()` (or its widget-less subset
+  `reconcileIssueState()` for dismiss/restore paths) — never by copying the
   fan-out into a new write path. Cross-collaborator hooks take a single closure
   wired at the composition root (`BackupCoordinator.onImport`), not an injected
-  list of reconcilers.
+  list of reconcilers. **Two known paths don't yet honor this**, so don't read
+  it as "reconciliation has already happened" when working nearby:
+  `WhereServices.setPrimaryRegions(_:)` commits and pings `changes()` without
+  the fan-out, and the daily summary reconciles only on launch/foreground
+  `configure` and settings edits. Both are tracked in
+  [`../TODOs.md`](../TODOs.md); a new write path should route through the fan-out
+  rather than copy their omission.
 - **`LocationSource` abstracts GPS.** Production is `CoreLocationSource` (Visits
   + significant-change); tests/previews use `ScriptedLocationSource`. The
   one-shot `requestCurrentLocation()` returns `nil` (never throws) when no fix
@@ -125,14 +125,21 @@ internal shape.
   data (one `SDTrackedRegion` row per region so concurrent cross-device edits
   merge; read as a `Set`, defaulting to the four when unset). `RegionAttribution`
   derives the attributor from them and rebuilds on `changes()`; assemble via the
-  async `WhereServices.make(...)` (which reads the set) so the app and the App
-  Intents layer (`WhereServices.forIntents()`, also async) attribute against
-  the same synced set. Detection is naturally scoped to it — the attributor only
-  loads tracked-region geometry, so `distanceToBoundary` is `nil` elsewhere.
+  async `WhereServices.make(...)`, which reads the set. The App Intents stack
+  does **not** re-read it: `WhereServices.forIntents(sharingStoreOf:)` is
+  synchronous and non-throwing precisely because it reuses the assembled
+  layer's store, attributor, aggregator, and clock, swapping in only an
+  `IdleLocationSource` — so the two can't drift apart, and installing the stack
+  has no failure path. (`makeForIntents(store:now:)` is the async test seam
+  that derives attribution from a seeded store instead.) Detection is naturally
+  scoped to the set — the attributor only loads tracked-region geometry, so
+  `distanceToBoundary` is `nil` elsewhere.
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are
   `async throws` so the CloudKit-backed store can report I/O failure; a `catch`
-  must log via `WhereLog.channel(_:)` (typed `Category`, PII-free) and leave
-  state honest — never swallow into an empty default.
+  must log via a `WhereLog` typed `LogEvent` (PII-free, `.public`) and leave
+  state honest — never swallow into an empty default. This module owns the
+  `WhereLog` facade every Where module logs through; see the feature
+  [`AGENTS.md`](../AGENTS.md#layering) for the logging rules themselves.
 
 ## Testing
 

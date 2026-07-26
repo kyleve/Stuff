@@ -1,8 +1,6 @@
-import CoreLocation
 import LifecycleKit
-import LogKit
+import PeriscopeCore
 import SwiftUI
-import UIKit
 import UserNotifications
 import WhereCore
 
@@ -14,19 +12,21 @@ public enum LaunchStepID: String {
     /// Open the SwiftData store, assemble the services, and build the session.
     /// The splash's slow-launch caption most often shows during this step.
     case openStore = "open-store"
-    /// First-run onboarding gate. Foreground-only, so a headless background
-    /// relaunch skips it.
+    /// First-run onboarding gate. Foreground-only, so a headless launch (an
+    /// unpromoted `.undetermined` cold launch or a `.background` relaunch) skips
+    /// it — it runs only once a scene promotes the launch to foreground.
     case onboarding
     /// Read location authorization into the coordinator and start observing live
     /// authorization changes. The report + data-issue scan (and their
     /// store-change subscription) load with the scene now, not here — so a
-    /// headless background relaunch never drives a refresh no UI consumes.
+    /// headless launch (no scene) never drives a refresh no UI consumes.
     case syncAuth = "sync-auth"
     /// Start or stop GPS ingestion to match the user's intent + authorization.
     case reconcileTracking = "reconcile-tracking"
     /// Take a one-shot GPS fix for today if none is logged yet, so opening the
     /// app on a fresh day fills the calendar in. Foreground-only — a headless
-    /// background relaunch is itself the passive event, so it needs no fix.
+    /// launch shouldn't spend a fresh fix (a `.background` relaunch is itself the
+    /// passive event); it runs once a scene promotes the launch.
     case captureToday = "capture-today"
     /// Push the logging-reminder schedule + badge (backlog + issue count) to the
     /// reconciler.
@@ -56,34 +56,71 @@ public enum LaunchStepID: String {
 /// async steps.
 @MainActor
 public enum WhereLaunch {
-    private static let logger = WhereLog.channel(.launch)
+    private static let logger = WhereLog.root(WhereLaunchLog.self)
 
-    /// Maps the process's launch-time application state to the lifecycle reason
-    /// the runner consumes. An `.active`/`.inactive` launch is a user-visible
-    /// foreground launch; a `.background` launch state means iOS woke the
-    /// process headless.
+    /// How much log history the on-disk store keeps: 100 days. Older events are
+    /// pruned at launch so the database can't grow without bound. (A size cap to
+    /// bound heavy-logging devices within the window is tracked in `Where/TODOs.md`.)
+    private static let logRetention: TimeInterval = 100 * 24 * 60 * 60
+
+    /// Open the process-global Periscope store, attach it to `Periscope.shared`
+    /// as the durable sink, start the built-in ambient sources, and prune
+    /// history past `logRetention` — then hand the store to `model` so the DEBUG
+    /// developer surface can browse it.
     ///
-    /// The only thing that wakes Where headless is a CoreLocation
-    /// significant-change / visit event, which requires *Always* authorization
-    /// — so a background launch is attributed to `.location` only when that
-    /// authorization is present, and to `.other` otherwise rather than claiming
-    /// a location wake the process couldn't have received. (The cause is
-    /// informational; both keep the launch on the background step path.)
+    /// Runs off the launch critical path on its own task: opening the store
+    /// touches disk (and may run a lightweight migration), which must not block
+    /// `didFinishLaunching`. The OSLog sink already installed on
+    /// `Periscope.shared` covers the pre-attach window, and `add(sink:)` replays
+    /// every scope defined so far so the store resolves the records it sees.
+    /// (Fully closing that pre-attach window — a bootstrap journal from process
+    /// start — is tracked as a P0 in `Shared/Periscope/TODOs.md`.)
     ///
-    /// This replaces inspecting the `UIApplication.LaunchOptionsKey.location`
-    /// launch option, deprecated in iOS 26 in favor of handling the location
-    /// events through the `CLLocationManagerDelegate` after scene connection:
-    /// the `CLLocationManager` installed in `initializePrerequisites` still
-    /// delivers the buffered event, and the launch state alone tells us whether
-    /// anyone will see UI.
-    public static func lifecycleReason(
-        from applicationState: UIApplication.State,
-        locationAuthorization: CLAuthorizationStatus,
-    ) -> LifecycleReason {
-        guard applicationState == .background else { return .userForeground }
-        return locationAuthorization == .authorizedAlways
-            ? .background(.location)
-            : .background(.other)
+    /// Once the store is attached the developer surface can browse it
+    /// immediately: `.loggingStoreReady` fires right after `add(sink:)`, and
+    /// retention pruning runs *after* that on its own task, since trimming old
+    /// history isn't a readiness prerequisite.
+    ///
+    /// Degraded-but-handled on failure: if the store can't open, logging keeps
+    /// flowing through OSLog and the failure is recorded (with the error
+    /// attached) rather than crashing a launch over diagnostics.
+    ///
+    /// Called once from the app delegate at process launch.
+    public static func bootstrapLogging(model: WhereModel) {
+        Task {
+            let store: PeriscopeStore
+            do {
+                store = try await PeriscopeStore.make(storage: .onDisk, session: .current())
+            } catch {
+                logger(attachments: [.error(error, name: "open-error")]) {
+                    .loggingStoreUnavailable(description: String(describing: error))
+                }
+                return
+            }
+            Periscope.shared.add(sink: store)
+            Periscope.shared.startDefaultAmbientSources()
+            model.attach(logStore: store)
+            logger { .loggingStoreReady }
+            pruneHistory(in: store)
+        }
+    }
+
+    /// Trim log history past `logRetention` on its own task, so it never delays
+    /// `.loggingStoreReady`. The actual prune runs on the store actor (off the
+    /// main thread); a failure is degraded-but-handled — the store keeps its
+    /// last good history and stays usable, it just isn't trimmed this launch.
+    private static func pruneHistory(in store: PeriscopeStore) {
+        Task {
+            do {
+                let cutoff = Date().addingTimeInterval(-logRetention)
+                let pruned = try await store.pruneEvents(olderThan: cutoff)
+                logger { .historyPruned(prunedEventCount: pruned) }
+            } catch {
+                logger(attachments: [.error(error, name: "prune-error")]) {
+                    .historyPruneFailed(description: String(describing: error))
+                }
+            }
+        }
     }
 
     /// Build the runner for `model`, launching for `reason`.
@@ -108,7 +145,7 @@ public enum WhereLaunch {
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LifecycleRunner {
         let bootstrap = WhereBootstrap()
-        logger.info("Lifecycle runner created (reason: \(reason))")
+        logger { .runnerCreated(reason: String(describing: reason)) }
         return LifecycleRunner(
             reason: reason,
             initializePrerequisites: {
@@ -162,8 +199,9 @@ public enum WhereLaunch {
             }
 
             // First run only. `LifecycleStep.interactive` defaults to
-            // `modes: .foreground`, so a headless background launch skips it (and
-            // never deadlocks waiting for a tap that can't come).
+            // `modes: .foreground`, so a headless launch (unpromoted
+            // `.undetermined`, or a `.background` relaunch) skips it (and never
+            // deadlocks waiting for a tap that can't come).
             LifecycleStep.interactive(
                 LaunchStepID.onboarding,
                 condition: { !model.hasOnboarded },
@@ -178,10 +216,11 @@ public enum WhereLaunch {
             LifecycleStep.work(LaunchStepID.reconcileTracking) { _ in
                 await model.session?.reconcileTracking()
             }
-            // Foreground-only: a headless background relaunch is itself the
-            // passive location event, so it neither needs nor should trigger a
-            // fresh foreground fix. Returns fast (the ingestor spawns the ~10s
-            // fix internally), so it never delays reaching `.ready`.
+            // Foreground-only: a headless launch shouldn't trigger a fresh
+            // foreground fix (a `.background` relaunch is itself the passive
+            // location event), so it runs only once a scene promotes the launch.
+            // Returns fast (the ingestor spawns the ~10s fix internally), so it
+            // never delays reaching `.ready`.
             LifecycleStep.work(LaunchStepID.captureToday, modes: .foreground) { _ in
                 await model.session?.captureTodayIfNeeded()
             }
@@ -235,7 +274,7 @@ public enum WhereLaunch {
 /// off the main actor and assembles the services from the two.
 @MainActor
 public final class WhereBootstrap {
-    private static let logger = WhereLog.channel(.launch)
+    private static let logger = WhereLog.root(WhereLaunchLog.self)
 
     private var locationSource: CoreLocationSource?
 
@@ -276,12 +315,12 @@ public final class WhereBootstrap {
                 locationSource: source,
                 locationOutbox: FileLocationOutbox.applicationSupport(),
             )
-            Self.logger.info("WhereServices assembled")
+            Self.logger { .servicesAssembled }
             return services
         } catch {
-            Self.logger.error(
-                "Failed to assemble WhereServices: \(error.localizedDescription)",
-            )
+            Self.logger(attachments: [.error(error, name: "assemble-error")]) {
+                .servicesAssemblyFailed(description: error.localizedDescription)
+            }
             throw error
         }
     }

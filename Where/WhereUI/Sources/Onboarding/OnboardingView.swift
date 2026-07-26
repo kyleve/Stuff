@@ -1,4 +1,5 @@
 import LifecycleKit
+import PeriscopeCore
 import SnapshotKit
 import SwiftUI
 import UniformTypeIdentifiers
@@ -46,7 +47,7 @@ public struct OnboardingView: View {
     @State private var showRestoreError = false
     @State private var restoreError: String?
 
-    private static let logger = WhereLog.channel(.model)
+    private static let logger = WhereLog.session(OnboardingViewLog.self)
 
     public init(bridge: LifecycleStepUIBridge) {
         self.bridge = bridge
@@ -76,6 +77,9 @@ public struct OnboardingView: View {
             .ignoresSafeArea(),
         )
         .animation(stylesheet.motion.reducedReveal, value: phase)
+        // Log View Mode: reveal an inspect badge for onboarding events (region
+        // commit / backup restore). A no-op in release.
+        .debugLogInspectable(WhereLog.session(OnboardingViewLog.self))
     }
 
     // MARK: - Intro
@@ -86,7 +90,7 @@ public struct OnboardingView: View {
             // A backup restore is a whole-screen blocking wait, so show the
             // shared app-icon loading treatment (as first-load / scan / summary
             // do) rather than an inline spinner.
-            AppIconLoadingView(caption: Strings.onboardingRestoring)
+            AppIconLoadingView(caption: String(localized: .onboardingRestoring))
         } else {
             introPages
         }
@@ -113,11 +117,11 @@ public struct OnboardingView: View {
             onCompletion: handleRestoreSelection,
         )
         .alert(
-            Strings.onboardingRestoreErrorTitle,
+            String(localized: .onboardingRestoreErrorTitle),
             isPresented: $showRestoreError,
             presenting: restoreError,
         ) { _ in
-            Button(Strings.commonOK, role: .cancel) {}
+            Button(String(localized: .commonOk), role: .cancel) {}
         } message: { message in
             Text(message)
         }
@@ -152,7 +156,7 @@ public struct OnboardingView: View {
                     phase = .pickRegions
                 }
             } label: {
-                Text(Strings.onboardingContinue)
+                Text(String(localized: .onboardingContinue))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -160,7 +164,7 @@ public struct OnboardingView: View {
 
             // Returning users can skip the manual setup by restoring a backup;
             // the restore's progress replaces the intro with the loading view.
-            Button(Strings.onboardingRestoreBackup) { showImporter = true }
+            Button(String(localized: .onboardingRestoreBackup)) { showImporter = true }
                 .controlSize(.large)
         }
     }
@@ -170,10 +174,10 @@ public struct OnboardingView: View {
     private var pickRegions: some View {
         NavigationStack {
             RegionPickerView(model: selection)
-                .navigationTitle(Strings.onboardingRegionsTitle)
+                .navigationTitle(String(localized: .onboardingRegionsTitle))
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.onboardingNext) { phase = .customize }
+                        Button(String(localized: .onboardingNext)) { phase = .customize }
                             .disabled(!selection.hasSelection)
                     }
                 }
@@ -202,10 +206,10 @@ public struct OnboardingView: View {
                 .foregroundStyle(Color.accentColor)
                 .accessibilityHidden(true)
             VStack(spacing: stylesheet.spacing.large) {
-                Text(Strings.onboardingLocationTitle)
+                Text(String(localized: .onboardingLocationTitle))
                     .font(.largeTitle.bold())
                     .multilineTextAlignment(.center)
-                Text(Strings.onboardingLocationDescription)
+                Text(String(localized: .onboardingLocationDescription))
                     .font(.body)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -219,13 +223,13 @@ public struct OnboardingView: View {
                     // picks up whatever was granted.
                     finish(enableLocation: true)
                 } label: {
-                    Text(Strings.onboardingEnableLocation)
+                    Text(String(localized: .onboardingEnableLocation))
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
 
-                Button(Strings.onboardingNotNow) {
+                Button(String(localized: .onboardingNotNow)) {
                     finish(enableLocation: false)
                 }
                 .controlSize(.large)
@@ -258,7 +262,9 @@ public struct OnboardingView: View {
                 } catch {
                     // Don't strand the user in onboarding on a write failure —
                     // log it and continue; they can re-pick in Settings.
-                    Self.logger.warning("Failed to commit onboarding region picks")
+                    Self.logger(attachments: [.error(error, name: "commit-error")]) {
+                        .regionCommitFailed(description: error.localizedDescription)
+                    }
                 }
             }
             model.completeOnboarding()
@@ -293,7 +299,9 @@ public struct OnboardingView: View {
                 isRestoring = false
                 restoreError = error.localizedDescription
                 showRestoreError = true
-                Self.logger.warning("Onboarding backup restore failed")
+                Self.logger(attachments: [.error(error, name: "restore-error")]) {
+                    .backupRestoreFailed(description: error.localizedDescription)
+                }
             }
         }
     }
@@ -311,20 +319,20 @@ struct OnboardingPage: Identifiable {
         OnboardingPage(
             id: "welcome",
             symbol: "globe.americas.fill",
-            title: Strings.onboardingWelcomeTitle,
-            description: Strings.onboardingWelcomeDescription,
+            title: String(localized: .onboardingWelcomeTitle),
+            description: String(localized: .onboardingWelcomeDescription),
         ),
         OnboardingPage(
             id: "automatic",
             symbol: "location.fill.viewfinder",
-            title: Strings.onboardingAutomaticTitle,
-            description: Strings.onboardingAutomaticDescription,
+            title: String(localized: .onboardingAutomaticTitle),
+            description: String(localized: .onboardingAutomaticDescription),
         ),
         OnboardingPage(
             id: "privacy",
             symbol: "lock.shield.fill",
-            title: Strings.onboardingPrivacyTitle,
-            description: Strings.onboardingPrivacyDescription,
+            title: String(localized: .onboardingPrivacyTitle),
+            description: String(localized: .onboardingPrivacyDescription),
         ),
     ]
 }

@@ -58,6 +58,41 @@ func date(_ offset: TimeInterval) -> Date {
     Date(timeIntervalSinceReferenceDate: offset)
 }
 
+/// A `SpanBegan` record for the span-tree suites.
+func spanBegan(
+    _ id: SpanID,
+    name: String,
+    at date: Date,
+    scope: ScopeID,
+) -> LogRecord {
+    LogRecord(
+        date: date,
+        event: SpanBegan(
+            spanID: id,
+            name: name,
+            lifetime: .scoped,
+            relaunchPolicy: .endsWithProcess,
+        ),
+        scopes: [scope],
+    )
+}
+
+/// A `SpanEnded` record for the span-tree suites.
+func spanEnded(
+    _ id: SpanID,
+    name: String,
+    at date: Date,
+    duration: Duration,
+    exit: SpanExit = .success,
+    scope: ScopeID,
+) -> LogRecord {
+    LogRecord(
+        date: date,
+        event: SpanEnded(spanID: id, name: name, duration: duration, exit: exit),
+        scopes: [scope],
+    )
+}
+
 /// Polls `predicate` on the main actor until it holds or the budget runs
 /// out — models reload on their own tasks, so tests wait for the resulting
 /// state rather than racing it.

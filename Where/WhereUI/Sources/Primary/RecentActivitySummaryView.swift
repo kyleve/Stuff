@@ -1,3 +1,4 @@
+import PeriscopeCore
 import SnapshotKit
 import SwiftUI
 import WhereCore
@@ -30,17 +31,20 @@ struct RecentActivitySummaryView: View {
             content
                 .safeAreaInset(edge: .top) { windowPicker }
                 .animation(.smooth, value: model.loadState)
-                .navigationTitle(Strings.recentActivityTitle(model.window))
+                .navigationTitle(WhereFormat.recentActivityTitle(model.window))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.commonDone) { dismiss() }
+                        Button(String(localized: .commonDone)) { dismiss() }
                     }
                     ToolbarItem(placement: .topBarLeading) {
                         Button {
                             Task { await model.load() }
                         } label: {
-                            Label(Strings.recentActivityRefresh, systemImage: "arrow.clockwise")
+                            Label(
+                                String(localized: .recentActivityRefresh),
+                                systemImage: "arrow.clockwise",
+                            )
                         }
                         .disabled(model.loadState == .loading)
                     }
@@ -55,6 +59,9 @@ struct RecentActivitySummaryView: View {
                     Task { await model.load() }
                 }
         }
+        // Log View Mode: reveal an inspect badge for recent-activity summary
+        // events. A no-op in release.
+        .debugLogInspectable(WhereLog.recentActivity(RecentActivityModelLog.self))
     }
 
     /// Segmented control for the summary window, pinned under the navigation
@@ -62,9 +69,9 @@ struct RecentActivitySummaryView: View {
     /// turns a change into a reload. Disabled while a summary is generating so
     /// selections can't race an in-flight load.
     private var windowPicker: some View {
-        Picker(Strings.recentActivityWindowPickerLabel, selection: $model.window) {
+        Picker(String(localized: .recentActivityWindowPickerLabel), selection: $model.window) {
             ForEach(RecentActivityWindow.allCases, id: \.self) { window in
-                Text(Strings.recentActivityWindowLabel(window)).tag(window)
+                Text(WhereFormat.recentActivityWindowLabel(window)).tag(window)
             }
         }
         .pickerStyle(.segmented)
@@ -81,29 +88,35 @@ struct RecentActivitySummaryView: View {
     private var content: some View {
         switch model.loadState {
             case .idle, .loading:
-                AppIconLoadingView(caption: Strings.recentActivityLoading)
+                AppIconLoadingView(caption: String(localized: .recentActivityLoading))
                     .transition(.opacity)
             case let .loaded(text):
                 summary(text)
                     .transition(.opacity)
             case .empty:
                 ContentUnavailableView {
-                    Label(Strings.recentActivityEmptyTitle, systemImage: "location.slash")
+                    Label(
+                        String(localized: .recentActivityEmptyTitle),
+                        systemImage: "location.slash",
+                    )
                 } description: {
-                    Text(Strings.recentActivityEmptyDescription(model.window))
+                    Text(WhereFormat.recentActivityEmptyDescription(model.window))
                 }
                 .transition(.opacity)
             case let .unavailable(reason):
                 ContentUnavailableView {
-                    Label(Strings.recentActivityUnavailableTitle, systemImage: "sparkles.slash")
+                    Label(
+                        String(localized: .recentActivityUnavailableTitle),
+                        systemImage: "sparkles.slash",
+                    )
                 } description: {
-                    Text(Strings.recentActivityUnavailableMessage(reason))
+                    Text(WhereFormat.recentActivityUnavailableMessage(reason))
                 }
                 .transition(.opacity)
             case let .failed(message):
                 ContentUnavailableView {
                     Label(
-                        Strings.recentActivityFailedTitle,
+                        String(localized: .recentActivityFailedTitle),
                         systemImage: "exclamationmark.triangle",
                     )
                 } description: {
@@ -119,7 +132,7 @@ struct RecentActivitySummaryView: View {
                 TypewriterText(text: text)
                     .font(.body)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                Text(Strings.recentActivityFooter(model.window))
+                Text(WhereFormat.recentActivityFooter(model.window))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

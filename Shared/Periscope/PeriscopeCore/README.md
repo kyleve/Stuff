@@ -104,8 +104,9 @@ Periscope.shared.startDefaultAmbientSources()
   PeriscopeTools' log view mode.
 - **Store** — `PeriscopeStore` (`@ModelActor` `LogSink`): sessions
   (`LogSession`), `events(matching: LogQuery)` (time range, level floor,
-  event name, session, scope/subtree, tags (AND), search, paging),
-  `events(inSpan:)`, `attachments(forEvent:)`, retention
+  event name, session, scope/subtree, tags (AND), search, an incremental
+  `afterSequence` cursor, paging), `events(inSpan:)`,
+  `attachments(forEvent:)`, retention
   (`pruneEvents(olderThan:/keepingNewest:)`), and a `changes()` signal.
 
 ## How it works

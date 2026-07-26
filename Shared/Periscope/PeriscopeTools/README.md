@@ -43,12 +43,20 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
 
 ## Public API
 
-- **`PeriscopeViewer(store:title:)`** — the latest-logs viewer: newest-first
-  list over a `PeriscopeStore`, searchable, filterable by level / event type
-  / scope subtree / session / span exit, paged, with exit-mode chips on
-  span rows, per-event detail (exit + reason, payload JSON, tags,
-  attachments), and NDJSON export for bug reports. Push it inside an
-  existing `NavigationStack`.
+- **`PeriscopeViewer(store:title:)`** — the log viewer, pushed inside an
+  existing `NavigationStack`. A nav-bar segmented control switches between two
+  surfaces (one stack owns the bar and all drill-ins — not a nested `TabView`):
+  - **Logs** — newest-first list over a `PeriscopeStore`, searchable,
+    filterable by level / event type / scope subtree / session / span exit,
+    paged, with exit-mode chips on span rows, per-event detail (exit + reason,
+    payload JSON, tags, attachments), NDJSON export, and a
+    comfortable/compact **row-density** picker (persisted).
+  - **Hierarchy** — the scope tree (see `LogHierarchyView`).
+- **`LogHierarchyView(store:)`** — the scope-tree browser: the store's
+  `LogScope` hierarchy (the tree the `Log<Event>` API builds in code) as an
+  expandable outline with per-scope subtree counts; tapping a scope drills
+  into its subtree's events with rows indented to mirror the nesting. Shown as
+  the viewer's Hierarchy surface, and usable standalone.
 - **`LogTraceView(store:origin:)`** — the tracer: from one event (typically
   an error), shows the trail that led up to it — earlier events in the
   subtrees of all its (linked) scopes, events logged at ancestor scopes on
@@ -71,6 +79,29 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
   `begin(for:)`, longest running first, with ticking ages, lifetimes, and
   scope paths. Reads the system (open spans are live state, not store
   history); push it from a developer menu.
+- **`SpanTreeView(store:)`** — the durable span tree: the store's
+  `SpanBegan`/`SpanEnded` pairs nested by time containment (a span inside
+  another's lifetime becomes its child) with durations and exit chips, each
+  drilling into the span's detail. Distinct from `OpenSpansView` (live,
+  in-flight) — this reads the store, so it shows finished spans. Reachable
+  from the viewer's Logs toolbar (the **Spans** menu), and usable standalone.
+- **`SpanHistoryView(store:)`** — span timing history: the store's closed
+  spans grouped by kind (`SpanEnded.name`), each row showing the recorded
+  instance count and the p50/p90/p95/p99 of their durations (nearest-rank, so
+  every figure is a real observed sample; a kind whose instances never recorded
+  a duration reports none). Tapping a kind drills into every closed span of
+  that kind, newest first, each linking to its detail and the tracer. Reachable
+  from the viewer's Logs toolbar (the **Spans** menu), and usable standalone.
+
+## Design system
+
+Appearance — row geometry, badge chrome, typography, and the severity / span-exit
+/ inspect color palette — lives in `PeriscopeStylesheet`
+([`Sources/Styling/`](Sources/Styling)), a Broadway `BStylesheet`, rather than
+inline in views. Each public tool view seeds `periscopeBroadwayRoot()` and reads
+tokens via `@Environment(\.stylesheet)`, so the tooling styles correctly with or
+without a host-app Broadway root. Row density (`comfortable` / `compact`) is a
+stylesheet axis carried on `\.logRowDensity`.
 
 ## Testing
 

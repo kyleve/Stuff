@@ -1,5 +1,5 @@
-import LogKit
 import MapKit
+import PeriscopeCore
 import RegionKit
 import SnapshotKit
 import SwiftUI
@@ -37,15 +37,15 @@ public struct RegionMapView: View {
             kindPicker
             stateContent
         }
-        .navigationTitle(Strings.regionMapTitle)
+        .navigationTitle(String(localized: .regionMapTitle))
         .navigationBarTitleDisplayMode(.inline)
         .task(id: kind) { await load() }
     }
 
     private var kindPicker: some View {
-        Picker(Strings.regionMapKindPicker, selection: $kind) {
+        Picker(String(localized: .regionMapKindPicker), selection: $kind) {
             ForEach(RegionGeometryKind.allCases, id: \.self) { kind in
-                Text(Strings.regionMapKind(kind)).tag(kind)
+                Text(WhereFormat.regionMapKind(kind)).tag(kind)
             }
         }
         .pickerStyle(.segmented)
@@ -60,15 +60,15 @@ public struct RegionMapView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .some(.failure(error)):
                 ContentUnavailableView(
-                    Strings.regionMapLoadErrorTitle,
+                    String(localized: .regionMapLoadErrorTitle),
                     systemImage: "exclamationmark.triangle",
                     description: Text(error.localizedDescription),
                 )
             case let .some(.success(loaded)) where loaded.isEmpty:
                 ContentUnavailableView(
-                    Strings.regionMapEmptyTitle,
+                    String(localized: .regionMapEmptyTitle),
                     systemImage: "map",
-                    description: Text(Strings.regionMapEmptyDescription),
+                    description: Text(String(localized: .regionMapEmptyDescription)),
                 )
             case let .some(.success(loaded)):
                 VStack(spacing: 0) {
@@ -85,14 +85,14 @@ public struct RegionMapView: View {
             color: color(for:),
         )
         .frame(maxHeight: .infinity)
-        .accessibilityLabel(Strings.regionMapMapAccessibility)
+        .accessibilityLabel(String(localized: .regionMapMapAccessibility))
     }
 
     private func legend(for loaded: [RegionOutline]) -> some View {
         List {
             Section {
                 if selectedTitle != nil {
-                    Button(Strings.regionMapShowAll) { select(nil) }
+                    Button(String(localized: .regionMapShowAll)) { select(nil) }
                 }
                 ForEach(legendGroups(for: loaded)) { group in
                     Button {
@@ -103,9 +103,9 @@ public struct RegionMapView: View {
                     .tint(.primary)
                 }
             } header: {
-                Text(Strings.regionMapLegendHeader)
+                Text(String(localized: .regionMapLegendHeader))
             } footer: {
-                Text(Strings.regionMapKindFooter(kind))
+                Text(WhereFormat.regionMapKindFooter(kind))
             }
         }
         .frame(height: stylesheet.regionMap.height)
@@ -151,8 +151,9 @@ public struct RegionMapView: View {
             // Keep the failure observable in both the UI (the `.failure`
             // state renders an error) and the logs, rather than silently
             // showing an empty map.
-            RegionLog.channel(.geometryCatalog)
-                .warning("Region map viewer failed to load \(kind.rawValue) geometry: \(error)")
+            RegionLog.geometryCatalog {
+                .loadFailed(kind: kind.rawValue, description: String(describing: error))
+            }
             outlines = .failure(error)
         }
     }

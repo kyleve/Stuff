@@ -98,20 +98,47 @@ struct WhereStylesheetTests {
             innerWidth: 1,
             innerDash: [5, 4],
         ))
+        #expect(card.dayCount == .standard)
+        #expect(card.dayCount.animation == .easeOut(duration: 0.3))
+    }
+
+    /// The roll carries the count so it knows which way to spin the digits; the
+    /// Reduce-Motion pairing drops the roll for a fade and ignores the count.
+    @Test func dayCountTransitions() {
+        let rolling = WhereStylesheet.CardStyles.DayCountStyle.standard
+        #expect(rolling.morph == .rollingDigits)
+        #expect(rolling.transition(days: 148) == .numericText(value: 148))
+        #expect(rolling.transition(days: 149) != rolling.transition(days: 148))
+
+        let reduced = WhereStylesheet.CardStyles.DayCountStyle.reducedMotion
+        #expect(reduced.morph == .crossFade)
+        #expect(reduced.transition(days: 148) == .opacity)
+        #expect(reduced.transition(days: 149) == reduced.transition(days: 148))
+        #expect(reduced.animation == .easeInOut(duration: 0.2))
     }
 
     @Test func calendarStyle() {
         let calendar = style.calendar
         #expect(calendar.monthSpacing == 16)
-        #expect(calendar.dayMinHeight == 44)
         #expect(calendar.dotSize == 6)
-        #expect(calendar.dayContentSpacing == 2)
-        #expect(calendar.dayNumberSize == 26)
-        #expect(calendar.todayMarker == .accentColor)
-        #expect(calendar.todayNumberColor == .white)
-        #expect(calendar.unresolvedDayMarker == Color.red.opacity(0.15))
-        #expect(calendar.unresolvedNumberColor == .red)
-        #expect(calendar.evidenceBadge == .init(
+        #expect(calendar.regionBand.opacity == 0.16)
+        #expect(calendar.regionBand.cornerRadius == 14)
+        #expect(calendar.regionBand.continuationRadius == 3)
+        #expect(calendar.regionBand.verticalInset == 4)
+
+        let day = calendar.day
+        #expect(day.minHeight == 44)
+        #expect(day.numberSize == 26)
+        #expect(day.numberDotSpacing == 0)
+        #expect(day.dotSize == 8)
+        #expect(day.dotOverlap == 2)
+        #expect(day.dotStrokeWidth == 1.5)
+        #expect(day.contentSpacing == 2)
+        #expect(day.todayMarker == .accentColor)
+        #expect(day.todayNumberColor == .white)
+        #expect(day.unresolvedMarker == Color.red.opacity(0.15))
+        #expect(day.unresolvedNumberColor == .red)
+        #expect(day.evidenceBadge == .init(
             iconSize: 8,
             padding: 2,
             offset: CGSize(width: 3, height: -2),
@@ -121,8 +148,16 @@ struct WhereStylesheetTests {
         #expect(month.sectionSpacing == 8)
         #expect(month.gridSpacing == 6)
         #expect(month.padding == 16)
-        #expect(month.cornerRadius == 22)
-        #expect(month.currentMonthHighlight == Color.accentColor.opacity(0.08))
+        #expect(month.cornerRadius == 21)
+        #expect(month.plain.fill == Color.primary.opacity(0.03))
+        #expect(month.plain.border == Color.primary.opacity(0.12))
+        #expect(month.plain.borderWidth == 2)
+        #expect(month.current.fill == Color.accentColor.opacity(0.08))
+        #expect(month.current.border == Color.accentColor.opacity(0.7))
+        #expect(month.current.borderWidth == 4)
+        #expect(month.futureOpacity == 0.55)
+        #expect(month.futurePeekFraction == 0.5)
+        #expect(month.footerDividerSpacing == 8)
         #expect(month.footerSpacing == 4)
         #expect(month.footerRowSpacing == 6)
         #expect(month.unfocusedRowOpacity == 0.55)
@@ -203,6 +238,13 @@ struct WhereStylesheetTests {
         #expect(evidence.loadingMinHeight == 200)
     }
 
+    @Test func elsewhereCardStyle() {
+        let card = style.elsewhereCard
+        #expect(card.cornerRadius == 22)
+        #expect(card.padding == 18)
+        #expect(card.iconPointSize == 28)
+    }
+
     @Test func typographyFaces() {
         let typography = style.typography
         #expect(typography.onboardingIcon == .system(size: 72))
@@ -212,21 +254,35 @@ struct WhereStylesheetTests {
 
     @Test func motionAnimations() {
         let motion = style.motion
-        #expect(motion.reveal == .easeIn(duration: 0.18))
+        #expect(motion.reveal == .easeIn(duration: 0.16))
         #expect(motion.reducedReveal == .easeInOut(duration: 0.2))
         #expect(motion.captionFade == .easeOut(duration: 0.3))
+    }
+
+    @Test func launchTimings() {
+        let launch = style.launch
+        #expect(launch.minimumSplashDuration == .milliseconds(800))
+        #expect(launch.captionDelay == .milliseconds(1200))
+    }
+
+    @Test func settingsStyle() {
+        let settings = style.settings
+        #expect(settings.iconSize == 29)
+        #expect(settings.iconCornerRadius == 7)
+        #expect(settings.iconSymbolSize == 15)
+        #expect(settings.flashAnimation == .easeInOut(duration: 0.4))
+        #expect(settings.flashDuration == .seconds(1))
+        #expect(settings.scrollSettleDelay == .milliseconds(350))
     }
 
     @Test func paletteColors() {
         let palette = style.palette
         #expect(palette.primary.backgroundTop == Color(red: 0.07, green: 0.08, blue: 0.13))
         #expect(palette.primary.backgroundBottom == Color(red: 0.02, green: 0.02, blue: 0.05))
-        #expect(palette.splash.background == .black)
-        #expect(palette.splash.vignetteCenter == Color(white: 0.16))
-        #expect(palette.splash.vignetteEdge == .black)
+        #expect(palette.splash.background == Color(.systemBackground))
+        #expect(palette.splash.vignetteCenter == Color(.secondarySystemBackground))
+        #expect(palette.splash.vignetteEdge == Color(.systemBackground))
         #expect(palette.splash.iconGlow == .accentColor)
-        #expect(palette.splash.caption == .white)
-        #expect(palette.splash.captionSecondary == Color.white.opacity(0.7))
         #expect(palette.onboarding.backgroundTop == Color(.systemBackground))
         #expect(palette.onboarding.backgroundBottom == Color.accentColor.opacity(0.12))
     }
@@ -250,7 +306,7 @@ struct WhereStylesheetTests {
         var context = BContext(traits: .system)
         context.traitOverrides.contentSizeCategory = .accessibilityLarge
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
-        #expect(resolved.calendar.dayMinHeight == 56)
+        #expect(resolved.calendar.day.minHeight == 56)
     }
 
     @MainActor
@@ -260,6 +316,14 @@ struct WhereStylesheetTests {
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.regular.glow.radius == 0)
         #expect(resolved.card.compact.glow.radius == 0)
+    }
+
+    @MainActor
+    @Test func crossFadesTheCardDayCountUnderReduceMotion() throws {
+        var context = BContext(traits: .system)
+        context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: true)
+        let resolved = try context.stylesheets.get(WhereStylesheet.self)
+        #expect(resolved.card.dayCount == .reducedMotion)
     }
 }
 
@@ -325,7 +389,7 @@ private struct StylesheetProbe: View {
 
     var body: some View {
         Color.clear
-            .onChange(of: stylesheet.calendar.dayMinHeight, initial: true) { _, newValue in
+            .onChange(of: stylesheet.calendar.day.minHeight, initial: true) { _, newValue in
                 box.calendarDayMinHeight = newValue
             }
     }

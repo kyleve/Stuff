@@ -77,4 +77,14 @@ final class LogInspectorModel {
             .map(\.name)
             .joined(separator: " / ")
     }
+
+    /// The event's primary-scope depth below `root`, for indenting subtree
+    /// rows to mirror the scope hierarchy. Zero when the event sits at (or,
+    /// defensively, above) `root`.
+    func depth(of event: StoredLogEvent, below root: ScopeID) -> Int {
+        guard let primary = event.primaryScope else { return 0 }
+        let eventDepth = LogScope.ancestry(of: primary) { scopes[$0] }.count
+        let rootDepth = LogScope.ancestry(of: root) { scopes[$0] }.count
+        return max(0, eventDepth - rootDepth)
+    }
 }

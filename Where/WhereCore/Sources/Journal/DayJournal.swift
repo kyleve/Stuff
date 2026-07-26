@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 import RegionKit
 
 /// Owns the user-sourced writes into the store — sample ingestion, manual-day
@@ -21,7 +21,7 @@ public actor DayJournal {
     private let issueScanner: DataIssueScanner
     private let widgets: WidgetSnapshotPublisher
 
-    private static let logger = WhereLog.channel(.dayJournal)
+    private static let logger = WhereLog.root(DayJournalLog.self)
 
     init(
         store: any WhereStore,
@@ -104,7 +104,7 @@ public actor DayJournal {
         let presence = DayPresence(day: day, regions: regions, audit: audit)
         try await store.perform { try await store.setManualDay(presence) }
         await reconcileAfterDayChange()
-        Self.logger.info("Added manual day \(day) with \(regions.count) region(s)")
+        Self.logger { .addedManualDay(day: String(describing: day), regionCount: regions.count) }
     }
 
     /// Authoritatively set the regions for a single calendar day, *replacing*
@@ -121,7 +121,7 @@ public actor DayJournal {
         let presence = DayPresence(day: day, regions: regions, isAuthoritative: true, audit: audit)
         try await store.perform { try await store.setManualDay(presence) }
         await reconcileAfterDayChange()
-        Self.logger.info("Overrode day \(day) with \(regions.count) region(s)")
+        Self.logger { .overrodeDay(day: String(describing: day), regionCount: regions.count) }
     }
 
     /// Drop the manual overlay for a single calendar day, restoring the
@@ -132,7 +132,7 @@ public actor DayJournal {
         let day = CalendarDay(from: date, in: aggregator.calendar)
         try await store.perform { try await store.clearManualDay(day) }
         await reconcileAfterDayChange()
-        Self.logger.info("Cleared manual overlay for day \(day)")
+        Self.logger { .clearedManualDay(day: String(describing: day)) }
     }
 
     /// Drop the manual overlays for several calendar days (the logged-days
@@ -153,7 +153,7 @@ public actor DayJournal {
             }
         }
         await reconcileAfterDayChange()
-        Self.logger.info("Cleared manual overlays for \(days.count) day(s)")
+        Self.logger { .clearedManualDays(dayCount: days.count) }
     }
 
     /// Assert `regions` for every calendar day in the inclusive range
@@ -185,9 +185,9 @@ public actor DayJournal {
             }
         }
         await reconcileAfterDayChange()
-        Self.logger.info(
-            "Backfilled \(days.count) manual day(s) with \(regions.count) region(s)",
-        )
+        Self.logger {
+            .backfilledManualDays(dayCount: days.count, regionCount: regions.count)
+        }
     }
 
     // MARK: - Clearing
@@ -197,7 +197,7 @@ public actor DayJournal {
         let dayRange = CalendarDay.yearRange(year)
         try await store.perform { try await store.clear(in: interval, manualDays: dayRange) }
         await reconcileAfterDayChange()
-        Self.logger.info("Cleared year \(year)")
+        Self.logger { .clearedYear(year: year) }
     }
 
     /// Erase every sample, manual day, and piece of evidence in the store, then
@@ -208,14 +208,16 @@ public actor DayJournal {
     public func eraseAllData() async throws {
         try await store.perform { try await store.clearAll() }
         await reconcileAfterDayChange()
-        Self.logger.info("Erased all store data")
+        Self.logger { .erasedAllData }
     }
 
     // MARK: - Evidence
 
     public func addEvidence(_ evidence: Evidence, blob: Data? = nil) async throws {
         try await store.perform { try await store.write(evidence: evidence, blob: blob) }
-        Self.logger.info("Wrote evidence \(evidence.id) (blob: \(blob != nil))")
+        Self.logger {
+            .wroteEvidence(id: String(describing: evidence.id), hasBlob: blob != nil)
+        }
     }
 
     public func evidence(for year: Int) async throws -> [Evidence] {

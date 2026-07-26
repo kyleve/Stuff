@@ -69,7 +69,7 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   controller, not a wrapper, so it survives the intrinsic-measurement
   re-hosting.
 - **Tile-and-stitch is load-bearing, not legacy.** UIKit still renders a blank
-  image for views taller/wider than ~2000pt on the target toolchain (iOS 26.2 —
+  image for views taller/wider than ~2000pt on the target toolchain (iOS 27.0 —
   verified by a probe during development, guarded by
   `WhereUISnapshotTests.LargeViewCaptureTests`). Captures go through
   `SnapshotWrappingViewController` + `tileAndStitchImage`; don't remove the

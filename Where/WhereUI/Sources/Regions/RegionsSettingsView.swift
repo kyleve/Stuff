@@ -1,3 +1,4 @@
+import PeriscopeCore
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -24,9 +25,11 @@ struct RegionsSettingsView: View {
         case customize
     }
 
-    private static let logger = WhereLog.channel(.model)
+    private static let logger = WhereLog.session(RegionsSettingsViewLog.self)
 
     var body: some View {
+        // Presented as a sheet from Settings, so it owns its navigation stack and
+        // explicit Cancel/Done points — making the commit boundary clear.
         NavigationStack {
             Group {
                 if let model {
@@ -34,16 +37,19 @@ struct RegionsSettingsView: View {
                 } else {
                     ProgressView()
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .navigationTitle(Strings.regionsManageTitle)
+                        .navigationTitle(String(localized: .regionsManageTitle))
                         .toolbar {
                             ToolbarItem(placement: .cancellationAction) {
-                                Button(Strings.commonCancel) { dismiss() }
+                                Button(String(localized: .commonCancel)) { dismiss() }
                             }
                         }
                 }
             }
         }
         .task { await loadIfNeeded() }
+        // Log View Mode: reveal an inspect badge for the region-editor events. A
+        // no-op in release.
+        .debugLogInspectable(WhereLog.session(RegionsSettingsViewLog.self))
     }
 
     @ViewBuilder
@@ -51,13 +57,13 @@ struct RegionsSettingsView: View {
         switch phase {
             case .pick:
                 RegionPickerView(model: model)
-                    .navigationTitle(Strings.regionsManageTitle)
+                    .navigationTitle(String(localized: .regionsManageTitle))
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button(Strings.commonCancel) { dismiss() }
+                            Button(String(localized: .commonCancel)) { dismiss() }
                         }
                         ToolbarItem(placement: .confirmationAction) {
-                            Button(Strings.onboardingNext) { phase = .customize }
+                            Button(String(localized: .onboardingNext)) { phase = .customize }
                                 .disabled(!model.hasSelection)
                         }
                     }
@@ -79,7 +85,9 @@ struct RegionsSettingsView: View {
             let existing = try await session.services.primaryRegions()
             built = PrimaryRegionSelectionModel(existing: existing)
         } catch {
-            Self.logger.warning("Failed to load primary regions for editing")
+            Self.logger(attachments: [.error(error, name: "load-error")]) {
+                .primaryRegionsLoadFailed(description: error.localizedDescription)
+            }
             // Fall back to an empty picker rather than a stuck spinner.
             built = PrimaryRegionSelectionModel()
         }
@@ -95,9 +103,33 @@ struct RegionsSettingsView: View {
             do {
                 try await model.commit(using: session)
             } catch {
-                Self.logger.warning("Failed to save primary region edits")
+                Self.logger(attachments: [.error(error, name: "save-error")]) {
+                    .primaryRegionsSaveFailed(description: error.localizedDescription)
+                }
             }
             dismiss()
+        }
+    }
+}
+
+extension RegionsSettingsView: SettingsSection {
+    static var destination: SettingsDestination {
+        .regions
+    }
+
+    enum Item: SettingsItem {
+        case regions
+
+        var title: String {
+            switch self {
+                case .regions: String(localized: .settingsRegionsSection)
+            }
+        }
+
+        var keywords: [String] {
+            switch self {
+                case .regions: splitKeywords(String(localized: .settingsKeywordsRegions))
+            }
         }
     }
 }

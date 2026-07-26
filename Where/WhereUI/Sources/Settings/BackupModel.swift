@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 import WhereCore
 
 /// View-scoped model for the Settings backup section: export/import progress and
@@ -37,8 +37,22 @@ public final class BackupModel {
         set { if !newValue { backupError = nil } }
     }
 
+    /// Summary of the most recent successful import, surfaced as a confirmation
+    /// alert. Owned here (not on the view) so the acknowledgment survives the
+    /// backup screen being popped mid-import — mirroring `backupError`. Set by
+    /// `importBackup`; the alert binding clears it on dismiss.
+    public private(set) var lastImportSummary: BackupCoordinator.ImportSummary?
+
+    /// Drives the import-success alert. Reads `true` while `lastImportSummary`
+    /// holds a value and clears it when dismissed, so the view can bind straight
+    /// to it (`$backup.isShowingImportSuccess`).
+    public var isShowingImportSuccess: Bool {
+        get { lastImportSummary != nil }
+        set { if !newValue { lastImportSummary = nil } }
+    }
+
     private let services: WhereServices
-    private static let logger = WhereLog.channel(.session)
+    private static let logger = WhereLog.session(BackupModelLog.self)
 
     public init(services: WhereServices) {
         self.services = services
@@ -72,12 +86,12 @@ public final class BackupModel {
             let url = try await services.backup.exportBackup { continuation.yield($0) }
             continuation.finish()
             await observer.value
-            Self.logger.info("Exported backup archive")
+            Self.logger { .exported }
             return url
         } catch {
             continuation.finish()
             backupError = error.localizedDescription
-            Self.logger.warning("Backup export failed: \(error.localizedDescription)")
+            Self.logger { .exportFailed(description: error.localizedDescription) }
             return nil
         }
     }
@@ -121,14 +135,21 @@ public final class BackupModel {
             }
             continuation.finish()
             await observer.value
-            Self.logger.info(
-                "Imported backup (\(summary.sampleCount) samples, \(summary.evidenceCount) evidence, \(summary.manualDayCount) manual days, \(summary.dismissedIssueCount) dismissals, \(summary.trackedRegionCount) tracked regions)",
-            )
+            Self.logger {
+                .imported(
+                    sampleCount: summary.sampleCount,
+                    evidenceCount: summary.evidenceCount,
+                    manualDayCount: summary.manualDayCount,
+                    dismissedIssueCount: summary.dismissedIssueCount,
+                    trackedRegionCount: summary.trackedRegionCount,
+                )
+            }
+            lastImportSummary = summary
             return summary
         } catch {
             continuation.finish()
             backupError = error.localizedDescription
-            Self.logger.warning("Backup import failed: \(error.localizedDescription)")
+            Self.logger { .importFailed(description: error.localizedDescription) }
             return nil
         }
     }

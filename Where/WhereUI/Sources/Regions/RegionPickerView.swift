@@ -1,4 +1,5 @@
 import MapKit
+import PeriscopeCore
 import RegionKit
 import SwiftUI
 import WhereCore
@@ -29,14 +30,14 @@ struct RegionPickerView: View {
     @Environment(\.stylesheet) private var stylesheet
     @Environment(\.regionStyles) private var regionStyles
 
-    private static let logger = WhereLog.channel(.regionAttribution)
+    private static let logger = WhereLog.session(RegionPickerViewLog.self)
 
     var body: some View {
         VStack(spacing: stylesheet.spacing.medium) {
             modePicker
 
             VStack(spacing: stylesheet.spacing.xSmall) {
-                Text(Strings.regionPickerSelectionCount(
+                Text(WhereFormat.regionPickerSelectionCount(
                     selected: model.selectionCount,
                     max: PrimaryRegionSelectionModel.maxSelection,
                 ))
@@ -45,7 +46,7 @@ struct RegionPickerView: View {
                 .accessibilityAddTraits(.updatesFrequently)
 
                 if model.isAtCapacity {
-                    Text(Strings
+                    Text(WhereFormat
                         .regionPickerAtCapacity(max: PrimaryRegionSelectionModel.maxSelection))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -71,12 +72,15 @@ struct RegionPickerView: View {
             guard mode == .map, mapData == nil else { return }
             await loadMap()
         }
+        // Log View Mode: reveal an inspect badge for region-picker events (map
+        // geometry load). A no-op in release.
+        .debugLogInspectable(WhereLog.session(RegionPickerViewLog.self))
     }
 
     private var modePicker: some View {
-        Picker(Strings.regionPickerModePicker, selection: $mode) {
-            Text(Strings.regionPickerModeMap).tag(Mode.map)
-            Text(Strings.regionPickerModeList).tag(Mode.list)
+        Picker(String(localized: .regionPickerModePicker), selection: $mode) {
+            Text(String(localized: .regionPickerModeMap)).tag(Mode.map)
+            Text(String(localized: .regionPickerModeList)).tag(Mode.list)
         }
         .pickerStyle(.segmented)
         .padding(.horizontal, stylesheet.spacing.large)
@@ -92,7 +96,7 @@ struct RegionPickerView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case let .some(.failure(error)):
                 ContentUnavailableView(
-                    Strings.regionPickerLoadErrorTitle,
+                    String(localized: .regionPickerLoadErrorTitle),
                     systemImage: "map",
                     description: Text(error.localizedDescription),
                 )
@@ -133,7 +137,7 @@ struct RegionPickerView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: style.mapCornerRadius, style: .continuous))
         .padding(.horizontal, stylesheet.spacing.large)
-        .accessibilityLabel(Strings.regionPickerMapAccessibility)
+        .accessibilityLabel(String(localized: .regionPickerMapAccessibility))
     }
 
     private func handleMapTap(at coordinate: CLLocationCoordinate2D, in data: MapData) {
@@ -184,7 +188,7 @@ struct RegionPickerView: View {
             }
         }
         .listStyle(.plain)
-        .searchable(text: $searchText, prompt: Strings.regionPickerSearchPrompt)
+        .searchable(text: $searchText, prompt: String(localized: .regionPickerSearchPrompt))
         .overlay {
             if isSearching, filteredRegions.isEmpty {
                 ContentUnavailableView.search(text: searchText)
@@ -219,7 +223,9 @@ struct RegionPickerView: View {
             guard !Task.isCancelled else { return }
             // Keep the failure observable in both the UI (error state) and the
             // logs rather than showing a blank map.
-            Self.logger.warning("Region picker failed to load map geometry: \(error)")
+            Self.logger(attachments: [.error(error, name: "geometry-error")]) {
+                .mapGeometryLoadFailed(description: error.localizedDescription)
+            }
             mapData = .failure(error)
         }
     }

@@ -19,9 +19,11 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 ### App shell & view models
 
 - **`RootView`** — the app root: the launch sequence (via
-  [`LifecycleKit`](../../Shared/LifecycleKit)) gated in front of the Liquid
-  Glass tab bar over the four top-level screens (Primary, Elsewhere, Resolve,
-  Settings). The app injects the launch-built model + runner
+  [`LifecycleKit`](../../Shared/LifecycleKit)) gated in front of `MainTabs`, the
+  Liquid Glass tab bar over three tabs — Locations, Your Year, Settings.
+  Elsewhere is an entry card on Locations, Resolve a Locations toolbar button,
+  and the data screens (attachments, logged days, regions) sit in the Settings
+  "Data" group. The app injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
 - **`WhereModel`** — app-level state: the onboarding flag, the owned
@@ -109,7 +111,8 @@ tests) code uses `WhereStylesheet.default`. Tokens are grouped per component
 (`CalendarStyle`, `AppIconStyle`, `CardStyle`, …) with shared scales for the
 cross-cutting bits (`Spacing`, `Palette`, `Typography`, `Motion`). Most values
 are fixed; a slice derives from accessibility traits (bigger tap targets at
-large Dynamic Type, a flatter card under Reduce Transparency). See
+large Dynamic Type, a flatter card under Reduce Transparency, a crossfaded
+rather than rolling day count under Reduce Motion). See
 [`AGENTS.md`](AGENTS.md#design-system--wherestylesheet) for how to consume and
 extend it.
 
@@ -147,7 +150,7 @@ for the mode values):
 ```bash
 TEST_RUNNER_SNAPSHOT_RECORD=failed mise exec -- tuist test WhereUISnapshotTests \
   --no-selective-testing -- \
-  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0'
 ```
 
 then review and commit the images.

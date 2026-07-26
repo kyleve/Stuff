@@ -11,10 +11,13 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 - **Tuist app-extension target** ([`Project.swift`](../../Project.swift),
   bundle ID `com.stuff.where.share`), depending on **WhereCore**, **WhereUI**,
-  and **LogKit**. Embedded by the **Where** app; shares the
-  `group.com.stuff.where` App Group entitlement.
+  and **PeriscopeCore**. Embedded by the **Where** app; shares the
+  `group.com.stuff.where` App Group entitlement. Logs via the `WhereLog` facade
+  (typed `ShareExtensionLog` events); as a separate process its
+  `Periscope.shared` is OSLog-only (no store).
 - Presentation reuses WhereUI's public `EvidenceKind.symbolName`/`displayName`;
-  only extension chrome lives in this target's `ShareStrings` + catalog.
+  only extension chrome lives in this target's catalog, referenced through its
+  generated `LocalizedStringResource` symbols.
 - No test bundle; the write path is covered from **WhereCore** store tests and
   the **WhereUI** compose model.
 
@@ -29,7 +32,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   mirror; the app's container syncs the shared store's history.
 - **`NSExtensionPrincipalClass` is `$(PRODUCT_MODULE_NAME).ShareViewController`**
   — keep the class name and Info.plist in sync. Save/cancel bridge to
-  `extensionContext` completion; the root view has no `@Environment(.dismiss)`.
+  `extensionContext` completion; the root view has no `@Environment(\.dismiss)`.
 - **A share with no loadable bytes still composes** a metadata-only note rather
   than failing.
 

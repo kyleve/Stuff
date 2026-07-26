@@ -10,9 +10,11 @@ the build system, formatting, and global conventions. Read that first.
 
 ## Scope & dependencies
 
-- **Foundation + os + SwiftData + Network + JournalKit only** (plus the
-  ObjectiveC runtime, solely for `LogContextProviding`'s deallocation
-  trackers). No SwiftUI, no app code, no LogKit. UIKit is allowed **only**
+- **Foundation + os + SwiftData + Network + CryptoKit + JournalKit only**
+  (plus the ObjectiveC runtime, for `LogContextProviding`'s deallocation
+  trackers and `NotificationAmbientSource`'s target/selector observation).
+  CryptoKit is used by exactly one file — `ScopeID.swift`, for the
+  deterministic scope hash. No SwiftUI, no app code. UIKit is allowed **only**
   inside `#if canImport(UIKit)` (ambient sources, the image-attachment
   convenience).
 - Layering: `PeriscopeUI` and `PeriscopeTools` depend on this module — never
@@ -29,10 +31,22 @@ the build system, formatting, and global conventions. Read that first.
 - **Scope IDs are deterministic** (hash of parent + name) — the same path is
   the same scope across processes and launches; `begin`/`end` span pairing
   and cross-layer links rely on this.
+- **`sequence` is store-global and monotonic.** Every write takes the next
+  value past the highest stored (resuming across launches), so a freshly
+  inserted event always outranks everything already persisted. That is what
+  makes `LogQuery.afterSequence` a valid incremental cursor: "sequence >
+  what I last merged" is exactly "everything appended since", and live
+  viewers advance it instead of re-reading the store each commit.
 - **Persistence must retain the full hierarchy** — events reference scopes
   many-to-many (links), and scopes keep their parent chain.
 - **Custom levels are values, not cases.** `LogLevel` is a struct ordered by
   `severity`; never switch exhaustively over "all" levels.
+- **Ambient sources log change-only where the signal is chatty.**
+  `NetworkPathAmbientSource` keeps its last description and drops
+  `NWPathMonitor`'s duplicate, change-agnostic callbacks (which otherwise
+  flood the log); notification-based sources are deliberately *not* deduped
+  — their notifications post only on real transitions, and repeated memory
+  warnings are each a distinct event, not a duplicate to swallow.
 - **Sink failures never propagate or vanish** — the store logs them to
   OSLog, counts them, and persists a synthetic `StoreWriteFailed` marker
   for the lost batch; the pipeline reports drops with a synthetic

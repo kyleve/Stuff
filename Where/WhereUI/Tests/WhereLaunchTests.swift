@@ -1,5 +1,6 @@
 import Foundation
 import LifecycleKit
+@_spi(Testing) import PeriscopeCore
 import RegionKit
 import SwiftData
 import TestHostSupport
@@ -139,6 +140,36 @@ struct WhereLaunchTests {
         try await waitUntilAsync { await (try? store.allSamples().count) == 1 }
     }
 
+    @Test func undeterminedLaunchDefersForegroundStepsUntilPromoted() async throws {
+        // The app launches `.undetermined` (the UIScene lifecycle can't tell a
+        // user launch from a headless wake yet). It must run only the
+        // background-safe steps and build no view tree until a scene activates.
+        let (model, store, source) = try makeModelAndStore(
+            status: .always,
+            preferences: makePreferences(),
+        )
+        model.completeOnboarding()
+        source.setNextRequestedLocation(todayFix())
+
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .undetermined)
+        await launcher.run()
+        // Reconcile-tracking (background-safe) resumed GPS, but the
+        // foreground-only capture-today was skipped — nothing captured — and the
+        // launch builds no view tree.
+        #expect(launcher.phase.isReady)
+        #expect(launcher.reason.buildsNoViewTree)
+        #expect(model.session?.isTracking == true)
+        #expect(try await store.allSamples().isEmpty)
+
+        // A scene activates → promote. The re-drive skips the already-completed
+        // background steps and runs the now-applicable foreground-only
+        // capture-today, which logs today's fix.
+        await launcher.enterForeground()
+        #expect(launcher.phase.isReady)
+        #expect(launcher.reason == .userForeground)
+        try await waitUntilAsync { await (try? store.allSamples().count) == 1 }
+    }
+
     @Test func backgroundLaunchSkipsCaptureToday() async throws {
         // The capture-today step is foreground-only: a headless background
         // relaunch is itself the passive location event, so it must not fire a
@@ -187,6 +218,17 @@ struct WhereLaunchTests {
         try await waitUntil { launcher.phase.isReady }
         await task.value
         #expect(launcher.phase.isReady)
+    }
+
+    @Test func attachingLogStoreExposesItOnTheModel() async throws {
+        // The launch bootstrap opens the process-global store off the critical
+        // path and hands it to the model so the developer surface can browse it.
+        // A fresh model has none until then.
+        let model = try makeModel(preferences: makePreferences())
+        #expect(model.logStore == nil)
+        let store = try await PeriscopeStore.inMemory(session: .current())
+        model.attach(logStore: store)
+        #expect(model.logStore === store)
     }
 
     @Test func openStoreHandsTheSessionsServicesToTheOnServicesReadyHook() async throws {
@@ -267,7 +309,7 @@ struct WhereLaunchTests {
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .background(.location))
         await launcher.run()
         #expect(launcher.phase.isReady)
-        #expect(launcher.reason.isBackground)
+        #expect(launcher.reason.buildsNoViewTree)
         // The minimal background steps still ran (reconcile-tracking resumed GPS).
         #expect(model.session?.isTracking == true)
     }

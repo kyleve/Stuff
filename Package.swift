@@ -11,8 +11,6 @@ let package = Package(
         .library(name: "StuffCore", targets: ["StuffCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "JournalKit", targets: ["JournalKit"]),
-        .library(name: "LogKit", targets: ["LogKit"]),
-        .library(name: "LogViewerUI", targets: ["LogViewerUI"]),
         .library(name: "PeriscopeCore", targets: ["PeriscopeCore"]),
         .library(name: "PeriscopeUI", targets: ["PeriscopeUI"]),
         .library(name: "PeriscopeTools", targets: ["PeriscopeTools"]),
@@ -28,6 +26,10 @@ let package = Package(
         .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
     ],
     dependencies: [
+        .package(
+            url: "https://github.com/RoyalPineapple/BumperBowling.git",
+            branch: "main",
+        ),
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
         // Snapshot-testing engine + accessibility parser. Consumed only by the
         // test-only `SnapshotKitTesting` target (never a shipping app). See
@@ -52,17 +54,6 @@ let package = Package(
             path: "Shared/JournalKit/Sources",
         ),
         .target(
-            name: "LogKit",
-            path: "Shared/LogKit/Sources",
-        ),
-        .target(
-            name: "LogViewerUI",
-            dependencies: [
-                .target(name: "LogKit"),
-            ],
-            path: "Shared/LogViewerUI/Sources",
-        ),
-        .target(
             name: "PeriscopeCore",
             dependencies: [
                 .target(name: "JournalKit"),
@@ -81,6 +72,8 @@ let package = Package(
             dependencies: [
                 .target(name: "PeriscopeCore"),
                 .target(name: "PeriscopeUI"),
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
             ],
             path: "Shared/Periscope/PeriscopeTools/Sources",
         ),
@@ -110,7 +103,7 @@ let package = Package(
         .target(
             name: "RegionKit",
             dependencies: [
-                .target(name: "LogKit"),
+                .target(name: "PeriscopeCore"),
             ],
             path: "Where/RegionKit/Sources",
             resources: [
@@ -120,7 +113,7 @@ let package = Package(
         .target(
             name: "WhereCore",
             dependencies: [
-                .target(name: "LogKit"),
+                .target(name: "PeriscopeCore"),
                 .target(name: "RegionKit"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],
@@ -136,8 +129,9 @@ let package = Package(
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
                 .target(name: "LifecycleKit"),
-                .target(name: "LogKit"),
-                .target(name: "LogViewerUI"),
+                .target(name: "PeriscopeCore"),
+                .target(name: "PeriscopeTools"),
+                .target(name: "PeriscopeUI"),
                 .target(name: "RegionKit"),
                 .target(name: "SnapshotKit"),
                 .target(name: "SwiftDataInspector"),
@@ -150,7 +144,7 @@ let package = Package(
         .target(
             name: "WhereIntents",
             dependencies: [
-                .target(name: "LogKit"),
+                .target(name: "PeriscopeCore"),
                 .target(name: "RegionKit"),
                 .target(name: "WhereCore"),
                 .target(name: "WhereUI"),

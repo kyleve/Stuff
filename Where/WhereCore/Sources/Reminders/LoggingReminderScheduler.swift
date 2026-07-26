@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 import UserNotifications
 
 /// Time of day (in the user's calendar) at which the daily "log before the day
@@ -92,7 +92,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
     private let calendar: Calendar
 
     private static let identifierPrefix = "com.stuff.where.logging-reminder"
-    private static let logger = WhereLog.channel(.loggingReminderScheduler)
+    private static let logger = WhereLog.reminders(LoggingReminderSchedulerLog.self)
 
     public init(
         center: UNUserNotificationCenter = .current(),
@@ -118,9 +118,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         do {
             return try await center.requestAuthorization(options: [.alert, .sound, .badge])
         } catch {
-            Self.logger.error(
-                "Notification authorization request failed: \(error.localizedDescription)",
-            )
+            Self.logger { .authorizationRequestFailed(description: error.localizedDescription) }
             return false
         }
     }
@@ -155,16 +153,12 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
             case .authorized, .provisional, .ephemeral:
                 break
             case .notDetermined, .denied:
-                Self.logger.warning(
-                    "Logging reminders enabled but notification authorization not granted; reminders disabled",
-                )
+                Self.logger { .authorizationNotGranted }
                 await removeAllOwnedReminders()
                 await setBadge(0)
                 return
             @unknown default:
-                Self.logger.warning(
-                    "Logging reminders enabled but notification authorization status is unknown; reminders disabled",
-                )
+                Self.logger { .authorizationUnknown }
                 await removeAllOwnedReminders()
                 await setBadge(0)
                 return
@@ -213,9 +207,13 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         // every launch/foreground and after every user write, so a no-op
         // reconcile (the common case) stays quiet.
         if !pendingToRemove.isEmpty || !staleDelivered.isEmpty || !toSchedule.isEmpty {
-            Self.logger.info(
-                "Reconciled logging reminders (scheduled \(toSchedule.count), removed \(pendingToRemove.count); badge: \(badgeCount))",
-            )
+            Self.logger {
+                .reconciled(
+                    scheduled: toSchedule.count,
+                    removed: pendingToRemove.count,
+                    badge: badgeCount,
+                )
+            }
         }
     }
 
@@ -225,8 +223,8 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         components.minute = time.minute
 
         let content = UNMutableNotificationContent()
-        content.title = String(localized: "reminder.notification.title", bundle: .module)
-        content.body = String(localized: "reminder.notification.body", bundle: .module)
+        content.title = String(localized: .reminderNotificationTitle)
+        content.body = String(localized: .reminderNotificationBody)
         content.sound = .default
 
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
@@ -238,9 +236,9 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         do {
             try await center.add(request)
         } catch {
-            Self.logger.error(
-                "Failed to schedule reminder \(identifier): \(error.localizedDescription)",
-            )
+            Self.logger(attachments: [.error(error, name: "schedule-error")]) {
+                .scheduleFailed(identifier: identifier, description: error.localizedDescription)
+            }
         }
     }
 
@@ -272,9 +270,7 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         do {
             try await center.setBadgeCount(max(0, count))
         } catch {
-            Self.logger.error(
-                "Failed to set badge count: \(error.localizedDescription)",
-            )
+            Self.logger { .badgeUpdateFailed(description: error.localizedDescription) }
         }
     }
 

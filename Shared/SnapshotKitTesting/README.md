@@ -82,7 +82,7 @@ xcodebuild passes any `TEST_RUNNER_`-prefixed variable through, so in this repo
 ```bash
 TEST_RUNNER_SNAPSHOT_RECORD=failed mise exec -- tuist test WhereUISnapshotTests \
   --no-selective-testing -- \
-  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.2'
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=27.0'
 ```
 
 Values map onto `SnapshotTestingConfiguration.Record`: `all` (rewrite
@@ -107,7 +107,7 @@ unknown values keep the default plain output.
 - Runs in a hosted test bundle (needs a host app window; in this repo that's
   `StuffTestHost`, reached via `TestHostSupport`).
 - Device/OS-pinned: reference images are captured on a fixed simulator (this
-  repo's CI uses iPhone 17 / iOS 26.2).
+  repo's CI uses iPhone 17 / iOS 27.0).
 - Timezone-pinned: references bake wall-clock dates/times into pixels, so the
   snapshot scheme pins `TZ` (and the runner verifies it via
   `SNAPSHOT_EXPECTED_TIMEZONE`) — see `testScheme` in `Project.swift`.

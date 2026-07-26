@@ -8,7 +8,8 @@ unit-tested in isolation.
 
 RegionKit is the lowest layer of the Where feature: `WhereCore` (and, through
 it, `WhereUI`, the widgets, and the RegionViewer) depend on RegionKit and call
-into it for lookup. RegionKit depends only on [`LogKit`](../../Shared/LogKit).
+into it for lookup. RegionKit depends only on
+[`PeriscopeCore`](../../Shared/Periscope/PeriscopeCore) for logging.
 
 ## What you get
 
@@ -34,7 +35,10 @@ into it for lookup. RegionKit depends only on [`LogKit`](../../Shared/LogKit).
 - **`RegionGeometryCatalog`** — read-only drawable `RegionOutline`s for the
   developer region-map viewer (`.attribution` for a given attributor vs `.source`
   for the whole catalog).
-- **`RegionLog`** — RegionKit's LogKit facade (subsystem `com.stuff.regionkit`).
+- **`RegionLog`** — RegionKit's Periscope logging facade: one `"RegionKit"`
+  root scope with a typed `LogEvent` per collaborator (`RegionAttributor`,
+  `RegionCatalog`, `RegionGeometryCatalog`), emitted into the process-wide
+  `Periscope.shared` system.
 
 ## Installation
 

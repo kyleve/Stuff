@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 import WhereCore
 
 /// View-scoped model backing the "all evidence" sheet: loads the selected
@@ -24,7 +24,7 @@ public final class EvidenceListModel {
     public private(set) var loadState: LoadState = .idle
 
     private let services: WhereServices
-    private static let logger = WhereLog.channel(.evidence)
+    private static let logger = WhereLog.evidence(EvidenceListModelLog.self)
 
     init(services: WhereServices) {
         self.services = services
@@ -49,9 +49,7 @@ public final class EvidenceListModel {
             loadState = evidence.isEmpty ? .empty : .loaded(evidence)
         } catch {
             loadState = .failed(error.localizedDescription)
-            Self.logger.warning(
-                "Failed to load evidence for \(year): \(error.localizedDescription)",
-            )
+            Self.logger { .loadFailed(year: year, description: error.localizedDescription) }
         }
     }
 

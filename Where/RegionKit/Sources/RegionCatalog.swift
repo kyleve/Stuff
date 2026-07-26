@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 
 /// The catalog of **available** regions, loaded once from the bundled
 /// `regions.json` manifest. It is RegionKit's single source of the region
@@ -92,11 +92,11 @@ public struct RegionCatalog: Sendable {
 }
 
 extension RegionCatalog {
-    private static let logger = RegionLog.channel(.catalog)
+    private static let logger = RegionLog.catalog
 
     private static func loadFromBundle() -> RegionCatalog {
         guard let url = Bundle.module.url(forResource: "regions", withExtension: "json") else {
-            logger.fault("Missing required bundled regions.json manifest")
+            logger { .missingManifest }
             assertionFailure("Missing bundled regions.json")
             return RegionCatalog(entries: [])
         }
@@ -111,10 +111,12 @@ extension RegionCatalog {
                     geometryFile: item.geometry.file,
                 )
             }
-            logger.info("Loaded region catalog with \(entries.count) region(s)")
+            logger { .loaded(regionCount: entries.count) }
             return RegionCatalog(entries: entries)
         } catch {
-            logger.fault("Failed to decode bundled regions.json: \(error.localizedDescription)")
+            logger(attachments: [.error(error, name: "decode-error")]) {
+                .decodeFailed(description: error.localizedDescription)
+            }
             assertionFailure("Failed to decode bundled regions.json: \(error)")
             return RegionCatalog(entries: [])
         }

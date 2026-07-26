@@ -7,7 +7,7 @@ widget snapshots, backups, on-device activity summaries). It is pure Swift +
 Foundation + SwiftData + CoreLocation + FoundationModels — **no SwiftUI or
 UIKit** — so all of it is unit-testable off-screen. It builds on
 [`RegionKit`](../RegionKit) for coordinate→region lookup and logs through
-[`LogKit`](../../Shared/LogKit).
+[`Periscope`](../../Shared/Periscope) via the `WhereLog` facade.
 
 Everything is reached through one `Sendable` container, **`WhereServices`**,
 which the presentation layer (`WhereUI`) and the widget extension talk to. For
@@ -96,8 +96,9 @@ one it belongs to rather than to a god-object:
   a selectable look-back `RecentActivityWindow`.
 - **`WherePreferences`** — persisted user intent (onboarding, tracking intent,
   reminder / summary schedules) behind a `KeyValueStore`.
-- **`WhereLog`** — the LogKit facade (subsystem `com.stuff.where`, a typed
-  `Category`).
+- **`WhereLog`** — the Periscope logging facade: a `"Where"` root scope with
+  grouping scopes (`location`, `reminders`, `backup`, `widgets`, …) and a typed
+  `LogEvent` per collaborator, emitted into `Periscope.shared`.
 
 ## Installation
 

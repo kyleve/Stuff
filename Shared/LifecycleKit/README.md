@@ -43,8 +43,11 @@ it to a target's dependencies in [`Package.swift`](../../Package.swift):
 ## Core API
 
 ```swift
-// Why we're launching — gates UI-bearing steps.
-public enum LifecycleReason { case userForeground, background(LifecycleBackgroundCause) }
+// Why we're launching — gates UI-bearing steps. `.undetermined` is the honest
+// state under the UIScene lifecycle, where `applicationState` can't tell a user
+// launch from a headless wake at launch: it behaves like a background launch
+// until `enterForeground()` promotes it once a scene actually activates.
+public enum LifecycleReason { case userForeground, background(LifecycleBackgroundCause), undetermined }
 public struct LifecycleModeSet: OptionSet { /* .foreground, .background, .all */ }
 
 // One unit of launch work. `condition`/`modes` are set at construction (init /
@@ -86,7 +89,7 @@ public enum LifecyclePhase {
                 sequence: LifecycleSteps)
     public func run() async             // walk the steps; idempotent
     public func retry()                 // re-run from the failed step
-    public func enterForeground() async // promote a background launch
+    public func enterForeground() async // promote a background/undetermined launch
     public func teardown(_ sequence: LifecycleSteps) async // reverse flow → relaunch
 }
 ```
@@ -169,6 +172,17 @@ LifecycleContainer(
 ) { MainTabView() }
 ```
 
+A fast launch can finish before the splash is ever seen (an optimized build may
+reach `.ready` in a few frames), so its reveal flashes past. Pass
+`minimumSplashDuration` to hold the splash up for at least that long once it
+first appears, then play the reveal — it defaults to `.zero` (reveal as soon as
+the runner is ready). The hold is per-appearance, so a reset relaunch (or the
+return from an onboarding step) gets its own minimum:
+
+```swift
+LifecycleContainer(runner, minimumSplashDuration: .seconds(1)) { MainTabView() }
+```
+
 The container also publishes the runner into the environment as
 `\.lifecycleRunner`, a `LifecycleRunnerProxy` (not a bare optional), letting
 nested views reach `retry()`/`teardown()` without prop-drilling. When no
@@ -186,7 +200,8 @@ struct ResetButton: View {
 }
 ```
 
-For a **background launch** (`reason.isBackground`) it renders `EmptyView()`
+For a launch that shows no window (`reason.buildsNoViewTree` — a **background**
+relaunch, or an **undetermined** one not yet promoted) it renders `EmptyView()`
 always — even at `.ready` — so `content()` (the heavy view tree) is never built.
 
 ## Usage
@@ -197,9 +212,10 @@ launch works before any window exists) and drive it:
 ```swift
 // App delegate / launch site:
 let runner = LifecycleRunner(
-    // A `.background` launch state means iOS woke us headless (e.g. for a
-    // queued location event); an active/inactive launch is user-visible.
-    reason: application.applicationState == .background ? .background(.location) : .userForeground,
+    // Under the UIScene lifecycle `applicationState` reads `.background` even
+    // for a user tap, so don't guess a cause here: launch `.undetermined` and
+    // let `enterForeground()` promote it when a scene actually activates.
+    reason: .undetermined,
     initializePrerequisites: { deps.installLocationManager() }, // synchronous, must-exist-now wiring
     sequence: LifecycleSteps {
         LifecycleStep.work("open-store") { _ in try await deps.openStore() }
@@ -273,14 +289,16 @@ relaunch; `retry()` resumes the teardown from the failed step, then relaunches.
   store that may run a slow migration — belongs in an async step, so it never
   blocks `didFinishLaunching` (and the system watchdog).
 
-- **Background launches build no UI.** iOS connects a background scene without
-  displaying it and reclaims such apps first under memory pressure, so a
-  background launch should build *no* view tree. `LifecycleContainer` enforces
-  this (`EmptyView()` for any background reason); the work still runs because
-  it's driven from the launch site (`Task { await runner.run() }`), independent
-  of whether SwiftUI ever builds the hierarchy. When a window genuinely appears,
+- **Windowless launches build no UI.** iOS connects a background scene without
+  displaying it and reclaims such apps first under memory pressure, so a launch
+  with no window should build *no* view tree. `LifecycleContainer` enforces this
+  (`EmptyView()` whenever `reason.buildsNoViewTree` — a `.background` relaunch or
+  an `.undetermined` one not yet promoted); the work still runs because it's
+  driven from the launch site (`Task { await runner.run() }`), independent of
+  whether SwiftUI ever builds the hierarchy. When a window genuinely appears,
   `enterForeground()` promotes the runner and re-drives so foreground-only
-  steps (onboarding) now run.
+  steps (onboarding) now run — skipping any step that already completed during
+  the windowless drive, so a work step never runs twice.
 
 All drives (`run` / `enterForeground` / `retry` / `teardown`) are serialized
 through a single internal task, so two never overlap (which would let, e.g., a
