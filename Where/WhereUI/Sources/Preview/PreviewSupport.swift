@@ -87,6 +87,26 @@
             BackupModel(services: previewServices())
         }
 
+        // MARK: - Build metadata (About sub-screen)
+
+        /// Build metadata as the shipping app carries it — the About screen's
+        /// normal state. A preview or test bundle is never stamped, so this can't
+        /// come from the real bundle.
+        public static func stampedBuildInfo(isDirty: Bool = false) -> BuildInfo {
+            BuildInfo(infoDictionary: [
+                "CFBundleShortVersionString": "1.0",
+                "CFBundleVersion": "42",
+                "WhereGitSHA": "a18a9309c5d6",
+                "WhereGitStatus": isDirty ? "dirty" : "clean",
+            ])
+        }
+
+        /// Build metadata from a bundle the stamp script never ran on — the
+        /// RegionViewer, an extension, a test host.
+        public static func unstampedBuildInfo() -> BuildInfo {
+            BuildInfo(infoDictionary: [:])
+        }
+
         // MARK: - Region picker / customization
 
         /// A primary-region selection model seeded with a few US picks + looks,

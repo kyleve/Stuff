@@ -136,4 +136,50 @@ struct WhereFormatTests {
                 "Every feature decoded straight from the bundled GeoJSON, at full authored fidelity.",
         )
     }
+
+    // MARK: About
+
+    @Test func aboutValueNamesAMissingBuildValue() {
+        #expect(WhereFormat.aboutValue("1.0") == "1.0")
+        // An absent value must read as unknown, never as a blank that looks
+        // like a real (empty) version.
+        #expect(WhereFormat.aboutValue(nil) == "Unknown")
+    }
+
+    @Test func aboutCommitFlagsADirtyTree() {
+        let sha = "a18a9309c5d6"
+        #expect(WhereFormat.aboutCommit(BuildInfo.Commit(sha: sha, isDirty: false)) == sha)
+        #expect(
+            WhereFormat.aboutCommit(BuildInfo.Commit(sha: sha, isDirty: true))
+                == "\(sha) (modified)",
+        )
+        #expect(WhereFormat.aboutCommit(nil) == "Unknown")
+    }
+
+    @Test func regionDataSourceCountPluralizes() {
+        #expect(WhereFormat.regionDataSourceRegionCount(1) == "1 region")
+        #expect(WhereFormat.regionDataSourceRegionCount(52) == "52 regions")
+    }
+
+    @Test func regionDataSourceFidelitySwitchesResolve() {
+        #expect(
+            WhereFormat.regionDataSourceFidelity(.authoritative)
+                == "Simplified from the published boundary set.",
+        )
+        #expect(
+            WhereFormat.regionDataSourceFidelity(.approximate)
+                == "Approximate outline drawn for this app — coarse, and not authoritative.",
+        )
+    }
+
+    @Test func regionDataSourceLicenseSwitchesResolve() {
+        #expect(
+            WhereFormat.regionDataSourceLicense(.publicDomain("17 U.S.C. § 105"))
+                == "Public domain — 17 U.S.C. § 105",
+        )
+        #expect(
+            WhereFormat.regionDataSourceLicense(.originalWork)
+                == "No external source; covered by the app's own license.",
+        )
+    }
 }
