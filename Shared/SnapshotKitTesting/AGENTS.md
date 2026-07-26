@@ -45,6 +45,13 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   match the scheme's `SNAPSHOT_EXPECTED_*` pins, or two variants that would
   share one reference name, records a single clear issue and asserts nothing —
   never hundreds of confusing pixel diffs.
+- **An unsettled capture is a failure, not a silent fallback.** `settleContent`
+  returns a `SettleOutcome`, and `reportIfUnsettled` records an issue when the
+  budget expires with the content still changing. Capturing whatever frame
+  happened to be on screen is how a flaky reference lands, so don't "fix" a
+  timeout by widening the budget — freeze the motion behind
+  `\.isCapturingSnapshot`, or use `.settledAtLeast` only when the content is
+  genuinely slow rather than endless.
 - **Captures are single-tenant per process, enforced by `SnapshotCaptureLock`.**
   Every capture holds process-global state (the safe-area swizzle + override
   globals, the animations flag, the one `StuffTestHost` key window) across the

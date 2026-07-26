@@ -1,6 +1,57 @@
 import SnapshotKit
 import SwiftUI
+import Testing
 import UIKit
+
+/// How a settle phase ended. Only ``settled`` and ``skipped`` mean the pixels
+/// the capture is about to record are the ones the case declared — the rest
+/// describe a capture the pipeline can't vouch for, so callers report them
+/// instead of quietly proceeding.
+enum SettleOutcome: Equatable {
+    /// Renders reached pixel stability and held it through the quiet window.
+    case settled
+    /// The case declared `.immediate`, so no settle loop ran.
+    case skipped
+    /// The budget elapsed with the content still changing. Whatever gets
+    /// captured is an arbitrary frame of whatever is still in motion, which is
+    /// how a flaky reference gets recorded.
+    case timedOut(budget: TimeInterval)
+    /// The task was cancelled mid-settle.
+    case cancelled
+}
+
+/// Fails the test when a settle phase ended somewhere the capture can't be
+/// trusted from. A view still in motion at the budget records an arbitrary
+/// frame, which is precisely how a flaky reference lands — the failure class
+/// the settle loop exists to prevent — so it's louder than a log: a silent
+/// timeout is indistinguishable from a clean capture in CI output.
+@MainActor
+func reportIfUnsettled(
+    _ outcome: SettleOutcome,
+    phase: String,
+    of viewController: UIViewController,
+) {
+    switch outcome {
+        case .settled, .skipped:
+            return
+        case let .timedOut(budget):
+            Issue.record(
+                """
+                Snapshot content never settled: the \(phase) phase for \
+                \(type(of: viewController)) was still changing after \(budget.formatted())s, \
+                so this capture is an arbitrary frame of whatever is still moving. Freeze the \
+                motion at a deterministic phase behind `\\.isCapturingSnapshot` (the Where app \
+                does this with `MotionIsStatic`), or — if the content is merely slow rather than \
+                endless — raise the floor with `.settledAtLeast(minDuration:)`.
+                """,
+            )
+        case .cancelled:
+            // Deliberately quiet: a cancelled test is already being torn down and
+            // a second issue would just bury the cancellation. Skipping the assert
+            // outright is the real fix, tracked in TODOs.md.
+            return
+    }
+}
 
 /// Runs the settle phase a case declared: `.settled` waits for pixel-stable
 /// renders (see ``settleContent(_:minDuration:maxDuration:)``);
@@ -10,14 +61,14 @@ import UIKit
 /// synchronously still runs — and re-lays-out, skipping the digest-render loop
 /// entirely.
 @MainActor
-func settleForCapture(_ view: UIView, settle: SnapshotSettle) async {
+func settleForCapture(_ view: UIView, settle: SnapshotSettle) async -> SettleOutcome {
     switch settle {
         case .settled:
-            await settleContent(view)
+            return await settleContent(view)
         case let .settledAtLeast(minDuration):
             // Keep the hang budget for never-quiescing content above the raised
             // floor, so the minimum is always honored.
-            await settleContent(
+            return await settleContent(
                 view,
                 minDuration: minDuration,
                 maxDuration: max(2.5, minDuration + 2.5),
@@ -25,6 +76,7 @@ func settleForCapture(_ view: UIView, settle: SnapshotSettle) async {
         case .immediate:
             await Task.yield()
             CATransaction.performWithoutAnimation(view.layoutIfNeeded)
+            return .skipped
     }
 }
 
@@ -61,12 +113,16 @@ func settleForCapture(_ view: UIView, settle: SnapshotSettle) async {
 /// span `stableQuietDuration`: at a 16ms cadence a slow transition (a glass
 /// material crossfade) can quantize to zero between *adjacent* frames while
 /// still drifting across the window — the anchor comparison catches the drift.
+///
+/// Returns how it ended: exhausting `maxDuration` means the content never
+/// stopped moving, which the caller reports rather than capturing an arbitrary
+/// frame and calling it a reference.
 @MainActor
 func settleContent(
     _ view: UIView,
     minDuration: TimeInterval = 0.25,
     maxDuration: TimeInterval = 2.5,
-) async {
+) async -> SettleOutcome {
     // How long the rendered pixels must stay byte-identical to the quiet
     // window's anchor sample before the content counts as settled — matches the
     // old 2-passes-at-60ms quiet window, now sampled densely.
@@ -82,7 +138,7 @@ func settleContent(
         do {
             try await Task.sleep(for: .milliseconds(16))
         } catch {
-            break // Cancelled — stop settling; the capture proceeds as-is.
+            return .cancelled
         }
         CATransaction.performWithoutAnimation(view.layoutIfNeeded)
         let sample = view.renderedContentSample()
@@ -104,9 +160,10 @@ func settleContent(
            Date() >= anchorDate.addingTimeInterval(stableQuietDuration),
            Date() >= minDeadline
         {
-            break
+            return .settled
         }
     }
+    return .timedOut(budget: maxDuration)
 }
 
 extension UIView {

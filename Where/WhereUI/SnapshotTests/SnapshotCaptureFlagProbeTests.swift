@@ -5,21 +5,26 @@ import Testing
 import UIKit
 @testable import WhereUI
 
-/// Cross-boundary regression guard for the duplicate `SnapshotKit` embed:
-/// this bundle statically links `SnapshotKitTesting`, which embeds a second
-/// copy of `SnapshotKit` alongside the one inside the WhereUI dynamic
-/// framework (see the WhereUISnapshotTests comment in `Project.swift`). The
-/// pipeline writes `SnapshotCaptureTrait` through the bundle's copy while
-/// WhereUI's stand-ins (`MotionIsStatic`, `RegionMapView`,
-/// `SnapshotDatePickerStandIn`) read `\.isCapturingSnapshot` through WhereUI's
-/// copy — a type-keyed lookup that silently returns the default if the copies
-/// ever split into separate type metadata (the root `AGENTS.md` "Targets"
-/// hazard). So, like `WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot`
-/// for Broadway, this probes a **WhereUI-defined** view through the pipeline:
-/// a green capture proves the write and the read resolved against the same
-/// logical trait across the framework boundary.
-/// (`SnapshotCaptureFlagTests` covers the same-image side — a probe view
-/// compiled into this bundle — and cannot detect a cross-boundary split.)
+/// End-to-end guard that the capture flag survives the whole write→read path
+/// this bundle depends on: `SnapshotKitTesting` sets `SnapshotCaptureTrait`
+/// via `traitOverrides` on the captured view controller, and WhereUI's
+/// stand-ins (`MotionIsStatic`, `RegionMapView`, `SnapshotDatePickerStandIn`)
+/// read `\.isCapturingSnapshot` from the SwiftUI environment — a type-keyed
+/// lookup that silently returns the default, never an error, if the two sides
+/// ever stop resolving to the same trait.
+///
+/// Two things could break that, and this test catches both. UIKit could stop
+/// propagating the override across the `UIHostingController` boundary; or the
+/// linker could stop coalescing the `SnapshotKit` this bundle gets via
+/// `SnapshotKitTesting` with the one it gets via WhereUI, splitting the trait
+/// into two type metadata records (the root `AGENTS.md` "Targets" hazard — not
+/// how this bundle links today, see the `Project.swift` comment, but nothing
+/// in the build guarantees it stays that way).
+///
+/// So it probes a **WhereUI-defined** view through the real pipeline rather
+/// than a local one: `SnapshotCaptureFlagTests` already covers a probe view
+/// compiled into `SnapshotKitTesting`'s own bundle, which by construction
+/// can't exercise either failure.
 @MainActor
 struct SnapshotCaptureFlagProbeTests {
     @Test func whereUIViewsReadTheCaptureFlagDuringCapture() async throws {

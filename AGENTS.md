@@ -569,8 +569,15 @@ environment: formatting and agent sync work; builds, tests, and running the
 
 [`.cursor/environment.json`](.cursor/environment.json) runs
 [`.cursor/install.sh`](.cursor/install.sh) after checkout: it installs `mise`,
-trusts the config, runs `mise install`, and points Git at `.githooks/`. Nothing
-about a cloud agent's setup lives in a dashboard.
+trusts the config, runs `mise install`, installs `git-lfs`, and points Git at
+`.githooks/`. Nothing about a cloud agent's setup lives in a dashboard.
+
+`git-lfs` is not optional on either platform. `.githooks/` carries the Git LFS
+hooks beside the pre-commit formatter, and they **exit non-zero when the binary
+is missing** — so routing Git at them without it breaks checkout, merge, and
+push even for work that never touches snapshot tests. Both bootstraps handle it
+before setting `core.hooksPath`: `./ide` checks and instructs (`brew install
+git-lfs`), the cloud script installs it from apt.
 
 Two consequences worth knowing. A repo-defined environment follows branches, so
 a PR can change how its own agent is set up — and it **takes precedence over any
@@ -590,6 +597,7 @@ external agent skills, which are gitignored and so absent from a bare checkout.
 | Install the pinned tools | `mise install` (Ruby + SwiftFormat; skips Tuist) |
 | Format lint (CI `format` job equivalent) | `./swiftformat --lint` |
 | Agent file sync | `./sync-agents` or `./sync-agents --install` |
+| Git LFS | `apt-get install git-lfs` — required by `.githooks/` |
 | Pre-commit hook | works — `mise exec --` no longer pulls in Tuist |
 
 ### What does not work on Linux

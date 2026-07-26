@@ -340,9 +340,10 @@ let project = Project(
         // `__Snapshots__/`, and runs in the main `Stuff-iOS-Tests` scheme /
         // `test` CI job. `SnapshotKitTesting` embeds its dependency closure
         // (SnapshotKit, SnapshotTesting, AccessibilitySnapshot) into the
-        // `.xctest`; that's fine here since no WhereUI dynamic-framework
-        // boundary is crossed (the duplicate-metadata hazard is specific to the
-        // WhereUISnapshotTests topology).
+        // `.xctest`, as every bundle here embeds what it links. That means the
+        // `Stuff-iOS-Tests` host process holds a SnapshotKit copy per bundle
+        // that links one, but no lookup crosses between them: each bundle's
+        // capture writes and reads resolve within its own image.
         unitTests(
             name: "SnapshotKitTestingTests",
             bundleIdSuffix: "snapshotkittesting",
@@ -402,22 +403,21 @@ let project = Project(
         // `Stuff-iOS-Tests` scheme, keeping image snapshots out of the main
         // `test` job. Lists only `SnapshotKitTesting` in `extraPackageProducts`:
         // the test-only capture pipeline, which WhereUI deliberately never
-        // links. Know the trade-off that carries: `SnapshotKitTesting`
-        // statically embeds its dependency closure into the .xctest,
-        // *including a second copy of SnapshotKit* — WhereUI (a dynamic
-        // framework) already carries its own — which is exactly the
-        // duplicate-type-metadata hazard from the root AGENTS.md "Targets"
-        // note, with `\.isCapturingSnapshot` as the type-keyed cross-boundary
-        // lookup at risk (pipeline writes via the bundle's copy, WhereUI
-        // stand-ins read via WhereUI's). The duplicate is tolerated because
-        // the pipeline has no other route into this bundle, and the lookup
-        // demonstrably resolves across the two copies today (UIKit appears to
-        // key custom traits by their registered `identifier` string rather
-        // than type identity — an implementation detail, not a guarantee).
-        // `SnapshotCaptureFlagProbeTests` is the regression guard: it
-        // pixel-probes a WhereUI-defined view through the pipeline and fails
-        // loudly if the copies ever split. Do NOT re-list any *other* WhereUI
-        // transitive here — same rule as WhereUITests above.
+        // links.
+        //
+        // `SnapshotKitTesting` embeds its dependency closure, SnapshotKit
+        // included — which WhereUI carries too — but that does *not* land a
+        // second copy here: the linker coalesces them. Verified on the built
+        // bundle, which defines exactly one set of SnapshotKit symbols, the
+        // same count as WhereUITests (a bundle that links no extra products at
+        // all). So `\.isCapturingSnapshot` has no copy boundary to cross, and
+        // the duplicate-metadata hazard in the root AGENTS.md "Targets" note
+        // doesn't apply to this pairing. `SnapshotCaptureFlagProbeTests` still
+        // pins the path end to end — the pipeline's `traitOverrides` write
+        // reaching a WhereUI-defined view's read — so a toolchain that stopped
+        // coalescing would fail loudly rather than silently returning defaults.
+        // Do NOT re-list any *other* WhereUI transitive here: same rule as
+        // WhereUITests above.
         unitTests(
             name: "WhereUISnapshotTests",
             bundleIdSuffix: "whereui.snapshot",

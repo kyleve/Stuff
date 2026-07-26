@@ -122,6 +122,9 @@ jobs:
     # renderer, so the snapshot job must not lag the toolchain the rest of CI
     # (and every local run) uses.
     runs-on: xcode-27
+    # Same stuck-simulator cap as the `test` job above, sized for this job's
+    # longer run (~17 minutes with the LFS fetch and the serial capture).
+    timeout-minutes: 60
     steps:
       # Reference images live in Git LFS (see .gitattributes), so fetch them —
       # without this the images arrive as pointer files and every comparison fails.

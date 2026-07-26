@@ -144,7 +144,11 @@ private func renderSnapshotImageLocked(
 
         wrappingViewController.view.setNeedsLayout()
         CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
-        await settleForCapture(wrappingViewController.view, settle: settle)
+        await reportIfUnsettled(
+            settleForCapture(wrappingViewController.view, settle: settle),
+            phase: "content",
+            of: viewController,
+        )
 
         // The pre-capture hook sees fully settled content, then its own
         // effects (a focused field, a presented state) are settled before the
@@ -153,7 +157,11 @@ private func renderSnapshotImageLocked(
             await onReadyToSnapshot()
             wrappingViewController.view.setNeedsLayout()
             CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
-            await settleForCapture(wrappingViewController.view, settle: settle)
+            await reportIfUnsettled(
+                settleForCapture(wrappingViewController.view, settle: settle),
+                phase: "onReadyToSnapshot",
+                of: viewController,
+            )
         }
 
         // Parse accessibility only after the content has settled, so the
@@ -248,7 +256,11 @@ private func resolveContentSize(
     hostChildForCapture(probeWrapper, in: hostRoot)
     probeWrapper.view.setNeedsLayout()
     CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
-    await settleForCapture(probeWrapper.view, settle: settle)
+    await reportIfUnsettled(
+        settleForCapture(probeWrapper.view, settle: settle),
+        phase: "intrinsic measurement",
+        of: viewController,
+    )
 
     func measureContent() -> CGSize {
         var measured = viewController.view

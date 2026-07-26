@@ -41,7 +41,10 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   optional `onReadyToSnapshot` hook runs after that settle and before the
   accessibility parse / capture — the deterministic point to focus a field or
   trigger a presented state — and its effects are settled again before the
-  image is taken.
+  image is taken. Content that never stops moving within the budget **fails the
+  test** rather than capturing an arbitrary frame: the failure names the phase
+  and points at freezing the motion behind `\.isCapturingSnapshot` or raising
+  the floor with `.settledAtLeast`.
 - **Accessibility captures** — for `.accessibility` configurations, content is
   wrapped so the image is annotated with the VoiceOver reading order, labels,
   traits, and activation points.
