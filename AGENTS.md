@@ -62,6 +62,25 @@ simulator](#selecting-a-simulator--address-it-by-udid-not-name)).
 `AppIcons.json` manifest in sync — never hand-edit those or add icon Swift.
 Run `./ide --no-open` after adding one.
 
+### Version and build metadata
+
+The Where app's `CFBundleShortVersionString` / `CFBundleVersion` are stated
+**explicitly** in [`Project.swift`](Project.swift) rather than left to Tuist's
+`.extendingDefault` values, because Settings > About shows them — bump them
+there. The commit is *not* a manifest value: a post-build script phase
+([`Where/Where/Scripts/stamp-build-info.sh`](Where/Where/Scripts/stamp-build-info.sh))
+writes `WhereGitSHA` and `WhereGitStatus` into the built product's Info.plist,
+which `WhereCore`'s `BuildInfo` reads back.
+
+The two constraints worth knowing before touching it: it must stay a **post**
+script (it edits the plist "Process Info.plist" already wrote, and must land
+before signing seals the bundle), and it must keep
+`basedOnDependencyAnalysis: false`, or an unchanged source tree ships the
+previous commit's SHA. It reads `.git`, so it also depends on
+`ENABLE_USER_SCRIPT_SANDBOXING` staying unset (Xcode defaults it off; new
+project templates set it on). Only the app is stamped — the extensions never
+read these keys.
+
 ## Formatting
 
 - **SwiftFormat** uses [`.swiftformat`](.swiftformat). Run `./swiftformat` to

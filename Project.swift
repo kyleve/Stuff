@@ -95,6 +95,11 @@ let project = Project(
             infoPlist: .extendingDefault(with: [
                 "UILaunchScreen": .dictionary([:]),
                 "UIApplicationSupportsIndirectInputEvents": .boolean(true),
+                // Stated explicitly rather than left to Tuist's `1.0` / `1`
+                // defaults, because Settings > About shows them: the version a
+                // user reads off the screen should be one this manifest chose.
+                "CFBundleShortVersionString": .string("1.0"),
+                "CFBundleVersion": .string("1"),
                 "NSLocationWhenInUseUsageDescription": .string(
                     "Where uses your location to figure out which region you're in.",
                 ),
@@ -105,6 +110,17 @@ let project = Project(
             sources: ["Where/Where/Sources/**"],
             resources: ["Where/Where/Resources/**"],
             entitlements: whereAppGroupEntitlements,
+            // Writes `WhereGitSHA` / `WhereGitStatus` into the built Info.plist
+            // for Settings > About. A *post* script so it lands after "Process
+            // Info.plist" and before signing, and `basedOnDependencyAnalysis:
+            // false` so an unchanged source tree still re-stamps a new commit.
+            scripts: [
+                .post(
+                    path: "Where/Where/Scripts/stamp-build-info.sh",
+                    name: "Stamp Build Info",
+                    basedOnDependencyAnalysis: false,
+                ),
+            ],
             dependencies: [
                 .package(product: "LifecycleKit"),
                 .package(product: "RegionKit"),
