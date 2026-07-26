@@ -198,6 +198,12 @@ path.
   (or shows an in-flight status) should fade/move rather than snap (e.g.
   `.transition(.opacity)` on each `switch` arm plus `.animation(_:value:)`).
   Hidden means *out of the tree* (`if` + transition), not opacity zero.
+- **A displayed value that can change under the user morphs, too.** Live counts
+  (a region's day count as a sample lands) get a `.contentTransition` — but one
+  animates *only* inside a transaction, so it needs a paired
+  `.animation(_:value:)` on an ancestor or it silently hard-cuts. Pick the
+  transition and its animation together and honor Reduce Motion in both (see
+  `DayCountMorph`, which `RegionSummaryCard` resolves once).
 - **Derive UI dimensions; don't repeat them.** A repeated dimension gets one
   named home; real chrome is measured from the live UI via a preference key /
   `onGeometryChange` (see `DeveloperTabBarInset`) rather than hardcoding its

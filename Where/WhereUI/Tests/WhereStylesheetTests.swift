@@ -240,6 +240,8 @@ struct WhereStylesheetTests {
         #expect(motion.reveal == .easeIn(duration: 0.16))
         #expect(motion.reducedReveal == .easeInOut(duration: 0.2))
         #expect(motion.captionFade == .easeOut(duration: 0.3))
+        #expect(motion.dayCountChange == .easeOut(duration: 0.3))
+        #expect(motion.reducedDayCountChange == .easeInOut(duration: 0.2))
     }
 
     @Test func launchTimings() {

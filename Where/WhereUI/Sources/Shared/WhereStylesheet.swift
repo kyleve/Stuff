@@ -728,11 +728,20 @@ extension WhereStylesheet {
         var reducedReveal: Animation
         /// One-shot fade for incidental appearance (e.g. the launch caption).
         var captionFade: Animation
+        /// A day count changing under the user (see ``DayCountMorph``): long
+        /// enough for the digits to read as rolling, short enough that a card
+        /// tapped mid-roll doesn't feel held up.
+        var dayCountChange: Animation
+        /// The Reduce-Motion fallback for a day-count change, paired with a
+        /// crossfade instead of the roll.
+        var reducedDayCountChange: Animation
 
         static let standard = Motion(
             reveal: .easeIn(duration: 0.16),
             reducedReveal: .easeInOut(duration: 0.2),
             captionFade: .easeOut(duration: 0.3),
+            dayCountChange: .easeOut(duration: 0.3),
+            reducedDayCountChange: .easeInOut(duration: 0.2),
         )
     }
 }
