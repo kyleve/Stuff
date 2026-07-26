@@ -6,9 +6,6 @@ import Testing
 import WhereCore
 @testable import WhereUI
 
-/// Image snapshot for the DEBUG developer `LogViewer` (a third-party
-/// `LogViewerUI` surface, so it has no WhereUI `SnapshotProviding` conformance —
-/// the inline `assertSnapshots(of:named:)` overload is used instead).
 @MainActor
 @Suite(.snapshots(record: .missing))
 struct DebugLogViewerSnapshotTests {

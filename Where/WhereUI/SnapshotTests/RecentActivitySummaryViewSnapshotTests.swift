@@ -2,8 +2,6 @@ import SnapshotKitTesting
 import Testing
 @testable import WhereUI
 
-/// Image snapshots for `RecentActivitySummaryView`; the matrix is declared via
-/// `SnapshotProviding` in `RecentActivitySummaryView.swift`.
 @MainActor
 @Suite(.snapshots(record: .missing))
 struct RecentActivitySummaryViewSnapshotTests {
