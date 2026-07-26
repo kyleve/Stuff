@@ -562,6 +562,18 @@ Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 26** with
 environment: formatting and agent sync work; builds, tests, and running the
 **Where** app require macOS (as in CI on the `xcode-27` runner image).
 
+### Setup is committed, not configured in a dashboard
+
+[`.cursor/environment.json`](.cursor/environment.json) runs
+[`.cursor/install.sh`](.cursor/install.sh) after checkout: it installs `mise`,
+trusts the config, runs `mise install`, and points Git at `.githooks/`. Nothing
+about a cloud agent's setup lives in a dashboard.
+
+Two consequences worth knowing. A repo-defined environment follows branches, so
+a PR can change how its own agent is set up — and it **takes precedence over any
+dashboard-managed personal or team environment** for this repo. And it must stay
+idempotent: Cursor may re-run it against cached state.
+
 ### What works on Linux
 
 **Tuist is scoped to `os = ["macos"]`** in `.mise.toml`, and mise skips an
