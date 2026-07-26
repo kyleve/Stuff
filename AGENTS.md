@@ -28,6 +28,8 @@ Roughly, this file covers:
 | SwiftFormat | `.mise.toml` |
 | Ruby        | `.mise.toml` |
 | Swift PM    | `Package.swift` (`swift-tools-version`) |
+| Bumper Bowling | `Package.swift` / `Package.resolved` |
+
 
 Read the exact pinned versions out of those files rather than trusting a copy
 in prose — a version transcribed into a doc goes stale silently.
@@ -75,6 +77,20 @@ Run `./ide --no-open` after adding one.
   churn around the one real entry. Write a catalog through Xcode, or normalize
   it afterwards; the script only touches formatting, never content.
 
+## Architecture lint
+
+Bumper Bowling enforces the production Where module graph and selected
+source-level invariants. The entry point is
+[`BumperBowling.swift`](BumperBowling.swift), repository-owned shapes and rules
+live in [`.bumper/Sources`](.bumper/Sources), and
+[`.bumper/RULES.md`](.bumper/RULES.md) is the rule catalog.
+
+Run `swift run bumper config .`, `swift run bumper test .`, and
+`swift run bumper lint . --timings` after changing a Where dependency,
+composition root, or documented concurrency boundary. Keep the relevant
+`AGENTS.md`, the executable rule, its catalog entry, and its mutation test in
+the same change.
+
 ## Agent instructions sync
 
 `AGENTS.md` is the source of truth for AI agent instructions. Cursor reads
@@ -85,15 +101,30 @@ by `./sync-agents`.
 - `./sync-agents` — generate `CLAUDE.md` next to each `AGENTS.md` and mirror
   `.agents/skills/` into `.claude/skills/`.
 - `./sync-agents --install` — fetch external skills listed in
-  `.agents/external-skills.json` (run automatically by `./ide`).
+  `.agents/external-skills.json`. Rarely run by hand: `mise install` calls it
+  from a `postinstall` hook, so installing tools also installs skills, on a dev
+  machine and a cloud agent alike.
 - `./sync-agents --add <url> [name]` — add an external skill from GitHub.
 - `./sync-agents --update` — re-fetch all external skills to the latest commit.
 
-`.agents/external-skills.json` pins those external skills to a commit —
+`.agents/external-skills.json` pins the **external** skills to a commit —
 currently Swift references (SwiftUI, Swift concurrency, Swift Testing,
-SwiftData). They are a **Claude Code** surface: Cursor reads `AGENTS.md`
-natively and never loads them, so no rule in this repo may depend on a skill
-being present.
+SwiftData) — and `.agents/skills/.gitignore` excludes those fetched copies, so
+anything else under `.agents/skills/` is a **repo-owned** skill and is committed
+(currently `todo-triage`).
+
+**Cursor reads `.agents/skills/` natively** — that directory is the real home. The
+`.claude/skills/` mirror exists for Claude Code, so run `./sync-agents` after
+adding or editing a skill, and edit the source rather than the mirror. (Cursor
+*also* loads `.claude/skills/` for Claude compatibility, so a synced skill is
+discoverable twice and the winning copy is undocumented — one more reason not to
+let the two drift.) A fresh clone carries only the repo-owned skills: `CLAUDE.md`
+and `.claude/skills/` are gitignored, and the external four arrive with the
+first `mise install`.
+
+A skill carries **procedure** — the steps of a job someone does occasionally.
+Rules an agent must follow belong in an `AGENTS.md` or a `TODOs.md` instead, so
+that nothing in this repo depends on a skill having been loaded.
 
 ## Targets
 
@@ -168,23 +199,28 @@ authoritative long after it stops being true, which is worse than no list.
 
 A few files outside the module pair carry *state* rather than rules:
 
-- **`TODOs.md`** — the durable backlog for a feature or module group, living at
-  that area's root. Anything deliberately deferred there is filed rather than
-  dropped (see [GitHub](#github)). Each one restates the shared format in its own
-  `Usage` header: tag an item with a conventional-commit type
-  (`feat`/`fix`/`refactor`/`perf`/`test`/`docs`), bucket it under `P0s` (must) /
-  `P1s` (should) / `P2s` (nice to have) / `PX` (exploratory), nest dependent
-  tasks under their parent, and **never delete a completed item** — move it to
-  "Completed issues" at the bottom. A new area's `TODOs.md` copies that header.
+- **`TODOs.md`** — the durable backlog, and the **only** place an actionable item
+  lives. One per area, at that area's root, plus the root
+  [`TODOs.md`](TODOs.md), which additionally owns the **item format** and the
+  **placement rule**: an item goes in the *lowest* `TODOs.md` spanning every area
+  it touches, up to root. Read that file before adding an item, and have a new
+  area's file link to it rather than copying the header. Anything deliberately
+  deferred is filed rather than dropped (see [GitHub](#github)), and a completed
+  item moves to "Completed issues" — never deleted.
+- **`INBOX.md`** — the root drop-box for raw, unverified human notes. Agents
+  **read from it and promote out of it**; they never file new items there
+  (agent-found work goes straight to the right `TODOs.md`). The `todo-triage`
+  skill drains it, recording a verdict for anything it declines.
 - **`FLAKY_TESTS.md`** — generated by `./flaky`. Never hand-edit it; re-run the
   script.
-- **`MODULE_AUDIT.md`** — a read-only audit across every module, useful for
-  finding known gaps and their severity. A weekly automation re-runs it and
-  opens a PR, refreshing the `TODOs.md` files alongside it, so the audit is
-  current to its header date rather than to `HEAD` — and sections survive a
-  refresh, so it still carries entries for `Shared/LogKit` and
-  `Shared/LogViewerUI`, which Periscope replaced. Verify a finding against
-  current source before acting on it.
+- **`MODULE_AUDIT.md`** — a dated, **derived** snapshot across every module:
+  the source/test inventory, what each module verified clean, and the
+  cross-cutting themes behind the current backlog. It carries **no actionable
+  items** — those are in the `TODOs.md` files — so read it to understand shape
+  and drift, not as a work list. A weekly automation refreshes it and the
+  `TODOs.md` files together through the `todo-triage` skill, so it is current to
+  its **header date**, not to `HEAD`: anything that landed since is invisible to
+  it. Verify against current source before acting on what it says.
 
 ## Conventions
 
@@ -526,23 +562,39 @@ Cloud agent VMs run **Linux**, not macOS. This repo targets **iOS 26** with
 environment: formatting and agent sync work; builds, tests, and running the
 **Where** app require macOS (as in CI on the `xcode-27` runner image).
 
+### Setup is committed, not configured in a dashboard
+
+[`.cursor/environment.json`](.cursor/environment.json) runs
+[`.cursor/install.sh`](.cursor/install.sh) after checkout: it installs `mise`,
+trusts the config, runs `mise install`, and points Git at `.githooks/`. Nothing
+about a cloud agent's setup lives in a dashboard.
+
+Two consequences worth knowing. A repo-defined environment follows branches, so
+a PR can change how its own agent is set up — and it **takes precedence over any
+dashboard-managed personal or team environment** for this repo. And it must stay
+idempotent: Cursor may re-run it against cached state.
+
 ### What works on Linux
+
+**Tuist is scoped to `os = ["macos"]`** in `.mise.toml`, and mise skips an
+OS-restricted tool entirely rather than failing on it — so `mise install` and
+every `mise exec --` now succeed here instead of dying on `unsupported env:
+linux/amd64`. `mise install` also fires the `postinstall` hook that fetches the
+external agent skills, which are gitignored and so absent from a bare checkout.
 
 | Check | Command |
 |-------|---------|
-| Trust mise config | `mise trust` (once per clone) |
-| Install SwiftFormat | `mise install swiftformat` (uses the `.mise.toml` pin) |
-| Format lint (CI `format` job equivalent) | `mise exec swiftformat -- swiftformat --lint .` |
+| Install the pinned tools | `mise install` (Ruby + SwiftFormat; skips Tuist) |
+| Format lint (CI `format` job equivalent) | `./swiftformat --lint` |
 | Agent file sync | `./sync-agents` or `./sync-agents --install` |
-| Git hooks path | `git config core.hooksPath .githooks` (also done by `./ide`) |
-
-Install **Ruby** if missing (`apt-get install ruby`) — required by `sync-agents`.
+| Pre-commit hook | works — `mise exec --` no longer pulls in Tuist |
 
 ### What does not work on Linux
 
-- **Tuist** (`mise install` / `mise install tuist` fails: `unsupported env: linux/amd64`)
-- `./ide`, `./swiftformat`, and the pre-commit hook — they call `mise exec -- …`, which tries to install **all** tools from `.mise.toml` including Tuist
-- `tuist test`, `tuist build`, iOS Simulator, and running the **Where** app
+- **Tuist** — `tuist test`, `tuist build`, and `./ide` (which generates the
+  Xcode project)
+- iOS Simulator, and running the **Where** app
+- Anything else needing Xcode
 
 These are limits of the **VM**, not of cloud agents generally: a remote-control
 session runs iOS, so anything that needs the app actually running — reproducing
