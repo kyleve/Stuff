@@ -7,7 +7,6 @@ import WhereCore
 @testable import WhereUI
 
 @MainActor
-@Suite(.snapshots(record: .missing))
 struct SwiftDataInspectorSnapshotTests {
     @Test func swiftDataInspector() async throws {
         let services = PreviewSupport.previewServices()
