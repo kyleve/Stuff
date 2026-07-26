@@ -47,6 +47,12 @@ struct WhereStylesheet: BStylesheet {
             card.regular.glow.radius = 0
             card.compact.glow.radius = 0
         }
+
+        // Reduce Motion stops the cards' day count rolling its digits; it
+        // crossfades to the new number instead.
+        if traits.accessibility.isReduceMotionEnabled {
+            card.dayCount = .reducedMotion
+        }
     }
 
     /// The fixed token set: the fallback used off the `View` tree (layout
@@ -163,6 +169,9 @@ extension WhereStylesheet {
         var frame: Frame
         /// Fill opacities of the two security-print rosettes.
         var rosetteFill: RosetteFill
+        /// How the day count changes while the card is on screen; resolves to
+        /// ``DayCountStyle/reducedMotion`` under Reduce Motion.
+        var dayCount: DayCountStyle
 
         /// The passport-style frame drawn over the card: a heavy outer line, a
         /// thin line, an optional perforation ring (see
@@ -184,6 +193,54 @@ extension WhereStylesheet {
         struct RosetteFill: Equatable {
             var primary: Double
             var secondary: Double
+        }
+
+        /// How a card's day count changes when it updates with the card on screen
+        /// — a passive sample lands, a manual day commits, a remote import
+        /// arrives — and the number showing goes stale.
+        ///
+        /// The two halves are one token because they only work together: a
+        /// `ContentTransition` morphs *only* inside an animation transaction, so
+        /// the transition is inert without the animation, and Reduce Motion
+        /// changes both (the digits stop rolling, and the curve becomes a plain
+        /// fade). The animation also sweeps the ambient bar, which reads the same
+        /// count, in the same beat.
+        struct DayCountStyle: Equatable {
+            /// Which way the count changes.
+            var morph: Morph
+            /// The animation that runs it.
+            var animation: Animation
+
+            enum Morph: Equatable {
+                /// The digits roll from the old count to the new one.
+                case rollingDigits
+                /// The old count fades into the new one, with nothing travelling
+                /// across the card.
+                case crossFade
+            }
+
+            /// The count `Text`'s content transition. Takes the count because the
+            /// roll reads it for a direction — a day added spins the digits up, a
+            /// correction spins them down.
+            func transition(days: Int) -> ContentTransition {
+                switch morph {
+                    case .rollingDigits: .numericText(value: Double(days))
+                    case .crossFade: .opacity
+                }
+            }
+
+            static let standard = DayCountStyle(
+                morph: .rollingDigits,
+                // Long enough for the digits to read as rolling, short enough
+                // that a card tapped mid-roll doesn't feel held up.
+                animation: .easeOut(duration: 0.3),
+            )
+
+            /// The Reduce-Motion pairing.
+            static let reducedMotion = DayCountStyle(
+                morph: .crossFade,
+                animation: .easeInOut(duration: 0.2),
+            )
         }
 
         subscript(_ variant: CardStyle.Variant) -> CardStyle {
@@ -267,6 +324,7 @@ extension WhereStylesheet {
                 innerDash: [5, 4],
             ),
             rosetteFill: RosetteFill(primary: 0.12, secondary: 0.08),
+            dayCount: .standard,
         )
     }
 }

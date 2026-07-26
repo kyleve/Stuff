@@ -69,6 +69,12 @@ struct RegionSummaryCard: View {
         card.progressBarHeight
     }
 
+    /// How a count change plays out while the card is on screen. Reduce Motion is
+    /// already resolved into it by the stylesheet.
+    private var dayCount: WhereStylesheet.CardStyles.DayCountStyle {
+        stylesheet.card.dayCount
+    }
+
     /// A circular rubber-stamp "entry" impression: the region glyph and year
     /// ringed by the region name, tilted as if pressed onto the page. The arc
     /// lettering is dropped on the small compact cards where it can't be read.
@@ -215,7 +221,7 @@ struct RegionSummaryCard: View {
             HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
                 Text(regionDays.days, format: .number)
                     .font(card.heroNumberFont)
-                    .contentTransition(.numericText())
+                    .contentTransition(dayCount.transition(days: regionDays.days))
                     .foregroundStyle(style.tint)
                 Text(WhereFormat.dayUnit(regionDays.days))
                     .font(card.dayUnitFont)
@@ -235,6 +241,10 @@ struct RegionSummaryCard: View {
                 .frame(height: barHeight)
                 .accessibilityHidden(true)
         }
+        // What makes the count's `.contentTransition` run at all — one morphs
+        // only inside an animation transaction — and it sweeps the ambient bar,
+        // which reads the same count, in the same beat.
+        .animation(dayCount.animation, value: regionDays.days)
         .padding(card.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { stampPaper }
@@ -371,5 +381,30 @@ private struct ArcText: View {
             )
         }
         .padding()
+    }
+
+    #Preview("Changing count") {
+        ChangingCountPreview()
+    }
+
+    /// Stands in for the count changing under the user, which is otherwise only
+    /// reachable by waiting for a sample to land: stepping the count plays the
+    /// same morph the live card does.
+    private struct ChangingCountPreview: View {
+        @State private var days = 148
+
+        var body: some View {
+            VStack {
+                RegionSummaryCard(
+                    regionDays: RegionDays(region: .california, days: days),
+                    caption: "Home base",
+                    year: 2026,
+                )
+                Stepper(value: $days, in: 0 ... 365) {
+                    Text(verbatim: "Days: \(days)")
+                }
+            }
+            .padding()
+        }
     }
 #endif

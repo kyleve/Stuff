@@ -111,7 +111,8 @@ tests) code uses `WhereStylesheet.default`. Tokens are grouped per component
 (`CalendarStyle`, `AppIconStyle`, `CardStyle`, …) with shared scales for the
 cross-cutting bits (`Spacing`, `Palette`, `Typography`, `Motion`). Most values
 are fixed; a slice derives from accessibility traits (bigger tap targets at
-large Dynamic Type, a flatter card under Reduce Transparency). See
+large Dynamic Type, a flatter card under Reduce Transparency, a crossfaded
+rather than rolling day count under Reduce Motion). See
 [`AGENTS.md`](AGENTS.md#design-system--wherestylesheet) for how to consume and
 extend it.
 
