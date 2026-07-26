@@ -11,7 +11,7 @@ Roughly, this file covers:
 - **Building and testing** — [Build system](#build-system),
   [Formatting](#formatting), [Targets](#targets), [Deployment](#deployment),
   [Generating the Xcode project](#generating-the-xcode-project),
-  [Selecting a simulator](#selecting-a-simulator--address-it-by-udid-not-name),
+  [Selecting a simulator](#selecting-a-simulator--one-device-per-checkout-addressed-by-udid),
   and the [Linux/Cloud caveats](#cursor-cloud-specific-instructions).
 - **Writing code** — [Per-module docs](#per-module-docs) (and the module layout),
   [Repo-level docs](#repo-level-docs), and [Conventions](#conventions)
@@ -51,9 +51,10 @@ generating; plain `./ide` fails fast pointing at it.
 The executables in the repo root are the dev scripts — `ide`, `swiftformat`,
 `sync-agents`, `profile`, `icons`, `flaky`, `simulator`, `xcstrings` — and each
 takes `--help`. Reach for one rather than hand-rolling its job: `icons` and
-`simulator` in particular own state that is easy to corrupt by hand (see
-[Managing app icons](#managing-app-icons) and [Selecting a
-simulator](#selecting-a-simulator--address-it-by-udid-not-name)).
+`simulator` in particular own state that is easy to corrupt by hand — the
+latter owns a simulator device per checkout (see [Managing app
+icons](#managing-app-icons) and [Selecting a
+simulator](#selecting-a-simulator--one-device-per-checkout-addressed-by-udid)).
 
 ### Managing app icons
 
@@ -465,7 +466,12 @@ flag is needed there.
 - **Never commit on `main`.** Branch first (`git checkout -b <name>`) and keep
   every commit for one piece of work on that one branch.
 - **`./swiftformat --lint` and the matching `tuist test` scheme(s) are part of
-  "done".** Never commit a red tree.
+  "done".** Never commit a red tree. Run a scheme against this checkout's own
+  simulator — `tuist test <Bundle>Tests -- -destination "platform=iOS
+  Simulator,id=$(./simulator)"` — because a bare `tuist test` lets xcodebuild
+  pick a device, which lands you back on the machine-wide one every other
+  checkout is also using (see [Selecting a
+  simulator](#selecting-a-simulator--one-device-per-checkout-addressed-by-udid)).
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
 - **Commit when asked, or when working through a plan.** If it's unclear whether
@@ -502,58 +508,79 @@ the latest `main` in locally and rebuild before digging further — a renamed
 module, a relocated test helper, or a changed shared signature shows up
 immediately, and no amount of clearing DerivedData will surface it.
 
-## Selecting a simulator — address it by UDID, not name
+## Selecting a simulator — one device per checkout, addressed by UDID
 
-A dev machine often has **several simulators sharing one device name** across
-runtimes (e.g. an "iPhone 17" on each installed iOS — 26.x, 27.0, …), which is
-a legitimate setup for testing multiple OS versions. When it does, resolving a
-simulator **by name is ambiguous**, so:
+**Every checkout owns a simulator of its own, and `./simulator` is the only
+thing that hands one out.** Two failure modes make that the rule:
 
-- **Any `xcrun simctl` command matches by name only.** `simctl boot "iPhone
-  17"` (or `shutdown` / `erase`) may act on a *different* device than the one
-  under test, leaving a device mid-transition. That surfaces as
-  `Application failed preflight checks (Busy)` or `Mach error -308 — server
-  died` / `crashed with signal kill before establishing connection` — launch
-  failures that look like test failures but aren't (the suites that do run
-  are green). Always pass a **UDID** to `simctl`, never a name.
-- **Prefer pre-booting the exact target and running by `id=`.** That's the
-  reliable recipe when a run is flaking. Doing it by hand means remembering
-  that `simctl shutdown` is async — poll until the device actually reads
-  `(Shutdown)` before `erase`/`boot`.
-- **If you keep a name-based `-destination`, always include `OS=`** so
-  *xcodebuild* resolves unambiguously — but that only disambiguates the test
-  destination, not any `simctl` command you run alongside it.
+- **A shared name is ambiguous.** A dev machine usually has an "iPhone 17" on
+  each installed runtime (26.x, 27.0, …) — a legitimate setup for testing
+  multiple OS versions — and **any `xcrun simctl` command matches by name
+  only**. `simctl boot "iPhone 17"` (or `shutdown` / `erase`) may act on a
+  *different* device than the one under test, leaving it mid-transition.
+- **A shared device is contended.** Several checkouts on one machine — clones,
+  worktrees, an agent working in each — otherwise resolve to the *same*
+  device, and then race each other booting it, installing and uninstalling the
+  same bundle ID, and erasing it out from under a run in flight.
 
-**Use `./simulator` rather than hand-rolling this.** It resolves the device for
-a given name + OS to a single UDID, boots it, waits for the boot to *finish*
-(`simctl bootstatus -b` — a condition, not a fixed sleep), and prints only the
-UDID, so it composes into any destination:
+Both surface identically: `Application failed preflight checks (Busy)` or
+`Mach error -308 — server died` / `crashed with signal kill before establishing
+connection` — launch failures that look like test failures but aren't (the
+suites that do run are green, and the wall time is spent before and around
+them). So always pass a **UDID** to `simctl`, never a name, and get that UDID
+from `./simulator`:
 
 ```bash
 mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
   -destination "platform=iOS Simulator,id=$(./simulator)"
 ```
 
-It defaults to the CI pairing (iPhone 17 / iOS 27.0); pass `--device` / `--os`
-to target another, `--no-boot` to just resolve the UDID, and see
-`./simulator --help`. `./profile`, `./flaky`, and CI all go through it, so a
-local repro targets the device the same way CI does — don't reintroduce a
-`name=…` destination or a bare `simctl <name>` call in a script.
+It derives a device name from the checkout's path
+(`Stuff-<folder>-<hash>-iPhone-17-27.0`), **creates that device the first time
+it's asked** — a fresh device's first boot runs a data migration, so expect a
+couple of minutes once per checkout — boots it, waits for the boot to *finish*
+(`simctl bootstatus -b` — a condition, not a fixed sleep), and prints only the
+UDID, so it composes into any destination. `./profile` and `./flaky` go through
+it too, so a local repro targets a device nothing else can touch.
 
-**CI is not exempt.** The `xcode-27` image ships a single iPhone 17 today, so a
+- It defaults to the CI pairing (iPhone 17 / iOS 27.0); `--device` / `--os`
+  target another (each pairing is its own per-checkout device), and `--no-boot`
+  just resolves the UDID. See `./simulator --help`.
+- **Don't hand-create, rename, or reuse these devices.** The name is the
+  ownership record; a duplicate reintroduces exactly the ambiguity above, and
+  the script warns when it finds one.
+- `--list` shows every managed device with the checkout that owns it, and
+  `--recreate` replaces a wedged one. `--prune` deletes the devices whose
+  checkout is gone — run it after deleting a worktree or clone, with
+  `--dry-run` first if you want to see the plan. It skips a checkout whose
+  *parent* directory is missing too, since an unmounted volume is
+  indistinguishable from a deletion and a device takes everything installed on
+  it to the grave.
+- **Renaming or moving a checkout gives it a new device**, because the name is
+  derived from the path. The old one turns up as `unowned` in `--list`;
+  `--prune` reports it but won't delete it (a cleared index makes a live
+  checkout's device look abandoned in exactly the same way), so clearing one is
+  a deliberate `xcrun simctl delete <udid>`.
+- Never reintroduce a `name=…` destination or a bare `simctl <name>` call in a
+  script. If you *do* keep a name-based `-destination` by hand, always include
+  `OS=` so *xcodebuild* resolves unambiguously — that disambiguates the test
+  destination only, not any `simctl` command alongside it. Doing it by hand
+  also means remembering that `simctl shutdown` is async: poll until the
+  device actually reads `(Shutdown)` before `erase`/`boot`.
+
+**CI takes the one exception, and still resolves by UDID.** A job owns its VM,
+so the isolation a per-checkout device buys is already there — the boot step
+passes `--shared`, which takes the image's existing iPhone 17 instead of
+creating (and then first-booting) a device per run. Resolution is not optional
+even there: the `xcode-27` image ships a single iPhone 17 today, so a
 `name=…,OS=…` destination does resolve — but *booting* is the expensive half,
 and a cold or wedged CoreSimulator has stretched the ~10-minute test job to
 **3.5–5 hours** on that image (runs on 2026-07-23, i.e. after the
 `xcrun simctl list` cache warm-up was already in place — that nudge fixes
-destination *resolution*, not a slow boot). So CI does the same thing this
-section prescribes: resolve the UDID, `bootstatus -b` it, and pass
-`-destination "…,id=$UDID"`, under a `timeout-minutes` cap so a stuck boot
-fails fast instead of holding a runner. See
-[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
-
-The symptom to recognize either way: the run is **not** failing on your code —
-the suites that execute are green, and the wall time is spent before/around
-them.
+destination *resolution*, not a slow boot). So CI resolves the UDID,
+`bootstatus -b`s it, and passes `-destination "…,id=$UDID"`, under a
+`timeout-minutes` cap so a stuck boot fails fast instead of holding a runner.
+See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Cursor Cloud specific instructions
 
@@ -603,9 +630,12 @@ being written off as untestable from a cloud agent.
 
 ### Full build & test (macOS only)
 
-Matches CI `.github/workflows/ci.yml` — which boots the simulator by UDID
-first, per [Selecting a
-simulator](#selecting-a-simulator--address-it-by-udid-not-name):
+Matches CI `.github/workflows/ci.yml` — which resolves and boots the simulator
+by UDID first, per [Selecting a
+simulator](#selecting-a-simulator--one-device-per-checkout-addressed-by-udid).
+The first `./simulator` run in a checkout creates that checkout's device, so
+budget a couple of minutes for it; CI adds `--shared` because a job's VM is
+already isolated.
 
 ```bash
 mise install
