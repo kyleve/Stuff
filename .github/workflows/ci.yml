@@ -153,8 +153,12 @@ jobs:
           udid="$(./simulator --shared --os 27.0)"
           echo "udid=$udid" >> "$GITHUB_OUTPUT"
       # Image snapshots are slow and LFS-backed, so they run in their own job via
-      # the standalone `WhereUISnapshotTests` scheme (declared in Project.swift)
+      # the standalone `StuffSnapshotTests` scheme (declared in Project.swift)
       # rather than the aggregate `Stuff-iOS-Tests` scheme the `test` job uses.
+      # That one scheme covers every module's image suite: they all compile into
+      # a single bundle, deliberately — see the `StuffSnapshotTests` comment in
+      # Project.swift for why a second snapshot bundle in this process would
+      # break the capture pipeline's process-global state.
       #
       # Deliberately NOT `-parallel-testing-enabled`: the capture pipeline is
       # single-tenant — every test renders into the one StuffTestHost key
@@ -165,7 +169,7 @@ jobs:
       # that one host process, produced 24+ spurious image mismatches, and
       # was ~1.2–3x SLOWER than the serial run (407s/1004s vs ~330s).
       - name: Snapshot Tests (iOS)
-        run: mise exec -- tuist test WhereUISnapshotTests --no-selective-testing -- -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}"
+        run: mise exec -- tuist test StuffSnapshotTests --no-selective-testing -- -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}"
       - name: Collect snapshot diagnostics
         if: ${{ failure() }}
         run: |

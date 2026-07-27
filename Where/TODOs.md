@@ -95,7 +95,7 @@ The item format and the placement rule live in the root
 - test(WhereUI) [needs-design]: Snapshot matrix gaps — `LocationsView`/`YearView`'s empty states, `RecentActivitySummaryView.loading` (the sole user of `AppIconActivityIndicator`, so its `@MotionIsStatic` pinning is the one motion adoption without direct capture coverage), and `ManualDayView`'s range-mode add have no snapshot case. (From the July 2026 snapshot-testing PR review.)
 
 ## Deferred snapshot-test flakiness
-Known nondeterminism in `WhereUISnapshotTests`, accepted for now — scattered
+Known nondeterminism in the WhereUI image suites, accepted for now — scattered
 failures in these areas are expected and shouldn't be papered over by blind
 re-recording:
 

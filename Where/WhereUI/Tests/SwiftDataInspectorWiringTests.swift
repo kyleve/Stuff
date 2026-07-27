@@ -4,8 +4,9 @@ import Testing
 
 /// Verifies the DEBUG-only SwiftData inspector entry point is wired to the live
 /// Where store correctly: the configuration's model types track the real schema.
-/// (Rendering against a seeded store is covered by the inspector snapshot in
-/// `WhereUISnapshotTests`.)
+/// (How the inspector *renders* is covered by SwiftDataInspector's own image
+/// snapshots, over that module's fixture schema rather than Where's store — so
+/// this is the only test tying the inspector to the real one.)
 @MainActor
 struct SwiftDataInspectorWiringTests {
     @Test func configurationModelTypesMatchTheLiveSchema() throws {
