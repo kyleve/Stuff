@@ -109,3 +109,11 @@ Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
 (`PeriscopeToolsTests` bundle): models are driven directly over in-memory
 stores (`@_spi(Testing) PeriscopeStore.inMemory`), views host via
 `TestHostSupport.show`. Run with `tuist test PeriscopeToolsTests`.
+
+How the tools render is pinned by image snapshots in
+[`SnapshotTests/`](SnapshotTests), with reference images under
+`SnapshotTests/__Snapshots__/` in Git LFS. They compile into the repo-wide
+`StuffSnapshotTests` bundle (one snapshot bundle for the whole repo) but record
+their references here. Run with `tuist test StuffSnapshotTests`; to re-record
+after an intentional UI change, see the
+[SnapshotKitTesting README](../../SnapshotKitTesting/README.md#recording).
