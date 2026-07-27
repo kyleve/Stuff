@@ -278,19 +278,31 @@ let project = Project(
                 ]),
             ]),
             sources: ["Shared/StuffTestHost/Sources/**"],
-            // Hosted Swift Testing bundles run inside StuffTestHost, so a package's
-            // `Bundle.module` resolves against the host app's main bundle at runtime.
-            // WhereCore is load-bearing here: depending on it embeds
-            // `Stuff_WhereCore.bundle` (its SwiftData schema/resources) and — because
-            // WhereCore depends on RegionKit — the GeoJSON `Stuff_RegionKit.bundle`
-            // into the host, so code the tests touch (e.g. `RegionAttributor.shared`,
-            // the live SwiftData store) finds its resources instead of trapping in the
-            // `Bundle.module` accessor. Verified load-bearing: dropping it fails
-            // WhereUITests' StringsTests + SwiftDataInspectorWiringTests. RegionKit
-            // itself needs no separate entry — WhereCore carries it in (also verified
-            // by running the full scheme without a direct RegionKit dep).
+            // Keep this host thin — it deliberately depends on nothing but
+            // TestHostSupport.
+            //
+            // It used to also depend on WhereCore, to embed `Stuff_WhereCore.bundle`
+            // and (transitively) the GeoJSON `Stuff_RegionKit.bundle` into the host,
+            // on the theory that a hosted bundle's `Bundle.module` resolves against
+            // the host's main bundle. That is no longer true, and on Xcode 27 it is
+            // no longer needed: each `.xctest` now carries its own copies of the
+            // resource bundles for the code it links (`WhereUITests.xctest` ships
+            // `Stuff_WhereCore.bundle`, `Stuff_RegionKit.bundle`,
+            // `Stuff_WhereUI.bundle`, `Stuff_LifecycleKitUI.bundle`), so SwiftPM's
+            // `Bundle.module` finds them via `Bundle(for: BundleFinder.self)` — the
+            // test bundle — and never falls back to `Bundle.main`. Verified by
+            // removing the dependency and running the full `Stuff-iOS-Tests` and
+            // image-snapshot schemes green, with the built host confirmed to contain
+            // no WhereCore symbols and no resource bundles at all. (One of the two
+            // canaries the old note cited as proof, `WhereUITests.StringsTests`, had
+            // also ceased to exist with the String Catalog symbol migration.)
+            //
+            // Don't re-add a product here to fix a missing-resource failure: that
+            // makes every unrelated bundle in the scheme pay for it, and duplicates
+            // the payload (the whole GeoJSON set was being embedded twice). Give the
+            // bundle that needs the resource a dependency on the product that owns
+            // it instead.
             dependencies: [
-                .package(product: "WhereCore"),
                 // Lets `SceneDelegate` stamp its window with `isMainTestHostWindow`
                 // so hosted tests can find it via `TestHostSupport.hostKeyWindow()`.
                 .package(product: "TestHostSupport"),

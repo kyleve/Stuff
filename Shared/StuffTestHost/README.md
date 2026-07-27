@@ -17,16 +17,21 @@ plus `TestHostSupport` and run inside this app (see [`Project.swift`](../../Proj
   empty `UIViewController` as root and marks it `isMainTestHostWindow` (from
   `TestHostSupport`) so `hostKeyWindow()` can find it.
 
-## Bundle.module embedding
+## Bundle.module and resources
 
-Some SPM resources (notably WhereCore GeoJSON region data) resolve via
-`Bundle.module` at runtime. In a hosted test, that bundle must be **embedded in
-the host app**, not only linked into the test bundle — otherwise `Bundle.module`
-traps when code first touches those resources.
+Some SPM resources (notably WhereCore's GeoJSON region data) resolve via
+`Bundle.module` at runtime. That accessor looks the bundle up with
+`Bundle(for:)` — the bundle the code is linked into — and on Xcode 27 each
+`.xctest` carries its own copies of the resource bundles for what it links, so a
+hosted test finds them in the test bundle and never falls back to the host's
+`Bundle.main`.
 
-`StuffTestHost` depends on `WhereCore` in `Project.swift` so Tuist embeds
-`Stuff_WhereCore.bundle` into the host. See [`AGENTS.md`](AGENTS.md) for the
-checklist when adding modules with processed resources.
+So the host embeds no resource bundles and depends on nothing but
+`TestHostSupport`. If a bundle hits a missing resource, give *that* bundle a
+dependency on the product that owns it rather than adding the product to the
+host, which would make every unrelated bundle in the scheme pay for it. The
+`StuffTestHost` target in [`Project.swift`](../../Project.swift) carries the
+long form of this.
 
 ## Testing the host
 
