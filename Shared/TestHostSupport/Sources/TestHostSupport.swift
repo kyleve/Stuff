@@ -150,13 +150,6 @@ public func waitFor(timeout: TimeInterval = 10.0, predicate: () -> Bool) throws 
     throw TestHostError("waitFor timed out waiting for a check to pass.")
 }
 
-/// Runs the main run loop for a single brief pass, letting queued main-actor work
-/// (SwiftUI updates, `Task { @MainActor }` continuations) drain.
-@MainActor
-public func waitForOneRunloop() {
-    RunLoop.main.run(mode: .default, before: Date(timeIntervalSinceNow: 0.001))
-}
-
 /// Drives the run loop up to `timeout` waiting for `condition`, returning whether
 /// it ever held. Unlike `waitFor`, a `false` result is a normal outcome — used to
 /// assert a branch *never* renders within the budget, without a fixed sleep or

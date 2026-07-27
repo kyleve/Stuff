@@ -42,7 +42,6 @@ import TestHostSupport
 - `hostKeyWindow()` — the host's designated window (see below), or `nil` before
   the scene connects.
 - `waitFor(timeout:predicate:)` — pump the run loop until a predicate holds.
-- `waitForOneRunloop()` — drive one brief run-loop pass.
 - `UIWindow.isMainTestHostWindow` — the marker the host stamps on its window.
 
 ## How it works

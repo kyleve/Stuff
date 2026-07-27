@@ -43,7 +43,7 @@ struct AlertsSettingsView: View {
             .settingsRow(Item.dailyReminder)
 
             if reminders.remindersEnabled {
-                DatePicker(
+                WhereDatePicker(
                     String(localized: .settingsRemindersTime),
                     selection: $reminders.reminderTimeOfDay,
                     displayedComponents: .hourAndMinute,
@@ -86,7 +86,7 @@ struct AlertsSettingsView: View {
             .settingsRow(Item.dailySummary)
 
             if reminders.summaryEnabled {
-                DatePicker(
+                WhereDatePicker(
                     String(localized: .settingsSummaryTime),
                     selection: $reminders.summaryTimeOfDay,
                     displayedComponents: .hourAndMinute,

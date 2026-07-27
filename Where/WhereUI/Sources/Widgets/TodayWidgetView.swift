@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -103,24 +104,38 @@ public struct TodayWidgetView: View {
 }
 
 #if DEBUG
-    #Preview("Single region") {
-        TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot())
-            .padding()
+    extension TodayWidgetView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "SingleRegion",
+                configurations: .componentDefaults,
+                settle: .immediate,
+            ) {
+                TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [.california],
+                    totals: [.california: 132],
+                ))
+            }
+            whereSnapshot(
+                name: "MultiRegion",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
+                TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [.california, .newYork],
+                    totals: [.california: 132, .newYork: 41],
+                ))
+            }
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
+                TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [],
+                    totals: [:],
+                ))
+            }
+        }
     }
 
-    #Preview("Multi region") {
-        TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
-            dayRegions: [.california, .newYork],
-            totals: [.california: 132, .newYork: 41],
-        ))
-        .padding()
-    }
-
-    #Preview("Empty") {
-        TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
-            dayRegions: [],
-            totals: [:],
-        ))
-        .padding()
+    #Preview {
+        TodayWidgetView.snapshotPreviews
     }
 #endif

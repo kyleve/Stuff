@@ -1,5 +1,6 @@
 import LifecycleKit
 import PeriscopeCore
+import SnapshotKit
 import SwiftUI
 import UniformTypeIdentifiers
 import WhereCore
@@ -338,11 +339,21 @@ struct OnboardingPage: Identifiable {
 }
 
 #if DEBUG
+    extension OnboardingView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .screenDefaults) {
+                // `onboardingModel()` (not `loadedModel()`) so `hasOnboarded` is
+                // false and the capture lands on the intro phase.
+                OnboardingView(
+                    gate: LifecycleGateHandle(id: LaunchStepID.onboarding, reason: .userForeground),
+                    session: PreviewSupport.loadedSession(),
+                )
+                .environment(PreviewSupport.onboardingModel())
+            }
+        }
+    }
+
     #Preview {
-        OnboardingView(
-            gate: LifecycleGateHandle(id: LaunchStepID.onboarding, reason: .userForeground),
-            session: PreviewSupport.loadedSession(),
-        )
-        .environment(PreviewSupport.loadedModel())
+        OnboardingView.snapshotPreviews
     }
 #endif

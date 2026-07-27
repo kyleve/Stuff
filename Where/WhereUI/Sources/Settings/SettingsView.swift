@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -198,10 +199,24 @@ struct SettingsView: View {
 }
 
 #if DEBUG
+    extension SettingsView: SnapshotProviding {
+        /// The extra right-to-left variant exercises the RTL configuration axis
+        /// on a directional screen (leading labels, trailing values/toggles).
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Default",
+                configurations: .screenDefaults + [
+                    SnapshotConfiguration(layoutDirection: .rightToLeft, device: .iPhone),
+                ],
+            ) {
+                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                    .environment(PreviewSupport.loadedModel())
+                    .environment(PreviewSupport.loadedSession())
+            }
+        }
+    }
+
     #Preview {
-        SettingsView(report: PreviewSupport.loadedYearReportModel())
-            .environment(PreviewSupport.loadedModel())
-            .environment(PreviewSupport.loadedSession())
-            .whereBroadwayRoot()
+        SettingsView.snapshotPreviews
     }
 #endif

@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -254,49 +255,46 @@ struct DayRelabelView: View {
 }
 
 #if DEBUG
-    #Preview("Other region") {
-        NavigationStack {
-            DayRelabelView(
-                day: DayPresence(date: .now, in: .current, regions: [.other]),
-                report: PreviewSupport.loadedYearReportModel(),
-            )
-        }
-    }
-
-    #Preview("Flight reason banner") {
-        NavigationStack {
-            DayRelabelView(
-                day: DayPresence(
-                    date: .now,
-                    in: .current,
-                    regions: [.newYork, .other, .california],
-                ),
-                report: PreviewSupport.loadedYearReportModel(),
-                reason: .flight(removed: [.other]),
-            )
-        }
-    }
-
-    #Preview("With audit record") {
-        NavigationStack {
-            DayRelabelView(
-                day: DayPresence(
-                    date: .now,
-                    in: .current,
-                    regions: [.california],
-                    isAuthoritative: true,
-                    audit: ManualEntryAudit(
-                        recordedAt: .now,
-                        note: "Corrected after reviewing my boarding pass.",
-                        location: CapturedLocation(
-                            coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
-                            horizontalAccuracy: 12,
-                            timestamp: .now,
+    extension DayRelabelView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .screenDefaults) {
+                NavigationStack {
+                    DayRelabelView(
+                        day: DayPresence(
+                            date: PreviewSupport.referenceNow,
+                            in: .current,
+                            regions: [.other],
                         ),
-                    ),
-                ),
-                report: PreviewSupport.loadedYearReportModel(),
-            )
+                        report: PreviewSupport.loadedYearReportModel(),
+                    )
+                }
+            }
+            whereSnapshot(name: "WithAudit", configurations: .phoneLightDark) {
+                NavigationStack {
+                    DayRelabelView(
+                        day: DayPresence(
+                            date: PreviewSupport.referenceNow,
+                            in: .current,
+                            regions: [.california],
+                            isAuthoritative: true,
+                            audit: ManualEntryAudit(
+                                recordedAt: PreviewSupport.referenceNow,
+                                note: "Corrected after reviewing my boarding pass.",
+                                location: CapturedLocation(
+                                    coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
+                                    horizontalAccuracy: 12,
+                                    timestamp: PreviewSupport.referenceNow,
+                                ),
+                            ),
+                        ),
+                        report: PreviewSupport.loadedYearReportModel(),
+                    )
+                }
+            }
         }
+    }
+
+    #Preview {
+        DayRelabelView.snapshotPreviews
     }
 #endif

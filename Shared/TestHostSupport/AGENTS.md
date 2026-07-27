@@ -1,7 +1,7 @@
 # TestHostSupport – Module Shape
 
-UIKit hosting + run-loop helpers (`show`, `hostKeyWindow`, `waitFor`,
-`waitForOneRunloop`) for the hosted Swift Testing bundles that run inside
+UIKit hosting + run-loop helpers (`show`, `hostKeyWindow`, `waitFor`)
+for the hosted Swift Testing bundles that run inside
 `StuffTestHost`. The single, dependency-free home for helpers that were
 previously duplicated across `WhereTesting` and `BroadwayTesting`. See
 [`README.md`](README.md).

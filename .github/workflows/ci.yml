@@ -118,3 +118,62 @@ jobs:
           path: diagnostics
           if-no-files-found: warn
           retention-days: 7
+
+  snapshot:
+    name: Snapshot Tests (iOS)
+    needs: format
+    # Same image as the `test` job: references are only reproducible against one
+    # renderer, so the snapshot job must not lag the toolchain the rest of CI
+    # (and every local run) uses.
+    runs-on: xcode-27
+    # Same stuck-simulator cap as the `test` job above, sized for this job's
+    # longer run (~17 minutes with the LFS fetch and the serial capture).
+    timeout-minutes: 60
+    steps:
+      # Reference images live in Git LFS (see .gitattributes), so fetch them —
+      # without this the images arrive as pointer files and every comparison fails.
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: jdx/mise-action@v3
+      # `--shared` for the same reason as the `test` job above, and it matters
+      # more here: references are pinned to one renderer, so a freshly created
+      # device's first-boot state is exactly the variable to keep out of the run.
+      - name: Boot the snapshot simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          udid="$(./simulator --shared --os 27.0)"
+          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+      # Image snapshots are slow and LFS-backed, so they run in their own job via
+      # the standalone `WhereUISnapshotTests` scheme (declared in Project.swift)
+      # rather than the aggregate `Stuff-iOS-Tests` scheme the `test` job uses.
+      #
+      # Deliberately NOT `-parallel-testing-enabled`: the capture pipeline is
+      # single-tenant — every test renders into the one StuffTestHost key
+      # window, and settle loops suspend, so parallel scheduling interleaves
+      # tests mid-capture and corrupts each other's images. Verified locally
+      # (Xcode 26/iOS 26.2, both worker-count spellings): xcodebuild put all
+      # 45 tests on one simulator clone anyway, ran suites concurrently in
+      # that one host process, produced 24+ spurious image mismatches, and
+      # was ~1.2–3x SLOWER than the serial run (407s/1004s vs ~330s).
+      - name: Snapshot Tests (iOS)
+        run: mise exec -- tuist test WhereUISnapshotTests --no-selective-testing -- -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}"
+      - name: Collect snapshot diagnostics
+        if: ${{ failure() }}
+        run: |
+          mkdir -p diagnostics/crashes diagnostics/xcresult
+          cp -R "$HOME/Library/Logs/DiagnosticReports/." diagnostics/crashes/ 2>/dev/null || true
+          find "$HOME/Library/Developer/Xcode/DerivedData" -maxdepth 6 -name '*.xcresult' \
+            -exec cp -R {} diagnostics/xcresult/ \; 2>/dev/null || true
+          cp -R "$HOME/.local/state/tuist/sessions" diagnostics/tuist-sessions 2>/dev/null || true
+          echo '--- collected diagnostics ---'
+          find diagnostics -maxdepth 3 | head -200
+      - name: Upload snapshot diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: snapshot-diagnostics-ios
+          path: diagnostics
+          if-no-files-found: warn
+          retention-days: 7

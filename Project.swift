@@ -69,12 +69,22 @@ func unitTests(
 }
 
 /// A shared scheme that builds and tests a single unit-test bundle.
-func testScheme(name: String) -> Scheme {
+/// `testEnvironmentVariables` are set on the test action, so they reach the
+/// test process (schemes without any keep an argument-less test action).
+func testScheme(
+    name: String,
+    testEnvironmentVariables: [String: EnvironmentVariable] = [:],
+) -> Scheme {
     .scheme(
         name: name,
         shared: true,
         buildAction: .buildAction(targets: ["\(name)"]),
-        testAction: .targets(["\(name)"]),
+        testAction: .targets(
+            ["\(name)"],
+            arguments: testEnvironmentVariables.isEmpty
+                ? nil
+                : .arguments(environmentVariables: testEnvironmentVariables),
+        ),
     )
 }
 
@@ -326,6 +336,29 @@ let project = Project(
             sources: ["Shared/SwiftDataInspector/Tests/**"],
         ),
         unitTests(
+            name: "SnapshotKitTests",
+            bundleIdSuffix: "snapshotkit",
+            productDependency: "SnapshotKit",
+            sources: ["Shared/SnapshotKit/Tests/**"],
+        ),
+        // The capture/compare pipeline's own regression tests. They render
+        // through `renderSnapshotImage` (so they need the `StuffTestHost` key
+        // window) but assert on probed pixels rather than LFS reference images,
+        // so — unlike `WhereUISnapshotTests` — this bundle is fast, has no
+        // `__Snapshots__/`, and runs in the main `Stuff-iOS-Tests` scheme /
+        // `test` CI job. `SnapshotKitTesting` embeds its dependency closure
+        // (SnapshotKit, SnapshotTesting, AccessibilitySnapshot) into the
+        // `.xctest`, as every bundle here embeds what it links. That means the
+        // `Stuff-iOS-Tests` host process holds a SnapshotKit copy per bundle
+        // that links one, but no lookup crosses between them: each bundle's
+        // capture writes and reads resolve within its own image.
+        unitTests(
+            name: "SnapshotKitTestingTests",
+            bundleIdSuffix: "snapshotkittesting",
+            productDependency: "SnapshotKitTesting",
+            sources: ["Shared/SnapshotKitTesting/Tests/**"],
+        ),
+        unitTests(
             name: "RegionKitTests",
             bundleIdSuffix: "regionkit",
             productDependency: "RegionKit",
@@ -371,6 +404,34 @@ let project = Project(
             bundleIdSuffix: "whereintents",
             productDependency: "WhereIntents",
             sources: ["Where/WhereIntents/Tests/**"],
+        ),
+        // Image snapshot tests for WhereUI. Slow + LFS-backed, so this bundle
+        // runs in its own `snapshot` CI job (see .github/workflows/ci.yml) via
+        // its own `testScheme` below — it is deliberately NOT in the
+        // `Stuff-iOS-Tests` scheme, keeping image snapshots out of the main
+        // `test` job. Lists only `SnapshotKitTesting` in `extraPackageProducts`:
+        // the test-only capture pipeline, which WhereUI deliberately never
+        // links.
+        //
+        // `SnapshotKitTesting` embeds its dependency closure, SnapshotKit
+        // included — which WhereUI carries too — but that does *not* land a
+        // second copy here: the linker coalesces them. Verified on the built
+        // bundle, which defines exactly one set of SnapshotKit symbols, the
+        // same count as WhereUITests (a bundle that links no extra products at
+        // all). So `\.isCapturingSnapshot` has no copy boundary to cross, and
+        // the duplicate-metadata hazard in the root AGENTS.md "Targets" note
+        // doesn't apply to this pairing. `SnapshotCaptureFlagProbeTests` still
+        // pins the path end to end — the pipeline's `traitOverrides` write
+        // reaching a WhereUI-defined view's read — so a toolchain that stopped
+        // coalescing would fail loudly rather than silently returning defaults.
+        // Do NOT re-list any *other* WhereUI transitive here: same rule as
+        // WhereUITests above.
+        unitTests(
+            name: "WhereUISnapshotTests",
+            bundleIdSuffix: "whereui.snapshot",
+            productDependency: "WhereUI",
+            sources: ["Where/WhereUI/SnapshotTests/**"],
+            extraPackageProducts: ["SnapshotKitTesting"],
         ),
         .target(
             name: "BroadwayCatalog",
@@ -449,6 +510,8 @@ let project = Project(
                 "PeriscopeUITests",
                 "PeriscopeToolsTests",
                 "SwiftDataInspectorTests",
+                "SnapshotKitTests",
+                "SnapshotKitTestingTests",
                 "RegionKitTests",
                 "WhereCoreTests",
                 "WhereTests",
@@ -468,6 +531,8 @@ let project = Project(
                 "PeriscopeUITests",
                 "PeriscopeToolsTests",
                 "SwiftDataInspectorTests",
+                "SnapshotKitTests",
+                "SnapshotKitTestingTests",
                 "RegionKitTests",
                 "WhereCoreTests",
                 "WhereTests",
@@ -486,10 +551,31 @@ let project = Project(
         testScheme(name: "PeriscopeUITests"),
         testScheme(name: "PeriscopeToolsTests"),
         testScheme(name: "SwiftDataInspectorTests"),
+        testScheme(name: "SnapshotKitTests"),
+        testScheme(name: "SnapshotKitTestingTests"),
         testScheme(name: "RegionKitTests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
+        // Pins the environment the LFS reference images were recorded on. The
+        // `assertSnapshots` runner compares the SNAPSHOT_EXPECTED_* values
+        // against the live simulator and fails fast with one clear message on
+        // a mismatched runtime, screen scale, or timezone — instead of
+        // hundreds of confusing image diffs. TZ pins the test process's
+        // timezone itself: several references bake Pacific wall-clock
+        // dates/times into the image (widget day labels, log-viewer
+        // timestamps), so an unpinned UTC CI runner would shift every
+        // date-rendering snapshot. SNAPSHOT_EXPECTED_TIMEZONE is the guard
+        // that verifies the TZ pin actually reached the test process.
+        testScheme(
+            name: "WhereUISnapshotTests",
+            testEnvironmentVariables: [
+                "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
+                "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
+                "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
+                "TZ": "America/Los_Angeles",
+            ],
+        ),
         testScheme(name: "WhereIntentsTests"),
         testScheme(name: "BroadwayCoreTests"),
         testScheme(name: "BroadwayUITests"),

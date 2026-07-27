@@ -96,6 +96,15 @@ struct WhereFormatTests {
         #expect(WhereFormat.loggedDaysTitle(year: 2026) == "Logged Days · 2026")
     }
 
+    /// The widget entry views render from the app's catalog, so a missing key
+    /// there ships a raw identifier to the Home Screen.
+    @Test func widgetStringsResolve() {
+        #expect(String(localized: .widgetTodayTitle) == "Today")
+        #expect(String(localized: .widgetTodayEmpty) == "Nothing logged yet")
+        #expect(WhereFormat.widgetYearTitle(year: 2026) == "Days in 2026")
+        #expect(String(localized: .widgetYearEmpty) == "No days logged")
+    }
+
     @Test func evidenceKindDisplayNamesResolve() {
         #expect(WhereFormat.evidenceKind(.planeTicket) == "Plane ticket")
         #expect(WhereFormat.evidenceKind(.boardingPass) == "Boarding pass")

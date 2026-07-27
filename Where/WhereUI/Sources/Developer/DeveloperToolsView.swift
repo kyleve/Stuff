@@ -1,6 +1,8 @@
 #if DEBUG
     import PeriscopeCore
     import PeriscopeTools
+    import RegionKit
+    import SnapshotKit
     import SwiftDataInspector
     import SwiftUI
     import WhereCore
@@ -97,9 +99,17 @@
         }
     }
 
+    extension DeveloperToolsView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .phoneLightDark) {
+                DeveloperToolsView()
+                    .environment(PreviewSupport.loadedModel())
+                    .environment(PreviewSupport.loadedSession())
+            }
+        }
+    }
+
     #Preview {
-        DeveloperToolsView()
-            .environment(PreviewSupport.loadedModel())
-            .environment(PreviewSupport.loadedSession())
+        DeveloperToolsView.snapshotPreviews
     }
 #endif

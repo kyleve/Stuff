@@ -264,3 +264,7 @@ Root [testing conventions](../AGENTS.md#testing) apply. What's specific here:
   `CoreLocationSource` or the user's on-disk/CloudKit store. The CloudKit
   remote-import path is exercised with the `@_spi(Testing)`
   `inMemory(remoteChangeSource:)` + `ScriptedStoreRemoteChangeSource`.
+- How screens render is pinned by the matrixed image snapshots in
+  `WhereUISnapshotTests` (own scheme + CI job, not `Stuff-iOS-Tests`) — see
+  [`WhereUI/AGENTS.md`](WhereUI/AGENTS.md#testing). Don't add "hosts without
+  crashing" smoke tests for surfaces that bundle covers.

@@ -16,6 +16,8 @@ let package = Package(
         .library(name: "PeriscopeUI", targets: ["PeriscopeUI"]),
         .library(name: "PeriscopeTools", targets: ["PeriscopeTools"]),
         .library(name: "SwiftDataInspector", targets: ["SwiftDataInspector"]),
+        .library(name: "SnapshotKit", targets: ["SnapshotKit"]),
+        .library(name: "SnapshotKitTesting", targets: ["SnapshotKitTesting"]),
         .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
         .library(name: "RegionKit", targets: ["RegionKit"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
@@ -30,6 +32,11 @@ let package = Package(
             branch: "main",
         ),
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
+        // Snapshot-testing engine + accessibility parser. Consumed only by the
+        // test-only `SnapshotKitTesting` target (never a shipping app). See
+        // Shared/SnapshotKitTesting.
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.0"),
+        .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.11.0"),
     ],
     targets: [
         .target(
@@ -83,6 +90,21 @@ let package = Package(
             path: "Shared/SwiftDataInspector/Sources",
         ),
         .target(
+            name: "SnapshotKit",
+            path: "Shared/SnapshotKit/Sources",
+        ),
+        .target(
+            name: "SnapshotKitTesting",
+            dependencies: [
+                .target(name: "SnapshotKit"),
+                .target(name: "TestHostSupport"),
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+                .product(name: "AccessibilitySnapshot", package: "AccessibilitySnapshot"),
+                .product(name: "AccessibilitySnapshotCore", package: "AccessibilitySnapshot"),
+            ],
+            path: "Shared/SnapshotKitTesting/Sources",
+        ),
+        .target(
             name: "TestHostSupport",
             path: "Shared/TestHostSupport/Sources",
         ),
@@ -120,6 +142,7 @@ let package = Package(
                 .target(name: "PeriscopeTools"),
                 .target(name: "PeriscopeUI"),
                 .target(name: "RegionKit"),
+                .target(name: "SnapshotKit"),
                 .target(name: "SwiftDataInspector"),
             ],
             path: "Where/WhereUI/Sources",

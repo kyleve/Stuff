@@ -1,3 +1,4 @@
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -129,11 +130,25 @@ private struct YearModePicker: View {
 }
 
 #if DEBUG
-    #Preview("Loaded") {
-        YearView(report: PreviewSupport.loadedYearReportModel())
+    extension YearView: SnapshotProviding {
+        /// Only the calendar mode is captured here: the timeline mode is the
+        /// same `PresenceTimelineList` that carries its own matrix, and the mode
+        /// is private `@State` with no capture seam to drive it.
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Loaded",
+                configurations: .screenDefaults,
+                settle: .settledAtLeast(minDuration: 1.0),
+            ) {
+                YearView(report: PreviewSupport.loadedYearReportModel())
+            }
+            whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
+                YearView(report: PreviewSupport.emptyYearReportModel())
+            }
+        }
     }
 
-    #Preview("Empty") {
-        YearView(report: PreviewSupport.emptyYearReportModel())
+    #Preview {
+        YearView.snapshotPreviews
     }
 #endif

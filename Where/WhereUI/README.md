@@ -135,5 +135,27 @@ the happy path. See the feature
 Swift Testing in [`Tests/`](Tests) (`WhereUITests`), hosted in `StuffTestHost`
 and linking `TestHostSupport` (`show(_:perform:)`, `waitFor`). View models are
 driven against a `ScriptedLocationSource` + in-memory `SwiftDataStore` (never
-the on-disk/CloudKit store); hosting tests mount views for their key states.
-Internal types are reached via `@testable import WhereUI`.
+the on-disk/CloudKit store). Internal types are reached via
+`@testable import WhereUI`.
+
+How screens *look* is pinned separately: every top-level screen, widget, and
+app-flow surface has matrixed image snapshots (light/dark, Dynamic Type,
+iPhone/iPad, contrast, right-to-left, VoiceOver annotations) in
+[`SnapshotTests/`](SnapshotTests) (`WhereUISnapshotTests`), with reference
+images under `SnapshotTests/__Snapshots__/` in Git LFS. Each view declares its
+matrix via a `SnapshotProviding` conformance **in its own source file**, shared
+with its `#Preview` cutsheet (`Self.snapshotPreviews`); the test bundle is one
+`FooSnapshotTests` suite per view, so each view's references live in their own
+`__Snapshots__/` directory. The
+bundle has its own scheme and CI job; to re-record after an intentional UI
+change, forward the record mode into the test process (see the
+[SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)
+for the mode values):
+
+```bash
+TEST_RUNNER_SNAPSHOT_RECORD=failed mise exec -- tuist test WhereUISnapshotTests \
+  --no-selective-testing -- \
+  -destination "platform=iOS Simulator,id=$(./simulator --os 27.0)"
+```
+
+then review and commit the images.

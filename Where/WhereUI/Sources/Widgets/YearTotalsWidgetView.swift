@@ -1,3 +1,4 @@
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -87,16 +88,30 @@ public struct YearTotalsWidgetView: View {
 }
 
 #if DEBUG
-    #Preview("Ranked totals") {
-        YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot())
-            .padding()
+    extension YearTotalsWidgetView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Ranked", configurations: .componentDefaults, settle: .immediate) {
+                YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [.california],
+                    totals: [
+                        .california: 132,
+                        .newYork: 41,
+                        .canada: 9,
+                        .europeanUnion: 4,
+                        .other: 2,
+                    ],
+                ))
+            }
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
+                YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [],
+                    totals: [:],
+                ))
+            }
+        }
     }
 
-    #Preview("Empty") {
-        YearTotalsWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
-            dayRegions: [],
-            totals: [:],
-        ))
-        .padding()
+    #Preview {
+        YearTotalsWidgetView.snapshotPreviews
     }
 #endif

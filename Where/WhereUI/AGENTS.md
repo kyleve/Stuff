@@ -8,7 +8,8 @@ scope-tiered `YearReportModel` / `ResolveModel` / `BackupModel` /
 conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md) — read that and
 the root [`AGENTS.md`](../../AGENTS.md) first. This file adds only what those
 don't cover: how the module's design system (`WhereStylesheet`) is used and
-extended.
+extended, and how its snapshot suites are organized (see
+[Testing](#testing)).
 
 ## Scope & dependencies
 
@@ -20,6 +21,17 @@ extended.
   [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-a-dynamic-framework-already-carries)).
   That's why `whereBroadwayRoot()` lives here rather than being called as
   `broadwayRoot` at each site.
+- Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
+  typewriter reveals) must consult the shared `@MotionIsStatic` helper
+  ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))
+  for its static end-state — never hand-roll the
+  `\.accessibilityReduceMotion` + `\.isCapturingSnapshot` pair.
+- A compact `DatePicker` in a form goes through `WhereDatePicker`
+  ([`Sources/Shared/WhereDatePicker.swift`](Sources/Shared/WhereDatePicker.swift)),
+  which substitutes a deterministic stand-in under capture — the live control's
+  value capsule renders relative to *today's* date, so no reference containing
+  one is stable across days. Views shouldn't read `\.isCapturingSnapshot` to
+  branch themselves; keep the capture handling inside the shared component.
 
 ## Design system — `WhereStylesheet`
 
@@ -139,3 +151,22 @@ and the `whereBroadwayRoot()` seeding, including the WhereWidgets path. Adding,
 renaming, or retuning a token means updating those assertions in the same
 change. Broader WhereUI testing conventions (hosted bundles, `PreviewSupport`,
 required previews) live in the feature [`Where/AGENTS.md`](../AGENTS.md).
+
+Screens, widgets, and app-flow surfaces are pinned as matrixed image snapshots
+in the `WhereUISnapshotTests` bundle ([`SnapshotTests/`](SnapshotTests)) — that
+bundle, not hosting smoke tests, owns "does this screen render". **Each view
+declares its matrix once, in its own source file**, via a `SnapshotProviding`
+conformance under `#if DEBUG` whose `#Preview` renders `Self.snapshotPreviews` —
+so one declaration drives both the Xcode cutsheet and the image tests (the
+`whereSnapshot(...)` helper + config presets live in
+[`Sources/Preview/WhereSnapshot.swift`](Sources/Preview/WhereSnapshot.swift)).
+The test bundle is **one `FooSnapshotTests` suite per view**, each in its own
+file calling `assertSnapshots(of: FooView.self)`, so each view's references sit
+in their own `__Snapshots__/<FooSnapshotTests>/` directory. The bundle runs in
+its own `WhereUISnapshotTests` scheme and CI job, deliberately outside
+`Stuff-iOS-Tests` (see `Project.swift`). To re-record a reference, delete the PNG
+under `SnapshotTests/__Snapshots__/` (LFS-tracked) and run the scheme — the
+suites record `.missing`, and a recording run fails by design so it can't pass as
+green. (Bulk re-records after an intentional UI change can instead forward
+`TEST_RUNNER_SNAPSHOT_RECORD=failed` — see the
+[SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording).)
