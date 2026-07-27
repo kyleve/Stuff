@@ -98,6 +98,9 @@ inbox rather than here.
 ## P1s (Should do)
 
 ## P2s (Nice to have)
-- perf(StuffTestHost) [needs-design]: Two loose ends in the shared test host, both reaching the root Tuist manifest, which is why they sit here rather than in a StuffTestHost file. The WhereCore-always-embedded build trade-off is documented and verified load-bearing at `Project.swift:256` — decide whether to keep documenting it or split the host so unrelated bundles don't pay for it. Separately, the scene configuration name is spelled twice, in `Shared/StuffTestHost/Sources/AppDelegate.swift:11` and `Project.swift:244`, so the two can drift silently. (audit 2026-07-26)
+- refactor(StuffTestHost) [quick-win]: The scene configuration name is spelled twice, in `Shared/StuffTestHost/Sources/AppDelegate.swift:11` and `Project.swift:244`, so the two can drift silently. Reaches the root Tuist manifest, which is why it sits here rather than in a StuffTestHost file. (audit 2026-07-26)
 
 # Completed issues
+
+## P2s (Nice to have)
+- perf(StuffTestHost) [needs-design]: The WhereCore-always-embedded build trade-off in the shared test host — every bundle in the scheme paid for it, so the item was whether to keep documenting it or split the host. (Resolved by deleting it instead: on Xcode 27 the dependency is simply unnecessary. Each `.xctest` now carries its own copies of the resource bundles for the code it links, so SwiftPM's `Bundle.module` resolves via `Bundle(for:)` — the test bundle — and never falls back to `Bundle.main`, which was the only thing the host embed provided. Verified by removing it and running both `Stuff-iOS-Tests` and the image-snapshot scheme green, with the built host confirmed to hold no WhereCore symbols and no resource bundles. It also removes duplicate payload — the full GeoJSON set was embedded in both the host and every bundle that needed it. Independently, one of the two canaries the old note cited as proof, `WhereUITests.StringsTests`, no longer existed: it went with the String Catalog symbol migration.)
