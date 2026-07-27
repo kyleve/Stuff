@@ -109,10 +109,12 @@ handle at runtime.
 
 ## Contracts and limitations
 
-- **A report is only as current as its last run.** Nothing fails a build when a
-  dependency lands without regenerating. Each app is expected to assert its own
-  report's contents in its own tests — see `AppAttributionTests` in the Where
-  app — because only the app knows what it should contain.
+- **A report goes stale silently unless something checks it.** Nothing about
+  adding or bumping a dependency forces a re-run, so `--check` exists to fail
+  the build: it re-derives the expected report from the same manifests and diffs
+  it against the committed one, offline. Reach for that rather than asserting
+  credit names in a test — a test bundle can't read the manifests, so it can
+  only compare the report to a literal, which a stale report matches too.
 - **Development tools are not in the binary.** They are credited because the
   repository makes copies of them, which permissive licenses ask us to
   attribute. Any UI must keep the two kinds visually distinct so a reader isn't

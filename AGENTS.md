@@ -122,9 +122,13 @@ skills in `.agents/external-skills.json` — with each notice read at the **pinn
 revision**. So a new dependency is credited wherever it lands, and a package
 resolved only for tooling (BumperBowling, swift-syntax) correctly isn't.
 **Re-run `./attribution` and commit the result whenever you add or bump a
-package or a skill.** Nothing fails a build if you forget; each app asserts its
-own report instead (`AppAttributionTests` for Where), which is where that
-assertion belongs, since only the app knows what it should contain.
+package or a skill.** `./attribution --check` fails CI if you forget: it
+re-derives the expected report from `Package.swift`, `Package.resolved`, and the
+skills manifest and diffs it against the committed one. It runs offline (a
+notice is fetched at the pinned revision, so a matching revision means matching
+text) and takes well under a second. An app's own tests can't do this job — a
+test bundle can't read `Package.swift`, so all it can assert is a literal that a
+stale report satisfies just as happily as a fresh one.
 
 `SoftwareCredit.Kind` keeps a **shipped library** apart from a **development
 tool**, and that distinction must survive into any UI: a tool is credited

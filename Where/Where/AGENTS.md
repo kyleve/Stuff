@@ -29,7 +29,9 @@ layering, and the domain rules this target merely starts up.
   [Attribution](../../AGENTS.md#attribution)) — never hand-edit the report. This
   is the **only** bundle that carries one, which is why `AppAttributionTests`
   lives in this target's test bundle: it is the one hosted by `Where.app`, so
-  `Bundle.main` is the shipping bundle.
+  `Bundle.main` is the shipping bundle. Those tests cover the report being
+  usable; `./attribution --check` in CI covers it still matching the dependency
+  graph, which no test bundle can see.
 
 ## Invariants
 

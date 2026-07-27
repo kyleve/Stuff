@@ -47,6 +47,11 @@
 #   ./attribution
 # or point it at one config directly:
 #   ruby Shared/CreditKit/Tools/generate-attribution.rb <config.json>
+#
+# `--check` verifies a committed report still matches what the repo declares,
+# without writing anything. It makes **no network calls** — every field it
+# compares comes from files in the repo — so it is cheap enough to gate CI, which
+# is the only thing that actually stops a stale report from shipping.
 
 require "json"
 require "fileutils"
@@ -86,14 +91,29 @@ def github_slug(location)
   location[%r{github\.com[:/](.+?)(?:\.git)?/?\z}, 1]
 end
 
+# The fields of a credit that come from files already in the repo. The notice is
+# deliberately not one of them: it is the only field needing the network, which
+# is what lets `--check` derive the whole expected report offline.
+NOTICE_FREE_KEYS = %w[name kind version homepageURL].freeze
+
 def credit(name:, kind:, version:, slug:, ref:)
   {
     "name" => name,
     "kind" => kind,
     "version" => version,
     "homepageURL" => "https://github.com/#{slug}",
-    "license" => github_license(slug, ref),
+    # Carried for the notice fetch, then dropped before the report is written.
+    "slug" => slug,
+    "ref" => ref,
   }
+end
+
+def notice_free(entry)
+  NOTICE_FREE_KEYS.to_h { |key| [key, entry[key]] }
+end
+
+def describe(entry)
+  "#{entry["kind"]}: #{entry["name"]} #{entry["version"]}"
 end
 
 def read_json(relative_path, source_type)
@@ -219,7 +239,7 @@ def validate_source(source, config_path)
   fail_with("unknown kind #{kind.inspect} in #{config_path} (expected #{KINDS.join(" or ")})")
 end
 
-def report(config_path)
+def report(config_path, check:)
   config = JSON.parse(File.read(config_path))
   sources = config.fetch("sources")
   fail_with("#{config_path} declares no sources") if sources.empty?
@@ -246,17 +266,57 @@ def report(config_path)
                       .keys
   fail_with("duplicate credit name(s): #{collisions.join(", ")}") unless collisions.empty?
 
-  output = File.join(ROOT, config.fetch("output"))
-  FileUtils.mkdir_p(File.dirname(output))
-  File.write(output, "#{JSON.pretty_generate({ "credits" => credits })}\n")
+  return check_report(credits, config.fetch("output")) if check
 
-  puts "#{config.fetch("output")}: #{credits.count} credit(s)"
-  credits.each { |entry| puts "  #{entry["kind"]}: #{entry["name"]} #{entry["version"]}" }
+  write_report(credits, config.fetch("output"))
 end
 
+def write_report(credits, output_path)
+  output = File.join(ROOT, output_path)
+  entries = credits.map do |entry|
+    notice_free(entry).merge("license" => github_license(entry["slug"], entry["ref"]))
+  end
+  FileUtils.mkdir_p(File.dirname(output))
+  File.write(output, "#{JSON.pretty_generate({ "credits" => entries })}\n")
+
+  puts "#{output_path}: #{entries.count} credit(s)"
+  entries.each { |entry| puts "  #{describe(entry)}" }
+end
+
+# Fails when the committed report disagrees with what the repo now declares.
+#
+# Runs entirely offline, which is the whole reason it can gate CI: every field
+# it compares is derived from `Package.swift`, `Package.resolved`, and the skills
+# manifest. It can't re-read a notice, but it doesn't need to — a notice is
+# fetched at the pinned revision, so a matching revision means matching text by
+# construction, and the notice being *present* is checked here directly.
+def check_report(credits, output_path)
+  path = File.join(ROOT, output_path)
+  fail_with("#{output_path} does not exist — run ./attribution") unless File.exist?(path)
+  committed = JSON.parse(File.read(path))["credits"]
+  fail_with("#{output_path} carries no credits — run ./attribution") if committed.nil? || committed.empty?
+
+  expected = credits.map { |entry| notice_free(entry) }
+  actual = committed.map { |entry| notice_free(entry) }
+  unless expected == actual
+    lines = (expected - actual).map { |entry| "  missing:  #{describe(entry)}" } +
+            (actual - expected).map { |entry| "  unexpected: #{describe(entry)}" }
+    # Same list, different order, is still a mismatch worth reporting plainly.
+    lines << "  (same credits, different order)" if lines.empty?
+    fail_with("#{output_path} is stale — run ./attribution\n#{lines.join("\n")}")
+  end
+
+  bare = committed.select { |entry| entry.dig("license", "text").to_s.strip.empty? }
+                  .map { |entry| entry["name"] }
+  fail_with("#{output_path}: no notice for #{bare.join(", ")}") unless bare.empty?
+
+  puts "#{output_path}: up to date (#{committed.count} credit(s))"
+end
+
+check = !ARGV.delete("--check").nil?
 configs = ARGV
-fail_with("usage: generate-attribution.rb <config.json>...") if configs.empty?
+fail_with("usage: generate-attribution.rb [--check] <config.json>...") if configs.empty?
 configs.each do |config|
   fail_with("no config at #{config}") unless File.exist?(config)
-  report(config)
+  report(config, check: check)
 end

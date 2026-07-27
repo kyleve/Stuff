@@ -130,9 +130,10 @@ target's** resources, so only the app bundle carries one. Every other bundle
 so, exactly as it does for an unstamped `BuildInfo`. A section with nothing of
 its kind says so too, in different words: "no report at all" and "nothing of
 this kind" describe different builds, and a header and footer over no rows would
-describe neither. `AppAttributionTests`, in
-the app's own test bundle because it is the one hosted by `Where.app`, asserts
-what the report contains.
+describe neither. `AppAttributionTests`, in the app's own test bundle because it
+is the one hosted by `Where.app`, asserts the report is usable — present,
+decodable, both kinds populated. Whether it still *matches* the dependency graph
+is `./attribution --check`'s job in CI, not a literal here.
 
 A **shipped library** and a **development tool** render as separate sections.
 Development tools are the agent skills `./sync-agents` vendors *and* packages

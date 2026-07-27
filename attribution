@@ -29,11 +29,16 @@ usage() {
     cat <<'USAGE'
 Usage:
   ./attribution [config ...]
+  ./attribution --check [config ...]
   ./attribution --list
   ./attribution --help
 
 Regenerates the attribution report for each configured app. With no arguments,
 regenerates every app's report; pass a config path to do just one.
+
+  --check   Verify each committed report still matches what the repo declares,
+            without writing anything. Runs offline and needs no gh, so CI can
+            gate on it — which is what stops a stale report from shipping.
 USAGE
 }
 
@@ -48,7 +53,14 @@ case "${1-}" in
         ;;
 esac
 
-if ! command -v gh >/dev/null 2>&1; then
+check=""
+if [ "${1-}" = "--check" ]; then
+    check="--check"
+    shift
+fi
+
+# Only a regenerating run reads notices off GitHub; --check is entirely local.
+if [ -z "$check" ] && ! command -v gh >/dev/null 2>&1; then
     echo "attribution: needs the GitHub CLI (gh) to read license notices" >&2
     exit 1
 fi
@@ -62,7 +74,7 @@ fi
 # The pinned Ruby via mise when available, since the repo pins one; the system
 # Ruby otherwise, so a bare checkout can still run this.
 if command -v mise >/dev/null 2>&1; then
-    mise exec -- ruby "$GENERATOR" "${targets[@]}"
+    mise exec -- ruby "$GENERATOR" ${check:+"$check"} "${targets[@]}"
 else
-    ruby "$GENERATOR" "${targets[@]}"
+    ruby "$GENERATOR" ${check:+"$check"} "${targets[@]}"
 fi

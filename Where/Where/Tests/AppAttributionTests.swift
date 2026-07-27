@@ -8,9 +8,14 @@ import WhereCore
 /// `Bundle.main` is the shipping bundle, and a generic attribution library has
 /// no business asserting which packages its consumer links.
 ///
-/// These are the drift guard. `./attribution` regenerates the report, but
-/// nothing forces it to be re-run, so a dependency added without regenerating
-/// fails here rather than silently shipping an incomplete About screen.
+/// These assert the report is *usable* — present, decodable, and complete
+/// enough to render. They deliberately do **not** assert which packages it
+/// names: this bundle can't read `Package.swift`, so any such assertion is a
+/// literal that a stale report agrees with just as happily as a fresh one. That
+/// is not hypothetical — a hardcoded list here passed while the committed report
+/// was missing two packages a merge had added. `./attribution --check` owns
+/// agreement with the dependency graph and gates CI; this owns everything only
+/// the shipping bundle can answer.
 @MainActor
 struct AppAttributionTests {
     private func report() throws -> AttributionManifest {
@@ -24,26 +29,16 @@ struct AppAttributionTests {
         #expect(try !report().credits.isEmpty)
     }
 
-    @Test func creditsEveryPackageTheAppShips() throws {
-        // The one external package inside the app's target closure. BumperBowling
-        // and swift-syntax are resolved for architecture linting and never linked
-        // at all, so they are deliberately absent.
-        #expect(try report().credits(ofKind: .library).map(\.name) == ["ZIPFoundation"])
-    }
-
-    @Test func creditsWhatTheRepoUsesWithoutShipping() throws {
-        let tools = try Set(report().credits(ofKind: .developmentTool).map(\.name))
-        #expect(tools == [
-            // Linked only by the test-support target, so credited but not in the
-            // binary — listing these as libraries would misdescribe the app.
-            "AccessibilitySnapshot",
-            "swift-snapshot-testing",
-            // Vendored into the repo by ./sync-agents.
-            "swift-concurrency-pro",
-            "swift-testing-pro",
-            "swiftdata-pro",
-            "swiftui-pro",
-        ])
+    @Test func creditsBothKindsOfWork() throws {
+        // Not a list of names — that's `--check`'s job. This pins the shape the
+        // About screen depends on: two populated sections, so neither renders
+        // its "nothing to credit" state in the shipping app.
+        for kind in SoftwareCredit.Kind.allCases {
+            #expect(
+                try !report().credits(ofKind: kind).isEmpty,
+                "the report credits nothing of kind \(kind)",
+            )
+        }
     }
 
     @Test func everyCreditCarriesItsNoticeInline() throws {
