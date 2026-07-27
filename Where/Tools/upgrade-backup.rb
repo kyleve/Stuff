@@ -21,8 +21,9 @@
 #   - Dismissals: converts `{ "key": "borderDrift:2026-04-01", ... }` to
 #     `{ "id": "store://issues/borderDrift?day=2026-04-01", ... }`, parsing the
 #     old joined key and recovering any legacy epoch value to a calendar day.
-#   - Top level: ensures `dismissedIssues` / `trackedRegions` exist and sets
-#     `formatVersion` to 1 (the reset current version).
+#   - Top level: ensures `dismissedIssues` / `trackedRegions` exist, synthesizes
+#     `primaryRegions` from the tracked ids (null appearance, listed order) when
+#     absent, and sets `formatVersion` to 2 (the current version).
 #
 # Idempotent: re-running on an already-upgraded archive is a no-op (it only
 # touches legacy `date` / `key` fields and unmapped region ids).
@@ -39,7 +40,7 @@ require "time"
 require "set"
 
 MANIFEST_NAME = "manifest.json"
-CURRENT_FORMAT_VERSION = 1
+CURRENT_FORMAT_VERSION = 2
 
 # Former enum-case region ids -> current catalog ids. `canada` / `other` are
 # unchanged but listed so an already-current id passes through untouched.
@@ -171,6 +172,12 @@ def upgrade_manifest(manifest)
   end
   manifest["dismissedIssues"] ||= []
   manifest["trackedRegions"] ||= []
+  # v2 adds `primaryRegions` (each tracked region's picked look + order).
+  # A pre-v2 archive has no picked looks, so synthesize entries from the
+  # tracked ids with a null appearance, in their listed order.
+  manifest["primaryRegions"] ||= manifest["trackedRegions"].each_with_index.map do |id, index|
+    { "region" => id, "appearance" => nil, "order" => index }
+  end
   manifest["formatVersion"] = CURRENT_FORMAT_VERSION
   warnings.uniq.each { |message| warn "warning: #{message}" }
   manifest

@@ -1,5 +1,7 @@
 import Observation
+import PeriscopeCore
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -43,10 +45,12 @@ struct ManualDayView: View {
     @State private var showDeleteConfirmation = false
     @State private var pending: PendingWrite?
 
+    private static let logger = WhereLog.session(ManualDayViewLog.self)
+
     init(report: YearReportModel, mode: Mode, showsCancelButton: Bool = false) {
         self.report = report
         self.showsCancelButton = showsCancelButton
-        _fields = State(initialValue: Fields(mode: mode))
+        _fields = State(initialValue: Fields(mode: mode, calendar: report.calendar))
     }
 
     var body: some View {
@@ -60,12 +64,13 @@ struct ManualDayView: View {
             }
         }
         .animation(.default, value: pending)
+        .task { await loadGrouping() }
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if showsCancelButton {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(Strings.commonCancel) { dismiss() }
+                    Button(String(localized: .commonCancel)) { dismiss() }
                         .disabled(pending != nil)
                 }
             }
@@ -73,41 +78,44 @@ struct ManualDayView: View {
                 if pending == .saving {
                     ProgressView()
                 } else {
-                    Button(Strings.manualSave) { save() }
+                    Button(String(localized: .manualSave)) { save() }
                         .disabled(!canSave)
                 }
             }
         }
         .confirmationDialog(
-            Strings.loggedDaysDelete,
+            String(localized: .loggedDaysDelete),
             isPresented: $showDeleteConfirmation,
             titleVisibility: .visible,
         ) {
-            Button(Strings.loggedDaysDelete, role: .destructive) { delete() }
-            Button(Strings.commonCancel, role: .cancel) {}
+            Button(String(localized: .loggedDaysDelete), role: .destructive) { delete() }
+            Button(String(localized: .commonCancel), role: .cancel) {}
         } message: {
-            Text(Strings.loggedDaysDeleteFooter)
+            Text(String(localized: .loggedDaysDeleteFooter))
         }
         .alert(
-            Strings.manualSaveErrorTitle,
+            String(localized: .manualSaveErrorTitle),
             isPresented: $saveError.isPresented,
         ) {
-            Button(Strings.commonOK, role: .cancel) {}
+            Button(String(localized: .commonOk), role: .cancel) {}
         } message: {
             if let message = saveError.message {
                 Text(message)
             }
         }
         .alert(
-            Strings.loggedDaysDeleteErrorTitle,
+            String(localized: .loggedDaysDeleteErrorTitle),
             isPresented: $deleteError.isPresented,
         ) {
-            Button(Strings.commonOK, role: .cancel) {}
+            Button(String(localized: .commonOk), role: .cancel) {}
         } message: {
             if let message = deleteError.message {
                 Text(message)
             }
         }
+        // Log View Mode: reveal an inspect badge for the manual-day form's
+        // events (region grouping load). A no-op in release.
+        .debugLogInspectable(WhereLog.session(ManualDayViewLog.self))
     }
 
     // MARK: - Mode-specific content
@@ -117,7 +125,7 @@ struct ManualDayView: View {
         @Bindable var add = add
 
         Section {
-            Picker(Strings.manualEntryPickerLabel, selection: $add.dateSpan) {
+            Picker(String(localized: .manualEntryPickerLabel), selection: $add.dateSpan) {
                 ForEach(DateSpan.allCases) { span in
                     Text(span.title).tag(span)
                 }
@@ -145,7 +153,10 @@ struct ManualDayView: View {
         @Bindable var edit = edit
 
         Section {
-            LabeledContent(Strings.loggedDaysEditDate, value: fixedDateText(edit.day.displayDate))
+            LabeledContent(
+                String(localized: .loggedDaysEditDate),
+                value: fixedDateText(edit.day.displayDate),
+            )
         }
 
         regionsSection(edit.regions)
@@ -155,11 +166,11 @@ struct ManualDayView: View {
             Button(role: .destructive) {
                 showDeleteConfirmation = true
             } label: {
-                Label(Strings.loggedDaysDelete, systemImage: "trash")
+                Label(String(localized: .loggedDaysDelete), systemImage: "trash")
             }
             .disabled(pending != nil)
         } footer: {
-            Text(Strings.loggedDaysDeleteFooter)
+            Text(String(localized: .loggedDaysDeleteFooter))
         }
 
         savingSection
@@ -169,28 +180,33 @@ struct ManualDayView: View {
         }
     }
 
+    /// `WhereDatePicker` renders a deterministic stand-in under snapshot capture
+    /// (the live compact capsule's date format depends on the real-world date,
+    /// so no reference image containing it is stable across days) — the capture
+    /// handling stays inside the wrapper, not here.
     @ViewBuilder
     private func datePickers(_ add: AddFields) -> some View {
         @Bindable var add = add
         switch add.dateSpan {
             case .singleDay:
-                DatePicker(
-                    Strings.manualDay,
+                WhereDatePicker(
+                    String(localized: .manualDay),
                     selection: $add.startDate,
-                    in: ...Date(),
+                    latest: Date(),
                     displayedComponents: .date,
                 )
             case .range:
-                DatePicker(
-                    Strings.manualFrom,
+                WhereDatePicker(
+                    String(localized: .manualFrom),
                     selection: $add.startDate,
-                    in: ...Date(),
+                    latest: Date(),
                     displayedComponents: .date,
                 )
-                DatePicker(
-                    Strings.manualThrough,
+                WhereDatePicker(
+                    String(localized: .manualThrough),
                     selection: $add.endDate,
-                    in: add.startDate ... Date(),
+                    earliest: add.startDate,
+                    latest: Date(),
                     displayedComponents: .date,
                 )
         }
@@ -198,31 +214,76 @@ struct ManualDayView: View {
 
     // MARK: - Shared sections
 
+    @ViewBuilder
     private func regionsSection(_ regions: RegionSelectionState) -> some View {
-        Section {
-            ForEach(regions.items) { item in
-                RegionToggleRow(item: item)
+        if regions.isGrouped {
+            // Your regions / Used this year / More — the shared grouped sections,
+            // with day-membership toggles as the row.
+            GroupedRegionSections(
+                grouping: regions.grouping,
+                yoursFooter: String(localized: .manualRegionsFooter),
+            ) { region in
+                if let item = regions.item(for: region) {
+                    RegionToggleRow(item: item)
+                }
             }
-        } header: {
-            Text(Strings.manualRegionsHeader)
-        } footer: {
-            Text(Strings.manualRegionsFooter)
+        } else {
+            // Tracked set not loaded yet (or a preview without services): show
+            // the flat catalog list, matching the pre-grouping behavior.
+            Section {
+                ForEach(regions.items) { RegionToggleRow(item: $0) }
+            } header: {
+                Text(String(localized: .manualRegionsHeader))
+            } footer: {
+                Text(String(localized: .manualRegionsFooter))
+            }
+        }
+    }
+
+    /// The region-selection state for the active mode.
+    private var activeRegions: RegionSelectionState {
+        switch fields {
+            case let .add(add): add.regions
+            case let .edit(edit): edit.regions
+        }
+    }
+
+    /// Load the tracked/primary regions + the regions used this year once so the
+    /// toggles can be grouped (tracked / used-this-year / everything else). On
+    /// failure the form keeps the flat list rather than a broken grouping, and
+    /// logs.
+    private func loadGrouping() async {
+        guard activeRegions.trackedRegions == nil else { return }
+        // "Used this year" is the *selected report year* — the year this form is
+        // reached for (logged-days list / relabel are per-report-year), so it
+        // matches the day being edited in practice. It only drives grouping
+        // order, not what gets saved.
+        let usedThisYear = Set(
+            (report.report?.totals ?? [:]).filter { $0.value > 0 }.map(\.key),
+        )
+        do {
+            let tracked = try await report.services.primaryRegions()
+            activeRegions.applyGrouping(tracked: tracked, usedThisYear: usedThisYear)
+        } catch {
+            Self.logger(attachments: [.error(error, name: "grouping-error")]) {
+                .regionGroupingLoadFailed(description: error.localizedDescription)
+            }
         }
     }
 
     private func noteSection(note: Binding<String>) -> some View {
         Section {
             TextField(
-                Strings.manualNotePlaceholder,
+                String(localized: .manualNotePlaceholder),
                 text: note,
                 axis: .vertical,
             )
             .lineLimit(3, reservesSpace: true)
             .disabled(pending != nil)
         } header: {
-            Text(Strings.manualNoteHeader)
+            Text(String(localized: .manualNoteHeader))
         } footer: {
-            Text(Strings.manualNoteFooter)
+            Text(String(localized: .manualNoteFooter))
         }
     }
 
@@ -230,7 +291,7 @@ struct ManualDayView: View {
     private var savingSection: some View {
         if pending == .saving {
             Section {
-                SavingStatusRow(text: Strings.manualSavingStatus)
+                SavingStatusRow(text: String(localized: .manualSavingStatus))
             }
         }
     }
@@ -239,8 +300,8 @@ struct ManualDayView: View {
 
     private var navigationTitle: String {
         switch fields {
-            case .add: Strings.manualTitle
-            case .edit: Strings.loggedDaysEditTitle
+            case .add: String(localized: .manualTitle)
+            case .edit: String(localized: .loggedDaysEditTitle)
         }
     }
 
@@ -257,8 +318,8 @@ struct ManualDayView: View {
 
     private func addDateFooter(_ add: AddFields) -> String {
         switch add.dateSpan {
-            case .singleDay: Strings.manualSingleDayFooter
-            case .range: Strings.manualRangeFooter(count: add.dayCount)
+            case .singleDay: String(localized: .manualSingleDayFooter)
+            case .range: WhereFormat.manualRangeFooter(count: add.dayCount)
         }
     }
 
@@ -353,8 +414,8 @@ extension ManualDayView {
 
         var title: String {
             switch self {
-                case .singleDay: Strings.manualModeSingleDay
-                case .range: Strings.manualModeRange
+                case .singleDay: String(localized: .manualModeSingleDay)
+                case .range: String(localized: .manualModeRange)
             }
         }
     }
@@ -371,9 +432,10 @@ extension ManualDayView {
         case add(AddFields)
         case edit(EditFields)
 
-        init(mode: Mode) {
+        init(mode: Mode, calendar: Calendar) {
             switch mode {
-                case let .add(prefill): self = .add(AddFields(prefill: prefill))
+                case let .add(prefill):
+                    self = .add(AddFields(prefill: prefill, calendar: calendar))
                 case let .edit(day): self = .edit(EditFields(day: day))
             }
         }
@@ -388,12 +450,14 @@ extension ManualDayView {
         var endDate: Date
         var regions: RegionSelectionState
         var note: String
+        private let calendar: Calendar
 
-        init(prefill: MissingDayRange?) {
+        init(prefill: MissingDayRange?, calendar: Calendar) {
+            self.calendar = calendar
             if let prefill {
                 dateSpan = prefill.dayCount > 1 ? .range : .singleDay
-                startDate = prefill.start.startOfDay(in: .current)
-                endDate = prefill.end.startOfDay(in: .current)
+                startDate = prefill.start.startOfDay(in: calendar)
+                endDate = prefill.end.startOfDay(in: calendar)
             } else {
                 dateSpan = .singleDay
                 startDate = Date()
@@ -406,7 +470,6 @@ extension ManualDayView {
         /// Inclusive day count of the current range (or 1 for a single day),
         /// for the footer.
         var dayCount: Int {
-            let calendar = Calendar.current
             let start = calendar.startOfDay(for: startDate)
             let end = calendar.startOfDay(for: endDate)
             let span = calendar.dateComponents([.day], from: start, to: end).day ?? 0
@@ -439,54 +502,70 @@ extension ManualDayView {
 }
 
 #if DEBUG
-    #Preview("Add") {
-        NavigationStack {
-            ManualDayView(report: PreviewSupport.loadedYearReportModel(), mode: .add(prefill: nil))
+    extension ManualDayView: SnapshotProviding {
+        /// A plain add (`prefill: nil`) would default its date pickers to the
+        /// real current date and churn the references daily, so the add cases
+        /// prefill a fixed single day instead — same form, deterministic date.
+        private static var addPrefill: MissingDayRange {
+            let day = CalendarDay(from: PreviewSupport.referenceNow, in: .current)
+            return MissingDayRange(start: day, end: day, dayCount: 1)
+        }
+
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Add", configurations: .screenDefaults) {
+                NavigationStack {
+                    ManualDayView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        mode: .add(prefill: addPrefill),
+                        showsCancelButton: false,
+                    )
+                }
+            }
+            whereSnapshot(name: "AddWithCancel", configurations: .phoneLightDark) {
+                NavigationStack {
+                    ManualDayView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        mode: .add(prefill: addPrefill),
+                        showsCancelButton: true,
+                    )
+                }
+            }
+            whereSnapshot(name: "EditPlain", configurations: .phoneLightDark) {
+                NavigationStack {
+                    ManualDayView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        mode: .edit(DayPresence(
+                            date: PreviewSupport.referenceNow,
+                            in: .current,
+                            regions: [.california],
+                        )),
+                        showsCancelButton: true,
+                    )
+                }
+            }
+            whereSnapshot(name: "EditAuthoritative", configurations: .phoneLightDark) {
+                NavigationStack {
+                    ManualDayView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        mode: .edit(DayPresence(
+                            date: PreviewSupport.referenceNow,
+                            in: .current,
+                            regions: [.canada],
+                            isAuthoritative: true,
+                            audit: ManualEntryAudit(
+                                recordedAt: PreviewSupport.referenceNow,
+                                note: "Boarding pass.",
+                                location: nil,
+                            ),
+                        )),
+                        showsCancelButton: true,
+                    )
+                }
+            }
         }
     }
 
-    #Preview("Add — prefilled range") {
-        NavigationStack {
-            ManualDayView(
-                report: PreviewSupport.missingDaysYearReportModel(),
-                mode: .add(prefill: MissingDayRange(
-                    start: CalendarDay(year: 2026, month: 1, day: 1),
-                    end: CalendarDay(year: 2026, month: 1, day: 5),
-                    dayCount: 5,
-                )),
-            )
-        }
-    }
-
-    #Preview("Edit — additive backfill") {
-        NavigationStack {
-            ManualDayView(
-                report: PreviewSupport.loadedYearReportModel(),
-                mode: .edit(DayPresence(date: .now, in: .current, regions: [.california])),
-            )
-        }
-    }
-
-    #Preview("Edit — authoritative with audit") {
-        NavigationStack {
-            ManualDayView(
-                report: PreviewSupport.loadedYearReportModel(),
-                mode: .edit(DayPresence(
-                    date: .now,
-                    in: .current,
-                    regions: [.canada],
-                    isAuthoritative: true,
-                    audit: ManualEntryAudit(
-                        recordedAt: .now,
-                        note: "Corrected after reviewing my boarding pass.",
-                        location: CapturedLocation(
-                            coordinate: Coordinate(latitude: 49.2827, longitude: -123.1207),
-                            horizontalAccuracy: 12,
-                            timestamp: .now,
-                        ),
-                    ),
-                )),
-            )
-        }
+    #Preview {
+        ManualDayView.snapshotPreviews
     }
 #endif

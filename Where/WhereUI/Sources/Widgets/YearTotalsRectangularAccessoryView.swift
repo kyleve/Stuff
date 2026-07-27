@@ -1,3 +1,4 @@
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -15,6 +16,7 @@ public struct YearTotalsRectangularAccessoryView: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     private var ranked: [RegionDays] {
         snapshot.rankedTotals(maxRows: Self.maxRows)
@@ -22,13 +24,16 @@ public struct YearTotalsRectangularAccessoryView: View {
 
     public var body: some View {
         if ranked.isEmpty {
-            Label(Strings.widgetYearEmpty, systemImage: "calendar.badge.exclamationmark")
-                .font(.caption)
+            Label(
+                String(localized: .widgetYearEmpty),
+                systemImage: "calendar.badge.exclamationmark",
+            )
+            .font(.caption)
         } else {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(ranked) { entry in
                     HStack(spacing: stylesheet.spacing.xSmall) {
-                        Image(systemName: entry.region.style.symbolName)
+                        Image(systemName: regionStyles.style(for: entry.region).symbolName)
                             .font(.caption2)
                             .accessibilityHidden(true)
                         Text(entry.region.localizedName)
@@ -42,7 +47,7 @@ public struct YearTotalsRectangularAccessoryView: View {
                     }
                     .accessibilityElement(children: .combine)
                     .accessibilityLabel(
-                        Strings.regionDaysAccessibility(
+                        WhereFormat.regionDaysAccessibility(
                             region: entry.region.localizedName,
                             days: entry.days,
                         ),
@@ -55,14 +60,24 @@ public struct YearTotalsRectangularAccessoryView: View {
 }
 
 #if DEBUG
-    #Preview("Ranked", traits: .fixedLayout(width: 170, height: 80)) {
-        YearTotalsRectangularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot())
+    extension YearTotalsRectangularAccessoryView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Ranked", configurations: .componentLightDark, settle: .immediate) {
+                YearTotalsRectangularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [.california],
+                    totals: [.california: 132, .newYork: 41, .canada: 9, .other: 2],
+                ))
+            }
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
+                YearTotalsRectangularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [],
+                    totals: [:],
+                ))
+            }
+        }
     }
 
-    #Preview("Empty", traits: .fixedLayout(width: 170, height: 80)) {
-        YearTotalsRectangularAccessoryView(snapshot: PreviewSupport.sampleWidgetSnapshot(
-            dayRegions: [],
-            totals: [:],
-        ))
+    #Preview {
+        YearTotalsRectangularAccessoryView.snapshotPreviews
     }
 #endif

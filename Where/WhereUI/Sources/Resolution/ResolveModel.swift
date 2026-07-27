@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 import RegionKit
 import WhereCore
 
@@ -33,7 +33,7 @@ public final class ResolveModel {
 
     private let services: WhereServices
     private let preferences: WherePreferences
-    private static let logger = WhereLog.channel(.session)
+    private static let logger = WhereLog.session(ResolveModelLog.self)
 
     #if DEBUG
         /// Set by the `@_spi(Testing)` seeder so `load(...)` doesn't clobber
@@ -65,9 +65,7 @@ public final class ResolveModel {
         } catch {
             // Surface the failure and keep the last good list rather than
             // silently blanking the tab (which would read as "all clear").
-            Self.logger.warning(
-                "Failed to scan for data issues: \(error.localizedDescription)",
-            )
+            Self.logger { .dataIssueScanFailed(description: error.localizedDescription) }
         }
         // Mark loaded even on failure so the view leaves the spinner (the error
         // was logged and the last good list preserved); a stuck spinner would be
@@ -84,9 +82,12 @@ public final class ResolveModel {
             // recomputes the badge count a beat later.
             dataIssues.removeAll { $0.id == issue.id }
         } catch {
-            Self.logger.warning(
-                "Failed to dismiss data issue \(issue.id.storeURL): \(error.localizedDescription)",
-            )
+            Self.logger {
+                .dismissFailed(
+                    issueID: issue.id.storeURL.absoluteString,
+                    description: error.localizedDescription,
+                )
+            }
         }
     }
 }

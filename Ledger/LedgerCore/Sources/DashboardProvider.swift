@@ -39,7 +39,7 @@ public struct CursorDashboardAPI: DashboardProvider {
     /// The dashboard's origin.
     public static let defaultBaseURL = URL(string: "https://cursor.com")!
 
-    private static let logger = LedgerLog.channel(.spendAPI)
+    private static let logger = LedgerLog.dashboard
 
     /// A session dedicated to the dashboard API: ephemeral with **no cookie
     /// storage**, because auth is the `Cookie` header we set explicitly. Left

@@ -28,12 +28,12 @@ set -euo pipefail
 # `test-without-building`, and it runs `tuist generate --no-open` first so it
 # never steals focus by opening Xcode.
 #
-# macOS only (Tuist + iOS Simulator), matching CI on macos-26.
+# macOS only (Tuist + iOS Simulator), matching CI on the xcode-27 image.
 
 SUITE_RUNS=10          # Phase 1: how many times to run the full suite
 ITERATIONS=50          # Phase 2: how many times to tight-loop each suspect
 DEVICE="iPhone 17"
-OS="26.2"
+OS="27.0"
 SCHEME="Stuff-iOS-Tests"
 RELAUNCH="YES"         # fresh process per tight-loop iteration (-test-repetition-relaunch-enabled)
 UPDATE=true            # write FLAKY_TESTS.md (disable with --no-update)
@@ -51,7 +51,7 @@ Options:
   --suite-runs N       Times to run the whole suite in phase 1 (default: 10)
   --iterations M       Times to tight-loop each suspect in phase 2 (default: 50)
   --device NAME        Simulator device name (default: "iPhone 17")
-  --os VERSION         Simulator iOS version (default: "26.2")
+  --os VERSION         Simulator iOS version (default: "27.0")
   --scheme NAME        Scheme to test (default: "Stuff-iOS-Tests")
   --relaunch YES|NO    New process per tight-loop iteration (default: YES)
   --no-update          Print the report but don't write FLAKY_TESTS.md
@@ -84,7 +84,14 @@ done
 cd "$(dirname "$0")"
 
 WORKSPACE="Stuff.xcworkspace"
-DESTINATION="platform=iOS Simulator,name=$DEVICE,OS=$OS"
+# Boot the target up front and address it by UDID. This matters most here: a
+# name-based `simctl`/destination can hit a same-named device on another
+# runtime, and a device shared with another checkout can be installed to or
+# erased mid-run — either way the `Application failed preflight checks (Busy)` /
+# `Mach error -308` launch failures look exactly like the flakes this script
+# hunts. `./simulator` hands back this checkout's own device (creating it the
+# first time), which rules both out.
+DESTINATION="platform=iOS Simulator,id=$(./simulator --device "$DEVICE" --os "$OS")"
 
 WORKDIR="${TMPDIR:-/tmp}/where-flaky"
 DERIVED="$WORKDIR/DerivedData"

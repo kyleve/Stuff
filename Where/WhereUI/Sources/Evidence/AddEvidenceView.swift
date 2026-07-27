@@ -1,3 +1,4 @@
+import PeriscopeCore
 import PhotosUI
 import SwiftUI
 import UniformTypeIdentifiers
@@ -38,14 +39,14 @@ struct AddEvidenceView: View {
                 detailsSection
                 noteSection
             }
-            .navigationTitle(Strings.evidenceAdd)
+            .navigationTitle(String(localized: .evidenceAdd))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(Strings.commonCancel) { dismiss() }
+                    Button(String(localized: .commonCancel)) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(Strings.evidenceSave) {
+                    Button(String(localized: .evidenceFormSave)) {
                         Task { if await model.save() { dismiss() } }
                     }
                     .disabled(model.isSaving)
@@ -58,23 +59,26 @@ struct AddEvidenceView: View {
             )
             .onChange(of: photoItem) { _, item in loadPhoto(item) }
             .alert(
-                Strings.evidenceSaveErrorTitle,
+                String(localized: .evidenceFormSaveErrorTitle),
                 isPresented: $model.isShowingSaveError,
                 presenting: model.saveErrorMessage,
             ) { _ in
-                Button(Strings.commonOK, role: .cancel) {}
+                Button(String(localized: .commonOk), role: .cancel) {}
             } message: { message in
                 Text(message)
             }
             .alert(
-                Strings.evidenceSaveErrorTitle,
+                String(localized: .evidenceFormSaveErrorTitle),
                 isPresented: $model.isShowingAttachmentError,
                 presenting: model.attachmentError,
             ) { _ in
-                Button(Strings.commonOK, role: .cancel) {}
+                Button(String(localized: .commonOk), role: .cancel) {}
             } message: { message in
                 Text(message)
             }
+            // Log View Mode: reveal an inspect badge for this compose form's
+            // events (attachment-pick / save). A no-op in release.
+            .debugLogInspectable(WhereLog.evidence(AddEvidenceModelLog.self))
         }
     }
 
@@ -86,27 +90,27 @@ struct AddEvidenceView: View {
                     model.removeAttachment()
                     photoItem = nil
                 } label: {
-                    Label(Strings.evidenceRemoveAttachment, systemImage: "trash")
+                    Label(String(localized: .evidenceFormRemove), systemImage: "trash")
                 }
             } else {
                 Button {
                     showingFileImporter = true
                 } label: {
-                    Label(Strings.evidenceChooseFile, systemImage: "doc")
+                    Label(String(localized: .evidenceFormChooseFile), systemImage: "doc")
                 }
                 PhotosPicker(selection: $photoItem, matching: .images) {
-                    Label(Strings.evidenceChoosePhoto, systemImage: "photo")
+                    Label(String(localized: .evidenceFormChoosePhoto), systemImage: "photo")
                 }
             }
         } header: {
-            Text(Strings.evidenceAttachmentHeader)
+            Text(String(localized: .evidenceFormAttachmentHeader))
         }
     }
 
     private func attachmentSummary(_ attachment: PickedAttachment) -> some View {
         HStack {
             Label(
-                attachment.filename ?? Strings.evidenceAttachmentHeader,
+                attachment.filename ?? String(localized: .evidenceFormAttachmentHeader),
                 systemImage: "paperclip",
             )
             .lineLimit(1)
@@ -122,15 +126,15 @@ struct AddEvidenceView: View {
     private var detailsSection: some View {
         @Bindable var model = model
         return Section {
-            Picker(Strings.evidenceKindPickerLabel, selection: $model.kind) {
+            Picker(String(localized: .evidenceFormKind), selection: $model.kind) {
                 ForEach(EvidenceKind.knownCases, id: \.self) { kind in
                     Label(kind.displayName, systemImage: kind.symbolName).tag(kind)
                 }
             }
             if case .other = model.kind {
-                TextField(Strings.evidenceOtherLabelPlaceholder, text: $model.otherLabel)
+                TextField(String(localized: .evidenceFormOtherLabel), text: $model.otherLabel)
             }
-            DatePicker(Strings.evidenceDateLabel, selection: $model.capturedAt)
+            DatePicker(String(localized: .evidenceFormDate), selection: $model.capturedAt)
         }
     }
 
@@ -138,13 +142,13 @@ struct AddEvidenceView: View {
         @Bindable var model = model
         return Section {
             TextField(
-                Strings.evidenceNotePlaceholder,
+                String(localized: .evidenceFormNotePlaceholder),
                 text: $model.note,
                 axis: .vertical,
             )
             .lineLimit(3, reservesSpace: true)
         } header: {
-            Text(Strings.evidenceNoteLabel)
+            Text(String(localized: .evidenceFormNote))
         }
     }
 
@@ -189,7 +193,7 @@ struct AddEvidenceView: View {
         Task {
             do {
                 guard let data = try await item.loadTransferable(type: Data.self) else {
-                    model.reportAttachmentError(Strings.evidencePreviewFailed)
+                    model.reportAttachmentError(String(localized: .evidenceDetailPreviewFailed))
                     return
                 }
                 model.setAttachment(PickedAttachment(

@@ -4,7 +4,7 @@ import PeriscopeCore
 import Testing
 
 /// A source that logs one event the moment it starts.
-private struct ImmediateSource: AmbientEventSource {
+private final class ImmediateSource: AmbientEventSource {
     func start(log: Log<AmbientEvent>) {
         log { AmbientEvent(kind: AmbientKind("test-kind"), value: "started") }
     }
@@ -12,26 +12,23 @@ private struct ImmediateSource: AmbientEventSource {
     func stop() {}
 }
 
-/// Observes a test-unique notification through `AmbientObserverTokens`, so
-/// stop/restart semantics can be asserted without cross-talk from other
+/// Observes a test-unique notification through `NotificationAmbientSource`,
+/// so stop/restart semantics can be asserted without cross-talk from other
 /// tests posting process-global system notifications.
-private struct NotificationSource: AmbientEventSource {
+private final class NotificationSource: NotificationAmbientSource {
     let name: Notification.Name
-    private let tokens = AmbientObserverTokens()
 
-    func start(log: Log<AmbientEvent>) {
-        let token = NotificationCenter.default.addObserver(
-            forName: name,
-            object: nil,
-            queue: nil,
-        ) { _ in
-            log { AmbientEvent(kind: AmbientKind("test-kind"), value: "fired") }
-        }
-        tokens.replace(with: [token])
+    init(name: Notification.Name) {
+        self.name = name
+        super.init()
     }
 
-    func stop() {
-        tokens.removeAll()
+    override var observedNames: [Notification.Name] {
+        [name]
+    }
+
+    override func event(for _: Notification) -> AmbientEvent? {
+        AmbientEvent(kind: AmbientKind("test-kind"), value: "fired")
     }
 }
 

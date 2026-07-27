@@ -1,11 +1,12 @@
+import SnapshotKit
 import SwiftUI
 
 /// The app-icon picker. A grid of options that flexes with the container width
 /// (two columns on phones, more on wider displays — see `AppIconLayout`).
 /// Tapping a cell slides a preview panel up from the bottom over the dimmed
 /// grid: the panel's background reflects a light/dark mode you toggle by tapping
-/// the icon, and a Set button applies it. Presented as a sheet from
-/// `SettingsView`, so it owns its navigation bar and a Done button.
+/// the icon, and a Set button applies it. Presented as a sheet from the
+/// Appearance sub-screen, so it owns its navigation bar and a Done button.
 struct AppIconView: View {
     @State private var model: AppIconModel
     @State private var preview: AppIconOption?
@@ -48,11 +49,11 @@ struct AppIconView: View {
                             .transition(.move(edge: .bottom))
                     }
                 }
-                .navigationTitle(Strings.appIconTitle)
+                .navigationTitle(String(localized: .appIconTitle))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
-                        Button(Strings.commonDone) { dismiss() }
+                        Button(String(localized: .commonDone)) { dismiss() }
                     }
                 }
             }
@@ -62,8 +63,8 @@ struct AppIconView: View {
         }
         .sensoryFeedback(.selection, trigger: appearanceToggles)
         .sensoryFeedback(.success, trigger: model.selectedID)
-        .alert(Strings.appIconErrorTitle, isPresented: $model.isShowingError) {
-            Button(Strings.commonOK, role: .cancel) {}
+        .alert(String(localized: .appIconErrorTitle), isPresented: $model.isShowingError) {
+            Button(String(localized: .commonOk), role: .cancel) {}
         } message: {
             Text(model.applyError ?? "")
         }
@@ -121,7 +122,7 @@ struct AppIconView: View {
         .buttonStyle(.plain)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(option.displayName)
-        .accessibilityValue(isSelected ? Strings.appIconCurrent : "")
+        .accessibilityValue(isSelected ? String(localized: .appIconCurrent) : "")
         .accessibilityAddTraits(isSelected ? [.isButton, .isSelected] : .isButton)
     }
 
@@ -132,7 +133,7 @@ struct AppIconView: View {
             .transition(.opacity)
             .onTapGesture { dismissPreview() }
             .accessibilityAddTraits(.isButton)
-            .accessibilityLabel(Strings.commonDone)
+            .accessibilityLabel(String(localized: .commonDone))
             .accessibilityAction { dismissPreview() }
     }
 
@@ -153,14 +154,17 @@ struct AppIconView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(option.displayName)
-            .accessibilityValue(previewMode == .dark ? Strings.appIconAppearanceDark : Strings
-                .appIconAppearanceLight)
-            .accessibilityHint(Strings.appIconAppearanceHint)
+            .accessibilityValue(
+                previewMode == .dark
+                    ? String(localized: .appIconAppearanceDark)
+                    : String(localized: .appIconAppearanceLight),
+            )
+            .accessibilityHint(String(localized: .appIconAppearanceHint))
 
             VStack(spacing: appIcon.panel.textSpacing) {
                 Text(option.displayName)
                     .font(.title3.weight(.semibold))
-                Text(Strings.appIconAppearanceHint)
+                Text(String(localized: .appIconAppearanceHint))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -169,7 +173,7 @@ struct AppIconView: View {
             Button {
                 apply(option)
             } label: {
-                Text(Strings.appIconSet)
+                Text(String(localized: .appIconSet))
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -303,12 +307,20 @@ struct AppIconImage: View {
 }
 
 #if DEBUG
+    extension AppIconView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .screenDefaults, settle: .immediate) {
+                NavigationStack { AppIconView(model: .preview()) }
+            }
+        }
+    }
+
     #Preview("Classic") {
         AppIconImage(name: "AppIconClassic", size: 60)
             .padding()
     }
 
     #Preview {
-        AppIconView(model: .preview())
+        AppIconView.snapshotPreviews
     }
 #endif

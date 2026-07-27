@@ -50,3 +50,16 @@ Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`: build an
 in-memory `ModelContainer` with local `@Model` fixtures, drive
 `SwiftDataInspectorModel`, and assert on the returned snapshots. Real-app
 wiring is covered from the consumer side (`WhereUITests`).
+
+How it renders is pinned by the image snapshots in
+[`SnapshotTests/`](SnapshotTests), which build as the module's own
+`SwiftDataInspectorSnapshotTests` bundle — image suites get their own target,
+gathered with every other module's into the shared `StuffSnapshotTests` scheme
+and its CI job (root [`AGENTS.md`](../../AGENTS.md#targets)). It links only
+`SwiftDataInspector`, so nothing here builds against an app module. Snapshot the module the way a
+consumer gets it: a **local fixture schema**, never a host app's store, and no
+design-system root. Prefer adding a case there over a hosted "renders without
+crashing" test, which asserts nothing about the result. Fixture `@Model` names
+must not collide with the ones in [`Tests/`](Tests) — those are a separate
+bundle, and duplicate model class names would clash in the runtime if both ever
+loaded into one host process.

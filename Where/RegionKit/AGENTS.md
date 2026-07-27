@@ -10,7 +10,8 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 
 ## Scope & dependencies
 
-- **Pure Swift + Foundation**, plus [`LogKit`](../../Shared/LogKit). It must
+- **Pure Swift + Foundation**, plus
+  [`PeriscopeCore`](../../Shared/Periscope/PeriscopeCore) for logging. It must
   **not** import SwiftUI, UIKit, SwiftData, CoreLocation, or `WhereCore` — it is
   the lowest layer of the feature, and `WhereCore` depends on *it*, never the
   reverse.
@@ -38,6 +39,14 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   (dev viewer/tests); `.shared` the default four. It's UI-free: `BoundingBox` /
   `LongitudeSpan` expose the min/max math, but MapKit conversion lives in the UI
   layer. `RegionAttributing` lets `WhereCore` supply a live, swappable attributor.
+- **Bundled geometry is credited in code, not only in prose.** `RegionDataSource`
+  states each boundary set's origin, license, and fidelity, and derives its
+  coverage from the catalog — the US sources by the `us-` id prefix the generator
+  mints, everything else by an explicit id list, deliberately *not* an
+  "everything else" fallback that would silently mis-credit a new region.
+  `RegionDataSourceTests` fails when a region is covered zero times or twice, so
+  regenerating the catalog can't ship uncredited data. Keep it in step with the
+  [README](README.md#source-data-not-bundled) provenance notes.
 - **Region names are manifest data (a documented trade-off).** `localizedName`
   resolves a manifest entry's optional `localizationKey` from the string catalog,
   else the manifest's English `name` — so dynamic ids cost static string-catalog
@@ -45,9 +54,16 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 - **Missing/corrupt bundled geometry (or manifest) is a programmer error** — the
   loader logs a `fault` via `RegionLog` *and* `assertionFailure`s (debug),
   degrading to `.other`/an empty catalog in release rather than crashing.
-- **Logging goes through `RegionLog.channel(_:)`** (subsystem
-  `com.stuff.regionkit`), never `WhereLog` — RegionKit owns its own channel and
-  in-memory store.
+- **Logging goes through `RegionLog`**, RegionKit's own `"RegionKit"` root
+  scope — never `WhereLog`, which it can't see — emitted into the shared
+  `Periscope.shared` so the app's sink still captures it.
+- **Object identities are `region://` URLs** — `RegionURL` (RegionKit's local
+  analog of WhereCore's `StoreURL`) builds/parses `region://<collection>/<type>`
+  URLs, and `Region.regionURL` vends `region://regions/<id>`. Used to key a
+  `LogEvent.externalID` (see `RegionAttributorLog`) so inspect-by-object works
+  without RegionKit reaching up into the app's `store://` scheme — a separate,
+  intentionally parallel namespace. Distinct from `Region`'s bare-`rawValue`
+  `Codable`, which stays the persisted form.
 
 ## Testing
 

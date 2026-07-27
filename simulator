@@ -1,0 +1,437 @@
+#!/bin/bash
+set -euo pipefail
+
+# simulator — resolve the iOS Simulator *this checkout* owns, creating it on
+# first use, boot it, and print its UDID.
+#
+# Two problems, one script:
+#
+#   1. Ambiguity. A machine with several runtimes installed usually has an
+#      "iPhone 17" on each of them, and `xcrun simctl` matches by *name* only —
+#      so a name-based command can shut down, erase, or boot a different device
+#      than the one under test, which surfaces as `Application failed preflight
+#      checks (Busy)` or `Mach error -308` (launch failures that look like test
+#      failures). Booting is also the slow half: letting a run race a cold
+#      CoreSimulator has stretched a ~10 minute test job past 3 hours.
+#
+#   2. Contention. Several checkouts on one machine — clones, worktrees, an
+#      agent working in each — otherwise resolve to the *same* device and race
+#      one another's boots, installs, and erases of the same bundle ID, which
+#      fails in exactly the ways above. So a device is a per-checkout resource:
+#      the name is derived from the checkout's path
+#      (`Stuff-<folder>-<hash>-<device>-<os>`), it's created on demand, and
+#      nothing else on the machine touches it.
+#
+# See "Selecting a simulator" in AGENTS.md.
+#
+# Only the UDID goes to stdout, so this composes:
+#
+#     -destination "platform=iOS Simulator,id=$(./simulator)"
+#
+# Progress and warnings go to stderr.
+
+DEVICE="iPhone 17"
+OS="27.0"
+BOOT=true
+SHARED=false
+DRY_RUN=false
+MODE=resolve
+
+usage() {
+    cat <<'USAGE'
+Usage: ./simulator [options]
+
+Resolves this checkout's own iOS Simulator by UDID (never by name), creating it
+if it doesn't exist yet, boots it, waits for the boot to finish, and prints the
+UDID on stdout.
+
+Every checkout — clone or worktree — owns a separate device, so parallel work
+on one machine can't collide booting, installing, or erasing the same one.
+
+Options:
+  --device NAME   Simulator device name (default: "iPhone 17")
+  --os VERSION    Simulator iOS version (default: "27.0")
+  --no-boot       Only resolve (creating if needed) and print the UDID
+  --shared        Target any existing device with that name instead of this
+                  checkout's own — for throwaway machines (CI) that are already
+                  isolated
+  --list          List the per-checkout devices on this machine
+  --prune         Delete devices whose checkout is gone, and forget devices
+                  that no longer exist. Devices no checkout claims — a renamed
+                  or moved checkout leaves one — are reported, never deleted
+  --dry-run       With --prune: report what it would do and change nothing
+  --delete        Delete this checkout's device
+  --recreate      Delete this checkout's device, then create and boot a fresh one
+  -h, --help      Show this help
+
+Renaming or moving a checkout changes the name it resolves to, so it gets a
+fresh device and the old one turns up as unowned in --list.
+
+Examples:
+  ./simulator
+  ./simulator --device 'iPhone 17 Pro' --os 27.0
+  ./simulator --list
+  ./simulator --prune --dry-run
+  xcodebuild test -destination "platform=iOS Simulator,id=$(./simulator)" …
+USAGE
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --device) shift; DEVICE="${1:?--device requires a value}" ;;
+        --os) shift; OS="${1:?--os requires a value}" ;;
+        --no-boot) BOOT=false ;;
+        --shared) SHARED=true ;;
+        --list) MODE=list ;;
+        --prune) MODE=prune ;;
+        --dry-run) DRY_RUN=true ;;
+        --delete) MODE=delete ;;
+        --recreate) MODE=recreate ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "error: unknown option '$1' (see ./simulator --help)" >&2; exit 1 ;;
+    esac
+    shift
+done
+
+if [ "$SHARED" = true ] && [ "$MODE" != resolve ]; then
+    echo "error: --shared has no checkout of its own to $MODE (see ./simulator --help)" >&2
+    exit 1
+fi
+
+if [ "$DRY_RUN" = true ] && [ "$MODE" != prune ]; then
+    echo "error: --dry-run only applies to --prune (see ./simulator --help)" >&2
+    exit 1
+fi
+
+cd "$(dirname "$0")"
+
+# `jq` is deliberately unpinned: macOS ships it as an Apple-signed system binary
+# (`/usr/bin/jq`, identifier com.apple.jq) on the macOS 26 baseline this repo
+# requires, same as xcrun/simctl/plutil. The queries below are stable jq syntax
+# and are exercised against both the OS build and the newer one on CI — so don't
+# add it to .mise.toml or gate it behind an install check.
+
+runtime_key="com.apple.CoreSimulator.SimRuntime.iOS-${OS//./-}"
+
+# A worktree's toplevel is the worktree itself, so worktrees count as separate
+# checkouts — which is the point. Outside a repo (a copied tree, an archive),
+# the script's own directory is the checkout.
+checkout="$(git rev-parse --show-toplevel 2>/dev/null || pwd -P)"
+
+slug() { printf '%s' "$1" | tr -cs 'A-Za-z0-9.' '-' | sed 's/^-//; s/-$//'; }
+
+# The prefix marks a device as one of ours, so --list and --prune can find the
+# managed devices no index entry points at any more (a renamed or moved
+# checkout hashes differently and leaves its old device behind).
+name_prefix="Stuff-"
+checkout_hash="$(printf '%s' "$checkout" | shasum -a 256 | cut -c1-8)"
+owned_name="$name_prefix$(slug "$(basename "$checkout")")-$checkout_hash-$(slug "$DEVICE")-$(slug "$OS")"
+
+# An index, not a source of truth: `simctl` still answers "does this device
+# exist", and the name is derived from the checkout rather than looked up here.
+# This only records which checkout a device belongs to, so --list and --prune
+# can map one back to the other.
+registry_dir="$HOME/Library/Application Support/Stuff/simulators"
+
+# `available` hides devices whose runtime has been uninstalled — right for
+# resolving something to run on, wrong for --list/--prune, which must still see
+# (and be able to delete) a device stranded on a removed runtime.
+#
+# Listing also nudges CoreSimulator into rebuilding its device cache, which a
+# freshly provisioned machine (notably the xcode-27 CI image) needs before a
+# destination will resolve at all.
+available_devices_json() { xcrun simctl list devices available --json; }
+all_devices_json() { xcrun simctl list devices --json; }
+
+udids_named() { # <devices-json> <name>
+    printf '%s' "$1" \
+        | jq -r --arg key "$runtime_key" --arg name "$2" \
+            '.devices[$key][]? | select(.name == $name) | .udid'
+}
+
+managed_devices() { # <devices-json> -> "<udid> <name>" per line, every runtime
+    printf '%s' "$1" \
+        | jq -r --arg prefix "$name_prefix" \
+            '.devices | to_entries[] | .value[]
+             | select(.name | startswith($prefix)) | "\(.udid) \(.name)"'
+}
+
+indexed_udids() { # every UDID the index knows, whatever checkout it belongs to
+    [ -d "$registry_dir" ] || return 0
+    local entry
+    for entry in "$registry_dir"/*; do
+        [ -f "$entry" ] || continue
+        registry_field "$entry" udid
+    done
+}
+
+registry_write() { # <name> <udid>
+    mkdir -p "$registry_dir"
+    cat >"$registry_dir/$1" <<EOF
+checkout=$checkout
+udid=$2
+device=$DEVICE
+os=$OS
+EOF
+}
+
+registry_field() { # <file> <key>
+    awk -v key="$2" 'index($0, key "=") == 1 { print substr($0, length(key) + 2); exit }' "$1"
+}
+
+create_device() { # <name> -> udid on stdout
+    local type_id runtime_available udid
+    type_id="$(
+        xcrun simctl list devicetypes --json \
+            | jq -r --arg name "$DEVICE" '.devicetypes[] | select(.name == $name) | .identifier' \
+            | head -1
+    )"
+    if [ -z "$type_id" ]; then
+        echo "error: no '$DEVICE' device type is installed." >&2
+        echo "Available device types:" >&2
+        xcrun simctl list devicetypes >&2
+        exit 1
+    fi
+
+    runtime_available="$(
+        xcrun simctl list runtimes --json \
+            | jq -r --arg key "$runtime_key" \
+                '.runtimes[] | select(.identifier == $key and .isAvailable == true) | .identifier'
+    )"
+    if [ -z "$runtime_available" ]; then
+        echo "error: the iOS $OS runtime ($runtime_key) isn't installed or isn't usable." >&2
+        echo "Available runtimes:" >&2
+        xcrun simctl list runtimes >&2
+        exit 1
+    fi
+
+    echo "==> Creating $1 ($DEVICE / iOS $OS) for $checkout" >&2
+    udid="$(xcrun simctl create "$1" "$type_id" "$runtime_key" | tr -d '[:space:]')"
+    if [ -z "$udid" ]; then
+        echo "error: simctl create returned no UDID for '$1'." >&2
+        exit 1
+    fi
+    printf '%s' "$udid"
+}
+
+delete_owned_device() { # reports what it did; safe when there's nothing to delete
+    local devices_json udid deleted=false
+    devices_json="$(all_devices_json)"
+    while read -r udid; do
+        [ -n "$udid" ] || continue
+        echo "==> Deleting $owned_name ($udid)" >&2
+        xcrun simctl delete "$udid" >&2
+        deleted=true
+    done <<<"$(udids_named "$devices_json" "$owned_name")"
+    rm -f "$registry_dir/$owned_name"
+    [ "$deleted" = true ] || echo "==> No device for this checkout to delete" >&2
+}
+
+# Two first runs in one checkout would otherwise each miss the lookup and create
+# a device, leaving twins that share a name — the ambiguity this script exists
+# to prevent. Serialize *resolve-or-create* per checkout, and only that: booting
+# takes minutes on a device's first launch, and two callers waiting on one boot
+# is fine, so the lock is released before it.
+lock_dir="${TMPDIR:-/tmp}/stuff-simulator-$checkout_hash.lock"
+lock_held=false
+
+acquire_lock() {
+    if [ "$lock_held" = true ]; then
+        return 0
+    fi
+    local waited=0 stale_cleared=false owner
+    until mkdir "$lock_dir" 2>/dev/null; do
+        owner="$(cat "$lock_dir/pid" 2>/dev/null || true)"
+        # A run killed outright (SIGKILL, a reboot mid-run) leaves a lock its
+        # trap never removed. Its pid says whether anyone is still behind it, so
+        # take the lock over rather than making every later run wait out the
+        # timeout — but only once, so a lock we can't clear still times out.
+        if [ "$stale_cleared" = false ] && [ -n "$owner" ] && ! kill -0 "$owner" 2>/dev/null; then
+            echo "warning: clearing the lock left behind by process $owner" >&2
+            rm -rf "$lock_dir"
+            stale_cleared=true
+            continue
+        fi
+        if [ "$waited" -ge 120 ]; then
+            echo "error: timed out waiting for the ./simulator run holding $lock_dir${owner:+ (pid $owner)}." >&2
+            exit 1
+        fi
+        sleep 1
+        waited=$((waited + 1))
+    done
+    printf '%s\n' "$$" >"$lock_dir/pid"
+    lock_held=true
+    trap release_lock EXIT
+}
+
+release_lock() {
+    if [ "$lock_held" = true ]; then
+        rm -rf "$lock_dir"
+        lock_held=false
+    fi
+}
+
+case "$MODE" in
+    list)
+        devices_json="$(all_devices_json)"
+        states="$(printf '%s' "$devices_json" | jq -r '.devices | to_entries[] | .value[] | "\(.udid) \(.state)"')"
+        known_indexed="$(indexed_udids)"
+        rows=""
+        if [ -d "$registry_dir" ]; then
+            for entry in "$registry_dir"/*; do
+                [ -f "$entry" ] || continue
+                entry_udid="$(registry_field "$entry" udid)"
+                entry_checkout="$(registry_field "$entry" checkout)"
+                entry_device="$(registry_field "$entry" device) / iOS $(registry_field "$entry" os)"
+                entry_state="$(printf '%s\n' "$states" | awk -v u="$entry_udid" '$1 == u { print $2 }')"
+                [ -n "$entry_state" ] || entry_state="gone"
+                [ -d "$entry_checkout" ] || entry_checkout="$entry_checkout (missing)"
+                rows+="$(printf '%-10s  %-36s  %-22s  %s' \
+                    "$entry_state" "$entry_udid" "$entry_device" "$entry_checkout")"$'\n'
+            done
+        fi
+        # Devices carrying our prefix that no index entry claims: a checkout that
+        # was renamed or moved (it now hashes to a different name), or an index
+        # that was cleared. Showing them is the only way they're ever noticed.
+        while read -r managed_udid managed_name; do
+            [ -n "$managed_udid" ] || continue
+            if printf '%s\n' "$known_indexed" | grep -Fqx "$managed_udid"; then
+                continue
+            fi
+            managed_state="$(printf '%s\n' "$states" | awk -v u="$managed_udid" '$1 == u { print $2 }')"
+            rows+="$(printf '%-10s  %-36s  %-22s  %s' \
+                "$managed_state" "$managed_udid" "$managed_name" "unowned — no index entry")"$'\n'
+        done <<<"$(managed_devices "$devices_json")"
+        if [ -z "$rows" ]; then
+            echo "No per-checkout simulators on this machine yet." >&2
+            exit 0
+        fi
+        printf '%-10s  %-36s  %-22s  %s\n' STATE UDID DEVICE CHECKOUT
+        printf '%s' "$rows"
+        exit 0
+        ;;
+    prune)
+        devices_json="$(all_devices_json)"
+        known_udids="$(printf '%s' "$devices_json" | jq -r '.devices | to_entries[] | .value[] | .udid')"
+        known_indexed="$(indexed_udids)"
+        pruned=0
+        if [ "$DRY_RUN" = true ]; then
+            delete_verb="Would delete"
+            forget_verb="Would forget"
+        else
+            delete_verb="Deleting"
+            forget_verb="Forgetting"
+        fi
+        if [ -d "$registry_dir" ]; then
+            for entry in "$registry_dir"/*; do
+                [ -f "$entry" ] || continue
+                entry_udid="$(registry_field "$entry" udid)"
+                entry_checkout="$(registry_field "$entry" checkout)"
+                if [ -z "$entry_udid" ]; then
+                    echo "==> $forget_verb $(basename "$entry") — the entry records no UDID" >&2
+                    [ "$DRY_RUN" = true ] || rm -f "$entry"
+                    pruned=$((pruned + 1))
+                elif ! printf '%s\n' "$known_udids" | grep -Fqx "$entry_udid"; then
+                    echo "==> $forget_verb $(basename "$entry") — device $entry_udid no longer exists" >&2
+                    [ "$DRY_RUN" = true ] || rm -f "$entry"
+                    pruned=$((pruned + 1))
+                elif [ ! -d "$entry_checkout" ]; then
+                    # A checkout on an unmounted volume looks exactly like a
+                    # deleted one, and deleting a device throws away whatever is
+                    # installed on it. Its parent still being there is what tells
+                    # the two apart, so anything else is left for a human.
+                    if [ ! -d "$(dirname "$entry_checkout")" ]; then
+                        echo "==> Skipping $(basename "$entry") — $entry_checkout is missing, but so is its parent (unmounted volume?)" >&2
+                    else
+                        echo "==> $delete_verb $(basename "$entry") ($entry_udid) — $entry_checkout is gone" >&2
+                        if [ "$DRY_RUN" != true ]; then
+                            xcrun simctl delete "$entry_udid" >&2
+                            rm -f "$entry"
+                        fi
+                        pruned=$((pruned + 1))
+                    fi
+                fi
+            done
+        fi
+        # Unowned devices are reported, never deleted: an index that was cleared
+        # leaves a live checkout's device looking exactly like an abandoned one,
+        # and that checkout reclaims it on its next run.
+        unowned=0
+        while read -r managed_udid managed_name; do
+            [ -n "$managed_udid" ] || continue
+            if printf '%s\n' "$known_indexed" | grep -Fqx "$managed_udid"; then
+                continue
+            fi
+            echo "==> Unowned: $managed_name ($managed_udid) — no checkout claims it." >&2
+            echo "    A checkout that resolves to that name reclaims it on its next run;" >&2
+            echo "    otherwise remove it with: xcrun simctl delete $managed_udid" >&2
+            unowned=$((unowned + 1))
+        done <<<"$(managed_devices "$devices_json")"
+        if [ "$DRY_RUN" = true ] && [ "$pruned" -gt 0 ]; then
+            echo "Dry run — nothing was deleted." >&2
+        elif [ "$pruned" -eq 0 ] && [ "$unowned" -eq 0 ]; then
+            echo "Nothing to prune." >&2
+        elif [ "$pruned" -eq 0 ]; then
+            echo "Nothing to prune — the unowned devices above are left alone." >&2
+        fi
+        exit 0
+        ;;
+    delete)
+        acquire_lock
+        delete_owned_device
+        exit 0
+        ;;
+    recreate)
+        acquire_lock
+        delete_owned_device
+        ;;
+    resolve) ;;
+esac
+
+if [ "$SHARED" = true ]; then
+    # Every checkout that asks for it lands on the same device, so this is only
+    # safe where the machine itself is the isolation (a CI job's VM).
+    name="$DEVICE"
+    udids="$(udids_named "$(available_devices_json)" "$name")"
+    if [ -z "$udids" ]; then
+        echo "error: no available '$name' on the iOS $OS runtime." >&2
+        echo "Available devices:" >&2
+        xcrun simctl list devices available >&2
+        exit 1
+    fi
+else
+    name="$owned_name"
+    acquire_lock
+    # A device whose runtime has since been uninstalled drops out of the
+    # `available` list, so this misses it and falls through to creation — where
+    # the runtime check fails with that as the reason, rather than minting a
+    # same-named twin on a runtime nothing can boot.
+    udids="$(udids_named "$(available_devices_json)" "$name")"
+    if [ -z "$udids" ]; then
+        udids="$(create_device "$name")"
+    fi
+fi
+
+udid="$(printf '%s\n' "$udids" | head -1)"
+
+# Same name *and* same runtime is a genuinely ambiguous setup — routine for
+# `--shared` (a machine with two hand-made "iPhone 17"s), and a sign someone
+# duplicated a managed device otherwise. Pick one deterministically, but say so:
+# silently choosing is how you end up debugging the wrong device.
+if [ "$(printf '%s\n' "$udids" | wc -l | tr -d ' ')" -gt 1 ]; then
+    echo "warning: several '$name' devices on iOS $OS; using $udid" >&2
+fi
+
+if [ "$SHARED" != true ]; then
+    registry_write "$name" "$udid"
+    release_lock
+fi
+
+if [ "$BOOT" = true ]; then
+    echo "==> Booting $name ($DEVICE / iOS $OS, $udid)" >&2
+    # `-b` boots the device if needed, then waits for boot to finish — a
+    # condition to wait on rather than a fixed sleep.
+    xcrun simctl bootstatus "$udid" -b >&2
+fi
+
+printf '%s\n' "$udid"

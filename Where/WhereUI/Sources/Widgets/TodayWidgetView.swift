@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -16,6 +17,7 @@ public struct TodayWidgetView: View {
     }
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     private var regions: [Region] {
         snapshot.orderedDayRegions
@@ -24,7 +26,7 @@ public struct TodayWidgetView: View {
     public var body: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.small) {
             HStack(alignment: .firstTextBaseline) {
-                Text(Strings.widgetTodayTitle)
+                Text(String(localized: .widgetTodayTitle))
                     .font(.caption2.weight(.semibold))
                     .textCase(.uppercase)
                     .tracking(1)
@@ -54,15 +56,16 @@ public struct TodayWidgetView: View {
     /// The common case — one region so far today — gets the full passport
     /// treatment: big emoji, serif uppercase name in the region's tint.
     private func heroRegion(_ region: Region) -> some View {
-        VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
-            Text(region.style.emoji)
+        let style = regionStyles.style(for: region)
+        return VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
+            Text(style.emoji)
                 .font(.largeTitle)
                 .accessibilityHidden(true)
             Text(region.localizedName)
                 .font(stylesheet.typography.widgetHeroRegion)
                 .textCase(.uppercase)
                 .tracking(1)
-                .foregroundStyle(region.style.tint)
+                .foregroundStyle(style.tint)
                 .lineLimit(2)
                 .minimumScaleFactor(0.6)
         }
@@ -72,13 +75,14 @@ public struct TodayWidgetView: View {
     private var regionList: some View {
         VStack(alignment: .leading, spacing: stylesheet.spacing.xSmall) {
             ForEach(regions, id: \.self) { region in
+                let style = regionStyles.style(for: region)
                 HStack(spacing: stylesheet.spacing.small) {
-                    Text(region.style.emoji)
+                    Text(style.emoji)
                         .font(.caption)
                         .accessibilityHidden(true)
                     Text(region.localizedName)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(region.style.tint)
+                        .foregroundStyle(style.tint)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                 }
@@ -92,7 +96,7 @@ public struct TodayWidgetView: View {
                 .font(.title3)
                 .foregroundStyle(.tertiary)
                 .accessibilityHidden(true)
-            Text(Strings.widgetTodayEmpty)
+            Text(String(localized: .widgetTodayEmpty))
                 .font(.caption.weight(.medium))
                 .foregroundStyle(.secondary)
         }
@@ -100,24 +104,38 @@ public struct TodayWidgetView: View {
 }
 
 #if DEBUG
-    #Preview("Single region") {
-        TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot())
-            .padding()
+    extension TodayWidgetView: SnapshotProviding {
+        public static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "SingleRegion",
+                configurations: .componentDefaults,
+                settle: .immediate,
+            ) {
+                TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [.california],
+                    totals: [.california: 132],
+                ))
+            }
+            whereSnapshot(
+                name: "MultiRegion",
+                configurations: .componentLightDark,
+                settle: .immediate,
+            ) {
+                TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [.california, .newYork],
+                    totals: [.california: 132, .newYork: 41],
+                ))
+            }
+            whereSnapshot(name: "Empty", configurations: .componentLightDark, settle: .immediate) {
+                TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
+                    dayRegions: [],
+                    totals: [:],
+                ))
+            }
+        }
     }
 
-    #Preview("Multi region") {
-        TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
-            dayRegions: [.california, .newYork],
-            totals: [.california: 132, .newYork: 41],
-        ))
-        .padding()
-    }
-
-    #Preview("Empty") {
-        TodayWidgetView(snapshot: PreviewSupport.sampleWidgetSnapshot(
-            dayRegions: [],
-            totals: [:],
-        ))
-        .padding()
+    #Preview {
+        TodayWidgetView.snapshotPreviews
     }
 #endif

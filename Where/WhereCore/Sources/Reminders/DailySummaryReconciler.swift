@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 import RegionKit
 
 /// Owns the daily summary recap intent and the reconciliation that recomputes
@@ -22,7 +22,7 @@ public actor DailySummaryReconciler {
     /// body stays short.
     static let defaultRegionLimit = 3
 
-    private static let logger = WhereLog.channel(.dailySummaryReconciler)
+    private static let logger = WhereLog.reminders(DailySummaryReconcilerLog.self)
 
     init(
         scheduler: any DailySummaryScheduling,
@@ -68,9 +68,9 @@ public actor DailySummaryReconciler {
                 body: summaryBody(for: report),
             )
         } catch {
-            Self.logger.error(
-                "Failed to reconcile daily summary: \(error.localizedDescription)",
-            )
+            Self.logger(attachments: [.error(error, name: "reconcile-error")]) {
+                .reconcileFailed(description: error.localizedDescription)
+            }
         }
     }
 
@@ -86,7 +86,7 @@ public actor DailySummaryReconciler {
         .prefix(regionLimit)
 
         guard !ranked.isEmpty else {
-            return String(localized: "summary.notification.body.empty", bundle: .module)
+            return String(localized: .summaryNotificationBodyEmpty)
         }
 
         return ranked
@@ -95,19 +95,7 @@ public actor DailySummaryReconciler {
     }
 
     private static func summaryFragment(region: Region, days: Int) -> String {
-        let count = String(
-            localized: "summary.notification.dayCount",
-            defaultValue: "\(days) days",
-            bundle: .module,
-        )
-        return String(
-            format: String(
-                localized: "summary.notification.regionDays",
-                defaultValue: "%1$@ in %2$@",
-                bundle: .module,
-            ),
-            count,
-            region.localizedName,
-        )
+        let count = String(localized: .summaryNotificationDayCount(days))
+        return String(localized: .summaryNotificationRegionDays(count, region.localizedName))
     }
 }

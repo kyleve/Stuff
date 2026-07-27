@@ -4,44 +4,20 @@
 
     /// Logs scene lifecycle transitions — background, foreground, active,
     /// inactive — so error investigations can see what the app was doing.
-    public struct AppLifecycleAmbientSource: AmbientEventSource {
-        private let tokens = AmbientObserverTokens()
+    public final class AppLifecycleAmbientSource: NotificationAmbientSource {
+        private static let values: [Notification.Name: String] = [
+            UIApplication.didEnterBackgroundNotification: "background",
+            UIApplication.willEnterForegroundNotification: "foreground",
+            UIApplication.didBecomeActiveNotification: "active",
+            UIApplication.willResignActiveNotification: "inactive",
+        ]
 
-        public init() {}
-
-        public func start(log: Log<AmbientEvent>) {
-            tokens.replace(with: [
-                observe(
-                    UIApplication.didEnterBackgroundNotification,
-                    log: log,
-                    value: "background",
-                ),
-                observe(
-                    UIApplication.willEnterForegroundNotification,
-                    log: log,
-                    value: "foreground",
-                ),
-                observe(UIApplication.didBecomeActiveNotification, log: log, value: "active"),
-                observe(UIApplication.willResignActiveNotification, log: log, value: "inactive"),
-            ])
+        override public var observedNames: [Notification.Name] {
+            Array(Self.values.keys)
         }
 
-        public func stop() {
-            tokens.removeAll()
-        }
-
-        private func observe(
-            _ name: Notification.Name,
-            log: Log<AmbientEvent>,
-            value: String,
-        ) -> any NSObjectProtocol {
-            NotificationCenter.default.addObserver(
-                forName: name,
-                object: nil,
-                queue: nil,
-            ) { _ in
-                log { AmbientEvent(kind: .appLifecycle, value: value) }
-            }
+        override public func event(for notification: Notification) -> AmbientEvent? {
+            Self.values[notification.name].map { AmbientEvent(kind: .appLifecycle, value: $0) }
         }
     }
 #endif

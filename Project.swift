@@ -19,9 +19,24 @@ private let stuffPackage = Package.local(path: .relativeToRoot("."))
 /// Xcode falls back to its defaults.
 private let developmentTeam = Environment.developmentTeam.getString(default: "")
 
-private let projectSettings: Settings? = developmentTeam.isEmpty
-    ? nil
-    : .settings(base: ["DEVELOPMENT_TEAM": .string(developmentTeam)])
+/// Base build settings applied to every Tuist-generated target.
+///
+/// `STRING_CATALOG_GENERATE_SYMBOLS` turns on Xcode's type-safe String Catalog
+/// symbol generation for the app and app-extension targets (Where, WhereWidgets,
+/// WhereShareExtension, …). The SwiftPM package targets declared in `Package.swift`
+/// (WhereUI, WhereCore, RegionKit, LifecycleKitUI) get symbol generation
+/// automatically from the toolchain, so this only needs to reach the
+/// Tuist-native targets.
+///
+/// `DEVELOPMENT_TEAM` is threaded in from the environment when present (see above).
+private let projectSettings: Settings = .settings(
+    base: developmentTeam.isEmpty
+        ? ["STRING_CATALOG_GENERATE_SYMBOLS": "YES"]
+        : [
+            "STRING_CATALOG_GENERATE_SYMBOLS": "YES",
+            "DEVELOPMENT_TEAM": .string(developmentTeam),
+        ],
+)
 
 /// App Group shared by the Where app, its widget extension, and its share
 /// extension so every process sees the same on-disk SwiftData store (see
@@ -58,12 +73,22 @@ func unitTests(
 }
 
 /// A shared scheme that builds and tests a single unit-test bundle.
-func testScheme(name: String) -> Scheme {
+/// `testEnvironmentVariables` are set on the test action, so they reach the
+/// test process (schemes without any keep an argument-less test action).
+func testScheme(
+    name: String,
+    testEnvironmentVariables: [String: EnvironmentVariable] = [:],
+) -> Scheme {
     .scheme(
         name: name,
         shared: true,
         buildAction: .buildAction(targets: ["\(name)"]),
-        testAction: .targets(["\(name)"]),
+        testAction: .targets(
+            ["\(name)"],
+            arguments: testEnvironmentVariables.isEmpty
+                ? nil
+                : .arguments(environmentVariables: testEnvironmentVariables),
+        ),
     )
 }
 
@@ -85,6 +110,11 @@ let project = Project(
             infoPlist: .extendingDefault(with: [
                 "UILaunchScreen": .dictionary([:]),
                 "UIApplicationSupportsIndirectInputEvents": .boolean(true),
+                // Stated explicitly rather than left to Tuist's `1.0` / `1`
+                // defaults, because Settings > About shows them: the version a
+                // user reads off the screen should be one this manifest chose.
+                "CFBundleShortVersionString": .string("1.0"),
+                "CFBundleVersion": .string("1"),
                 "NSLocationWhenInUseUsageDescription": .string(
                     "Where uses your location to figure out which region you're in.",
                 ),
@@ -95,9 +125,19 @@ let project = Project(
             sources: ["Where/Where/Sources/**"],
             resources: ["Where/Where/Resources/**"],
             entitlements: whereAppGroupEntitlements,
+            // Writes `WhereGitSHA` / `WhereGitStatus` into the built Info.plist
+            // for Settings > About. A *post* script so it lands after "Process
+            // Info.plist" and before signing, and `basedOnDependencyAnalysis:
+            // false` so an unchanged source tree still re-stamps a new commit.
+            scripts: [
+                .post(
+                    path: "Where/Where/Scripts/stamp-build-info.sh",
+                    name: "Stamp Build Info",
+                    basedOnDependencyAnalysis: false,
+                ),
+            ],
             dependencies: [
                 .package(product: "LifecycleKit"),
-                .package(product: "LogKit"),
                 .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
@@ -133,7 +173,7 @@ let project = Project(
             resources: ["Where/WhereWidgets/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
-                .package(product: "LogKit"),
+                .package(product: "PeriscopeCore"),
                 .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
@@ -169,7 +209,7 @@ let project = Project(
             resources: ["Where/WhereShareExtension/Resources/**"],
             entitlements: whereAppGroupEntitlements,
             dependencies: [
-                .package(product: "LogKit"),
+                .package(product: "PeriscopeCore"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
             ],
@@ -193,7 +233,6 @@ let project = Project(
             // No App Group entitlement — the viewer only reads bundled GeoJSON
             // (embedded via the RegionKit dependency), never the app's store.
             dependencies: [
-                .package(product: "LogKit"),
                 .package(product: "RegionKit"),
                 .package(product: "WhereCore"),
                 .package(product: "WhereUI"),
@@ -318,22 +357,23 @@ let project = Project(
             sources: ["Shared/StuffCore/Tests/**"],
         ),
         unitTests(
+            name: "CreditKitTests",
+            bundleIdSuffix: "creditkit",
+            productDependency: "CreditKit",
+            sources: ["Shared/CreditKit/Tests/**"],
+        ),
+        unitTests(
             name: "LifecycleKitTests",
             bundleIdSuffix: "lifecyclekit",
             productDependency: "LifecycleKit",
             sources: ["Shared/LifecycleKit/Tests/**"],
         ),
         unitTests(
-            name: "LogKitTests",
-            bundleIdSuffix: "logkit",
-            productDependency: "LogKit",
-            sources: ["Shared/LogKit/Tests/**"],
-        ),
-        unitTests(
-            name: "LogViewerUITests",
-            bundleIdSuffix: "logviewerui",
-            productDependency: "LogViewerUI",
-            sources: ["Shared/LogViewerUI/Tests/**"],
+            name: "LifecycleKitUITests",
+            bundleIdSuffix: "lifecyclekitui",
+            productDependency: "LifecycleKitUI",
+            sources: ["Shared/LifecycleKitUI/Tests/**"],
+            extraPackageProducts: ["LifecycleKit"],
         ),
         unitTests(
             name: "JournalKitTests",
@@ -372,6 +412,29 @@ let project = Project(
             sources: ["Shared/SwiftDataInspector/Tests/**"],
         ),
         unitTests(
+            name: "SnapshotKitTests",
+            bundleIdSuffix: "snapshotkit",
+            productDependency: "SnapshotKit",
+            sources: ["Shared/SnapshotKit/Tests/**"],
+        ),
+        // The capture/compare pipeline's own regression tests. They render
+        // through `renderSnapshotImage` (so they need the `StuffTestHost` key
+        // window) but assert on probed pixels rather than LFS reference images,
+        // so — unlike `StuffSnapshotTests` — this bundle is fast, has no
+        // `__Snapshots__/`, and runs in the main `Stuff-iOS-Tests` scheme /
+        // `test` CI job. `SnapshotKitTesting` embeds its dependency closure
+        // (SnapshotKit, SnapshotTesting, AccessibilitySnapshot) into the
+        // `.xctest`, as every bundle here embeds what it links. That means the
+        // `Stuff-iOS-Tests` host process holds a SnapshotKit copy per bundle
+        // that links one, but no lookup crosses between them: each bundle's
+        // capture writes and reads resolve within its own image.
+        unitTests(
+            name: "SnapshotKitTestingTests",
+            bundleIdSuffix: "snapshotkittesting",
+            productDependency: "SnapshotKitTesting",
+            sources: ["Shared/SnapshotKitTesting/Tests/**"],
+        ),
+        unitTests(
             name: "RegionKitTests",
             bundleIdSuffix: "regionkit",
             productDependency: "RegionKit",
@@ -394,9 +457,11 @@ let project = Project(
         // BTraits/BThemes/BStylesheets containers) then silently resolves against
         // the wrong copy — the writer stores under one copy's key type, the
         // reader looks it up under another's. Everything the tests need
-        // (BroadwayCore/BroadwayUI, LifecycleKit, LogViewerUI, SwiftDataInspector,
-        // RegionKit + its GeoJSON bundle) is reached transitively through WhereUI.
-        // See the root AGENTS.md "Targets" note.
+        // (BroadwayCore/BroadwayUI, LifecycleKit/LifecycleKitUI, PeriscopeCore/UI/Tools,
+        // SwiftDataInspector, RegionKit + its GeoJSON bundle) is reached
+        // transitively through WhereUI.
+        // See "Never double-link a product a dynamic framework already
+        // carries" in the root AGENTS.md.
         unitTests(
             name: "WhereUITests",
             bundleIdSuffix: "whereui",
@@ -408,12 +473,69 @@ let project = Project(
         // `extraPackageProducts`: WhereUI/WhereCore/RegionKit/Broadway all arrive
         // transitively, and re-listing any of them would land a duplicate copy
         // that splits the module's type metadata across the WhereUI boundary.
-        // See the root AGENTS.md "Targets" note.
+        // See "Never double-link a product a dynamic framework already
+        // carries" in the root AGENTS.md.
         unitTests(
             name: "WhereIntentsTests",
             bundleIdSuffix: "whereintents",
             productDependency: "WhereIntents",
             sources: ["Where/WhereIntents/Tests/**"],
+        ),
+        // Image snapshot bundles: one per module that owns image references,
+        // all gathered into the single `StuffSnapshotTests` scheme below so CI
+        // runs them in one `snapshot` job. They are slow and LFS-backed, so
+        // they are deliberately NOT in the `Stuff-iOS-Tests` scheme.
+        //
+        // One bundle per module rather than one shared bundle, because a
+        // module's image suite should link only what that module needs: the
+        // Periscope and SwiftDataInspector suites don't build against WhereUI
+        // at all. Each records its references beside its own sources —
+        // swift-snapshot-testing derives the `__Snapshots__` directory from the
+        // calling file's `#filePath`, which `assertSnapshots` threads through.
+        //
+        // Separate bundles are safe here because each `.xctest` gets its own
+        // `StuffTestHost` process: measured on Xcode 27 by probing
+        // `ProcessInfo.processIdentifier` from two bundles in one scheme, which
+        // reported different PIDs on both a filtered and a full unfiltered run.
+        // That matters specifically for these bundles, because each statically
+        // embeds its own copy of `SnapshotKitTesting`, whose capture state is
+        // module-global and therefore per copy (`_swizzleDepth` and the
+        // override globals in `SafeAreaInsetsSwizzling.swift`,
+        // `SnapshotCaptureLock`, the `UIView` category). Co-loaded into one
+        // process those copies would fight over the single `UIView` method
+        // exchange; in separate processes each is genuinely process-wide, as
+        // its docs claim. If a future toolchain ever starts sharing one host
+        // process across bundles, re-measure before adding a fourth.
+        //
+        // Each lists only `SnapshotKitTesting` in `extraPackageProducts` — the
+        // test-only capture pipeline, which no shipping module links. Nothing
+        // else is re-listed: whatever the module already carries arrives
+        // transitively, per the double-linking rule in the root AGENTS.md.
+        // `SnapshotCaptureFlagProbeTests` (in WhereUISnapshotTests) pins the
+        // pipeline's `traitOverrides` write reaching a WhereUI-defined view's
+        // `\.isCapturingSnapshot` read, so a toolchain that stopped coalescing
+        // the two SnapshotKit copies in that bundle would fail loudly rather
+        // than silently returning defaults.
+        unitTests(
+            name: "WhereUISnapshotTests",
+            bundleIdSuffix: "whereui.snapshot",
+            productDependency: "WhereUI",
+            sources: ["Where/WhereUI/SnapshotTests/**"],
+            extraPackageProducts: ["SnapshotKitTesting"],
+        ),
+        unitTests(
+            name: "PeriscopeToolsSnapshotTests",
+            bundleIdSuffix: "periscopetools.snapshot",
+            productDependency: "PeriscopeTools",
+            sources: ["Shared/Periscope/PeriscopeTools/SnapshotTests/**"],
+            extraPackageProducts: ["SnapshotKitTesting"],
+        ),
+        unitTests(
+            name: "SwiftDataInspectorSnapshotTests",
+            bundleIdSuffix: "swiftdatainspector.snapshot",
+            productDependency: "SwiftDataInspector",
+            sources: ["Shared/SwiftDataInspector/SnapshotTests/**"],
+            extraPackageProducts: ["SnapshotKitTesting"],
         ),
         .target(
             name: "BroadwayCatalog",
@@ -501,14 +623,16 @@ let project = Project(
                 "RegionViewer",
                 "StuffTestHost",
                 "StuffCoreTests",
+                "CreditKitTests",
                 "LifecycleKitTests",
-                "LogKitTests",
-                "LogViewerUITests",
+                "LifecycleKitUITests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
                 "PeriscopeToolsTests",
                 "SwiftDataInspectorTests",
+                "SnapshotKitTests",
+                "SnapshotKitTestingTests",
                 "RegionKitTests",
                 "WhereCoreTests",
                 "WhereTests",
@@ -521,14 +645,16 @@ let project = Project(
             ]),
             testAction: .targets([
                 "StuffCoreTests",
+                "CreditKitTests",
                 "LifecycleKitTests",
-                "LogKitTests",
-                "LogViewerUITests",
+                "LifecycleKitUITests",
                 "JournalKitTests",
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
                 "PeriscopeToolsTests",
                 "SwiftDataInspectorTests",
+                "SnapshotKitTests",
+                "SnapshotKitTestingTests",
                 "RegionKitTests",
                 "WhereCoreTests",
                 "WhereTests",
@@ -541,18 +667,58 @@ let project = Project(
         ),
         testScheme(name: "LedgerCoreTests"),
         testScheme(name: "StuffCoreTests"),
+        testScheme(name: "CreditKitTests"),
         testScheme(name: "LifecycleKitTests"),
-        testScheme(name: "LogKitTests"),
-        testScheme(name: "LogViewerUITests"),
+        testScheme(name: "LifecycleKitUITests"),
         testScheme(name: "JournalKitTests"),
         testScheme(name: "PeriscopeCoreTests"),
         testScheme(name: "PeriscopeUITests"),
         testScheme(name: "PeriscopeToolsTests"),
         testScheme(name: "SwiftDataInspectorTests"),
+        testScheme(name: "SnapshotKitTests"),
+        testScheme(name: "SnapshotKitTestingTests"),
         testScheme(name: "RegionKitTests"),
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
+        // Every image-snapshot bundle, in one scheme, so CI runs them all in
+        // the single `snapshot` job. A new module's image suite gets its own
+        // `*SnapshotTests` target above and joins the lists here — it must not
+        // get a scheme (or CI job) of its own.
+        //
+        // The environment pins are why this scheme exists rather than folding
+        // the bundles into `Stuff-iOS-Tests`. The `assertSnapshots` runner
+        // compares the SNAPSHOT_EXPECTED_* values against the live simulator
+        // and fails fast with one clear message on a mismatched runtime,
+        // screen scale, or timezone — instead of hundreds of confusing image
+        // diffs. TZ pins the test process's timezone itself: several
+        // references bake Pacific wall-clock dates/times into the image
+        // (widget day labels, log-viewer timestamps), so an unpinned UTC CI
+        // runner would shift every date-rendering snapshot.
+        // SNAPSHOT_EXPECTED_TIMEZONE is the guard that verifies the TZ pin
+        // actually reached the test process.
+        .scheme(
+            name: "StuffSnapshotTests",
+            shared: true,
+            buildAction: .buildAction(targets: [
+                "WhereUISnapshotTests",
+                "PeriscopeToolsSnapshotTests",
+                "SwiftDataInspectorSnapshotTests",
+            ]),
+            testAction: .targets(
+                [
+                    "WhereUISnapshotTests",
+                    "PeriscopeToolsSnapshotTests",
+                    "SwiftDataInspectorSnapshotTests",
+                ],
+                arguments: .arguments(environmentVariables: [
+                    "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
+                    "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
+                    "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
+                    "TZ": "America/Los_Angeles",
+                ]),
+            ),
+        ),
         testScheme(name: "WhereIntentsTests"),
         testScheme(name: "BroadwayCoreTests"),
         testScheme(name: "BroadwayUITests"),

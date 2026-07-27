@@ -1,401 +1,228 @@
 # Swift Module Audit Report
 
-Read-only review of all **15 SPM library targets**, **6 Tuist app/extension targets**, and the **BroadwayCatalog** showcase app (~298 source / ~182 test Swift files). No code was changed.
+Read-only review of all **14 SPM library targets**, **6 Tuist app/extension targets**, and the repo-owned **Bumper Bowling** architecture rules (~359 source / ~198 test Swift files across shipped targets, plus 2 unwired prototype sources). No code was changed.
 
-**Date:** July 17, 2026  
-**Method:** Parallel read-only subagent passes per module group; findings merged and spot-checked against source.  
-**Prior audit:** June 23, 2026 (11 targets, ~178 files).  
-**Follow-ups:** See [TODO](#todo) for actionable checklist items.
+**Date:** July 26, 2026  
+**Method:** Read-only verification of every open July 19 finding against current source; file-count refresh; new-surface review of the week's landings (Periscope migration #94, Settings drill-in #111, developer HUD #115, navigation restructure #119, log-viewer tooling #107, String Catalog symbols #124, Gregorian calendars `fe99dde`, previews `52f0136`, Bumper Bowling #127, catalog serialization #135).  
+**Prior audit:** July 19, 2026 (~308 source / ~189 test).
+
+> **This report carries no actionable items.** Every finding it describes is filed
+> in a `TODOs.md`; the root [`TODOs.md`](TODOs.md) owns the item format and says
+> which file covers which area. Read this one for *shape and drift* — what each
+> module verified clean, the themes running across the backlog, and how the tree
+> moved since the last pass — and take the work itself from the `TODOs.md` files.
+> It is true as of the header date above, **not** as of `HEAD`.
 
 ---
 
 ## Executive summary
 
+What this pass turned up, before the findings were filed:
+
 | Severity | Count |
 |----------|------:|
 | Critical | 0 |
-| High | 3 |
-| Medium | 38 |
-| Low | 52 |
-| **Total** | **93** |
+| High | 5 |
+| Medium | 44 |
+| Low | 48 |
+| **Total** | **97** |
 
 | Category | Count |
 |----------|------:|
-| bug | 14 |
-| test | 28 |
-| convention | 22 |
-| performance | 12 |
-| duplication | 10 |
-| localization | 5 |
-| docs | 2 |
+| bug | 21 |
+| test | 27 |
+| convention | 24 |
+| performance | 7 |
+| duplication | 3 |
+| localization | 4 |
+| docs | 8 |
+| design | 3 |
 
-**Overall:** The codebase has roughly doubled in size since the June audit and gained substantial new surface area (Broadway, Periscope, RegionKit, WhereIntents, share extension, TestHostSupport). Most June audit quick-wins landed — backup import reconciliation, LogViewerUI caching, SwiftDataInspector pagination, TestHostSupport split, module docs, and many convention fixes are done. The strongest **remaining** themes are **daily-summary notification staleness** after data changes, the **tracking-toggle race** in WhereUI, a **residual LifecycleKit phase race** during `minVisible` cancellation, and **thin test coverage** on several extension/app shells and glue files.
+**Overall:** A heavy week of landings. `LogKit` and `LogViewerUI` are **gone** — Periscope replaced them (#94) — so the target count drops to 14 SPM libraries while WhereUI grew 84 → 113 sources and WhereCore 70 → 87. Several long-standing findings closed for real: the Where app's `README.md`, the `.undetermined` launch-reason state machine, `SharedItemLoader` warning logs, `#Preview` coverage across WhereUI/WhereWidgets, and the String Catalog symbol migration (a typo'd key is now a compile error). The three **high** findings carried from July 19 are all still open — daily-summary staleness, the WhereUI tracking-toggle race, and the LifecycleKit terminal-phase race — and two new **high** ones landed: `CalendarDay.displayDate` resolves day labels through `Calendar.current`, and the brand-new `where.gregorian_calendar` Bumper rule that exists to catch exactly that is blind to the form the drift actually takes.
 
 ---
 
 ## Top 10 highest-impact findings
 
-| # | Sev | Module | Issue |
-|---|-----|--------|-------|
-| 1 | **high** | WhereCore | `DailySummaryReconciler.reconcile()` is never called from GPS ingest, journal writes, or backup import — notification body can stay stale until foreground re-`configure` |
-| 2 | **high** | WhereUI | Tracking toggle race — rapid on/off spawns unserialized `Task`s; slow `startTracking()` can finish after a later `stopTracking()` |
-| 3 | **high** | LifecycleKit | Residual cancel-during-`minVisible` race — superseded drive can still reach `.ready` before the new drive completes |
-| 4 | **medium** | WhereCore | `DayJournal.ingest(_:)` / bulk ingest paths publish widgets but skip reminder/issue reconcile (test/bulk paths only; live GPS goes through `LocationIngestor`) |
-| 5 | **medium** | PeriscopeCore | Multi-process journal ingest race when app and extension share a store — tracked in `Shared/Periscope/TODOs.md` |
-| 6 | **medium** | WhereIntents | Individual `AppIntent.perform()` bodies and `IntentServices` process cache untested despite README implying intent-level coverage |
-| 7 | **medium** | WhereShareExtension | `ShareEvidenceModel.buildPendingEvidence()` is testable but has no test bundle |
-| 8 | **medium** | RegionKit | `GeoJSON` decoder paths (unsupported geometry, malformed coordinates) untested |
-| 9 | **medium** | WhereUI | Duplicated load-state UI across Primary / Secondary / Calendar tabs — no shared `ReportLoadGate` |
-| 10 | **medium** | WhereCore | Durable outbox save failure can drop queued GPS samples on relaunch |
+Pointers only — each one's evidence and suggested fix live in the linked file.
+
+| # | Sev | Module | Issue | Filed in |
+|---|-----|--------|-------|----------|
+| 1 | **high** | Bumper Bowling | `where.gregorian_calendar` matches only an explicit `Calendar.current` base, so the rule is green while production sites drift | [`TODOs.md`](TODOs.md) P0 |
+| 2 | **high** | WhereUI | `CalendarDay.displayDate` resolves through `Calendar.current`, so day labels on a non-Gregorian device render a date ~543 years off | [`Where/TODOs.md`](Where/TODOs.md) P1 |
+| 3 | **high** | WhereCore | `DailySummaryReconciler.reconcile()` is absent from the post-day-change fan-out — the notification body stays stale until a foreground re-`configure` | [`Where/TODOs.md`](Where/TODOs.md) P0 |
+| 4 | **high** | WhereUI | Tracking toggle race — `trackingEnabled`'s setter spawns unserialized `Task`s | [`Where/TODOs.md`](Where/TODOs.md) P1 |
+| 5 | **high** | LifecycleKit | Cancel during the *last* step's `minVisible` hold isn't observed, so a superseded drive can set `phase = .ready` | [`Shared/LifecycleKit/TODOs.md`](Shared/LifecycleKit/TODOs.md) P0 |
+| 6 | **medium** | WhereCore | `setPrimaryRegions(_:)` commits atomically but skips `reconcileAfterDayChange()` | [`Where/TODOs.md`](Where/TODOs.md) P1 |
+| 7 | **medium** | WhereCore | `setTrackedRegion(false)` hard-deletes the row; the shipped picker now reaches it, so past-year re-attribution risk is live | [`Where/TODOs.md`](Where/TODOs.md) P1 |
+| 8 | **medium** | PeriscopeCore | Orphan sweep treats an undecodable `SpanBegan` as an orphan-close candidate, silently overriding `survivesRelaunch` | [`Shared/Periscope/TODOs.md`](Shared/Periscope/TODOs.md) P1 |
+| 9 | **medium** | WhereUI | Load-state UI duplicated across four views; `PresenceTimelineList` renders the *empty* state while the year is still loading | [`Where/TODOs.md`](Where/TODOs.md) P1 |
+| 10 | **medium** | BroadwayCatalog | The showcase app never seeds a Broadway root, and its test bundle is an empty `struct` wired into the CI scheme | [`Shared/Broadway/TODOs.md`](Shared/Broadway/TODOs.md) P1 |
 
 ---
 
 ## Cross-cutting themes
 
-### Reconciliation mostly unified (WhereCore)
+### The Gregorian rule has a blind spot, and the catalog says otherwise
 
-Since June, backup import and day-mutating writes funnel through `DayJournal.reconcileAfterDayChange()` → scanner invalidate, reminders, issue alerts, widgets. **Daily summary** remains the outlier — it only refreshes on launch/foreground `configure` and settings edits, not on data changes.
+`.bumper/RULES.md` states the tree "intentionally contains three violations" of `where.gregorian_calendar`, left visible so the live lint demonstrates enforcement. It doesn't: the rule filters `MemberAccessExprSyntax` on `base == "Calendar"`, which matches the spelled-out `Calendar.current` but **not** the implicit-member form (`calendar: Calendar = .current`, `startOfDay(in: .current)`) — and after `fe99dde` the implicit form is the *only* one left. CI runs `bumper lint` as a hard `severity: .error` gate and is green, which confirms it: the rule reports nothing while seven production sites drift. The same paragraph's claim about preview-coverage violations is also stale (`52f0136` closed those). A rule that reads as enforced but enforces nothing is worse than a documented convention, because it stops anyone from looking.
 
-### Extension/app targets defer tests to libraries
+### Reconciliation: same two holes, one now user-reachable
 
-WhereWidgets, WhereShareExtension, RegionViewer, and BroadwayCatalog intentionally have no (or minimal) test bundles. Behavior is covered in WhereCore/WhereUI where possible, but ShareEvidenceModel and BroadwayCatalog are gaps relative to that pattern.
+`reconcileAfterDayChange()` still fans out to issue state and widgets only. **Daily summary** remains outside it, and **`setPrimaryRegions(_:)`** still commits without calling it. Related and newly urgent: untracking a region hard-deletes its row, and the shipped onboarding picker plus the Settings region editor both route into that path, so the past-year re-attribution risk the `SwiftDataStore` TODO describes is now something a user can trigger.
 
-### Broadway duplicate-linking discipline
+### Presentation-layer calendar drift outlived the fix
 
-WhereWidgets, WhereIntents snippets, and the main app reach Broadway only through WhereUI (`whereBroadwayRoot()`). RegionViewer and ShareExtension omit it (fallback/default styling) — acceptable for dev/share surfaces today.
+`fe99dde` moved the view call sites onto explicit Gregorian calendars, but the drift relocated into shared helpers: `CalendarDay.displayDate` hardcodes `.current`, and `DateRangeFormatting.abbreviated` / `PresenceTimeline.stints` *default* to it — with `PresenceTimelineList` not passing the report's calendar. Because these are the helpers every day label flows through, one line reaches the relabel, logged-days, resolution, and region drill-in screens.
 
-### Localization architecture is consistent
+### The navigation restructure moved the duplication, not the shape
 
-Module-owned `Localizable.xcstrings` + `Strings`/`IntentStrings`/`WidgetStrings`/`ShareStrings` facades. RegionKit dynamic region names are the deliberate exception (data-driven catalog).
+Locations / Your Year / Settings replaced the old four-tab shell, so the `PrimaryView` / `SecondaryView` / `CalendarView` load-state triplicate is gone — but the same `YearReportModel.loadState` gate is now copy-pasted across `LocationsView`, `ElsewhereView`, `ResolutionView`, and `CalendarContentView`, and `PresenceTimelineList` skipped the gate entirely (it shows "no stays" during load). A `ReportLoadGate` would now save four sites rather than three.
 
-### 1:1 test-file convention holds for libraries, slips for glue
+### Periscope's durability gaps are the oldest open work in the repo
 
-PeriscopeTools row components, RegionKit GeoJSON, Broadway UIKit helpers, WhereIntents `perform()` bodies, and several WhereCore sources lack namesake test files — coverage often exists via integration suites instead.
+Three items — `survivesRelaunch` resume mechanics, journaling the pre-store-attach window, and multi-process journal coordination — remain P0/P1 in `Shared/Periscope/TODOs.md` and are all confirmed unimplemented. The store-side half of relaunch policy landed (the sweep leaves surviving spans open), but nothing re-seeds `Periscope.openSpans`, so `end(for:)` in the new process still warns "without a matching begin".
 
-### Infrastructure is in good shape
+### PeriscopeTools grew fast; its live models rebuild from scratch
 
-LifecycleKit cancel-and-drain during `minVisible` **hang** is fixed; LogViewerUI caching fixed; SwiftDataInspector pagination/lazy rendering fixed; WhereTesting split into dependency-free `TestHostSupport` + `@_spi(Testing) InMemoryKeyValueStore` in WhereCore; all library targets now ship `README.md` + `AGENTS.md`.
++9 sources / +9 tests this week (span tree, hierarchy, span history, density, Broadway stylesheet). The incremental **fetch** landed (`LogQuery.afterSequence`), but `SpanTreeModel.load` / `LogHierarchyModel.load` still rebuild the whole forest from all accumulated events on every `changes()` ping, `LogInspectorModel` re-queries full subtrees, and the new drill-ins re-read row density from `.standard` rather than the injectable `defaults` the viewer threads through.
 
-### Evidence compose duplication
+### Extension/app targets still defer tests to libraries
 
-Share extension and in-app add-evidence flows share domain (`Evidence.composed`) but duplicate form layout and parallel string keys (`share.form.*` vs `evidence.form.*`).
+WhereWidgets (7/0), WhereShareExtension (5/0), and RegionViewer (1/0) ship no test bundle by design; BroadwayCatalog ships an empty one. `ShareEvidenceModel.buildPendingEvidence()` and `WhereWidgetProvider`'s midnight timeline policy remain the two gaps that are worth closing regardless of the pattern.
 
----
+### Localization architecture is now compiler-enforced
 
-## Quick wins vs needs design
+The String Catalog symbol migration (#124) is complete and the hand-maintained key facades are gone, so a removed key breaks the build. Remaining slips are individual, not architectural: a raw `String(localized: "region.other")` in RegionKit, a hardcoded caption in `IntentSnippets`, the parallel `share.form.*` / `evidence.form.*` namespaces, and four auto-extracted literals — three in Where's catalogs, one in LifecycleKit's.
 
-Summary buckets — every open TODO below is tagged **`quick-win`** or **`needs-design`**.
+### Infrastructure that is genuinely done
 
-### Quick wins (localized, low-risk)
-
-- Add `DailySummaryReconciler.reconcile()` to the unified post-day-change fan-out + regression test
-- Add LifecycleKit regression test for superseding drive during `minVisible` hold
-- Add SwiftDataInspector test for bare `PersistentIdentifier` relationship slots
-- Add `GeoJSONTests.swift` with malformed/unsupported fixture snippets
-- Add `ShareEvidenceModelTests` with in-memory storage
-- Replace `waitForOneRunloop()` in UI tests with predicate polling
-- Fix `Calendar.current` usage in WhereUI year/day math (use report calendar)
-- Log `SharedItemLoader` load failures at `warning`
-- Add `Where/Where/README.md` pointing at feature docs
-
-### Needs design / broader refactor
-
-- Serialize **WhereSession** tracking mutations
-- Fix **LifecycleKit** residual `.ready` race after cancel during `minVisible`
-- Unify **daily summary** into `reconcileAfterDayChange()` policy (or document intentional deferral)
-- Incremental year-report reads for widget/reminder/summary hot paths
-- Extract shared **ReportLoadGate** and manual/relabel form component
-- **Periscope** multi-process journal coordination before more extensions journal
-- **WhereSession** / **YearReportModel** split (tracked in `Where/TODOs.md`)
-- Per-entity schema versioning (tracked in `Where/TODOs.md`)
-- ShareEvidence vs AddEvidence form consolidation
+Periscope replaced LogKit/LogViewerUI outright; `.undetermined` replaced the cold-launch guess with a state that can't lie; `#Preview` coverage is complete across WhereUI/WhereWidgets; `@_spi(Testing)` is the norm for test seams (the only `…ForTesting` API is itself behind it); the SwiftData browser shipped into Settings → Developer; String Catalogs are serialized the way Xcode writes them and linted (`./xcstrings`); and `./simulator` now resolves destinations by UDID for `profile` / `flaky` / CI.
 
 ---
 
-## TODO
+## Per-module notes
 
-Actionable follow-ups from this audit. Items marked `[x]` were open in the June audit and are now verified fixed.
+What each module was checked for and found clean, plus the trade-offs this pass
+accepted as deliberate. Open work is in the linked `TODOs.md`.
 
-| Tag | Meaning |
-|-----|---------|
-| **Severity** | `high` / `medium` / `low` — impact from this audit |
-| **quick-win** | Localized, low-risk; can land in a small PR |
-| **needs-design** | Broader refactor, policy choice, or cross-module contract |
+### Bumper Bowling — architecture lint
 
-### High priority
+The repo-owned rule set (`BumperBowling.swift`, `.bumper/Sources`, catalog in `.bumper/RULES.md`) covers **Where production sources only**: layer boundaries and forbidden imports, graph integrity, production store opening, checked-concurrency escape hatches, composition ownership (`WhereServices`, live `LocationSource`), the Gregorian calendar, the `store.perform` transaction boundary, `AppShortcutsProvider` ownership, the logging facade and logging-type placement, and `#Preview` coverage. Mutation tests live in `.bumper/Tests`; CI runs `config`, `test`, and `lint --timings` with every rule at `severity: .error`.
 
-- [ ] **WhereCore** — Call `DailySummaryReconciler.reconcile()` from the unified post-day-change fan-out (GPS ingest hook, `reconcileAfterDayChange()`, backup `onImport`) (**high**, bug, **needs-design** — extend fan-out vs. document foreground-only policy)
-- [ ] **WhereCore** — Add test: mutate data → summary notification body updates without re-`configure` (**high**, test, **quick-win** — pairs with item above)
-- [ ] **WhereUI** — Serialize `WhereSession.trackingEnabled` mutations (cancel/coalesce in-flight start/stop tasks) (**high**, bug, **needs-design**)
-- [ ] **WhereUI** — Split toggle binding: `wantsTracking` for intent vs `isTracking` for effective GPS state (**high**, bug, **needs-design** — pairs with tracking serialization)
-- [ ] **LifecycleKit** — After cancel during `minVisible`, check `Task.isCancelled` in `runStep`/`hold()` so superseded drive cannot set `phase = .ready` (**high**, bug, **needs-design**)
-- [ ] **LifecycleKit** — Add test superseding drive during `minVisible` (teardown/enterForeground while hold is active) (**high**, test, **quick-win**)
+**Verified OK:** rule IDs and scopes in `RULES.md` match `WhereProjectRules.swift`; the component graph matches `BumperBowling.swift` / `WhereArchitecture.swift`; Broadway is forbidden on WhereIntents/WhereWidgets via `forbidden_import`, matching `Project.swift`.
 
-### Medium priority — WhereCore
-
-- [ ] **WhereCore** — Route `DayJournal.ingest` paths through reminder reconcile when ingest changes presence (**medium**, bug, **needs-design**)
-- [ ] **WhereCore** — Handle durable outbox save failure without silent sample loss on relaunch (**medium**, bug, **needs-design**)
-- [ ] **WhereCore** — Review retry-queue capacity policy / user-visible degradation at eviction (**medium**, bug, **needs-design**)
-- [ ] **WhereCore** — Consider incremental year-report reads or memoization for widget/reminder/summary hot paths (**medium**, performance, **needs-design**)
-- [x] **WhereCore** — Reconcile reminders, badge, and widgets after `BackupCoordinator.importBackup` (**medium**, bug) — *fixed via `onImport` → `reconcileAfterDayChange()`*
-- [x] **WhereCore** — Fix `DailySummaryReconciler.summaryFragment` format args (**high**, localization, **quick-win**)
-- [x] **WhereCore** — Localize `BackupError.errorDescription` (**medium**, localization, **quick-win**)
-- [x] **WhereCore** — Skip full `reminders.reconcile()` on drain-only ingest with empty `changedDays` (**medium**, performance, **quick-win**)
-
-### Medium priority — WhereUI
-
-- [ ] **WhereUI** — Extract shared `ReportLoadGate` for duplicated load-state UI across tabs (**medium**, duplication, **needs-design**)
-- [ ] **WhereUI** — Extract shared region-selection form logic from `ManualDayView` / `DayRelabelView` (**medium**, duplication, **needs-design** — partial: shared subviews exist)
-- [ ] **WhereUI** — Batch or cap concurrent geocoding in `RegionDaysView` day rows (**medium**, performance, **needs-design**)
-- [ ] **WhereUI** — Make `SecondaryView.loadPlaceNames()` cancellation-aware (generation token / `.task(id:)`) (**medium**, bug, **needs-design**)
-- [ ] **WhereUI** — Replace `Calendar.current` with report/injected Gregorian calendar in year/day math (**medium**, convention, **quick-win**)
-- [ ] **WhereUI** — Remove `waitForOneRunloop()` from UI tests (**medium**, test, **quick-win** — also in `Where/TODOs.md` P0)
-- [x] **WhereUI** — Replace closure `Binding(get:set:)` save-error alerts (**medium**, convention, **quick-win**)
-- [x] **WhereUI** — Enumerate all load-state cases (remove bare `default:`) (**medium**, convention, **quick-win**)
-- [x] **WhereUI** — Scene-scoped data refresh via `YearReportModel.activate()` / `deactivate()` (**medium**, bug, **needs-design**)
-
-### Medium priority — LifecycleKit, SwiftDataInspector, extensions
-
-- [ ] **SwiftDataInspector** — Add test for bare `PersistentIdentifier` to-one relationship resolution (**medium**, test, **quick-win**)
-- [ ] **SwiftDataInspector** — Split monolithic test file; optional hosted UI smoke tests (**medium**, test, **needs-design**)
-- [ ] **WhereIntents** — Add `perform()` tests per intent or update README to reflect seam-only coverage (**medium**, test, **quick-win**)
-- [ ] **WhereIntents** — Test `IntentServices` process-wide cache (**medium**, test, **quick-win**)
-- [ ] **WhereShareExtension** — Add `ShareEvidenceModelTests` (**medium**, test, **quick-win**)
-- [ ] **RegionKit** — Add `GeoJSONTests.swift` (**medium**, test, **quick-win**)
-- [ ] **BroadwayUI** — Fix nested `BRootViewController` duplicate trait observers (**medium**, bug, **needs-design** — latent; not used in Where today)
-- [ ] **PeriscopeCore** — Multi-process journal ingest coordination (**medium**, bug, **needs-design** — see `Shared/Periscope/TODOs.md`)
-- [x] **SwiftDataInspector** — Resolve bare `PersistentIdentifier` to-one relationships (**high**, bug, **quick-win**)
-- [x] **SwiftDataInspector** — Paginate/lazy-render `EntityTableView` (**high**, performance, **quick-win**)
-- [x] **LifecycleKit** — Localize `LifecycleFailureView` via module catalog (**medium**, localization, **quick-win**)
-
-### Medium priority — Where app & widgets
-
-- [ ] **WhereWidgets** — Optional unit test for timeline/midnight policy with injectable store (**medium**, test, **needs-design**)
-- [ ] **WhereWidgets** — Handle stale snapshot after midnight in provider or document UI graceful degradation (**medium**, bug, **needs-design** — product decision)
-- [ ] **Where app** — Add module-level `Where/Where/README.md` (**medium**, docs, **quick-win**)
-- [x] **Where app** — Replace placeholder `WhereTests` with launch-reason smoke tests (**medium**, test, **quick-win**)
-- [x] **WhereWidgets** — Add `README.md` and `AGENTS.md` (**medium**, convention, **quick-win**)
-- [x] **WhereWidgets** — Localize widget gallery strings (**medium**, localization, **quick-win**)
-
-### Low priority / polish
-
-- [ ] **WhereCore** — Soft-delete for untracked regions when region picker ships (**low**, bug, **needs-design** — open TODO in `SwiftDataStore`)
-- [ ] **WhereUI** — Profile `RegionSummaryCard` Canvas rosette (**low**, performance, **needs-design**)
-- [ ] **WhereUI** — Log AppIcon catalog load failures (**low**, convention, **quick-win**)
-- [ ] **WhereIntents** — Register `LogTripIntent` in `WhereShortcuts` or document Shortcuts-only discovery (**low**, convention, **quick-win**)
-- [ ] **RegionViewer** — Wrap `RegionMapView` in `.whereBroadwayRoot()` for faithful dev styling (**low**, convention, **quick-win**)
-- [ ] **BroadwayCatalog** — Add launch smoke test or document empty-test intent (**low**, test, **quick-win**)
-- [ ] **StuffTestHost** — Document or split WhereCore-always-embedded build trade-off (**low**, performance, **needs-design**)
-- [ ] **StuffCore** — Replace tautological `version` test when real API exists (**low**, test, **quick-win**)
-- [ ] **Where/TODOs.md** — Track architectural items: `WhereSession` split, `YearReportModel` split, per-entity schema versioning (**low**, docs)
-
-### Summary by effort
-
-| Effort | Open | Done (since June) |
-|--------|-----:|------------------:|
-| **quick-win** | ~18 | ~90 |
-| **needs-design** | ~22 | ~10 |
-
-Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for items to discuss or spec before coding.
+**Files:** 4 rule/test sources · RULES.md ✓ · Open: [`TODOs.md`](TODOs.md)
 
 ---
 
-## Per-module findings
+### WhereCore
 
-### WhereCore (12 open / many fixed)
+**Verified OK:** backup import → full fan-out via `onImport`; summary format args (guarded by `summaryBodyContainsNoFormatPlaceholders`); `BackupError` localization; drain-only ingest skipping the full reminder reconcile; no raw-string/`os.Logger` logging left; no PII in `.public` events; `RecentActivitySummarizer`'s typed unavailability and segment cap.
 
-**High**
-
-| Category | Location | Issue | Suggestion |
-|----------|----------|-------|------------|
-| bug | `WhereServices.swift` — `onPersisted`; `DayJournal.reconcileAfterDayChange()` | Daily summary notification never reconciled on data changes | Add `await summary.reconcile()` to unified fan-out; test without re-`configure` |
-
-**Medium**
-
-| Category | Location | Issue | Suggestion |
-|----------|----------|-------|------------|
-| bug | `DayJournal.swift` — `ingest(_:)`, bulk ingest | Widget publish without reminder/issue reconcile | Route through reconcile or document test-only scope |
-| bug | `LocationOutbox.swift` — `save(_:)` | Outbox save failure → relaunch sample loss | Degraded-state handling + relaunch test |
-| bug | `LocationIngestor.swift` — retry queue eviction | Silent drop at capacity with warning only | User-visible degradation or policy doc |
-| performance | `WidgetDataReader` / `ReportReader.yearReport` | Full-year re-aggregation on hot paths | Memoize or incremental reads |
-| convention | `DayJournal.addEvidence` | Default parameter on Core API | Remove default; explicit call sites |
-| test | Import/summary integration | No test for summary refresh after import/ingest | Spy scheduler test |
-
-**Low**
-
-| Category | Location | Issue | Suggestion |
-|----------|----------|-------|------------|
-| bug | `SwiftDataStore.setTrackedRegion(false)` | Untrack deletes row; past-year re-attribution risk | Soft-delete when picker ships |
-| convention | `WidgetSnapshotStore.read()` | `try?` hides decode failures | Log at `warning` on app write path |
-| test | ~68 source files | Strict 1:1 test mapping not followed | Integration suites cover most paths; document or split |
-
-**Verified OK:** Backup import → reminders/badge/widgets via `reconcileAfterDayChange`; GPS ingest → throttled reminder reconcile; summary format strings; `BackupError` localization; `WhereStore.perform` boundary; enum switches with `@unknown default`; post-write fan-out single owner in `DayJournal`.
-
-**Files:** 68 source / 55 test · README ✓ · AGENTS ✓
+**Files:** 87 source / 58 test · README ✓ · AGENTS ✓ · Open: [`Where/TODOs.md`](Where/TODOs.md)
 
 ---
 
-### WhereUI (10 open / many fixed)
+### WhereUI
 
-**High**
+**Verified OK:** no closure `Binding(get:set:)` anywhere in the module (`SaveErrorAlertState`, `AddEvidenceModel`, `AppIconModel` expose computed `get`/`set`); every load-state `switch` enumerates its cases; `MainTabs` drives `YearReportModel.activate()` / `deactivate()` off `scenePhase`; every previewable `View`/`Widget` ships an in-file `#Preview`; `README.md` and `AGENTS.md` are current on the three-tab shape.
 
-| Category | Location | Issue | Suggestion |
-|----------|----------|-------|------------|
-| bug | `WhereSession.swift` — `trackingEnabled` setter | Unserialized async start/stop tasks | Serialize mutations; split intent vs effective state |
-
-**Medium**
-
-| Category | Location | Issue | Suggestion |
-|----------|----------|-------|------------|
-| duplication | `PrimaryView`, `SecondaryView`, `CalendarView` | Duplicated load-state UI | Extract `ReportLoadGate` |
-| duplication | `ManualDayView`, `DayRelabelView` | Parallel form chrome despite shared subviews | Shared form model or subview |
-| convention | `ManualDayView`, `PresenceTimelineView`, `RegionSummaryCard` | `Calendar.current` for year/day math | Use report Gregorian calendar |
-| performance | `RegionDaysView` — `DayRow` | Per-row geocode `.task` | Prefetch unique coordinates |
-| bug | `SecondaryView.loadPlaceNames()` | Stale geocode after year switch | Cancellation token / `.task(id:)` |
-| test | UI tests | `waitForOneRunloop()` flake risk | Predicate polling |
-
-**Low**
-
-| Category | Location | Issue | Suggestion |
-|----------|----------|-------|------------|
-| convention | `AppIconOption` / `AppIconModel` | Silent empty picker on catalog load failure | Log + honest empty state |
-| performance | `RegionSummaryCard` Canvas | Many concentric rings | Profile before optimizing |
-| localization | `IntentSnippets` preview button | Hardcoded English in snippet preview | Route through `Strings` if shipped |
-
-**Verified OK:** `SaveErrorAlertState` replaces closure bindings; `YearReportModel.LoadState` modeling; scene-scoped refresh; `#Preview` coverage; `ScreenHostingTests` for manual/relabel; Core logic stays in models/services.
-
-**Files:** 76 source / 31 test · README ✓ · AGENTS ✓
+**Files:** 113 source / 36 test · README ✓ · AGENTS ✓ · Open: [`Where/TODOs.md`](Where/TODOs.md)
 
 ---
 
-### LifecycleKit (2 open / cancel hang fixed)
+### LifecycleKit
 
-**High / medium**
+**Verified OK:** cancel-and-drain no longer waits out the full `minVisible` window; duplicate step-ID `precondition`; localized `LifecycleFailureView`; background *and* `.undetermined` promotion container tests. The `.undetermined` state machine (#109) holds up: `completedStepIDs` records only steps that ran to completion, so a promotion re-drive skips finished work while still running newly-applicable steps, and promotion/teardown both funnel through the same cancel-and-drain.
 
-| Category | Location | Issue | Suggestion |
-|----------|----------|-------|------------|
-| bug | `LifecycleRunner.runStep` → `ActivePresentation.hold()` | Cancel during `minVisible` can still return `.completed`; superseded drive may set `.ready` | Check `Task.isCancelled` after hold; gate terminal phase on active drive |
-| test | `LifecycleRunnerTests` | No supersede-during-hold regression | Add teardown/enterForeground mid-hold test |
-
-**Verified OK:** Cancel-and-drain no longer blocks full `minVisible` window; fuzz tests; duplicate step ID fail-fast; module localization; background→foreground container test.
-
-**Files:** 9 source / 10 test · README ✓ · AGENTS ✓
+**Files:** 9 source / 11 test · README ✓ · AGENTS ✓ · Open: [`Shared/LifecycleKit/TODOs.md`](Shared/LifecycleKit/TODOs.md)
 
 ---
 
-### SwiftDataInspector (2 open / scalability fixed)
+### SwiftDataInspector
 
-**Medium**
+**Verified OK:** pagination + lazy rendering with regression tests; relationship resolution for materialized models.
 
-| Category | Location | Issue | Suggestion |
-|----------|----------|-------|------------|
-| test | `SwiftDataReflection.classify` | Bare `PersistentIdentifier` path untested | Add fixture test |
-| test | `Tests/` | Single omnibus file vs 13 sources | Split by concern; optional hosted smoke |
+**Accepted:** `try?` on fetches yields empty rows/counts (documented DEBUG degradation); a bare `default:` in `defaultFormat` over `Any` (open-type dispatch).
 
-**Low:** Client-side search over loaded prefix only; unstable row order by design; `try?` on fetch yields empty (acceptable for DEBUG tool).
-
-**Verified OK:** Pagination + lazy rendering; relationship resolution for materialized models; AGENTS scenarios largely tested at reader layer.
-
-**Files:** 13 source / 1 test · README ✓ · AGENTS ✓
+**Files:** 13 source / 1 test · README ✓ · AGENTS ✓ · Open: [`Shared/SwiftDataInspector/TODOs.md`](Shared/SwiftDataInspector/TODOs.md)
 
 ---
 
-### LogKit & LogViewerUI (0 open)
+### PeriscopeCore, PeriscopeUI, PeriscopeTools
 
-**Verified OK (all June findings addressed):** `LogStore.changes()` race fixed; cancellation/multi-observer tests; `LogViewerModel` filtered-entry and category caching; search uses display names; empty-filter vs store-empty distinction; deferred export; hosting tests strengthened.
+**Verified OK:** Broadway does not leak below PeriscopeTools; no test touches `Periscope.shared`; `@_spi(Testing)` used for injection hooks; span-pair floors, rollback-on-failed-save, and the seeded lifecycle fuzz all still in place. PeriscopeUI is a thin DEBUG bridge with nothing outstanding.
 
-**Files:** LogKit 4/3 · LogViewerUI 4/2 · README ✓ · AGENTS ✓
-
----
-
-### JournalKit, StuffCore, TestHostSupport, StuffTestHost (0–1 open each)
-
-**JournalKit:** Strong fuzz/truncation coverage. Low: concurrent append test uses `try?`; `.full` sync lightly exercised. **Files:** 2/3 · README ✓ · AGENTS ✓
-
-**StuffCore:** Intentional scaffold; tautological version test. **Files:** 1/1 · README ✓ · AGENTS ✓
-
-**TestHostSupport:** Dependency-free UIKit helpers; no dedicated bundle (by design). **Files:** 1/0 · README ✓ · AGENTS ✓
-
-**StuffTestHost:** WhereCore embed trade-off documented; smoke test in LifecycleKit. Low: scene plist duplication. **Files:** 2/0 · README ✓ · AGENTS ✓
+**Files:** PeriscopeCore 35/31 · PeriscopeUI 1/2 · PeriscopeTools 24/22 · README ✓ · AGENTS ✓ · Open: [`Shared/Periscope/TODOs.md`](Shared/Periscope/TODOs.md)
 
 ---
 
-### BroadwayCore & BroadwayUI (3 open)
+### JournalKit, StuffCore, TestHostSupport, StuffTestHost
 
-**Medium:** Nested `BRootViewController` duplicate trait observers (latent). **Low:** Missing 1:1 tests for `UIViewControllerTraitObserver`, `EquatableIgnored`, `BTraitOverrides+SwiftUI`; stylesheet cache never evicts on memory pressure (documented TODO).
+**JournalKit:** strong fuzz/truncation coverage. **Files:** 2/3 · README ✓ · AGENTS ✓ · Open: [`Shared/JournalKit/TODOs.md`](Shared/JournalKit/TODOs.md)
 
-**Verified OK:** Stylesheet/trait/cycle behavior well tested; Where uses SwiftUI `whereBroadwayRoot()` entry point.
+**StuffCore:** intentional scaffold. **Files:** 1/1 · README ✓ · AGENTS ✓ · Open: [`Shared/StuffCore/TODOs.md`](Shared/StuffCore/TODOs.md)
 
-**Files:** BroadwayCore 17/10 · BroadwayUI 6/4 · README ✓ · AGENTS ✓
+**TestHostSupport:** dependency-free UIKit helpers; no dedicated bundle by design (exercised via hosted bundles), nothing open. **Files:** 1/0 · README ✓ · AGENTS ✓
 
----
-
-### BroadwayCatalog (2 open)
-
-**Medium:** Empty test struct. **Low:** Placeholder UI vs README promise; hardcoded English (acceptable for internal showcase).
-
-**Files:** 2/1 · README ✓ · AGENTS ✓
+**StuffTestHost:** the WhereCore-always-embedded trade-off is documented and verified load-bearing in `Project.swift:256`; the smoke test lives in `LifecycleKitTests`. **Files:** 2/0 · README ✓ · AGENTS ✓ · Open: [`TODOs.md`](TODOs.md) (both items reach the root Tuist manifest)
 
 ---
 
-### PeriscopeCore, PeriscopeUI, PeriscopeTools (4 open)
+### BroadwayCore, BroadwayUI, BroadwayCatalog
 
-**PeriscopeCore medium:** Multi-process journal ingest race (P1 in `Shared/Periscope/TODOs.md`); orphan sweep `try?` decode may close surviving span. **Low:** Fixed `Task.sleep` in tests; strong overall coverage (34/31).
+**Verified OK:** stylesheet/trait/cycle behavior well tested; trait registration pairs with teardown.
 
-**PeriscopeUI:** Thin DEBUG bridge — no issues. **Files:** 1/2 · README ✓ · AGENTS ✓
+**Accepted:** a bare `default:` mapping unknown `UIContentSizeCategory` to `.large` (`BTraits+Values.swift:125`, a deliberate fallback); hardcoded English in the catalog app (internal showcase).
 
-**PeriscopeTools low:** Row/display components untested; NDJSON export `try?` acceptable for dev tool. **Files:** 15/13 · README ✓ · AGENTS ✓
-
----
-
-### RegionKit & RegionViewer (3 open)
-
-**RegionKit medium:** `GeoJSON.swift` decoder untested. **Low:** Catalog load failure paths; dynamic localization trade-off documented.
-
-**RegionViewer low:** Missing `.whereBroadwayRoot()` — map uses default stylesheet; no test bundle by design.
-
-**Files:** RegionKit 9/6 · RegionViewer 1/0 · README ✓ · AGENTS ✓
+**Files:** BroadwayCore 17/10 · BroadwayUI 6/4 · BroadwayCatalog 2/1 · README ✓ · AGENTS ✓ · Open: [`Shared/Broadway/TODOs.md`](Shared/Broadway/TODOs.md)
 
 ---
 
-### WhereIntents (4 open)
+### RegionKit & RegionViewer
 
-**Medium:** No `perform()` tests; `IntentServices` cache untested. **Low:** `LogTripIntent` not in shortcuts provider; `LogDayIntent` default day uses `Date()` vs calendar consistency; Spotlight indexer untested.
+**Verified OK:** the per-region catalog drives `RegionStyle`, the pickers, and the App Intents `RegionEntity` with no `Region` enum left to extend. RegionViewer ships no test bundle by design.
 
-**Verified OK:** Reader/writer seams well tested; duplicate-linking discipline via WhereUI only.
-
-**Files:** 16/8 · README ✓ · AGENTS ✓
+**Files:** RegionKit 13/8 · RegionViewer 1/0 · README ✓ · AGENTS ✓ · Open: [`Where/TODOs.md`](Where/TODOs.md)
 
 ---
 
-### WhereWidgets & WhereShareExtension (3 open)
+### WhereIntents
 
-**WhereWidgets low:** No extension test bundle (documented); midnight stale snapshot policy; provider timeline untested at boundary.
+**Verified OK:** reader/writer seams well tested (`WhereIntentReaderTests`, `WhereIntentWriterTests`); `IntentServices` handoff still covered by `IntentServicesTests` (install/park/cancel/replace) with no self-creating fallback; no Broadway double-link.
 
-**WhereShareExtension medium:** `ShareEvidenceModel` untested. **Low:** `SharedItemLoader` discards load errors; form duplication vs `AddEvidenceView`.
+**Accepted:** the per-intent `perform()` glue is untested because `@Dependency` traps outside the perform flow — the open item is to extract a seam or say so in `README.md`.
 
-**Verified OK:** Gallery strings localized; widget rendering tested in WhereUI; App Group read path aligned with Core publisher.
-
-**Files:** WhereWidgets 7/0 · WhereShareExtension 5/0 · README ✓ · AGENTS ✓
+**Files:** 17/9 · README ✓ · AGENTS ✓ · Open: [`Where/TODOs.md`](Where/TODOs.md)
 
 ---
 
-### Where app (1 open)
+### WhereWidgets & WhereShareExtension
 
-**Low:** No `Where/Where/README.md` (feature-level `Where/AGENTS.md` covers layering).
+**Verified OK:** `SharedItemLoader` logs load failures at `warning`; widget gallery strings localized; `@unknown default:` on widget-family switches; no Broadway double-link in either target. The post-midnight stale snapshot is explicitly documented as intentional degradation in the provider, `README.md`, and `AGENTS.md`.
 
-**Verified OK:** Launch-reason mapping tested; thin shell (`WhereApp`, `AppDelegate`, `WhereShortcuts`); delegate wiring smoke test.
+**Accepted:** neither target ships a test bundle (documented).
 
-**Files:** 3/1 · README ✗ · AGENTS ✗ (feature doc at `Where/AGENTS.md`)
+**Files:** WhereWidgets 7/0 · WhereShareExtension 5/0 · README ✓ · AGENTS ✓ · Open: [`Where/TODOs.md`](Where/TODOs.md)
+
+---
+
+### Where app
+
+**Verified OK:** `Where/Where/README.md` now exists and matches the three-file shell; `WhereTests` pins `.undetermined` as the launch reason under the UIScene lifecycle; delegate wiring smoke test; no Broadway double-link. Nothing open.
+
+**Files:** 3/1 · README ✓ · AGENTS ✓
 
 ---
 
 ## Limitations
 
-- Static analysis only — no `tuist test` or simulator runs in this pass (Cloud agent runs Linux; full test suite requires macOS CI).
-- Some findings (LifecycleKit phase race, tracking toggle, outbox relaunch) need runtime confirmation.
-- Severity counts are approximate — several low-severity 1:1 test gaps are folded into module summaries rather than individually listed.
-- DEBUG-only localization (LogViewerUI, PeriscopeUI) flagged at low severity per module docs.
+- Static analysis only — no `tuist test`, `bumper lint`, or simulator runs in this pass (the Cloud agent runs Linux; the full suite requires macOS CI). CI status on `main` was read via `gh` and is green, which is what lets the "the Gregorian rule finds nothing" conclusion stand.
+- Some findings (the LifecycleKit terminal-phase race, the tracking toggle, outbox relaunch loss) need runtime confirmation.
+- Severity counts are approximate — several low-severity 1:1 test gaps are folded into module summaries rather than filed individually.
+- DEBUG-only surfaces (PeriscopeTools, SwiftDataInspector) are held to a lighter standard for `try?` degradation, per their module docs.
+- `Shared/Periscope/Prototypes/JournalBenchmark` (2 sources) is wired into no target and is excluded from the counts below.
 
 ---
 
@@ -406,48 +233,49 @@ Filter tips: search `quick-win` for bite-sized PRs; search `needs-design` for it
 | Module | Path | Source | Test | README | AGENTS |
 |--------|------|-------:|-----:|:------:|:------:|
 | StuffCore | `Shared/StuffCore/` | 1 | 1 | ✓ | ✓ |
-| LifecycleKit | `Shared/LifecycleKit/` | 9 | 10 | ✓ | ✓ |
+| LifecycleKit | `Shared/LifecycleKit/` | 9 | 11 | ✓ | ✓ |
 | JournalKit | `Shared/JournalKit/` | 2 | 3 | ✓ | ✓ |
-| LogKit | `Shared/LogKit/` | 4 | 3 | ✓ | ✓ |
-| LogViewerUI | `Shared/LogViewerUI/` | 4 | 2 | ✓ | ✓ |
+| PeriscopeCore | `Shared/Periscope/PeriscopeCore/` | 35 | 31 | ✓ | ✓ |
+| PeriscopeUI | `Shared/Periscope/PeriscopeUI/` | 1 | 2 | ✓ | ✓ |
+| PeriscopeTools | `Shared/Periscope/PeriscopeTools/` | 24 | 22 | ✓ | ✓ |
 | SwiftDataInspector | `Shared/SwiftDataInspector/` | 13 | 1 | ✓ | ✓ |
 | TestHostSupport | `Shared/TestHostSupport/` | 1 | 0 | ✓ | ✓ |
 | BroadwayCore | `Shared/Broadway/BroadwayCore/` | 17 | 10 | ✓ | ✓ |
 | BroadwayUI | `Shared/Broadway/BroadwayUI/` | 6 | 4 | ✓ | ✓ |
-| PeriscopeCore | `Shared/Periscope/PeriscopeCore/` | 34 | 31 | ✓ | ✓ |
-| PeriscopeUI | `Shared/Periscope/PeriscopeUI/` | 1 | 2 | ✓ | ✓ |
-| PeriscopeTools | `Shared/Periscope/PeriscopeTools/` | 15 | 13 | ✓ | ✓ |
-| RegionKit | `Where/RegionKit/` | 9 | 6 | ✓ | ✓ |
-| WhereCore | `Where/WhereCore/` | 68 | 55 | ✓ | ✓ |
-| WhereUI | `Where/WhereUI/` | 76 | 31 | ✓ | ✓ |
-| WhereIntents | `Where/WhereIntents/` | 16 | 8 | ✓ | ✓ |
+| RegionKit | `Where/RegionKit/` | 13 | 8 | ✓ | ✓ |
+| WhereCore | `Where/WhereCore/` | 87 | 58 | ✓ | ✓ |
+| WhereUI | `Where/WhereUI/` | 113 | 36 | ✓ | ✓ |
+| WhereIntents | `Where/WhereIntents/` | 17 | 9 | ✓ | ✓ |
 
 ### Tuist app / extension targets
 
 | Target | Path | Source | Test | README | AGENTS |
 |--------|------|-------:|-----:|:------:|:------:|
-| Where | `Where/Where/` | 3 | 1 | ✗ | ✗ |
+| Where | `Where/Where/` | 3 | 1 | ✓ | ✓ |
 | WhereWidgets | `Where/WhereWidgets/` | 7 | 0 | ✓ | ✓ |
 | WhereShareExtension | `Where/WhereShareExtension/` | 5 | 0 | ✓ | ✓ |
 | RegionViewer | `Where/RegionViewer/` | 1 | 0 | ✓ | ✓ |
 | StuffTestHost | `Shared/StuffTestHost/` | 2 | 0 | ✓ | ✓ |
 | BroadwayCatalog | `Shared/Broadway/BroadwayCatalog/` | 2 | 1 | ✓ | ✓ |
 
-**Totals:** ~298 source · ~182 test Swift files across the tree.
+**Totals:** ~359 source · ~198 test Swift files across shipped targets (plus 4 Bumper rule/test sources and 2 unwired prototype sources).
 
 ---
 
-## Changes since June 2026 audit
+## Changes since July 19, 2026 audit
 
-| Area | June state | July state |
-|------|------------|------------|
-| Target count | 11 | 22 (16 SPM + 6 Tuist) |
-| Module docs | 4 targets missing | All libraries/extensions documented; Where app target only gap |
-| WhereTesting | Monolithic; forced WhereCore link | Split → `TestHostSupport` + `@_spi(Testing) InMemoryKeyValueStore` |
-| Backup import reconcile | Widgets only | Full fan-out via `reconcileAfterDayChange()` |
-| Daily summary `%` placeholders | Broken | Fixed + tested |
-| LogViewerUI search perf | Recomputed every keystroke | Cached |
-| SwiftDataInspector table | Main-thread stall on wide schemas | Paginated + lazy |
-| LifecycleKit minVisible cancel | Hung for full hold duration | Cooperative cancel; residual `.ready` race remains |
-| Where app tests | Placeholder `#expect(true)` | Launch-reason smoke tests |
-| New modules | — | Broadway*, Periscope*, RegionKit, WhereIntents, share extension, RegionViewer |
+| Area | July 19 state | July 26 state |
+|------|---------------|---------------|
+| Target count | 16 SPM + 6 Tuist | **14 SPM** + 6 Tuist — LogKit and LogViewerUI deleted, replaced by Periscope (#94) |
+| File count | ~308 source / ~189 test | ~359 source / ~198 test (WhereUI 84 → 113, WhereCore 70 → 87, PeriscopeTools 15 → 24, RegionKit 9 → 13) |
+| Architecture lint | — | Bumper Bowling (#127): Where component graph + 10 source-level rules, hard-gated in CI — with a Gregorian blind spot and a stale catalog |
+| Navigation | Primary / Elsewhere / Resolve / Settings | Locations / Your Year / Settings (#119); Elsewhere is a card, Resolve a toolbar action, data screens under Settings |
+| Settings | Flat list | iOS-style drill-in screens with search (#111) |
+| Developer surfaces | LogViewerUI + overlay | Liquid Glass HUD (#115), Periscope viewer with hierarchy / span tree / span history / density (#107), in-app SwiftData browser |
+| Launch reason | `applicationState` guess (cold launch read as headless) | `LifecycleReason.undetermined` + promotion, with `completedStepIDs` preventing re-runs (#109) |
+| Localization | Hand-maintained key facades | Generated String Catalog symbols; a removed key is a compile error (#124); catalogs serialized as Xcode writes them and linted (#135) |
+| Calendars | `Calendar.current` in view call sites | Fixed at the call sites (`fe99dde`) — but relocated into `CalendarDay.displayDate` and two helper defaults |
+| Preview coverage | Gaps across WhereUI | Complete; enforced by `where.preview_coverage` (`52f0136`) |
+| Simulator handling | Name-based destinations | `./simulator` resolves a UDID and boots it; `profile` / `flaky` / CI all go through it (#130) |
+| Device installs | Xcode UI | `./Where/install` (#110, #112) |
+| Backlog | Findings split between this file and two `TODOs.md` | One backlog across eight `TODOs.md`; this report is derived and carries no items |

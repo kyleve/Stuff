@@ -1,4 +1,5 @@
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -29,18 +30,18 @@ struct FlightDayDetailView: View {
                     .task(id: payload.day.day) { await loadPoints(for: payload.day.day) }
             } else {
                 ContentUnavailableView(
-                    Strings.loadErrorTitle,
+                    String(localized: .commonLoadErrorTitle),
                     systemImage: "exclamationmark.triangle",
                 )
             }
         }
-        .navigationTitle(Strings.resolutionFlightDetailTitle)
+        .navigationTitle(String(localized: .resolutionFlightDetailTitle))
         .navigationBarTitleDisplayMode(.inline)
         .alert(
-            Strings.manualSaveErrorTitle,
+            String(localized: .manualSaveErrorTitle),
             isPresented: $saveError.isPresented,
         ) {
-            Button(Strings.commonOK, role: .cancel) {}
+            Button(String(localized: .commonOk), role: .cancel) {}
         } message: {
             if let message = saveError.message {
                 Text(message)
@@ -61,7 +62,7 @@ struct FlightDayDetailView: View {
     private func form(_ payload: FlightPayload) -> some View {
         Form {
             Section {
-                Text(Strings.resolutionFlightDetailExplanation(
+                Text(WhereFormat.resolutionFlightDetailExplanation(
                     peakSpeedKMH: payload.peakSpeedKMH,
                     removed: payload.removed,
                 ))
@@ -71,7 +72,7 @@ struct FlightDayDetailView: View {
 
             if applying {
                 Section {
-                    SavingStatusRow(text: Strings.manualSavingStatus)
+                    SavingStatusRow(text: String(localized: .manualSavingStatus))
                 }
             }
 
@@ -79,7 +80,7 @@ struct FlightDayDetailView: View {
                 Button {
                     apply(payload)
                 } label: {
-                    Text(Strings.resolutionFlightApply(regions: payload.keep))
+                    Text(WhereFormat.resolutionFlightApply(regions: payload.keep))
                 }
                 .disabled(applying)
             }
@@ -92,15 +93,15 @@ struct FlightDayDetailView: View {
                         reason: .flight(removed: payload.removed),
                     )
                 } label: {
-                    Text(Strings.resolutionFlightManualFix)
+                    Text(String(localized: .resolutionFlightManualFix))
                 }
                 .disabled(applying)
             } footer: {
-                Text(Strings.resolutionFlightManualFixFooter)
+                Text(String(localized: .resolutionFlightManualFixFooter))
             }
 
             Section {
-                Button(Strings.resolutionFlightBothRight) {
+                Button(String(localized: .resolutionFlightBothRight)) {
                     Task {
                         await resolve.dismiss(issue)
                         dismiss()
@@ -165,22 +166,34 @@ struct FlightDayDetailView: View {
 }
 
 #if DEBUG
-    #Preview {
-        NavigationStack {
-            FlightDayDetailView(
-                issue: FlightDayIssue(
-                    day: DayPresence(
-                        date: .now,
-                        in: .current,
-                        regions: [.newYork, .other, .california],
-                    ),
-                    keepRegions: [.newYork, .california],
-                    removedRegions: [.other],
-                    peakSpeedKMH: 880,
-                ),
-                report: PreviewSupport.loadedYearReportModel(),
-                resolve: PreviewSupport.resolveModel(),
-            )
+    extension FlightDayDetailView: SnapshotProviding {
+        /// The flight-day fixture pins its day to `referenceNow` (a bespoke
+        /// `.now` would churn the reference daily). The preview store seeds no
+        /// raw samples, so the recorded-points map stays out of the tree and the
+        /// capture is deterministic.
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .screenDefaults) {
+                NavigationStack {
+                    FlightDayDetailView(
+                        issue: FlightDayIssue(
+                            day: DayPresence(
+                                date: PreviewSupport.referenceNow,
+                                in: .current,
+                                regions: [.newYork, .other, .california],
+                            ),
+                            keepRegions: [.newYork, .california],
+                            removedRegions: [.other],
+                            peakSpeedKMH: 880,
+                        ),
+                        report: PreviewSupport.loadedYearReportModel(),
+                        resolve: PreviewSupport.resolveModel(),
+                    )
+                }
+            }
         }
+    }
+
+    #Preview {
+        FlightDayDetailView.snapshotPreviews
     }
 #endif

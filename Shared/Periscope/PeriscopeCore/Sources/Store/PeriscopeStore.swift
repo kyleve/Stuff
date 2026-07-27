@@ -580,6 +580,8 @@ public actor PeriscopeStore: LogSink {
         let exitMode: String? = query.spanExitMode?.rawValue
         let filtersExternalID = query.externalID != nil
         let externalID: String? = query.externalID
+        let filtersAfterSequence = query.afterSequence != nil
+        let afterSequence = query.afterSequence ?? Int.min
 
         let predicate = Self.eventsPredicate(
             start: start,
@@ -599,6 +601,8 @@ public actor PeriscopeStore: LogSink {
             scopeIDs: scopeIDs,
             filtersTags: filtersTags,
             tagPairs: tagPairs,
+            filtersAfterSequence: filtersAfterSequence,
+            afterSequence: afterSequence,
         )
 
         var descriptor = Self.readDescriptor(
@@ -642,6 +646,8 @@ public actor PeriscopeStore: LogSink {
         scopeIDs: [UUID],
         filtersTags: Bool,
         tagPairs: [String],
+        filtersAfterSequence: Bool,
+        afterSequence: Int,
     ) -> Predicate<SDLogEvent> {
         Predicate<SDLogEvent>({ event in
             let afterStart = PredicateExpressions.build_Comparison(
@@ -777,6 +783,21 @@ public actor PeriscopeStore: LogSink {
                     rhs: PredicateExpressions.build_Arg(tagPairs.count),
                 ),
             )
+            // The incremental "newer than" cursor: strictly greater, so the
+            // event a viewer last merged doesn't come back on the next fetch.
+            let matchesAfterSequence = PredicateExpressions.build_Disjunction(
+                lhs: PredicateExpressions.build_Negation(
+                    PredicateExpressions.build_Arg(filtersAfterSequence),
+                ),
+                rhs: PredicateExpressions.build_Comparison(
+                    lhs: PredicateExpressions.build_KeyPath(
+                        root: PredicateExpressions.build_Arg(event),
+                        keyPath: \.sequence,
+                    ),
+                    rhs: PredicateExpressions.build_Arg(afterSequence),
+                    op: .greaterThan,
+                ),
+            )
 
             let dates = PredicateExpressions.build_Conjunction(
                 lhs: afterStart,
@@ -810,9 +831,13 @@ public actor PeriscopeStore: LogSink {
                 lhs: searched,
                 rhs: matchesScope,
             )
-            return PredicateExpressions.build_Conjunction(
+            let tagged = PredicateExpressions.build_Conjunction(
                 lhs: scoped,
                 rhs: matchesTag,
+            )
+            return PredicateExpressions.build_Conjunction(
+                lhs: tagged,
+                rhs: matchesAfterSequence,
             )
         })
     }

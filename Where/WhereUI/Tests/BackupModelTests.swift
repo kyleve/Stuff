@@ -60,6 +60,15 @@ struct BackupModelTests {
         #expect(summary.dismissedIssueCount == 1)
         #expect(destinationBackup.backupState == .idle)
 
+        // The success summary is also exposed on the model (not just returned),
+        // so the confirmation alert survives the backup screen being popped
+        // mid-import. Dismissing (isShowingImportSuccess = false) clears it.
+        #expect(destinationBackup.lastImportSummary?.evidenceCount == summary.evidenceCount)
+        #expect(destinationBackup.isShowingImportSuccess)
+        destinationBackup.isShowingImportSuccess = false
+        #expect(destinationBackup.lastImportSummary == nil)
+        #expect(!destinationBackup.isShowingImportSuccess)
+
         #expect(try await destinationStore.allEvidence() == sourceStore.allEvidence())
         #expect(try await destinationStore.allManualDays() == sourceStore.allManualDays())
         #expect(
@@ -81,5 +90,8 @@ struct BackupModelTests {
         #expect(summary == nil)
         #expect(backup.backupError != nil)
         #expect(backup.backupState == .idle)
+        // A failed import must not surface a success confirmation.
+        #expect(backup.lastImportSummary == nil)
+        #expect(!backup.isShowingImportSuccess)
     }
 }

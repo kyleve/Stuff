@@ -154,6 +154,86 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.trackedRegions() == [.california, texas])
     }
 
+    @Test func importRestoresPickedRegionAppearance() async throws {
+        let source = try Self.makeHarness()
+        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
+        try await source.store.perform {
+            try await source.store.setPrimaryRegions([
+                PrimaryRegion(region: .california, appearance: caLook, order: 0),
+            ])
+        }
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let destination = try Self.makeHarness()
+        _ = try await destination.coordinator.importBackup(from: url, strategy: .replace)
+
+        let restored = try await destination.store.primaryRegions()
+        #expect(restored.map(\.region) == [.california])
+        #expect(restored.first?.appearance == caLook)
+    }
+
+    @Test func mergeImportKeepsCustomizedLookWhenArchiveAppearanceIsNil() async throws {
+        // The device customized California; the archive tracks it with no picked
+        // look. A merge must not clobber the device's look with the archive's nil.
+        let caLook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
+        let source = try Self.makeHarness()
+        try await source.store.perform {
+            try await source.store.setPrimaryRegions([
+                PrimaryRegion(region: .california, appearance: nil, order: 0),
+            ])
+        }
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let destination = try Self.makeHarness()
+        try await destination.store.perform {
+            try await destination.store.setPrimaryRegions([
+                PrimaryRegion(region: .california, appearance: caLook, order: 0),
+            ])
+        }
+        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+
+        let restored = try await destination.store.primaryRegions()
+        #expect(restored.map(\.region) == [.california])
+        #expect(restored.first?.appearance == caLook)
+    }
+
+    @Test func mergeImportOverwritesLookWhenArchiveHasAppearanceAndAppendsNewRegions() async throws {
+        let texas = try #require(Region(rawValue: "us-TX"))
+        let archiveCALook = RegionAppearance(
+            color: .indigo,
+            emoji: "🌉",
+            symbolName: "building.2.fill",
+        )
+        let txLook = RegionAppearance(color: .red, emoji: "🤠", symbolName: "star.fill")
+        let source = try Self.makeHarness()
+        try await source.store.perform {
+            try await source.store.setPrimaryRegions([
+                PrimaryRegion(region: .california, appearance: archiveCALook, order: 0),
+                PrimaryRegion(region: texas, appearance: txLook, order: 1),
+            ])
+        }
+        let url = try await source.coordinator.exportBackup()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        let destination = try Self.makeHarness()
+        let deviceCALook = RegionAppearance(color: .orange, emoji: "🌴", symbolName: "sun.max.fill")
+        try await destination.store.perform {
+            try await destination.store.setPrimaryRegions([
+                PrimaryRegion(region: .california, appearance: deviceCALook, order: 0),
+            ])
+        }
+        _ = try await destination.coordinator.importBackup(from: url, strategy: .merge)
+
+        let restored = try await destination.store.primaryRegions()
+        // Existing region stays first; archive's look wins on overlap; the
+        // archive-only region is appended with its look.
+        #expect(restored.map(\.region) == [.california, texas])
+        #expect(restored.first?.appearance == archiveCALook)
+        #expect(restored.last?.appearance == txLook)
+    }
+
     @Test func mergeImportUnionsTrackedRegionsWithTheExisting() async throws {
         let source = try Self.makeHarness()
         let texas = try #require(Region(rawValue: "us-TX"))

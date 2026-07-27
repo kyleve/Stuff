@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 import RegionKit
 import ZIPFoundation
 
@@ -41,28 +41,16 @@ public struct BackupService: Sendable {
         public var errorDescription: String? {
             switch self {
                 case .manifestMissing:
-                    String(
-                        localized: "backup.error.manifestMissing",
-                        defaultValue: "This file isn't a Where backup (no manifest was found).",
-                        bundle: .module,
-                    )
+                    String(localized: .backupErrorManifestMissing)
                 case let .unsupportedFormatVersion(version):
-                    String(
-                        format: String(
-                            localized: "backup.error.unsupportedFormatVersion",
-                            defaultValue:
-                            "This backup was created by an incompatible version of Where (format %lld) and can't be imported.",
-                            bundle: .module,
-                        ),
-                        version,
-                    )
+                    String(localized: .backupErrorUnsupportedFormatVersion(version))
             }
         }
     }
 
     private static let manifestFilename = "manifest.json"
     private static let assetsDirectory = "assets"
-    private static let logger = WhereLog.channel(.backupService)
+    private static let logger = WhereLog.backup(BackupServiceLog.self)
 
     public init() {}
 
@@ -93,6 +81,7 @@ public struct BackupService: Sendable {
         manualDays: [DayPresence],
         dismissedIssues: [DismissedIssue] = [],
         trackedRegions: [Region] = [],
+        primaryRegions: [PrimaryRegion] = [],
         blobs: [UUID: Data],
         exportedAt: Date = Date(),
         archiveName: String? = nil,
@@ -124,6 +113,7 @@ public struct BackupService: Sendable {
             manualDays: manualDays,
             dismissedIssues: dismissedIssues,
             trackedRegions: trackedRegions,
+            primaryRegions: primaryRegions,
             assets: assetEntries,
         )
         let manifestData = try Self.makeEncoder().encode(archive)
@@ -131,15 +121,23 @@ public struct BackupService: Sendable {
 
         let name = archiveName ?? Self.defaultArchiveName(for: exportedAt)
         let zipURL = workRoot.appendingPathComponent(name)
-        try fileManager.zipItem(
-            at: staging,
-            to: zipURL,
-            shouldKeepParent: false,
-            compressionMethod: .deflate,
-        )
-        Self.logger.info(
-            "Wrote backup with \(samples.count) samples, \(evidence.count) evidence, \(manualDays.count) manual days, \(dismissedIssues.count) dismissals, \(trackedRegions.count) tracked regions",
-        )
+        try Self.logger.measure(.writeArchive) {
+            try fileManager.zipItem(
+                at: staging,
+                to: zipURL,
+                shouldKeepParent: false,
+                compressionMethod: .deflate,
+            )
+        }
+        Self.logger {
+            .wroteBackup(
+                sampleCount: samples.count,
+                evidenceCount: evidence.count,
+                manualDayCount: manualDays.count,
+                dismissedIssueCount: dismissedIssues.count,
+                trackedRegionCount: trackedRegions.count,
+            )
+        }
         return zipURL
     }
 
@@ -166,7 +164,9 @@ public struct BackupService: Sendable {
         try fileManager.createDirectory(at: extractDir, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: extractDir) }
 
-        try fileManager.unzipItem(at: url, to: extractDir)
+        try Self.logger.measure(.readArchive) {
+            try fileManager.unzipItem(at: url, to: extractDir)
+        }
 
         let manifestURL = extractDir.appendingPathComponent(Self.manifestFilename)
         guard fileManager.fileExists(atPath: manifestURL.path) else {
@@ -186,9 +186,7 @@ public struct BackupService: Sendable {
             autoreleasepool {
                 let assetURL = extractDir.appendingPathComponent(entry.filename)
                 guard let data = try? Data(contentsOf: assetURL) else {
-                    Self.logger.warning(
-                        "Backup asset missing for evidence \(entry.evidenceId); skipping blob",
-                    )
+                    Self.logger { .assetMissing(evidenceID: entry.evidenceId.uuidString) }
                     return
                 }
                 blobs[entry.evidenceId] = data

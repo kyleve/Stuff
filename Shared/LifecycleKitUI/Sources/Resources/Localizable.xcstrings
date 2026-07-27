@@ -1,0 +1,28 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "failure.gate.unregistered %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This step's screen isn't available. (%@)"
+          }
+        }
+      }
+    },
+    "failure.launch.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't finish launching"
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

@@ -10,6 +10,7 @@ struct LogEventDetailView: View {
     let scopePath: String
     let store: PeriscopeStore
 
+    @Environment(\.stylesheet) private var stylesheet
     @State private var attachments: Result<[LogAttachment], Error>?
 
     var body: some View {
@@ -50,7 +51,7 @@ struct LogEventDetailView: View {
 
             Section("Message") {
                 Text(event.message)
-                    .font(.callout)
+                    .font(stylesheet.typography.message)
                     .textSelection(.enabled)
             }
 
@@ -65,7 +66,7 @@ struct LogEventDetailView: View {
             if let payload = event.prettyPayload {
                 Section("Payload") {
                     Text(payload)
-                        .font(.caption.monospaced())
+                        .font(stylesheet.typography.payload)
                         .textSelection(.enabled)
                 }
             }

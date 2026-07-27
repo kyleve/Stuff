@@ -82,6 +82,88 @@ struct PeriscopeStoreTests {
         #expect(events.map(\.message) == ["mid"])
     }
 
+    @Test func afterSequenceFetchesOnlyNewerEvents() async throws {
+        let (store, root, _, _) = try await makeStore()
+        await store.write([
+            makeRecord("first", date: date(1), scopes: [root.id]),
+            makeRecord("second", date: date(2), scopes: [root.id]),
+            makeRecord("third", date: date(3), scopes: [root.id]),
+        ])
+
+        // The middle event's sequence is the cursor: only strictly-newer
+        // events (higher sequence) come back — the cursor event itself does
+        // not repeat.
+        let all = try await store.events(matching: LogQuery())
+        let cursor = try #require(all.first { $0.message == "second" }).sequence
+
+        var query = LogQuery()
+        query.afterSequence = cursor
+        let newer = try await store.events(matching: query)
+        #expect(newer.map(\.message) == ["third"])
+    }
+
+    @Test func afterSequencePagesWithinTheNewerEvents() async throws {
+        let (store, root, _, _) = try await makeStore()
+        await store.write([
+            makeRecord("e1", date: date(1), scopes: [root.id]),
+            makeRecord("e2", date: date(2), scopes: [root.id]),
+            makeRecord("e3", date: date(3), scopes: [root.id]),
+            makeRecord("e4", date: date(4), scopes: [root.id]),
+            makeRecord("e5", date: date(5), scopes: [root.id]),
+        ])
+        let all = try await store.events(matching: LogQuery())
+        let cursor = try #require(all.first { $0.message == "e2" }).sequence
+
+        // Newer than e2 is {e3, e4, e5}, newest first; limit takes the newest
+        // two of those, offset pages past the newest one.
+        var limited = LogQuery()
+        limited.afterSequence = cursor
+        limited.limit = 2
+        #expect(try await store.events(matching: limited).map(\.message) == ["e5", "e4"])
+
+        var offset = LogQuery()
+        offset.afterSequence = cursor
+        offset.offset = 1
+        #expect(try await store.events(matching: offset).map(\.message) == ["e4", "e3"])
+    }
+
+    @Test func afterSequenceAtTheMaxReturnsNothing() async throws {
+        let (store, root, _, _) = try await makeStore()
+        await store.write([
+            makeRecord("only", date: date(1), scopes: [root.id]),
+            makeRecord("newest", date: date(2), scopes: [root.id]),
+        ])
+        let all = try await store.events(matching: LogQuery())
+        let highest = try #require(all.map(\.sequence).max())
+
+        // The cursor is already at (or past) the newest event — nothing newer.
+        var query = LogQuery()
+        query.afterSequence = highest
+        #expect(try await store.events(matching: query).isEmpty)
+    }
+
+    @Test func afterSequenceCombinesWithOtherFilters() async throws {
+        let (store, root, _, _) = try await makeStore()
+        await store.write([
+            makeRecord("old-info", level: .info, date: date(1), scopes: [root.id]),
+            makeRecord("old-error", level: .error, date: date(2), scopes: [root.id]),
+        ])
+        let firstBatch = try await store.events(matching: LogQuery())
+        let cursor = try #require(firstBatch.map(\.sequence).max())
+
+        await store.write([
+            makeRecord("new-info", level: .info, date: date(3), scopes: [root.id]),
+            makeRecord("new-error", level: .error, date: date(4), scopes: [root.id]),
+        ])
+
+        // Newer-than-cursor AND at least warning: only the new error.
+        var query = LogQuery()
+        query.afterSequence = cursor
+        query.minimumLevel = .warning
+        let events = try await store.events(matching: query)
+        #expect(events.map(\.message) == ["new-error"])
+    }
+
     @Test func eventNameFilters() async throws {
         let (store, root, _, _) = try await makeStore()
         await store.write([

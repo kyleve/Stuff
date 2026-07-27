@@ -15,11 +15,14 @@ struct TodayWidget: Widget {
                 // Seed the Broadway context so the shared WhereUI content views
                 // resolve trait-aware `@Environment(\.stylesheet)` tokens instead
                 // of falling back to `WhereStylesheet.default` (the extension has
-                // no other Broadway root).
-                .whereBroadwayRoot()
+                // no other Broadway root), plus the region looks the snapshot
+                // carries so `\.regionStyles` renders the user's picks.
+                .whereBroadwayRoot(
+                    regionStyles: RegionStyleResolver(appearances: entry.snapshot.appearances),
+                )
         }
-        .configurationDisplayName(WidgetStrings.todayGalleryName)
-        .description(WidgetStrings.todayGalleryDescription)
+        .configurationDisplayName(String(localized: .widgetGalleryTodayName))
+        .description(String(localized: .widgetGalleryTodayDescription))
         .supportedFamilies([.systemSmall, .accessoryInline, .accessoryCircular])
     }
 }

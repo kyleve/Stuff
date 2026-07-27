@@ -11,16 +11,48 @@ the build system, formatting, and global conventions. Read that first.
 ## Layout
 
 `Sources/` groups one directory per tool — `Viewer/`, `Tracer/`, `Alerts/`,
-`InspectMode/`, `Spans/` — plus `Components/` for the display pieces they
-share (event rows, detail view, level/exit display extensions). Tests stay
-flat, named 1:1 with their source files.
+`InspectMode/`, `Spans/` (`OpenSpansView` for live spans, `SpanTreeView` for
+the durable store's span tree, `SpanHistoryView` for per-kind duration
+percentiles over closed spans), `Hierarchy/` (the scope-tree browser) — plus
+`Components/` for the display pieces they share (event rows, the shared
+`LogEventList`, detail view, level/exit display extensions) and `Styling/` for
+the design system (`PeriscopeStylesheet`). Tests stay flat, named 1:1 with
+their source files.
 
 ## Scope & dependencies
 
-- **SwiftUI + PeriscopeCore + PeriscopeUI.** No app code — app-specific
-  wiring (which store, which alert handler) comes in via configuration.
+- **SwiftUI + PeriscopeCore + PeriscopeUI + BroadwayCore/BroadwayUI.** No app
+  code — app-specific wiring (which store, which alert handler) comes in via
+  configuration.
 - **Intended for DEBUG / developer surfaces**; consumers gate entry points
   behind `#if DEBUG`. Developer-facing strings are plain literals here.
+
+## Design system — `PeriscopeStylesheet`
+
+Appearance tokens (row geometry, badge chrome, typography, and the
+severity/exit/inspect color palette) live in `PeriscopeStylesheet`
+([`Sources/Styling/PeriscopeStylesheet.swift`](Sources/Styling/PeriscopeStylesheet.swift)),
+a Broadway `BStylesheet` — not inline in views. Read tokens with
+`@Environment(\.stylesheet) private var stylesheet`; off the `View` tree (tests)
+use `PeriscopeStylesheet.default`.
+
+- **Each public tool view seeds its own root** with `periscopeBroadwayRoot()`
+  so the tooling styles correctly whether or not the host app has a Broadway
+  root; nesting under an app root simply re-seeds from the same system traits.
+- **Row density** (`comfortable` / `compact`) is a `RowStyle` axis resolved via
+  `stylesheet.row[density]`; the active density rides the `\.logRowDensity`
+  environment value. The viewer (and inspector sheet) seed it from a
+  `UserDefaults`-persisted preference (`Density.load`/`save`), which defaults to
+  `compact` — the roomier `comfortable` is only the raw environment fallback for
+  rootless contexts (previews, isolated rows). The viewer's filter menu carries
+  the picker and writes the choice back on change.
+- **Color decisions live in `Palette`**, not on `LogLevel` / `SpanExit.Mode` —
+  `tint(forLevel:)` bands by severity so custom levels inherit a sensible color.
+- Because PeriscopeTools links Broadway as a **static** library it can seed
+  Broadway directly. Were it ever to become a dynamic framework, or be embedded
+  in one, the root
+  [double-linking rule](../../../AGENTS.md#never-double-link-a-product-whereui-already-carries)
+  would start applying to its consumers.
 
 ## Invariants
 
@@ -37,6 +69,17 @@ flat, named 1:1 with their source files.
 - **Merged multi-query results sort by `(date, sequence)`** — the tracer and
   inspector combine several store queries, and the store's insertion
   sequence is the tiebreak that keeps same-millisecond events stable.
+- **Live tree/hierarchy models refresh incrementally.** `LogHierarchyModel`
+  and `SpanTreeModel` accumulate their derived state (per-scope counts; the
+  begin/end pairs) and, on each `changes()` ping, fetch only events past the
+  highest `sequence` they've merged via `LogQuery.afterSequence` — never a
+  full-store re-read. The merge re-filters on `sequence` so it stays
+  idempotent if `run()` restarts over already-seen events. This bounds the
+  per-commit *fetch* by what the commit added (the in-memory forest/tree
+  rebuild is still O(accumulated); see TODOs) and trades exact reflection of
+  deletions (retention prune / clear, neither wired into the live app) for
+  it; a store swap makes the hosting view build a fresh model, resetting the
+  watermark.
 - **Tool views rebind on in-place input swaps** — each view's `.task(id:)`
   is keyed on store identity plus its other inputs and rebuilds the model
   when they change; a new identity-relevant input must join the key, or
@@ -47,3 +90,20 @@ flat, named 1:1 with their source files.
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
 (`PeriscopeToolsTests`). Seed an in-memory store, drive the view models
 directly, and host views with `TestHostSupport`'s `show()` helpers.
+
+How the tools *look* is pinned separately by the image snapshots in
+[`SnapshotTests/`](SnapshotTests), with references under
+`SnapshotTests/__Snapshots__/` in Git LFS. Those files compile into the
+`PeriscopeToolsSnapshotTests` bundle rather than `PeriscopeToolsTests` — image
+suites get their own target, gathered with every other module's into the shared
+`StuffSnapshotTests` scheme and its CI job (root
+[`AGENTS.md`](../../../AGENTS.md#targets)). It links PeriscopeTools directly, so
+nothing here builds against an app module. Seed a **frozen** store
+(fixed records at timestamps pinned to a fixed instant); the process-global
+Periscope store's wall-clock timestamps would churn the images. Tool views seed
+their own `periscopeBroadwayRoot()`, so a snapshot needs no host-app root and
+captures the tooling's real styling.
+
+Prefer a snapshot over a "hosts without crashing" test: a hosting test that only
+asserts the view reached a window says nothing about what rendered. Converting
+the existing ones is tracked in [`TODOs.md`](../TODOs.md).

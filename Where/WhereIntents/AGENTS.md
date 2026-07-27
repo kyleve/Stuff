@@ -13,13 +13,12 @@ layering, localization, and the WhereUI duplicate-metadata rule).
 
 - Dependencies live in the root [`Package.swift`](../../Package.swift). It
   depends on **WhereUI** for its snippet cards — mirroring **WhereWidgets** —
-  so it must **not** link `BroadwayUI`/`BroadwayCore` directly (a second copy
-  would split Broadway's type-keyed metadata; see the root AGENTS "Targets"
-  note).
-- Intents stay **thin adapters**: they resolve `WhereServices.forIntents()` and
-  delegate to its collaborators. Domain rules, persistence, and aggregation stay
-  in `WhereCore`; presentation (the card bodies) stays in `WhereUI`. Don't
-  reimplement any of that here.
+  so it must **not** link `BroadwayUI`/`BroadwayCore` directly (see the root
+  [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)).
+- Intents stay **thin adapters**: they `await intentServices.current()` and
+  delegate to that `WhereServices`' collaborators. Domain rules, persistence,
+  and aggregation stay in `WhereCore`; presentation (the card bodies) stays in
+  `WhereUI`. Don't reimplement any of that here.
 
 ## Invariants
 
@@ -27,9 +26,10 @@ layering, localization, and the WhereUI duplicate-metadata rule).
   (`Where/Where/Sources/WhereShortcuts.swift`), not here, so App Intents
   metadata extraction reliably discovers the phrases. Intent/entity/enum types
   are `public` so it can reference them.
-- **Intents never start GPS.** `WhereServices.forIntents()` wires
-  `IdleLocationSource`; a manual entry logged from an intent records a
-  `ManualEntryAudit` with a "Logged with Siri" note and no captured location.
+- **Intents never start GPS.** `WhereServices.forIntents(sharingStoreOf:)`
+  swaps the session's location source for an `IdleLocationSource`; a manual
+  entry logged from an intent records a `ManualEntryAudit` with a "Logged with
+  Siri" note and no captured location.
 - **Resolve services through the `@Dependency`-injected `IntentServices`;
   intents never open a store.** The app's `AppDelegate` owns the one
   `IntentServices` instance and registers it with `AppDependencyManager` in
@@ -68,7 +68,16 @@ layering, localization, and the WhereUI duplicate-metadata rule).
 - **App Intents static metadata is literal; dialog copy is catalog-backed.**
   Titles, parameter titles, and type/case display names are `LocalizedStringResource`
   literals (the framework extracts/localizes them and requires constants).
-  Runtime `IntentDialog` copy goes through `IntentStrings` (`bundle: .module`).
+  Runtime `IntentDialog` copy goes through `IntentStrings`, which composes this
+  module's generated `LocalizedStringResource` symbols.
+- **Only the `dialog.*` / `snippet.*` / `audit.*` keys are `manual`; leave the
+  rest of the catalog alone.** Symbol generation runs on `manual` keys, so a new
+  key `IntentStrings` reads must be marked `manual` to get a symbol. Do **not**
+  normalize the catalog wholesale: the App Intents metadata keys are the
+  framework's own extracted literals (keyed by their English text), and one of
+  them is `%@` — marking that `manual` fails the build with *"Unable to derive a
+  symbol name from this key. It only contains characters that are invalid in
+  Swift."*
 
 ## Testing
 

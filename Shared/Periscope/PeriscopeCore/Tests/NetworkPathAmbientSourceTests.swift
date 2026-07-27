@@ -1,5 +1,4 @@
-import Foundation
-import PeriscopeCore
+@_spi(Testing) import PeriscopeCore
 import Testing
 
 struct NetworkPathAmbientSourceTests {
@@ -29,5 +28,72 @@ struct NetworkPathAmbientSourceTests {
             sink.records.contains { $0.message.hasPrefix("network: ") }
         }
         #expect(delivered)
+    }
+
+    @Test func dropsConsecutiveDuplicateDescriptions() async {
+        let sink = CapturingSink()
+        let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
+        let source = NetworkPathAmbientSource()
+        let log = Log<AmbientEvent>(recorder: system)
+
+        source.emit("satisfied (wifi)", to: log)
+        source.emit("satisfied (wifi)", to: log) // NWPathMonitor churn: dropped
+        source.emit("unsatisfied", to: log)
+
+        // Delivery preserves emission order, so once the final emit lands
+        // every earlier one has too.
+        _ = await waitUntil { networkValues(sink).contains("unsatisfied") }
+        #expect(networkValues(sink) == ["satisfied (wifi)", "unsatisfied"])
+    }
+
+    @Test func reemitsAValueThatRecursAfterADifferentOne() async {
+        // Only *consecutive* duplicates are dropped — genuine flapping
+        // (Wi-Fi → cellular → Wi-Fi) must still log.
+        let sink = CapturingSink()
+        let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
+        let source = NetworkPathAmbientSource()
+        let log = Log<AmbientEvent>(recorder: system)
+
+        source.emit("satisfied (wifi)", to: log)
+        source.emit("satisfied (cellular)", to: log)
+        source.emit("satisfied (wifi)", to: log)
+        source.emit("unsatisfied", to: log)
+
+        _ = await waitUntil { networkValues(sink).contains("unsatisfied") }
+        #expect(networkValues(sink) == [
+            "satisfied (wifi)",
+            "satisfied (cellular)",
+            "satisfied (wifi)",
+            "unsatisfied",
+        ])
+    }
+
+    @Test func stoppingResetsTheChangeFilter() async {
+        // stop() (like a restart) forgets the last description, so current
+        // connectivity re-reports rather than being swallowed as a
+        // duplicate of the prior run.
+        let sink = CapturingSink()
+        let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
+        let source = NetworkPathAmbientSource()
+        let log = Log<AmbientEvent>(recorder: system)
+
+        source.emit("satisfied (wifi)", to: log)
+        source.stop() // clears the last-description filter
+        source.emit("satisfied (wifi)", to: log)
+        source.emit("unsatisfied", to: log)
+
+        _ = await waitUntil { networkValues(sink).contains("unsatisfied") }
+        #expect(networkValues(sink) == [
+            "satisfied (wifi)",
+            "satisfied (wifi)",
+            "unsatisfied",
+        ])
+    }
+
+    private func networkValues(_ sink: CapturingSink) -> [String] {
+        let prefix = "network: "
+        return sink.records
+            .filter { $0.message.hasPrefix(prefix) }
+            .map { String($0.message.dropFirst(prefix.count)) }
     }
 }

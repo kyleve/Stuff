@@ -1,5 +1,5 @@
 import Foundation
-import LogKit
+import PeriscopeCore
 import RegionKit
 
 /// One attributed reading in a recent-activity window: when the device was
@@ -105,7 +105,7 @@ public actor RecentActivitySummarizer {
     private let now: @Sendable () -> Date
     private let segmentLimit: Int
 
-    private static let logger = WhereLog.channel(.recentActivitySummarizer)
+    private static let logger = WhereLog.recentActivity(RecentActivitySummarizerLog.self)
 
     init(
         store: any WhereStore,
@@ -132,7 +132,7 @@ public actor RecentActivitySummarizer {
         let interval = window.interval(now: now(), calendar: calendar)
         let samples = try await store.samples(in: interval)
         guard !samples.isEmpty else {
-            Self.logger.info("Recent-activity summary skipped: no samples in window")
+            Self.logger { .skippedNoSamples }
             return .empty
         }
         let stops = samples.map { sample in
@@ -143,12 +143,12 @@ public actor RecentActivitySummarizer {
             )
         }
         let segments = Self.segments(from: stops, limit: segmentLimit)
-        let text = try await generator.summarize(
-            RecentActivityInput(interval: interval, segments: segments),
-        )
-        Self.logger.info(
-            "Recent-activity summary generated from \(segments.count) segment(s)",
-        )
+        let text = try await Self.logger.measure(.generate) {
+            try await generator.summarize(
+                RecentActivityInput(interval: interval, segments: segments),
+            )
+        }
+        Self.logger { .generated(segmentCount: segments.count) }
         return .summary(text)
     }
 

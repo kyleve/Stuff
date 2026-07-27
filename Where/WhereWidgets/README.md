@@ -4,7 +4,7 @@ The **Where** widget extension: home-screen and lock-screen widgets that show
 today's region presence and year-to-date day counts per region.
 
 Widgets never open the SwiftData store. The app publishes a single aggregated
-[`WidgetSnapshot`](../WhereCore/Sources/Widgets/WidgetSnapshot.swift) JSON file
+[`WidgetSnapshot`](../WhereCore/Sources/Widgets/WidgetDataReader.swift) JSON file
 into the shared App Group (`group.com.stuff.where`); this extension reads it via
 [`WidgetSnapshotStore`](../WhereCore/Sources/Widgets/WidgetSnapshotStore.swift).
 All rendering lives in [`WhereUI`](../WhereUI/) — this target only wires
@@ -34,17 +34,17 @@ app never wakes.
 ## Localization
 
 - **In-widget copy** — resolved from [`WhereUI`](../WhereUI/)'s
-  `Localizable.xcstrings` (`Strings.widgetTodayTitle`, etc.).
+  `Localizable.xcstrings` (shared views and `WhereFormat`).
 - **Widget gallery name/description** — resolved from this extension's
-  [`Resources/Localizable.xcstrings`](Resources/Localizable.xcstrings) via
-  `WidgetStrings` (`bundle: .module`).
+  [`Resources/Localizable.xcstrings`](Resources/Localizable.xcstrings) via its
+  generated symbols (`String(localized: .widgetGalleryTodayName)`).
 
 ## Installation
 
 `WhereWidgets` is a Tuist app-extension target in
 [`Project.swift`](../../Project.swift) (bundle ID `com.stuff.where.widgets`).
 It depends on **WhereCore**, **WhereUI**, **RegionKit** (for the `Region` model
-its snapshot fixtures use), and **LogKit**. The main **Where** app embeds the
+its snapshot fixtures use), and **PeriscopeCore**. The main **Where** app embeds the
 extension and shares the App Group entitlement.
 
 ## Previews

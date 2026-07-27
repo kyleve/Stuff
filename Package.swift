@@ -10,15 +10,17 @@ let package = Package(
     ],
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
+        .library(name: "CreditKit", targets: ["CreditKit"]),
         .library(name: "LedgerCore", targets: ["LedgerCore"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
+        .library(name: "LifecycleKitUI", targets: ["LifecycleKitUI"]),
         .library(name: "JournalKit", targets: ["JournalKit"]),
-        .library(name: "LogKit", targets: ["LogKit"]),
-        .library(name: "LogViewerUI", targets: ["LogViewerUI"]),
         .library(name: "PeriscopeCore", targets: ["PeriscopeCore"]),
         .library(name: "PeriscopeUI", targets: ["PeriscopeUI"]),
         .library(name: "PeriscopeTools", targets: ["PeriscopeTools"]),
         .library(name: "SwiftDataInspector", targets: ["SwiftDataInspector"]),
+        .library(name: "SnapshotKit", targets: ["SnapshotKit"]),
+        .library(name: "SnapshotKitTesting", targets: ["SnapshotKitTesting"]),
         .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
         .library(name: "RegionKit", targets: ["RegionKit"]),
         .library(name: "WhereCore", targets: ["WhereCore"]),
@@ -28,7 +30,16 @@ let package = Package(
         .library(name: "BroadwayUI", targets: ["BroadwayUI"]),
     ],
     dependencies: [
+        .package(
+            url: "https://github.com/RoyalPineapple/BumperBowling.git",
+            branch: "main",
+        ),
         .package(url: "https://github.com/weichsel/ZIPFoundation", from: "0.9.20"),
+        // Snapshot-testing engine + accessibility parser. Consumed only by the
+        // test-only `SnapshotKitTesting` target (never a shipping app). See
+        // Shared/SnapshotKitTesting.
+        .package(url: "https://github.com/pointfreeco/swift-snapshot-testing", from: "1.18.0"),
+        .package(url: "https://github.com/cashapp/AccessibilitySnapshot", from: "0.11.0"),
     ],
     targets: [
         .target(
@@ -36,15 +47,26 @@ let package = Package(
             path: "Shared/StuffCore/Sources",
         ),
         .target(
+            name: "CreditKit",
+            path: "Shared/CreditKit/Sources",
+        ),
+        .target(
             name: "LedgerCore",
             dependencies: [
-                .target(name: "LogKit"),
+                .target(name: "PeriscopeCore"),
             ],
             path: "Ledger/LedgerCore/Sources",
         ),
         .target(
             name: "LifecycleKit",
             path: "Shared/LifecycleKit/Sources",
+        ),
+        .target(
+            name: "LifecycleKitUI",
+            dependencies: [
+                .target(name: "LifecycleKit"),
+            ],
+            path: "Shared/LifecycleKitUI/Sources",
             resources: [
                 .process("Resources"),
             ],
@@ -52,17 +74,6 @@ let package = Package(
         .target(
             name: "JournalKit",
             path: "Shared/JournalKit/Sources",
-        ),
-        .target(
-            name: "LogKit",
-            path: "Shared/LogKit/Sources",
-        ),
-        .target(
-            name: "LogViewerUI",
-            dependencies: [
-                .target(name: "LogKit"),
-            ],
-            path: "Shared/LogViewerUI/Sources",
         ),
         .target(
             name: "PeriscopeCore",
@@ -83,6 +94,8 @@ let package = Package(
             dependencies: [
                 .target(name: "PeriscopeCore"),
                 .target(name: "PeriscopeUI"),
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
             ],
             path: "Shared/Periscope/PeriscopeTools/Sources",
         ),
@@ -91,13 +104,28 @@ let package = Package(
             path: "Shared/SwiftDataInspector/Sources",
         ),
         .target(
+            name: "SnapshotKit",
+            path: "Shared/SnapshotKit/Sources",
+        ),
+        .target(
+            name: "SnapshotKitTesting",
+            dependencies: [
+                .target(name: "SnapshotKit"),
+                .target(name: "TestHostSupport"),
+                .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
+                .product(name: "AccessibilitySnapshot", package: "AccessibilitySnapshot"),
+                .product(name: "AccessibilitySnapshotCore", package: "AccessibilitySnapshot"),
+            ],
+            path: "Shared/SnapshotKitTesting/Sources",
+        ),
+        .target(
             name: "TestHostSupport",
             path: "Shared/TestHostSupport/Sources",
         ),
         .target(
             name: "RegionKit",
             dependencies: [
-                .target(name: "LogKit"),
+                .target(name: "PeriscopeCore"),
             ],
             path: "Where/RegionKit/Sources",
             resources: [
@@ -107,7 +135,8 @@ let package = Package(
         .target(
             name: "WhereCore",
             dependencies: [
-                .target(name: "LogKit"),
+                .target(name: "CreditKit"),
+                .target(name: "PeriscopeCore"),
                 .target(name: "RegionKit"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
             ],
@@ -122,10 +151,14 @@ let package = Package(
                 .target(name: "WhereCore"),
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
+                .target(name: "CreditKit"),
                 .target(name: "LifecycleKit"),
-                .target(name: "LogKit"),
-                .target(name: "LogViewerUI"),
+                .target(name: "LifecycleKitUI"),
+                .target(name: "PeriscopeCore"),
+                .target(name: "PeriscopeTools"),
+                .target(name: "PeriscopeUI"),
                 .target(name: "RegionKit"),
+                .target(name: "SnapshotKit"),
                 .target(name: "SwiftDataInspector"),
             ],
             path: "Where/WhereUI/Sources",
@@ -136,7 +169,7 @@ let package = Package(
         .target(
             name: "WhereIntents",
             dependencies: [
-                .target(name: "LogKit"),
+                .target(name: "PeriscopeCore"),
                 .target(name: "RegionKit"),
                 .target(name: "WhereCore"),
                 .target(name: "WhereUI"),

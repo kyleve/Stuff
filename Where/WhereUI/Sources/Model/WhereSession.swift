@@ -1,6 +1,6 @@
 import Foundation
-import LogKit
 import Observation
+import PeriscopeCore
 #if DEBUG
     import SwiftDataInspector
 #endif
@@ -15,8 +15,9 @@ import WhereCore
 /// It deliberately holds **no presentation state**. Everything scoped to the
 /// visible UI lives in child observables the scene / views own:
 /// - the selected year's `YearReport`, ranking, missing days, day-write intents,
-///   and the Resolve badge count → scene-scoped ``YearReportModel`` (owned by
-///   `MainTabs`, created only once the real UI is on screen);
+///   and the data-issue count (drives the Locations tab's Resolve toolbar
+///   badge) → scene-scoped ``YearReportModel`` (owned by `MainTabs`, created
+///   only once the real UI is on screen);
 /// - the Resolve issue list → view-scoped ``ResolveModel``;
 /// - the reminder/summary editing surface → view-scoped ``RemindersSettingsModel``;
 /// - backup export/import progress → view-scoped ``BackupModel``.
@@ -77,7 +78,18 @@ public final class WhereSession {
     /// access to race.
     @ObservationIgnored private nonisolated(unsafe) var authorizationTask: Task<Void, Never>?
 
-    private static let logger = WhereLog.channel(.session)
+    /// Observes `dataChangeUpdates()` to keep ``regionStyles`` in sync with the
+    /// store's picked region appearances. Same `nonisolated(unsafe)` rationale as
+    /// `authorizationTask` — only touched on the main actor except `deinit`.
+    @ObservationIgnored private nonisolated(unsafe) var regionStyleTask: Task<Void, Never>?
+
+    /// The user's picked region looks, resolved for the view environment (seeded
+    /// into `whereBroadwayRoot(regionStyles:)` by `RootView`). Loaded at launch
+    /// and kept live on every store change, so a Settings edit or a synced pick
+    /// from another device restyles the UI without a relaunch.
+    public private(set) var regionStyles: RegionStyleResolver = .default
+
+    private static let logger = WhereLog.session(WhereSessionLog.self)
 
     /// The authorization the degradation warning was last evaluated against.
     /// `syncAuthorization()` runs on every foreground, so warning only on a
@@ -136,19 +148,22 @@ public final class WhereSession {
     /// until the next status change resumes it.
     deinit {
         authorizationTask?.cancel()
+        regionStyleTask?.cancel()
     }
 
     /// Sync authorization, resume tracking if appropriate, apply the reminder /
     /// summary schedules, and republish the widget snapshot. Safe to call
     /// repeatedly; the authorization observer is only set up once.
     ///
-    /// This is the imperative equivalent of `WhereLaunch.sequence`'s coordinator
+    /// This is the imperative equivalent of `WhereLaunch.plan(for:)`'s coordinator
     /// work steps, kept for previews/tests that drive the coordinator directly
     /// without a `LifecycleRunner`. Report/data-issue loading is *not* here — the
     /// scene's `YearReportModel` owns that and starts it when the UI appears.
     public func start() async {
         await syncAuthorization()
         observeAuthorizationChanges()
+        await seedRegionStyles()
+        observeRegionStyleChanges()
         await reconcileTracking()
         await captureTodayIfNeeded()
         await applyReminderConfiguration()
@@ -178,7 +193,7 @@ public final class WhereSession {
     }
 
     /// Republish the widget snapshot from whatever is on disk. A launch step
-    /// in its own right (see `WhereLaunch.sequence`).
+    /// in its own right (see `WhereLaunch.plan(for:)`).
     public func refreshWidgetSnapshot() async {
         await services.widgets.refreshIfStale()
     }
@@ -186,7 +201,7 @@ public final class WhereSession {
     /// Read the current authorization status from the ingestor into our
     /// observable state. Does not surface the permission alert — that's
     /// reserved for explicit user actions. A launch step (see
-    /// `WhereLaunch.sequence`).
+    /// `WhereLaunch.plan(for:)`).
     func syncAuthorization() async {
         authorizationStatus = await services.ingestor.authorizationStatus()
         warnIfAuthorizationDegraded()
@@ -205,13 +220,11 @@ public final class WhereSession {
             case .always, .notDetermined:
                 break
             case .whenInUse:
-                Self.logger.warning(
-                    "Location authorized for When-In-Use only; background tracking unavailable",
-                )
+                Self.logger { .whenInUseOnly }
             case .denied, .restricted:
-                Self.logger.warning(
-                    "Location access \(authorizationStatus); background tracking unavailable",
-                )
+                Self.logger {
+                    .locationAccessDenied(status: String(describing: authorizationStatus))
+                }
         }
     }
 
@@ -233,19 +246,49 @@ public final class WhereSession {
         }
     }
 
+    /// Load the user's picked region appearances into ``regionStyles`` so the
+    /// UI resolves them everywhere it renders a region. A launch step (see
+    /// `WhereLaunch.plan(for:)`); also re-run on every store change via
+    /// `observeRegionStyleChanges()`. On failure it keeps the last good resolver
+    /// (honest degraded state) and logs.
+    func seedRegionStyles() async {
+        do {
+            let primary = try await services.primaryRegions()
+            regionStyles = RegionStyleResolver(primaryRegions: primary)
+        } catch {
+            Self.logger(attachments: [.error(error, name: "region-styles-error")]) {
+                .regionStylesLoadFailed(description: error.localizedDescription)
+            }
+        }
+    }
+
+    /// Subscribe to store changes (local commits + remote CloudKit imports) so a
+    /// customized region's look stays live — a Settings edit or a synced pick on
+    /// another device reloads ``regionStyles``. Idempotent.
+    func observeRegionStyleChanges() {
+        guard regionStyleTask == nil else { return }
+        let services = services
+        regionStyleTask = Task { @MainActor [weak self] in
+            for await _ in services.dataChangeUpdates() {
+                guard let self else { break }
+                await seedRegionStyles()
+            }
+        }
+    }
+
     /// Start or stop GPS ingestion so it matches the user's intent and the
     /// current authorization. Tracking only runs with Always authorization. A
-    /// launch step (see `WhereLaunch.sequence`).
+    /// launch step (see `WhereLaunch.plan(for:)`).
     func reconcileTracking() async {
         let wasTracking = isTracking
         if wantsTracking, authorizationStatus.allowsBackgroundTracking {
             await services.ingestor.start()
             isTracking = true
-            if !wasTracking { Self.logger.info("Background tracking started") }
+            if !wasTracking { Self.logger { .backgroundTrackingStarted } }
         } else {
             await services.ingestor.stop()
             isTracking = false
-            if wasTracking { Self.logger.info("Background tracking stopped") }
+            if wasTracking { Self.logger { .backgroundTrackingStopped } }
         }
     }
 
@@ -255,7 +298,7 @@ public final class WhereSession {
     /// and a usable authorization (When-In-Use is enough for a foreground fix —
     /// notably the only way When-In-Use users get any data). The ingestor is
     /// non-blocking and reconciles widgets / reminders + pings the read signal
-    /// on persist. A launch step (see `WhereLaunch.sequence`); also runs on
+    /// on persist. A launch step (see `WhereLaunch.plan(for:)`); also runs on
     /// every foreground.
     func captureTodayIfNeeded() async {
         guard wantsTracking, authorizationStatus.allowsForegroundFix else { return }
@@ -277,7 +320,7 @@ public final class WhereSession {
         await syncAuthorization()
         await reconcileTracking()
         if authorizationStatus.allowsBackgroundTracking {
-            Self.logger.info("Location permission granted (\(authorizationStatus))")
+            Self.logger { .permissionGranted(status: String(describing: authorizationStatus)) }
         }
     }
 
@@ -297,7 +340,7 @@ public final class WhereSession {
         await syncAuthorization()
         await reconcileTracking()
         if authorizationStatus.allowsBackgroundTracking {
-            Self.logger.info("Tracking enabled with background authorization")
+            Self.logger { .trackingEnabled }
         }
     }
 
@@ -305,14 +348,14 @@ public final class WhereSession {
         wantsTracking = false
         await services.ingestor.stop()
         isTracking = false
-        Self.logger.info("Stopped background tracking")
+        Self.logger { .stoppedBackgroundTracking }
     }
 
     /// Push the persisted reminder intent to the reminder reconciler and warn if
     /// notifications are enabled but unauthorized. Reads `WherePreferences`
     /// directly (the single source of truth the `RemindersSettingsModel` also
     /// writes), so it re-applies whatever the user last chose. A launch step
-    /// (see `WhereLaunch.sequence`); also runs on every foreground.
+    /// (see `WhereLaunch.plan(for:)`); also runs on every foreground.
     func applyReminderConfiguration() async {
         let enabled = preferences.remindersEnabled
         // The reminder reconciler also owns the app-icon badge, whose value folds
@@ -327,7 +370,7 @@ public final class WhereSession {
         let authorized = await services.reminders.isAuthorized()
         if enabled, !authorized {
             if !warnedRemindersUnauthorized {
-                Self.logger.warning("Logging reminders enabled but notifications not authorized")
+                Self.logger { .remindersUnauthorized }
                 warnedRemindersUnauthorized = true
             }
         } else {
@@ -337,7 +380,7 @@ public final class WhereSession {
 
     /// Push the persisted daily-summary intent to the summary reconciler and warn
     /// if enabled but unauthorized. Reads `WherePreferences` directly, mirroring
-    /// `applyReminderConfiguration()`. A launch step (see `WhereLaunch.sequence`);
+    /// `applyReminderConfiguration()`. A launch step (see `WhereLaunch.plan(for:)`);
     /// also runs on every foreground.
     func applySummaryConfiguration() async {
         let enabled = preferences.summaryEnabled
@@ -345,7 +388,7 @@ public final class WhereSession {
         let authorized = await services.reminders.isAuthorized()
         if enabled, !authorized {
             if !warnedSummaryUnauthorized {
-                Self.logger.warning("Daily summary enabled but notifications not authorized")
+                Self.logger { .summaryUnauthorized }
                 warnedSummaryUnauthorized = true
             }
         } else {
@@ -357,7 +400,7 @@ public final class WhereSession {
     /// warn if enabled but unauthorized. Fires the alert at the evening reminder
     /// time and scans at the current drift threshold. Reads `WherePreferences`
     /// directly, mirroring `applyReminderConfiguration()`. A launch step (see
-    /// `WhereLaunch.sequence`); also runs on every foreground.
+    /// `WhereLaunch.plan(for:)`); also runs on every foreground.
     func applyIssueAlertConfiguration() async {
         let enabled = preferences.issueAlertsEnabled
         await services.issueAlerts.configure(
@@ -368,7 +411,7 @@ public final class WhereSession {
         let authorized = await services.reminders.isAuthorized()
         if enabled, !authorized {
             if !warnedIssueAlertsUnauthorized {
-                Self.logger.warning("Issue alerts enabled but notifications not authorized")
+                Self.logger { .issueAlertsUnauthorized }
                 warnedIssueAlertsUnauthorized = true
             }
         } else {
@@ -382,13 +425,13 @@ public final class WhereSession {
     /// empty widget snapshot); the coordinator only mirrors the outcome. The
     /// scene's `YearReportModel` is torn down and rebuilt by the relaunch, so no
     /// report/issue state needs clearing here. The data half of the reset/erase
-    /// teardown (see `WhereLaunch.resetSequence`); throws on persistence failure
+    /// teardown (see `WhereLaunch.resetPlan(for:)`); throws on persistence failure
     /// so the reset step parks the launcher in `.failed` rather than silently
     /// half-erasing.
     public func eraseSession() async throws {
         try await services.reset()
         isTracking = false
-        Self.logger.info("Erased session and reset state")
+        Self.logger { .erasedSession }
     }
 
     /// Drives the background-tracking `Toggle`. Reads the live `isTracking`
@@ -413,7 +456,7 @@ public final class WhereSession {
             return SwiftDataInspectorConfiguration(
                 container: container,
                 modelTypes: SwiftDataStore.inspectorModelTypes,
-                title: Strings.developerInspectorTitle,
+                title: String(localized: .developerInspectorTitle),
             )
         }
     }

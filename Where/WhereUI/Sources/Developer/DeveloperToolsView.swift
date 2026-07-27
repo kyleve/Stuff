@@ -1,36 +1,53 @@
 #if DEBUG
-    import LogViewerUI
+    import PeriscopeCore
+    import PeriscopeTools
     import RegionKit
+    import SnapshotKit
     import SwiftDataInspector
     import SwiftUI
     import WhereCore
 
-    /// The developer tools surface — the in-app log viewer over both process
-    /// buffers (`WhereLog` for the app/WhereCore facade and `RegionLog` for
-    /// RegionKit, merged chronologically), the generic SwiftData inspector (only
-    /// when the live session can vend a container — previews and non-SwiftData
-    /// fakes don't show it), and the region map.
+    /// The developer tools surface — the Periscope log viewer + open-spans
+    /// monitor, the "Log View Mode" toggle, the generic SwiftData inspector (only
+    /// when the live session can vend a container), and the region map.
     ///
     /// Owns its own `NavigationStack` so the generic viewers (which expect an
-    /// ambient stack) work wherever it's hosted. It reads `WhereSession` as an
-    /// *optional* because the developer overlay is reachable before login — the
-    /// inspector row simply hides until a live session exists.
+    /// ambient stack) work wherever it's hosted. It reads the app `WhereModel`
+    /// (for the process-global log store) and the `WhereSession` as *optionals*
+    /// because the developer overlay is reachable before login and in fixtures
+    /// that inject only one of them — the dependent rows just hide until their
+    /// source exists.
     ///
     /// Compiled out of release entirely (`#if DEBUG`).
     struct DeveloperToolsView: View {
+        @Environment(WhereModel.self) private var model: WhereModel?
         @Environment(WhereSession.self) private var session: WhereSession?
+        @Environment(\.periscopeInspector) private var inspector
+
+        /// Extra bottom scroll inset so the last rows clear the floating HUD's
+        /// resize grip. Zero (the default) when hosted without the overlay chrome
+        /// (previews, tests, full screen).
+        var bottomContentInset: CGFloat = 0
 
         var body: some View {
             NavigationStack {
                 List {
                     Section {
+                        if let store = model?.logStore {
+                            NavigationLink {
+                                PeriscopeViewer(
+                                    store: store,
+                                    title: String(localized: .developerLogsTitle),
+                                )
+                            } label: {
+                                Label(String(localized: .developerLogsLink), systemImage: "ladybug")
+                            }
+                        }
+
                         NavigationLink {
-                            LogViewer(configuration: LogViewerConfiguration(
-                                stores: [WhereLog.store, RegionLog.store],
-                                title: Strings.developerLogsTitle,
-                            ))
+                            OpenSpansView(system: .shared)
                         } label: {
-                            Label(Strings.developerLogsLink, systemImage: "ladybug")
+                            Label(String(localized: .developerOpenSpansLink), systemImage: "timer")
                         }
 
                         if let configuration = session?.swiftDataInspectorConfiguration {
@@ -38,7 +55,7 @@
                                 SwiftDataInspectorView(configuration: configuration)
                             } label: {
                                 Label(
-                                    Strings.developerInspectorLink,
+                                    String(localized: .developerInspectorLink),
                                     systemImage: "cylinder.split.1x2",
                                 )
                             }
@@ -47,20 +64,52 @@
                         NavigationLink {
                             RegionMapView()
                         } label: {
-                            Label(Strings.developerRegionMapLink, systemImage: "map")
+                            Label(String(localized: .developerRegionMapLink), systemImage: "map")
                         }
                     } footer: {
-                        Text(Strings.developerFooter)
+                        Text(String(localized: .developerFooter))
+                    }
+
+                    if let inspector {
+                        LogViewModeSection(inspector: inspector)
                     }
                 }
-                .navigationTitle(Strings.developerTitle)
+                .navigationTitle(String(localized: .developerTitle))
                 .navigationBarTitleDisplayMode(.inline)
+                // Let the HUD's glass surface show through the list.
+                .scrollContentBackground(.hidden)
+                .contentMargins(.bottom, bottomContentInset, for: .scrollContent)
+            }
+        }
+    }
+
+    /// The "Log View Mode" toggle: binds straight to the injected
+    /// ``PeriscopeInspector`` (the source of truth is `Periscope.shared`'s
+    /// inspect flag, which the inspector mirrors both ways), so flipping it
+    /// reveals the inspect badges `debugLogInspectable(_:)` adds across the app.
+    private struct LogViewModeSection: View {
+        @Bindable var inspector: PeriscopeInspector
+
+        var body: some View {
+            Section {
+                Toggle(String(localized: .developerLogViewMode), isOn: $inspector.isEnabled)
+            } footer: {
+                Text(String(localized: .developerLogViewModeFooter))
+            }
+        }
+    }
+
+    extension DeveloperToolsView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .phoneLightDark) {
+                DeveloperToolsView()
+                    .environment(PreviewSupport.loadedModel())
+                    .environment(PreviewSupport.loadedSession())
             }
         }
     }
 
     #Preview {
-        DeveloperToolsView()
-            .environment(PreviewSupport.loadedSession())
+        DeveloperToolsView.snapshotPreviews
     }
 #endif

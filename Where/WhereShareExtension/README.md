@@ -31,7 +31,8 @@ Host app Share sheet
 - **`ShareEvidenceView`** is the compose form; kind names/symbols reuse
   WhereUI's public `EvidenceKind` presentation helpers so they read identically
   to the in-app "Add evidence" sheet. Extension-only chrome resolves through
-  `ShareStrings` from this target's own catalog.
+  this target's own catalog via its generated symbols
+  (`String(localized: .shareTitle)`).
 
 ## Why write to the store directly
 
@@ -51,7 +52,7 @@ CloudKit container picks the write up from the shared store's history.
 
 `WhereShareExtension` is a Tuist app-extension target in
 [`Project.swift`](../../Project.swift) (bundle ID `com.stuff.where.share`),
-depending on **WhereCore**, **WhereUI**, and **LogKit**. The main **Where** app
+depending on **WhereCore**, **WhereUI**, and **PeriscopeCore**. The main **Where** app
 embeds the extension and shares the `group.com.stuff.where` App Group
 entitlement so both processes open the same SwiftData store.
 

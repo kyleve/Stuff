@@ -103,7 +103,7 @@ public final class LedgerServices {
     /// The most recent login-item failure, surfaced in Settings.
     public private(set) var loginItemError: String?
 
-    private static let logger = LedgerLog.channel(.services)
+    private static let logger = LedgerLog.services
 
     /// Minimum time between per-model fetches. That breakdown costs several
     /// paginated requests (it walks every usage event in the cycle), while the

@@ -8,12 +8,12 @@ struct RegionSummaryCard: View {
     let regionDays: RegionDays
     var caption: String?
     /// An optional reverse-geocoded "where" teaser (e.g. "Paris, France"),
-    /// shown beneath the caption. Used on the Elsewhere cards; `nil` on
-    /// Primary, which intentionally stays a pure passport stamp.
+    /// shown beneath the caption. Used on the Elsewhere cards; `nil` on the
+    /// Locations cards, which intentionally stay a pure passport stamp.
     var places: String?
 
-    /// Which card spec to render — the big `.regular` Primary card or the
-    /// `.compact` Elsewhere one. The caller (tab) picks; the view reads the one
+    /// Which card spec to render — the big `.regular` Locations card or the
+    /// `.compact` Elsewhere one. The caller picks; the view reads the one
     /// resolved ``WhereStylesheet/CardStyle`` and never branches on it again.
     var variant: WhereStylesheet.CardStyle.Variant = .regular
 
@@ -30,14 +30,21 @@ struct RegionSummaryCard: View {
 
     /// The calendar year being summarized, inked onto the entry stamp. Callers
     /// pass `WhereSession.selectedYear`; the default is only for previews.
-    var year = Calendar.current.component(.year, from: Date())
+    var year = WhereModel.currentYear
 
     /// Drives the holographic stamp sheen. The Primary tab passes its live
     /// `TiltProvider`; Elsewhere (and previews) pass `nil`, leaving a gentle
     /// static sheen.
     var tilt: TiltProvider?
 
+    /// An explicit style to render instead of resolving the region's look from
+    /// `\.regionStyles`. The region-customization screen passes the in-progress
+    /// draft appearance so the card previews a pick before it's saved; every
+    /// other caller leaves it `nil` and gets the resolved look.
+    var styleOverride: RegionStyle?
+
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.regionStyles) private var regionStyles
 
     /// The resolved spec for this card's variant, read once so the rest of the
     /// view is a straight-line render with no `compact` branching.
@@ -46,7 +53,7 @@ struct RegionSummaryCard: View {
     }
 
     private var style: RegionStyle {
-        regionDays.region.style
+        styleOverride ?? regionStyles.style(for: regionDays.region)
     }
 
     private var cardShape: RoundedRectangle {
@@ -60,6 +67,12 @@ struct RegionSummaryCard: View {
 
     private var barHeight: CGFloat {
         card.progressBarHeight
+    }
+
+    /// How a count change plays out while the card is on screen. Reduce Motion is
+    /// already resolved into it by the stylesheet.
+    private var dayCount: WhereStylesheet.CardStyles.DayCountStyle {
+        stylesheet.card.dayCount
     }
 
     /// A circular rubber-stamp "entry" impression: the region glyph and year
@@ -208,9 +221,9 @@ struct RegionSummaryCard: View {
             HStack(alignment: .firstTextBaseline, spacing: stylesheet.spacing.small) {
                 Text(regionDays.days, format: .number)
                     .font(card.heroNumberFont)
-                    .contentTransition(.numericText())
+                    .contentTransition(dayCount.transition(days: regionDays.days))
                     .foregroundStyle(style.tint)
-                Text(Strings.dayUnit(regionDays.days))
+                Text(WhereFormat.dayUnit(regionDays.days))
                     .font(card.dayUnitFont)
                     .foregroundStyle(.secondary)
             }
@@ -228,6 +241,10 @@ struct RegionSummaryCard: View {
                 .frame(height: barHeight)
                 .accessibilityHidden(true)
         }
+        // What makes the count's `.contentTransition` run at all — one morphs
+        // only inside an animation transaction — and it sweeps the ambient bar,
+        // which reads the same count, in the same beat.
+        .animation(dayCount.animation, value: regionDays.days)
         .padding(card.padding)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background { stampPaper }
@@ -260,7 +277,7 @@ struct RegionSummaryCard: View {
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(
-            Strings.regionDaysAccessibility(
+            WhereFormat.regionDaysAccessibility(
                 region: regionDays.region.localizedName,
                 days: regionDays.days,
             ),
@@ -364,5 +381,30 @@ private struct ArcText: View {
             )
         }
         .padding()
+    }
+
+    #Preview("Changing count") {
+        ChangingCountPreview()
+    }
+
+    /// Stands in for the count changing under the user, which is otherwise only
+    /// reachable by waiting for a sample to land: stepping the count plays the
+    /// same morph the live card does.
+    private struct ChangingCountPreview: View {
+        @State private var days = 148
+
+        var body: some View {
+            VStack {
+                RegionSummaryCard(
+                    regionDays: RegionDays(region: .california, days: days),
+                    caption: "Home base",
+                    year: 2026,
+                )
+                Stepper(value: $days, in: 0 ... 365) {
+                    Text(verbatim: "Days: \(days)")
+                }
+            }
+            .padding()
+        }
     }
 #endif

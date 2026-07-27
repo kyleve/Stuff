@@ -1,0 +1,16 @@
+{
+  "output": "Where/Where/Resources/attribution.json",
+  "sources": [
+    {
+      "type": "swiftPackageManager",
+      "manifest": "Package.swift",
+      "resolved": "Package.resolved",
+      "shippedFrom": ["WhereUI", "WhereIntents"]
+    },
+    {
+      "type": "agentSkills",
+      "kind": "developmentTool",
+      "manifest": ".agents/external-skills.json"
+    }
+  ]
+}

@@ -200,3 +200,14 @@ rows), pagination (a growing prefix that covers every row with stable, distinct
 `persistentID`s and flips `isTruncated`), and relationship resolution (to-many,
 to-many capped to `rowLimit` with the true `totalCount`, to-one, empty/nil, and a
 stale source id that degrades instead of trapping).
+
+How the inspector *renders* is pinned by image snapshots in
+[`SnapshotTests/`](SnapshotTests), with reference images under
+`SnapshotTests/__Snapshots__/` in Git LFS. They build the same kind of local
+in-memory fixture schema and apply no design-system root, so the capture shows
+what a consumer actually gets rather than any one host app's styling. They build
+as the module's own `SwiftDataInspectorSnapshotTests` bundle, which runs
+alongside every other module's image suite in the shared `StuffSnapshotTests`
+scheme. Run with `tuist test
+StuffSnapshotTests`; to re-record after an intentional UI change, see the
+[SnapshotKitTesting README](../SnapshotKitTesting/README.md#recording).

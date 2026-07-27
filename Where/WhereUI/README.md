@@ -18,15 +18,25 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ### App shell & view models
 
-- **`RootView`** — the app root: the launch sequence (via
-  [`LifecycleKit`](../../Shared/LifecycleKit)) gated in front of the Liquid
-  Glass tab bar over the four top-level screens (Primary, Elsewhere, Resolve,
-  Settings). The app injects the launch-built model + runner
+- **`RootView`** — the app root: the typed launch plan (via
+  [`LifecycleKit`](../../Shared/LifecycleKit), rendered by
+  [`LifecycleKitUI`](../../Shared/LifecycleKitUI)'s container) gated in front of
+  `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
+  Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
+  button, and the data screens (attachments, logged days, regions) sit in the
+  Settings "Data" group. `AboutSettingsView` is the last Settings block — build
+  identity, the app's generated attribution report (linked libraries and
+  development tools as separate sections), and bundled-data provenance, each
+  vended by whoever owns it rather than listed in the view; it renders an
+  explicit "no report" state, since only the app bundle carries one. `MainTabs`
+  is built from the `WhereSession` the launch's `.ready` carries. The app
+  injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
 - **`WhereModel`** — app-level state: the onboarding flag, the owned
   `WhereSession`, and the lifecycle intents (`attach(services:)`,
-  `startSession()` / `endSession()`, `eraseAllData()`, `resetPreferences()`).
+  `startSession(services:)` — which *returns* the session the launch's
+  `start-session` step threads onward — `endSession()`, `resetPreferences()`).
 - **`WhereSession`** — the always-on coordinator: tracking + location
   authorization state and the intents that drive them (`requestPermission()`,
   `startTracking()` / `stopTracking()`, `refreshWidgetSnapshot()`). It holds no
@@ -39,14 +49,28 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 
 ### Reusable views & styling
 
-- **`OnboardingView`** — the first-run flow, driven by a `LifecycleStepUIBridge`.
+- **`OnboardingView`** — the first-run flow, registered for the launch's
+  `OnboardingGate` and handed its `LifecycleGateHandle` + the gate's
+  `WhereSession`: a paged intro, then picking up to five primary US regions
+  (map or searchable list) and giving each a look, then the
+  location-permission ask. It commits the picks as the tracked-region set +
+  appearances before resolving the gate. The intro also offers **Restore from
+  a backup**, which imports a backup (`.replace`) and skips the manual
+  pick/customize steps straight to the location ask.
+- **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
+  picker (segmented map/list) and per-region color/emoji/icon customization,
+  backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings
+  `RegionsSettingsView` editor.
 - **Widget views** — the shared renderers the **WhereWidgets** extension draws
   with: `TodayWidgetView`, `YearTotalsWidgetView`, and the accessory family
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,
   `YearTotalsRectangularAccessoryView`). Each takes a `WidgetSnapshot`.
-- **`RegionStyle`** — a region's symbol, emoji, and tint (read as
-  `region.style`); the per-region look shared across cards, calendar dots, and
-  timelines.
+- **`RegionStyle` / `RegionStyleResolver`** — a region's symbol, emoji, and
+  tint, shared across cards, calendar dots, and timelines. Views resolve it from
+  `@Environment(\.regionStyles)` (`regionStyles.style(for: region)`), seeded by
+  `whereBroadwayRoot(regionStyles:)` — from `WhereSession`'s live resolver in the
+  app, the `WidgetSnapshot` in the widget process, and services in App Intents —
+  falling back to a deterministic default from `RegionAppearanceCatalog`.
 - **`whereBroadwayRoot()`** — seeds the Broadway design-system context so
   descendants resolve the `WhereStylesheet` tokens (see [Design
   system](#design-system)). Applied by `RootView` and by each widget.
@@ -97,7 +121,8 @@ tests) code uses `WhereStylesheet.default`. Tokens are grouped per component
 (`CalendarStyle`, `AppIconStyle`, `CardStyle`, …) with shared scales for the
 cross-cutting bits (`Spacing`, `Palette`, `Typography`, `Motion`). Most values
 are fixed; a slice derives from accessibility traits (bigger tap targets at
-large Dynamic Type, a flatter card under Reduce Transparency). See
+large Dynamic Type, a flatter card under Reduce Transparency, a crossfaded
+rather than rolling day count under Reduce Motion). See
 [`AGENTS.md`](AGENTS.md#design-system--wherestylesheet) for how to consume and
 extend it.
 
@@ -115,5 +140,29 @@ the happy path. See the feature
 Swift Testing in [`Tests/`](Tests) (`WhereUITests`), hosted in `StuffTestHost`
 and linking `TestHostSupport` (`show(_:perform:)`, `waitFor`). View models are
 driven against a `ScriptedLocationSource` + in-memory `SwiftDataStore` (never
-the on-disk/CloudKit store); hosting tests mount views for their key states.
-Internal types are reached via `@testable import WhereUI`.
+the on-disk/CloudKit store). Internal types are reached via
+`@testable import WhereUI`.
+
+How screens *look* is pinned separately: every top-level screen, widget, and
+app-flow surface has matrixed image snapshots (light/dark, Dynamic Type,
+iPhone/iPad, contrast, right-to-left, VoiceOver annotations) in
+[`SnapshotTests/`](SnapshotTests), with reference images under
+`SnapshotTests/__Snapshots__/` in Git LFS. Each view declares its matrix via a
+`SnapshotProviding` conformance **in its own source file**, shared with its
+`#Preview` cutsheet (`Self.snapshotPreviews`); there is one `FooSnapshotTests`
+suite per view, so each view's references live in their own `__Snapshots__/`
+directory. They build as this module's own `WhereUISnapshotTests` bundle, which
+runs alongside the other modules' image suites in the shared
+`StuffSnapshotTests` scheme and its CI job;
+to re-record after an intentional UI change, forward the record mode into the
+test process (see the
+[SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)
+for the mode values):
+
+```bash
+TEST_RUNNER_SNAPSHOT_RECORD=failed mise exec -- tuist test StuffSnapshotTests \
+  --no-selective-testing -- \
+  -destination "platform=iOS Simulator,id=$(./simulator --os 27.0)"
+```
+
+then review and commit the images.
