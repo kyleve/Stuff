@@ -23,16 +23,14 @@ layering, and the domain rules this target merely starts up.
   it.
 - `Resources/AppIcon.xcassets` is managed by `./icons` (see the root
   [`AGENTS.md`](../../AGENTS.md#managing-app-icons)) — never hand-edit it.
-- `Resources/attribution.json` is the app's generated attribution report, and
-  `attribution-sources.json` at this module's root declares where the report
-  reads from.
-  Both are `./attribution`'s (see
-  [Attribution](../../AGENTS.md#attribution)) — never hand-edit the report. This
-  is the **only** bundle that carries one, which is why `AppAttributionTests`
-  lives in this target's test bundle: it is the one hosted by `Where.app`, so
-  `Bundle.main` is the shipping bundle. Those tests cover the report being
-  usable; `./attribution --check` in CI covers it still matching the dependency
-  graph, which no test bundle can see.
+- `Resources/attribution.json` is the app's generated attribution report;
+  `attribution-sources.json` at this module's root declares where it reads
+  from. Both are `./attribution`'s
+  ([Attribution](../../AGENTS.md#attribution)) — never hand-edit the report.
+  Only this bundle carries one, so `AppAttributionTests` lives in this
+  target's test bundle (the one hosted by `Where.app`, where `Bundle.main` is
+  the shipping bundle); `./attribution --check` in CI covers the report still
+  matching the dependency graph, which no test bundle can see.
 
 ## Invariants
 

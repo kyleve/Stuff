@@ -117,14 +117,62 @@ model and a foreground launch runner.
 Appearance tokens — geometry, fonts, colors, motion — live in one place,
 `WhereStylesheet`, a Broadway `BStylesheet` resolved from the environment. Views
 read it with `@Environment(\.stylesheet)`; off the `View` tree (layout helpers,
-tests) code uses `WhereStylesheet.default`. Tokens are grouped per component
-(`CalendarStyle`, `AppIconStyle`, `CardStyle`, …) with shared scales for the
-cross-cutting bits (`Spacing`, `Palette`, `Typography`, `Motion`). Most values
-are fixed; a slice derives from accessibility traits (bigger tap targets at
-large Dynamic Type, a flatter card under Reduce Transparency, a crossfaded
-rather than rolling day count under Reduce Motion). See
-[`AGENTS.md`](AGENTS.md#design-system--wherestylesheet) for how to consume and
-extend it.
+tests) code uses `WhereStylesheet.default`. The active sheet is seeded by
+`whereBroadwayRoot()` at the app root and in each Broadway-root-less consumer
+(WhereWidgets); with no root present, resolution falls back to `.default`.
+The rules for what may and may not live in the sheet are in
+[`AGENTS.md`](AGENTS.md#design-system--wherestylesheet).
+
+### Using tokens
+
+For a component with more than one look, resolve the variant once: vend a
+resolved sub-spec and read it into a single property rather than branching
+through the body. `RegionSummaryCard` reads `stylesheet.card[variant]` into a
+`card` so its render is straight-line, with no `compact ? … : …` scattered
+across ~30 values.
+
+### Adding tokens — per-component style groups
+
+Group a component's whole appearance into one nested `Equatable` struct
+instead of adding loose properties to the top level. The stored properties
+declared at the top of `WhereStylesheet` are the live list of groups; two are
+worth copying as templates: `CardStyles` (a variant axis behind a `subscript`)
+and `CalendarStyle` (nested sub-parts). To add one:
+
+1. Define the struct in a `WhereStylesheet` extension with a doc comment
+   saying which component it styles and any invariants; nest further structs
+   for sub-parts (e.g. `CalendarStyle.MonthStyle`, `AppIconStyle.PanelStyle`).
+2. Give it a `static let standard` holding the fixed geometry, and add a
+   stored property on `WhereStylesheet` defaulted to it.
+3. If a look varies (the `compact` card), model the axis as a `Variant` enum
+   and expose a `subscript` on the styles struct so callers read one resolved
+   spec.
+
+Reach for a shared group only for genuinely cross-component values: the
+generic point scale on `Spacing`, one-off element sizes on `Size`, app-wide
+colors not owned by a single component on `Palette`, the few bespoke display
+faces on `Typography`, and animation tokens on `Motion`.
+
+### Trait-aware tokens
+
+Most tokens are fixed; a slice derives from the `BContext` traits in
+`init(context:)` — read the live set off that initializer. Today it grows
+day-grid tap targets at accessibility Dynamic Type sizes, flattens the card
+glow under Reduce Transparency, and crossfades the cards' day count under
+Reduce Motion.
+
+### Per-region styling
+
+`RegionStyle` is data-driven and resolved through the environment: views read
+`@Environment(\.regionStyles)` (a `RegionStyleResolver`) and call
+`regionStyles.style(for: region)`. The resolver is seeded by
+`whereBroadwayRoot(regionStyles:)`: the app passes `WhereSession`'s live
+resolver (updated on launch + `changes()`), the widget process one built from
+its `WidgetSnapshot`, and App Intents snippets one from their services; the
+default empty resolver yields the fallback looks
+(`RegionAppearanceCatalog.defaultAppearance(for:)`) for previews and the
+region-map viewer. The catalog also owns the selectable color/emoji/symbol
+option lists the picker shows.
 
 ## Previews
 
