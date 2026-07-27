@@ -456,6 +456,7 @@ let project = Project(
             sources: [
                 "Where/WhereUI/SnapshotTests/**",
                 "Shared/Periscope/PeriscopeTools/SnapshotTests/**",
+                "Shared/SwiftDataInspector/SnapshotTests/**",
             ],
             extraPackageProducts: ["SnapshotKitTesting"],
         ),
