@@ -42,12 +42,39 @@ let whereAppGroupEntitlements: Entitlements = .dictionary([
     "com.apple.security.application-groups": .array([.string("group.com.stuff.where")]),
 ])
 
+/// The environment the LFS reference images were recorded on, and the single
+/// source of truth for it.
+///
+/// The `assertSnapshots` runner compares the `SNAPSHOT_EXPECTED_*` values
+/// against the live simulator and fails fast with one clear message on a
+/// mismatched runtime, screen scale, or timezone — instead of hundreds of
+/// confusing image diffs. `TZ` pins the test process's timezone itself: several
+/// references bake Pacific wall-clock dates/times into the image (widget day
+/// labels, log-viewer timestamps), so an unpinned UTC CI runner would shift
+/// every date-rendering snapshot. `SNAPSHOT_EXPECTED_TIMEZONE` is the guard
+/// that verifies the `TZ` pin actually reached the test process.
+///
+/// Set on **both** the snapshot targets and the aggregate scheme below, which
+/// is deliberate: Tuist autogenerates a scheme per target, so a target that
+/// carries these is correctly pinned when someone runs that one bundle from
+/// Xcode, while the aggregate scheme covers the CI invocation. Setting them in
+/// only one place leaves the other silently unpinned — and an unpinned run
+/// doesn't fail loudly, it just compares against references recorded somewhere
+/// else.
+let snapshotEnvironment: [String: EnvironmentVariable] = [
+    "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
+    "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
+    "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
+    "TZ": "America/Los_Angeles",
+]
+
 func unitTests(
     name: String,
     bundleIdSuffix: String,
     productDependency: String,
     sources: ProjectDescription.SourceFilesList,
     extraPackageProducts: [String] = [],
+    environmentVariables: [String: EnvironmentVariable] = [:],
 ) -> Target {
     var dependencies: [TargetDependency] = [
         .package(product: productDependency),
@@ -65,6 +92,7 @@ func unitTests(
         deploymentTargets: deployment,
         sources: sources,
         dependencies: dependencies,
+        environmentVariables: environmentVariables,
     )
 }
 
@@ -480,6 +508,7 @@ let project = Project(
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/SnapshotTests/**"],
             extraPackageProducts: ["SnapshotKitTesting"],
+            environmentVariables: snapshotEnvironment,
         ),
         unitTests(
             name: "PeriscopeToolsSnapshotTests",
@@ -487,6 +516,7 @@ let project = Project(
             productDependency: "PeriscopeTools",
             sources: ["Shared/Periscope/PeriscopeTools/SnapshotTests/**"],
             extraPackageProducts: ["SnapshotKitTesting"],
+            environmentVariables: snapshotEnvironment,
         ),
         unitTests(
             name: "SwiftDataInspectorSnapshotTests",
@@ -494,6 +524,7 @@ let project = Project(
             productDependency: "SwiftDataInspector",
             sources: ["Shared/SwiftDataInspector/SnapshotTests/**"],
             extraPackageProducts: ["SnapshotKitTesting"],
+            environmentVariables: snapshotEnvironment,
         ),
         .target(
             name: "BroadwayCatalog",
@@ -627,17 +658,10 @@ let project = Project(
         // `*SnapshotTests` target above and joins the lists here — it must not
         // get a scheme (or CI job) of its own.
         //
-        // The environment pins are why this scheme exists rather than folding
-        // the bundles into `Stuff-iOS-Tests`. The `assertSnapshots` runner
-        // compares the SNAPSHOT_EXPECTED_* values against the live simulator
-        // and fails fast with one clear message on a mismatched runtime,
-        // screen scale, or timezone — instead of hundreds of confusing image
-        // diffs. TZ pins the test process's timezone itself: several
-        // references bake Pacific wall-clock dates/times into the image
-        // (widget day labels, log-viewer timestamps), so an unpinned UTC CI
-        // runner would shift every date-rendering snapshot.
-        // SNAPSHOT_EXPECTED_TIMEZONE is the guard that verifies the TZ pin
-        // actually reached the test process.
+        // The environment pins (see `snapshotEnvironment`) are why this scheme
+        // exists rather than folding the bundles into `Stuff-iOS-Tests`. They
+        // are also set on each snapshot target, so the per-target schemes
+        // Tuist autogenerates are pinned too.
         .scheme(
             name: "StuffSnapshotTests",
             shared: true,
@@ -652,12 +676,7 @@ let project = Project(
                     "PeriscopeToolsSnapshotTests",
                     "SwiftDataInspectorSnapshotTests",
                 ],
-                arguments: .arguments(environmentVariables: [
-                    "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
-                    "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
-                    "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
-                    "TZ": "America/Los_Angeles",
-                ]),
+                arguments: .arguments(environmentVariables: snapshotEnvironment),
             ),
         ),
         testScheme(name: "WhereIntentsTests"),
