@@ -83,7 +83,7 @@ xcodebuild passes any `TEST_RUNNER_`-prefixed variable through, so in this repo
 (verified working):
 
 ```bash
-TEST_RUNNER_SNAPSHOT_RECORD=failed mise exec -- tuist test WhereUISnapshotTests \
+TEST_RUNNER_SNAPSHOT_RECORD=failed mise exec -- tuist test StuffSnapshotTests \
   --no-selective-testing -- \
   -destination "platform=iOS Simulator,id=$(./simulator --os 27.0)"
 ```

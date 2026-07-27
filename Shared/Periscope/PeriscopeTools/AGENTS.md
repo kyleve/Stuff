@@ -90,3 +90,19 @@ use `PeriscopeStylesheet.default`.
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
 (`PeriscopeToolsTests`). Seed an in-memory store, drive the view models
 directly, and host views with `TestHostSupport`'s `show()` helpers.
+
+How the tools *look* is pinned separately by the image snapshots in
+[`SnapshotTests/`](SnapshotTests), with references under
+`SnapshotTests/__Snapshots__/` in Git LFS. Those files compile into the
+repo-wide `StuffSnapshotTests` bundle rather than `PeriscopeToolsTests` — there
+is exactly one image-snapshot bundle in the repo, for reasons the root
+[`AGENTS.md`](../../../AGENTS.md#targets) explains — but they live and record
+here, so this module owns its own reference images. Seed a **frozen** store
+(fixed records at timestamps pinned to a fixed instant); the process-global
+Periscope store's wall-clock timestamps would churn the images. Tool views seed
+their own `periscopeBroadwayRoot()`, so a snapshot needs no host-app root and
+captures the tooling's real styling.
+
+Prefer a snapshot over a "hosts without crashing" test: a hosting test that only
+asserts the view reached a window says nothing about what rendered. Converting
+the existing ones is tracked in [`TODOs.md`](../TODOs.md).

@@ -356,7 +356,7 @@ let project = Project(
         // The capture/compare pipeline's own regression tests. They render
         // through `renderSnapshotImage` (so they need the `StuffTestHost` key
         // window) but assert on probed pixels rather than LFS reference images,
-        // so — unlike `WhereUISnapshotTests` — this bundle is fast, has no
+        // so — unlike `StuffSnapshotTests` — this bundle is fast, has no
         // `__Snapshots__/`, and runs in the main `Stuff-iOS-Tests` scheme /
         // `test` CI job. `SnapshotKitTesting` embeds its dependency closure
         // (SnapshotKit, SnapshotTesting, AccessibilitySnapshot) into the
@@ -417,32 +417,59 @@ let project = Project(
             productDependency: "WhereIntents",
             sources: ["Where/WhereIntents/Tests/**"],
         ),
-        // Image snapshot tests for WhereUI. Slow + LFS-backed, so this bundle
-        // runs in its own `snapshot` CI job (see .github/workflows/ci.yml) via
-        // its own `testScheme` below — it is deliberately NOT in the
-        // `Stuff-iOS-Tests` scheme, keeping image snapshots out of the main
-        // `test` job. Lists only `SnapshotKitTesting` in `extraPackageProducts`:
-        // the test-only capture pipeline, which WhereUI deliberately never
-        // links.
+        // Every image snapshot suite in the repo, in ONE bundle. Slow +
+        // LFS-backed, so it runs in its own `snapshot` CI job (see
+        // .github/workflows/ci.yml) via its own `testScheme` below — it is
+        // deliberately NOT in the `Stuff-iOS-Tests` scheme, keeping image
+        // snapshots out of the main `test` job.
+        //
+        // One bundle, not one per module, and that is load-bearing rather than
+        // convenience. Every `.xctest` statically embeds what it links, so a
+        // second snapshot bundle would carry a second copy of
+        // `SnapshotKitTesting` — and its "process-global" capture state is
+        // module-global, i.e. per copy: `_swizzleDepth` and the override
+        // globals in `SafeAreaInsetsSwizzling.swift`, `SnapshotCaptureLock`,
+        // and the `UIView.snapshotKitOverriddenSafeAreaInsets` category. Two
+        // copies loaded into one `StuffTestHost` process would each count
+        // their own swizzle depth against the one shared `UIView` method
+        // exchange (parity flips → captures silently rendering with the
+        // simulator's real safe-area insets), and neither copy's capture lock
+        // could see the other's captures. Verified with `nm` on the built
+        // bundles, which show a private `_swizzleDepth` per `.xctest`. Keeping
+        // one bundle keeps one copy, which is what makes those types' "process
+        // wide" docs true. Suites still live in — and record their references
+        // next to — the module they cover: swift-snapshot-testing derives the
+        // `__Snapshots__` directory from the calling file's `#filePath`, which
+        // `assertSnapshots` threads through, so per-module ownership needs
+        // per-module *source directories*, not per-module bundles.
+        //
+        // Lists only `SnapshotKitTesting` in `extraPackageProducts`: the
+        // test-only capture pipeline, which WhereUI deliberately never links.
+        // PeriscopeTools and SwiftDataInspector are NOT listed — they arrive
+        // transitively through WhereUI, and re-listing either would land the
+        // duplicate copy the root AGENTS.md "Targets" note warns about. Their
+        // suites import them anyway, exactly as WhereUITests imports WhereCore
+        // and RegionKit without listing them.
         //
         // `SnapshotKitTesting` embeds its dependency closure, SnapshotKit
         // included — which WhereUI carries too — but that does *not* land a
         // second copy here: the linker coalesces them. Verified on the built
         // bundle, which defines exactly one set of SnapshotKit symbols, the
         // same count as WhereUITests (a bundle that links no extra products at
-        // all). So `\.isCapturingSnapshot` has no copy boundary to cross, and
-        // the duplicate-metadata hazard in the root AGENTS.md "Targets" note
-        // doesn't apply to this pairing. `SnapshotCaptureFlagProbeTests` still
-        // pins the path end to end — the pipeline's `traitOverrides` write
-        // reaching a WhereUI-defined view's read — so a toolchain that stopped
-        // coalescing would fail loudly rather than silently returning defaults.
-        // Do NOT re-list any *other* WhereUI transitive here: same rule as
-        // WhereUITests above.
+        // all). So `\.isCapturingSnapshot` has no copy boundary to cross.
+        // `SnapshotCaptureFlagProbeTests` still pins the path end to end — the
+        // pipeline's `traitOverrides` write reaching a WhereUI-defined view's
+        // read — so a toolchain that stopped coalescing would fail loudly
+        // rather than silently returning defaults.
         unitTests(
-            name: "WhereUISnapshotTests",
-            bundleIdSuffix: "whereui.snapshot",
+            name: "StuffSnapshotTests",
+            bundleIdSuffix: "snapshot",
             productDependency: "WhereUI",
-            sources: ["Where/WhereUI/SnapshotTests/**"],
+            sources: [
+                "Where/WhereUI/SnapshotTests/**",
+                "Shared/Periscope/PeriscopeTools/SnapshotTests/**",
+                "Shared/SwiftDataInspector/SnapshotTests/**",
+            ],
             extraPackageProducts: ["SnapshotKitTesting"],
         ),
         .target(
@@ -580,7 +607,7 @@ let project = Project(
         // date-rendering snapshot. SNAPSHOT_EXPECTED_TIMEZONE is the guard
         // that verifies the TZ pin actually reached the test process.
         testScheme(
-            name: "WhereUISnapshotTests",
+            name: "StuffSnapshotTests",
             testEnvironmentVariables: [
                 "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
                 "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
