@@ -18,8 +18,9 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 - Presentation reuses WhereUI's public `EvidenceKind.symbolName`/`displayName`;
   only extension chrome lives in this target's catalog, referenced through its
   generated `LocalizedStringResource` symbols.
-- No test bundle; the write path is covered from **WhereCore** store tests and
-  the **WhereUI** compose model.
+- No test bundle; the store write contract is covered from **WhereCore** store
+  tests. This target's own compose/save model (`ShareEvidenceModel`) is
+  untested — tracked in [`Where/TODOs.md`](../TODOs.md).
 
 ## Invariants
 

@@ -59,7 +59,8 @@ and its CI job (root [`AGENTS.md`](../../AGENTS.md#targets)). It links only
 `SwiftDataInspector`, so nothing here builds against an app module. Snapshot the module the way a
 consumer gets it: a **local fixture schema**, never a host app's store, and no
 design-system root. Prefer adding a case there over a hosted "renders without
-crashing" test, which asserts nothing about the result. Fixture `@Model` names
-must not collide with the ones in [`Tests/`](Tests) — those are a separate
-bundle, and duplicate model class names would clash in the runtime if both ever
-loaded into one host process.
+crashing" test, which asserts nothing about the result. Keep fixture `@Model`
+names distinct from the ones in [`Tests/`](Tests) as hygiene — the two bundles
+can't collide today because each `.xctest` gets its own host process (root
+[`AGENTS.md`](../../AGENTS.md#targets)), but identical class names would clash
+in the ObjC runtime if a toolchain ever co-loaded them.

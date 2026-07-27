@@ -1,6 +1,6 @@
 # Where – Feature Shape
 
-Where is an iOS/iPadOS/macOS app for answering "what region was I in on which
+Where is an iOS/iPadOS app for answering "what region was I in on which
 day?" It ingests passive GPS (Visits + significant-change), accepts
 user-asserted history (manual coordinates, whole-day overlays, evidence like
 boarding passes), and rolls everything up into per-day region presence and
@@ -69,9 +69,11 @@ Rules the code enforces and agents must preserve:
     `WhereLog`, so it owns a `"RegionKit"` root — but emits into the *same*
     `Periscope.shared`, so the single `PeriscopeStore` sink the app attaches at
     launch (and `PeriscopeViewer`) sees every subtree in one stream.
-  - **Only the app process gets a store.** Widgets, the share extension, and
-    intents run in their own processes, where `Periscope.shared` stays
-    OSLog-only.
+  - **Only the app process gets a store.** Widgets and the share extension run
+    in their own processes, where `Periscope.shared` stays OSLog-only. App
+    Intents run **in the app process** (`WhereIntents` is a library product
+    linked into the Where app, not an extension), so their logs reach the
+    app's store-attached Periscope.
   - **An event about a store object stamps its `externalID` with that object's
     canonical `store://` identity** (`DataIssueID.storeURL`, otherwise
     `WhereStoreID`), so inspect-by-object shares the store's and backups' keys.

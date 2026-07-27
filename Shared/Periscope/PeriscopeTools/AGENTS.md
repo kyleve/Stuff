@@ -48,11 +48,10 @@ use `PeriscopeStylesheet.default`.
   the picker and writes the choice back on change.
 - **Color decisions live in `Palette`**, not on `LogLevel` / `SpanExit.Mode` —
   `tint(forLevel:)` bands by severity so custom levels inherit a sensible color.
-- Because PeriscopeTools links Broadway as a **static** library it can seed
-  Broadway directly. Were it ever to become a dynamic framework, or be embedded
-  in one, the root
-  [double-linking rule](../../../AGENTS.md#never-double-link-a-product-whereui-already-carries)
-  would start applying to its consumers.
+- PeriscopeTools seeds Broadway directly; a consumer must not re-list
+  `BroadwayCore`/`BroadwayUI` beside a product that already carries them — the
+  root
+  [double-linking rule](../../../AGENTS.md#never-double-link-a-product-whereui-already-carries).
 
 ## Invariants
 

@@ -75,6 +75,7 @@ thing that writes a report.
 `CreditKitTests` covers the manifest as a format and an API: decoding the exact
 JSON the generator writes, rejecting a malformed report or an unknown `kind`,
 round-tripping, filtering by kind, and `load` throwing for a bundle with no
-report. Shared fixtures live in `CreditKitTestSupport.swift`, and
-`SampleReport.json` is a literal rather than an encoder round-trip so a Swift-side
+report. Shared fixtures live in `CreditKitTestSupport.swift`; its
+`SampleReport.json` (a string constant on the `SampleReport` enum, not a
+fixture file) is a literal rather than an encoder round-trip so a Swift-side
 change that breaks the wire format fails a test.

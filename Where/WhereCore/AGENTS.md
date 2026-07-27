@@ -4,8 +4,9 @@ WhereCore is the domain layer of the Where feature: the persistence boundary,
 GPS ingestion, per-day / per-year aggregation, data-quality detection, and the
 side effects that hang off a committed write (reminders, widgets, backup,
 on-device activity summaries). It is assembled behind one `Sendable` value —
-`WhereServices` — that the UI and widgets talk to. See [`README.md`](README.md)
-for the public API and how the pieces fit.
+`WhereServices` — that the UI and the App Intents stack talk to (widgets never
+do; they read the published `WidgetSnapshot` from the App Group). See
+[`README.md`](README.md) for the public API and how the pieces fit.
 
 The **domain/presentation split and the rules WhereCore must uphold** (the
 `WhereServices` entry point, `WhereStore.perform` writes, the single

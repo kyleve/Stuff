@@ -29,7 +29,8 @@ bundles in [`Project.swift`](../../Project.swift) (the shared `unitTests` helper
 - **`BRootViewController` defers setup** — child creation, trait observation,
   and context are wired on `viewIsAppearing`, so `context` is `nil` before the
   controller enters a valid hierarchy.
-- **Broadway tests run in the shared `StuffTestHost`** via `TestHostSupport`
+- **Broadway's hosted bundles (`BroadwayCoreTests`, `BroadwayUITests`) run in
+  the shared `StuffTestHost`** via `TestHostSupport`
   (`show`, `hostKeyWindow`). The host stamps its window with
   `isMainTestHostWindow` and `hostKeyWindow()` selects only that window — don't
   reintroduce a "first key window" or `UIApplication.shared.delegate?.window`
@@ -37,6 +38,7 @@ bundles in [`Project.swift`](../../Project.swift) (the shared `unitTests` helper
 
 ## Testing
 
-Hosted Swift Testing bundles (`BroadwayCoreTests`, `BroadwayUITests`,
-`BroadwayCatalogTests`) run in `StuffTestHost` and link `TestHostSupport`. 1:1
-test files per the root rules.
+`BroadwayCoreTests` and `BroadwayUITests` run in `StuffTestHost` and link
+`TestHostSupport`; `BroadwayCatalogTests` is hosted by the **BroadwayCatalog**
+app itself (its target depends on the app, not `StuffTestHost` —
+[`Project.swift`](../../Project.swift)). 1:1 test files per the root rules.

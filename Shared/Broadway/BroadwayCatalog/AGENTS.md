@@ -14,5 +14,5 @@ Complements the root [`AGENTS.md`](../../../AGENTS.md) and the group
 - Declared as a Tuist `.app` target (`com.stuff.broadway.catalog`),
   iPhone/iPad destinations.
 
-Tests: `BroadwayCatalogTests` in `StuffTestHost`
+Tests: `BroadwayCatalogTests`, hosted by this app itself — not `StuffTestHost`
 (`tuist test BroadwayCatalogTests`).
