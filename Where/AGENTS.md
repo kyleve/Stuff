@@ -110,6 +110,38 @@ A new screen belongs *inside* that shape — a destination pushed from a tab, a
 sheet, or a Settings row. Adding a fourth tab is a product decision, not a
 refactor: raise it before building.
 
+Settings itself is a typed-route list: `SettingsSearch.swift` owns
+`SettingsDestination` / `SettingsListSection` / `SettingsRoute`, and every
+switch over them is exhaustive, so a new drill-in is a set of compile errors to
+fill in rather than a screen you can forget to register. **About is deliberately
+the last block**, below everything actionable.
+
+**Nothing on the About screen is a list hard-coded in the view.** It renders
+three sources: the generated attribution report (via `WhereCore.AppAttribution`),
+`RegionDataSource` (RegionKit) for bundled geometry, and `BuildInfo` (WhereCore)
+for the running build. Adding a dependency means re-running `./attribution`;
+adding a dataset means regenerating RegionKit's — see
+[`CreditKit/AGENTS.md`](../Shared/CreditKit/AGENTS.md) and
+[`RegionKit/AGENTS.md`](RegionKit/AGENTS.md).
+
+The report lives in `Where/Where/Resources/attribution.json` — the **app
+target's** resources, so only the app bundle carries one. Every other bundle
+(RegionViewer, `StuffTestHost`, the extensions) reads `nil` and the screen says
+so, exactly as it does for an unstamped `BuildInfo`. A section with nothing of
+its kind says so too, in different words: "no report at all" and "nothing of
+this kind" describe different builds, and a header and footer over no rows would
+describe neither. `AppAttributionTests`, in the app's own test bundle because it
+is the one hosted by `Where.app`, asserts the report is usable — present,
+decodable, both kinds populated. Whether it still *matches* the dependency graph
+is `./attribution --check`'s job in CI, not a literal here.
+
+A **shipped library** and a **development tool** render as separate sections.
+Development tools are the agent skills `./sync-agents` vendors *and* packages
+linked only outside the app's target closure (the snapshot-testing engine, the
+accessibility parser) — credited because the repository depends on them, not
+because they reach a device. Keep the sections separate: one merged list would
+tell a reader something untrue about the app they are running.
+
 ## Localization
 
 All user-facing copy resolves through each module's `Localizable.xcstrings` via

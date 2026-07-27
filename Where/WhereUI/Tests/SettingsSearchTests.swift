@@ -41,6 +41,13 @@ struct SettingsSearchTests {
         #expect(destinations.contains(.alerts))
     }
 
+    @Test func matchesTheAboutScreenOnALicenseKeyword() {
+        // "license" is nowhere in a section title, so this only passes if the
+        // About screen's keywords are registered.
+        let results = SettingsCatalog.results(matching: "license")
+        #expect(results.contains { $0.destination == .about })
+    }
+
     @Test func focusedRouteCarriesTheResultsDestinationAndFocus() throws {
         let result = try #require(SettingsCatalog.results.first)
         let route = SettingsRoute(result)

@@ -1,4 +1,5 @@
 #if DEBUG
+    import CreditKit
     import Foundation
     import PeriscopeCore
     import RegionKit
@@ -101,6 +102,66 @@
         public static func backupModel() -> BackupModel {
             BackupModel(services: previewServices())
         }
+
+        // MARK: - Build metadata (About sub-screen)
+
+        /// Build metadata as the shipping app carries it — the About screen's
+        /// normal state. A preview or test bundle is never stamped, so this can't
+        /// come from the real bundle.
+        public static func stampedBuildInfo(isDirty: Bool = false) -> BuildInfo {
+            BuildInfo(infoDictionary: [
+                "CFBundleShortVersionString": "1.0",
+                "CFBundleVersion": "42",
+                "WhereGitSHA": "a18a9309c5d6",
+                "WhereGitStatus": isDirty ? "dirty" : "clean",
+            ])
+        }
+
+        /// Build metadata from a bundle the stamp script never ran on — the
+        /// RegionViewer, an extension, a test host.
+        public static func unstampedBuildInfo() -> BuildInfo {
+            BuildInfo(infoDictionary: [:])
+        }
+
+        /// An attribution report shaped like the generated one: a linked library
+        /// and a development tool, so both About sections render. Only the app
+        /// target ships a real report, so a preview or test bundle can't read one.
+        public static func sampleAttribution() -> AttributionManifest {
+            AttributionManifest(credits: [
+                sampleCredit(noticeText: sampleNotice),
+                SoftwareCredit(
+                    name: "swiftui-pro",
+                    kind: .developmentTool,
+                    version: "61b74001b64b",
+                    homepageURL: URL(string: "https://github.com/twostraws/swiftui-agent-skill"),
+                    license: LicenseNotice(name: "MIT License", text: sampleNotice),
+                ),
+            ])
+        }
+
+        /// The library credit from ``sampleAttribution()``, with its notice text
+        /// substitutable: pass `""` for the no-notice state a hand-edited report
+        /// could reach, which the generator itself refuses to write.
+        public static func sampleCredit(noticeText: String) -> SoftwareCredit {
+            SoftwareCredit(
+                name: "ZIPFoundation",
+                kind: .library,
+                version: "0.9.20",
+                homepageURL: URL(string: "https://github.com/weichsel/ZIPFoundation"),
+                license: LicenseNotice(name: "MIT License", text: noticeText),
+            )
+        }
+
+        /// Stand-in notice text. Deliberately not a real license: a fixture that
+        /// reproduced one verbatim would read as an attribution the app makes.
+        public static let sampleNotice = """
+        Sample License
+
+        Copyright (c) 2026 Example Author
+
+        Placeholder notice text for previews and tests. The shipping app renders
+        the real notice carried by its generated attribution report.
+        """
 
         // MARK: - Region picker / customization
 

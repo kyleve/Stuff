@@ -49,11 +49,12 @@ Xcode project](#generating-the-xcode-project)). A fresh machine needs `./ide
 generating; plain `./ide` fails fast pointing at it.
 
 The executables in the repo root are the dev scripts — `ide`, `swiftformat`,
-`sync-agents`, `profile`, `icons`, `flaky`, `simulator`, `xcstrings` — and each
-takes `--help`. Reach for one rather than hand-rolling its job: `icons` and
-`simulator` in particular own state that is easy to corrupt by hand — the
-latter owns a simulator device per checkout (see [Managing app
-icons](#managing-app-icons) and [Selecting a
+`sync-agents`, `profile`, `icons`, `flaky`, `simulator`, `xcstrings`,
+`attribution` — and each takes `--help`. Reach for one rather than hand-rolling
+its job: `icons`, `attribution`, and `simulator` in particular own state that is
+easy to corrupt by hand — the last owns a simulator device per checkout (see
+[Managing app icons](#managing-app-icons), [Attribution](#attribution), and
+[Selecting a
 simulator](#selecting-a-simulator--one-device-per-checkout-addressed-by-udid)).
 
 ### Managing app icons
@@ -62,6 +63,25 @@ simulator](#selecting-a-simulator--one-device-per-checkout-addressed-by-udid)).
 `./icons --help`). It keeps both asset catalogs and the picker's
 `AppIcons.json` manifest in sync — never hand-edit those or add icon Swift.
 Run `./ide --no-open` after adding one.
+
+### Version and build metadata
+
+The Where app's `CFBundleShortVersionString` / `CFBundleVersion` are stated
+**explicitly** in [`Project.swift`](Project.swift) rather than left to Tuist's
+`.extendingDefault` values, because Settings > About shows them — bump them
+there. The commit is *not* a manifest value: a post-build script phase
+([`Where/Where/Scripts/stamp-build-info.sh`](Where/Where/Scripts/stamp-build-info.sh))
+writes `WhereGitSHA` and `WhereGitStatus` into the built product's Info.plist,
+which `WhereCore`'s `BuildInfo` reads back.
+
+The two constraints worth knowing before touching it: it must stay a **post**
+script (it edits the plist "Process Info.plist" already wrote, and must land
+before signing seals the bundle), and it must keep
+`basedOnDependencyAnalysis: false`, or an unchanged source tree ships the
+previous commit's SHA. It reads `.git`, so it also depends on
+`ENABLE_USER_SCRIPT_SANDBOXING` staying unset (Xcode defaults it off; new
+project templates set it on). Only the app is stamped — the extensions never
+read these keys.
 
 ## Formatting
 
@@ -77,6 +97,49 @@ Run `./ide --no-open` after adding one.
   parses fine but turns the next build into thousands of lines of whitespace
   churn around the one real entry. Write a catalog through Xcode, or normalize
   it afterwards; the script only touches formatting, never content.
+
+## Attribution
+
+An app ships an **attribution report**: every third-party work it is built with,
+each carrying its license notice inline. Regenerate every app's report with:
+
+```bash
+./attribution
+```
+
+The split matters. [`Shared/CreditKit`](Shared/CreditKit/AGENTS.md) owns the
+*types and the reporting tool* and holds **no credits of its own**; each app
+declares its sources in an `attribution-sources.json` and ships the resulting
+manifest in **its own resources** (for Where,
+`Where/Where/Resources/attribution.json`). A report describes one app's
+dependency graph, so it is that app's data — and CreditKit stays a Foundation-only
+leaf that anything may depend on, so a package pulled in by *any* module gets
+credited without inverting the dependency that introduced it.
+
+The report is derived from what the repo already declares — packages a target
+links via `.product(name:package:)` (pinned by `Package.resolved`) and the agent
+skills in `.agents/external-skills.json` — with each notice read at the **pinned
+revision**. So a new dependency is credited wherever it lands, and a package
+resolved only for tooling (BumperBowling, swift-syntax) correctly isn't.
+**Re-run `./attribution` and commit the result whenever you add or bump a
+package or a skill.** `./attribution --check` fails CI if you forget: it
+re-derives the expected report from `Package.swift`, `Package.resolved`, and the
+skills manifest and diffs it against the committed one. It runs offline (a
+notice is fetched at the pinned revision, so a matching revision means matching
+text) and takes well under a second. An app's own tests can't do this job — a
+test bundle can't read `Package.swift`, so all it can assert is a literal that a
+stale report satisfies just as happily as a fresh one.
+
+`SoftwareCredit.Kind` keeps a **shipped library** apart from a **development
+tool**, and that distinction must survive into any UI: a tool is credited
+because the repo uses it, not because it reaches a device. **Kind is derived,
+not declared** — the config's `shippedFrom` names the package targets the app
+and its extensions link, and anything reachable from that closure is a library
+while any other linked package is a tool. Linking is not shipping: the
+snapshot-testing engine is linked by a test-support target and never reaches a
+binary, and crediting it as a library would tell a reader their app contains it.
+Data-source provenance for bundled geometry is separate and stays with its data,
+in [`RegionKit`](Where/RegionKit/AGENTS.md).
 
 ## Architecture lint
 
@@ -113,6 +176,12 @@ currently Swift references (SwiftUI, Swift concurrency, Swift Testing,
 SwiftData) — and `.agents/skills/.gitignore` excludes those fetched copies, so
 anything else under `.agents/skills/` is a **repo-owned** skill and is committed
 (currently `todo-triage`).
+
+That manifest is also an **attribution** input: external skills are third-party
+work the repo vendors, so an app's report credits them (as *development tools*,
+distinct from libraries the app links). After adding a skill or running
+`./sync-agents --update`, re-run `./attribution` and commit the regenerated
+reports — see [`Attribution`](#attribution).
 
 **Cursor reads `.agents/skills/` natively** — that directory is the real home. The
 `.claude/skills/` mirror exists for Claude Code, so run `./sync-agents` after
