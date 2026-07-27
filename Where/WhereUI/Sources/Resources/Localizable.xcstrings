@@ -3235,7 +3235,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "This license text couldn't be loaded from the app bundle."
+            "value" : "This credit's report entry carries no license text."
           }
         }
       }

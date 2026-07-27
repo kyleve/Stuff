@@ -1,5 +1,6 @@
 import CreditKit
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -223,38 +224,58 @@ extension AboutSettingsView: SettingsSection {
 }
 
 #if DEBUG
-    #Preview("Stamped build") {
-        NavigationStack {
-            AboutSettingsView(
-                focus: nil,
-                buildInfo: PreviewSupport.stampedBuildInfo(),
-                attribution: PreviewSupport.sampleAttribution(),
-            )
+    extension AboutSettingsView: SnapshotProviding {
+        /// Every state the screen has, which for this screen means every degree
+        /// of *absence*: the shipping build is the only one that is both stamped
+        /// and attributed, so the interesting cases are what each missing piece
+        /// renders as.
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .screenDefaults) {
+                NavigationStack {
+                    AboutSettingsView(
+                        focus: nil,
+                        buildInfo: PreviewSupport.stampedBuildInfo(),
+                        attribution: PreviewSupport.sampleAttribution(),
+                    )
+                }
+            }
+            whereSnapshot(name: "DirtyTree", configurations: .phoneLightDark) {
+                NavigationStack {
+                    AboutSettingsView(
+                        focus: nil,
+                        buildInfo: PreviewSupport.stampedBuildInfo(isDirty: true),
+                        attribution: PreviewSupport.sampleAttribution(),
+                    )
+                }
+            }
+            whereSnapshot(name: "Unattributed", configurations: .phoneLightDark) {
+                // What a bundle outside the app target shows: honest unknowns and
+                // an explicit "no report" rather than blank rows and empty sections.
+                NavigationStack {
+                    AboutSettingsView(
+                        focus: nil,
+                        buildInfo: PreviewSupport.unstampedBuildInfo(),
+                        attribution: nil,
+                    )
+                }
+            }
+            whereSnapshot(name: "LibrariesOnly", configurations: .phoneLightDark) {
+                // A real report that credits nothing of one kind. Pinned as an
+                // image because the failure mode is purely visual: a header and
+                // footer over no rows, promising a list that isn't there.
+                let libraries = PreviewSupport.sampleAttribution().credits(ofKind: .library)
+                NavigationStack {
+                    AboutSettingsView(
+                        focus: nil,
+                        buildInfo: PreviewSupport.stampedBuildInfo(),
+                        attribution: AttributionManifest(credits: libraries),
+                    )
+                }
+            }
         }
-        .whereBroadwayRoot()
     }
 
-    #Preview("Built from a dirty tree") {
-        NavigationStack {
-            AboutSettingsView(
-                focus: nil,
-                buildInfo: PreviewSupport.stampedBuildInfo(isDirty: true),
-                attribution: PreviewSupport.sampleAttribution(),
-            )
-        }
-        .whereBroadwayRoot()
-    }
-
-    #Preview("Unstamped, unattributed build") {
-        // What a bundle outside the app target shows: honest unknowns and an
-        // explicit "no report" rather than blank rows and empty sections.
-        NavigationStack {
-            AboutSettingsView(
-                focus: nil,
-                buildInfo: PreviewSupport.unstampedBuildInfo(),
-                attribution: nil,
-            )
-        }
-        .whereBroadwayRoot()
+    #Preview {
+        AboutSettingsView.snapshotPreviews
     }
 #endif

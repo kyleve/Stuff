@@ -1,4 +1,5 @@
 import CreditKit
+import SnapshotKit
 import SwiftUI
 
 /// The full license notice for one credited work, pushed from Settings > About.
@@ -54,12 +55,29 @@ struct LicenseView: View {
 }
 
 #if DEBUG
-    #Preview {
-        NavigationStack {
-            if let credit = PreviewSupport.sampleAttribution().credits.first {
-                LicenseView(credit: credit)
+    extension LicenseView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Default", configurations: .screenDefaults) {
+                NavigationStack {
+                    LicenseView(
+                        credit: PreviewSupport.sampleCredit(
+                            noticeText: PreviewSupport.sampleNotice,
+                        ),
+                    )
+                }
+            }
+            whereSnapshot(name: "NoNotice", configurations: .phoneLightDark) {
+                // The generator refuses to emit a credit without notice text, so
+                // this is the state a hand-edited report would reach — worth an
+                // image because it is the one case that renders no notice at all.
+                NavigationStack {
+                    LicenseView(credit: PreviewSupport.sampleCredit(noticeText: ""))
+                }
             }
         }
-        .whereBroadwayRoot()
+    }
+
+    #Preview {
+        LicenseView.snapshotPreviews
     }
 #endif

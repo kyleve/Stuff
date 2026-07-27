@@ -128,13 +128,7 @@
         /// target ships a real report, so a preview or test bundle can't read one.
         public static func sampleAttribution() -> AttributionManifest {
             AttributionManifest(credits: [
-                SoftwareCredit(
-                    name: "ZIPFoundation",
-                    kind: .library,
-                    version: "0.9.20",
-                    homepageURL: URL(string: "https://github.com/weichsel/ZIPFoundation"),
-                    license: LicenseNotice(name: "MIT License", text: sampleNotice),
-                ),
+                sampleCredit(noticeText: sampleNotice),
                 SoftwareCredit(
                     name: "swiftui-pro",
                     kind: .developmentTool,
@@ -145,9 +139,22 @@
             ])
         }
 
+        /// The library credit from ``sampleAttribution()``, with its notice text
+        /// substitutable: pass `""` for the no-notice state a hand-edited report
+        /// could reach, which the generator itself refuses to write.
+        public static func sampleCredit(noticeText: String) -> SoftwareCredit {
+            SoftwareCredit(
+                name: "ZIPFoundation",
+                kind: .library,
+                version: "0.9.20",
+                homepageURL: URL(string: "https://github.com/weichsel/ZIPFoundation"),
+                license: LicenseNotice(name: "MIT License", text: noticeText),
+            )
+        }
+
         /// Stand-in notice text. Deliberately not a real license: a fixture that
         /// reproduced one verbatim would read as an attribution the app makes.
-        private static let sampleNotice = """
+        public static let sampleNotice = """
         Sample License
 
         Copyright (c) 2026 Example Author

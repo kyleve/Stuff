@@ -21,13 +21,7 @@ struct LicenseViewTests {
         // The generator refuses to write one, so this is the defensive path — it
         // must say the notice is unavailable rather than render a blank page
         // that reads like a license with no terms.
-        let credit = SoftwareCredit(
-            name: "Empty",
-            kind: .library,
-            version: "1.0",
-            homepageURL: nil,
-            license: LicenseNotice(name: "MIT License", text: ""),
-        )
+        let credit = PreviewSupport.sampleCredit(noticeText: "")
         let rootView = NavigationStack { LicenseView(credit: credit) }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
