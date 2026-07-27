@@ -40,4 +40,4 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   add a direct `BroadwayCore`/`BroadwayUI` dependency — Broadway arrives through
   `WhereUI`, which is why the seam lives there rather than a `broadwayRoot` call
   here (see the root
-  [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-a-dynamic-framework-already-carries)).
+  [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)).
