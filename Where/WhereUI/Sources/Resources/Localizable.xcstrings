@@ -3008,6 +3008,282 @@
         }
       }
     },
+    "settings.about.attribution.none" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing to credit here."
+          }
+        }
+      }
+    },
+    "settings.about.attribution.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This build carries no attribution report."
+          }
+        }
+      }
+    },
+    "settings.about.build.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Build"
+          }
+        }
+      }
+    },
+    "settings.about.commit.modified" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (modified)"
+          }
+        }
+      }
+    },
+    "settings.about.commit.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Commit"
+          }
+        }
+      }
+    },
+    "settings.about.dataSource.approximate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Approximate outline drawn for this app — coarse, and not authoritative."
+          }
+        }
+      }
+    },
+    "settings.about.dataSource.authoritative" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Simplified from the published boundary set."
+          }
+        }
+      }
+    },
+    "settings.about.dataSource.obtainedFromLink" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Obtained from %@"
+          }
+        }
+      }
+    },
+    "settings.about.dataSource.originalWork" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No external source; covered by the app's own license."
+          }
+        }
+      }
+    },
+    "settings.about.dataSource.publicDomain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Public domain — %@"
+          }
+        }
+      }
+    },
+    "settings.about.dataSource.publisherLink" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Published at %@"
+          }
+        }
+      }
+    },
+    "settings.about.dataSource.regionCount" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld region"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%lld regions"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "settings.about.dataSources.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The region boundaries bundled with the app, and where they came from."
+          }
+        }
+      }
+    },
+    "settings.about.dataSources.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data Sources"
+          }
+        }
+      }
+    },
+    "settings.about.dependencies.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where is built with these open-source libraries. Tap one to read its license."
+          }
+        }
+      }
+    },
+    "settings.about.dependencies.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Source"
+          }
+        }
+      }
+    },
+    "settings.about.developmentTools.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tools used to build Where. They aren't part of the app on your device, but the project ships copies of them, so their licenses are included here."
+          }
+        }
+      }
+    },
+    "settings.about.developmentTools.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Development Tools"
+          }
+        }
+      }
+    },
+    "settings.about.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About"
+          }
+        }
+      }
+    },
+    "settings.about.license.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This credit's report entry carries no license text."
+          }
+        }
+      }
+    },
+    "settings.about.value.unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown"
+          }
+        }
+      }
+    },
+    "settings.about.version.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include the version and commit when you report a problem."
+          }
+        }
+      }
+    },
+    "settings.about.version.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
+          }
+        }
+      }
+    },
+    "settings.about.version.row" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
+          }
+        }
+      }
+    },
     "settings.alerts.group" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3425,6 +3701,50 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Issue alerts"
+          }
+        }
+      }
+    },
+    "settings.keywords.aboutDataSources" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "data, data sources, attribution, geojson, boundaries, borders, census, maps"
+          }
+        }
+      }
+    },
+    "settings.keywords.aboutDependencies" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "license, licenses, open source, credits, acknowledgements, libraries, dependencies, third party"
+          }
+        }
+      }
+    },
+    "settings.keywords.aboutDevelopmentTools" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "tools, development, build, agent, skills, license, licenses, credits, acknowledgements, third party"
+          }
+        }
+      }
+    },
+    "settings.keywords.aboutVersion" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "version, build, build number, commit, sha, git, about, release"
           }
         }
       }

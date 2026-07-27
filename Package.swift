@@ -9,6 +9,7 @@ let package = Package(
     ],
     products: [
         .library(name: "StuffCore", targets: ["StuffCore"]),
+        .library(name: "CreditKit", targets: ["CreditKit"]),
         .library(name: "LifecycleKit", targets: ["LifecycleKit"]),
         .library(name: "LifecycleKitUI", targets: ["LifecycleKitUI"]),
         .library(name: "JournalKit", targets: ["JournalKit"]),
@@ -42,6 +43,10 @@ let package = Package(
         .target(
             name: "StuffCore",
             path: "Shared/StuffCore/Sources",
+        ),
+        .target(
+            name: "CreditKit",
+            path: "Shared/CreditKit/Sources",
         ),
         .target(
             name: "LifecycleKit",
@@ -121,6 +126,7 @@ let package = Package(
         .target(
             name: "WhereCore",
             dependencies: [
+                .target(name: "CreditKit"),
                 .target(name: "PeriscopeCore"),
                 .target(name: "RegionKit"),
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
@@ -136,6 +142,7 @@ let package = Package(
                 .target(name: "WhereCore"),
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
+                .target(name: "CreditKit"),
                 .target(name: "LifecycleKit"),
                 .target(name: "LifecycleKitUI"),
                 .target(name: "PeriscopeCore"),
