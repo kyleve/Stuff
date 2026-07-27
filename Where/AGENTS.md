@@ -297,7 +297,7 @@ Root [testing conventions](../AGENTS.md#testing) apply. What's specific here:
   remote-import path is exercised with the `@_spi(Testing)`
   `inMemory(remoteChangeSource:)` + `ScriptedStoreRemoteChangeSource`.
 - How screens render is pinned by the matrixed image snapshots in
-  `WhereUI/SnapshotTests/` (compiled into the repo-wide `StuffSnapshotTests`
-  bundle — own scheme + CI job, not `Stuff-iOS-Tests`) — see
+  `WhereUI/SnapshotTests/` (the `WhereUISnapshotTests` bundle, run from the
+  shared `StuffSnapshotTests` scheme + CI job, not `Stuff-iOS-Tests`) — see
   [`WhereUI/AGENTS.md`](WhereUI/AGENTS.md#testing). Don't add "hosts without
   crashing" smoke tests for surfaces those suites cover.

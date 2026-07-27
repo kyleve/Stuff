@@ -7,9 +7,9 @@
     ///
     /// This view exists to be *compiled into WhereUI* (the dynamic framework) and
     /// pixel-probed from the snapshot bundle
-    /// (`StuffSnapshotTests.SnapshotCaptureFlagProbeTests`): the bundle
+    /// (`WhereUISnapshotTests.SnapshotCaptureFlagProbeTests`): the bundle
     /// statically embeds a second copy of `SnapshotKit` via `SnapshotKitTesting`
-    /// (see the StuffSnapshotTests comment in `Project.swift`), so the pipeline
+    /// (see the snapshot-bundle comment in `Project.swift`), so the pipeline
     /// *writes* `SnapshotCaptureTrait` in the bundle's copy while WhereUI's
     /// stand-ins *read* `\.isCapturingSnapshot` through WhereUI's copy. If those
     /// copies ever split (the duplicate-type-metadata hazard in the root

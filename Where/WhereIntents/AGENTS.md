@@ -14,7 +14,7 @@ layering, localization, and the WhereUI duplicate-metadata rule).
 - Dependencies live in the root [`Package.swift`](../../Package.swift). It
   depends on **WhereUI** for its snippet cards — mirroring **WhereWidgets** —
   so it must **not** link `BroadwayUI`/`BroadwayCore` directly (see the root
-  [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-a-dynamic-framework-already-carries)).
+  [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)).
 - Intents stay **thin adapters**: they `await intentServices.current()` and
   delegate to that `WhereServices`' collaborators. Domain rules, persistence,
   and aggregation stay in `WhereCore`; presentation (the card bodies) stays in

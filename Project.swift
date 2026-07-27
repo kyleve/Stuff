@@ -439,59 +439,60 @@ let project = Project(
             productDependency: "WhereIntents",
             sources: ["Where/WhereIntents/Tests/**"],
         ),
-        // Every image snapshot suite in the repo, in ONE bundle. Slow +
-        // LFS-backed, so it runs in its own `snapshot` CI job (see
-        // .github/workflows/ci.yml) via its own `testScheme` below — it is
-        // deliberately NOT in the `Stuff-iOS-Tests` scheme, keeping image
-        // snapshots out of the main `test` job.
+        // Image snapshot bundles: one per module that owns image references,
+        // all gathered into the single `StuffSnapshotTests` scheme below so CI
+        // runs them in one `snapshot` job. They are slow and LFS-backed, so
+        // they are deliberately NOT in the `Stuff-iOS-Tests` scheme.
         //
-        // One bundle, not one per module, and that is load-bearing rather than
-        // convenience. Every `.xctest` statically embeds what it links, so a
-        // second snapshot bundle would carry a second copy of
-        // `SnapshotKitTesting` — and its "process-global" capture state is
-        // module-global, i.e. per copy: `_swizzleDepth` and the override
-        // globals in `SafeAreaInsetsSwizzling.swift`, `SnapshotCaptureLock`,
-        // and the `UIView.snapshotKitOverriddenSafeAreaInsets` category. Two
-        // copies loaded into one `StuffTestHost` process would each count
-        // their own swizzle depth against the one shared `UIView` method
-        // exchange (parity flips → captures silently rendering with the
-        // simulator's real safe-area insets), and neither copy's capture lock
-        // could see the other's captures. Verified with `nm` on the built
-        // bundles, which show a private `_swizzleDepth` per `.xctest`. Keeping
-        // one bundle keeps one copy, which is what makes those types' "process
-        // wide" docs true. Suites still live in — and record their references
-        // next to — the module they cover: swift-snapshot-testing derives the
-        // `__Snapshots__` directory from the calling file's `#filePath`, which
-        // `assertSnapshots` threads through, so per-module ownership needs
-        // per-module *source directories*, not per-module bundles.
+        // One bundle per module rather than one shared bundle, because a
+        // module's image suite should link only what that module needs: the
+        // Periscope and SwiftDataInspector suites don't build against WhereUI
+        // at all. Each records its references beside its own sources —
+        // swift-snapshot-testing derives the `__Snapshots__` directory from the
+        // calling file's `#filePath`, which `assertSnapshots` threads through.
         //
-        // Lists only `SnapshotKitTesting` in `extraPackageProducts`: the
-        // test-only capture pipeline, which WhereUI deliberately never links.
-        // PeriscopeTools and SwiftDataInspector are NOT listed — they arrive
-        // transitively through WhereUI, and re-listing either would land the
-        // duplicate copy the root AGENTS.md "Targets" note warns about. Their
-        // suites import them anyway, exactly as WhereUITests imports WhereCore
-        // and RegionKit without listing them.
+        // Separate bundles are safe here because each `.xctest` gets its own
+        // `StuffTestHost` process: measured on Xcode 27 by probing
+        // `ProcessInfo.processIdentifier` from two bundles in one scheme, which
+        // reported different PIDs on both a filtered and a full unfiltered run.
+        // That matters specifically for these bundles, because each statically
+        // embeds its own copy of `SnapshotKitTesting`, whose capture state is
+        // module-global and therefore per copy (`_swizzleDepth` and the
+        // override globals in `SafeAreaInsetsSwizzling.swift`,
+        // `SnapshotCaptureLock`, the `UIView` category). Co-loaded into one
+        // process those copies would fight over the single `UIView` method
+        // exchange; in separate processes each is genuinely process-wide, as
+        // its docs claim. If a future toolchain ever starts sharing one host
+        // process across bundles, re-measure before adding a fourth.
         //
-        // `SnapshotKitTesting` embeds its dependency closure, SnapshotKit
-        // included — which WhereUI carries too — but that does *not* land a
-        // second copy here: the linker coalesces them. Verified on the built
-        // bundle, which defines exactly one set of SnapshotKit symbols, the
-        // same count as WhereUITests (a bundle that links no extra products at
-        // all). So `\.isCapturingSnapshot` has no copy boundary to cross.
-        // `SnapshotCaptureFlagProbeTests` still pins the path end to end — the
+        // Each lists only `SnapshotKitTesting` in `extraPackageProducts` — the
+        // test-only capture pipeline, which no shipping module links. Nothing
+        // else is re-listed: whatever the module already carries arrives
+        // transitively, per the double-linking rule in the root AGENTS.md.
+        // `SnapshotCaptureFlagProbeTests` (in WhereUISnapshotTests) pins the
         // pipeline's `traitOverrides` write reaching a WhereUI-defined view's
-        // read — so a toolchain that stopped coalescing would fail loudly
-        // rather than silently returning defaults.
+        // `\.isCapturingSnapshot` read, so a toolchain that stopped coalescing
+        // the two SnapshotKit copies in that bundle would fail loudly rather
+        // than silently returning defaults.
         unitTests(
-            name: "StuffSnapshotTests",
-            bundleIdSuffix: "snapshot",
+            name: "WhereUISnapshotTests",
+            bundleIdSuffix: "whereui.snapshot",
             productDependency: "WhereUI",
-            sources: [
-                "Where/WhereUI/SnapshotTests/**",
-                "Shared/Periscope/PeriscopeTools/SnapshotTests/**",
-                "Shared/SwiftDataInspector/SnapshotTests/**",
-            ],
+            sources: ["Where/WhereUI/SnapshotTests/**"],
+            extraPackageProducts: ["SnapshotKitTesting"],
+        ),
+        unitTests(
+            name: "PeriscopeToolsSnapshotTests",
+            bundleIdSuffix: "periscopetools.snapshot",
+            productDependency: "PeriscopeTools",
+            sources: ["Shared/Periscope/PeriscopeTools/SnapshotTests/**"],
+            extraPackageProducts: ["SnapshotKitTesting"],
+        ),
+        unitTests(
+            name: "SwiftDataInspectorSnapshotTests",
+            bundleIdSuffix: "swiftdatainspector.snapshot",
+            productDependency: "SwiftDataInspector",
+            sources: ["Shared/SwiftDataInspector/SnapshotTests/**"],
             extraPackageProducts: ["SnapshotKitTesting"],
         ),
         .target(
@@ -621,24 +622,43 @@ let project = Project(
         testScheme(name: "WhereCoreTests"),
         testScheme(name: "WhereTests"),
         testScheme(name: "WhereUITests"),
-        // Pins the environment the LFS reference images were recorded on. The
-        // `assertSnapshots` runner compares the SNAPSHOT_EXPECTED_* values
-        // against the live simulator and fails fast with one clear message on
-        // a mismatched runtime, screen scale, or timezone — instead of
-        // hundreds of confusing image diffs. TZ pins the test process's
-        // timezone itself: several references bake Pacific wall-clock
-        // dates/times into the image (widget day labels, log-viewer
-        // timestamps), so an unpinned UTC CI runner would shift every
-        // date-rendering snapshot. SNAPSHOT_EXPECTED_TIMEZONE is the guard
-        // that verifies the TZ pin actually reached the test process.
-        testScheme(
+        // Every image-snapshot bundle, in one scheme, so CI runs them all in
+        // the single `snapshot` job. A new module's image suite gets its own
+        // `*SnapshotTests` target above and joins the lists here — it must not
+        // get a scheme (or CI job) of its own.
+        //
+        // The environment pins are why this scheme exists rather than folding
+        // the bundles into `Stuff-iOS-Tests`. The `assertSnapshots` runner
+        // compares the SNAPSHOT_EXPECTED_* values against the live simulator
+        // and fails fast with one clear message on a mismatched runtime,
+        // screen scale, or timezone — instead of hundreds of confusing image
+        // diffs. TZ pins the test process's timezone itself: several
+        // references bake Pacific wall-clock dates/times into the image
+        // (widget day labels, log-viewer timestamps), so an unpinned UTC CI
+        // runner would shift every date-rendering snapshot.
+        // SNAPSHOT_EXPECTED_TIMEZONE is the guard that verifies the TZ pin
+        // actually reached the test process.
+        .scheme(
             name: "StuffSnapshotTests",
-            testEnvironmentVariables: [
-                "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
-                "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
-                "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
-                "TZ": "America/Los_Angeles",
-            ],
+            shared: true,
+            buildAction: .buildAction(targets: [
+                "WhereUISnapshotTests",
+                "PeriscopeToolsSnapshotTests",
+                "SwiftDataInspectorSnapshotTests",
+            ]),
+            testAction: .targets(
+                [
+                    "WhereUISnapshotTests",
+                    "PeriscopeToolsSnapshotTests",
+                    "SwiftDataInspectorSnapshotTests",
+                ],
+                arguments: .arguments(environmentVariables: [
+                    "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
+                    "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
+                    "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
+                    "TZ": "America/Los_Angeles",
+                ]),
+            ),
         ),
         testScheme(name: "WhereIntentsTests"),
         testScheme(name: "BroadwayCoreTests"),
