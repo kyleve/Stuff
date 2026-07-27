@@ -34,6 +34,13 @@ public struct SoftwareCredit: Sendable, Hashable, Identifiable, Codable {
     /// The license, carrying its own notice text.
     public let license: LicenseNotice
 
+    /// The name, which a report **must** keep unique across the whole manifest.
+    ///
+    /// Nothing in this type can enforce that, so the generator does: names come
+    /// from a repo basename, two orgs can publish the same one, and a collision
+    /// would hand a SwiftUI `ForEach` two rows sharing an id. Uniqueness is
+    /// checked where the report is assembled, not here, because that is the only
+    /// place holding every credit at once.
     public var id: String {
         name
     }

@@ -114,6 +114,45 @@ struct AboutSettingsViewTests {
         }
     }
 
+    @Test func hostsAReportThatCreditsOnlyOneKind() throws {
+        // Reachable for real: a config whose agent-skills manifest is empty still
+        // generates a valid report, and the tools section then has nothing to
+        // list while the libraries section is full.
+        let libraries = PreviewSupport.sampleAttribution().credits(ofKind: .library)
+        let rootView = NavigationStack {
+            AboutSettingsView(
+                focus: nil,
+                buildInfo: PreviewSupport.unstampedBuildInfo(),
+                attribution: AttributionManifest(credits: libraries),
+                dataSources: [],
+            )
+        }
+        try show(UIHostingController(rootView: rootView)) { hosted in
+            #expect(hosted.view != nil)
+        }
+    }
+
+    @Test func distinguishesAnAbsentReportFromAnEmptySection() {
+        // The two say different things about the build: no report means nothing
+        // is attributed at all, while an empty section of a real report means
+        // only that this one kind is unpopulated.
+        let absent = AboutSettingsView(focus: nil, attribution: nil, dataSources: [])
+        #expect(
+            String(localized: absent.emptyMessage)
+                == String(localized: .settingsAboutAttributionUnavailable),
+        )
+
+        let empty = AboutSettingsView(
+            focus: nil,
+            attribution: AttributionManifest(credits: []),
+            dataSources: [],
+        )
+        #expect(
+            String(localized: empty.emptyMessage)
+                == String(localized: .settingsAboutAttributionNone),
+        )
+    }
+
     @Test func showsTheLiveDataSourceList() {
         // The screen shows what RegionKit vends, not a copy of its own. The
         // software credits are the app's generated report, asserted against the

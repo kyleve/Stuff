@@ -148,6 +148,12 @@ internal shape.
   resource and faults — don't collapse the two back together. See [Version and
   build metadata](../../AGENTS.md#version-and-build-metadata) and
   [Attribution](../../AGENTS.md#attribution).
+- **Read the app's report through `AppAttribution.main`, not
+  `current(bundle: .main)`.** The report inlines every notice, so decoding it is
+  not free, and its caller is a SwiftUI default argument — which Swift
+  re-evaluates on every `init`, and SwiftUI re-inits views constantly. `main`
+  caches the decode for the process; `current(bundle:)` stays for tests and for
+  any bundle that isn't `.main`.
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are
   `async throws` so the CloudKit-backed store can report I/O failure; a `catch`
   must log via a `WhereLog` typed `LogEvent` (PII-free, `.public`) and leave

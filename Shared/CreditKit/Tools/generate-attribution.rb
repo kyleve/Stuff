@@ -51,6 +51,12 @@ def fail_with(message)
   abort "generate-attribution: #{message}"
 end
 
+# The `kind` values `SoftwareCredit.Kind` decodes. Checked up front because a
+# typo would otherwise produce a report that generates fine and commits fine,
+# then fails to decode inside the app — surfacing as a fault and a debug trap on
+# the About screen, a long way from the config line that caused it.
+KINDS = %w[library developmentTool].freeze
+
 # GitHub's license endpoint resolves the notice's filename for us (LICENSE,
 # LICENSE.md, COPYING, …) and reports the license's title alongside it, so one
 # call answers both "what license" and "what text".
@@ -151,11 +157,22 @@ def report(config_path)
     type = source.fetch("type")
     generate = SOURCE_TYPES[type]
     fail_with("unknown source type #{type.inspect} in #{config_path}") unless generate
+    kind = source.fetch("kind")
+    fail_with("unknown kind #{kind.inspect} in #{config_path} (expected #{KINDS.join(" or ")})") unless KINDS.include?(kind)
     # Sort within a source so the report has a stable order and re-running it
     # produces no diff when nothing changed.
     generate.call(source).sort_by { |entry| entry["name"].downcase }
   end
   fail_with("#{config_path} produced no credits") if credits.empty?
+
+  # `SoftwareCredit` is `Identifiable` by name, so a collision hands SwiftUI two
+  # rows sharing one id. It takes only two orgs publishing the same repo name,
+  # since a library's name is its repo basename. Compared case-insensitively:
+  # a pair differing only in case is legal but unreadable in a list.
+  collisions = credits.group_by { |entry| entry["name"].downcase }
+                      .select { |_, entries| entries.size > 1 }
+                      .keys
+  fail_with("duplicate credit name(s): #{collisions.join(", ")}") unless collisions.empty?
 
   output = File.join(ROOT, config.fetch("output"))
   FileUtils.mkdir_p(File.dirname(output))

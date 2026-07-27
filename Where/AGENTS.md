@@ -124,7 +124,10 @@ adding a dataset means regenerating RegionKit's — see
 The report lives in `Where/Where/Resources/attribution.json` — the **app
 target's** resources, so only the app bundle carries one. Every other bundle
 (RegionViewer, `StuffTestHost`, the extensions) reads `nil` and the screen says
-so, exactly as it does for an unstamped `BuildInfo`. `AppAttributionTests`, in
+so, exactly as it does for an unstamped `BuildInfo`. A section with nothing of
+its kind says so too, in different words: "no report at all" and "nothing of
+this kind" describe different builds, and a header and footer over no rows would
+describe neither. `AppAttributionTests`, in
 the app's own test bundle because it is the one hosted by `Where.app`, asserts
 what the report contains.
 

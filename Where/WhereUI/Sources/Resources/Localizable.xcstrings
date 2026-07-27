@@ -3008,6 +3008,17 @@
         }
       }
     },
+    "settings.about.attribution.none" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nothing to credit here."
+          }
+        }
+      }
+    },
     "settings.about.attribution.unavailable" : {
       "extractionState" : "manual",
       "localizations" : {

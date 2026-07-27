@@ -19,9 +19,23 @@ public enum AppAttribution {
     /// Name of the generated resource inside the app bundle.
     static let resource = "attribution"
 
+    /// The running app's report, read and decoded **once per process**.
+    ///
+    /// Prefer this to `current(bundle: .main)` at a call site that runs more
+    /// than once. The report is an immutable resource in an immutable bundle,
+    /// but it is not small — every notice is inlined — and the natural caller
+    /// is a SwiftUI default argument, which Swift re-evaluates on every single
+    /// `init`. `AboutSettingsView` is rebuilt on each body pass of the Settings
+    /// stack, so reading eagerly there re-read the file, re-ran the decoder,
+    /// and re-emitted a log line per keystroke in the search field.
+    ///
+    /// Same shape as `RegionDataSource.all`, the sibling default on that init.
+    public static let main: AttributionManifest? = current(bundle: .main)
+
     /// Reads the attribution report out of `bundle`, or `nil` when the bundle
-    /// carries none. Pass `.main` from the app; the bundle is explicit (no
-    /// default) so a caller can't accidentally read the wrong one.
+    /// carries none. The bundle is explicit (no default) so a caller can't
+    /// accidentally read the wrong one; from the app, prefer ``main``, which
+    /// caches this for `.main`.
     public static func current(bundle: Bundle) -> AttributionManifest? {
         do {
             let manifest = try AttributionManifest.load(from: bundle, resource: resource)

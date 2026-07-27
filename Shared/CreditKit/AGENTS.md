@@ -46,7 +46,14 @@ thing that writes a report.
   in the shipping binary. A UI that renders both kinds in one undifferentiated
   list would misrepresent the app, so the distinction must survive into the
   presentation. Its raw values are a wire format the generator writes; renaming
-  a case silently invalidates every committed report.
+  a case silently invalidates every committed report. The generator validates
+  each source's `kind` against them before it does any work, so a config typo
+  fails there rather than as a decode fault inside the app.
+- **Credit names are unique across a report.** `SoftwareCredit` is `Identifiable`
+  by `name`, so a duplicate hands a SwiftUI `ForEach` two rows with one id — and
+  a library's name is its repo basename, so two orgs publishing the same repo
+  name is all it takes. The generator enforces this (case-insensitively) over the
+  assembled report, since that is the only place holding every credit at once.
 - **Notices are read at the pinned revision.** Not the default branch — upstream
   edits a notice between releases, and shipping HEAD's text would attribute
   terms that don't govern the code in the binary.

@@ -31,7 +31,7 @@ struct AboutSettingsView: View {
     init(
         focus: SettingsFocus?,
         buildInfo: BuildInfo = .current(bundle: .main),
-        attribution: AttributionManifest? = AppAttribution.current(bundle: .main),
+        attribution: AttributionManifest? = AppAttribution.main,
         dataSources: [RegionDataSource] = RegionDataSource.all,
     ) {
         self.focus = focus
@@ -107,9 +107,18 @@ struct AboutSettingsView: View {
         header: String,
         footer: String,
     ) -> some View {
-        Section {
-            if let attribution {
-                ForEach(attribution.credits(ofKind: kind)) { credit in
+        let credits = attribution?.credits(ofKind: kind) ?? []
+        return Section {
+            if credits.isEmpty {
+                // Keyed on *this section* being empty, not on the report being
+                // absent: a report that carries only libraries would otherwise
+                // render the tools header and footer over no rows, and a footer
+                // still promising a list to tap through reads as a broken screen
+                // rather than as an empty one.
+                Text(String(localized: emptyMessage))
+                    .foregroundStyle(.secondary)
+            } else {
+                ForEach(credits) { credit in
                     // A closure-form link, not a `SettingsRoute`: routes are the
                     // top-level group vocabulary, and a leaf pushed from inside
                     // one group would need its own `navigationDestination`.
@@ -121,18 +130,19 @@ struct AboutSettingsView: View {
                         }
                     }
                 }
-            } else {
-                // No report in this bundle — `AppAttribution` has already said so.
-                // Say it here too, rather than showing an empty section that
-                // reads as "nothing to credit".
-                Text(String(localized: .settingsAboutAttributionUnavailable))
-                    .foregroundStyle(.secondary)
             }
         } header: {
             Text(header)
         } footer: {
             Text(footer)
         }
+    }
+
+    /// Why a section is empty, which the reader needs distinguished: no report
+    /// at all means the whole build is unattributed, while an empty section of
+    /// a real report means only that this kind has nothing in it.
+    var emptyMessage: LocalizedStringResource {
+        attribution == nil ? .settingsAboutAttributionUnavailable : .settingsAboutAttributionNone
     }
 
     // MARK: Data sources

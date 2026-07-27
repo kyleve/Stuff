@@ -111,6 +111,11 @@ handle at runtime.
 - **A missing report is not automatically an error.** Only the app target ships
   one, so `load` throwing `.reportMissing` is routine in a developer tool or
   test host. CreditKit reports it and leaves the judgement to the caller.
+- **Credit names must be unique within a report.** `SoftwareCredit` is
+  `Identifiable` by `name`, so a duplicate breaks list identity in any UI that
+  iterates credits. The generator enforces it — a library's name is its repo
+  basename, and two orgs can publish the same one — but a hand-written manifest
+  is on its own; the type can't check what it can't see.
 - **Names, versions, and license titles are never localized.** They are proper
   nouns and legal terms; a UI supplies the translated framing around them.
 - **GitHub-hosted sources only.** Both source types resolve notices through the

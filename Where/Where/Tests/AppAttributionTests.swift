@@ -15,7 +15,7 @@ import WhereCore
 struct AppAttributionTests {
     private func report() throws -> AttributionManifest {
         try #require(
-            AppAttribution.current(bundle: .main),
+            AppAttribution.main,
             "the app bundle carries no attribution report — run ./attribution",
         )
     }
@@ -48,6 +48,29 @@ struct AppAttributionTests {
             #expect(!credit.version.isEmpty, "\(credit.name) records no version")
             #expect(credit.homepageURL != nil, "\(credit.name) records no homepage")
         }
+    }
+
+    @Test func namesEveryCreditUniquely() throws {
+        // `SoftwareCredit` is `Identifiable` by name, so a collision would hand
+        // the About screen's `ForEach` two rows sharing one id. `./attribution`
+        // refuses to write a report with duplicates; this catches one edited in
+        // by hand, and names the offenders rather than just counting them.
+        let names = try report().credits.map(\.name)
+        let collisions = Dictionary(grouping: names) { $0.lowercased() }
+            .filter { $0.value.count > 1 }
+            .keys
+            .sorted()
+        #expect(
+            collisions.isEmpty,
+            "duplicate credit name(s): \(collisions.joined(separator: ", "))",
+        )
+    }
+
+    @Test func cachesTheReportItReadsFromTheMainBundle() {
+        // `AppAttribution.main` is what the About screen's default argument
+        // reads on every view init, so the cached value has to answer exactly
+        // what a fresh read of the same bundle would.
+        #expect(AppAttribution.main == AppAttribution.current(bundle: .main))
     }
 
     @Test func aBundleWithoutAReportReadsAsNone() {
