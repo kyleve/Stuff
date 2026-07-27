@@ -62,9 +62,15 @@ public enum SnapshotSizing: Sendable {
 /// in-memory-vs-on-disk deltaE flake).
 ///
 /// Requires the StuffTestHost key window; call only from a hosted test bundle.
+///
+/// `named` labels the capture in settle-phase failures — `assertSnapshots`
+/// passes the full snapshot identifier, so a timeout on one configuration of a
+/// 16-image matrix names which one (the gap that made CI's About-screen settle
+/// failures undiagnosable from the result bundle alone).
 @MainActor
 public func renderSnapshotImage(
     of viewController: UIViewController,
+    named name: String,
     sizing: SnapshotSizing = .fixed,
     safeAreaInsets: UIEdgeInsets? = .zero,
     isAccessibility: Bool = false,
@@ -74,6 +80,7 @@ public func renderSnapshotImage(
     await SnapshotCaptureLock.withLock {
         await renderSnapshotImageLocked(
             of: viewController,
+            named: name,
             sizing: sizing,
             safeAreaInsets: safeAreaInsets,
             isAccessibility: isAccessibility,
@@ -84,11 +91,12 @@ public func renderSnapshotImage(
 }
 
 /// The capture body of
-/// ``renderSnapshotImage(of:sizing:safeAreaInsets:isAccessibility:settle:onReadyToSnapshot:)``,
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:settle:onReadyToSnapshot:)``,
 /// run while holding ``SnapshotCaptureLock``.
 @MainActor
 private func renderSnapshotImageLocked(
     of viewController: UIViewController,
+    named name: String,
     sizing: SnapshotSizing,
     safeAreaInsets: UIEdgeInsets?,
     isAccessibility: Bool,
@@ -123,6 +131,7 @@ private func renderSnapshotImageLocked(
 
         await resolveContentSize(
             of: viewController,
+            named: name,
             sizing: sizing,
             settle: settle,
             hostedIn: hostRoot,
@@ -148,6 +157,7 @@ private func renderSnapshotImageLocked(
             settleForCapture(wrappingViewController.view, settle: settle),
             phase: "content",
             of: viewController,
+            named: name,
         )
 
         // The pre-capture hook sees fully settled content, then its own
@@ -161,6 +171,7 @@ private func renderSnapshotImageLocked(
                 settleForCapture(wrappingViewController.view, settle: settle),
                 phase: "onReadyToSnapshot",
                 of: viewController,
+                named: name,
             )
         }
 
@@ -242,6 +253,7 @@ private func removeChildAfterCapture(_ child: UIViewController) {
 @MainActor
 private func resolveContentSize(
     of viewController: UIViewController,
+    named name: String,
     sizing: SnapshotSizing,
     settle: SnapshotSettle,
     hostedIn hostRoot: UIViewController,
@@ -260,6 +272,7 @@ private func resolveContentSize(
         settleForCapture(probeWrapper.view, settle: settle),
         phase: "intrinsic measurement",
         of: viewController,
+        named: name,
     )
 
     func measureContent() -> CGSize {

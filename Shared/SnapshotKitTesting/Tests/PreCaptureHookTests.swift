@@ -23,6 +23,7 @@ struct PreCaptureHookTests {
         var hookSawSettledContent = false
         let image = await renderSnapshotImage(
             of: host,
+            named: "pre-capture-hook-probe",
             safeAreaInsets: .zero,
             onReadyToSnapshot: {
                 hookSawSettledContent = model.taskFired

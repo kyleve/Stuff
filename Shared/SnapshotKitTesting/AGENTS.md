@@ -68,6 +68,15 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   timeout by widening the budget — freeze the motion behind
   `\.isCapturingSnapshot`, or use `.settledAtLeast` only when the content is
   genuinely slow rather than endless.
+- **The settle budget bounds observed motion, not proof-of-stability.** On a
+  starved machine a single settle pass can cost over a second, so fewer passes
+  than stability needs may fit in the budget; failing then blames "content
+  still changing" on content never once seen to change (CI reproduced exactly
+  that: a static screen timing out ~50% of cold runs while its capture still
+  matched the reference). So `.timedOut` requires an *observed* change, a
+  change-free loop keeps running until it can prove stability, and only a hard
+  cap several budgets out gives up as `.starved` — an environment failure, not
+  view motion. Guarded by `SnapshotRenderingSupportTests`.
 - **Captures are single-tenant per process, enforced by `SnapshotCaptureLock`.**
   Every capture holds process-global state (the safe-area swizzle + override
   globals, the animations flag, the one `StuffTestHost` key window) across the
@@ -102,10 +111,11 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 
 `SnapshotKitTestingTests` (`Tests/`, wired in `Project.swift`, in the
 `Stuff-iOS-Tests` scheme) owns the pipeline's own regression tests: async-content
-settle, concurrent-capture serialization, duplicate-identifier detection,
-tile-and-stitch / full-content sizing, the pre-capture hook, the same-image
-capture-flag surface, and safe-area composition (the swizzle zeroes the captured
-root while an interior `safeAreaInset` still composes). They render through
+settle, the settle loop's ending conditions (starved-but-static settles, observed
+motion times out), concurrent-capture serialization, duplicate-identifier
+detection, tile-and-stitch / full-content sizing, the pre-capture hook, the
+same-image capture-flag surface, and safe-area composition (the swizzle zeroes
+the captured root while an interior `safeAreaInset` still composes). They render through
 `renderSnapshotImage` (so they need the `StuffTestHost` key window) but assert on
 probed pixels via the `@_spi(Testing)` `PixelSample`/`probePixel` API rather than
 LFS reference images — so the bundle is fast, has no `__Snapshots__/`, and runs

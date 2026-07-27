@@ -14,7 +14,7 @@ import UIKit
 ///
 /// `async` because the render pipeline must suspend for SwiftUI `.task`-driven
 /// content to load before capture — see
-/// ``renderSnapshotImage(of:sizing:safeAreaInsets:isAccessibility:)``.
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:settle:onReadyToSnapshot:)``.
 @MainActor
 public func assertSnapshots(
     of provider: (some SnapshotProviding).Type,
@@ -115,6 +115,7 @@ public func assertSnapshots(
         let identifier = fullSnapshotIdentifier(caseName: name, configuration: configuration)
         let image = await renderSnapshotImage(
             of: hostingController,
+            named: identifier,
             sizing: sizing,
             safeAreaInsets: configuration.device.safeAreaInsets.uiEdgeInsets,
             isAccessibility: configuration.snapshotType == .accessibility,
