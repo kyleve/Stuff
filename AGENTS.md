@@ -291,6 +291,16 @@ collaborator on a service, a pinned tool version. Name the one or two worth
 learning from and say where the live list is. An exhaustive copy reads
 authoritative long after it stops being true, which is worse than no list.
 
+**Rules state what, not why.** A rule is an imperative sentence, at most one
+clause of consequence (only when the rule would otherwise look wrong enough to
+"fix"), and a pointer to the proof — the guard test, the PR number or commit
+SHA (squash merges keep PR bodies reachable via `git log`), or a `TODOs.md`
+entry. Keep, at one line each: **tripwires** (conditions that invalidate a
+rule — "re-measure if X"), **diagnostic signatures** (the literal error text
+of a failure mode), and **decision rules**. History narration, mechanism
+walkthroughs, and persuasion belong in the PR that proved them — point, don't
+restate.
+
 ## Repo-level docs
 
 A few files outside the module pair carry *state* rather than rules:
