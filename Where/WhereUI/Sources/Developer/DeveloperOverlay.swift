@@ -1,4 +1,5 @@
 #if DEBUG
+    import SnapshotKit
     import SwiftUI
     import UIKit
 
@@ -374,17 +375,16 @@
         }
     }
 
-    #Preview("Collapsed") {
-        ZStack {
-            LinearGradient(
-                colors: [.mint, .indigo],
-                startPoint: .top,
-                endPoint: .bottom,
-            )
-            .ignoresSafeArea()
-
-            DeveloperOverlay()
-                .environment(PreviewSupport.loadedSession())
+    extension DeveloperOverlay: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Collapsed", configurations: .phoneLightDark) {
+                DeveloperOverlay()
+                    .environment(PreviewSupport.loadedSession())
+            }
         }
+    }
+
+    #Preview {
+        DeveloperOverlay.snapshotPreviews
     }
 #endif

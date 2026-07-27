@@ -1,5 +1,6 @@
 import PeriscopeCore
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -17,6 +18,7 @@ struct CalendarContentView: View {
     let report: YearReportModel
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.isCapturingSnapshot) private var isCapturingSnapshot
 
     @State private var monthsLoad: Result<[CalendarMonth], Error>?
     /// The year we've already positioned to the current month. Doubles as the
@@ -186,9 +188,14 @@ struct CalendarContentView: View {
     /// return) skips this and keeps the user's scroll; a year switch rebuilds
     /// the grid and positions afresh. A past year has no current month, so it
     /// simply reveals from the top.
+    ///
+    /// Under snapshot capture the scroll itself is skipped — the landing offset
+    /// of a scroll over a `LazyVStack` depends on how much lazy content has been
+    /// measured, so it's nondeterministic — but the reveal still happens, so
+    /// captures get the deterministic top-of-year state rather than a hidden grid.
     private func positionToCurrentMonthIfNeeded(_ proxy: ScrollViewProxy, months: [CalendarMonth]) {
         guard scrolledForYear != report.selectedYear else { return }
-        let targetID = months.first(where: \.isCurrentMonth)?.id
+        let targetID = isCapturingSnapshot ? nil : months.first(where: \.isCurrentMonth)?.id
         DispatchQueue.main.async {
             if let targetID {
                 proxy.scrollTo(targetID, anchor: .top)
@@ -548,30 +555,49 @@ private struct DayCell: View {
 }
 
 #if DEBUG
-    #Preview("Focused") {
-        NavigationStack {
-            CalendarContentView(
-                focusedRegion: .california,
-                report: PreviewSupport.loadedYearReportModel(),
-            )
+    extension CalendarContentView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "WithData", configurations: .screenDefaults) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport.loadedYearReportModel())
+                }
+            }
+            whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport.emptyYearReportModel())
+                }
+            }
+            whereSnapshot(name: "MissingDays", configurations: .phoneLightDark) {
+                NavigationStack {
+                    CalendarContentView(report: PreviewSupport.missingDaysYearReportModel())
+                }
+            }
+            // The Locations tab's zoom destination: one region's days only.
+            whereSnapshot(name: "Focused", configurations: .phoneLightDark) {
+                NavigationStack {
+                    CalendarContentView(
+                        focusedRegion: .california,
+                        report: PreviewSupport.loadedYearReportModel(),
+                    )
+                }
+            }
+            // The shown months in one image. The full-content frame measures the
+            // scroll view's content height, so every lazy month materializes and
+            // nothing scrolls — which needs the chrome-free view, since a
+            // `NavigationStack` around it defeats content measurement (see
+            // `Frame.fullContent`).
+            whereSnapshot(
+                name: "FullContent",
+                configurations: [
+                    SnapshotConfiguration(device: .fullContent(name: "fullHeight", width: 402)),
+                ],
+            ) {
+                CalendarContentView(report: PreviewSupport.loadedYearReportModel())
+            }
         }
     }
 
-    #Preview("Content loaded") {
-        NavigationStack {
-            CalendarContentView(report: PreviewSupport.loadedYearReportModel())
-        }
-    }
-
-    #Preview("Content empty") {
-        NavigationStack {
-            CalendarContentView(report: PreviewSupport.emptyYearReportModel())
-        }
-    }
-
-    #Preview("Content missing days") {
-        NavigationStack {
-            CalendarContentView(report: PreviewSupport.missingDaysYearReportModel())
-        }
+    #Preview {
+        CalendarContentView.snapshotPreviews
     }
 #endif

@@ -50,7 +50,10 @@ Rules the code enforces and agents must preserve:
   and readers refresh purely off it — write intents just commit, they don't
   refresh inline. The scene's `YearReportModel` subscribes while it's active;
   `DataIssueScanner` drops its cache on the same signal. Launch is driven by
-  [`LifecycleKit`](../Shared/LifecycleKit) (see `WhereLaunch` in WhereUI).
+  [`LifecycleKit`](../Shared/LifecycleKit)'s typed `LaunchPlan` (see
+  `WhereLaunch` in WhereUI: each step is a type whose `Input`/`Output` thread
+  the store scope → session scope through the trunk), rendered by
+  [`LifecycleKitUI`](../Shared/LifecycleKitUI)'s container in `RootView`.
 - **All logging goes through [Periscope](../Shared/Periscope)** via `WhereCore`'s
   `WhereLog` facade — never a raw string. A collaborator derives a typed
   `LogEvent` leaf off a grouping scope (`WhereLog.<group>(SomeLog.self)` /
@@ -291,3 +294,7 @@ Root [testing conventions](../AGENTS.md#testing) apply. What's specific here:
   `CoreLocationSource` or the user's on-disk/CloudKit store. The CloudKit
   remote-import path is exercised with the `@_spi(Testing)`
   `inMemory(remoteChangeSource:)` + `ScriptedStoreRemoteChangeSource`.
+- How screens render is pinned by the matrixed image snapshots in
+  `WhereUISnapshotTests` (own scheme + CI job, not `Stuff-iOS-Tests`) — see
+  [`WhereUI/AGENTS.md`](WhereUI/AGENTS.md#testing). Don't add "hosts without
+  crashing" smoke tests for surfaces that bundle covers.

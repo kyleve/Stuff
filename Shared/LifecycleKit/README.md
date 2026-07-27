@@ -1,320 +1,258 @@
 # LifecycleKit
 
-A small, app-agnostic SwiftUI microframework that models **app startup — and
-its reverse, reset/teardown — as an ordered, conditional, launch-reason-aware
-sequence of async steps**, driven by a `@MainActor @Observable` engine whose
-single published `phase` the root view renders.
+A small, app-agnostic engine that models **app startup — and its reverse,
+reset/teardown — as a typed plan**: a sequential trunk of required steps plus
+concurrent detached fan-outs, driven by a `@MainActor @Observable` runner
+whose single published `phase` the UI layer renders.
 
-It replaces the usual scattering of launch logic (a synchronous `bootstrap()`
-in the app delegate, an async `start()` on a model, a second `start()` from a
-view's `.task`) with one linear, inspectable flow. A thrown error bubbles up to
-a failure phase with retry; logout/erase is the same machinery run in reverse.
+Each step is its own type with concrete `Input`/`Output`. The plan's
+combinators check the data flow at compile time, so the classic launch bugs —
+a step running before the thing it needs exists, a skipped step leaving a
+hole downstream, the app UI rendering off an optional that "should" have been
+set — are unrepresentable rather than merely avoided. A thrown trunk step
+parks the runner in a terminal failure phase (no retry — the recovery is
+relaunching the app); logout/erase is the same machinery run over a teardown
+plan.
 
-LifecycleKit depends only on SwiftUI + Foundation + Observation — no app code.
+LifecycleKit depends only on Foundation + Observation — **no SwiftUI, no app
+code**. Everything rendered lives in [LifecycleKitUI](../LifecycleKitUI).
 
 ## Mental model
 
-Launch is a pipeline. The engine awaits each step in order; advancing to the
-next step just moves the cursor, and a thrown error short-circuits to `.failed`.
+Launch is a typed pipeline. The trunk value at any point is the launch's
+*dependency scope so far* — the proof of everything promoted to that point —
+and it only grows, by each step embedding what came before:
 
 ```
-launching ──▶ running ──▶ running ──▶ … ──▶ ready
-                 │                            ▲
-                 └──▶ failed ──(retry)────────┘
-
-ready ──(teardown)──▶ launching ──▶ … ──▶ ready
+            trunk (required, ordered, typed)                      detached fan
+┌──────────┐   ┌───────────────┐   ┌──────────┐   ┌───────────┐  ┌──────────┐
+│ OpenStore ├──▶│ StartSession ├──▶│ gate:     ├──▶│ SyncAuth  ├─┬▶ Reminders │
+│ Void→Svcs │   │ Svcs→Session │   │Onboarding│   │ (keeping) │ ├▶ Widgets   │ …
+└──────────┘   └───────────────┘   └──────────┘   └───────────┘ └▶ …
+                                                        │
+                                              .ready(Session) — before the fan drains
 ```
 
-The key insight that unifies silent and interactive steps: **an interactive
-step is just an async step that awaits a continuation the presented UI
-resumes.** Onboarding and migration aren't special engine cases — they're steps
-whose `perform` suspends on `bridge.waitForResolution()` while their
-`presentation` view is shown, and the view calls `bridge.complete()`.
+- **`then` steps** produce the next scope; their `Input` must equal the
+  current trunk `Output`, so misordering is a compile error. They can never
+  be skipped (the plan `precondition`s `modes == .all` for them) — a skipped
+  producer would leave a hole in the data flow.
+- **`thenKeeping` steps** are required `Void`-output work; the trunk value
+  flows past them, so they *may* gate on the launch reason.
+- **Gates** park the trunk awaiting external (user) resolution — onboarding
+  is the canonical one. Pass-through by construction, foreground-only by
+  default, re-evaluated when a headless launch is promoted.
+- **Detached children** take the trunk value and return `Void`, so nothing
+  can depend on a fire-and-forget step. They run concurrently, never block
+  `.ready`, and a failure lands on the runner's `detachedFailures`
+  diagnostics — observable, never fatal.
 
 ## Installation
 
-`LifecycleKit` is a local SPM library in this repo (`Shared/LifecycleKit`). Add
-it to a target's dependencies in [`Package.swift`](../../Package.swift):
+`LifecycleKit` is a local SPM library in this repo (`Shared/LifecycleKit`).
+Add it to a target's dependencies in [`Package.swift`](../../Package.swift):
 
 ```swift
-.target(name: "YourUI", dependencies: [.target(name: "LifecycleKit")])
+.target(name: "YourCore", dependencies: [.target(name: "LifecycleKit")])
 ```
 
 ## Core API
 
 ```swift
-// Why we're launching — gates UI-bearing steps. `.undetermined` is the honest
-// state under the UIScene lifecycle, where `applicationState` can't tell a user
-// launch from a headless wake at launch: it behaves like a background launch
-// until `enterForeground()` promotes it once a scene actually activates.
-public enum LifecycleReason { case userForeground, background(LifecycleBackgroundCause), undetermined }
-public struct LifecycleModeSet: OptionSet { /* .foreground, .background, .all */ }
-
-// One unit of launch work. `condition`/`modes` are set at construction (init /
-// .work / .interactive parameters); attach UI with the .presenting modifiers.
-public struct LifecycleStep: Identifiable {
-    public init(id: AnyHashable, modes: LifecycleModeSet = .all,
-                condition: @escaping @MainActor () async -> Bool = { true },
-                perform: ...)
-    public func presenting(minVisible: Duration = .zero, _ view: ...) -> Self            // always while running
-    public func presenting(when: ..., minVisible: Duration = .zero, _ view: ...) -> Self // only if predicate holds at start
-    public func presenting(after: Duration, minVisible: Duration = .zero, _ view: ...) -> Self // only if still running after delay
-    // minVisible (any trigger): once shown, keep the view up at least this long
-
-    public static func work(_ id: AnyHashable, modes: ... = .all, condition: ... = …, _ perform: ...) -> LifecycleStep
-    public static func interactive(_ id: AnyHashable, modes: ... = .foreground, condition: ... = …, perform: ... = …, presenting: ...) -> LifecycleStep
+// One unit of launch/teardown work. Input is what it needs; Output is what
+// finishing proves.
+@MainActor public protocol LifecycleStep {
+    associatedtype Input: Sendable
+    associatedtype Output: Sendable
+    associatedtype ID: Hashable & Sendable  // the plan's identity domain
+    var id: ID { get }                      // a typed enum case
+    var modes: LifecycleModeSet { get }     // defaults to .all
+    func run(_ input: Input, _ context: LifecycleStepContext) async throws -> Output
 }
 
-@resultBuilder public enum LifecycleStepsBuilder {}              // if / if-else / for
-public struct LifecycleSteps { public init(@LifecycleStepsBuilder _ steps: () -> [LifecycleStep]) }
-
-// Bridge between a running step and its presented view.
-@MainActor @Observable public final class LifecycleStepUIBridge {
-    public let reason: LifecycleReason
-    public var progress: Double?      // determinate progress for the view
-    public var message: String?
-    public func complete()            // UI resumes the step
-    public func fail(_ error: Error)  // UI fails the step
-    public func waitForResolution() async throws
+// A trunk node that parks the drive awaiting external resolution.
+// Pass-through by construction; foreground-only by default.
+@MainActor public protocol LifecycleGate {
+    associatedtype Value: Sendable
+    associatedtype ID: Hashable & Sendable
+    var id: ID { get }
+    var modes: LifecycleModeSet { get }     // defaults to .foreground
+    func isNeeded(_ value: Value) async -> Bool
 }
 
-public enum LifecyclePhase {
-    case launching, running(LifecycleStep, LifecycleStepUIBridge), failed(LifecycleFailure), ready
+// The typed tree. ID is the plan's identity domain (inferred from the root
+// step), Input the root step's input (Void for a launch; a real value for a
+// teardown), Output the trunk's final value.
+@MainActor public struct LaunchPlan<ID: Hashable & Sendable, Input: Sendable, Output: Sendable> {
+    public init<S: LifecycleStep>(_ step: S)
+        where S.Input == Input, S.Output == Output, S.ID == ID
+    public func then<S>(_ step: S) -> LaunchPlan<ID, Input, S.Output>
+        where S.Input == Output, S.ID == ID
+    public func thenKeeping<S>(_ step: S) -> Self
+        where S.Input == Output, S.Output == Void, S.ID == ID
+    public func gate<G: LifecycleGate>(_ gate: G) -> Self where G.Value == Output, G.ID == ID
+    public func detached(@DetachedChildrenBuilder<ID, Output> _ children: ...) -> Self
+    public var nodeIDs: [ID]                // introspection for tests/tools
 }
 
-@MainActor @Observable public final class LifecycleRunner {
-    public private(set) var phase: LifecyclePhase
+// The engine, generic over the launch's output.
+@MainActor @Observable public final class LifecycleRunner<Launch: Sendable> {
+    public enum Phase {
+        case launching                          // splash
+        case running(LifecycleStepContext)      // splash + caption/progress
+        case awaitingGate(LifecycleGateHandle)  // the gate's registered view
+        case failed(LifecycleFailure)           // terminal failure UI (no retry)
+        case ready(Launch)                      // the app, handed the launch's output
+    }
+    public private(set) var phase: Phase
+    public private(set) var detachedFailures: [LifecycleFailure] // off-phase diagnostics
     public init(reason: LifecycleReason,
                 initializePrerequisites: @MainActor () -> Void = {},
-                sequence: LifecycleSteps)
-    public func run() async             // walk the steps; idempotent
-    public func retry()                 // re-run from the failed step
-    public func enterForeground() async // promote a background/undetermined launch
-    public func teardown(_ sequence: LifecycleSteps) async // reverse flow → relaunch
+                plan: LaunchPlan<some Hashable & Sendable, Void, Launch>)
+    public func run() async                 // walk the plan; idempotent
+    public func enterForeground() async     // promote a background/undetermined launch
+    public func teardown<In>(_ plan: LaunchPlan<some Hashable & Sendable, In, some Sendable>,
+                             input: In) async
+}
+
+// The engine-minted token for one parked gate — the only way to resume it.
+@MainActor public final class LifecycleGateHandle {
+    public let id: AnyHashable
+    public func complete()
+    public func fail(_ error: Error)
 }
 ```
 
-Steps are built with the `LifecycleStep.work` / `LifecycleStep.interactive`
-factories so sequences read declaratively:
-
-```swift
-LifecycleStep.work(_ id: AnyHashable,
-    modes: LifecycleModeSet = .all,
-    condition: @escaping @MainActor () async -> Bool = { true },
-    _ perform: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void)
-LifecycleStep.interactive(_ id: AnyHashable,
-    modes: LifecycleModeSet = .foreground,
-    condition: @escaping @MainActor () async -> Bool = { true },
-    perform: @escaping @MainActor (LifecycleStepUIBridge) async throws -> Void = { try await $0.waitForResolution() },
-    @ViewBuilder presenting: @escaping @MainActor (LifecycleStepUIBridge) -> some View)
-```
-
-`LifecycleStep.interactive` defaults to `modes: .foreground`: a step whose
-whole job is to wait for the user would deadlock during a headless background
-launch (there's no UI to resolve it), so it's skipped there.
-
-## Where the *final* app UI comes from
-
-The launch sequence is only the **prerequisites**. The destination — the real,
-"logged-in" / default app UI — is **not a step**; it's the `content` closure
-handed to `LifecycleContainer`, rendered when (and only when) the runner reaches
-`.ready`. (It can't be a step: steps complete and the cursor advances, whereas
-the app UI is terminal and persists for the rest of the process lifetime.)
-
-```swift
-LifecycleContainer(runner) {      // `content` == the real app, the destination
-    MainTabView()                 // appears once the runner hits .ready
-}
-```
-
-`LifecycleContainer` renders from `runner.phase`:
-
-| phase | renders |
-|-------|---------|
-| `.launching` / a silent step | `splash()` (defaults to `LifecycleSplash`) |
-| `.running` with a presentation | that step's view (onboarding, migration) |
-| `.failed` | `failure(_:retry:)` (defaults to `LifecycleFailureView`) |
-| `.ready` | `content()` — the destination UI |
-
-Surfaces crossfade by default (see `transition`/`animation` below).
-
-The `splash` and `failure` views are caller-injectable; the convenience
-initializers above default them to the built-ins.
-
-Surface changes (splash → failure → app `content`) are animated. The designated
-initializer takes `transition`/`animation` (a crossfade by default; pass
-`animation: nil` to swap instantly):
-
-```swift
-LifecycleContainer(runner, transition: .opacity, animation: .easeInOut) {
-    MainTabView()
-}
-```
-
-The transition is keyed on `LifecyclePhase.surfaceIdentity`, which collapses
-`.launching` and `.running` into one "splash" surface so a step *advancing* —
-still showing the splash — doesn't retrigger the transition and flash it; only
-reaching `.failed`/`.ready` animates.
-
-The launch surfaces (splash / step presentation / failure) are layered **above**
-`content`. When the runner reaches `.ready` the leaving splash plays its
-*removal* transition over the entering destination — so a reveal that scales the
-splash up and fades it out uncovers the app UI beneath, rather than being
-clipped to a pop behind freshly-inserted content:
-
-```swift
-LifecycleContainer(
-    runner,
-    transition: .asymmetric(insertion: .identity,
-                            removal: .scale(scale: 16).combined(with: .opacity)),
-    animation: .easeIn(duration: 0.55),
-    splash: { LaunchSplashView() },
-) { MainTabView() }
-```
-
-A fast launch can finish before the splash is ever seen (an optimized build may
-reach `.ready` in a few frames), so its reveal flashes past. Pass
-`minimumSplashDuration` to hold the splash up for at least that long once it
-first appears, then play the reveal — it defaults to `.zero` (reveal as soon as
-the runner is ready). The hold is per-appearance, so a reset relaunch (or the
-return from an onboarding step) gets its own minimum:
-
-```swift
-LifecycleContainer(runner, minimumSplashDuration: .seconds(1)) { MainTabView() }
-```
-
-The container also publishes the runner into the environment as
-`\.lifecycleRunner`, a `LifecycleRunnerProxy` (not a bare optional), letting
-nested views reach `retry()`/`teardown()` without prop-drilling. When no
-container is above (previews, isolated tests) the proxy is *disconnected* and
-each call asserts in debug / no-ops in release, so call sites never `guard`:
-
-```swift
-struct ResetButton: View {
-    @Environment(\.lifecycleRunner) private var runner
-    var body: some View {
-        Button("Erase & reset", role: .destructive) {
-            Task { await runner.teardown(teardownSteps) }
-        }
-    }
-}
-```
-
-For a launch that shows no window (`reason.buildsNoViewTree` — a **background**
-relaunch, or an **undetermined** one not yet promoted) it renders `EmptyView()`
-always — even at `.ready` — so `content()` (the heavy view tree) is never built.
+`LifecycleReason` (`.userForeground` / `.background(cause)` / `.undetermined`)
+and `LifecycleModeSet` gate which nodes run: `.undetermined` is the honest
+state under the UIScene lifecycle, where `applicationState` can't tell a user
+launch from a headless wake — it behaves like a background launch until
+`enterForeground()` promotes it once a scene actually activates.
 
 ## Usage
 
-Build the runner early (e.g. in the app delegate, so a headless background
-launch works before any window exists) and drive it:
+Model each step as a type; assemble the plan; build the runner early (e.g. in
+the app delegate, so a headless background launch works before any window
+exists) and drive it:
 
 ```swift
-// App delegate / launch site:
+struct OpenStoreStep: LifecycleStep {
+    let deps: Dependencies
+    let id = StepID.openStore
+    func run(_: Void, _: LifecycleStepContext) async throws -> Services {
+        try await deps.openStore()          // the process's ONE store open
+    }
+}
+
+struct StartSessionStep: LifecycleStep {
+    let id = StepID.startSession
+    func run(_ services: Services, _: LifecycleStepContext) async throws -> Session {
+        Session(services: services)         // scope grows by embedding
+    }
+}
+
+struct OnboardingGate: LifecycleGate {
+    let deps: Dependencies
+    let id = StepID.onboarding
+    func isNeeded(_: Session) async -> Bool { !deps.hasOnboarded }
+}
+
+let plan = LaunchPlan(OpenStoreStep(deps: deps))
+    .then(StartSessionStep())
+    .gate(OnboardingGate(deps: deps))
+    .thenKeeping(SyncAuthStep())            // required, ordered, Void-output
+    .detached {                             // concurrent; never blocks .ready
+        RemindersStep()
+        WidgetSnapshotStep()
+    }
+
 let runner = LifecycleRunner(
-    // Under the UIScene lifecycle `applicationState` reads `.background` even
-    // for a user tap, so don't guess a cause here: launch `.undetermined` and
-    // let `enterForeground()` promote it when a scene actually activates.
     reason: .undetermined,
-    initializePrerequisites: { deps.installLocationManager() }, // synchronous, must-exist-now wiring
-    sequence: LifecycleSteps {
-        LifecycleStep.work("open-store") { _ in try await deps.openStore() }
-            // Migration UI keyed off slowness: shown only if the open is still
-            // running after a beat, then held for a readable minimum.
-            .presenting(after: .milliseconds(500), minVisible: .seconds(1)) {
-                MigrationProgressView(bridge: $0)
-            }
-
-        LifecycleStep.interactive("onboarding", condition: { !deps.hasOnboarded }) {
-            OnboardingView(bridge: $0)
-        }
-
-        LifecycleStep.work("sync-auth")          { _ in await deps.syncAuthorization() }
-        LifecycleStep.work("reconcile-tracking") { _ in await deps.reconcileTracking() }
-        LifecycleStep.work("load")               { _ in await deps.refresh() }
-    },
+    initializePrerequisites: { deps.installLocationManager() }, // sync, must-exist-now
+    plan: plan,
 )
 Task { await runner.run() }
 ```
 
-```swift
-// Root view: gate the real app behind the runner.
-struct RootView: View {
-    @Environment(\.scenePhase) private var scenePhase
-    let runner: LifecycleRunner
+What the compiler now refuses:
 
-    var body: some View {
-        LifecycleContainer(runner) { MainTabView() }
-            // run() is idempotent; promote a background launch only once the
-            // scene is genuinely active, so a background-connected scene stays
-            // headless.
-            .task {
-                await runner.run()
-                if scenePhase == .active { await runner.enterForeground() }
-            }
-            .onChange(of: scenePhase) { _, phase in
-                guard phase == .active else { return }
-                Task { await runner.enterForeground() }
-            }
-    }
-}
+```swift
+LaunchPlan(StartSessionStep())              // ✗ needs Services; nothing produced it yet
+plan.detached { StartSessionStep() }        // ✗ detached children must be Void-output
+LaunchPlan(OpenStoreStep(deps: deps))
+    .gate(OnboardingGate(deps: deps))       // ✗ the gate's Value is Session, not Services
 ```
+
+Rendering — the phase-to-surface mapping, gate-view registration, and the
+`\.lifecycle` environment proxy — lives in
+[LifecycleKitUI](../LifecycleKitUI/README.md).
 
 ### Reset / teardown
 
-Run a reverse sequence and relaunch from the top — e.g. a logout/erase that
-returns the app to first-run onboarding once teardown clears the "has onboarded"
-flag:
+A teardown plan roots at a real value (the thing being torn down), runs its
+nodes, then relaunches from the top as a fresh attempt — e.g. a logout/erase
+that returns the app to first-run onboarding once teardown clears the "has
+onboarded" flag:
 
 ```swift
-Button("Erase all data & reset", role: .destructive) {
-    Task {
-        await runner.teardown(LifecycleSteps {
-            LifecycleStep.work("erase")  { _ in try await deps.eraseAll() }
-            LifecycleStep.work("forget") { _ in deps.resetPreferences() }
-        })
-    }
-}
+await runner.teardown(
+    LaunchPlan(EraseDataStep(deps: deps))       // Session → Void
+        .then(ResetPreferencesStep(deps: deps)),
+    input: session,
+)
 ```
 
-If a teardown step throws, the runner parks in `.failed` and does **not**
-relaunch; `retry()` resumes the teardown from the failed step, then relaunches.
+If a teardown node throws, the runner parks in the terminal `.failed` and
+does **not** relaunch — a thrown erase never reaches the session drop, so
+state stays intact and relaunching the app returns to the working app rather
+than a half-erased one. A teardown's detached children drain *before* the
+relaunch, so no torn-down-world work overlaps the fresh launch.
 
-## Two correctness points designed in deliberately
+Teardown starts from an empty run-once set (the launch attempt is over), so a
+teardown plan may freely reuse launch node IDs — there is no retry re-walk
+that would consult a live launch memo, so no cross-plan disjointness
+precondition is needed.
 
-- **Synchronous `initializePrerequisites` vs. async steps.**
-  `initializePrerequisites` runs synchronously at `init` for cheap,
-  must-exist-now wiring (e.g. installing a `CLLocationManager` delegate a queued
-  background event can't wait for). Everything expensive — including opening a
-  store that may run a slow migration — belongs in an async step, so it never
-  blocks `didFinishLaunching` (and the system watchdog).
+## Correctness points designed in deliberately
 
-- **Windowless launches build no UI.** iOS connects a background scene without
-  displaying it and reclaims such apps first under memory pressure, so a launch
-  with no window should build *no* view tree. `LifecycleContainer` enforces this
-  (`EmptyView()` whenever `reason.buildsNoViewTree` — a `.background` relaunch or
-  an `.undetermined` one not yet promoted); the work still runs because it's
-  driven from the launch site (`Task { await runner.run() }`), independent of
-  whether SwiftUI ever builds the hierarchy. When a window genuinely appears,
-  `enterForeground()` promotes the runner and re-drives so foreground-only
-  steps (onboarding) now run — skipping any step that already completed during
-  the windowless drive, so a work step never runs twice.
-
-All drives (`run` / `enterForeground` / `retry` / `teardown`) are serialized
-through a single internal task, so two never overlap (which would let, e.g., a
-store-open step run twice concurrently). A new drive **cancels** the in-flight
-one and awaits it draining before starting: a parked interactive step's
-`waitForResolution()` throws `CancellationError`, which the engine treats as
-"drive cancelled" (stop quietly), distinct from a step throwing (→ `.failed`).
-That's what lets `teardown()` / `enterForeground()` interrupt a launch parked on
-onboarding instead of hanging forever behind it.
+- **Failure is terminal.** A thrown node parks `.failed` with no retry — the
+  recovery is relaunching the app. (Retry's original customer, a fresh
+  install's transient store-open race, was fixed structurally by injection;
+  genuinely retryable work belongs to the layer that understands it.)
+- **Promotion re-walks with the memo** skipping completed nodes, so completed
+  work never runs twice within an attempt (the memo exists only for
+  promotion — a fresh launch never re-walks a node). A fresh attempt (first
+  `run()`, the start of a teardown, the relaunch after it) clears the memo.
+- **Skipping can't corrupt the data flow.** Only pass-through positions
+  (`thenKeeping`, gates, detached children) may be mode-gated or
+  conditional; a skipped gate is *not* memoized, so `isNeeded` re-evaluates
+  when the launch is promoted (a cold `.undetermined` start still onboards
+  once it becomes user-visible).
+- **`.ready` never waits for the fan, and the fan can't regress it.**
+  `.ready(Launch)` publishes the moment the trunk finishes; detached children
+  drain behind it and report failures only on `detachedFailures`.
+- **Drives never overlap.** All drives (`run` / `enterForeground` /
+  `teardown`) serialize through a single internal task; a new drive cancels
+  the in-flight one and awaits it draining first. A parked gate's wait throws
+  `CancellationError` on cancellation — "drive cancelled" (stop quietly) is
+  distinct from a node throwing (→ `.failed`) — which is what lets
+  `teardown()` / `enterForeground()` interrupt a launch parked on onboarding
+  instead of hanging forever behind it. A superseded drive that throws a
+  *real* error reports cancelled rather than clobbering the phase the new
+  drive owns, and a superseded drive's gate handle resolves to a no-op.
+- **Synchronous `initializePrerequisites` vs. async steps.** It runs
+  synchronously at `init` for cheap, must-exist-now wiring (e.g. installing a
+  `CLLocationManager` delegate a queued background event can't wait for).
+  Everything expensive — including opening a store that may run a slow
+  migration — belongs in an async step, so it never blocks
+  `didFinishLaunching` (and the system watchdog).
 
 ## Testing
 
-The engine and views are exercised with Swift Testing + a hosted UI test host.
-What's worth covering when adopting it: step ordering, `condition` gating, mode
-filtering (background skips foreground-only), thrown error → `.failed` +
-`retry()` resuming from the failed step, interactive suspension until
-`bridge.complete()`, progress propagation, and `teardown()` returning to
-`.launching`. Because a real interactive step suspends, drive it from a `Task`
-and poll `runner.phase` until it parks, then resolve the bridge.
+The engine is exercised with Swift Testing: targeted suites for ordering,
+value threading, mode gating, gates, detached isolation, promotion (memo
+run-once), terminal failure, and teardown (including reusing launch node
+IDs) — plus a seeded fuzz suite that drives randomized plans against an
+independent model (200 seeds). Because a real gate suspends, drive
+the runner from a `Task` and poll `runner.phase` until it parks, then resolve
+the handle.

@@ -7,9 +7,10 @@ import SwiftUI
 /// in-app wait such as generating the recent-activity summary rather than a
 /// full-screen launch.
 ///
-/// Honors Reduce Motion: the pulse pins to a static frame.
+/// Honors Reduce Motion: the pulse pins to a static frame. Snapshot captures
+/// pin it the same way (see ``MotionIsStatic``).
 struct AppIconActivityIndicator: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @MotionIsStatic private var motionIsStatic
     @State private var pulsing = false
 
     /// Edge length of the rendered icon.
@@ -42,7 +43,7 @@ struct AppIconActivityIndicator: View {
                     .scaleEffect(pulsing ? 1.18 : 0.9)
             }
             .onAppear {
-                guard !reduceMotion else { return }
+                guard !motionIsStatic else { return }
                 withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
                     pulsing = true
                 }

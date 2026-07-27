@@ -1,5 +1,6 @@
 import PeriscopeCore
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -285,31 +286,38 @@ private struct LoggedDayRow: View {
 }
 
 #if DEBUG
-    #Preview("Loaded") {
-        NavigationStack {
-            LoggedDaysView(
-                report: PreviewSupport.loadedYearReportModel(),
-                model: PreviewSupport
-                    .loggedDaysModel(state: .loaded(PreviewSupport.sampleManualDays())),
-            )
+    extension LoggedDaysView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Loaded", configurations: .screenDefaults) {
+                NavigationStack {
+                    LoggedDaysView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        model: PreviewSupport
+                            .loggedDaysModel(state: .loaded(PreviewSupport.sampleManualDays())),
+                    )
+                }
+            }
+            whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
+                NavigationStack {
+                    LoggedDaysView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        model: PreviewSupport.loggedDaysModel(state: .empty),
+                    )
+                }
+            }
+            whereSnapshot(name: "Failed", configurations: .phoneLightDark) {
+                NavigationStack {
+                    LoggedDaysView(
+                        report: PreviewSupport.loadedYearReportModel(),
+                        model: PreviewSupport
+                            .loggedDaysModel(state: .failed("iCloud is unavailable.")),
+                    )
+                }
+            }
         }
     }
 
-    #Preview("Empty") {
-        NavigationStack {
-            LoggedDaysView(
-                report: PreviewSupport.loadedYearReportModel(),
-                model: PreviewSupport.loggedDaysModel(state: .empty),
-            )
-        }
-    }
-
-    #Preview("Failed") {
-        NavigationStack {
-            LoggedDaysView(
-                report: PreviewSupport.loadedYearReportModel(),
-                model: PreviewSupport.loggedDaysModel(state: .failed("iCloud is unavailable.")),
-            )
-        }
+    #Preview {
+        LoggedDaysView.snapshotPreviews
     }
 #endif

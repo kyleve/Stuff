@@ -1,7 +1,3 @@
-import Foundation
-import LifecycleKit
-import SwiftUI
-import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
 import WhereUI
@@ -26,22 +22,5 @@ struct OnboardingModelTests {
         // A fresh model over the same preferences sees onboarding as done.
         let relaunched = WhereModel(preferences: preferences)
         #expect(relaunched.hasOnboarded)
-    }
-}
-
-@MainActor
-struct OnboardingViewTests {
-    @Test func onboardingViewRenders() throws {
-        // Onboarding reads both the app model and the logged-in session; the
-        // injected services build the session up front, so inject both.
-        let model = WhereModel(services: PreviewSupport.previewServices())
-        let view = OnboardingView(bridge: LifecycleStepUIBridge(reason: .userForeground))
-            .environment(model)
-            .environment(model.session)
-
-        try show(UIHostingController(rootView: view)) { hosted in
-            waitForOneRunloop()
-            #expect(hosted.view != nil)
-        }
     }
 }

@@ -1,3 +1,4 @@
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -91,9 +92,17 @@ private struct StintRow: View {
 }
 
 #if DEBUG
-    #Preview {
-        NavigationStack {
-            PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+    extension PresenceTimelineList: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "WithData", configurations: .screenDefaults) {
+                NavigationStack {
+                    PresenceTimelineList(report: PreviewSupport.loadedYearReportModel())
+                }
+            }
         }
+    }
+
+    #Preview {
+        PresenceTimelineList.snapshotPreviews
     }
 #endif

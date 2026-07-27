@@ -28,6 +28,20 @@ mise trust
 echo "==> mise install"
 mise install
 
+# .githooks carries the Git LFS hooks beside the pre-commit formatter, and they
+# exit non-zero when git-lfs is missing — so it has to be here before Git is
+# pointed at them, or checkout/merge/commit break on this VM. It isn't in the
+# base image, and mise can't supply it: the hooks run outside `mise exec`.
+if ! command -v git-lfs >/dev/null 2>&1; then
+    echo "==> installing git-lfs"
+    if command -v sudo >/dev/null 2>&1; then
+        sudo apt-get update -qq && sudo apt-get install -y -qq git-lfs
+    else
+        apt-get update -qq && apt-get install -y -qq git-lfs
+    fi
+fi
+git lfs install --local --skip-repo
+
 # Match ./ide: route Git at the repo's hooks so a cloud agent's commits get the
 # same SwiftFormat pass as a local one. Now that Tuist is OS-scoped, the hook's
 # `mise exec --` calls resolve on Linux instead of trying to install Tuist.

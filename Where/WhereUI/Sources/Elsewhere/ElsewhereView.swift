@@ -1,5 +1,6 @@
 import PeriscopeCore
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -115,15 +116,22 @@ struct ElsewhereView: View {
 }
 
 #if DEBUG
-    #Preview("Loaded") {
-        NavigationStack {
-            ElsewhereView(report: PreviewSupport.loadedYearReportModel())
+    extension ElsewhereView: SnapshotProviding {
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(name: "Loaded", configurations: .screenDefaults) {
+                NavigationStack {
+                    ElsewhereView(report: PreviewSupport.loadedYearReportModel())
+                }
+            }
+            whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
+                NavigationStack {
+                    ElsewhereView(report: PreviewSupport.emptyYearReportModel())
+                }
+            }
         }
     }
 
-    #Preview("Empty") {
-        NavigationStack {
-            ElsewhereView(report: PreviewSupport.emptyYearReportModel())
-        }
+    #Preview {
+        ElsewhereView.snapshotPreviews
     }
 #endif

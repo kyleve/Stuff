@@ -1,5 +1,6 @@
 import PeriscopeCore
 import RegionKit
+import SnapshotKit
 import SwiftUI
 import WhereCore
 
@@ -222,19 +223,31 @@ private struct ResolveToolbarLabel: View {
 }
 
 #if DEBUG
-    #Preview("Loaded") {
-        LocationsView(report: PreviewSupport.loadedYearReportModel())
+    extension LocationsView: SnapshotProviding {
+        /// The raised settle floor on `Loaded` outlasts the iOS 26 glass toolbar
+        /// material adaptation (seen pre-adaptation once on the equivalent
+        /// pre-split screen) — same mechanism as `RootView.LoggedIn`.
+        static var snapshots: [SnapshotCase] {
+            whereSnapshot(
+                name: "Loaded",
+                configurations: .screenDefaults,
+                settle: .settledAtLeast(minDuration: 1.0),
+            ) {
+                LocationsView(report: PreviewSupport.loadedYearReportModel())
+            }
+            whereSnapshot(name: "Empty", configurations: .phoneLightDark) {
+                LocationsView(report: PreviewSupport.emptyYearReportModel())
+            }
+            whereSnapshot(name: "MissingDays", configurations: .phoneLightDark) {
+                LocationsView(report: PreviewSupport.missingDaysYearReportModel())
+            }
+            whereSnapshot(name: "ElsewhereOnly", configurations: .phoneLightDark) {
+                LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
+            }
+        }
     }
 
-    #Preview("Empty") {
-        LocationsView(report: PreviewSupport.emptyYearReportModel())
-    }
-
-    #Preview("Missing days") {
-        LocationsView(report: PreviewSupport.missingDaysYearReportModel())
-    }
-
-    #Preview("Elsewhere only") {
-        LocationsView(report: PreviewSupport.elsewhereOnlyYearReportModel())
+    #Preview {
+        LocationsView.snapshotPreviews
     }
 #endif
