@@ -7,74 +7,47 @@ the root [`AGENTS.md`](../../AGENTS.md).
 
 ## Scope & dependencies
 
-- **May import:** Foundation. Nothing else — not even logging.
-- **Must not import:** any app or feature module (`WhereCore`, `WhereUI`, …), or
-  any UI framework. CreditKit is a leaf that anything may depend on; an edge
-  pointing *out* of it would defeat the reason it exists.
-- **Wired in:** `Package.swift` (`CreditKit` product, consumed by `WhereCore`
-  and `WhereUI`) and `Project.swift` (`CreditKitTests`, in the
-  `Stuff-iOS-Tests` scheme).
-
-## Layering
-
-`SoftwareCredit` and `LicenseNotice` are the values; `AttributionManifest` is a
-decoded report plus the two ways to get one (`decode(from:)`,
-`load(from:resource:)`). Nothing holds state, nothing is a singleton, and
-nothing knows how a report is presented — grouping, labeling, and translation
-belong to the consuming UI.
-
-`Tools/generate-attribution.rb` is the other half of the module and is the only
-thing that writes a report.
+- **May import:** Foundation. Nothing else — not even logging. CreditKit is a
+  leaf that anything may depend on.
+- **Must not import:** any app or feature module, or any UI framework.
+- **Wired in:** `Package.swift` (`CreditKit` product) and `Project.swift`
+  (`CreditKitTests`, in the `Stuff-iOS-Tests` scheme). Presentation belongs to
+  the consuming UI; `Tools/generate-attribution.rb` is the only thing that
+  writes a report.
 
 ## Invariants
 
 - **CreditKit ships no credits and no notices.** A report describes one app's
-  dependency graph, so it belongs in that app's resources — for Where, in
-  `Where/Where/Resources/attribution.json`. If a license file or a `credits.json`
-  ever reappears under `Sources/`, the module has drifted back into being one
-  app's data.
-- **Nothing here may name a real dependency.** `CreditKitTests` covers the
-  format and the API with fixtures only; asserting that some package is credited
-  is the *app's* test to write, because only the app knows what it links. See
-  `AppAttributionTests` in `Where/Where/Tests/`.
-- **Failure is thrown, never logged or defaulted.** The module has no logger by
-  design, and a missing report is not inherently an error — only the app knows
-  which of its bundles are expected to carry one. Returning an empty manifest
-  instead of throwing would render as "nothing to credit", which is the one
-  wrong answer.
-- **`Kind` is load-bearing, not decoration.** `.developmentTool` credits are not
-  in the shipping binary. A UI that renders both kinds in one undifferentiated
-  list would misrepresent the app, so the distinction must survive into the
-  presentation. Its raw values are a wire format the generator writes; renaming
-  a case silently invalidates every committed report. The generator validates
-  each source's `kind` against them before it does any work, so a config typo
-  fails there rather than as a decode fault inside the app.
-- **Credit names are unique across a report.** `SoftwareCredit` is `Identifiable`
-  by `name`, so a duplicate hands a SwiftUI `ForEach` two rows with one id — and
-  a library's name is its repo basename, so two orgs publishing the same repo
-  name is all it takes. The generator enforces this (case-insensitively) over the
-  assembled report, since that is the only place holding every credit at once.
-- **Notices are read at the pinned revision.** Not the default branch — upstream
-  edits a notice between releases, and shipping HEAD's text would attribute
-  terms that don't govern the code in the binary.
-- **The generator keys off `.product(name:package:)`, not the `dependencies:`
-  list.** That is what keeps a package resolved for tooling alone (BumperBowling,
-  and swift-syntax beneath it) out of a report by construction.
-- **Linking is not shipping, so `kind` is derived from reachability.** The
-  config's `shippedFrom` names the app's root package targets; the generator
-  walks the manifest's target graph from there, and a package inside that
-  closure is a `library` while any other linked package is a `developmentTool`.
-  A test-support target's dependencies (the snapshot engine, the accessibility
-  parser) are linked by the package but never reach a device — crediting them as
-  libraries would misdescribe the binary, which is the one thing `Kind` exists to
-  prevent. `shippedFrom` is the only hand-set part; everything downstream of it
-  follows from the graph, so a new dependency can't be silently misfiled.
+  dependency graph and lives in that app's resources (for Where,
+  `Where/Where/Resources/attribution.json`) — never under `Sources/` here.
+- **Nothing here may name a real dependency.** `CreditKitTests` uses fixtures
+  only; asserting that some package is credited is the app's test
+  (`AppAttributionTests` in `Where/Where/Tests/`).
+- **Failure is thrown, never logged or defaulted** — an empty manifest would
+  render as "nothing to credit", the one wrong answer. Only the app knows
+  which of its bundles should carry a report.
+- **`Kind` is load-bearing** — a UI must keep `.developmentTool` and library
+  credits visually distinct. Its raw values are a wire format; renaming a case
+  invalidates every committed report. The generator validates each source's
+  `kind` up front so a config typo fails there, not as a decode fault in-app.
+- **Credit names are unique across a report** (enforced case-insensitively by
+  the generator) — `SoftwareCredit` is `Identifiable` by `name`, and a
+  library's name is its repo basename.
+- **Notices are read at the pinned revision**, never the default branch —
+  HEAD's text may not govern the code in the binary.
+- **The generator keys off `.product(name:package:)`, not `dependencies:`** —
+  that keeps tooling-only packages (BumperBowling, swift-syntax) out of a
+  report by construction.
+- **`kind` is derived from reachability, not declared.** `shippedFrom` names
+  the app's root package targets; anything inside that closure is a `library`,
+  any other linked package a `developmentTool` — linking is not shipping.
+  `shippedFrom` is the only hand-set part.
 
 ## Testing
 
-`CreditKitTests` covers the manifest as a format and an API: decoding the exact
-JSON the generator writes, rejecting a malformed report or an unknown `kind`,
-round-tripping, filtering by kind, and `load` throwing for a bundle with no
+`CreditKitTests` covers the manifest as a format and an API: decoding the
+exact JSON the generator writes, rejecting malformed reports and unknown
+`kind`s, round-tripping, filtering, and `load` throwing for a bundle with no
 report. Shared fixtures live in `CreditKitTestSupport.swift`; its
 `SampleReport.json` (a string constant on the `SampleReport` enum, not a
 fixture file) is a literal rather than an encoder round-trip so a Swift-side

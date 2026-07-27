@@ -16,115 +16,66 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   `SwiftDataInspectorSnapshotTests`, gathered into the `StuffSnapshotTests`
   *scheme*) and `SnapshotKitTestingTests` — **never** a shipping app or
   `StuffTestHost`.
-- **"Process-global" here means per *process*, and that is only safe because
-  each test bundle gets its own.** Everything below described as
-  process-global — the safe-area swizzle's depth counter and override globals,
-  `SnapshotCaptureLock`, the animations save/restore — is *module*-global, so
-  it is one copy per copy of this module, and each `.xctest` statically embeds
-  its own (verified with `nm`: every consuming bundle defines a private
-  `_swizzleDepth`). Two copies **co-loaded into one process** would hold
-  independent depth counters against the single shared `UIView` method
-  exchange — parity flips, captures silently render with the simulator's real
-  safe-area insets, and neither lock sees the other's captures. xcodebuild
-  gives each bundle its own `StuffTestHost` process (measured on Xcode 27 via
-  `ProcessInfo.processIdentifier` probes from two bundles in one scheme), so
-  the several image bundles and `SnapshotKitTestingTests` never collide. Treat
-  that as this module's load-bearing environmental assumption: if bundles ever
-  start sharing a host process, this state has to become genuinely
-  process-wide before another consumer is added.
-- **`WhereUISnapshotTests` double-embeds `SnapshotKit`, tolerated and guarded.**
-  Listing this product in `extraPackageProducts` statically embeds its
-  dependency closure — including `SnapshotKit` — into the `.xctest`, and
-  WhereUI statically embeds its own copy into the same image: the
-  duplicate-type-metadata hazard from the root `AGENTS.md` "Targets" note,
-  with `\.isCapturingSnapshot` as the type-keyed cross-boundary lookup at
-  risk. This applies only to that bundle — the Periscope and
-  SwiftDataInspector image bundles don't link WhereUI at all. There is no
-  cleaner wiring (the pipeline must reach the bundle without ever linking into
-  the UI module), the trait lookup demonstrably resolves across both copies
-  today, and `WhereUISnapshotTests.SnapshotCaptureFlagProbeTests` fails loudly
-  if the copies ever split — see the snapshot-bundle comment in
-  `Project.swift` for the full topology.
+- **"Process-global" state here is module-global — one copy per consuming
+  `.xctest` — and that is safe only because each bundle gets its own host
+  process.** Two copies co-loaded into one process would flip the safe-area
+  swizzle's parity and hide captures from each other's lock. Tripwire: if a
+  toolchain ever shares one host process across bundles, re-measure before
+  adding a consumer — topology and measurement in the snapshot-bundle comment
+  in `Project.swift` and the root [`AGENTS.md`](../../AGENTS.md#targets).
+- **`WhereUISnapshotTests` double-embeds `SnapshotKit`, tolerated and
+  guarded** (this product's closure plus WhereUI's own copy in one image; the
+  other image bundles don't link WhereUI). Guard:
+  `WhereUISnapshotTests.SnapshotCaptureFlagProbeTests` fails loudly if the
+  copies split; mechanism: PR #145.
 - Re-exports `SnapshotKit` and `SnapshotTesting` so consumers need one import.
 - Library target in [`Package.swift`](../../Package.swift).
 
 ## Invariants an agent can't re-derive
 
-- **The rendering pipeline is a single function, not per-call code.** All
-  captures (standard and accessibility) flow through the same async
-  `renderSnapshotImage(...)` so a config's traits/size/type are the only thing
-  that varies; callers assert on the returned image (its `async` is
+- **The rendering pipeline is one async function.** All captures (standard and
+  accessibility) flow through `renderSnapshotImage(...)`; its `async` is
   load-bearing — a synchronous `Snapshotting` pullback could never settle
-  `.task`-driven content). Accessibility is just a `snapshotType`, wrapped
-  before the same capture — not a separate path.
-- **The compare sees on-disk bytes.** Every capture is round-tripped through
-  PNG encoding before comparison so the perceptual diff runs on exactly what's
-  flushed to disk — removing it re-opens the wide-gamut in-memory vs. sRGB
-  reference flake (see `renderSnapshotImage`'s doc).
-- **The runner fails fast, once, on setup problems.** A simulator that doesn't
-  match the scheme's `SNAPSHOT_EXPECTED_*` pins, or two variants that would
-  share one reference name, records a single clear issue and asserts nothing —
-  never hundreds of confusing pixel diffs.
-- **An unsettled capture is a failure, not a silent fallback.** `settleContent`
-  returns a `SettleOutcome`, and `reportIfUnsettled` records an issue when the
-  budget expires with the content still changing. Capturing whatever frame
-  happened to be on screen is how a flaky reference lands, so don't "fix" a
-  timeout by widening the budget — freeze the motion behind
-  `\.isCapturingSnapshot`, or use `.settledAtLeast` only when the content is
-  genuinely slow rather than endless.
-- **The settle budget bounds observed motion, not proof-of-stability.** On a
-  starved machine a single settle pass can cost over a second, so fewer passes
-  than stability needs may fit in the budget; failing then blames "content
-  still changing" on content never once seen to change (CI reproduced exactly
-  that: a static screen timing out ~50% of cold runs while its capture still
-  matched the reference). So `.timedOut` requires an *observed* change, a
-  change-free loop keeps running until it can prove stability, and only a hard
-  cap several budgets out gives up as `.starved` — an environment failure, not
-  view motion. Guarded by `SnapshotRenderingSupportTests`.
-- **Captures are single-tenant per process, enforced by `SnapshotCaptureLock`.**
-  Every capture holds process-global state (the safe-area swizzle + override
-  globals, the animations flag, the one `StuffTestHost` key window) across the
-  settle phase's suspensions, so interleaved captures corrupt each other
-  (verified — in-process parallel scheduling produced 24+ spurious mismatches;
-  see the snapshot job comment in `.github/workflows/ci.yml`).
-  `renderSnapshotImage` serializes captures through a FIFO `@MainActor` mutex,
-  and the safe-area swizzle is depth-counted so unbalanced pairs can't flip the
-  method-exchange parity (guarded by
-  `SnapshotKitTestingTests.ConcurrentCaptureTests`). Nested captures — a hook
-  rendering another snapshot — trap. Keep the suite serial anyway: concurrent
-  scheduling now degrades to queued-serial rather than corrupt, gaining nothing.
-- **Rendering runs in the host key window.** It requires `StuffTestHost`'s window
-  (via `TestHostSupport.hostKeyWindow()`); it is not usable from a non-hosted
-  bundle.
-- **Determinism is pinned.** Reference images are only valid for the fixed
-  simulator/scale; the pipeline overrides safe-area insets and quiesces
-  animations so the physical device insets and in-flight transitions don't leak
-  into the image. It also sets `SnapshotCaptureTrait` on the captured
-  controller so views can read `\.isCapturingSnapshot` (SnapshotKit) and freeze
-  never-settling motion at a deterministic phase — set on the *content*
-  controller, not a wrapper, so it survives the intrinsic-measurement
-  re-hosting.
-- **Tile-and-stitch is load-bearing, not legacy.** UIKit still renders a blank
-  image for views taller/wider than ~2000pt on the target toolchain (iOS 27.0 —
-  verified by a probe during development, guarded by
-  `SnapshotKitTestingTests.LargeViewCaptureTests`). Captures go through
-  `SnapshotWrappingViewController` + `tileAndStitchImage`; don't remove the
-  tiling on the assumption the bug is fixed without re-running that check.
+  `.task`-driven content.
+- **The compare sees on-disk bytes.** Every capture round-trips through PNG
+  encoding before comparison; removing it re-opens the wide-gamut vs. sRGB
+  flake (see `renderSnapshotImage`'s doc).
+- **The runner fails fast, once, on setup problems** (a simulator that doesn't
+  match the `SNAPSHOT_EXPECTED_*` pins, two variants sharing one reference
+  name) — one clear issue, never hundreds of pixel diffs.
+- **An unsettled capture is a failure, not a silent fallback.** Don't "fix" a
+  settle timeout by widening the budget — freeze the motion behind
+  `\.isCapturingSnapshot`, or use `.settledAtLeast` only for genuinely slow
+  (not endless) content.
+- **`.timedOut` requires observed motion; starvation is `.starved`.** A
+  change-free settle loop keeps running until it can prove stability (a
+  starved machine can fit fewer passes than stability needs), and only a hard
+  cap gives up as `.starved` — an environment failure, not view motion.
+  Guard: `SnapshotRenderingSupportTests`.
+- **Captures are single-tenant per process** — `renderSnapshotImage`
+  serializes through a FIFO `@MainActor` mutex, the safe-area swizzle is
+  depth-counted, and nested captures trap. Keep the suite serial anyway:
+  concurrent scheduling degrades to queued-serial, gaining nothing. Guard:
+  `SnapshotKitTestingTests.ConcurrentCaptureTests`; the interleaving failure
+  is recorded in the snapshot job comment in `.github/workflows/ci.yml`.
+- **Rendering requires `StuffTestHost`'s key window**
+  (`TestHostSupport.hostKeyWindow()`) — not usable from a non-hosted bundle.
+- **Determinism is pinned.** The pipeline overrides safe-area insets,
+  quiesces animations, and sets `SnapshotCaptureTrait` on the *content*
+  controller (not a wrapper — it must survive the intrinsic-measurement
+  re-hosting) so views can freeze never-settling motion.
+- **Tile-and-stitch is load-bearing, not legacy.** UIKit renders a blank
+  image for views past ~2000pt on iOS 27.0; don't remove the tiling without
+  re-running the probe. Guard:
+  `SnapshotKitTestingTests.LargeViewCaptureTests`.
 
 ## Testing
 
-`SnapshotKitTestingTests` (`Tests/`, wired in `Project.swift`, in the
-`Stuff-iOS-Tests` scheme) owns the pipeline's own regression tests: async-content
-settle, the settle loop's ending conditions (starved-but-static settles, observed
-motion times out), concurrent-capture serialization, duplicate-identifier
-detection, tile-and-stitch / full-content sizing, the pre-capture hook, the
-same-image capture-flag surface, and safe-area composition (the swizzle zeroes
-the captured root while an interior `safeAreaInset` still composes). They render through
-`renderSnapshotImage` (so they need the `StuffTestHost` key window) but assert on
-probed pixels via the `@_spi(Testing)` `PixelSample`/`probePixel` API rather than
-LFS reference images — so the bundle is fast, has no `__Snapshots__/`, and runs
-in the main `test` job, not the snapshot job. The matrixed image assertions
-themselves are still exercised by the per-module image bundles; the
-WhereUI↔bundle cross-boundary flag probe lives in `WhereUISnapshotTests`
-(`SnapshotCaptureFlagProbeTests`), since only a WhereUI-defined view can detect
-a duplicate-`SnapshotKit` split.
+`SnapshotKitTestingTests` (`Tests/`, in the `Stuff-iOS-Tests` scheme) owns the
+pipeline's own regression tests. They render through `renderSnapshotImage`
+(so they need the `StuffTestHost` key window) but assert on probed pixels via
+the `@_spi(Testing)` `PixelSample`/`probePixel` API rather than LFS reference
+images — fast, no `__Snapshots__/`, main `test` job. The matrixed image
+assertions live in the per-module image bundles; the cross-boundary flag
+probe stays in `WhereUISnapshotTests`, since only a WhereUI-defined view can
+detect a duplicate-`SnapshotKit` split.

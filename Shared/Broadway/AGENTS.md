@@ -1,9 +1,8 @@
 # Broadway – Module Group Shape
 
-Broadway is a design-system stack imported into Stuff (git history preserved)
-from its own repo. It centers on `BContext` — a type-keyed environment (traits,
-themes, lazily-cached stylesheets) that flows through a UIKit + SwiftUI view
-hierarchy. See [`README.md`](README.md).
+Broadway is a design-system stack centered on `BContext` — a type-keyed
+environment (traits, themes, lazily-cached stylesheets) that flows through a
+UIKit + SwiftUI view hierarchy. See [`README.md`](README.md).
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md), which owns build,
 formatting, and global conventions. Read that first.
