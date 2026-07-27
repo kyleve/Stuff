@@ -154,11 +154,10 @@ required previews) live in the feature [`Where/AGENTS.md`](../AGENTS.md).
 
 Screens, widgets, and app-flow surfaces are pinned as matrixed image snapshots
 under [`SnapshotTests/`](SnapshotTests) — those, not hosting smoke tests, own
-"does this screen render". The files compile into the repo-wide
-`StuffSnapshotTests` bundle (shared with the other modules' image suites; see
-the root [`AGENTS.md`](../../AGENTS.md#targets) for why there is exactly one
-snapshot bundle), but they live and record their references here, next to the
-views they cover. **Each view
+"does this screen render". They build as this module's own
+`WhereUISnapshotTests` bundle, which runs alongside the other modules' image
+suites in the shared `StuffSnapshotTests` scheme and its CI job (root
+[`AGENTS.md`](../../AGENTS.md#targets)). **Each view
 declares its matrix once, in its own source file**, via a `SnapshotProviding`
 conformance under `#if DEBUG` whose `#Preview` renders `Self.snapshotPreviews` —
 so one declaration drives both the Xcode cutsheet and the image tests (the

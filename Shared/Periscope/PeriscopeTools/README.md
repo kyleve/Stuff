@@ -112,8 +112,9 @@ stores (`@_spi(Testing) PeriscopeStore.inMemory`), views host via
 
 How the tools render is pinned by image snapshots in
 [`SnapshotTests/`](SnapshotTests), with reference images under
-`SnapshotTests/__Snapshots__/` in Git LFS. They compile into the repo-wide
-`StuffSnapshotTests` bundle (one snapshot bundle for the whole repo) but record
-their references here. Run with `tuist test StuffSnapshotTests`; to re-record
+`SnapshotTests/__Snapshots__/` in Git LFS. They build as the module's own
+`PeriscopeToolsSnapshotTests` bundle, which runs alongside every other module's
+image suite in the shared `StuffSnapshotTests` scheme. Run with
+`tuist test StuffSnapshotTests`; to re-record
 after an intentional UI change, see the
 [SnapshotKitTesting README](../../SnapshotKitTesting/README.md#recording).

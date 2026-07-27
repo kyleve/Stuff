@@ -148,10 +148,10 @@ jobs:
       # Image snapshots are slow and LFS-backed, so they run in their own job via
       # the standalone `StuffSnapshotTests` scheme (declared in Project.swift)
       # rather than the aggregate `Stuff-iOS-Tests` scheme the `test` job uses.
-      # That one scheme covers every module's image suite: they all compile into
-      # a single bundle, deliberately — see the `StuffSnapshotTests` comment in
-      # Project.swift for why a second snapshot bundle in this process would
-      # break the capture pipeline's process-global state.
+      # That one scheme gathers every module's image bundle
+      # (WhereUISnapshotTests, PeriscopeToolsSnapshotTests,
+      # SwiftDataInspectorSnapshotTests), so this stays a single invocation as
+      # more modules opt in.
       #
       # Deliberately NOT `-parallel-testing-enabled`: the capture pipeline is
       # single-tenant — every test renders into the one StuffTestHost key
