@@ -134,11 +134,12 @@ describe neither. `AppAttributionTests`, in
 the app's own test bundle because it is the one hosted by `Where.app`, asserts
 what the report contains.
 
-A **linked library** and a **development tool** (the agent skills
-`./sync-agents` vendors) render as separate sections. Keep them separate: a
-development tool is credited because the repository copies it, not because it is
-in the binary, and one merged list would tell a reader something untrue about
-the app they are running.
+A **shipped library** and a **development tool** render as separate sections.
+Development tools are the agent skills `./sync-agents` vendors *and* packages
+linked only outside the app's target closure (the snapshot-testing engine, the
+accessibility parser) — credited because the repository depends on them, not
+because they reach a device. Keep the sections separate: one merged list would
+tell a reader something untrue about the app they are running.
 
 ## Localization
 

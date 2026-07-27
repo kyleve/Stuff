@@ -60,6 +60,15 @@ thing that writes a report.
 - **The generator keys off `.product(name:package:)`, not the `dependencies:`
   list.** That is what keeps a package resolved for tooling alone (BumperBowling,
   and swift-syntax beneath it) out of a report by construction.
+- **Linking is not shipping, so `kind` is derived from reachability.** The
+  config's `shippedFrom` names the app's root package targets; the generator
+  walks the manifest's target graph from there, and a package inside that
+  closure is a `library` while any other linked package is a `developmentTool`.
+  A test-support target's dependencies (the snapshot engine, the accessibility
+  parser) are linked by the package but never reach a device — crediting them as
+  libraries would misdescribe the binary, which is the one thing `Kind` exists to
+  prevent. `shippedFrom` is the only hand-set part; everything downstream of it
+  follows from the graph, so a new dependency can't be silently misfiled.
 
 ## Testing
 

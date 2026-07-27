@@ -3,9 +3,9 @@
   "sources": [
     {
       "type": "swiftPackageManager",
-      "kind": "library",
       "manifest": "Package.swift",
-      "resolved": "Package.resolved"
+      "resolved": "Package.resolved",
+      "shippedFrom": ["WhereUI", "WhereIntents"]
     },
     {
       "type": "agentSkills",

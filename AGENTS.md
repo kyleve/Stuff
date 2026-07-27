@@ -126,11 +126,16 @@ package or a skill.** Nothing fails a build if you forget; each app asserts its
 own report instead (`AppAttributionTests` for Where), which is where that
 assertion belongs, since only the app knows what it should contain.
 
-`SoftwareCredit.Kind` keeps a **linked library** apart from a **development
+`SoftwareCredit.Kind` keeps a **shipped library** apart from a **development
 tool**, and that distinction must survive into any UI: a tool is credited
-because the repo copies it, not because it ships. Data-source provenance for
-bundled geometry is separate and stays with its data, in
-[`RegionKit`](Where/RegionKit/AGENTS.md).
+because the repo uses it, not because it reaches a device. **Kind is derived,
+not declared** — the config's `shippedFrom` names the package targets the app
+and its extensions link, and anything reachable from that closure is a library
+while any other linked package is a tool. Linking is not shipping: the
+snapshot-testing engine is linked by a test-support target and never reaches a
+binary, and crediting it as a library would tell a reader their app contains it.
+Data-source provenance for bundled geometry is separate and stays with its data,
+in [`RegionKit`](Where/RegionKit/AGENTS.md).
 
 ## Architecture lint
 

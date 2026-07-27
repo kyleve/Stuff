@@ -24,16 +24,21 @@ struct AppAttributionTests {
         #expect(try !report().credits.isEmpty)
     }
 
-    @Test func creditsEveryPackageATargetLinks() throws {
-        // The one external package any target links via `.product(name:package:)`.
-        // BumperBowling and swift-syntax are resolved for architecture linting
-        // and never reach the binary, so they are deliberately absent.
+    @Test func creditsEveryPackageTheAppShips() throws {
+        // The one external package inside the app's target closure. BumperBowling
+        // and swift-syntax are resolved for architecture linting and never linked
+        // at all, so they are deliberately absent.
         #expect(try report().credits(ofKind: .library).map(\.name) == ["ZIPFoundation"])
     }
 
-    @Test func creditsTheVendoredAgentSkills() throws {
+    @Test func creditsWhatTheRepoUsesWithoutShipping() throws {
         let tools = try Set(report().credits(ofKind: .developmentTool).map(\.name))
         #expect(tools == [
+            // Linked only by the test-support target, so credited but not in the
+            // binary — listing these as libraries would misdescribe the app.
+            "AccessibilitySnapshot",
+            "swift-snapshot-testing",
+            // Vendored into the repo by ./sync-agents.
             "swift-concurrency-pro",
             "swift-testing-pro",
             "swiftdata-pro",

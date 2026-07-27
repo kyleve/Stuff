@@ -14,8 +14,8 @@
 #   {
 #     "output": "Where/Where/Resources/attribution.json",
 #     "sources": [
-#       { "type": "swiftPackageManager", "kind": "library",
-#         "manifest": "Package.swift", "resolved": "Package.resolved" },
+#       { "type": "swiftPackageManager", "manifest": "Package.swift",
+#         "resolved": "Package.resolved", "shippedFrom": ["WhereUI"] },
 #       { "type": "agentSkills", "kind": "developmentTool",
 #         "manifest": ".agents/external-skills.json" }
 #     ]
@@ -27,6 +27,13 @@
 #     `.product(name:package:)` in the manifest, pinned by the resolved file. A
 #     package declared for tooling alone (an architecture linter, say) is never
 #     linked and so is deliberately not credited.
+#
+#     `kind` is **derived, not declared**: `shippedFrom` names the package
+#     targets the shipping app and its extensions link, and a package reachable
+#     from that closure is a `library` while any other linked package is a
+#     `developmentTool`. Linking alone doesn't mean shipping — a snapshot-testing
+#     engine is linked by a test-support target and never reaches a device — and
+#     crediting one as a `library` would tell a reader their binary contains it.
 #   - `agentSkills` — a `./sync-agents` external-skills manifest of
 #     `name -> { repo, ref }`. These are not in the binary, but the repository
 #     makes copies of them, which is what their licenses ask us to attribute.
@@ -51,11 +58,13 @@ def fail_with(message)
   abort "generate-attribution: #{message}"
 end
 
-# The `kind` values `SoftwareCredit.Kind` decodes. Checked up front because a
-# typo would otherwise produce a report that generates fine and commits fine,
-# then fails to decode inside the app — surfacing as a fault and a debug trap on
-# the About screen, a long way from the config line that caused it.
-KINDS = %w[library developmentTool].freeze
+# The `kind` values `SoftwareCredit.Kind` decodes. A declared one is checked up
+# front because a typo would otherwise produce a report that generates fine and
+# commits fine, then fails to decode inside the app — surfacing as a fault and a
+# debug trap on the About screen, a long way from the config line that caused it.
+KIND_LIBRARY = "library"
+KIND_DEVELOPMENT_TOOL = "developmentTool"
+KINDS = [KIND_LIBRARY, KIND_DEVELOPMENT_TOOL].freeze
 
 # GitHub's license endpoint resolves the notice's filename for us (LICENSE,
 # LICENSE.md, COPYING, …) and reports the license's title alongside it, so one
@@ -93,20 +102,61 @@ def read_json(relative_path, source_type)
   JSON.parse(File.read(path))
 end
 
-# Packages some target actually links, by SPM identity (the lowercased package
-# name as it appears in `.product(name:package:)`).
-def linked_package_identities(manifest_path)
+# A target declaration, as distinct from a `.target(name:)` *dependency* entry:
+# only the declaration puts `name:` on its own line. Keying off that rather than
+# indentation keeps the parse independent of how deeply the array is nested.
+TARGET_DECLARATION = /\.(?:target|testTarget|executableTarget)\(\s*\n\s*name:\s*"([^"]+)"/
+TARGET_DEPENDENCY = /\.target\(name:\s*"([^"]+)"/
+PRODUCT_DEPENDENCY = /\.product\(\s*name:\s*"[^"]+",\s*package:\s*"([^"]+)"/
+
+# The manifest's target graph: each target with the sibling targets and the
+# external packages (by SPM identity — the lowercased `package:` name) it links.
+def package_targets(manifest_path)
   path = File.join(ROOT, manifest_path)
   fail_with("swiftPackageManager: no manifest at #{manifest_path}") unless File.exist?(path)
-  File.read(path)
-      .scan(/\.product\(\s*name:\s*"[^"]+",\s*package:\s*"([^"]+)"/)
-      .flatten.map(&:downcase).uniq
+  text = File.read(path)
+  declarations = text.to_enum(:scan, TARGET_DECLARATION).map { Regexp.last_match }
+  fail_with("swiftPackageManager: no targets found in #{manifest_path}") if declarations.empty?
+
+  declarations.each_with_index.to_h do |declaration, index|
+    # Everything up to the next declaration is this target's body.
+    body = text[declaration.end(0)...(declarations[index + 1]&.begin(0) || text.length)]
+    [
+      declaration[1],
+      {
+        "targets" => body.scan(TARGET_DEPENDENCY).flatten,
+        "packages" => body.scan(PRODUCT_DEPENDENCY).flatten.map(&:downcase),
+      },
+    ]
+  end
+end
+
+# Package identities reachable from `roots` — the ones that end up in the app
+# binary, as opposed to those linked only by test-support or tooling targets.
+def shipped_package_identities(targets, roots)
+  unknown = roots - targets.keys
+  fail_with("swiftPackageManager: shippedFrom names no such target: #{unknown.join(", ")}") unless unknown.empty?
+
+  visited = []
+  queue = roots.dup
+  shipped = []
+  until queue.empty?
+    name = queue.shift
+    next if visited.include?(name)
+    visited << name
+    target = targets[name]
+    next unless target
+    shipped.concat(target["packages"])
+    queue.concat(target["targets"])
+  end
+  shipped.uniq
 end
 
 def swift_package_manager_credits(source)
-  kind = source.fetch("kind")
-  linked = linked_package_identities(source.fetch("manifest"))
+  targets = package_targets(source.fetch("manifest"))
+  linked = targets.values.flat_map { |target| target["packages"] }.uniq
   fail_with("swiftPackageManager: no linked packages found") if linked.empty?
+  shipped = shipped_package_identities(targets, source.fetch("shippedFrom"))
 
   resolved = read_json(source.fetch("resolved"), "swiftPackageManager")
   pins = resolved.fetch("pins").select { |pin| linked.include?(pin["identity"]) }
@@ -120,7 +170,7 @@ def swift_package_manager_credits(source)
     revision = state.fetch("revision")
     credit(
       name: slug.split("/").last,
-      kind: kind,
+      kind: shipped.include?(pin["identity"]) ? KIND_LIBRARY : KIND_DEVELOPMENT_TOOL,
       # A branch-pinned package has no version, so fall back to the revision.
       version: state["version"] || revision[0, 12],
       slug: slug,
@@ -144,24 +194,46 @@ def agent_skills_credits(source)
 end
 
 SOURCE_TYPES = {
-  "swiftPackageManager" => method(:swift_package_manager_credits),
-  "agentSkills" => method(:agent_skills_credits),
+  "swiftPackageManager" => {
+    required: %w[manifest resolved shippedFrom],
+    generate: method(:swift_package_manager_credits),
+  },
+  "agentSkills" => {
+    required: %w[manifest kind],
+    generate: method(:agent_skills_credits),
+  },
 }.freeze
+
+# Checked for every source before any of them runs, so a config mistake costs a
+# second rather than surfacing after the first source's network round trips.
+def validate_source(source, config_path)
+  type = source.fetch("type")
+  spec = SOURCE_TYPES[type]
+  fail_with("unknown source type #{type.inspect} in #{config_path}") unless spec
+
+  missing = spec[:required] - source.keys
+  fail_with("#{type} in #{config_path} is missing #{missing.join(", ")}") unless missing.empty?
+
+  kind = source["kind"]
+  return if kind.nil? || KINDS.include?(kind)
+  fail_with("unknown kind #{kind.inspect} in #{config_path} (expected #{KINDS.join(" or ")})")
+end
 
 def report(config_path)
   config = JSON.parse(File.read(config_path))
   sources = config.fetch("sources")
   fail_with("#{config_path} declares no sources") if sources.empty?
 
+  sources.each { |source| validate_source(source, config_path) }
+
   credits = sources.flat_map do |source|
-    type = source.fetch("type")
-    generate = SOURCE_TYPES[type]
-    fail_with("unknown source type #{type.inspect} in #{config_path}") unless generate
-    kind = source.fetch("kind")
-    fail_with("unknown kind #{kind.inspect} in #{config_path} (expected #{KINDS.join(" or ")})") unless KINDS.include?(kind)
     # Sort within a source so the report has a stable order and re-running it
-    # produces no diff when nothing changed.
-    generate.call(source).sort_by { |entry| entry["name"].downcase }
+    # produces no diff when nothing changed. A source can now emit more than one
+    # kind, so sort by kind first — otherwise adding a test-only package would
+    # reshuffle the shipping libraries around it.
+    SOURCE_TYPES.fetch(source.fetch("type"))[:generate]
+                .call(source)
+                .sort_by { |entry| [KINDS.index(entry["kind"]), entry["name"].downcase] }
   end
   fail_with("#{config_path} produced no credits") if credits.empty?
 

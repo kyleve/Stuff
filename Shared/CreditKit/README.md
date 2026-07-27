@@ -63,8 +63,8 @@ ruby Shared/CreditKit/Tools/generate-attribution.rb <config.json>   # just one
 {
   "output": "Where/Where/Resources/attribution.json",
   "sources": [
-    { "type": "swiftPackageManager", "kind": "library",
-      "manifest": "Package.swift", "resolved": "Package.resolved" },
+    { "type": "swiftPackageManager", "manifest": "Package.swift",
+      "resolved": "Package.resolved", "shippedFrom": ["WhereUI"] },
     { "type": "agentSkills", "kind": "developmentTool",
       "manifest": ".agents/external-skills.json" }
   ]
@@ -82,6 +82,15 @@ Deriving the list rather than maintaining it is the point: a package linked by
 *any* module shows up the next time the report runs, so no module has to
 remember to vend a credit — and a package declared for tooling alone is never
 linked, so it is correctly left out.
+
+`swiftPackageManager` derives each credit's **kind** the same way, from
+`shippedFrom`: it names the package targets the shipping app and its extensions
+link, the generator walks the manifest's target graph out from them, and a
+package inside that closure is a `library` while any other linked package is a
+`developmentTool`. Linking is not shipping — a snapshot-testing engine linked by
+a test-support target is credited (the repo depends on it) but must not be
+described as being in the binary. `shippedFrom` is the only part set by hand, so
+adding a dependency can't quietly land under the wrong kind.
 
 The tool needs network and an authenticated `gh`. It is idempotent: re-running
 with nothing changed rewrites the same bytes.
