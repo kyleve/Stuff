@@ -453,7 +453,10 @@ let project = Project(
             name: "StuffSnapshotTests",
             bundleIdSuffix: "snapshot",
             productDependency: "WhereUI",
-            sources: ["Where/WhereUI/SnapshotTests/**"],
+            sources: [
+                "Where/WhereUI/SnapshotTests/**",
+                "Shared/Periscope/PeriscopeTools/SnapshotTests/**",
+            ],
             extraPackageProducts: ["SnapshotKitTesting"],
         ),
         .target(
