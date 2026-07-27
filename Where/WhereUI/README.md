@@ -146,8 +146,9 @@ iPhone/iPad, contrast, right-to-left, VoiceOver annotations) in
 `SnapshotProviding` conformance **in its own source file**, shared with its
 `#Preview` cutsheet (`Self.snapshotPreviews`); there is one `FooSnapshotTests`
 suite per view, so each view's references live in their own `__Snapshots__/`
-directory. These files compile into the repo-wide `StuffSnapshotTests` bundle
-alongside the other modules' image suites, which has its own scheme and CI job;
+directory. They build as this module's own `WhereUISnapshotTests` bundle, which
+runs alongside the other modules' image suites in the shared
+`StuffSnapshotTests` scheme and its CI job;
 to re-record after an intentional UI change, forward the record mode into the
 test process (see the
 [SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)

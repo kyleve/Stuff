@@ -13,21 +13,22 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   comparison engine + XCTest/Testing, so it is **only** consumed by the
   `StuffSnapshotTests` and `SnapshotKitTestingTests` bundles via
   `extraPackageProducts` — **never** a shipping app or `StuffTestHost`.
-- **Exactly one image-snapshot bundle may exist, and this module is why.**
-  Everything below described as "process-global" — the safe-area swizzle's
-  depth counter and override globals, `SnapshotCaptureLock`, the animations
-  save/restore — is *module*-global, so it is per copy of this module. Each
-  `.xctest` statically embeds what it links, so two snapshot bundles co-loaded
-  into one `StuffTestHost` process would hold two independent copies of that
-  state while sharing one `UIView` method exchange: the depth counters flip
-  parity against each other (captures silently render with the simulator's
-  real safe-area insets) and neither capture lock can see the other's
-  captures. Verified with `nm` on the built bundles — each defines its own
-  private `_swizzleDepth`. Hence one bundle, `StuffSnapshotTests`; a new
-  module's image suite joins it as another `sources` directory (root
-  [`AGENTS.md`](../../AGENTS.md#targets)). `SnapshotKitTestingTests` is the
-  sanctioned second consumer only because it runs in a *different* scheme, so
-  the two never share a process.
+- **"Process-global" here means per *process*, and that is only safe because
+  each test bundle gets its own.** Everything below described as
+  process-global — the safe-area swizzle's depth counter and override globals,
+  `SnapshotCaptureLock`, the animations save/restore — is *module*-global, so
+  it is one copy per copy of this module, and each `.xctest` statically embeds
+  its own (verified with `nm`: every consuming bundle defines a private
+  `_swizzleDepth`). Two copies **co-loaded into one process** would hold
+  independent depth counters against the single shared `UIView` method
+  exchange — parity flips, captures silently render with the simulator's real
+  safe-area insets, and neither lock sees the other's captures. xcodebuild
+  gives each bundle its own `StuffTestHost` process (measured on Xcode 27 via
+  `ProcessInfo.processIdentifier` probes from two bundles in one scheme), so
+  the several image bundles and `SnapshotKitTestingTests` never collide. Treat
+  that as this module's load-bearing environmental assumption: if bundles ever
+  start sharing a host process, this state has to become genuinely
+  process-wide before another consumer is added.
 - **The consuming bundle double-embeds `SnapshotKit`, tolerated and guarded.**
   Listing this product in `extraPackageProducts` statically embeds its
   dependency closure — including `SnapshotKit` — into the `.xctest`, and

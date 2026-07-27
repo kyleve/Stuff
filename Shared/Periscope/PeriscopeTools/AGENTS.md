@@ -94,10 +94,11 @@ directly, and host views with `TestHostSupport`'s `show()` helpers.
 How the tools *look* is pinned separately by the image snapshots in
 [`SnapshotTests/`](SnapshotTests), with references under
 `SnapshotTests/__Snapshots__/` in Git LFS. Those files compile into the
-repo-wide `StuffSnapshotTests` bundle rather than `PeriscopeToolsTests` — there
-is exactly one image-snapshot bundle in the repo, for reasons the root
-[`AGENTS.md`](../../../AGENTS.md#targets) explains — but they live and record
-here, so this module owns its own reference images. Seed a **frozen** store
+`PeriscopeToolsSnapshotTests` bundle rather than `PeriscopeToolsTests` — image
+suites get their own target, gathered with every other module's into the shared
+`StuffSnapshotTests` scheme and its CI job (root
+[`AGENTS.md`](../../../AGENTS.md#targets)). It links PeriscopeTools directly, so
+nothing here builds against an app module. Seed a **frozen** store
 (fixed records at timestamps pinned to a fixed instant); the process-global
 Periscope store's wall-clock timestamps would churn the images. Tool views seed
 their own `periscopeBroadwayRoot()`, so a snapshot needs no host-app root and

@@ -52,10 +52,11 @@ in-memory `ModelContainer` with local `@Model` fixtures, drive
 wiring is covered from the consumer side (`WhereUITests`).
 
 How it renders is pinned by the image snapshots in
-[`SnapshotTests/`](SnapshotTests), which compile into the repo-wide
-`StuffSnapshotTests` bundle but record their references here — there is exactly
-one image-snapshot bundle in the repo, for reasons the root
-[`AGENTS.md`](../../AGENTS.md#targets) explains. Snapshot the module the way a
+[`SnapshotTests/`](SnapshotTests), which build as the module's own
+`SwiftDataInspectorSnapshotTests` bundle — image suites get their own target,
+gathered with every other module's into the shared `StuffSnapshotTests` scheme
+and its CI job (root [`AGENTS.md`](../../AGENTS.md#targets)). It links only
+`SwiftDataInspector`, so nothing here builds against an app module. Snapshot the module the way a
 consumer gets it: a **local fixture schema**, never a host app's store, and no
 design-system root. Prefer adding a case there over a hosted "renders without
 crashing" test, which asserts nothing about the result. Fixture `@Model` names
