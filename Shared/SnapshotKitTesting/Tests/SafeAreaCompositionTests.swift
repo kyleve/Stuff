@@ -21,7 +21,11 @@ struct SafeAreaCompositionTests {
         try waitFor { hostKeyWindow() != nil }
         let host = UIHostingController(rootView: Color.red)
         host.view.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
-        let image = await renderSnapshotImage(of: host, safeAreaInsets: .zero)
+        let image = await renderSnapshotImage(
+            of: host,
+            named: "zeroed-root-probe",
+            safeAreaInsets: .zero,
+        )
 
         // A safe-area-respecting fill reaches the very top: the device's real
         // top inset was zeroed at the root rather than leaking into the image.
@@ -34,7 +38,11 @@ struct SafeAreaCompositionTests {
         try waitFor { hostKeyWindow() != nil }
         let host = UIHostingController(rootView: BarProbeView())
         host.view.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
-        let image = await renderSnapshotImage(of: host, safeAreaInsets: .zero)
+        let image = await renderSnapshotImage(
+            of: host,
+            named: "safe-area-bar-probe",
+            safeAreaInsets: .zero,
+        )
 
         // The 30pt bar sits flush at the top (not offset by device insets) —
         // the interior contribution composed on the zeroed base.

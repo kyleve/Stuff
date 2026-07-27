@@ -7,15 +7,21 @@ import UIKit
 /// the capture is about to record are the ones the case declared — the rest
 /// describe a capture the pipeline can't vouch for, so callers report them
 /// instead of quietly proceeding.
-enum SettleOutcome: Equatable {
+@_spi(Testing) public enum SettleOutcome: Equatable {
     /// Renders reached pixel stability and held it through the quiet window.
     case settled
     /// The case declared `.immediate`, so no settle loop ran.
     case skipped
-    /// The budget elapsed with the content still changing. Whatever gets
-    /// captured is an arbitrary frame of whatever is still in motion, which is
-    /// how a flaky reference gets recorded.
+    /// The content was *observed* changing and was still changing when the
+    /// budget elapsed. Whatever gets captured is an arbitrary frame of
+    /// whatever is still in motion, which is how a flaky reference gets
+    /// recorded.
     case timedOut(budget: TimeInterval)
+    /// The loop never observed the content change, but render passes were too
+    /// slow to *prove* stability (three matching samples) before the extended
+    /// cap. A starved machine, not a moving view — or a view that renders no
+    /// pixels at all (a zero-sized frame).
+    case starved(passes: Int, cap: TimeInterval)
     /// The task was cancelled mid-settle.
     case cancelled
 }
@@ -30,6 +36,7 @@ func reportIfUnsettled(
     _ outcome: SettleOutcome,
     phase: String,
     of viewController: UIViewController,
+    named name: String,
 ) {
     switch outcome {
         case .settled, .skipped:
@@ -37,12 +44,23 @@ func reportIfUnsettled(
         case let .timedOut(budget):
             Issue.record(
                 """
-                Snapshot content never settled: the \(phase) phase for \
-                \(type(of: viewController)) was still changing after \(budget.formatted())s, \
-                so this capture is an arbitrary frame of whatever is still moving. Freeze the \
-                motion at a deterministic phase behind `\\.isCapturingSnapshot` (the Where app \
-                does this with `MotionIsStatic`), or — if the content is merely slow rather than \
-                endless — raise the floor with `.settledAtLeast(minDuration:)`.
+                Snapshot content never settled: the \(phase) phase for "\(name)" \
+                (\(type(of: viewController))) was observed still changing \(budget.formatted())s \
+                after hosting, so this capture is an arbitrary frame of whatever is still moving. \
+                Freeze the motion at a deterministic phase behind `\\.isCapturingSnapshot` (the \
+                Where app does this with `MotionIsStatic`), or — if the content is merely slow \
+                rather than endless — raise the floor with `.settledAtLeast(minDuration:)`.
+                """,
+            )
+        case let .starved(passes, cap):
+            Issue.record(
+                """
+                Snapshot settle starved: the \(phase) phase for "\(name)" \
+                (\(type(of: viewController))) completed only \(passes) render pass(es) in \
+                \(cap.formatted())s without ever observing the content change, so pixel \
+                stability could not be confirmed. This is an environment problem (a machine too \
+                loaded to complete render passes) or a view that renders no pixels (a zero-sized \
+                frame) — not view motion; widening the settle budget won't fix it.
                 """,
             )
         case .cancelled:
@@ -114,11 +132,21 @@ func settleForCapture(_ view: UIView, settle: SnapshotSettle) async -> SettleOut
 /// material crossfade) can quantize to zero between *adjacent* frames while
 /// still drifting across the window — the anchor comparison catches the drift.
 ///
-/// Returns how it ended: exhausting `maxDuration` means the content never
-/// stopped moving, which the caller reports rather than capturing an arbitrary
-/// frame and calling it a reference.
+/// `maxDuration` budgets **observed motion**, not proof-of-stability. On a
+/// starved machine a single pass (sleep + layout + render) can cost over a
+/// second, so fewer than the three passes stability needs may fit in the
+/// budget — and failing then would blame "content still changing" on content
+/// that was never once seen to change (CI reproduced exactly that: the About
+/// screen, static from its first frame, timed out ~50% of runs on a cold
+/// loaded runner while its capture still matched the reference). So the
+/// deadline only produces ``SettleOutcome/timedOut(budget:)`` when a change
+/// was *observed* past anchor establishment; a change-free loop keeps running
+/// until it can prove stability, giving up as
+/// ``SettleOutcome/starved(passes:cap:)`` only at a hard cap several multiples
+/// of the budget. Moving content can't slip through: any observed change past
+/// the budget still fails, exactly as before.
 @MainActor
-func settleContent(
+@_spi(Testing) public func settleContent(
     _ view: UIView,
     minDuration: TimeInterval = 0.25,
     maxDuration: TimeInterval = 2.5,
@@ -126,21 +154,31 @@ func settleContent(
     // How long the rendered pixels must stay byte-identical to the quiet
     // window's anchor sample before the content counts as settled — matches the
     // old 2-passes-at-60ms quiet window, now sampled densely.
-    let stableQuietDuration: TimeInterval = 0.12
+    let stableQuietDuration: Duration = .milliseconds(120)
+    // How many multiples of the budget a change-free loop may spend proving
+    // stability before giving up as starved. Generous on purpose: the cap only
+    // gates runs that would otherwise fail falsely, and a genuinely moving view
+    // is still bounded by `maxDuration` the moment a change is observed.
+    let starvationHeadroom: Double = 4
 
-    let start = Date()
-    let minDeadline = start.addingTimeInterval(minDuration)
-    let maxDeadline = start.addingTimeInterval(maxDuration)
+    let clock = ContinuousClock()
+    let start = clock.now
+    let minDeadline = start.advanced(by: .seconds(minDuration))
+    let maxDeadline = start.advanced(by: .seconds(maxDuration))
+    let starvationDeadline = start.advanced(by: .seconds(maxDuration * starvationHeadroom))
     var anchorSample: Data?
-    var anchorDate = Date()
+    var anchorTime = start
     var stablePasses = 0
-    while Date() < maxDeadline {
+    var passCount = 0
+    var observedContentChange = false
+    while true {
         do {
             try await Task.sleep(for: .milliseconds(16))
         } catch {
             return .cancelled
         }
         CATransaction.performWithoutAnimation(view.layoutIfNeeded)
+        passCount += 1
         let sample = view.renderedContentSample()
         // Byte-exact on purpose — not the tolerance the final image compare uses.
         // The final compare answers "does this match the reference?", where
@@ -152,18 +190,34 @@ func settleContent(
         if sample != nil, sample == anchorSample {
             stablePasses += 1
         } else {
+            // The first non-nil sample merely establishes the anchor; only a
+            // departure from an established anchor is the content changing.
+            if anchorSample != nil {
+                observedContentChange = true
+            }
             anchorSample = sample
-            anchorDate = Date()
+            anchorTime = clock.now
             stablePasses = 0
         }
+        let now = clock.now
         if stablePasses >= 2,
-           Date() >= anchorDate.addingTimeInterval(stableQuietDuration),
-           Date() >= minDeadline
+           now >= anchorTime.advanced(by: stableQuietDuration),
+           now >= minDeadline
         {
             return .settled
         }
+        // Checked after the stability check on purpose: a pass that completes
+        // its proof late still settles rather than timing out — proven-stable
+        // content is safe to capture no matter when the proof landed.
+        if now >= maxDeadline {
+            if observedContentChange {
+                return .timedOut(budget: maxDuration)
+            }
+            if now >= starvationDeadline {
+                return .starved(passes: passCount, cap: maxDuration * starvationHeadroom)
+            }
+        }
     }
-    return .timedOut(budget: maxDuration)
 }
 
 extension UIView {
@@ -205,9 +259,10 @@ func drainInFlightAnimations(timeout: TimeInterval = 1) -> Bool {
     var completed = false
     UIView.animate(withDuration: 0) {} completion: { _ in completed = true }
 
-    let deadline = Date(timeIntervalSinceNow: timeout)
+    let clock = ContinuousClock()
+    let deadline = clock.now.advanced(by: .seconds(timeout))
     while !completed {
-        if Date() > deadline { return false }
+        if clock.now > deadline { return false }
         RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.001))
     }
     return true

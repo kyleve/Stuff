@@ -93,6 +93,7 @@ private func captureProbeImage(topInset: CGFloat) async -> UIImage {
     host.view.frame = CGRect(x: 0, y: 0, width: 100, height: 100)
     return await renderSnapshotImage(
         of: host,
+        named: "safe-area-\(Int(topInset))pt-probe",
         safeAreaInsets: UIEdgeInsets(top: topInset, left: 0, bottom: 0, right: 0),
     )
 }

@@ -45,6 +45,7 @@ struct LargeViewCaptureTests {
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: 1)
         let image = await renderSnapshotImage(
             of: host,
+            named: "full-content-scroll-probe",
             sizing: .intrinsic(width: 402),
             safeAreaInsets: .zero,
         )
@@ -68,7 +69,11 @@ struct LargeViewCaptureTests {
         .frame(width: 402, height: height)
         let host = UIHostingController(rootView: view)
         host.view.frame = CGRect(x: 0, y: 0, width: 402, height: height)
-        let image = await renderSnapshotImage(of: host, safeAreaInsets: .zero)
+        let image = await renderSnapshotImage(
+            of: host,
+            named: "two-tone-\(Int(height))pt-probe",
+            safeAreaInsets: .zero,
+        )
         return TwoToneSample(
             top: image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.1)),
             bottom: image.probePixel(atUnitPoint: CGPoint(x: 0.5, y: 0.9)),
