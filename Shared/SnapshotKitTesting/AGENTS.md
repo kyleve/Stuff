@@ -30,12 +30,12 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   the two never share a process.
 - **The consuming bundle double-embeds `SnapshotKit`, tolerated and guarded.**
   Listing this product in `extraPackageProducts` statically embeds its
-  dependency closure — including `SnapshotKit` — into the `.xctest`, while a
-  dynamic-framework dependency (WhereUI) carries its own copy: the
+  dependency closure — including `SnapshotKit` — into the `.xctest`, and
+  WhereUI statically embeds its own copy into the same image: the
   duplicate-type-metadata hazard from the root `AGENTS.md` "Targets" note,
   with `\.isCapturingSnapshot` as the type-keyed cross-boundary lookup at
   risk. There is no cleaner wiring (the pipeline must reach the bundle without
-  ever linking into the UI framework), the trait lookup demonstrably resolves
+  ever linking into the UI module), the trait lookup demonstrably resolves
   across both copies today, and
   `StuffSnapshotTests.SnapshotCaptureFlagProbeTests` fails loudly if the
   copies ever split — see the StuffSnapshotTests comment in

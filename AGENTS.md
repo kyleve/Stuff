@@ -139,7 +139,7 @@ that nothing in this repo depends on a skill having been loaded.
 - **Never add a second image-snapshot bundle.** A new module's image suite joins `StuffSnapshotTests` by adding its `SnapshotTests/` directory to that target's `sources` — it does **not** get a bundle of its own. Every `.xctest` statically embeds what it links, so a second snapshot bundle means a second copy of `SnapshotKitTesting`, whose capture state is module-global and therefore per copy: the safe-area swizzle's depth counter and override globals, `SnapshotCaptureLock`, and the `UIView` category it installs. Two copies in one `StuffTestHost` process would count separate depths against the one shared method exchange (captures silently rendering with the simulator's real safe-area insets) and neither lock would see the other's captures. Ownership still lives with the module: suites go in `<Module>/SnapshotTests/` and record references beside themselves, because swift-snapshot-testing derives the `__Snapshots__` directory from the calling file's `#filePath`. Per-module ownership needs per-module *directories*, not per-module bundles.
 - A UI module that opts into image snapshots adds a `SnapshotTests/` folder alongside the usual `Sources/`+`Tests/` skeleton, holding the bundle and its LFS-tracked `__Snapshots__/` references.
 
-### Never double-link a product a dynamic framework already carries
+### Never double-link a product WhereUI already carries
 
 A target that depends on **WhereUI** must not also list any of WhereUI's own
 dependencies (WhereCore, Broadway, LifecycleKit/LifecycleKitUI, Periscope,
@@ -156,6 +156,26 @@ mechanism is written out at the call site you'd be editing — the `WhereUITests
 comment in [`Project.swift`](Project.swift) — and
 `WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot` is the guard
 that fails if a duplicate copy answers.
+
+**Nothing in this project is a dynamic framework.** Earlier versions of this
+rule (and of `SnapshotKitTesting/AGENTS.md`) described WhereUI as one; that is
+not what gets built. The local package is wired as an `XCLocalSwiftPackageReference`
+and handed to Xcode's own SPM integration, which links every product statically
+into each consumer: no `.framework` products exist and every `.app/Frameworks`
+is empty. So "WhereUI carries its dependencies" means *statically embeds them
+into whatever links WhereUI*, and a double-link lands two copies in one image.
+The rule above is unchanged; only its stated mechanism was wrong.
+
+One nuance measured while establishing that, because it predicts which
+duplications actually bite: **`external` symbols coalesce across images,
+`non-external` ones never do.** A `public` type's metadata is external, so dyld
+picks one definition and a type-keyed lookup still agrees — verified by
+splitting SnapshotKit across two images and watching `\.isCapturingSnapshot`
+keep working. A file-scope `private` global or an `enum`'s `static var` is
+`non-external` and is genuinely per copy — which is why `SnapshotKitTesting`'s
+capture state duplicates. This does not license double-linking (the historical
+failure was real and is still guarded), but it does mean the guard test is the
+authority on whether a given duplication is harmful, not the general claim.
 
 ## Deployment
 

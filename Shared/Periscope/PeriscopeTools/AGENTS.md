@@ -51,7 +51,7 @@ use `PeriscopeStylesheet.default`.
 - Because PeriscopeTools links Broadway as a **static** library it can seed
   Broadway directly. Were it ever to become a dynamic framework, or be embedded
   in one, the root
-  [double-linking rule](../../../AGENTS.md#never-double-link-a-product-a-dynamic-framework-already-carries)
+  [double-linking rule](../../../AGENTS.md#never-double-link-a-product-whereui-already-carries)
   would start applying to its consumers.
 
 ## Invariants

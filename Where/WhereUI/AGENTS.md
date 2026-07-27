@@ -18,7 +18,7 @@ extended, and how its snapshot suites are organized (see
   [`Package.swift`](../../Package.swift).
 - Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI and
   must **not** link `BroadwayUI`/`BroadwayCore` themselves (see the root
-  [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-a-dynamic-framework-already-carries)).
+  [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)).
   That's why `whereBroadwayRoot()` lives here rather than being called as
   `broadwayRoot` at each site.
 - Continuous/looping motion (repeat-forever pulses, `TimelineView(.animation)`,
