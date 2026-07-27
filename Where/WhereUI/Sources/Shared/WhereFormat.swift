@@ -341,4 +341,58 @@ enum WhereFormat {
                 String(localized: .recentActivityUnavailableUnknown)
         }
     }
+
+    // MARK: About
+
+    /// A build-metadata value, or a localized "Unknown" when the bundle doesn't
+    /// carry one — so a blank row can never read as a real, empty value.
+    static func aboutValue(_ value: String?) -> String {
+        value ?? String(localized: .settingsAboutValueUnknown)
+    }
+
+    /// The commit the app was built from, flagged when the working tree had
+    /// uncommitted changes so a developer build isn't mistaken for a
+    /// reproducible one.
+    static func aboutCommit(_ commit: BuildInfo.Commit?) -> String {
+        guard let commit else { return String(localized: .settingsAboutValueUnknown) }
+        return commit.isDirty
+            ? String(localized: .settingsAboutCommitModified(commit.sha))
+            : commit.sha
+    }
+
+    static func regionDataSourceRegionCount(_ count: Int) -> String {
+        String(localized: .settingsAboutDataSourceRegionCount(count))
+    }
+
+    static func regionDataSourceFidelity(_ fidelity: RegionDataSource.Fidelity) -> String {
+        switch fidelity {
+            case .authoritative: String(localized: .settingsAboutDataSourceAuthoritative)
+            case .approximate: String(localized: .settingsAboutDataSourceApproximate)
+        }
+    }
+
+    static func regionDataSourceLicense(_ license: RegionDataSource.License) -> String {
+        switch license {
+            case let .publicDomain(rationale):
+                String(localized: .settingsAboutDataSourcePublicDomain(rationale))
+            case .originalWork:
+                String(localized: .settingsAboutDataSourceOriginalWork)
+        }
+    }
+
+    static func regionDataSourcePublisher(_ url: URL) -> String {
+        String(localized: .settingsAboutDataSourcePublisherLink(linkHost(url)))
+    }
+
+    static func regionDataSourceObtainedFrom(_ url: URL) -> String {
+        String(localized: .settingsAboutDataSourceObtainedFromLink(linkHost(url)))
+    }
+
+    /// A link's bare host ("census.gov"), so a data-source link names where it
+    /// goes instead of reading as an unlabeled "Publisher". Falls back to the
+    /// whole URL for anything without a host.
+    private static func linkHost(_ url: URL) -> String {
+        guard let host = url.host() else { return url.absoluteString }
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    }
 }

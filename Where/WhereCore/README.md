@@ -96,6 +96,15 @@ one it belongs to rather than to a god-object:
   a selectable look-back `RecentActivityWindow`.
 - **`WherePreferences`** — persisted user intent (onboarding, tracking intent,
   reminder / summary schedules) behind a `KeyValueStore`.
+- **`BuildInfo`** + **`AppAttribution`** — what Settings > About says about the
+  bundle it is running in. `BuildInfo.current(bundle:)` reads the marketing
+  version, build number, and the commit the app was built from;
+  `AppAttribution.main` reads the generated attribution report, decoding it once
+  per process (`current(bundle:)` for any other bundle). Both return
+  `nil`-shaped honesty for a bundle outside the app target, which carries
+  neither. (The report's *format* and tooling are
+  [`CreditKit`](../../Shared/CreditKit/README.md)'s; data-source provenance is
+  [`RegionKit`](../RegionKit/README.md)'s.)
 - **`WhereLog`** — the Periscope logging facade: a `"Where"` root scope with
   grouping scopes (`location`, `reminders`, `backup`, `widgets`, …) and a typed
   `LogEvent` per collaborator, emitted into `Periscope.shared`.

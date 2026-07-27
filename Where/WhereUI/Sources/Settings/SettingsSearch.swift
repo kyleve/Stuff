@@ -14,6 +14,7 @@ enum SettingsDestination: Hashable, CaseIterable {
     case year
     case backup
     case data
+    case about
 
     /// The localized title shown on the top-level drill-in row and as the parent
     /// group label under a search result.
@@ -28,6 +29,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .year: String(localized: .settingsYearHeader)
             case .backup: String(localized: .settingsBackupHeader)
             case .data: String(localized: .settingsDataHeader)
+            case .about: String(localized: .settingsAboutHeader)
         }
     }
 
@@ -43,6 +45,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .year: "calendar"
             case .backup: "externaldrive.fill"
             case .data: "trash.fill"
+            case .about: "info"
         }
     }
 
@@ -60,6 +63,7 @@ enum SettingsDestination: Hashable, CaseIterable {
             case .year: .orange
             case .backup: .teal
             case .data: .gray
+            case .about: .brown
         }
     }
 
@@ -69,7 +73,8 @@ enum SettingsDestination: Hashable, CaseIterable {
     var isSheet: Bool {
         switch self {
             case .regions: true
-            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .backup, .data:
+            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .backup, .data,
+                 .about:
                 false
         }
     }
@@ -85,6 +90,9 @@ enum SettingsListSection: CaseIterable {
     case notifications
     case display
     case storage
+    /// Last on purpose: About is reference material, so it sits below everything
+    /// actionable, where iOS Settings puts its own.
+    case about
 
     var destinations: [SettingsDestination] {
         switch self {
@@ -93,6 +101,7 @@ enum SettingsListSection: CaseIterable {
             case .notifications: [.alerts]
             case .display: [.appearance, .year]
             case .storage: [.backup, .data]
+            case .about: [.about]
         }
     }
 }
@@ -199,6 +208,7 @@ enum SettingsCatalog {
             + VisibleYearSettingsView.searchResults
             + BackupSettingsView.searchResults
             + DataSettingsView.searchResults
+            + AboutSettingsView.searchResults
 
     /// The results matching a (trimmed, non-empty) query.
     static func results(matching query: String) -> [SettingsSearchResult] {

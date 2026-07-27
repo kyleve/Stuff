@@ -35,6 +35,12 @@ into it for lookup. RegionKit depends only on
 - **`RegionGeometryCatalog`** — read-only drawable `RegionOutline`s for the
   developer region-map viewer (`.attribution` for a given attributor vs `.source`
   for the whole catalog).
+- **`RegionDataSource`** — where the bundled geometry came from: the boundary
+  set's name, its links, its `License`, its `Fidelity` (`.authoritative` vs the
+  `.approximate` hand-drawn outlines), and the regions it covers.
+  `RegionDataSource.all` derives coverage from the catalog, and the Where app's
+  Settings > About screen renders it. Untranslated by design — these are proper
+  nouns and legal terms, and the UI supplies the localized framing.
 - **`RegionLog`** — RegionKit's Periscope logging facade: one `"RegionKit"`
   root scope with a typed `LogEvent` per collaborator (`RegionAttributor`,
   `RegionCatalog`, `RegionGeometryCatalog`), emitted into the process-wide
@@ -109,6 +115,9 @@ ruby Where/RegionKit/Tools/generate-regions.rb
 
 ### Source data (not bundled)
 
+Each entry below is also expressed in code as a `RegionDataSource`, which is
+what the app credits on its About screen; keep the two in step.
+
 - **`us-states.geojson`** — US state boundaries (50 states + DC + PR),
   `MultiPolygon` per feature keyed by `properties.NAME`; the generator splits it
   into one `regions/us-<USPS>.geojson` per feature. Originally
@@ -132,7 +141,10 @@ Adding a region is now **pure data** — no new `Region` case, no code:
    a new US feature; blocs/countries get an entry in the script's `NON_US` list).
 3. Optionally add a `region.<key>` entry to `Localizable.xcstrings` and point the
    manifest entry's `localizationKey` at it (otherwise the English `name` shows).
-4. Add a `RegionAttributorTests` spot-check.
+4. Attribute the geometry in `RegionDataSource` — a US state is already covered
+   by the `us-` rule, anything else needs its source named.
+   `RegionDataSourceTests` fails until it is.
+5. Add a `RegionAttributorTests` spot-check.
 
 Everything downstream (`RegionStyle`, region pickers, the App Intents
 `RegionEntity`) derives from the catalog automatically.

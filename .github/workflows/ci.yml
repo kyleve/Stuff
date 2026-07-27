@@ -29,6 +29,13 @@ jobs:
       # check names.
       - name: String Catalog lint
         run: ./xcstrings --lint
+      # The only thing that actually stops a stale attribution report from
+      # shipping: nothing about adding or bumping a dependency forces a re-run,
+      # and the app can't check itself (its test bundle can't read Package.swift).
+      # Offline and sub-second, so it rides along here for the same reason the
+      # catalog lint does.
+      - name: Attribution report check
+        run: ./attribution --check
 
   architecture:
     name: Bumper Bowling
