@@ -10,9 +10,24 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 
 - Depends on `SnapshotKit`, `TestHostSupport`, `SnapshotTesting`
   (swift-snapshot-testing), and `AccessibilitySnapshot` (cashapp). It links the
-  comparison engine + XCTest/Testing, so it is **only** consumed by
-  `*SnapshotTests` bundles via `extraPackageProducts` — **never** a shipping app
-  or `StuffTestHost`.
+  comparison engine + XCTest/Testing, so it is **only** consumed by the
+  `StuffSnapshotTests` and `SnapshotKitTestingTests` bundles via
+  `extraPackageProducts` — **never** a shipping app or `StuffTestHost`.
+- **Exactly one image-snapshot bundle may exist, and this module is why.**
+  Everything below described as "process-global" — the safe-area swizzle's
+  depth counter and override globals, `SnapshotCaptureLock`, the animations
+  save/restore — is *module*-global, so it is per copy of this module. Each
+  `.xctest` statically embeds what it links, so two snapshot bundles co-loaded
+  into one `StuffTestHost` process would hold two independent copies of that
+  state while sharing one `UIView` method exchange: the depth counters flip
+  parity against each other (captures silently render with the simulator's
+  real safe-area insets) and neither capture lock can see the other's
+  captures. Verified with `nm` on the built bundles — each defines its own
+  private `_swizzleDepth`. Hence one bundle, `StuffSnapshotTests`; a new
+  module's image suite joins it as another `sources` directory (root
+  [`AGENTS.md`](../../AGENTS.md#targets)). `SnapshotKitTestingTests` is the
+  sanctioned second consumer only because it runs in a *different* scheme, so
+  the two never share a process.
 - **The consuming bundle double-embeds `SnapshotKit`, tolerated and guarded.**
   Listing this product in `extraPackageProducts` statically embeds its
   dependency closure — including `SnapshotKit` — into the `.xctest`, while a
@@ -22,8 +37,8 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   risk. There is no cleaner wiring (the pipeline must reach the bundle without
   ever linking into the UI framework), the trait lookup demonstrably resolves
   across both copies today, and
-  `WhereUISnapshotTests.SnapshotCaptureFlagProbeTests` fails loudly if the
-  copies ever split — see the WhereUISnapshotTests comment in
+  `StuffSnapshotTests.SnapshotCaptureFlagProbeTests` fails loudly if the
+  copies ever split — see the StuffSnapshotTests comment in
   `Project.swift` for the full topology.
 - Re-exports `SnapshotKit` and `SnapshotTesting` so consumers need one import.
 - Library target in [`Package.swift`](../../Package.swift).
@@ -61,7 +76,7 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   `renderSnapshotImage` serializes captures through a FIFO `@MainActor` mutex,
   and the safe-area swizzle is depth-counted so unbalanced pairs can't flip the
   method-exchange parity (guarded by
-  `WhereUISnapshotTests.ConcurrentCaptureTests`). Nested captures — a hook
+  `StuffSnapshotTests.ConcurrentCaptureTests`). Nested captures — a hook
   rendering another snapshot — trap. Keep the suite serial anyway: concurrent
   scheduling now degrades to queued-serial rather than corrupt, gaining nothing.
 - **Rendering runs in the host key window.** It requires `StuffTestHost`'s window
@@ -78,7 +93,7 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 - **Tile-and-stitch is load-bearing, not legacy.** UIKit still renders a blank
   image for views taller/wider than ~2000pt on the target toolchain (iOS 27.0 —
   verified by a probe during development, guarded by
-  `WhereUISnapshotTests.LargeViewCaptureTests`). Captures go through
+  `StuffSnapshotTests.LargeViewCaptureTests`). Captures go through
   `SnapshotWrappingViewController` + `tileAndStitchImage`; don't remove the
   tiling on the assumption the bug is fixed without re-running that check.
 
@@ -94,7 +109,7 @@ root while an interior `safeAreaInset` still composes). They render through
 probed pixels via the `@_spi(Testing)` `PixelSample`/`probePixel` API rather than
 LFS reference images — so the bundle is fast, has no `__Snapshots__/`, and runs
 in the main `test` job, not the snapshot job. The matrixed image assertions
-themselves are still exercised by consumer bundles (currently
-`WhereUISnapshotTests`); the WhereUI↔bundle cross-boundary flag probe stays there
+themselves are still exercised by the consumer bundle
+(`StuffSnapshotTests`); the WhereUI↔bundle cross-boundary flag probe stays there
 (`SnapshotCaptureFlagProbeTests`), since only a WhereUI-defined view can detect a
 duplicate-`SnapshotKit` split.
