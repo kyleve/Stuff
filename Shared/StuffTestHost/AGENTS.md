@@ -29,7 +29,10 @@ system, formatting, and global conventions. Read that first.
 The host depends on `TestHostSupport` and nothing else, and embeds no resource
 bundles. A hosted test's `Bundle.module` resolves through `Bundle(for:)` — the
 `.xctest`, which on Xcode 27 carries its own copies of the resource bundles for
-the code it links — so it never falls back to the host's `Bundle.main`.
+the code it links — so it never falls back to the host's `Bundle.main`. That
+follows from every product linking statically into each consumer, which the root
+[`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)
+records.
 
 A missing-resource failure is therefore fixed on the *test bundle* that needs
 it, by depending on the product that owns the resource; adding the product to
