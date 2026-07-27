@@ -71,7 +71,7 @@ auto-token", surfaced as `LoadError.missingCredentials`.
 
 - **Model shares** = per-event `chargedCents` from `get-filtered-usage-events`
   (paginated over the cycle), summed per model, each shown as a **share** of the
-  total (all models, highest first; the UI rolls sub-20% shares into one bar).
+  total (all models, highest first; the UI rolls sub-5% shares into one bar).
   Deliberately dollar-free: that summed cost is *total usage value* (included
   allowance + on-demand), so it exceeds the billed on-demand headline and must
   not be presented as spend. (The older `get-aggregated-usage-events` was

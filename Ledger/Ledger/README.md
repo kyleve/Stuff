@@ -59,7 +59,7 @@ shortcut to System Settings if macOS needs you to approve the login item.
   **included usage** as two side-by-side bars (first-party/Auto and
   third-party/API — a single blended figure would hide that one pool can be
   maxed while the other is barely used), **top models
-  this cycle** as usage shares (each model ≥20% gets its own bar; smaller ones
+  this cycle** as usage shares (each model ≥5% gets its own bar; smaller ones
   roll into a single multi-colored "Other models" bar with a legend), and when
   it last updated. A **Refresh** button forces an immediate fetch (including the
   model breakdown, which the automatic refresh only re-walks every 15 minutes

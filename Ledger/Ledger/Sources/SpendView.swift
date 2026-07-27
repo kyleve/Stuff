@@ -10,7 +10,7 @@ struct SpendView: View {
     @Bindable var session: LedgerSession
 
     /// Models at or above this share get their own bar; the rest are rolled up.
-    private static let rollupThreshold = 0.20
+    private static let rollupThreshold = 0.05
 
     /// Distinct colors assigned to models in share order (cycled if exhausted).
     private static let palette: [Color] = [
@@ -178,7 +178,7 @@ struct SpendView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Models this cycle: each model with ≥20% share gets its own bar; the rest
+    /// Models this cycle: each model with ≥5% share gets its own bar; the rest
     /// roll into a single multi-colored "Other models" bar (one segment per
     /// model), with a compact legend.
     private func models(_ shares: [ModelShare]) -> some View {
