@@ -102,8 +102,15 @@ jobs:
       # other same-named device. The xcode-27 image ships only the iOS 27.0
       # runtime (Xcode 27 SDK); the deployment target stays iOS 26.0, which the
       # newer SDK builds fine.
+      # `-collect-test-diagnostics never`: on failure xcodebuild otherwise tries
+      # to pull a sysdiagnose out of the simulator, and when that hangs it burns
+      # a flat 600s before giving up ("Failure collecting diagnostics from
+      # simulator: Timed out after 600.0 seconds") — 10 minutes added to a job
+      # that has already failed. The "Collect test diagnostics" step below
+      # gathers the crash reports and the .xcresult, which is what anyone
+      # actually reads.
       - name: Build & Test (iOS)
-        run: mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}"
+        run: mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" -collect-test-diagnostics never
       # Hosted tests can crash the test-host process on CI without leaving any error
       # in Tuist's summarized log. On failure, capture crash reports + the .xcresult
       # bundle (which holds the per-test crash backtraces) and upload them for analysis.
@@ -168,8 +175,13 @@ jobs:
       # 45 tests on one simulator clone anyway, ran suites concurrently in
       # that one host process, produced 24+ spurious image mismatches, and
       # was ~1.2–3x SLOWER than the serial run (407s/1004s vs ~330s).
+      # `-collect-test-diagnostics never` for the reason given in the `test` job,
+      # and it bites hardest here: run 30367964813 spent 1450s testing but held
+      # the runner for 43 minutes, because a single image mismatch sent it into
+      # the 600s diagnostics timeout. A red snapshot run should cost the same as
+      # a green one.
       - name: Snapshot Tests (iOS)
-        run: mise exec -- tuist test StuffSnapshotTests --no-selective-testing -- -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}"
+        run: mise exec -- tuist test StuffSnapshotTests --no-selective-testing -- -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" -collect-test-diagnostics never
       - name: Collect snapshot diagnostics
         if: ${{ failure() }}
         run: |
