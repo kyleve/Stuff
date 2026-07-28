@@ -72,17 +72,21 @@ func reportIfUnsettled(
 }
 
 /// Runs the settle phase a case declared: `.settled` waits for pixel-stable
-/// renders (see ``settleContent(_:minDuration:maxDuration:)``);
+/// renders (see ``settleContent(_:minDuration:maxDuration:timing:)``);
 /// `.settledAtLeast` is the same loop with a raised `minDuration` floor (for
 /// quiet-starting async chrome like the glass toolbar's material adaptation);
 /// `.immediate` yields once — so a `.task` body that merely sets state
 /// synchronously still runs — and re-lays-out, skipping the digest-render loop
 /// entirely.
 @MainActor
-func settleForCapture(_ view: UIView, settle: SnapshotSettle) async -> SettleOutcome {
+func settleForCapture(
+    _ view: UIView,
+    settle: SnapshotSettle,
+    timing: SnapshotCaptureTiming,
+) async -> SettleOutcome {
     switch settle {
         case .settled:
-            return await settleContent(view)
+            return await settleContent(view, timing: timing)
         case let .settledAtLeast(minDuration):
             // Keep the hang budget for never-quiescing content above the raised
             // floor, so the minimum is always honored.
@@ -90,6 +94,7 @@ func settleForCapture(_ view: UIView, settle: SnapshotSettle) async -> SettleOut
                 view,
                 minDuration: minDuration,
                 maxDuration: max(2.5, minDuration + 2.5),
+                timing: timing,
             )
         case .immediate:
             await Task.yield()
@@ -150,6 +155,7 @@ func settleForCapture(_ view: UIView, settle: SnapshotSettle) async -> SettleOut
     _ view: UIView,
     minDuration: TimeInterval = 0.25,
     maxDuration: TimeInterval = 2.5,
+    timing: SnapshotCaptureTiming? = nil,
 ) async -> SettleOutcome {
     // How long the rendered pixels must stay byte-identical to the quiet
     // window's anchor sample before the content counts as settled — matches the
@@ -171,6 +177,9 @@ func settleForCapture(_ view: UIView, settle: SnapshotSettle) async -> SettleOut
     var stablePasses = 0
     var passCount = 0
     var observedContentChange = false
+    // Reported on every exit path — including `.cancelled`, whose pass count is
+    // exactly what distinguishes "gave up immediately" from "ground for 10s".
+    defer { timing?.addSettlePasses(passCount) }
     while true {
         do {
             try await Task.sleep(for: .milliseconds(16))

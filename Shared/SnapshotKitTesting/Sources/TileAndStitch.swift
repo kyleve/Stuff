@@ -44,7 +44,10 @@ final class SnapshotWrappingViewController: UIViewController {
 /// PNG, which made the perceptual compare diff in-memory captures against
 /// on-disk references nondeterministically.
 @MainActor
-func tileAndStitchImage(of wrappingViewController: SnapshotWrappingViewController) -> UIImage {
+func tileAndStitchImage(
+    of wrappingViewController: SnapshotWrappingViewController,
+    timing: SnapshotCaptureTiming,
+) -> UIImage {
     guard let contentView = wrappingViewController.content.view else {
         preconditionFailure("SnapshotWrappingViewController content has no view to capture.")
     }
@@ -85,7 +88,7 @@ func tileAndStitchImage(of wrappingViewController: SnapshotWrappingViewControlle
         tileRect.origin.y += tileDimension
     }
 
-    return UIGraphicsImageRenderer(
+    let stitched = UIGraphicsImageRenderer(
         bounds: CGRect(origin: .zero, size: contentSize),
         format: rendererFormat,
     ).image { _ in
@@ -99,4 +102,9 @@ func tileAndStitchImage(of wrappingViewController: SnapshotWrappingViewControlle
             drawPoint.y += row.first?.size.height ?? 0
         }
     }
+    timing.recordCaptureShape(
+        tiles: rows.reduce(0) { $0 + $1.count },
+        pixels: Int(stitched.size.width * stitched.scale * stitched.size.height * stitched.scale),
+    )
+    return stitched
 }

@@ -113,6 +113,10 @@ public func assertSnapshots(
                 .intrinsic(width: width)
         }
         let identifier = fullSnapshotIdentifier(caseName: name, configuration: configuration)
+        let timing = SnapshotCaptureTiming(
+            identifier: identifier,
+            isEnabled: SnapshotCaptureTiming.isEnabledByEnvironment,
+        )
         let image = await renderSnapshotImage(
             of: hostingController,
             named: identifier,
@@ -121,22 +125,26 @@ public func assertSnapshots(
             isAccessibility: configuration.snapshotType == .accessibility,
             settle: settle,
             onReadyToSnapshot: onReadyToSnapshot,
+            timing: timing,
         )
-        withSnapshotTesting(record: resolvedRecord, diffTool: resolvedDiffTool) {
-            assertSnapshot(
-                of: image,
-                as: .image(
-                    precision: defaultSnapshotPrecision,
-                    perceptualPrecision: defaultSnapshotPerceptualPrecision,
-                ),
-                named: identifier,
-                fileID: fileID,
-                file: filePath,
-                testName: testName,
-                line: line,
-                column: column,
-            )
+        timing.measure(.compare) {
+            withSnapshotTesting(record: resolvedRecord, diffTool: resolvedDiffTool) {
+                assertSnapshot(
+                    of: image,
+                    as: .image(
+                        precision: defaultSnapshotPrecision,
+                        perceptualPrecision: defaultSnapshotPerceptualPrecision,
+                    ),
+                    named: identifier,
+                    fileID: fileID,
+                    file: filePath,
+                    testName: testName,
+                    line: line,
+                    column: column,
+                )
+            }
         }
+        timing.emit()
     }
 }
 
