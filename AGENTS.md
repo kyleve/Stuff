@@ -314,12 +314,14 @@ scope and invariants on top rather than restating these.
   knobs) or a file accretes several behavioral areas, group related properties
   into nested structs and split responsibilities into focused child types —
   don't let one god-type keep growing.
-- Identifiers/keys are `Hashable` (ideally a typed enum) or `AnyHashable`,
-  not raw `String`s — a typed token can't silently typo into a new, untracked
-  id. Prefer carrying the *concrete* type where a generic can (`LaunchPlan`
-  is generic over its step `ID`); reach for `AnyHashable` only where a
-  generic can't reach (a non-generic environment value, a heterogeneous
-  container). Examples: `LaunchStepID`, `WherePreferences.Keys`.
+- Identifiers/keys are `Hashable` — a typed enum, or a dedicated struct when
+  the identity has structure (Where's `StoreURL` composite keys) — or
+  `AnyHashable`, never raw `String`s: a typed token can't silently typo into
+  a new, untracked id. Prefer carrying the *concrete* type where a generic
+  can (`LaunchPlan` is generic over its step `ID`); reach for `AnyHashable`
+  only where a generic can't reach (a non-generic environment value, a
+  heterogeneous container). Examples: `LaunchStepID`,
+  `WherePreferences.Keys`, `StoreURL`.
 - **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
   arguments so new behavior isn't silently opted into. Reserve defaults for
   SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
@@ -428,9 +430,24 @@ scope and invariants on top rather than restating these.
 meaningful in certain combinations, model it as a *single* type — usually an
 `enum` with associated values — instead of parallel properties that can drift
 into nonsensical combinations. Separate stored properties are the exception
-to justify, not the reflex. (Examples: `YearReportModel.LoadState` instead of
-`isLoading` + `error` + `data`; `CalendarContentView`'s single
-`Result<[CalendarMonth], Error>?`.)
+to justify, not the reflex.
+
+Worked examples, smallest to largest:
+
+- `YearReportModel.LoadState` (`idle`/`loading`/`loaded`/`failed`) instead of
+  `isLoading` + `error` + `data`, and `CalendarContentView`'s single
+  `Result<[CalendarMonth], Error>?` — success and failure can't both be set,
+  and "not loaded yet" is the `nil`.
+- **LifecycleKit's typed `LaunchPlan`** applies it to *wiring*: steps are
+  types whose `Input`/`Output` must chain through the plan's combinators, so
+  a mis-ordered launch or a consumer without its producer is a compile error
+  — and value-producing steps can't be skipped, so a hole in the data flow
+  can't be spelled either (PR #116).
+- **`WhereScope`** applies it to *ownership*: the logged-in world is one
+  value — the open store's services, the preferences driving it, and the log
+  store they record into, created whole and never reconfigured — so a
+  logged-in surface can't read one world's store against another world's
+  preferences (PR #150).
 
 Smells that signal a missing type:
 

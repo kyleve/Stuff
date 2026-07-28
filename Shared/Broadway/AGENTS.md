@@ -38,6 +38,6 @@ bundles in [`Project.swift`](../../Project.swift) (the shared `unitTests` helper
 ## Testing
 
 `BroadwayCoreTests` and `BroadwayUITests` run in `StuffTestHost` and link
-`TestHostSupport`; `BroadwayCatalogTests` is hosted by the **BroadwayCatalog**
-app itself (its target depends on the app, not `StuffTestHost` —
-[`Project.swift`](../../Project.swift)). 1:1 test files per the root rules.
+`TestHostSupport`; `BroadwayCatalogTests` is currently hosted by the
+**BroadwayCatalog** app itself — a deviation from the shared-host convention,
+tracked in [`TODOs.md`](TODOs.md). 1:1 test files per the root rules.
