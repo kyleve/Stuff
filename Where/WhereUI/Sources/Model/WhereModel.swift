@@ -240,10 +240,11 @@ public final class WhereModel {
     /// so the gate before it didn't park), and onboarding itself (when they
     /// tap through the intro or restore a backup).
     ///
-    /// The store is opened **at most once per process**. Logging out (the
-    /// reset teardown) keeps the scope dormant rather than discarding it, so
-    /// logging back in reuses that container: two `ModelContainer`s racing over
-    /// one file is how a fresh install's launch once failed.
+    /// **At most one scope is live at a time.** Logging out releases and tears
+    /// the old one down, and the onboarding gate always sits between that and
+    /// the next login, so the container this opens is the only one alive: two
+    /// `ModelContainer`s racing over one file is how a fresh install's launch
+    /// once failed, and it was their overlap that did it, not their number.
     ///
     /// Throws if the store can't be opened, leaving the model logged out so a
     /// later attempt can try again.
@@ -288,15 +289,17 @@ public final class WhereModel {
         try await WhereScope.demo(now: now, logSystem: logSystem)
     }
 
-    /// Log in to a demo world, keeping whatever real scope exists dormant
-    /// beside it.
+    /// Log in to a demo world, releasing whatever scope was active first.
     ///
-    /// Detaches the real scope's durable log sink first, so nothing logged
-    /// during the demo is written to the user's on-disk history: a demo
-    /// entered after a reset would otherwise still be journaling through the
-    /// dormant real scope's store. The demo scope brings its own in-memory
-    /// sink, so the logs are still there to browse — they just die with the
-    /// process, like everything else in demo mode.
+    /// Logging out stops the real scope's durable log routing, so nothing
+    /// logged during the demo reaches the user's on-disk history — the demo
+    /// scope brings its own in-memory sink, so the records are still there to
+    /// browse, they just die with the process like everything else here.
+    ///
+    /// One scope routes at a time because `Periscope` fans every record out to
+    /// every registered sink: two worlds routing at once would cross-file each
+    /// other's records, which is why a demo can't currently run *beside* the
+    /// real app rather than instead of it.
     public func activateDemo(_ scope: WhereScope) async {
         guard !isInDemoMode else { return }
         await logOut()
@@ -333,11 +336,10 @@ public final class WhereModel {
         return session
     }
 
-    /// Drop the logged-in session and log out, keeping the real scope dormant.
-    /// Run by the reset teardown after `eraseAllData()`: the relaunch parks on
-    /// the onboarding gate again (the teardown cleared `hasOnboarded`), and
-    /// logging back in reuses this scope's already-open store rather than
-    /// opening a second one.
+    /// Drop the logged-in session and release the scope. Run by the reset
+    /// teardown after `eraseAllData()`: the relaunch parks on the onboarding
+    /// gate again (the teardown cleared `hasOnboarded`), and logging back in
+    /// builds a fresh scope over a newly-opened store.
     public func endSession() async {
         await logOut()
         Self.logger { .endedSession }
