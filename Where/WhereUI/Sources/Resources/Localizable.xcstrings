@@ -3619,6 +3619,42 @@
         }
       }
     },
+    "settings.demo.exit" : {
+      "comment" : "Button that leaves demo mode, discarding the sample data.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Exit demo mode"
+          }
+        }
+      }
+    },
+    "settings.demo.footer" : {
+      "comment" : "Footer explaining what leaving demo mode does.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "You're exploring sample data. None of it is saved — leaving discards it and returns to setup."
+          }
+        }
+      }
+    },
+    "settings.demo.header" : {
+      "comment" : "Header of the Settings section shown only while the app runs on demo data.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Demo mode"
+          }
+        }
+      }
+    },
     "settings.eraseYear.title" : {
       "extractionState" : "manual",
       "localizations" : {
