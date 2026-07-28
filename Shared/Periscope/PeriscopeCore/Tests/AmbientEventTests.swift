@@ -26,4 +26,39 @@ struct AmbientEventTests {
         let decoded = try JSONDecoder().decode(AmbientEvent.self, from: data)
         #expect(decoded == event)
     }
+
+    @Test func reportsLastingStateByDefault() {
+        #expect(AmbientEvent(kind: .network, value: "satisfied").reporting == .state)
+    }
+
+    @Test func roundTripsMomentaryReporting() throws {
+        let event = AmbientEvent(
+            kind: .memory,
+            value: "warning",
+            level: .warning,
+            reporting: .occurrence,
+        )
+        let data = try JSONEncoder().encode(event)
+        #expect(try JSONDecoder().decode(AmbientEvent.self, from: data) == event)
+    }
+
+    /// v1 rows predate `reporting` entirely; they must still decode (as
+    /// state changes, which is all v1 could express) rather than throw.
+    @Test func decodesVersionOnePayloadWithoutReporting() throws {
+        let v1 = try JSONEncoder().encode(
+            VersionOneAmbientEvent(kind: .network, value: "unsatisfied", level: .info),
+        )
+        let decoded = try JSONDecoder().decode(AmbientEvent.self, from: v1)
+        #expect(decoded == AmbientEvent(kind: .network, value: "unsatisfied"))
+        #expect(decoded.reporting == .state)
+    }
+
+    /// The payload shape v1 wrote: the same keys minus `reporting`. Encoded
+    /// rather than hand-written JSON so it tracks `AmbientKind`/`LogLevel`
+    /// coding instead of freezing a guess about it.
+    private struct VersionOneAmbientEvent: Encodable {
+        var kind: AmbientKind
+        var value: String
+        var level: LogLevel
+    }
 }
