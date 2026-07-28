@@ -94,12 +94,22 @@ public enum WhereLaunch {
     /// flowing through OSLog and the failure is recorded (with the error
     /// attached) rather than crashing a launch over diagnostics.
     ///
+    /// The session records how the app was built (see
+    /// `BuildInfo.logSessionAttributes`), because the version and build number
+    /// alone can't distinguish two sessions: the manifest pins both, so every
+    /// developer build reads `v1.0 (1)`. The optimization level in particular is
+    /// what lets a reader tell a measured duration that means something from one
+    /// taken off an unoptimized build.
+    ///
     /// Called once from the app delegate at process launch.
     public static func bootstrapLogging(model: WhereModel) {
         Task {
             let store: PeriscopeStore
+            let session = LogSession.current(
+                attributes: BuildInfo.current(bundle: .main).logSessionAttributes,
+            )
             do {
-                store = try await PeriscopeStore.make(storage: .onDisk, session: .current())
+                store = try await PeriscopeStore.make(storage: .onDisk, session: session)
             } catch {
                 logger(attachments: [.error(error, name: "open-error")]) {
                     .loggingStoreUnavailable(description: String(describing: error))

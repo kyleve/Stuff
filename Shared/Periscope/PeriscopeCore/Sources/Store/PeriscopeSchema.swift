@@ -188,6 +188,11 @@ final class SDLogSession {
     var buildNumber: String
     var osVersion: String
     var deviceModel: String
+    /// `LogSessionAttributeKey.rawValue` → value (commit, configuration,
+    /// optimization level). Optional so rows written before the column
+    /// existed take SwiftData's lightweight migration; `nil` reads back as
+    /// "this build couldn't name itself".
+    var attributes: [String: String]?
 
     init(session: LogSession) {
         sessionID = session.id
@@ -196,6 +201,11 @@ final class SDLogSession {
         buildNumber = session.buildNumber
         osVersion = session.osVersion
         deviceModel = session.deviceModel
+        // Injective (`LogSessionAttributeKey` wraps its raw value), so
+        // neither direction can collide into a duplicate key.
+        attributes = Dictionary(
+            uniqueKeysWithValues: session.attributes.map { ($0.key.rawValue, $0.value) },
+        )
     }
 
     var toValue: LogSession {
@@ -206,6 +216,10 @@ final class SDLogSession {
             buildNumber: buildNumber,
             osVersion: osVersion,
             deviceModel: deviceModel,
+            attributes: Dictionary(
+                uniqueKeysWithValues: (attributes ?? [:])
+                    .map { (LogSessionAttributeKey($0.key), $0.value) },
+            ),
         )
     }
 }

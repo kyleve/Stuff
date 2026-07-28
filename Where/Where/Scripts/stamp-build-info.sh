@@ -1,7 +1,9 @@
 #!/bin/bash
 #
-# Stamps the commit the app was built from into the built product's Info.plist,
-# so the Settings > About screen can show it (read back by `WhereCore.BuildInfo`).
+# Stamps how the app was built into the built product's Info.plist: the commit
+# it came from, and how the Swift compiler was invoked. Read back by
+# `WhereCore.BuildInfo` for the Settings > About screen and for the attributes
+# on every Periscope logging session.
 #
 # Runs as a post-build script phase on the `Where` target — after "Process
 # Info.plist" writes the file and before code signing seals the bundle — with
@@ -10,7 +12,9 @@
 #
 # A checkout without git metadata (an exported tarball, a sandboxed script
 # phase) is not a failure: the keys are still written, marked `unknown`, and the
-# About screen says so rather than showing an invented commit.
+# About screen says so rather than showing an invented commit. The compiler
+# keys get the same treatment via `${VAR:-unknown}` — `set -u` would otherwise
+# abort the build over a build setting Xcode happened not to export.
 
 set -euo pipefail
 
@@ -33,3 +37,11 @@ set_key() {
 
 set_key WhereGitSHA "$sha"
 set_key WhereGitStatus "$status"
+
+# How the Swift compiler was invoked. `SWIFT_OPTIMIZATION_LEVEL` is the one
+# that decides whether a recorded span duration says anything about a shipping
+# build; the configuration alone can't answer it, since a Debug configuration
+# can be compiled with `-O`.
+set_key WhereConfiguration "${CONFIGURATION:-unknown}"
+set_key WhereSwiftOptimizationLevel "${SWIFT_OPTIMIZATION_LEVEL:-unknown}"
+set_key WhereSwiftCompilationMode "${SWIFT_COMPILATION_MODE:-unknown}"

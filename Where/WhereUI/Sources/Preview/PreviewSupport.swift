@@ -114,6 +114,9 @@
                 "CFBundleVersion": "42",
                 "WhereGitSHA": "a18a9309c5d6",
                 "WhereGitStatus": isDirty ? "dirty" : "clean",
+                "WhereConfiguration": "Release",
+                "WhereSwiftOptimizationLevel": "-O",
+                "WhereSwiftCompilationMode": "wholemodule",
             ])
         }
 
@@ -502,7 +505,11 @@
         /// but backed by memory so nothing touches disk.
         @MainActor
         public static func previewLogStore() async throws -> PeriscopeStore {
-            try await PeriscopeStore.make(storage: .inMemory, session: .current())
+            try await PeriscopeStore.make(
+                storage: .inMemory,
+                session: .current(attributes: BuildInfo.current(bundle: .main)
+                    .logSessionAttributes),
+            )
         }
 
         /// A `loadedModel()` with an in-memory log store attached, so the

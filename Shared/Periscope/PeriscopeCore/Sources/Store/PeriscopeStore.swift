@@ -22,7 +22,7 @@ import SwiftData
 /// ```swift
 /// let store = try await PeriscopeStore.make(
 ///     storage: .onDisk,
-///     session: .current(),
+///     session: .current(attributes: [:]),
 /// )
 /// Periscope.shared.add(sink: store)
 /// ```
@@ -262,7 +262,9 @@ public actor PeriscopeStore: LogSink {
         if let activeSessionRow {
             return activeSessionRow
         }
-        let session = activeSession ?? .current()
+        // No attributes: an app that never called `startSession` never
+        // told us how it was built.
+        let session = activeSession ?? .current(attributes: [:])
         activeSession = session
         let id = session.id
         var descriptor = FetchDescriptor<SDLogSession>(

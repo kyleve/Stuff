@@ -230,7 +230,7 @@ struct WhereLaunchTests {
         // A fresh model has none until then.
         let model = try makeModel(preferences: makePreferences())
         #expect(model.logStore == nil)
-        let store = try await PeriscopeStore.inMemory(session: .current())
+        let store = try await PeriscopeStore.inMemory(session: .current(attributes: [:]))
         model.attach(logStore: store)
         #expect(model.logStore === store)
     }

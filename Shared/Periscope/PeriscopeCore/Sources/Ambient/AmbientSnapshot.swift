@@ -61,26 +61,10 @@ public struct AmbientSnapshot: Sendable, Hashable, Codable, Identifiable {
 /// encodes inside an `AmbientEvent` payload — invalidating stored rows.
 extension AmbientKind: CodingKeyRepresentable {
     public var codingKey: any CodingKey {
-        Key(stringValue: rawValue)
+        StringCodingKey(rawValue)
     }
 
     public init?(codingKey: some CodingKey) {
         self.init(codingKey.stringValue)
-    }
-
-    private struct Key: CodingKey {
-        let stringValue: String
-
-        var intValue: Int? {
-            nil
-        }
-
-        init(stringValue: String) {
-            self.stringValue = stringValue
-        }
-
-        init?(intValue _: Int) {
-            nil
-        }
     }
 }

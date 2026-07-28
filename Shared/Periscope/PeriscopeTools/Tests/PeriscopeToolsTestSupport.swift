@@ -12,7 +12,10 @@ struct PhotoLogs: LogEvent {
 }
 
 /// A deterministic session for store-backed tests.
-func makeSession(startedAt: Date = Date(timeIntervalSinceReferenceDate: 0)) -> LogSession {
+func makeSession(
+    startedAt: Date = Date(timeIntervalSinceReferenceDate: 0),
+    attributes: [LogSessionAttributeKey: String] = [:],
+) -> LogSession {
     LogSession(
         id: UUID(),
         startedAt: startedAt,
@@ -20,6 +23,7 @@ func makeSession(startedAt: Date = Date(timeIntervalSinceReferenceDate: 0)) -> L
         buildNumber: "42",
         osVersion: "TestOS 1.0",
         deviceModel: "TestDevice1,1",
+        attributes: attributes,
     )
 }
 

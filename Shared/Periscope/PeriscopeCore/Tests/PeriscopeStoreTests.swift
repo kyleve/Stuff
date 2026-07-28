@@ -193,6 +193,29 @@ struct PeriscopeStoreTests {
         #expect(events.map(\.message) == ["in first"])
     }
 
+    @Test func sessionsKeepTheBuildAttributesTheyWereStartedWith() async throws {
+        let (store, _, _, _) = try await makeStore()
+        let session = LogSession.fixture(attributes: [
+            .commit: "a18a9309c5d6",
+            .optimizationLevel: "-Onone",
+        ])
+        try await store.startSession(session)
+
+        let stored = try #require(try await store.sessions().first { $0.id == session.id })
+        #expect(stored.attributes == [.commit: "a18a9309c5d6", .optimizationLevel: "-Onone"])
+    }
+
+    /// An app that never names its build is the supported case, not a broken
+    /// one — the attributes are a seam a host app may simply not fill.
+    @Test func sessionsStartedWithoutAttributesReadBackEmpty() async throws {
+        let (store, _, _, _) = try await makeStore()
+        let session = LogSession.fixture()
+        try await store.startSession(session)
+
+        let stored = try #require(try await store.sessions().first { $0.id == session.id })
+        #expect(stored.attributes.isEmpty)
+    }
+
     @Test func messageSearchFilters() async throws {
         let (store, root, _, _) = try await makeStore()
         await store.write([

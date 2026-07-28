@@ -211,7 +211,7 @@ public struct PeriscopeViewer: View {
             Picker("Session", selection: $model.selectedSessionID) {
                 Text("All Sessions").tag(UUID?.none)
                 ForEach(model.sessions) { session in
-                    Text(sessionLabel(session)).tag(UUID?.some(session.id))
+                    Text(session.displayLabel).tag(UUID?.some(session.id))
                 }
             }
             Picker("Span Exit", selection: $model.selectedSpanExitMode) {
@@ -262,11 +262,6 @@ public struct PeriscopeViewer: View {
         } label: {
             Label("Export", systemImage: "square.and.arrow.up")
         }
-    }
-
-    private func sessionLabel(_ session: LogSession) -> String {
-        let started = session.startedAt.formatted(date: .abbreviated, time: .shortened)
-        return "\(started) — v\(session.appVersion) (\(session.buildNumber))"
     }
 }
 
