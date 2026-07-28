@@ -77,7 +77,7 @@ public func renderSnapshotImage(
     settle: SnapshotSettle = .settled,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
 ) async -> UIImage {
-    await renderSnapshotImage(
+    await renderSnapshotCapture(
         of: viewController,
         named: name,
         sizing: sizing,
@@ -86,14 +86,27 @@ public func renderSnapshotImage(
         settle: settle,
         onReadyToSnapshot: onReadyToSnapshot,
         timing: SnapshotCaptureTiming(identifier: name, isEnabled: false),
-    )
+    ).image
+}
+
+/// A finished capture: the image to compare, and the PNG bytes it was
+/// round-tripped through.
+///
+/// Both, because they answer different questions and re-deriving either costs a
+/// full encode or decode: `assertSnapshot` wants the image, while the reference
+/// byte-comparison (``compareAgainstReference(capturedPNG:referenceURL:)``) wants
+/// exactly the bytes that would be written to disk.
+@_spi(Testing) public struct SnapshotCapture {
+    public let image: UIImage
+    public let pngData: Data
 }
 
 /// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:settle:onReadyToSnapshot:)``
 /// with a caller-supplied phase recorder, so `assertSnapshots` can attribute the
-/// capture *and* the comparison that follows it to one line of output.
+/// capture *and* the comparison that follows it to one line of output, and can
+/// compare the captured bytes against the reference without re-encoding.
 @MainActor
-@_spi(Testing) public func renderSnapshotImage(
+@_spi(Testing) public func renderSnapshotCapture(
     of viewController: UIViewController,
     named name: String,
     sizing: SnapshotSizing,
@@ -102,7 +115,7 @@ public func renderSnapshotImage(
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     timing: SnapshotCaptureTiming,
-) async -> UIImage {
+) async -> SnapshotCapture {
     await SnapshotCaptureLock.withLock {
         await renderSnapshotImageLocked(
             of: viewController,
@@ -130,8 +143,8 @@ private func renderSnapshotImageLocked(
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
     timing: SnapshotCaptureTiming,
-) async -> UIImage {
-    func capture() async -> UIImage {
+) async -> SnapshotCapture {
+    func capture() async -> SnapshotCapture {
         // `hostKeyWindow()` is the specific window `StuffTestHost` stamps with
         // `isMainTestHostWindow` — the guaranteed root window we set up, not
         // merely whatever window happens to be key. So this is stable regardless
@@ -246,7 +259,7 @@ private func renderSnapshotImageLocked(
             else {
                 preconditionFailure("Snapshot capture could not be PNG-encoded.")
             }
-            return decoded
+            return SnapshotCapture(image: decoded, pngData: pngData)
         }
     }
 

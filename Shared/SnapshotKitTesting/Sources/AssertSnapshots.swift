@@ -97,6 +97,9 @@ public func assertSnapshots(
     // default plain output.
     let resolvedRecord = record ?? environmentRecordMode()
     let resolvedDiffTool = environmentDiffTool()
+    // Read once per call rather than per configuration: the environment can't
+    // change mid-run, and the pixel walk is the cost worth gating, not this.
+    let isDiffReportingEnabled = SnapshotDiffReporting.isEnabledByEnvironment
 
     for configuration in configurations {
         let hostingController = makeHostingController(for: view, configuration: configuration)
@@ -117,7 +120,7 @@ public func assertSnapshots(
             identifier: identifier,
             isEnabled: SnapshotCaptureTiming.isEnabledByEnvironment,
         )
-        let image = await renderSnapshotImage(
+        let capture = await renderSnapshotCapture(
             of: hostingController,
             named: identifier,
             sizing: sizing,
@@ -127,10 +130,26 @@ public func assertSnapshots(
             onReadyToSnapshot: onReadyToSnapshot,
             timing: timing,
         )
+        // Before the verdict, so a reviewer gets the shape of the delta on the
+        // same run that reports the failure. Reads the reference from disk; the
+        // byte-equality check short-circuits when the capture is deterministic.
+        if isDiffReportingEnabled {
+            SnapshotDiffReporting.report(
+                compareAgainstReference(
+                    capturedPNG: capture.pngData,
+                    referenceURL: snapshotReferenceURL(
+                        testFilePath: "\(filePath)",
+                        testName: testName,
+                        identifier: identifier,
+                    ),
+                ),
+                identifier: identifier,
+            )
+        }
         timing.measure(.compare) {
             withSnapshotTesting(record: resolvedRecord, diffTool: resolvedDiffTool) {
                 assertSnapshot(
-                    of: image,
+                    of: capture.image,
                     as: .image(
                         precision: defaultSnapshotPrecision,
                         perceptualPrecision: defaultSnapshotPerceptualPrecision,
