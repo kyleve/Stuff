@@ -45,6 +45,7 @@ STATUS_FILE=""
 TIMINGS=false
 REVIEW=false
 BASE_REF="origin/main"
+SHARED=false
 
 usage() {
     cat <<'USAGE'
@@ -71,6 +72,9 @@ Running:
   --record MODE     Re-record snapshots: all | failed | missing | never
   --device NAME     Simulator device name (default: "iPhone 17")
   --os VERSION      Simulator iOS version (default: "27.0")
+  --shared          Use any existing simulator with that name rather than this
+                    checkout's own — for a throwaway machine (CI) that is
+                    already isolated
 
 Reporting:
   --timings         Collect per-phase snapshot capture timings and print a
@@ -108,6 +112,7 @@ while [ $# -gt 0 ]; do
         --no-generate) DO_GENERATE=false ;;
         --record) shift; RECORD="${1:?--record requires a mode}" ;;
         --device) shift; DEVICE="${1:?--device requires a value}" ;;
+        --shared) SHARED=true ;;
         --os) shift; OS="${1:?--os requires a value}" ;;
         --timings) TIMINGS=true ;;
         --review) REVIEW=true ;;
@@ -131,7 +136,9 @@ esac
 WORKSPACE="Stuff.xcworkspace"
 UNIT_SCHEME="Stuff-iOS-Tests"
 SNAPSHOT_SCHEME="StuffSnapshotTests"
-WORKDIR="${TMPDIR:-/tmp}/where-test"
+# Overridable so CI can collect the logs and result bundles from a known path
+# rather than digging through DerivedData.
+WORKDIR="${TEST_WORKDIR:-${TMPDIR:-/tmp}/where-test}"
 mkdir -p "$WORKDIR"
 
 rule() { printf '%s\n' "============================================================"; }
@@ -517,7 +524,9 @@ if [ "$DO_GENERATE" = true ]; then
     fi
 fi
 
-UDID="$(./simulator --device "$DEVICE" --os "$OS")"
+SIMULATOR_FLAGS=(--device "$DEVICE" --os "$OS")
+[ "$SHARED" = true ] && SIMULATOR_FLAGS+=(--shared)
+UDID="$(./simulator "${SIMULATOR_FLAGS[@]}")"
 DESTINATION="platform=iOS Simulator,id=$UDID"
 
 # xcodebuild strips the TEST_RUNNER_ prefix on the way in, which is why the
