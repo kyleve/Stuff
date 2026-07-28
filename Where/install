@@ -96,13 +96,14 @@ EOF
     exit 1
 fi
 
-# In the checkout, not `$TMPDIR`: macOS sweeps files under `/var/folders/…/T`
-# that haven't been read in ~3 days, and it deletes *files* while leaving
-# directories — which strands a package checkout with no `Package.swift` and
-# fails the next build with "the package manifest … cannot be accessed". The
-# path is covered by `.gitignore`'s `DerivedData/`. Nothing self-cleans here, so
-# delete it by hand if you want the space back.
-WORKDIR="$PWD/DerivedData/where-install"
+# Under Xcode's DerivedData, not `$TMPDIR` and not the checkout. `$TMPDIR` is
+# swept by macOS after ~3 days — it deletes *files* while leaving directories,
+# stranding a package checkout with no `Package.swift` and failing the next
+# build with "the package manifest … cannot be accessed". Inside the checkout
+# is worse: the repo's tree-walking scripts (`./swiftformat`, `./xcstrings`,
+# `./sync-agents`) would descend into the vendored package sources. Suffixed
+# per checkout so clones don't share. Nothing prunes it; delete by hand.
+WORKDIR="$HOME/Library/Developer/Xcode/DerivedData/where-install-$(basename "$PWD")"
 DERIVED="$WORKDIR/DerivedData"
 DEVICES_JSON="$WORKDIR/devices.json"
 mkdir -p "$WORKDIR"

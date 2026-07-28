@@ -93,12 +93,13 @@ WORKSPACE="Stuff.xcworkspace"
 # first time), which rules both out.
 DESTINATION="platform=iOS Simulator,id=$(./simulator --device "$DEVICE" --os "$OS")"
 
-# In the checkout rather than `$TMPDIR`, because the warm rebuild below depends
-# on this surviving between runs: macOS sweeps unread files from
+# Under Xcode's DerivedData rather than `$TMPDIR`, because the warm rebuild
+# below depends on this surviving between runs: macOS sweeps unread files from
 # `/var/folders/…/T` after ~3 days, taking package manifests with them, so a
-# "warm" re-run would go cold or fail outright. Covered by `.gitignore`'s
-# `DerivedData/`; delete it by hand to reclaim the space.
-WORKDIR="$PWD/DerivedData/where-flaky"
+# "warm" re-run would go cold or fail outright. Not in the checkout either —
+# the repo's tree-walking scripts would descend into the vendored package
+# sources. Suffixed per checkout; nothing prunes it, so delete by hand.
+WORKDIR="$HOME/Library/Developer/Xcode/DerivedData/where-flaky-$(basename "$PWD")"
 DERIVED="$WORKDIR/DerivedData"
 BUILD_LOG="$WORKDIR/build.log"
 SUITE_DIR="$WORKDIR/suite"
