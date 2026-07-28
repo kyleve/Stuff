@@ -22,6 +22,13 @@ public struct SpanHistoryView: View {
         content
             .navigationTitle("Span History")
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if model.availableScopes.count > 1 {
+                    ToolbarItem(placement: .primaryAction) {
+                        scopeMenu
+                    }
+                }
+            }
             .environment(\.logRowDensity, .load(from: .standard))
             .periscopeBroadwayRoot()
             .task(id: ObjectIdentifier(store)) {
@@ -30,6 +37,21 @@ public struct SpanHistoryView: View {
                 }
                 await model.run()
             }
+    }
+
+    /// Which builds the percentiles pool. Only shown when the store's sessions
+    /// can support more than one scope — a store with a single unidentified
+    /// session has nothing to narrow to.
+    private var scopeMenu: some View {
+        Menu {
+            Picker("Builds", selection: $model.scope) {
+                ForEach(model.availableScopes, id: \.self) { scope in
+                    Text(scope.displayName).tag(scope)
+                }
+            }
+        } label: {
+            Label("Builds", systemImage: "line.3.horizontal.decrease.circle")
+        }
     }
 
     @ViewBuilder
@@ -48,20 +70,30 @@ public struct SpanHistoryView: View {
                 ContentUnavailableView(
                     "No Spans",
                     systemImage: "stopwatch",
-                    description: Text("No closed spans have been recorded yet."),
+                    // A narrowed scope with nothing in it is a different fact
+                    // from an empty store, and the reader needs to know which.
+                    description: Text(
+                        model.scope == .all
+                            ? "No closed spans have been recorded yet."
+                            : "No closed spans from \(model.scopeSummary.lowercased()).",
+                    ),
                 )
             case let .loaded(summaries):
                 List {
-                    ForEach(summaries) { summary in
-                        NavigationLink {
-                            SpanKindDetailView(
-                                summary: summary,
-                                scopePath: model.scopePath(for:),
-                                store: store,
-                            )
-                        } label: {
-                            SpanKindRow(summary: summary)
+                    Section {
+                        ForEach(summaries) { summary in
+                            NavigationLink {
+                                SpanKindDetailView(
+                                    summary: summary,
+                                    scopePath: model.scopePath(for:),
+                                    store: store,
+                                )
+                            } label: {
+                                SpanKindRow(summary: summary)
+                            }
                         }
+                    } header: {
+                        Text(model.scopeSummary)
                     }
                 }
                 .listStyle(.plain)

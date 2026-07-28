@@ -245,6 +245,17 @@ public actor PeriscopeStore: LogSink {
         }
     }
 
+    /// The session writes are being attributed to, or `nil` before one exists.
+    ///
+    /// Tooling needs this to tell "this launch" from the other sessions in the
+    /// store, and to read the current build's attributes. It stays `nil` rather
+    /// than synthesizing a session: ``ensureActiveSession()`` is what mints the
+    /// fallback, and it does so on the first *write*, so answering here would
+    /// mean a read had invented the session a later write then adopts.
+    public var currentSession: LogSession? {
+        activeSession
+    }
+
     /// Every recorded session, newest first.
     public func sessions() throws -> [LogSession] {
         let descriptor = FetchDescriptor<SDLogSession>(

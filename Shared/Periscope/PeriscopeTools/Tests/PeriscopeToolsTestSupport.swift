@@ -28,13 +28,17 @@ func makeSession(
 }
 
 /// An in-memory store with the app → photos → album-1 hierarchy defined.
-func makeSeededStore() async throws -> (
+func makeSeededStore(
+    sessionAttributes: [LogSessionAttributeKey: String] = [:],
+) async throws -> (
     store: PeriscopeStore,
     root: LogScope,
     photos: LogScope,
     album: LogScope
 ) {
-    let store = try await PeriscopeStore.inMemory(session: makeSession())
+    let store = try await PeriscopeStore.inMemory(
+        session: makeSession(attributes: sessionAttributes),
+    )
     let root = LogScope.root(named: "app")
     let photos = root.child(named: "photos")
     let album = photos.child(named: "album-1")

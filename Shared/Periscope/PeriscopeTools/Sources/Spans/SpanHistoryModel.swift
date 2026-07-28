@@ -60,6 +60,9 @@ struct SpanKindSummary: Identifiable {
 /// Only *closed* spans appear — open spans have no end event and so no measured
 /// duration. Distinct from ``SpanTreeModel`` (which nests begin/end pairs into a
 /// trace tree); this aggregates ends by kind for a timing overview.
+///
+/// A reading is scoped by build (``scope``): pooling an unoptimized build's
+/// durations with an optimized one's produces percentiles that describe neither.
 @MainActor
 @Observable
 final class SpanHistoryModel {
@@ -77,15 +80,51 @@ final class SpanHistoryModel {
     private(set) var state: LoadState = .loading
     private(set) var scopes: [ScopeID: LogScope] = [:]
 
+    /// Which builds the reading covers. Setting it re-derives the summaries
+    /// from the ends already fetched — narrowing a reading is a filter over
+    /// accumulated events, never a refetch.
+    var scope: SpanHistoryScope = .all {
+        didSet {
+            guard oldValue != scope else { return }
+            rebuild()
+        }
+    }
+
+    /// The scopes worth offering, given what the store's sessions can say —
+    /// always at least ``SpanHistoryScope/all``.
+    private(set) var availableScopes: [SpanHistoryScope] = [.all]
+
     /// Every `SpanEnded` seen so far, accumulated across refreshes so each
     /// commit only fetches the ends appended since the last one.
     @ObservationIgnored private var ends: [StoredLogEvent] = []
     /// The highest event ``StoredLogEvent/sequence`` merged so far — the cursor
     /// the next refresh queries past. `nil` means nothing loaded yet.
     @ObservationIgnored private var watermark: Int?
+    /// Every recorded session, and the one running now — what ``scope`` filters
+    /// events by. Refreshed each load, since a session can start mid-viewing.
+    @ObservationIgnored private var sessions: [LogSession] = []
+    @ObservationIgnored private var currentSession: LogSession?
 
     init(store: PeriscopeStore) {
         self.store = store
+    }
+
+    /// One line naming what the percentiles cover, so a reading can't be
+    /// mistaken for a different one — the count is of sessions contributing,
+    /// which is what makes "same optimization level" concrete.
+    var scopeSummary: String {
+        let admitted = scope.sessionIDs(in: sessions, current: currentSession)
+        let count = admitted?.count ?? sessions.count
+        let sessionCount = "\(count) session\(count == 1 ? "" : "s")"
+        switch scope {
+            case .all:
+                return "All builds · \(sessionCount)"
+            case .currentSession:
+                return "This session only"
+            case .sameOptimizationLevel:
+                let level = currentSession?.attributes[.optimizationLevel] ?? "unstated"
+                return "Built at \(level) · \(sessionCount)"
+        }
     }
 
     /// Initial load plus live refresh — run from `.task` so leaving the screen
@@ -112,12 +151,48 @@ final class SpanHistoryModel {
             query.afterSequence = watermark
             let newEnds = try await store.events(matching: query)
             let scopeList = try await store.scopes()
+            let sessionList = try await store.sessions()
+            let current = await store.currentSession
             merge(ends: newEnds)
             scopes = Dictionary(uniqueKeysWithValues: scopeList.map { ($0.id, $0) })
-            state = .loaded(Self.summaries(from: ends))
+            adopt(sessions: sessionList, current: current)
+            state = .loaded(Self.summaries(from: scopedEnds()))
         } catch {
             state = .failed(String(describing: error))
         }
+    }
+
+    /// Take the freshly read sessions and re-derive which scopes they can
+    /// support, dropping the selection back to ``SpanHistoryScope/all`` if it
+    /// no longer resolves — a reading must never keep a scope label it can't
+    /// honor. (The store only gains sessions, so in practice this widens the
+    /// options rather than narrowing them.)
+    private func adopt(sessions: [LogSession], current: LogSession?) {
+        self.sessions = sessions
+        currentSession = current
+        availableScopes = SpanHistoryScope.allCases.filter { $0.resolvable(current: current) }
+        if !availableScopes.contains(scope) {
+            scope = .all
+        }
+    }
+
+    /// Re-derive the summaries from the accumulated ends under the current
+    /// scope. Only meaningful once a load has succeeded: rebuilding out of
+    /// `.loading` or `.failed` would present a reading as loaded that no
+    /// completed load produced.
+    private func rebuild() {
+        guard case .loaded = state else { return }
+        state = .loaded(Self.summaries(from: scopedEnds()))
+    }
+
+    /// The accumulated ends the active scope admits. ``SpanHistoryScope/all``
+    /// short-circuits, so the default reading doesn't build a set or walk every
+    /// event to include all of them.
+    private func scopedEnds() -> [StoredLogEvent] {
+        guard let admitted = scope.sessionIDs(in: sessions, current: currentSession) else {
+            return ends
+        }
+        return ends.filter { admitted.contains($0.sessionID) }
     }
 
     /// Append the ends strictly past the watermark and advance it. Filtering
