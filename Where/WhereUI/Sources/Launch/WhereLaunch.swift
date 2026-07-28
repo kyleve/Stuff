@@ -284,7 +284,25 @@ public final class WhereBootstrap: WhereScopeAssembling {
     /// process, because what a session persists depends on which world it is
     /// in — an in-memory world must leave nothing behind.
     public func makeLogStore() async throws -> PeriscopeStore? {
-        try await PeriscopeStore.make(storage: .onDisk, session: .current())
+        try await PeriscopeStore.make(storage: Self.logStorage, session: .current())
+    }
+
+    /// Where a real scope's log store belongs, mirroring
+    /// `SwiftDataStore.Storage.default`'s test-runner guard: under a test host
+    /// it must stay in memory. A suite that logs in would otherwise write its
+    /// records into the user's `Periscope.store`, and opening that from a test
+    /// host's sandbox neither succeeds nor fails promptly — it stalls the
+    /// bundle instead of failing it.
+    ///
+    /// The environment check lives here rather than in `PeriscopeCore` because
+    /// a general-purpose logging framework has no business knowing what a test
+    /// host is. This is the app's composition root choosing its own world, and
+    /// `WhereBootstrap` is the only place that opens a durable one.
+    @_spi(Testing) public nonisolated static var logStorage: PeriscopeStore.Storage {
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return .inMemory
+        }
+        return .onDisk
     }
 }
 

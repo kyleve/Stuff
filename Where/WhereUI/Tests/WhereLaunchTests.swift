@@ -6,7 +6,7 @@ import SwiftData
 import TestHostSupport
 import Testing
 @_spi(Testing) import WhereCore
-import WhereUI
+@_spi(Testing) import WhereUI
 
 private struct WaitTimeout: Error {}
 
@@ -442,5 +442,15 @@ struct WhereLaunchTests {
         #expect(launcher.reason.buildsNoViewTree)
         // The minimal background steps still ran (reconcile-tracking resumed GPS).
         #expect(model.session?.isTracking == true)
+    }
+}
+
+/// Guards the one place the app opens a durable log store.
+struct WhereBootstrapStorageTests {
+    /// If this fails, a suite that logs in writes its records into the user's
+    /// `Periscope.store` — and stalls on the test host's sandbox while doing
+    /// it, rather than failing.
+    @Test func durableLogStorageStaysInMemoryUnderTheTestRunner() {
+        #expect(WhereBootstrap.logStorage == .inMemory)
     }
 }
