@@ -23,7 +23,7 @@ struct SpanHistoryModelTests {
             Issue.record("Expected loaded summaries, got \(model.state)")
             return
         }
-        #expect(summaries.map(\.name) == ["save", "load"])
+        #expect(summaries.map(\.kind.text) == ["save", "load"])
         #expect(summaries.map(\.count) == [3, 1])
         // The drill-in list is newest first.
         let save = try #require(summaries.first)
@@ -170,7 +170,7 @@ struct SpanHistoryModelTests {
 
         let shown = await waitUntil {
             guard case let .loaded(summaries) = model.state else { return false }
-            return summaries.map(\.name) == ["late"]
+            return summaries.map(\.kind.text) == ["late"]
         }
         #expect(shown)
     }
@@ -230,6 +230,56 @@ struct SpanHistoryModelTests {
             return summaries.count == 1 && summaries.first?.count == 2
         }
         #expect(total)
+    }
+
+    // MARK: - Unreadable payloads
+
+    /// An end whose payload won't decode still counts, grouped under a name
+    /// recovered from its message — and marked as recovered, so the bucket
+    /// doesn't read as a span kind the code declares.
+    @Test func groupsAnUnreadableEndUnderARecoveredName() {
+        let summaries = SpanHistoryModel.summaries(from: [
+            storedSpanEvent(
+                eventName: SpanEnded.eventName,
+                spanID: SpanID(),
+                message: "◀ save",
+                at: date(0),
+                payload: unreadablePayload,
+                exitMode: .success,
+            ),
+        ])
+
+        #expect(summaries.map(\.kind) == [.recovered("save")])
+        #expect(summaries.first?.count == 1)
+        // No duration survived the corrupt payload, so there is nothing to
+        // compute percentiles from — reporting zero would invent a measurement.
+        #expect(summaries.first?.percentiles == nil)
+    }
+
+    /// The recovered name matches the real kind's name here, and the buckets
+    /// still don't merge: a row whose payload is corrupt can't be presented as
+    /// another instance of a kind that decoded fine.
+    @Test func aRecoveredBucketStaysSeparateFromTheRecordedKind() throws {
+        let summaries = try SpanHistoryModel.summaries(from: [
+            storedSpanEnded(
+                SpanID(),
+                name: "save",
+                at: date(0),
+                duration: .seconds(1),
+                exit: .success,
+            ),
+            storedSpanEvent(
+                eventName: SpanEnded.eventName,
+                spanID: SpanID(),
+                message: "◀ save",
+                at: date(1),
+                payload: unreadablePayload,
+                exitMode: .success,
+            ),
+        ])
+
+        #expect(summaries.count == 2)
+        #expect(Set(summaries.map(\.kind)) == [.recorded("save"), .recovered("save")])
     }
 
     // MARK: - Build scoping

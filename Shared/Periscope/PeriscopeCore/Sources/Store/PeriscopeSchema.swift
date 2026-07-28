@@ -51,6 +51,12 @@ final class SDLogEvent {
     /// `SpanExit.Mode.rawValue` on span-ended events — queryable, so the
     /// viewer can filter "everything that failed/expired/orphaned".
     var spanExitMode: String?
+    /// `SpanRelaunchPolicy.rawValue` on span-*began* events, so the next
+    /// launch's orphan sweep can honor the policy from a column instead of
+    /// decoding every unmatched began's payload. Optional so rows written
+    /// before the column existed take SwiftData's lightweight migration; the
+    /// sweep falls back to their payload.
+    var spanRelaunchPolicy: String?
     /// The emitting function/file (`#function`/`#fileID`), when captured.
     var callFunction: String?
     var callFileID: String?
@@ -78,6 +84,7 @@ final class SDLogEvent {
         ambientSnapshotID: UUID?,
         spanID: UUID?,
         spanExitMode: String?,
+        spanRelaunchPolicy: String?,
         callFunction: String?,
         callFileID: String?,
         externalID: String?,
@@ -99,12 +106,21 @@ final class SDLogEvent {
         self.ambientSnapshotID = ambientSnapshotID
         self.spanID = spanID
         self.spanExitMode = spanExitMode
+        self.spanRelaunchPolicy = spanRelaunchPolicy
         self.callFunction = callFunction
         self.callFileID = callFileID
         self.externalID = externalID
         self.scopes = scopes
         self.tags = tags
         self.attachments = attachments
+    }
+
+    /// ``spanRelaunchPolicy`` as its enum, or `nil` when the row carries no
+    /// policy — it isn't a span began, or it was written before the column
+    /// existed — or names one this build doesn't recognize. The orphan sweep
+    /// reads the payload only in those cases.
+    var declaredRelaunchPolicy: SpanRelaunchPolicy? {
+        spanRelaunchPolicy.flatMap(SpanRelaunchPolicy.init(rawValue:))
     }
 }
 

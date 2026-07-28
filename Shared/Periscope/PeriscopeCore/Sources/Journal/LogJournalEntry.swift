@@ -93,6 +93,9 @@ import Foundation
     @_spi(Testing) public var tags: [LogTag]
     @_spi(Testing) public var spanID: UUID?
     @_spi(Testing) public var spanExitMode: String?
+    /// A span began's relaunch policy. `Optional` for the same reason as
+    /// ``ambient``, and because it's only ever set on a began.
+    @_spi(Testing) public var spanRelaunchPolicy: String?
     @_spi(Testing) public var callFunction: String?
     @_spi(Testing) public var callFileID: String?
     @_spi(Testing) public var externalID: String?
@@ -121,6 +124,7 @@ import Foundation
         tags = record.tags
         spanID = record.spanID?.rawValue
         spanExitMode = record.spanExit?.mode.rawValue
+        spanRelaunchPolicy = record.spanRelaunchPolicy?.rawValue
         callFunction = record.callSite?.function
         callFileID = record.callSite?.fileID
         externalID = record.externalID

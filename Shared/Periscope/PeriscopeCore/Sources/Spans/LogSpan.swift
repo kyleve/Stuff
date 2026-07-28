@@ -193,6 +193,14 @@ extension LogRecord {
     public var spanExit: SpanExit? {
         (event as? SpanEnded)?.exit
     }
+
+    /// What a relaunch should do with this span, when this record is a
+    /// ``SpanBegan`` — the store persists it as a column so the next launch's
+    /// orphan sweep decides from an indexed value rather than by decoding
+    /// every unmatched began's payload.
+    public var spanRelaunchPolicy: SpanRelaunchPolicy? {
+        (event as? SpanBegan)?.relaunchPolicy
+    }
 }
 
 /// Identifies an open `begin(for:)` span: begin and end pair when they use

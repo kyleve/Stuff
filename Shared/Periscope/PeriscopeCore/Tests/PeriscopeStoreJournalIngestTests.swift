@@ -193,6 +193,31 @@ struct PeriscopeStoreJournalIngestTests {
         #expect(try ended.decode(SpanEnded.self).exit == .orphaned)
     }
 
+    /// A span that asked to survive a relaunch must survive one it reached
+    /// through the crash journal too: the recovered row carries the policy, so
+    /// the sweep that runs right after ingest leaves it open.
+    @Test func recoveredSpanBegansKeepTheirRelaunchPolicy() async throws {
+        let root = try makeRoot()
+        let crashed = LogSession.fixture(startedAt: date(0))
+        let scope = LogScope.root(named: "app")
+        let began = SpanBegan(
+            spanID: SpanID(),
+            name: "long-download",
+            lifetime: .indefinite,
+            relaunchPolicy: .survivesRelaunch,
+        )
+        let record = LogRecord(date: date(1), event: began, scopes: [scope.id])
+        try writeCrashedJournal(root: root, session: crashed, scopes: [scope], records: [record])
+
+        let store = try await PeriscopeStore.onDisk(
+            databaseURL: databaseURL(in: root),
+            session: .fixture(startedAt: date(100)),
+        )
+
+        let events = try await store.events(inSpan: began.spanID)
+        #expect(events.map(\.eventName) == [SpanBegan.eventName])
+    }
+
     @Test func tornJournalsEscalateTheRecoveryMarker() async throws {
         let root = try makeRoot()
         let crashed = LogSession.fixture(startedAt: date(0))

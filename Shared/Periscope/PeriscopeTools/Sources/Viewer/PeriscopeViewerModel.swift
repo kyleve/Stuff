@@ -121,6 +121,9 @@ final class PeriscopeViewerModel {
             sessions = sessionList
             canLoadMore = page.count == Self.pageSize
         } catch {
+            PeriscopeToolsLog.failures.error(
+                "Log viewer could not read the store: \(error, privacy: .public)",
+            )
             guard requested == generation else { return }
             state = .failed(String(describing: error))
         }
@@ -139,6 +142,9 @@ final class PeriscopeViewerModel {
             state = .loaded(current + next)
             canLoadMore = next.count == Self.pageSize
         } catch {
+            PeriscopeToolsLog.failures.error(
+                "Log viewer could not read the next page: \(error, privacy: .public)",
+            )
             guard requested == generation else { return }
             state = .failed(String(describing: error))
         }

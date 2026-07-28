@@ -101,6 +101,75 @@ func spanEnded(
     )
 }
 
+/// A stored span event as the span tooling reads it back, for the cases a live
+/// store can't produce: `payload` is passed through verbatim, so a suite can
+/// hand the models the on-disk corruption they have to report honestly.
+func storedSpanEvent(
+    eventName: String,
+    spanID: SpanID,
+    message: String,
+    at date: Date,
+    payload: Data,
+    exitMode: SpanExit.Mode? = nil,
+) -> StoredLogEvent {
+    StoredLogEvent(
+        id: UUID(),
+        date: date,
+        sequence: 0,
+        level: .info,
+        eventName: eventName,
+        eventVersion: 1,
+        message: message,
+        payload: payload,
+        scopes: [LogScope.root(named: "app").id],
+        tags: [],
+        spanID: spanID,
+        spanExitMode: exitMode,
+        callSite: nil,
+        externalID: nil,
+        attachments: [],
+        sessionID: UUID(),
+        ambientSnapshotID: nil,
+    )
+}
+
+/// A stored `SpanBegan` row carrying a real, decodable payload.
+func storedSpanBegan(_ id: SpanID, name: String, at date: Date) throws -> StoredLogEvent {
+    try storedSpanEvent(
+        eventName: SpanBegan.eventName,
+        spanID: id,
+        message: "▶ \(name)",
+        at: date,
+        payload: JSONEncoder().encode(
+            SpanBegan(spanID: id, name: name, lifetime: .scoped, relaunchPolicy: .endsWithProcess),
+        ),
+    )
+}
+
+/// A stored `SpanEnded` row carrying a real, decodable payload.
+func storedSpanEnded(
+    _ id: SpanID,
+    name: String,
+    at date: Date,
+    duration: Duration?,
+    exit: SpanExit,
+) throws -> StoredLogEvent {
+    try storedSpanEvent(
+        eventName: SpanEnded.eventName,
+        spanID: id,
+        message: "◀ \(name)",
+        at: date,
+        payload: JSONEncoder().encode(
+            SpanEnded(spanID: id, name: name, duration: duration, exit: exit),
+        ),
+        exitMode: exit.mode,
+    )
+}
+
+/// Bytes that are not JSON — a persisted payload is `JSONEncoder` output, so
+/// these stand in for on-disk corruption rather than a shape change.
+let unreadablePayload = Data([0xFF, 0x00])
+
 /// Polls `predicate` on the main actor until it holds or the budget runs
 /// out — models reload on their own tasks, so tests wait for the resulting
 /// state rather than racing it.

@@ -30,15 +30,41 @@ struct SpanDurationPercentiles: Equatable {
     }
 }
 
+/// A span kind's name, and whether it's the recorded one.
+///
+/// A `SpanEnded` payload that won't decode can't give up its `name`, and the
+/// row's message is close enough to group by — but grouping by it silently
+/// mints a bucket that looks like a real span kind. Naming the two cases apart
+/// keeps a corrupt row's bucket labelled as what it is.
+enum SpanKindName: Hashable {
+    /// Decoded from the end's payload.
+    case recorded(String)
+    /// The end's payload wouldn't decode, so this is its message with the
+    /// span-ended marker stripped.
+    case recovered(String)
+
+    var text: String {
+        switch self {
+            case let .recorded(text), let .recovered(text): text
+        }
+    }
+
+    /// Whether the name came from the message rather than the payload.
+    var isRecovered: Bool {
+        if case .recovered = self { return true }
+        return false
+    }
+}
+
 /// Aggregate timing for one span *kind* — every closed span sharing a
 /// `SpanEnded.name`: how many instances closed and their duration percentiles,
 /// plus the underlying `SpanEnded` events (newest first) the row drills into.
 struct SpanKindSummary: Identifiable {
-    var id: String {
-        name
+    var id: SpanKindName {
+        kind
     }
 
-    let name: String
+    let kind: SpanKindName
     /// Duration percentiles across the instances that recorded a duration, or
     /// `nil` when none did (all orphaned).
     let percentiles: SpanDurationPercentiles?
@@ -158,6 +184,9 @@ final class SpanHistoryModel {
             adopt(sessions: sessionList, current: current)
             state = .loaded(Self.summaries(from: scopedEnds()))
         } catch {
+            PeriscopeToolsLog.failures.error(
+                "Span history could not read the store: \(error, privacy: .public)",
+            )
             state = .failed(String(describing: error))
         }
     }
@@ -217,36 +246,51 @@ final class SpanHistoryModel {
     /// Group the closed-span events by kind, compute each kind's duration
     /// percentiles, and order by instance count (busiest first; name breaks
     /// ties) so the most-recorded spans surface at the top. Each event is
-    /// decoded once; the kind name falls back to the message when a payload
-    /// can't be decoded (a corrupt row still groups rather than vanishing).
+    /// decoded once; an event whose payload can't be decoded groups under a
+    /// ``SpanKindName/recovered(_:)`` name — it still appears, and the row says
+    /// the name isn't the recorded one.
     static func summaries(from ends: [StoredLogEvent]) -> [SpanKindSummary] {
         struct Closed {
             let event: StoredLogEvent
-            let name: String
+            let kind: SpanKindName
             let duration: Duration?
         }
 
         let closed = ends.map { end -> Closed in
-            let decoded = try? end.decode(SpanEnded.self)
-            let name = decoded?.name ?? end.message.replacingOccurrences(of: "◀ ", with: "")
-            return Closed(event: end, name: name, duration: decoded?.duration)
+            do {
+                let decoded = try end.decode(SpanEnded.self)
+                return Closed(event: end, kind: .recorded(decoded.name), duration: decoded.duration)
+            } catch {
+                PeriscopeToolsLog.failures.warning(
+                    """
+                    Span history could not decode the SpanEnded payload for span \
+                    \(end.spanID?.rawValue.uuidString ?? "unknown", privacy: .public); \
+                    grouping it by its message: \(error, privacy: .public)
+                    """,
+                )
+                return Closed(
+                    event: end,
+                    kind: .recovered(end.message.replacingOccurrences(of: "◀ ", with: "")),
+                    duration: nil,
+                )
+            }
         }
 
-        return Dictionary(grouping: closed, by: \.name)
-            .map { name, group in
+        return Dictionary(grouping: closed, by: \.kind)
+            .map { kind, group in
                 let ordered = group.sorted { lhs, rhs in
                     if lhs.event.date != rhs.event.date { return lhs.event.date > rhs.event.date }
                     return lhs.event.sequence > rhs.event.sequence
                 }
                 return SpanKindSummary(
-                    name: name,
+                    kind: kind,
                     percentiles: SpanDurationPercentiles(durations: ordered.compactMap(\.duration)),
                     events: ordered.map(\.event),
                 )
             }
             .sorted { lhs, rhs in
                 if lhs.count != rhs.count { return lhs.count > rhs.count }
-                return lhs.name < rhs.name
+                return lhs.kind.text < rhs.kind.text
             }
     }
 }

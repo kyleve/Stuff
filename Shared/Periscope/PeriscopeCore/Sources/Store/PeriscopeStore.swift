@@ -175,28 +175,37 @@ public actor PeriscopeStore: LogSink {
         closeOrphanedSpans(startedSessionID: session.id)
     }
 
-    /// Close spans that earlier sessions began but never ended. The begin
-    /// payload's ``SpanRelaunchPolicy`` decides: `.endsWithProcess` spans
-    /// get a synthetic ``SpanEnded`` (`.orphaned`, duration unknowable —
-    /// the process died at an unknown point); `.survivesRelaunch` spans
-    /// stay open. Runs degraded-but-handled: a sweep failure logs and
-    /// counts, it never fails the session start.
+    /// Close spans that earlier sessions began but never ended. The began's
+    /// ``SpanRelaunchPolicy`` decides: `.endsWithProcess` spans get a
+    /// synthetic ``SpanEnded`` (`.orphaned`, duration unknowable — the
+    /// process died at an unknown point); `.survivesRelaunch` spans stay
+    /// open. Runs degraded-but-handled: a sweep failure logs and counts, it
+    /// never fails the session start.
+    ///
+    /// The policy is read from the persisted ``SDLogEvent/spanRelaunchPolicy``
+    /// column, so a surviving span is recognized without its payload ever
+    /// being loaded, let alone decoded. Only a row predating that column falls
+    /// back to its payload — and a payload that won't decode can't prove the
+    /// span wanted to survive, so it is closed, with the failure logged rather
+    /// than silently deciding against the policy.
     private func closeOrphanedSpans(startedSessionID: UUID) {
         do {
             let beganName = SpanBegan.eventName
             let endedName = SpanEnded.eventName
 
             // This runs on the launch path with weeks of history behind it,
-            // so the began/ended passes fetch only the spanID column; full
-            // rows (payload for the policy, tags for attribution) load only
-            // for the few orphan candidates.
+            // so the began/ended passes fetch only the columns they decide
+            // from; full rows (tags for attribution, and a payload only for
+            // pre-column rows) load only for the few orphan candidates.
             var beganDescriptor = FetchDescriptor<SDLogEvent>(
                 predicate: #Predicate {
                     $0.eventName == beganName && $0.sessionID != startedSessionID
                 },
             )
-            beganDescriptor.propertiesToFetch = [\.spanID]
-            let beganIDs = try modelContext.fetch(beganDescriptor).compactMap(\.spanID)
+            beganDescriptor.propertiesToFetch = [\.spanID, \.spanRelaunchPolicy]
+            let beganIDs = try modelContext.fetch(beganDescriptor)
+                .filter { $0.declaredRelaunchPolicy != .survivesRelaunch }
+                .compactMap(\.spanID)
             guard !beganIDs.isEmpty else { return }
 
             var endedDescriptor = FetchDescriptor<SDLogEvent>(
@@ -217,10 +226,14 @@ public actor PeriscopeStore: LogSink {
             var orphans: [LogRecord] = []
             for row in began {
                 guard let spanID = row.spanID else { continue }
-                // A payload that no longer decodes can't prove it wanted to
-                // survive — closing it is the honest fallback.
-                let event = try? JSONDecoder().decode(SpanBegan.self, from: row.payload)
-                if event?.relaunchPolicy == .survivesRelaunch {
+                // Decoded for the span's name; the policy comes from the
+                // column, which the pass above already used to drop every
+                // survivor. Only a row carrying no readable policy still needs
+                // its payload consulted for the decision.
+                let event = decodedSpanBegan(in: row)
+                if row.declaredRelaunchPolicy == nil,
+                   event?.relaunchPolicy == .survivesRelaunch
+                {
                     continue
                 }
                 orphans.append(LogRecord(
@@ -242,6 +255,27 @@ public actor PeriscopeStore: LogSink {
             recoverFromFailedWrite()
             writeFailures += 1
             Self.failureLogger.warning("Failed to close orphaned spans: \(error)")
+        }
+    }
+
+    /// The `SpanBegan` behind `row`, or `nil` — logged, never dropped
+    /// silently — when its payload won't decode. The sweep needs it for the
+    /// span's name and, for a row written before
+    /// ``SDLogEvent/spanRelaunchPolicy`` existed, for the relaunch decision;
+    /// an undecodable payload there means a span is closed that may have asked
+    /// to survive, which the reader must be able to see.
+    private func decodedSpanBegan(in row: SDLogEvent) -> SpanBegan? {
+        do {
+            return try JSONDecoder().decode(SpanBegan.self, from: row.payload)
+        } catch {
+            Self.failureLogger.warning(
+                """
+                Orphan sweep could not decode the SpanBegan payload for span \
+                \(row.spanID?.uuidString ?? "unknown", privacy: .public); \
+                closing it as orphaned: \(error)
+                """,
+            )
+            return nil
         }
     }
 
@@ -366,6 +400,35 @@ public actor PeriscopeStore: LogSink {
         @_spi(Testing) public func injectNextWriteFailure(_ error: any Error) {
             pendingWriteFailure = error
         }
+
+        /// Test seam: rewrite `span`'s persisted began row into a shape a
+        /// running app can't produce — `payload` bytes that aren't
+        /// `JSONEncoder` output (on-disk corruption), and, with
+        /// `clearingRelaunchPolicyColumn`, a row written before
+        /// ``SDLogEvent/spanRelaunchPolicy`` existed.
+        ///
+        /// Without it the orphan sweep's payload fallback is unreachable from a
+        /// test: every write encodes its own payload and fills the column, so
+        /// nothing a test can *write* exercises the branch that decides what to
+        /// do when neither can be read.
+        @_spi(Testing) public func degradeSpanBegan(
+            _ span: SpanID,
+            payload: Data,
+            clearingRelaunchPolicyColumn: Bool,
+        ) throws {
+            let spanID = span.rawValue
+            let beganName = SpanBegan.eventName
+            let rows = try modelContext.fetch(FetchDescriptor<SDLogEvent>(
+                predicate: #Predicate { $0.eventName == beganName && $0.spanID == spanID },
+            ))
+            for row in rows {
+                row.payload = payload
+                if clearingRelaunchPolicyColumn {
+                    row.spanRelaunchPolicy = nil
+                }
+            }
+            try modelContext.save()
+        }
     #endif
 
     /// Discard the failed transaction so a poisoned batch can't wedge every
@@ -449,6 +512,7 @@ public actor PeriscopeStore: LogSink {
                     .snapshotID,
                 spanID: record.spanID?.rawValue,
                 spanExitMode: record.spanExit?.mode.rawValue,
+                spanRelaunchPolicy: record.spanRelaunchPolicy?.rawValue,
                 callFunction: record.callSite?.function,
                 callFileID: record.callSite?.fileID,
                 externalID: record.externalID,

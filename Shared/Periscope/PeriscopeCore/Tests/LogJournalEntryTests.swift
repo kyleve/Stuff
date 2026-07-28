@@ -50,6 +50,43 @@ struct LogJournalEntryTests {
         #expect(event.photoID == "p1")
     }
 
+    /// The store persists a began's relaunch policy as a column, and the crash
+    /// path has to be able to fill it — so the journal record carries the policy
+    /// out of the event rather than leaving ingest to decode the payload.
+    @Test func spanBegansCarryTheirRelaunchPolicy() throws {
+        let record = LogRecord(
+            date: Date(timeIntervalSinceReferenceDate: 5),
+            event: SpanBegan(
+                spanID: SpanID(),
+                name: "long-download",
+                lifetime: .indefinite,
+                relaunchPolicy: .survivesRelaunch,
+            ),
+            scopes: [],
+        )
+        let journaled = try LogJournalRecord(record: record, sequence: 1)
+        #expect(journaled.spanRelaunchPolicy == SpanRelaunchPolicy.survivesRelaunch.rawValue)
+
+        let decoded = try LogJournalEntry.decoded(from: LogJournalEntry.record(journaled).encoded())
+        #expect(decoded == .record(journaled))
+    }
+
+    /// Only a began has a policy — an end (or any other event) must not invent
+    /// one, or the store's column would claim every row wanted to survive.
+    @Test func nonBeganRecordsCarryNoRelaunchPolicy() throws {
+        let record = LogRecord(
+            date: Date(timeIntervalSinceReferenceDate: 6),
+            event: SpanEnded(
+                spanID: SpanID(),
+                name: "long-download",
+                duration: .seconds(1),
+                exit: .success,
+            ),
+            scopes: [],
+        )
+        #expect(try LogJournalRecord(record: record, sequence: 1).spanRelaunchPolicy == nil)
+    }
+
     @Test func oversizedAttachmentsAreOmittedWithAMarker() throws {
         let scope = LogScope.root(named: "app")
         let big = Data(repeating: 0xAB, count: LogJournalRecord.maximumInlineAttachmentBytes + 1)

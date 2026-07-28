@@ -113,8 +113,18 @@ private struct SpanKindRow: View {
         let row = stylesheet.row[density]
         let type = stylesheet.typography
         VStack(alignment: .leading, spacing: row.lineSpacing) {
-            Text(summary.name)
-                .font(type.spanName)
+            HStack(spacing: row.headerSpacing) {
+                Text(summary.kind.text)
+                    .font(type.spanName)
+                if summary.kind.isRecovered {
+                    // The payload didn't decode, so this bucket's name came
+                    // from the row's message — say so rather than let it read
+                    // as a span kind the code actually declares.
+                    Text("unreadable payload")
+                        .font(type.spanDetail)
+                        .foregroundStyle(.tertiary)
+                }
+            }
             HStack(alignment: .top, spacing: row.headerSpacing) {
                 SpanStatCell(label: "runs", value: "\(summary.count)")
                 if let percentiles = summary.percentiles {
@@ -166,7 +176,7 @@ private struct SpanKindDetailView: View {
 
     var body: some View {
         LogEventList(events: summary.events, store: store, scopePath: scopePath)
-            .navigationTitle(summary.name)
+            .navigationTitle(summary.kind.text)
             .navigationBarTitleDisplayMode(.inline)
     }
 }

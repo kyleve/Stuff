@@ -74,25 +74,20 @@ private struct SpanTreeRow: View {
     let node: SpanNode
 
     @Environment(\.stylesheet) private var stylesheet
+    @Environment(\.logRowDensity) private var density
 
     var body: some View {
-        let row = stylesheet.row.comfortable
+        let row = stylesheet.row[density]
         let type = stylesheet.typography
         VStack(alignment: .leading, spacing: row.lineSpacing) {
             HStack(spacing: row.headerSpacing) {
                 Text(node.name)
                     .font(type.spanName)
                 Spacer()
-                if let mode = node.exitMode {
-                    SpanExitBadge(mode: mode)
-                } else {
-                    Text("open")
-                        .font(type.spanDetail)
-                        .foregroundStyle(.secondary)
-                }
+                status
             }
             HStack(spacing: row.headerSpacing) {
-                Text(node.duration?.formatted() ?? "running")
+                Text(timing)
                     .font(type.spanAge)
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
@@ -103,5 +98,41 @@ private struct SpanTreeRow: View {
             }
         }
         .padding(.vertical, row.verticalPadding)
+    }
+
+    /// The exit chip, or a word for a span that has no chip to show: "open"
+    /// while it runs, "ended" for a closed span whose row recorded no exit.
+    @ViewBuilder
+    private var status: some View {
+        switch node.outcome {
+            case .open:
+                Text("open")
+                    .font(stylesheet.typography.spanDetail)
+                    .foregroundStyle(.secondary)
+            case let .ended(ended):
+                if let mode = ended.mode {
+                    SpanExitBadge(mode: mode)
+                } else {
+                    Text("ended")
+                        .font(stylesheet.typography.spanDetail)
+                        .foregroundStyle(.secondary)
+                }
+        }
+    }
+
+    /// How long the span took. Read off ``SpanNode/outcome`` so only a span
+    /// that is genuinely still open can say "running" — a closed span with no
+    /// readable duration says *that* instead.
+    private var timing: String {
+        switch node.outcome {
+            case .open:
+                "running"
+            case let .ended(ended):
+                switch ended.timing {
+                    case let .measured(duration): duration.formatted()
+                    case .unmeasured: "not measured"
+                    case .undecodable: "duration unreadable"
+                }
+        }
     }
 }
