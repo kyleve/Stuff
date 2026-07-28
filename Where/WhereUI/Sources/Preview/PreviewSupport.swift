@@ -100,17 +100,10 @@
         // MARK: - Settings models (reminders / backup sub-screens)
 
         /// A reminders/summary editing model over in-memory services, for the
-        /// Settings reminders and alerts sub-screen previews/tests. Its
-        /// preferences are in-memory because this model *writes* them — every
-        /// toggle and time picker on the screen assigns through to the store — so
-        /// a real-`UserDefaults` fixture would let a preview or a hosted test
-        /// rewrite the running app's reminder settings.
+        /// Settings reminders and alerts sub-screen previews/tests.
         @MainActor
         public static func remindersSettingsModel() -> RemindersSettingsModel {
-            RemindersSettingsModel(
-                services: previewServices(),
-                preferences: WherePreferences(store: InMemoryKeyValueStore()),
-            )
+            RemindersSettingsModel(services: previewServices(), preferences: WherePreferences())
         }
 
         /// A backup export/import model over in-memory services, for the Settings
@@ -341,10 +334,7 @@
         /// empty store found, and the capture raced that scan.
         @MainActor
         public static func resolveModel(seededWithIssues: Bool = true) -> ResolveModel {
-            let resolve = ResolveModel(
-                services: previewServices(),
-                preferences: WherePreferences(store: InMemoryKeyValueStore()),
-            )
+            let resolve = ResolveModel(services: previewServices(), preferences: WherePreferences())
             resolve.setDataIssues(seededWithIssues ? sampleDataIssues() : [])
             return resolve
         }
