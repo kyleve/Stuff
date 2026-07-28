@@ -47,6 +47,14 @@ the build system, formatting, and global conventions. Read that first.
   flood the log); notification-based sources are deliberately *not* deduped
   — their notifications post only on real transitions, and repeated memory
   warnings are each a distinct event, not a duplicate to swallow.
+- **Removing a sink settles it first.** `add(sink:)` mints a `SinkToken` and
+  `remove(_:)` is `async` for a reason: it drops the registration under the
+  lock, then awaits any in-flight drain (which is delivering against a snapshot
+  taken before the removal) and flushes the sink, so a removed sink is owed
+  nothing and hears nothing more. Removing a `PeriscopeStore` also uninstalls
+  that store's journal — the journal is an emit-side tap on a specific store,
+  not a pipeline-wide feature. Don't make removal synchronous: dropping it from
+  the registry alone doesn't stop the batch already being delivered.
 - **Sink failures never propagate or vanish** — the store logs them to
   OSLog, counts them, and persists a synthetic `StoreWriteFailed` marker
   for the lost batch; the pipeline reports drops with a synthetic
