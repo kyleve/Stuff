@@ -27,10 +27,6 @@ private func waitUntil(
 /// onboarding, then re-drives the launch back to its first-run state.
 @MainActor
 struct WhereResetTests {
-    private func makePreferences() -> WherePreferences {
-        WherePreferences(store: InMemoryKeyValueStore())
-    }
-
     private func makeServices(
         status: LocationAuthorizationStatus = .always,
     ) throws -> WhereServices {

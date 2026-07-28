@@ -58,7 +58,11 @@ public struct RootView: View {
         // Mirrors the app root's wiring (see `AppDelegate`). Nothing here
         // attaches a sink unless a scope is actually resolved, which a preview
         // or the hosted UI test never gets to.
-        let model = WhereModel(makeBootstrap: { WhereBootstrap() }, logSystem: .shared)
+        let model = WhereModel(
+            preferences: WherePreferences(store: UserDefaults.standard),
+            makeBootstrap: { WhereBootstrap() },
+            logSystem: .shared,
+        )
         _model = State(initialValue: model)
         launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
     }

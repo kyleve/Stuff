@@ -104,7 +104,10 @@ one it belongs to rather than to a god-object:
 - **`RecentActivitySummarizer`** — an on-device Foundation Models narrative over
   a selectable look-back `RecentActivityWindow`.
 - **`WherePreferences`** — persisted user intent (onboarding, tracking intent,
-  reminder / summary schedules) behind a `KeyValueStore`.
+  reminder / summary schedules) behind a `KeyValueStore`. The store has no
+  default: production names `UserDefaults.standard` and everything else names
+  `InMemoryKeyValueStore()`, so no test or preview can reach the host's real
+  defaults by saying nothing.
 - **`BuildInfo`** + **`AppAttribution`** — what Settings > About says about the
   bundle it is running in. `BuildInfo.current(bundle:)` reads the marketing
   version, build number, and the commit the app was built from;

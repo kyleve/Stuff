@@ -148,7 +148,7 @@ public final class WhereSession {
     /// caller for one.
     public convenience init(
         services: WhereServices,
-        preferences: WherePreferences = WherePreferences(),
+        preferences: WherePreferences,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.init(

@@ -68,6 +68,15 @@
             return YearReport(year: year, days: days, totals: totals)
         }
 
+        /// Memory-backed preferences shared by every preview fixture, honoring
+        /// the no-disk contract: a preview must never read or write the host's
+        /// real defaults, or a fixture's state outlives the preview and leaks
+        /// into the next one.
+        @MainActor
+        public static func previewPreferences() -> WherePreferences {
+            WherePreferences(store: InMemoryKeyValueStore())
+        }
+
         /// In-memory, no-op-backed services shared by every preview fixture.
         /// Every scheduler seam is a no-op — the issue-alert one included, so the
         /// launch sequence's `issue-alerts` step can't suspend on a real
@@ -93,7 +102,7 @@
         /// `*YearReportModel()` fixture instead.
         @MainActor
         public static func loadedSession() -> WhereSession {
-            WhereSession(services: previewServices())
+            WhereSession(services: previewServices(), preferences: previewPreferences())
         }
 
         // MARK: - Settings models (reminders / backup sub-screens)
@@ -102,7 +111,10 @@
         /// Settings reminders and alerts sub-screen previews/tests.
         @MainActor
         public static func remindersSettingsModel() -> RemindersSettingsModel {
-            RemindersSettingsModel(services: previewServices(), preferences: WherePreferences())
+            RemindersSettingsModel(
+                services: previewServices(),
+                preferences: previewPreferences(),
+            )
         }
 
         /// A backup export/import model over in-memory services, for the Settings
@@ -215,6 +227,7 @@
                 services: previewServices(),
                 report: sampleReport(),
                 selectedYear: year,
+                preferences: previewPreferences(),
                 now: { referenceNow },
             )
         }
@@ -227,6 +240,7 @@
                 services: previewServices(),
                 report: YearReport(year: year, days: [], totals: [:]),
                 selectedYear: year,
+                preferences: previewPreferences(),
                 now: { referenceNow },
             )
         }
@@ -250,6 +264,7 @@
                 services: previewServices(),
                 report: YearReport(year: year, days: days, totals: [.other: days.count]),
                 selectedYear: year,
+                preferences: previewPreferences(),
                 now: { referenceNow },
             )
         }
@@ -277,6 +292,7 @@
                 services: previewServices(),
                 report: YearReport(year: year, days: days, totals: [.california: days.count]),
                 selectedYear: year,
+                preferences: previewPreferences(),
                 now: { today },
             )
         }
@@ -325,7 +341,10 @@
         /// raw samples to scan. Pass `seededWithIssues: false` for the empty state.
         @MainActor
         public static func resolveModel(seededWithIssues: Bool = true) -> ResolveModel {
-            let resolve = ResolveModel(services: previewServices(), preferences: WherePreferences())
+            let resolve = ResolveModel(
+                services: previewServices(),
+                preferences: previewPreferences(),
+            )
             if seededWithIssues { resolve.setDataIssues(sampleDataIssues()) }
             return resolve
         }
@@ -475,7 +494,7 @@
         /// Synchronous, so it drops straight into `#Preview`.
         @MainActor
         public static func loadedModel() -> WhereModel {
-            let preferences = WherePreferences(store: InMemoryKeyValueStore())
+            let preferences = previewPreferences()
             preferences.hasOnboarded = true
             return WhereModel(
                 services: previewServices(),
@@ -494,15 +513,13 @@
         public static let referenceWidgetDay = Date(timeIntervalSince1970: 1_770_000_000)
 
         /// A fresh, not-yet-onboarded model over **in-memory** preferences — for
-        /// the onboarding preview/snapshot. Uses `InMemoryKeyValueStore` rather
-        /// than the default `WherePreferences()` (which is backed by
-        /// `UserDefaults.standard`) so the fixture honors PreviewSupport's
-        /// no-disk contract and the host's real defaults can't leak in.
+        /// the onboarding preview/snapshot, honoring PreviewSupport's no-disk
+        /// contract so the host's real defaults can't leak in.
         @MainActor
         public static func onboardingModel() -> WhereModel {
             WhereModel(
                 services: previewServices(),
-                preferences: WherePreferences(store: InMemoryKeyValueStore()),
+                preferences: previewPreferences(),
                 logSystem: logSystem,
                 now: { referenceNow },
             )

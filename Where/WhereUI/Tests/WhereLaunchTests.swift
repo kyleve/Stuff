@@ -43,10 +43,6 @@ private func waitUntilAsync(
 /// background path.
 @MainActor
 struct WhereLaunchTests {
-    private func makePreferences() -> WherePreferences {
-        WherePreferences(store: InMemoryKeyValueStore())
-    }
-
     /// A model with injected services (in-memory store, no-op schedulers)
     /// so the launch sequence runs without touching real CoreLocation, the
     /// disk, or the notification center.

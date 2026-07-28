@@ -163,7 +163,7 @@ public final class WhereModel {
     ///     a test that omitted it would silently attach its sinks to the
     ///     process-wide pipeline.
     public init(
-        preferences: WherePreferences = WherePreferences(),
+        preferences: WherePreferences,
         makeBootstrap: @escaping @MainActor () -> any WhereScopeAssembling,
         logSystem: Periscope,
         now: @escaping @Sendable () -> Date = { Date() },
@@ -190,7 +190,7 @@ public final class WhereModel {
         services: WhereServices,
         report: YearReport? = nil,
         selectedYear: Int = WhereModel.currentYear,
-        preferences: WherePreferences = WherePreferences(),
+        preferences: WherePreferences,
         logSystem: Periscope,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {

@@ -54,7 +54,7 @@ struct DemoModeEnvironmentTests {
     @Test func readsFalseForAModelOnRealData() throws {
         let model = try WhereModel(
             services: makeServices(),
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
             logSystem: .isolated(),
         )
         #expect(try !readValue(from: model))
@@ -63,7 +63,7 @@ struct DemoModeEnvironmentTests {
     @Test func readsTrueOnceTheModelIsInDemoMode() async throws {
         let bootstrap = try ScriptedBootstrap(services: makeServices())
         let model = WhereModel(
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
             makeBootstrap: { bootstrap },
             logSystem: .isolated(),
         )

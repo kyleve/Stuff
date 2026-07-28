@@ -26,10 +26,6 @@ private func waitUntil(
 /// that leaving returns the app to where a logged-out user belongs.
 @MainActor
 struct DemoModeTests {
-    private func makePreferences() -> WherePreferences {
-        WherePreferences(store: InMemoryKeyValueStore())
-    }
-
     /// A logged-out model over an isolated logging system, with in-memory
     /// services waiting behind a scripted bootstrap.
     private func makeModel(

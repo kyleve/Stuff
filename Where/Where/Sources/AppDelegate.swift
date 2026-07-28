@@ -23,7 +23,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// where that system enters the model graph: every scope the model creates
     /// registers its sink on the system handed down from here, so nothing below
     /// reaches for the global (and a test hands down a private one).
-    let model = WhereModel(makeBootstrap: { WhereBootstrap() }, logSystem: .shared)
+    let model = WhereModel(
+        preferences: WherePreferences(store: UserDefaults.standard),
+        makeBootstrap: { WhereBootstrap() },
+        logSystem: .shared,
+    )
 
     /// The intent layer's services handoff, owned here — the composition root
     /// — and registered with the App Intents dependency container below, so
