@@ -110,8 +110,10 @@ Rules the code enforces and agents must preserve:
 - **The logging system is injected, not global** — `WhereModel.logSystem` has no
   default, so a test can't silently attach sinks to `Periscope.shared`. (The
   `WhereLog` facade still emits into `.shared`; pre-existing.)
-- **Demo mode asks for no permission** — the scripted location source reports
-  `.always` and answers a one-shot fix.
+- **Demo mode asks for no permission and presents a granted user** — the
+  scripted location source reports `.always`, and the noop schedulers are built
+  `authorized: true` so no surface nags about a permission the demo can't
+  obtain. Guard: `DemoModeTests.demoPresentsAFullyGrantedUser`.
 - **Views branch on `\.isInDemoMode`,** seeded once at `RootView` via
   `demoMode(of:)`. Guard: `DemoModeEnvironmentTests`.
 - App Intents answer from the demo store while it is active: process-scoped and

@@ -75,6 +75,26 @@ struct DemoModeTests {
         await scope.stopLogRouting()
     }
 
+    /// The demo presents someone who has granted everything, so no surface
+    /// nags about permissions it can't actually obtain: location reports
+    /// `.always`, notifications report authorized, and the alerts screen shows
+    /// its real controls instead of a dead-end trip to Settings. Nothing is
+    /// ever asked of the system or posted to it — the schedulers are no-ops.
+    @Test func demoPresentsAFullyGrantedUser() async throws {
+        let (model, _) = try makeModel(preferences: makePreferences())
+        let scope = try await model.makeDemoScope()
+
+        #expect(await scope.services.reminders.isAuthorized())
+        #expect(await scope.services.ingestor.authorizationStatus() == .always)
+        // Enabled by default, which is exactly the pairing that logged
+        // "enabled but notifications not authorized" three times a launch.
+        #expect(scope.preferences.remindersEnabled)
+        #expect(scope.preferences.summaryEnabled)
+        #expect(scope.preferences.issueAlertsEnabled)
+
+        await scope.stopLogRouting()
+    }
+
     @Test func demoPreferencesNeverReachTheRealOnes() async throws {
         let realPreferences = makePreferences()
         let (model, _) = try makeModel(preferences: realPreferences)

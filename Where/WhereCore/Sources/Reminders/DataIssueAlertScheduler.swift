@@ -30,23 +30,26 @@ public protocol DataIssueAlertScheduling: Sendable {
 }
 
 /// A `DataIssueAlertScheduling` that does nothing. For SwiftUI previews,
-/// view-model tests, and the app's demo mode — anything that needs a
-/// reconciler without touching `UNUserNotificationCenter`. Reports
-/// unauthorized so the UI's "denied" affordances stay exercisable.
+/// view-model tests, and demo mode — anything that needs a reconciler without
+/// touching `UNUserNotificationCenter`.
 ///
-/// Ships in release, like its `NoopLoggingReminderScheduler` /
-/// `NoopDailySummaryScheduler` siblings: demo mode runs an entire session on
-/// noop schedulers so it never asks for a system permission, which makes this
-/// production wiring rather than test-only scaffolding.
+/// - Parameter authorized: what it reports back. Defaults to *un*authorized, so
+///   the UI's "denied" affordances stay exercisable in previews and tests. Demo
+///   mode passes `true`, presenting a fully-granted user; claiming denial there
+///   would log a spurious warning and offer a dead-end trip to Settings.
 public struct NoopDataIssueAlertScheduler: DataIssueAlertScheduling {
-    public init() {}
+    private let authorized: Bool
+
+    public init(authorized: Bool = false) {
+        self.authorized = authorized
+    }
 
     public func requestAuthorization() async -> Bool {
-        false
+        authorized
     }
 
     public func isAuthorized() async -> Bool {
-        false
+        authorized
     }
 
     public func reconcile(enabled _: Bool, time _: ReminderTime, body _: String) async {}
