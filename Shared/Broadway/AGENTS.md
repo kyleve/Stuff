@@ -1,9 +1,8 @@
 # Broadway – Module Group Shape
 
-Broadway is a design-system stack imported into Stuff (git history preserved)
-from its own repo. It centers on `BContext` — a type-keyed environment (traits,
-themes, lazily-cached stylesheets) that flows through a UIKit + SwiftUI view
-hierarchy. See [`README.md`](README.md).
+Broadway is a design-system stack centered on `BContext` — a type-keyed
+environment (traits, themes, lazily-cached stylesheets) that flows through a
+UIKit + SwiftUI view hierarchy. See [`README.md`](README.md).
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md), which owns build,
 formatting, and global conventions. Read that first.
@@ -29,7 +28,8 @@ bundles in [`Project.swift`](../../Project.swift) (the shared `unitTests` helper
 - **`BRootViewController` defers setup** — child creation, trait observation,
   and context are wired on `viewIsAppearing`, so `context` is `nil` before the
   controller enters a valid hierarchy.
-- **Broadway tests run in the shared `StuffTestHost`** via `TestHostSupport`
+- **Broadway's hosted bundles (`BroadwayCoreTests`, `BroadwayUITests`) run in
+  the shared `StuffTestHost`** via `TestHostSupport`
   (`show`, `hostKeyWindow`). The host stamps its window with
   `isMainTestHostWindow` and `hostKeyWindow()` selects only that window — don't
   reintroduce a "first key window" or `UIApplication.shared.delegate?.window`
@@ -37,6 +37,7 @@ bundles in [`Project.swift`](../../Project.swift) (the shared `unitTests` helper
 
 ## Testing
 
-Hosted Swift Testing bundles (`BroadwayCoreTests`, `BroadwayUITests`,
-`BroadwayCatalogTests`) run in `StuffTestHost` and link `TestHostSupport`. 1:1
-test files per the root rules.
+`BroadwayCoreTests` and `BroadwayUITests` run in `StuffTestHost` and link
+`TestHostSupport`; `BroadwayCatalogTests` is currently hosted by the
+**BroadwayCatalog** app itself — a deviation from the shared-host convention,
+tracked in [`TODOs.md`](TODOs.md). 1:1 test files per the root rules.

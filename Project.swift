@@ -433,34 +433,27 @@ let project = Project(
             sources: ["Where/WhereCore/Tests/**"],
             extraPackageProducts: ["RegionKit"],
         ),
-        // WhereUITests deliberately lists no `extraPackageProducts`. WhereUI is a
-        // dynamic framework that statically embeds its own dependencies, so any
-        // product *also* linked here would land a second copy in this bundle;
-        // with several .xctest bundles loaded into one StuffTestHost that
-        // duplicates the module's type metadata, and any type-keyed lookup
-        // crossing the WhereUI boundary (SwiftUI `EnvironmentKey`s,
-        // `UITraitBridgedEnvironmentKey` bridging, the type-keyed
-        // BTraits/BThemes/BStylesheets containers) then silently resolves against
-        // the wrong copy — the writer stores under one copy's key type, the
-        // reader looks it up under another's. Everything the tests need
-        // (BroadwayCore/BroadwayUI, LifecycleKit/LifecycleKitUI, PeriscopeCore/UI/Tools,
-        // SwiftDataInspector, RegionKit + its GeoJSON bundle) is reached
-        // transitively through WhereUI.
-        // See "Never double-link a product a dynamic framework already
-        // carries" in the root AGENTS.md.
+        // WhereUITests deliberately lists no `extraPackageProducts`: everything it
+        // needs (Broadway, LifecycleKit/LifecycleKitUI, Periscope, SwiftDataInspector,
+        // RegionKit + its GeoJSON bundle) arrives statically through WhereUI, and
+        // re-listing one lands a second copy in this image, silently breaking
+        // type-keyed lookups — only in the full multi-bundle scheme, never in an
+        // isolated `tuist test WhereUITests` run.
+        // Guard: WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot.
+        // See "Never double-link a product WhereUI already carries" in the root
+        // AGENTS.md; mechanism: PR #145.
         unitTests(
             name: "WhereUITests",
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
         ),
-        // WhereIntents depends on WhereUI (a dynamic framework) for its snippet
-        // cards, so — exactly like WhereUITests above — this bundle lists no
-        // `extraPackageProducts`: WhereUI/WhereCore/RegionKit/Broadway all arrive
-        // transitively, and re-listing any of them would land a duplicate copy
-        // that splits the module's type metadata across the WhereUI boundary.
-        // See "Never double-link a product a dynamic framework already
-        // carries" in the root AGENTS.md.
+        // WhereIntents depends on WhereUI for its snippet cards, so — exactly like
+        // WhereUITests above — this bundle lists no `extraPackageProducts`:
+        // WhereUI/WhereCore/RegionKit/Broadway all arrive transitively, and
+        // re-listing any of them would land a duplicate copy in this image.
+        // See "Never double-link a product WhereUI already carries" in the root
+        // AGENTS.md.
         unitTests(
             name: "WhereIntentsTests",
             bundleIdSuffix: "whereintents",

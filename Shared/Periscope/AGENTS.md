@@ -42,12 +42,6 @@ target and no CI job.
   in-memory store per test and pass it explicitly (`Log<Event>()` defaults to
   `.shared`, so an omitted `system:` silently joins the process-wide one).
 
-## Open work
-
-Design and follow-up work spanning the modules lives in one place:
-[`TODOs.md`](TODOs.md) — file deferred items there rather than in a per-module
-doc.
-
 ## Testing
 
 Hosted Swift Testing bundles (`PeriscopeCoreTests`, `PeriscopeUITests`,

@@ -10,6 +10,7 @@ here.
 # Open issues
 
 ## P1s (Should do)
+- test(BroadwayCatalog) [quick-win]: Host `BroadwayCatalogTests` in `StuffTestHost` like every other hosted bundle. Today it is a hand-rolled target hosted by the BroadwayCatalog app itself (`Project.swift:545` — deps `[BroadwayCatalog, TestHostSupport]`, no `StuffTestHost`), a deviation from the convention that hosted tests run in the shared host. Rewire it through the `unitTests` helper (keeping the `BroadwayCatalog` code dependency) and confirm `tuist test BroadwayCatalogTests` stays green. (pr#149 review 2026-07-28)
 - fix(BroadwayCatalog) [quick-win]: `BroadwayApp.swift:6` never seeds `.broadwayRoot()`, so the showcase renders with no `BContext` and every `@Environment(\.bContext)` read falls back to defaults — the one app whose job is to show Broadway is the one not using it. (audit 2026-07-26)
 - test(BroadwayCatalog) [quick-win]: `Tests/BroadwayCatalogTests.swift:4` is an empty `struct BroadwayCatalogTests {}` wired into the `Stuff-iOS-Tests` scheme, so CI runs it and it asserts nothing. Replace it with a launch smoke test. (audit 2026-07-26)
 - fix(BroadwayUI) [needs-design]: A nested `BRootViewController` registers duplicate trait observers (`BRootViewController.swift:92`, documented in a source `TODO`). Latent today — Where reaches Broadway only through `whereBroadwayRoot()` / `BRootView`, neither of which nests — but it fires the moment something does. (audit 2026-07-26)

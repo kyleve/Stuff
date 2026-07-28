@@ -5,7 +5,7 @@
     /// Test-only cross-boundary probe for `\.isCapturingSnapshot`: green when the
     /// flag reads `true`, red otherwise.
     ///
-    /// This view exists to be *compiled into WhereUI* (the dynamic framework) and
+    /// This view exists to be *compiled into WhereUI* and
     /// pixel-probed from the snapshot bundle
     /// (`WhereUISnapshotTests.SnapshotCaptureFlagProbeTests`): the bundle
     /// statically embeds a second copy of `SnapshotKit` via `SnapshotKitTesting`
