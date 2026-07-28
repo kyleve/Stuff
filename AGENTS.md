@@ -529,6 +529,12 @@ reflex is what made a local check cost a coffee break:
 | Image suite | `./test --snapshots` | Only when the triggers below apply. |
 | Everything | `./test --everything` | Full revalidation, and what CI runs. |
 
+**The image suite is serial on purpose.** Splitting it across simulators was
+measured and rejected — 2.7x slower plus spurious failures, because every shard
+contends for one render server. The numbers and the two other dead ends are in
+[`Shared/SnapshotKitTesting/AGENTS.md`](Shared/SnapshotKitTesting/AGENTS.md);
+read them before proposing parallelism here.
+
 **The image suite is opt-in, not part of "done" by default.** It is the slow
 half, and most changes cannot affect it. Run `./test --snapshots` when the
 change touches a **view or its appearance** (a `WhereUI`/`BroadwayUI` view, a

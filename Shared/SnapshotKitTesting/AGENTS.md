@@ -77,6 +77,23 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   seam** for that case (as `root.LoggedIn` does by awaiting `launcher.run()`
   from `onReadyToSnapshot`), never by introspection.
 
+## Three things measured and rejected — don't re-derive them
+
+- **Sharding the suite across simulators is 2.7x slower, and wrong.** Measured
+  2026-07-28 on a 10-core / 24 GB machine: the serial suite runs in **142s**
+  (twice, 142.2 and 142.1); the same suite split into four duration-balanced
+  slices across four booted simulators, each its own process with its own
+  `StuffTestHost`, took **387s** — and produced **9 failures** (two settle
+  timeouts, one image mismatch). Separate processes fix the shared-state
+  interleaving that sank the earlier in-process attempt, but they don't fix the
+  real constraint: every shard contends for one render server, so
+  `drawHierarchy` slows down enough to push captures past their settle budget.
+  The bar for keeping it was a 30% win. Don't reach for
+  `-parallel-testing-enabled` either — it distributes XCTest *classes*, and
+  Swift Testing presents none, so it lands everything on one worker and lets
+  Swift Testing's own parallelism interleave captures in a single host process
+  (24+ spurious mismatches, 1.2-3x slower).
+
 ## Two things measured and rejected — don't re-derive them
 
 - **Quiescence can't replace the pixel digest.** `SNAPSHOT_SETTLE` selects
