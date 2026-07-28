@@ -703,6 +703,94 @@ struct PeriscopeStoreTests {
         #expect(try await store.events(matching: query).map(\.message) == ["old pair reused"])
     }
 
+    // MARK: Ambient state
+
+    @Test func eventsResolveTheAmbientStateTheyWereStampedWith() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let offline = AmbientSnapshot(id: UUID(), values: [.network: "unsatisfied"])
+        await store.write([
+            makeRecord("failed", date: date(1), scopes: [root.id]).stamped(ambient: offline),
+        ])
+
+        let event = try #require(try await store.events(matching: LogQuery()).first)
+        let snapshotID = try #require(event.ambientSnapshotID)
+        #expect(try await store.ambientSnapshot(for: snapshotID) == offline)
+    }
+
+    /// One row per distinct state, not per event — the whole reason
+    /// `AmbientSnapshot` keeps its identity stable when nothing moves.
+    @Test func eventsSharingOneStateShareOneSnapshotRow() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let state = AmbientSnapshot(id: UUID(), values: [.thermalState: "fair"])
+        await store.write((1 ... 5).map { index in
+            makeRecord("\(index)", date: date(TimeInterval(index)), scopes: [root.id])
+                .stamped(ambient: state)
+        })
+
+        #expect(try await store.ambientSnapshots() == [state])
+        let events = try await store.events(matching: LogQuery())
+        #expect(Set(events.compactMap(\.ambientSnapshotID)) == [state.id])
+    }
+
+    @Test func changedStateWritesAnotherSnapshotRow() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let nominal = AmbientSnapshot(id: UUID(), values: [.thermalState: "nominal"])
+        let serious = AmbientSnapshot(id: UUID(), values: [.thermalState: "serious"])
+        await store.write([
+            makeRecord("cool", date: date(1), scopes: [root.id]).stamped(ambient: nominal),
+            makeRecord("hot", date: date(2), scopes: [root.id]).stamped(ambient: serious),
+        ])
+
+        #expect(try await store.ambientSnapshots() == [nominal, serious])
+    }
+
+    @Test func unstampedEventsStoreNoSnapshot() async throws {
+        let (store, root, _, _) = try await makeStore()
+        await store.write([makeRecord("plain", date: date(1), scopes: [root.id])])
+
+        #expect(try await store.events(matching: LogQuery()).first?.ambientSnapshotID == nil)
+        #expect(try await store.ambientSnapshots().isEmpty)
+    }
+
+    /// Snapshot rows accumulate for as long as the app changes state, so
+    /// retention has to take the unreferenced ones with it.
+    @Test func pruningRemovesOrphanedSnapshots() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let old = AmbientSnapshot(id: UUID(), values: [.network: "unsatisfied"])
+        let kept = AmbientSnapshot(id: UUID(), values: [.network: "satisfied"])
+        await store.write([
+            makeRecord("old", date: date(1), scopes: [root.id]).stamped(ambient: old),
+            makeRecord("new", date: date(100), scopes: [root.id]).stamped(ambient: kept),
+        ])
+
+        #expect(try await store.pruneEvents(olderThan: date(50)) == 1)
+        #expect(try await store.ambientSnapshots() == [kept])
+
+        // The dropped row is re-creatable: the cache let go of it rather
+        // than handing back a deleted row.
+        await store.write([
+            makeRecord("offline again", date: date(200), scopes: [root.id]).stamped(ambient: old),
+        ])
+        #expect(try await store.ambientSnapshots().map(\.id) == [kept.id, old.id])
+    }
+
+    @Test func ambientStateFlowsFromThePipelineIntoTheStore() async throws {
+        let store = try await PeriscopeStore.inMemory(session: .fixture())
+        let system = Periscope(configuration: Periscope.Configuration(), sinks: [])
+        system.add(sink: store)
+
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .powerMode, value: "low-power") }
+        Log<AppLogs>(system: system).error("slow while saving battery")
+        await system.flush()
+
+        let events = try await store.events(matching: LogQuery())
+        let failure = try #require(events.first { $0.message == "slow while saving battery" })
+        let snapshotID = try #require(failure.ambientSnapshotID)
+        let snapshot = try await store.ambientSnapshot(for: snapshotID)
+        #expect(snapshot?[.powerMode] == "low-power")
+    }
+
     @Test func pruneKeepingNewestKeepsTheCount() async throws {
         let (store, root, _, _) = try await makeStore()
         await store.write((1 ... 5).map { index in

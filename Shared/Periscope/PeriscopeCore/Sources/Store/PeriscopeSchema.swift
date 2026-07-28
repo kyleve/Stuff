@@ -18,6 +18,7 @@ final class SDLogEvent {
         [\.severity],
         [\.eventName],
         [\.sessionID],
+        [\.ambientSnapshotID],
         [\.spanID],
         [\.spanExitMode],
         [\.externalID],
@@ -40,6 +41,11 @@ final class SDLogEvent {
     /// Every scope the event references, primary first, in emission order.
     var orderedScopeIDs: [UUID]
     var sessionID: UUID
+    /// The ambient state the event was stamped with (see
+    /// ``SDAmbientSnapshot``), or `nil` when no ambient source had reported
+    /// anything yet. Indexed so "everything that happened while offline" is
+    /// one query.
+    var ambientSnapshotID: UUID?
     /// Set on span begin/end events so a span's pair resolves in one fetch.
     var spanID: UUID?
     /// `SpanExit.Mode.rawValue` on span-ended events — queryable, so the
@@ -69,6 +75,7 @@ final class SDLogEvent {
         payload: Data,
         orderedScopeIDs: [UUID],
         sessionID: UUID,
+        ambientSnapshotID: UUID?,
         spanID: UUID?,
         spanExitMode: String?,
         callFunction: String?,
@@ -89,6 +96,7 @@ final class SDLogEvent {
         self.payload = payload
         self.orderedScopeIDs = orderedScopeIDs
         self.sessionID = sessionID
+        self.ambientSnapshotID = ambientSnapshotID
         self.spanID = spanID
         self.spanExitMode = spanExitMode
         self.callFunction = callFunction
@@ -202,6 +210,46 @@ final class SDLogSession {
     }
 }
 
+/// One row per distinct ambient state (see `AmbientSnapshot`), referenced by
+/// every event stamped with it — the ambient counterpart to `SDLogSession`.
+///
+/// Events point at it with a plain `ambientSnapshotID` rather than a
+/// relationship, matching how they reference their session: the write path
+/// stays free of relationship bookkeeping, and one row serves the whole run
+/// of events that shared that state.
+@Model
+final class SDAmbientSnapshot {
+    #Index<SDAmbientSnapshot>([\.snapshotID])
+
+    @Attribute(.unique) var snapshotID: UUID
+    /// `AmbientKind.rawValue` → value. A dictionary rather than a JSON blob
+    /// so reading a snapshot back has no decode step, and therefore no
+    /// failure mode to swallow.
+    var values: [String: String]
+    /// When this state was first persisted. A snapshot row is written once
+    /// and referenced thereafter, so this is also when the state began.
+    var firstSeenAt: Date
+
+    init(snapshot: AmbientSnapshot, firstSeenAt: Date) {
+        snapshotID = snapshot.id
+        // Both maps are injective (`AmbientKind` wraps its raw value), so
+        // neither direction can collide into a duplicate key.
+        values = Dictionary(
+            uniqueKeysWithValues: snapshot.values.map { ($0.key.rawValue, $0.value) },
+        )
+        self.firstSeenAt = firstSeenAt
+    }
+
+    var toValue: AmbientSnapshot {
+        AmbientSnapshot(
+            id: snapshotID,
+            values: Dictionary(
+                uniqueKeysWithValues: values.map { (AmbientKind($0.key), $0.value) },
+            ),
+        )
+    }
+}
+
 enum PeriscopeSchema {
     static var models: [any PersistentModel.Type] {
         [
@@ -210,6 +258,7 @@ enum PeriscopeSchema {
             SDLogSession.self,
             SDLogTag.self,
             SDLogAttachment.self,
+            SDAmbientSnapshot.self,
         ]
     }
 }

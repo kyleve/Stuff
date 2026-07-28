@@ -22,6 +22,7 @@ struct StoredLogEventTests {
             externalID: nil,
             attachments: [],
             sessionID: UUID(),
+            ambientSnapshotID: nil,
         )
     }
 

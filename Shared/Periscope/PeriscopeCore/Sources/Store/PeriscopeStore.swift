@@ -48,6 +48,7 @@ public actor PeriscopeStore: LogSink {
     private var activeSessionRow: SDLogSession?
     private var scopeRowCache: [UUID: SDLogScope] = [:]
     private var tagRowCache: [LogTag: SDLogTag] = [:]
+    private var ambientRowCache: [UUID: SDAmbientSnapshot] = [:]
     private var changeObservers: [UUID: AsyncStream<Void>.Continuation] = [:]
     var writeFailures = 0
     private var nextSequence: Int?
@@ -362,6 +363,7 @@ public actor PeriscopeStore: LogSink {
         modelContext.rollback()
         scopeRowCache.removeAll()
         tagRowCache.removeAll()
+        ambientRowCache.removeAll()
         activeSessionRow = nil
     }
 
@@ -430,6 +432,8 @@ public actor PeriscopeStore: LogSink {
                 payload: payload,
                 orderedScopeIDs: record.scopes.map(\.rawValue),
                 sessionID: session.sessionID,
+                ambientSnapshotID: ambientRow(for: record.ambient, at: record.date)?
+                    .snapshotID,
                 spanID: record.spanID?.rawValue,
                 spanExitMode: record.spanExit?.mode.rawValue,
                 callFunction: record.callSite?.function,
@@ -534,6 +538,50 @@ public actor PeriscopeStore: LogSink {
         modelContext.insert(row)
         tagRowCache[tag] = row
         return row
+    }
+
+    // MARK: Ambient state
+
+    /// Fetch-or-create the shared row for an ambient state, first seen at
+    /// `date`. A run of records normally shares one snapshot, so the cache
+    /// keeps this to one fetch per distinct state rather than one per record.
+    func ambientRow(for snapshot: AmbientSnapshot?, at date: Date) throws -> SDAmbientSnapshot? {
+        guard let snapshot else { return nil }
+        if let cached = ambientRowCache[snapshot.id] {
+            return cached
+        }
+        if let existing = try fetchAmbientRow(id: snapshot.id) {
+            ambientRowCache[snapshot.id] = existing
+            return existing
+        }
+        let row = SDAmbientSnapshot(snapshot: snapshot, firstSeenAt: date)
+        modelContext.insert(row)
+        ambientRowCache[snapshot.id] = row
+        return row
+    }
+
+    /// The ambient state an event was stamped with, resolved from
+    /// ``StoredLogEvent/ambientSnapshotID``. Queries don't join it per row —
+    /// one snapshot serves a whole run of events, so callers resolve the
+    /// ones they actually display.
+    public func ambientSnapshot(for id: UUID) throws -> AmbientSnapshot? {
+        try fetchAmbientRow(id: id)?.toValue
+    }
+
+    /// Every stored ambient state, oldest first.
+    public func ambientSnapshots() throws -> [AmbientSnapshot] {
+        let descriptor = FetchDescriptor<SDAmbientSnapshot>(
+            sortBy: [SortDescriptor(\.firstSeenAt)],
+        )
+        return try modelContext.fetch(descriptor).map(\.toValue)
+    }
+
+    private func fetchAmbientRow(id: UUID) throws -> SDAmbientSnapshot? {
+        var descriptor = FetchDescriptor<SDAmbientSnapshot>(
+            predicate: #Predicate { $0.snapshotID == id },
+        )
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
     }
 
     /// `subtree` plus every descendant, resolved against the stored
@@ -925,6 +973,7 @@ public actor PeriscopeStore: LogSink {
                     )
                 },
             sessionID: row.sessionID,
+            ambientSnapshotID: row.ambientSnapshotID,
         )
     }
 
@@ -994,6 +1043,9 @@ public actor PeriscopeStore: LogSink {
     ///
     /// - Sessions with no remaining events go, except the active launch's.
     /// - Tag rows with no remaining events go (their cache entries too).
+    /// - Ambient snapshot rows with no remaining events go (cache entries
+    ///   too) — one row per distinct system state, so they accumulate for as
+    ///   long as the app keeps changing network, thermal, or power state.
     /// - Scopes go leaf-first when they have no events *and* no children,
     ///   so ancestors of still-populated scopes survive for path
     ///   resolution.
@@ -1016,6 +1068,18 @@ public actor PeriscopeStore: LogSink {
                 value: LogTagValue(kind: tag.valueKind, stored: tag.value),
             )] = nil
             modelContext.delete(tag)
+        }
+
+        for snapshot in try modelContext.fetch(FetchDescriptor<SDAmbientSnapshot>()) {
+            let snapshotID = snapshot.snapshotID
+            var events = FetchDescriptor<SDLogEvent>(
+                predicate: #Predicate { $0.ambientSnapshotID == snapshotID },
+            )
+            events.fetchLimit = 1
+            if try modelContext.fetchCount(events) == 0 {
+                ambientRowCache[snapshotID] = nil
+                modelContext.delete(snapshot)
+            }
         }
 
         var scopes = try modelContext.fetch(FetchDescriptor<SDLogScope>())

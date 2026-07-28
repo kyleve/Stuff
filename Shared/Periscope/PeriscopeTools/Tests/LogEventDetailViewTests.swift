@@ -25,6 +25,7 @@ struct LogEventDetailViewTests {
             externalID: nil,
             attachments: [],
             sessionID: UUID(),
+            ambientSnapshotID: nil,
         )
     }
 

@@ -36,6 +36,7 @@ struct NDJSONExporterTests {
             externalID: nil,
             attachments: [],
             sessionID: sessionID,
+            ambientSnapshotID: nil,
         )
     }
 
@@ -123,6 +124,7 @@ struct NDJSONExporterTests {
             externalID: nil,
             attachments: [],
             sessionID: sessionID,
+            ambientSnapshotID: nil,
         )
 
         let line = NDJSONExporter.line(for: orphan, scopes: scopes)

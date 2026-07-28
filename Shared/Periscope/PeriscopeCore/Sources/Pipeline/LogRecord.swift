@@ -80,6 +80,18 @@ public struct LogRecord: Sendable, Identifiable {
         self.callSite = callSite
     }
 
+    #if DEBUG
+        /// Test seam: a copy carrying `ambient`, standing in for what the
+        /// recorder stamps. Store tests hand records to
+        /// `PeriscopeStore.write(_:)` directly — with dates they choose —
+        /// so they can't get a stamped record out of a live pipeline.
+        @_spi(Testing) public func stamped(ambient: AmbientSnapshot?) -> LogRecord {
+            var copy = self
+            copy.ambient = ambient
+            return copy
+        }
+    #endif
+
     public var level: LogLevel {
         event.level
     }

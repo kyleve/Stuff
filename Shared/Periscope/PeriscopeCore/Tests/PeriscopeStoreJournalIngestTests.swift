@@ -89,6 +89,43 @@ struct PeriscopeStoreJournalIngestTests {
         #expect(!FileManager.default.fileExists(atPath: crashedJournal.path))
     }
 
+    /// The full crash path for ambient state: stamped at emit, journaled,
+    /// recovered, and given its row at ingest — so the events that only
+    /// exist because of a crash still say what the system was doing.
+    @Test func recoveredEventsKeepTheirAmbientState() async throws {
+        let root = try makeRoot()
+        let crashed = LogSession.fixture(startedAt: date(0))
+        let scope = LogScope.root(named: "app")
+        try writeCrashedJournal(
+            root: root,
+            session: crashed,
+            scopes: [scope],
+            records: [
+                LogRecord(
+                    date: date(1),
+                    event: AmbientEvent(kind: .network, value: "unsatisfied"),
+                    scopes: [scope.id],
+                ),
+                LogRecord(
+                    date: date(2),
+                    event: Message(level: .error, "died while offline"),
+                    scopes: [scope.id],
+                ),
+            ],
+        )
+
+        let store = try await PeriscopeStore.onDisk(
+            databaseURL: databaseURL(in: root),
+            session: .fixture(startedAt: date(100)),
+        )
+
+        let events = try await store.events(matching: LogQuery())
+        let recovered = try #require(events.first { $0.message == "died while offline" })
+        let snapshotID = try #require(recovered.ambientSnapshotID)
+        let snapshot = try await store.ambientSnapshot(for: snapshotID)
+        #expect(snapshot?[.network] == "unsatisfied")
+    }
+
     @Test func alreadyDeliveredRecordsAreNotDuplicated() async throws {
         let root = try makeRoot()
         let crashed = LogSession.fixture(startedAt: date(0))
