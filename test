@@ -333,9 +333,11 @@ def status():
     else:
         done, total, unit = (images or tests), 0, ('images' if images else 'tests')
     parts = [f'[{elapsed()}]']
-    if total:
-        percent = min(100, int(100 * done / total))
-        parts.append(f'{done}/{total} {unit} ({percent}%)')
+    # A cached total from a previous run can be stale — a bundle gained tests, or
+    # the cache predates a change in scope. Overshooting it means the denominator
+    # is wrong, so drop it rather than reporting 368/38 and a negative estimate.
+    if total and done <= total:
+        parts.append(f'{done}/{total} {unit} ({int(100 * done / total)}%)')
         if done:
             remaining = (time.monotonic() - started) / done * (total - done)
             parts.append(f'~{int(remaining // 60)}:{int(remaining % 60):02d} left')
