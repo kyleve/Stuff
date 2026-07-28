@@ -248,8 +248,9 @@ struct WhereLaunchTests {
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let model = WhereModel(preferences: makePreferences())
-        model.attach(services: services)
+        let preferences = makePreferences()
+        let model = WhereModel(preferences: preferences)
+        model.activate(scope: WhereScope(services: services, preferences: preferences))
         model.completeOnboarding()
 
         var receivedContainers: [ModelContainer?] = []
@@ -277,8 +278,9 @@ struct WhereLaunchTests {
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let model = WhereModel(preferences: makePreferences())
-        model.attach(services: services)
+        let preferences = makePreferences()
+        let model = WhereModel(preferences: preferences)
+        model.activate(scope: WhereScope(services: services, preferences: preferences))
         model.completeOnboarding()
 
         var hookFires = 0

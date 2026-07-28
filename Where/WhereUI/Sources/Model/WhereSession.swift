@@ -128,16 +128,28 @@ public final class WhereSession {
         return SessionID(value: nextRawID)
     }
 
-    /// Build a coordinator over an already-assembled service layer.
-    public init(
+    /// Build a coordinator over the scope the app is logged in to. The
+    /// designated initializer: taking the whole scope is what guarantees the
+    /// services and the preferences a session reads belong to the same world.
+    init(scope: WhereScope, now: @escaping @Sendable () -> Date = { Date() }) {
+        id = Self.mintID()
+        services = scope.services
+        preferences = scope.preferences
+        self.now = now
+    }
+
+    /// Build a coordinator over a loose service layer, wrapping it in a scope.
+    /// For previews and tests that drive the coordinator directly and have no
+    /// reason to name the scope; the app always has one.
+    public convenience init(
         services: WhereServices,
         preferences: WherePreferences = WherePreferences(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
-        id = Self.mintID()
-        self.services = services
-        self.preferences = preferences
-        self.now = now
+        self.init(
+            scope: WhereScope(services: services, preferences: preferences),
+            now: now,
+        )
     }
 
     /// Cancel the authorization observer when the session is dropped (e.g. the

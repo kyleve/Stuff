@@ -33,10 +33,16 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
-- **`WhereModel`** — app-level state: the onboarding flag, the owned
-  `WhereSession`, and the lifecycle intents (`attach(services:)`,
-  `startSession(services:)` — which *returns* the session the launch's
-  `start-session` step threads onward — `endSession()`, `resetPreferences()`).
+- **`WhereScope`** — what the app is logged in *to*: one open store's
+  `WhereServices` plus the `WherePreferences` driving it, created whole and
+  never reconfigured. `WhereModel` owns which scope is active; `WhereSession`
+  is built from one, so a logged-in surface can't read one world's store
+  against another's preferences.
+- **`WhereModel`** — app-level state that outlives any one scope: the
+  onboarding flag, the active `WhereScope`, the owned `WhereSession`, and the
+  lifecycle intents (`activate(scope:)`, `startSession(scope:)` — which
+  *returns* the session the launch's `start-session` step threads onward —
+  `endSession()`, `resetPreferences()`).
 - **`WhereSession`** — the always-on coordinator: tracking + location
   authorization state and the intents that drive them (`requestPermission()`,
   `startTracking()` / `stopTracking()`, `refreshWidgetSnapshot()`). It holds no

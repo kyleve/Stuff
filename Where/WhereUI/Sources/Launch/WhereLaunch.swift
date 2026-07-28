@@ -56,9 +56,9 @@ public enum LaunchStepID: String, Sendable {
 /// `WhereSession` the trunk produced once the runner reaches `.ready`.
 ///
 /// The trunk's value is the launch's dependency scope, growing monotonically
-/// by embedding: `OpenStoreStep` mints `WhereServices` (the store scope),
-/// `StartSessionStep` promotes it to `WhereSession` (which carries the
-/// services non-optionally), and every downstream node takes the session as
+/// by embedding: `OpenStoreStep` mints the `WhereScope` the app is logged in
+/// to, `StartSessionStep` promotes it to `WhereSession` (which carries the
+/// scope's services non-optionally), and every downstream node takes the session as
 /// its typed input. The compiler holds the ordering — a node cannot be
 /// placed before its input exists, and only pass-through nodes (the
 /// onboarding gate, `thenKeeping` steps, the detached fan) may skip, so a

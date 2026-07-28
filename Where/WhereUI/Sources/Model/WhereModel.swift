@@ -4,25 +4,46 @@ import PeriscopeCore
 import WhereCore
 
 /// The long-lived, app-level model: the onboarding gate, the persisted
-/// preferences, and the optional `WhereSession` that holds everything
-/// services-dependent (the loaded report, GPS state, backup, …).
+/// preferences, which `WhereScope` the app is logged in to, and the optional
+/// `WhereSession` that holds everything scope-dependent (the loaded report,
+/// GPS state, backup, …).
 ///
-/// `WhereModel` exists for the whole process lifetime and is built before the
+/// `WhereModel` exists for the whole process lifetime and is built before any
 /// store opens (so a background relaunch can wire CoreLocation first). The
-/// services-backed state lives in `session`, which only exists once the launch's
-/// `open-store` step has assembled the service layer — keeping the brief
-/// pre-store window (splash / migration UI) free of any "is the store open yet?"
+/// scope-backed state lives in `session`, which only exists once the launch's
+/// `open-store` step has assembled a scope — keeping the brief pre-store
+/// window (splash / migration UI) free of any "is the store open yet?"
 /// nil-guarding spread across a god-object.
 @MainActor
 @Observable
 public final class WhereModel {
-    /// The assembled service layer, retained across the app's lifetime once
-    /// built. Survives a reset (so the re-driven launch rebuilds the session
-    /// from it rather than reopening the store / rewiring CoreLocation) and is
-    /// the preview/test injection seam. Nil only in the pre-`open-store`
-    /// window; the launch's `OpenStoreStep` reads it to skip rebuilding a
-    /// retained layer.
-    private(set) var services: WhereServices?
+    /// Which `WhereScope` the app is logged in to.
+    ///
+    /// An enum rather than an optional scope beside a set of flags: what the
+    /// app is logged in to is one fact, and the states it can legally be in
+    /// are few enough to enumerate.
+    enum ScopeState {
+        /// No scope yet — the pre-`open-store` window.
+        case loggedOut
+        /// Logged in to the user's real, persisted world.
+        case real(WhereScope)
+    }
+
+    /// The scope state, and with it the store the app is working against.
+    /// Retained across the app's lifetime once built: a reset rebuilds the
+    /// session over the same (now erased) scope rather than reopening the
+    /// store or rewiring CoreLocation.
+    private(set) var scopeState: ScopeState = .loggedOut
+
+    /// The scope the app is logged in to, if any. Nil only in the
+    /// pre-`open-store` window; the launch's `OpenStoreStep` reads it to skip
+    /// rebuilding a retained scope.
+    var activeScope: WhereScope? {
+        switch scopeState {
+            case .loggedOut: nil
+            case let .real(scope): scope
+        }
+    }
 
     /// The logged-in, services-backed state, mirrored here for surfaces the
     /// launch container doesn't feed (the DEBUG developer overlay, the
@@ -93,9 +114,9 @@ public final class WhereModel {
 
     /// Preview/test seam: inject already-built services (and optionally a
     /// preloaded report) so SwiftUI previews and unit tests skip the live
-    /// SwiftData + CoreLocation wiring. Retains the services and builds the
-    /// session up front, so the launch's `open-store` step is a no-op and the
-    /// model's `session` is ready to drive immediately.
+    /// SwiftData + CoreLocation wiring. Activates a scope over them and builds
+    /// the session up front, so the launch's `open-store` step is a no-op and
+    /// the model's `session` is ready to drive immediately.
     public init(
         services: WhereServices,
         report: YearReport? = nil,
@@ -103,16 +124,13 @@ public final class WhereModel {
         preferences: WherePreferences = WherePreferences(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
-        self.services = services
+        let scope = WhereScope(services: services, preferences: preferences)
+        scopeState = .real(scope)
         self.preferences = preferences
         self.now = now
         initialSelectedYear = selectedYear
         initialReport = report
-        session = WhereSession(
-            services: services,
-            preferences: preferences,
-            now: now,
-        )
+        session = WhereSession(scope: scope, now: now)
     }
 
     /// Retain the process-global log store the launch bootstrap opened and
@@ -122,29 +140,26 @@ public final class WhereModel {
         self.logStore = logStore
     }
 
-    /// Retain the service layer the launch's `open-store` step assembled (see
-    /// `WhereBootstrap`). Idempotent — a no-op once services exist, so an
-    /// injected preview/test value is never clobbered. `WhereBootstrap` owns
-    /// *building* the services (store open + CoreLocation); the model just
-    /// consumes the finished value.
-    public func attach(services: WhereServices) {
-        guard self.services == nil else { return }
-        self.services = services
+    /// Log in to `scope` — the scope the launch's `open-store` step assembled
+    /// (see `WhereBootstrap`). Idempotent: a no-op once a scope is active, so
+    /// an injected preview/test scope is never clobbered, and the store an
+    /// active scope holds is never displaced by a second one over the same
+    /// file. `WhereBootstrap` owns *building* the services (store open +
+    /// CoreLocation); the model just consumes the finished scope.
+    public func activate(scope: WhereScope) {
+        guard activeScope == nil else { return }
+        scopeState = .real(scope)
     }
 
-    /// Create the logged-in `WhereSession` over `services` and return it —
-    /// the launch's `start-session` step consumes the return value directly
-    /// (its typed output), rather than the session being re-read from an
-    /// optional. Returns the existing session when one is already live (a
-    /// preview/test built it up front). The re-driven launch after a reset
-    /// rebuilds a fresh session here over the retained (now-erased) services.
-    public func startSession(services: WhereServices) -> WhereSession {
+    /// Create the logged-in `WhereSession` over `scope` and return it — the
+    /// launch's `start-session` step consumes the return value directly (its
+    /// typed output), rather than the session being re-read from an optional.
+    /// Returns the existing session when one is already live (a preview/test
+    /// built it up front). The re-driven launch after a reset rebuilds a fresh
+    /// session here over the retained (now-erased) scope.
+    func startSession(scope: WhereScope) -> WhereSession {
         if let session { return session }
-        let session = WhereSession(
-            services: services,
-            preferences: preferences,
-            now: now,
-        )
+        let session = WhereSession(scope: scope, now: now)
         self.session = session
         Self.logger { .startedSession(year: initialSelectedYear) }
         return session

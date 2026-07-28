@@ -5,36 +5,40 @@ import WhereCore
 //
 // Each step's `Input`/`Output` is the launch's dependency scope at that
 // point (see the scope convention in `WhereLaunch`): `OpenStoreStep` mints
-// the store scope (`WhereServices`), `StartSessionStep` promotes it to the
-// session scope (`WhereSession`, which embeds the services), and everything
-// downstream takes the **non-optional** session as input — a step cannot be
-// scheduled before the thing it needs exists, and no step reaches into
-// `WhereModel` optionals to find what an earlier step "should have" set.
+// the logged-in scope (`WhereScope`), `StartSessionStep` promotes it to the
+// session scope (`WhereSession`, which embeds the scope's services), and
+// everything downstream takes the **non-optional** session as input — a step
+// cannot be scheduled before the thing it needs exists, and no step reaches
+// into `WhereModel` optionals to find what an earlier step "should have" set.
 
-/// Open the SwiftData store and assemble the service layer — the process's
-/// **one** store open (everything else shares the instance by injection; see
-/// `WhereBootstrap.makeServices`). Skipped work when services already exist
-/// (a preview/test injected them, or a prior session before a reset), so we
-/// never spin up a real store + CoreLocation behind a retained layer.
-/// Opening may run a lightweight migration; there's no separate UI for it —
-/// the launch splash (shown throughout) fades in its own launch-neutral
-/// "taking a moment" caption when any launch phase runs long.
+/// Open the SwiftData store, assemble the service layer, and log in to the
+/// resulting scope — the process's **one** store open (everything else shares
+/// the instance by injection; see `WhereBootstrap.makeServices`). Skipped work
+/// when a scope is already active (a preview/test injected one, or a prior
+/// session before a reset), so we never spin up a real store + CoreLocation
+/// behind a retained scope. Opening may run a lightweight migration; there's
+/// no separate UI for it — the launch splash (shown throughout) fades in its
+/// own launch-neutral "taking a moment" caption when any launch phase runs
+/// long.
 struct OpenStoreStep: LifecycleStep {
     let model: WhereModel
     let bootstrap: WhereBootstrap
 
     let id = LaunchStepID.openStore
 
-    func run(_: Void, _: LifecycleStepContext) async throws -> WhereServices {
-        if let services = model.services { return services }
-        let services = try await bootstrap.makeServices()
-        model.attach(services: services)
-        return services
+    func run(_: Void, _: LifecycleStepContext) async throws -> WhereScope {
+        if let scope = model.activeScope { return scope }
+        let scope = try await WhereScope(
+            services: bootstrap.makeServices(),
+            preferences: model.preferences,
+        )
+        model.activate(scope: scope)
+        return scope
     }
 }
 
-/// Create the logged-in `WhereSession` over the assembled services and hand
-/// the service layer to the app's composition hook before any later node —
+/// Create the logged-in `WhereSession` over the active scope and hand the
+/// scope's service layer to the app's composition hook before any later node —
 /// or the UI — runs, so consumers awaiting it (parked App Intents) resume
 /// against this session's store. Runs on every session (re)start: first
 /// launch, a retry after a failed open, and the reset relaunch (the
@@ -45,8 +49,8 @@ struct StartSessionStep: LifecycleStep {
 
     let id = LaunchStepID.startSession
 
-    func run(_ services: WhereServices, _: LifecycleStepContext) async throws -> WhereSession {
-        let session = model.startSession(services: services)
+    func run(_ scope: WhereScope, _: LifecycleStepContext) async throws -> WhereSession {
+        let session = model.startSession(scope: scope)
         await onServicesReady(session.services)
         return session
     }
