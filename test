@@ -509,7 +509,8 @@ PROGRESS_PY
 
 # Resolve the run plan: which scheme(s), and which -only-testing filters.
 SCHEMES=()
-FILTERS=()
+UNIT_FILTERS=()
+SNAPSHOT_FILTERS=()
 
 add_scheme() {
     local candidate="$1" existing
@@ -564,10 +565,11 @@ EOF
         for bundle in "${BUNDLES[@]}"; do
             if printf '%s\n' "$image_bundles" | grep -qx "$bundle"; then
                 add_scheme "$SNAPSHOT_SCHEME"
+                SNAPSHOT_FILTERS+=("-only-testing:$bundle")
             else
                 add_scheme "$UNIT_SCHEME"
+                UNIT_FILTERS+=("-only-testing:$bundle")
             fi
-            FILTERS+=("-only-testing:$bundle")
         done
         ;;
 esac
@@ -579,11 +581,12 @@ if [ "${#ONLY[@]}" -gt 0 ]; then
     # a scheme that doesn't contain its bundle and match nothing.
     only_images="$(snapshot_bundles)"
     for identifier in "${ONLY[@]}"; do
-        FILTERS+=("-only-testing:$identifier")
         if printf '%s\n' "$only_images" | grep -qx "${identifier%%/*}"; then
             add_scheme "$SNAPSHOT_SCHEME"
+            SNAPSHOT_FILTERS+=("-only-testing:$identifier")
         else
             add_scheme "$UNIT_SCHEME"
+            UNIT_FILTERS+=("-only-testing:$identifier")
         fi
     done
 fi
@@ -619,6 +622,12 @@ RESULTS=()
 LOGS=()
 
 for scheme in "${SCHEMES[@]}"; do
+    filters=()
+    if [ "$scheme" = "$SNAPSHOT_SCHEME" ]; then
+        filters=(${SNAPSHOT_FILTERS[@]+"${SNAPSHOT_FILTERS[@]}"})
+    else
+        filters=(${UNIT_FILTERS[@]+"${UNIT_FILTERS[@]}"})
+    fi
     log="$WORKDIR/$scheme.log"
     result="$WORKDIR/$scheme.xcresult"
     rm -rf "$result"
@@ -640,7 +649,7 @@ for scheme in "${SCHEMES[@]}"; do
     # One cache entry per scheme + filter set: a run of three bundles and a run
     # of the whole scheme have different totals, and mixing them is what made the
     # progress line read "368/38".
-    scope_key="$(printf '%s\n' "$scheme" ${FILTERS[@]+"${FILTERS[@]}"} \
+    scope_key="$(printf '%s\n' "$scheme" ${filters[@]+"${filters[@]}"} \
         | shasum | cut -c1-12)"
     counts="$WORKDIR/counts-$scheme-$scope_key.json"
 
@@ -653,7 +662,7 @@ for scheme in "${SCHEMES[@]}"; do
         -destination "$DESTINATION" \
         -resultBundlePath "$result" \
         -collect-test-diagnostics never \
-        ${FILTERS[@]+"${FILTERS[@]}"} \
+        ${filters[@]+"${filters[@]}"} \
         2>&1 \
         | tee "$log" \
         | HEARTBEAT="$HEARTBEAT" STATUS_FILE="$STATUS_FILE" \
