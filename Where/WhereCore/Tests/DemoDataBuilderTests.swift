@@ -15,8 +15,9 @@ struct DemoDataBuilderTests {
     /// script running to the year's very edge.
     private let now = WhereCoreTestSupport.iso("2026-10-12T09:30:00Z")
 
-    private func makeServices() throws -> WhereServices {
-        try WhereServices(
+    private func makeServices(now clock: Date? = nil) throws -> WhereServices {
+        let instant = clock ?? now
+        return try WhereServices(
             store: SwiftDataStore.inMemory(),
             locationSource: ScriptedLocationSource(),
             aggregator: DayAggregator(calendar: calendar, timeZone: calendar.timeZone),
@@ -24,7 +25,7 @@ struct DemoDataBuilderTests {
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
-            now: { [now] in now },
+            now: { instant },
         )
     }
 
@@ -73,16 +74,34 @@ struct DemoDataBuilderTests {
         #expect(report.totals[.newYork, default: 0] > 100)
     }
 
-    @Test func leavesGapsForTheResolveTabToFind() async throws {
+    @Test func leavesAFewRecentDaysForTheResolveTabToFind() async throws {
         let services = try makeServices()
         try await seed(into: services)
 
+        let unlogged = try await unloggedDays(in: services)
+
+        // Some days are deliberately left with neither GPS nor a backfill, so
+        // the demo has real issues to resolve rather than a spotless year.
+        #expect(!unlogged.isEmpty)
+        // But only a few, and only recent ones: someone using the app deals
+        // with problems as they come up, so a backlog would misrepresent it —
+        // and a demo opening on a wall of issues reads as a broken app.
+        #expect(unlogged.count <= 3)
+        let today = CalendarDay(from: now, in: calendar)
+        let fortnightAgo = today.adding(days: -14)
+        #expect(unlogged.allSatisfy { $0 > fortnightAgo && $0 < today })
+    }
+
+    /// Days in the demo year with neither a GPS sample nor a manual entry — what
+    /// the app surfaces as missing-day issues.
+    private func unloggedDays(in services: WhereServices) async throws -> [CalendarDay] {
         let report = try await services.reports.yearReport(for: 2026)
         let covered = Set(report.days.map(\.day))
         let elapsed = calendar.ordinality(of: .day, in: .year, for: now) ?? 0
-        // Some days are deliberately left with neither GPS nor a backfill, so
-        // the demo has real issues to resolve rather than a spotless year.
-        #expect(covered.count < elapsed)
+        let firstDay = CalendarDay(year: 2026, month: 1, day: 1)
+        return (0 ..< elapsed)
+            .map { firstDay.adding(days: $0) }
+            .filter { !covered.contains($0) }
     }
 
     @Test func includesBothKindsOfManualEntry() async throws {
@@ -136,27 +155,63 @@ struct DemoDataBuilderTests {
         #expect(firstReport.days == secondReport.days)
     }
 
-    @Test func earlyInTheYearProducesASmallerButValidYear() async throws {
-        // Demo mode can be entered on January 3rd. It must still produce a
-        // coherent year rather than trailing off the start of the calendar.
-        let earlyNow = WhereCoreTestSupport.iso("2026-01-09T09:30:00Z")
-        let services = try WhereServices(
-            store: SwiftDataStore.inMemory(),
-            locationSource: ScriptedLocationSource(),
-            aggregator: DayAggregator(calendar: calendar, timeZone: calendar.timeZone),
-            reminderScheduler: NoopLoggingReminderScheduler(),
-            summaryScheduler: NoopDailySummaryScheduler(),
-            issueAlertScheduler: NoopDataIssueAlertScheduler(),
-            widgetRefresher: NoopWidgetTimelineRefresher(),
-            now: { earlyNow },
-        )
-        try await DemoDataBuilder(now: earlyNow, calendar: calendar).seed(into: services)
+    /// The shape has to survive being entered at any point in the year, which
+    /// is the bug this pins: with fixed-size trips and gaps, a January demo was
+    /// more than half unlogged and a February one counted more California days
+    /// than New York ones.
+    @Test(arguments: [
+        "2026-01-06T09:30:00Z", // a week in
+        "2026-01-21T09:30:00Z", // three weeks
+        "2026-02-16T09:30:00Z", // mid-February, where California used to win
+        "2026-04-01T09:30:00Z",
+        "2026-07-15T09:30:00Z",
+        "2026-12-28T09:30:00Z", // a full year
+    ])
+    func holdsItsShapeWhereverInTheYearItIsEntered(iso: String) async throws {
+        let entered = WhereCoreTestSupport.iso(iso)
+        let services = try makeServices(now: entered)
+        try await DemoDataBuilder(now: entered, calendar: calendar).seed(into: services)
 
         let report = try await services.reports.yearReport(for: 2026)
+        let elapsed = calendar.ordinality(of: .day, in: .year, for: entered) ?? 0
+        let newYork = report.totals[.newYork, default: 0]
+        let california = report.totals[.california, default: 0]
+
+        // Home is home: New York holds the clear majority of days, so the demo
+        // reads as someone who lives there and travels — never the inverse.
+        #expect(newYork > california)
+        #expect(Double(newYork) / Double(elapsed) > 0.6)
+        // California still shows up, or there is nothing to demonstrate.
+        #expect(california > 0)
+        // And the year stays inside itself, up to today.
         let days = report.days.map(\.day).sorted()
-        #expect(!days.isEmpty)
         #expect(days.allSatisfy { $0.year == 2026 })
         let last = try #require(days.last)
-        #expect(last <= CalendarDay(from: earlyNow, in: calendar))
+        #expect(last <= CalendarDay(from: entered, in: calendar))
+    }
+
+    @Test(arguments: [
+        "2026-01-06T09:30:00Z",
+        "2026-02-16T09:30:00Z",
+        "2026-07-15T09:30:00Z",
+        "2026-12-28T09:30:00Z",
+    ])
+    func keepsOutstandingIssuesFewAndRecent(iso: String) async throws {
+        let entered = WhereCoreTestSupport.iso(iso)
+        let services = try makeServices(now: entered)
+        try await DemoDataBuilder(now: entered, calendar: calendar).seed(into: services)
+
+        let report = try await services.reports.yearReport(for: 2026)
+        let covered = Set(report.days.map(\.day))
+        let elapsed = calendar.ordinality(of: .day, in: .year, for: entered) ?? 0
+        let firstDay = CalendarDay(year: 2026, month: 1, day: 1)
+        let unlogged = (0 ..< elapsed)
+            .map { firstDay.adding(days: $0) }
+            .filter { !covered.contains($0) }
+
+        let today = CalendarDay(from: entered, in: calendar)
+        #expect(!unlogged.isEmpty)
+        #expect(unlogged.count <= 3)
+        #expect(unlogged.allSatisfy { $0 > today.adding(days: -14) && $0 < today })
     }
 }

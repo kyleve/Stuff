@@ -50,9 +50,12 @@ one it belongs to rather than to a god-object:
 
 - **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
   given `WhereServices`: a plausible current year of living in New York with
-  California trips, plus the gaps, backfills, and corrected attributions a real
-  year has, so an empty app has something true to show. Bound to the current
-  year and derived from it, so it stops at today and is the same every time.
+  California trips, plus the backfills and corrected attributions a real year
+  has and a few recent days still unlogged, so an empty app has something true
+  to show. Bound to the current year and derived from it, so it stops at today
+  and is the same every time. Every feature is sized against the *elapsed* part
+  of the year, so a demo entered in January has the same shape as one entered in
+  December.
 
 ### Reads & aggregation
 

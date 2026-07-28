@@ -136,7 +136,16 @@ a single file:
 Demo mode is a second scope, not a mode flag threaded through the first: an
 in-memory store seeded by `DemoDataBuilder`, in-memory preferences, an
 in-memory log store, and no-op schedulers, outbox, and widget refresher
-throughout. It is entered from a third button on the onboarding intro
+throughout.
+
+The seeded data is sized against the *elapsed* part of the year rather than the
+calendar, so the shape holds whenever it's entered — New York keeps a clear
+majority of days, California always appears, and the outstanding issues stay
+few (at most three) and recent (within a fortnight), because someone using the
+app deals with problems as they come up. Older lapses appear as **backfills**,
+which are history rather than issues. Fixed sizes made a January demo read as
+mostly-unlogged and a February one as mostly-California;
+`holdsItsShapeWhereverInTheYearItIsEntered` is the guard. It is entered from a third button on the onboarding intro
 (build the scope, activate it, resolve the gate) and left from the top of
 Settings (`WhereLaunch.exitDemoPlan`). Quitting mid-demo needs no code: nothing
 was persisted, so the next launch is an ordinary one.

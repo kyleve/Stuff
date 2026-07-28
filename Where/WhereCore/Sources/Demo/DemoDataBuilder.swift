@@ -6,16 +6,20 @@ import RegionKit
 /// is handed.
 ///
 /// It exists to make an *empty* app demonstrable, so it deliberately produces
-/// the messy shapes a real year has rather than a clean one — GPS gaps, days
-/// backfilled by hand afterwards, and a couple of corrected attributions — so
-/// that the calendar, the year report, and the Resolve tab all have something
-/// true to show. Everything is bound to the **current** year and stops at
-/// `now`: a demo entered in March shows a March-shaped year, not a full one.
+/// the messy shapes a real year has rather than a clean one — days backfilled
+/// by hand after the phone was off, a couple of corrected attributions, and a
+/// few recent days still unlogged — so that the calendar, the year report, and
+/// the Resolve tab all have something true to show. Everything is bound to the
+/// **current** year and stops at `now`: a demo entered in March shows a
+/// March-shaped year, not a full one.
 ///
 /// The script is derived from the year, so entering demo mode twice in a day
-/// produces the same data. Trip and gap placement is proportional to the part
-/// of the year that has elapsed, so the shape holds up whether it's February
-/// or December.
+/// produces the same data. Every feature is sized against how much of the year
+/// has *elapsed* rather than against the calendar, so the shape holds wherever
+/// it's entered: New York keeps roughly four days in five, California always
+/// appears, and the outstanding issues stay few and recent. (Fixed sizes are
+/// what made an early-January demo read as mostly-unlogged, and a February one
+/// as mostly-California.)
 ///
 /// Note strings on the manual entries are deliberately plain English literals
 /// rather than catalog lookups: they stand in for what a user typed, the same
@@ -112,9 +116,11 @@ public struct DemoDataBuilder: Sendable {
         case away
         /// A travel day: GPS in both regions, so the day counts for both.
         case travel
-        /// No GPS at all, filled in by hand afterwards.
+        /// No GPS at all, filled in by hand afterwards — a lapse the user
+        /// already dealt with, so it reads as history rather than a problem.
         case backfilled
-        /// No GPS and never filled in — the gaps the Resolve tab surfaces.
+        /// No GPS and not filled in: the outstanding issues the Resolve tab
+        /// surfaces. Deliberately few and recent (see ``dayKinds(elapsedDays:)``).
         case missing
         /// GPS says home, but the user corrected the day to California.
         case corrected
@@ -197,10 +203,32 @@ public struct DemoDataBuilder: Sendable {
         return script
     }
 
+    /// How much of the elapsed year is spent away from home. Split across the
+    /// trips, so the home/away balance reads the same in February as in
+    /// December — the mistake a fixed trip length makes, where three
+    /// fixed-length trips are most of a short year and a rounding error in a
+    /// long one.
+    private static let awayShareOfYear = 0.18
+
+    /// The most days left unlogged, ever. Someone using the app deals with
+    /// problems as they come up, so an honest year has a couple of loose ends
+    /// rather than a backlog — and a demo that opens on a wall of them reads as
+    /// a broken app, not a full one.
+    private static let maximumUnloggedDays = 3
+
+    /// How far back an unlogged day may be. Anything older would have been
+    /// noticed and fixed by now, so old lapses appear as backfills instead.
+    private static let unloggedWindow = 14
+
     /// Lay the year out day by day. Painted in passes — a baseline of days at
-    /// home, then the trips over it, then the gaps, then the corrections — so
+    /// home, then the trips over it, then the lapses, then the corrections — so
     /// overlapping windows resolve to the last pass rather than to whichever
     /// loop happened to run last.
+    ///
+    /// Everything is sized against `elapsedDays` rather than the calendar, so
+    /// the *shape* holds wherever in the year the demo is entered: home is
+    /// always roughly four days in five, both regions always appear, and the
+    /// outstanding issues stay few and recent.
     private func dayKinds(elapsedDays: Int) -> [Int: DayKind] {
         var kinds: [Int: DayKind] = [:]
         for day in 1 ... elapsedDays {
@@ -211,37 +239,57 @@ public struct DemoDataBuilder: Sendable {
             max(1, min(elapsedDays, Int((Double(elapsedDays) * fraction).rounded())))
         }
 
-        // Three trips spread across the elapsed year, each bracketed by a
-        // travel day in each direction.
-        for (fraction, length) in [(0.18, 6), (0.47, 11), (0.78, 8)] {
+        // Two trips, or three once the year is long enough to spread them over.
+        // Fewer at a short span isn't a degradation — three separate trips
+        // inside a fortnight would read as fiction.
+        let tripStarts = elapsedDays >= 120 ? [0.18, 0.50, 0.82] : [0.25, 0.75]
+        let tripLength = max(
+            2,
+            Int((Double(elapsedDays) * Self.awayShareOfYear / Double(tripStarts.count)).rounded()),
+        )
+        var previousReturn = 0
+        for fraction in tripStarts {
             let start = day(atFraction: fraction)
-            let end = min(elapsedDays, start + length)
-            guard end > start + 1 else { continue }
+            let end = start + tripLength
+            // Leave at least a day at home between trips, and never run past
+            // today — a trip clipped by "now" would read as one still underway.
+            guard start > previousReturn + 1, end <= elapsedDays else { continue }
             kinds[start] = .travel
             for middle in (start + 1) ..< end {
                 kinds[middle] = .away
             }
             kinds[end] = .travel
+            previousReturn = end
         }
 
-        // A week with the phone off: half reconstructed from a calendar, half
-        // never filled in.
-        let gapStart = day(atFraction: 0.33)
-        for offset in 0 ..< 4 where gapStart + offset <= elapsedDays {
-            kinds[gapStart + offset] = .backfilled
-        }
-        for offset in 4 ..< 7 where gapStart + offset <= elapsedDays {
-            kinds[gapStart + offset] = .missing
-        }
-
-        // A recent couple of missing days, so the Resolve tab has something
-        // current to offer rather than only ancient history.
-        for offset in 4 ... 5 where elapsedDays - offset >= 1 {
-            kinds[elapsedDays - offset] = .missing
+        // A stretch with the phone off, reconstructed at the time: fully
+        // backfilled, so it shows the manual-entry trail without pretending
+        // the user left a hole in their own records.
+        if elapsedDays >= 30 {
+            let start = day(atFraction: 0.38)
+            let length = min(5, max(2, Int((Double(elapsedDays) * 0.015).rounded())))
+            for offset in 0 ..< length where start + offset <= elapsedDays {
+                if kinds[start + offset] == .home {
+                    kinds[start + offset] = .backfilled
+                }
+            }
         }
 
-        // Two days the user corrected after the fact.
-        for fraction in [0.62, 0.9] {
+        // The outstanding issues: a few recent days nothing was recorded for.
+        // Only plain days at home are eligible, so a lapse never eats a trip's
+        // travel day, and never today — which the app itself would fill in.
+        let unloggedCount = min(Self.maximumUnloggedDays, max(1, elapsedDays / 30))
+        var unlogged = 0
+        for offset in Self.unloggedDayOffsets where unlogged < unloggedCount {
+            let candidate = elapsedDays - offset
+            guard candidate >= 1, kinds[candidate] == .home else { continue }
+            kinds[candidate] = .missing
+            unlogged += 1
+        }
+
+        // A day or two the user corrected after the fact.
+        let correctionPoints = elapsedDays >= 60 ? [0.62, 0.9] : [0.62]
+        for fraction in correctionPoints {
             let corrected = day(atFraction: fraction)
             if kinds[corrected] == .home {
                 kinds[corrected] = .corrected
@@ -249,6 +297,15 @@ public struct DemoDataBuilder: Sendable {
         }
         return kinds
     }
+
+    /// Days back from today to consider leaving unlogged, spaced first so the
+    /// lapses read as separate slips rather than one long outage, then filling
+    /// in from the rest of the window for a span too short to hold the spaced
+    /// ones.
+    private static let unloggedDayOffsets: [Int] = {
+        let spaced = [2, 5, 9, 12]
+        return spaced + (2 ... unloggedWindow - 1).filter { !spaced.contains($0) }
+    }()
 
     // MARK: - Samples
 
