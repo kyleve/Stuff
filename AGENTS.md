@@ -68,13 +68,19 @@ Run `./ide --no-open` after adding one.
 
 Bump the Where app's `CFBundleShortVersionString` / `CFBundleVersion`
 explicitly in [`Project.swift`](Project.swift) (Settings > About shows them).
-The commit is stamped by a post-build script
-([`Where/Where/Scripts/stamp-build-info.sh`](Where/Where/Scripts/stamp-build-info.sh))
-into `WhereGitSHA` / `WhereGitStatus`, read back by `WhereCore.BuildInfo`;
-only the app is stamped. Tripwires: it must stay a **post** script (before
-signing seals the bundle), keep `basedOnDependencyAnalysis: false` (or an
-unchanged tree ships the previous commit's SHA), and needs
-`ENABLE_USER_SCRIPT_SANDBOXING` unset (it reads `.git`).
+How the app was built is stamped by a post-build script
+([`Where/Where/Scripts/stamp-build-info.sh`](Where/Where/Scripts/stamp-build-info.sh)):
+the commit into `WhereGitSHA` / `WhereGitStatus`, and how the Swift compiler
+was invoked into `WhereConfiguration` / `WhereSwiftOptimizationLevel` /
+`WhereSwiftCompilationMode`. All of it is read back by `WhereCore.BuildInfo`,
+for Settings > About and for the attributes on every Periscope logging session
+(the optimization level is what says whether a recorded span duration means
+anything). Only the app is stamped. Tripwires: it must stay a **post** script
+(before signing seals the bundle), keep `basedOnDependencyAnalysis: false` (or
+an unchanged tree ships the previous commit's SHA), needs
+`ENABLE_USER_SCRIPT_SANDBOXING` unset (it reads `.git`), and every key it
+writes must fall back to `unknown` rather than let `set -u` abort the build
+over a build setting Xcode didn't export.
 
 ## Formatting
 
