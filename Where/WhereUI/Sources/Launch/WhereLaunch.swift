@@ -90,6 +90,14 @@ public enum WhereLaunch {
     /// retention pruning runs *after* that on its own task, since trimming old
     /// history isn't a readiness prerequisite.
     ///
+    /// The bring-up is itself a span (`openLogStore`), deliberately ending
+    /// *after* `add(sink:)` rather than around the open alone: a span that
+    /// closes before the store is a sink records nowhere but OSLog and
+    /// Instruments. Its `SpanBegan` is still lost for that same reason — the
+    /// pre-attach gap noted below — so the persisted history holds the end (and
+    /// with it the duration) without a matching begin, which is what the span
+    /// history reads anyway.
+    ///
     /// Degraded-but-handled on failure: if the store can't open, logging keeps
     /// flowing through OSLog and the failure is recorded (with the error
     /// attached) rather than crashing a launch over diagnostics.
@@ -99,15 +107,21 @@ public enum WhereLaunch {
         Task {
             let store: PeriscopeStore
             do {
-                store = try await PeriscopeStore.make(storage: .onDisk, session: .current())
+                store = try await logger.measure(.openLogStore, budget: .seconds(1)) {
+                    let store = try await PeriscopeStore.make(
+                        storage: .onDisk,
+                        session: .current(),
+                    )
+                    Periscope.shared.add(sink: store)
+                    Periscope.shared.startDefaultAmbientSources()
+                    return store
+                }
             } catch {
                 logger(attachments: [.error(error, name: "open-error")]) {
                     .loggingStoreUnavailable(description: String(describing: error))
                 }
                 return
             }
-            Periscope.shared.add(sink: store)
-            Periscope.shared.startDefaultAmbientSources()
             model.attach(logStore: store)
             logger { .loggingStoreReady }
             pruneHistory(in: store)
@@ -122,7 +136,9 @@ public enum WhereLaunch {
         Task {
             do {
                 let cutoff = Date().addingTimeInterval(-logRetention)
-                let pruned = try await store.pruneEvents(olderThan: cutoff)
+                let pruned = try await logger.measure(.pruneHistory, budget: .seconds(2)) {
+                    try await store.pruneEvents(olderThan: cutoff)
+                }
                 logger { .historyPruned(prunedEventCount: pruned) }
             } catch {
                 logger(attachments: [.error(error, name: "prune-error")]) {
@@ -183,6 +199,12 @@ public enum WhereLaunch {
     /// session-configuration steps fan out detached after the trunk — they
     /// take the session, return nothing, and never block `.ready`.
     ///
+    /// Every step is composed `.measured()`, so each run is a budgeted
+    /// Periscope span named after the step (see `MeasuredStep`) and a slow
+    /// launch attributes to a step rather than to "launch". The onboarding gate
+    /// is not measured: it parks on the user, so its duration is a human's, not
+    /// the app's.
+    ///
     /// `bootstrap` assembles the services in the `open-store` step, and
     /// `onServicesReady` fires from `start-session` whenever a session is
     /// (re)started (see `makeLauncher`); callers that only inspect the node
@@ -192,17 +214,17 @@ public enum WhereLaunch {
         bootstrap: WhereBootstrap = WhereBootstrap(),
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LaunchPlan<LaunchStepID, Void, WhereSession> {
-        LaunchPlan(OpenStoreStep(model: model, bootstrap: bootstrap))
-            .then(StartSessionStep(model: model, onServicesReady: onServicesReady))
+        LaunchPlan(OpenStoreStep(model: model, bootstrap: bootstrap).measured())
+            .then(StartSessionStep(model: model, onServicesReady: onServicesReady).measured())
             .gate(OnboardingGate(model: model))
-            .thenKeeping(SyncAuthStep())
-            .thenKeeping(ReconcileTrackingStep())
+            .thenKeeping(SyncAuthStep().measured())
+            .thenKeeping(ReconcileTrackingStep().measured())
             .detached {
-                CaptureTodayStep()
-                RemindersStep()
-                SummaryStep()
-                IssueAlertsStep()
-                WidgetSnapshotStep()
+                CaptureTodayStep().measured()
+                RemindersStep().measured()
+                SummaryStep().measured()
+                IssueAlertsStep().measured()
+                WidgetSnapshotStep().measured()
             }
     }
 
@@ -215,8 +237,8 @@ public enum WhereLaunch {
     public static func resetPlan(for model: WhereModel)
         -> LaunchPlan<LaunchStepID, WhereSession, Void>
     {
-        LaunchPlan(EraseDataStep(model: model))
-            .then(ResetPreferencesStep(model: model))
+        LaunchPlan(EraseDataStep(model: model).measured())
+            .then(ResetPreferencesStep(model: model).measured())
     }
 }
 

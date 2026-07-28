@@ -3,9 +3,30 @@ import PeriscopeCore
 /// Structured events for the app launch sequence (`WhereLaunch` /
 /// `WhereBootstrap`), including the process-global log-store bootstrap.
 enum WhereLaunchLog: LogEvent {
-    /// Names the launch spans — one bounded span per launch step.
-    enum SpanName: Hashable {
-        case step
+    /// Names the launch spans — one budgeted span per measured launch or
+    /// teardown step (see `MeasuredStep`), plus the two log-store chores the
+    /// bootstrap runs off the critical path.
+    ///
+    /// `description` is spelled out rather than left to `String(describing:)`
+    /// because ``step(_:)`` carries a payload: reflection would render it
+    /// `step(WhereUI.LaunchStepID.openStore)`, leaking the module and the Swift
+    /// case name into a span name the tools group by. The hand-written form
+    /// yields `step(open-store)`, matching the step IDs everywhere else.
+    enum SpanName: Hashable, CustomStringConvertible {
+        /// One measured step of the launch or reset plan.
+        case step(LaunchStepID)
+        /// Opening the durable Periscope store and attaching it as a sink.
+        case openLogStore
+        /// Trimming persisted log history past the retention window.
+        case pruneHistory
+
+        var description: String {
+            switch self {
+                case let .step(id): "step(\(id.rawValue))"
+                case .openLogStore: "openLogStore"
+                case .pruneHistory: "pruneHistory"
+            }
+        }
     }
 
     case runnerCreated(reason: String)
