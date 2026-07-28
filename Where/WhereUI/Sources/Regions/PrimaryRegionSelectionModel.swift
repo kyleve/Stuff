@@ -144,7 +144,18 @@ public final class PrimaryRegionSelectionModel {
     /// transaction (upserts + removals-by-omission). Throws on failure so the
     /// caller can surface it; no partial success is hidden.
     public func commit(using session: WhereSession) async throws {
-        try await session.services.setPrimaryRegions(desiredPrimaryRegions)
+        try await commit(to: session.services)
+    }
+
+    /// Commit against a scope rather than a session, for onboarding — which
+    /// runs at the head of the launch, where the scope it just logged in to
+    /// exists but no session does yet.
+    func commit(using scope: WhereScope) async throws {
+        try await commit(to: scope.services)
+    }
+
+    private func commit(to services: WhereServices) async throws {
+        try await services.setPrimaryRegions(desiredPrimaryRegions)
     }
 
     // MARK: - Grouping (Settings list)

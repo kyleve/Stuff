@@ -70,11 +70,11 @@ public struct RootView: View {
                 splash: { _ in LaunchSplashView() },
                 failure: { LifecycleFailureView(failure: $0) },
                 gates: {
-                    // The gate passes the trunk's session through, so
-                    // onboarding is handed the session it commits regions
-                    // with — not left to find one in the environment.
-                    GateView(for: OnboardingGate.self) { handle, session in
-                        OnboardingView(gate: handle, session: session)
+                    // The gate roots the trunk, so there is no session (and no
+                    // open store) behind it yet — onboarding builds the scope
+                    // it commits regions with, through the model.
+                    GateView(for: OnboardingGate.self) { handle, _ in
+                        OnboardingView(gate: handle)
                     }
                 },
             ) { session in

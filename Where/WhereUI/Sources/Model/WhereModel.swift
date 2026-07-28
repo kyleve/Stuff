@@ -10,10 +10,16 @@ import WhereCore
 ///
 /// `WhereModel` exists for the whole process lifetime and is built before any
 /// store opens (so a background relaunch can wire CoreLocation first). The
-/// scope-backed state lives in `session`, which only exists once the launch's
-/// `open-store` step has assembled a scope — keeping the brief pre-store
-/// window (splash / migration UI) free of any "is the store open yet?"
-/// nil-guarding spread across a god-object.
+/// scope-backed state lives in `session`, which only exists once the launch has
+/// resolved a scope — keeping the logged-out window (the intro, the splash)
+/// free of any "is the store open yet?" nil-guarding spread across a
+/// god-object.
+///
+/// **Nothing is opened until the user asks for it.** The launch parks on the
+/// onboarding gate before any scope exists, so an install the user never
+/// finishes onboarding creates no store file and contacts no CloudKit; the
+/// real scope is built the moment they choose to use the app for real (see
+/// ``resolveScope()``).
 @MainActor
 @Observable
 public final class WhereModel {
@@ -23,22 +29,22 @@ public final class WhereModel {
     /// app is logged in to is one fact, and the states it can legally be in
     /// are few enough to enumerate.
     enum ScopeState {
-        /// No scope yet — the pre-`open-store` window.
-        case loggedOut
+        /// No scope active. Carries the real scope once one has been built and
+        /// then logged out of (the reset teardown), so logging back in reuses
+        /// that store instead of opening a second container over the same
+        /// file — the race that once broke a fresh install's launch.
+        case loggedOut(dormantReal: WhereScope?)
         /// Logged in to the user's real, persisted world.
         case real(WhereScope)
     }
 
     /// The scope state, and with it the store the app is working against.
-    /// Retained across the app's lifetime once built: a reset rebuilds the
-    /// session over the same (now erased) scope rather than reopening the
-    /// store or rewiring CoreLocation.
-    private(set) var scopeState: ScopeState = .loggedOut
+    private(set) var scopeState: ScopeState = .loggedOut(dormantReal: nil)
 
-    /// The scope the app is logged in to, if any. Nil only in the
-    /// pre-`open-store` window; the launch's `OpenStoreStep` reads it to skip
-    /// rebuilding a retained scope.
-    var activeScope: WhereScope? {
+    /// The scope the app is logged in to, if any. Nil while logged out — the
+    /// launch's `ResolveScopeStep` reads it to skip rebuilding a scope the
+    /// user (or a preview) already put in place.
+    public var activeScope: WhereScope? {
         switch scopeState {
             case .loggedOut: nil
             case let .real(scope): scope
@@ -53,20 +59,35 @@ public final class WhereModel {
     /// `endSession()` on reset and rebuilt when the launch re-drives.
     public private(set) var session: WhereSession?
 
-    /// The process-global Periscope log store, opened at launch and attached to
-    /// `Periscope.shared` as its durable sink (see `WhereLaunch.bootstrapLogging`).
-    /// Held here — not on `WhereSession` — because logging spans the whole
-    /// process, not a login: it exists before the store opens and survives a
-    /// reset. `nil` until the bootstrap opens it, and in previews/tests, which
-    /// log only through the in-memory pipeline. The DEBUG developer surface reads
-    /// it to browse persisted history.
-    public private(set) var logStore: PeriscopeStore?
+    /// The durable log store the active scope records into, once it has
+    /// opened — the DEBUG developer surface browses it. `nil` while logged out
+    /// (those records reach OSLog only), and in previews/tests, which log
+    /// through the in-memory pipeline.
+    ///
+    /// A scope's rather than the model's, because what is persisted depends on
+    /// which world is active: the real scope writes to disk, an in-memory one
+    /// keeps its records in memory.
+    public var logStore: PeriscopeStore? {
+        activeScope?.logStore
+    }
 
     /// The persisted user intent (onboarding, tracking, reminder/summary
     /// schedules). Owns the defaults keys and the `reset()` the erase flow runs;
-    /// shared by reference with the `WhereSession` so both halves read/write the
-    /// same store.
+    /// shared by reference with the real scope, so onboarding's writes and the
+    /// session's reads see the same store.
+    ///
+    /// App-scope rather than scope-owned: the onboarding gate reads
+    /// `hasOnboarded` *before* any scope exists, to decide whether to park.
+    /// Building it opens nothing — `UserDefaults` is already there — so
+    /// holding it eagerly doesn't cost the logged-out window anything.
     let preferences: WherePreferences
+
+    /// Assembles the pieces a real scope is built from. Held here rather than
+    /// by the launch, because real-scope creation is now demand-driven:
+    /// onboarding triggers it when the user commits to using the app for real,
+    /// and the launch triggers it for an already-onboarded user.
+    private let bootstrap: any WhereScopeAssembling
+
     private let now: @Sendable () -> Date
 
     /// The year the scene's `YearReportModel` opens on. Always the current year in
@@ -101,12 +122,19 @@ public final class WhereModel {
         return calendar.component(.year, from: Date())
     }
 
-    /// The app-level model: no services yet (the launch assembles them).
+    /// The app-level model, logged out: no store is open, and none will be
+    /// until something asks for a scope.
+    ///
+    /// - Parameter bootstrap: assembles the pieces a real scope is built from.
+    ///   Substituted by tests that drive the logged-out → logged-in path,
+    ///   which must not open the app's on-disk store or log store.
     public init(
         preferences: WherePreferences = WherePreferences(),
+        bootstrap: any WhereScopeAssembling = WhereBootstrap(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.preferences = preferences
+        self.bootstrap = bootstrap
         self.now = now
         initialSelectedYear = WhereModel.currentYear
         initialReport = nil
@@ -127,28 +155,68 @@ public final class WhereModel {
         let scope = WhereScope(services: services, preferences: preferences)
         scopeState = .real(scope)
         self.preferences = preferences
+        bootstrap = WhereBootstrap()
         self.now = now
         initialSelectedYear = selectedYear
         initialReport = report
         session = WhereSession(scope: scope, now: now)
     }
 
-    /// Retain the process-global log store the launch bootstrap opened and
-    /// attached to `Periscope.shared`. Called once, off the launch critical
-    /// path, so the developer surface can browse persisted history.
+    /// Record a log store on the active scope for the developer surface to
+    /// browse, without routing the shared pipeline into it. Previews and tests
+    /// only — the app's scopes open their own.
     public func attach(logStore: PeriscopeStore) {
-        self.logStore = logStore
+        activeScope?.attach(logStore: logStore)
     }
 
-    /// Log in to `scope` — the scope the launch's `open-store` step assembled
-    /// (see `WhereBootstrap`). Idempotent: a no-op once a scope is active, so
-    /// an injected preview/test scope is never clobbered, and the store an
-    /// active scope holds is never displaced by a second one over the same
-    /// file. `WhereBootstrap` owns *building* the services (store open +
-    /// CoreLocation); the model just consumes the finished scope.
+    /// Log in to `scope`. Idempotent: a no-op once a scope is active, so an
+    /// injected preview/test scope is never clobbered, and the store an active
+    /// scope holds is never displaced by a second one over the same file.
     public func activate(scope: WhereScope) {
         guard activeScope == nil else { return }
         scopeState = .real(scope)
+    }
+
+    /// The scope the app is logged in to, building the user's real one if
+    /// nothing is active yet — the moment the app's on-disk store is opened.
+    ///
+    /// Two callers, both meaning "the user is using the app for real now": the
+    /// launch's `resolve-scope` step (for someone who has already onboarded,
+    /// so the gate before it didn't park), and onboarding itself (when they
+    /// tap through the intro or restore a backup).
+    ///
+    /// The store is opened **at most once per process**. Logging out (the
+    /// reset teardown) keeps the scope dormant rather than discarding it, so
+    /// logging back in reuses that container: two `ModelContainer`s racing over
+    /// one file is how a fresh install's launch once failed.
+    ///
+    /// Throws if the store can't be opened, leaving the model logged out so a
+    /// later attempt can try again.
+    func resolveScope() async throws -> WhereScope {
+        switch scopeState {
+            case let .real(scope):
+                return scope
+            case let .loggedOut(dormantReal):
+                if let dormantReal {
+                    scopeState = .real(dormantReal)
+                    return dormantReal
+                }
+                let scope = try await WhereScope.real(
+                    bootstrap: bootstrap,
+                    preferences: preferences,
+                )
+                scopeState = .real(scope)
+                Self.logger { .openedRealScope }
+                return scope
+        }
+    }
+
+    /// Install the location manager before anything async runs, so a
+    /// background relaunch's queued significant-change or visit event is
+    /// buffered rather than dropped. Runs on the launch's synchronous
+    /// prerequisites path; opens no store, and prompts for nothing.
+    public func prepareLocation() {
+        bootstrap.prepareLocation()
     }
 
     /// Create the logged-in `WhereSession` over `scope` and return it — the
@@ -165,11 +233,16 @@ public final class WhereModel {
         return session
     }
 
-    /// Drop the logged-in session (the services stay retained). Run by the
-    /// reset teardown after `eraseAllData()`, so the re-driven launch rebuilds a
-    /// fresh session over the erased store.
+    /// Drop the logged-in session and log out, keeping the real scope dormant.
+    /// Run by the reset teardown after `eraseAllData()`: the relaunch parks on
+    /// the onboarding gate again (the teardown cleared `hasOnboarded`), and
+    /// logging back in reuses this scope's already-open store rather than
+    /// opening a second one.
     public func endSession() {
         session = nil
+        if case let .real(scope) = scopeState {
+            scopeState = .loggedOut(dormantReal: scope)
+        }
         Self.logger { .endedSession }
     }
 

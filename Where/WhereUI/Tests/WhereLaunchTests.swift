@@ -84,6 +84,35 @@ struct WhereLaunchTests {
         return (WhereModel(services: services, preferences: preferences), store, source)
     }
 
+    /// In-memory services, for a model that must assemble its scope lazily
+    /// rather than having one injected up front.
+    private func makeServices(
+        status: LocationAuthorizationStatus = .always,
+    ) throws -> WhereServices {
+        try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: ScriptedLocationSource(authorizationStatus: status),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+        )
+    }
+
+    /// A logged-out model — no scope, nothing open — over a bootstrap that
+    /// hands back in-memory services if and when the launch asks for them.
+    /// The app's real shape at a first run.
+    private func makeLoggedOutModel(
+        status: LocationAuthorizationStatus = .always,
+        preferences: WherePreferences,
+    ) throws -> (WhereModel, ScriptedBootstrap) {
+        let bootstrap = try ScriptedBootstrap(services: makeServices(status: status))
+        return (
+            WhereModel(preferences: preferences, bootstrap: bootstrap),
+            bootstrap,
+        )
+    }
+
     /// A one-shot fix stamped "now" so it lands on today's calendar day.
     private func todayFix() -> LocationSample {
         LocationSample(
@@ -96,14 +125,14 @@ struct WhereLaunchTests {
 
     @Test func planNodesRunInStartParityOrder() throws {
         // The work steps mirror WhereSession.start()'s order; the only
-        // insertions are the start-session scope promotion and the onboarding
-        // gate.
+        // insertions are the onboarding gate at the head and the
+        // resolve-scope / start-session promotions behind it.
         let model = try makeModel(preferences: makePreferences())
         let ids = WhereLaunch.plan(for: model).nodeIDs
         #expect(ids == [
-            .openStore,
-            .startSession,
             .onboarding,
+            .resolveScope,
+            .startSession,
             .syncAuth,
             .reconcileTracking,
             .captureToday,
@@ -192,21 +221,81 @@ struct WhereLaunchTests {
         #expect(try await store.allSamples().isEmpty)
     }
 
-    @Test func firstRunForegroundLaunchParksOnTheOnboardingGate() async throws {
-        let model = try makeModel(status: .notDetermined, preferences: makePreferences())
+    @Test func firstRunForegroundLaunchParksOnTheOnboardingGateBeforeOpeningAnything() async throws {
+        let (model, bootstrap) = try makeLoggedOutModel(
+            status: .notDetermined,
+            preferences: makePreferences(),
+        )
         #expect(!model.hasOnboarded)
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         let task = Task { @MainActor in await launcher.run() }
 
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
         #expect(launcher.phase.gateHandle != nil)
+        // The whole point of rooting the trunk at the gate: an install whose
+        // user hasn't chosen yet has opened no store and built no session.
+        #expect(bootstrap.makeServicesCount == 0)
+        #expect(model.activeScope == nil)
+        #expect(model.session == nil)
 
         // Resolve the gate as OnboardingView would, letting the launch finish.
         launcher.phase.gateHandle?.complete()
         await task.value
         #expect(launcher.phase.isReady)
+        #expect(bootstrap.makeServicesCount == 1)
         // .ready carries the session the trunk produced.
         #expect(launcher.phase.readyValue === model.session)
+    }
+
+    @Test func headlessFirstRunParksRatherThanOpeningTheStore() async throws {
+        // A launch nobody can see must not open the user's store on their
+        // behalf: the gate applies to every reason, so an `.undetermined`
+        // drive parks exactly like a foreground one.
+        let (model, bootstrap) = try makeLoggedOutModel(preferences: makePreferences())
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .undetermined)
+        let task = Task { @MainActor in await launcher.run() }
+
+        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        #expect(bootstrap.makeServicesCount == 0)
+
+        // Promotion supersedes the parked drive and parks again, now with a
+        // scene to render the gate into.
+        let promote = Task { @MainActor in await launcher.enterForeground() }
+        try await waitUntil { launcher.reason == .userForeground }
+        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        #expect(bootstrap.makeServicesCount == 0)
+
+        launcher.phase.gateHandle?.complete()
+        await promote.value
+        await task.value
+        #expect(launcher.phase.isReady)
+    }
+
+    @Test func onboardedLaunchOpensTheStoreWithoutParking() async throws {
+        let preferences = makePreferences()
+        let (model, bootstrap) = try makeLoggedOutModel(preferences: preferences)
+        model.completeOnboarding()
+
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        await launcher.run()
+
+        #expect(launcher.phase.isReady)
+        #expect(bootstrap.makeServicesCount == 1)
+    }
+
+    @Test func aStoreThatCannotOpenFailsTheLaunch() async {
+        // Lazy creation moved the store open behind the gate, but an
+        // unopenable store must still park the runner in `.failed` rather than
+        // reading as a launch that simply never finished.
+        let preferences = makePreferences()
+        preferences.hasOnboarded = true
+        let model = WhereModel(preferences: preferences, bootstrap: FailingBootstrap())
+
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        await launcher.run()
+
+        #expect(launcher.phase.failed(at: LaunchStepID.resolveScope))
+        #expect(model.activeScope == nil)
     }
 
     @Test func secondLaunchSkipsOnboarding() async throws {
@@ -291,8 +380,8 @@ struct WhereLaunchTests {
         #expect(hookFires == 1)
 
         // The reset teardown drops the session and re-drives the launch; the
-        // rebuilt session (over the retained, erased services) must be handed
-        // to the hook again so consumers ride the fresh session. The cleared
+        // rebuilt session (over the retained, erased scope) must be handed to
+        // the hook again so consumers ride the fresh session. The cleared
         // onboarding flag parks the relaunch on the onboarding gate — resolve
         // it as OnboardingView would.
         let session = try #require(model.session)
@@ -300,11 +389,15 @@ struct WhereLaunchTests {
             await launcher.teardown(WhereLaunch.resetPlan(for: model), input: session)
         }
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
-        #expect(hookFires == 2)
+        // Still one: the session (and so the hook) comes *after* the gate now,
+        // so a relaunch parked in onboarding has handed nothing to consumers.
+        #expect(hookFires == 1)
+
         model.completeOnboarding()
         launcher.phase.gateHandle?.complete()
         await teardown.value
         #expect(launcher.phase.isReady)
+        #expect(hookFires == 2)
     }
 
     @Test func backgroundLaunchSkipsOnboardingAndReachesReady() async throws {

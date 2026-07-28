@@ -5,26 +5,27 @@ import SwiftUI
 import UniformTypeIdentifiers
 import WhereCore
 
-/// First-run onboarding, run as one interactive launch step. A short paged
+/// First-run onboarding, run as the launch's opening gate. A short paged
 /// intro to the passport concept, then picking the primary regions you spend
 /// time in and giving each a look, then the background-location permission
 /// request — the natural place to ask for Always, rather than burying it in
 /// Settings.
 ///
-/// When the user finishes it commits the picked regions + appearances to the
-/// store (which becomes the tracked-region set), persists `hasOnboarded`, and
-/// resolves the `LifecycleGateHandle` so the launch continues; the following
-/// authorization-sync step then seeds region styling and picks up whatever
-/// permission was granted.
+/// Nothing exists behind this screen yet: the gate roots the trunk, so the
+/// store is unopened and there is no session. Onboarding is what brings the
+/// user's world into being — restoring a backup or finishing the flow logs in
+/// to the real scope (`WhereModel.resolveScope()`, which performs the app's one
+/// store open), commits the picked regions + appearances to it, persists
+/// `hasOnboarded`, and resolves the `LifecycleGateHandle` so the launch
+/// continues. The steps after the gate then build the session, seed region
+/// styling, and pick up whatever permission was granted.
 public struct OnboardingView: View {
-    // Onboarding straddles both: it persists the app-level `hasOnboarded` flag
-    // (model) and kicks off background tracking + the region commit through
-    // the session — handed in by the gate registration (the gate passes the
-    // trunk's session through), not trusted to be in the environment.
+    // The model is onboarding's whole world: it persists the app-level
+    // `hasOnboarded` flag and vends the scope this flow creates. There is no
+    // session to hand in — nothing has built one yet.
     @Environment(WhereModel.self) private var model
     @Environment(\.stylesheet) private var stylesheet
     private let gate: LifecycleGateHandle
-    private let session: WhereSession
 
     /// The ordered onboarding phases. An explicit state machine (rather than
     /// loose flags) so only one screen is ever showing and the transitions are
@@ -49,9 +50,8 @@ public struct OnboardingView: View {
 
     private static let logger = WhereLog.session(OnboardingViewLog.self)
 
-    public init(gate: LifecycleGateHandle, session: WhereSession) {
+    public init(gate: LifecycleGateHandle) {
         self.gate = gate
-        self.session = session
     }
 
     private let pages = OnboardingPage.all
@@ -241,14 +241,30 @@ public struct OnboardingView: View {
         .padding(.bottom, stylesheet.spacing.xxxLarge)
     }
 
-    /// Commit the picked regions + appearances, optionally request location,
-    /// then persist `hasOnboarded` and resolve the step so the launch continues.
+    /// Log in to the user's real world (opening the store, if the restore path
+    /// hasn't already), commit the picked regions + appearances, optionally
+    /// request location, then persist `hasOnboarded` and resolve the gate so
+    /// the launch continues.
+    ///
+    /// A store that won't open fails the gate rather than stranding the user
+    /// on a dead intro: the runner lands on the failure surface, which is
+    /// where an unopenable store has always surfaced.
     private func finish(enableLocation: Bool) {
         guard !isFinishing else { return }
         isFinishing = true
         Task {
+            let scope: WhereScope
+            do {
+                scope = try await model.resolveScope()
+            } catch {
+                Self.logger(attachments: [.error(error, name: "scope-error")]) {
+                    .scopeCreationFailed(description: error.localizedDescription)
+                }
+                gate.fail(error)
+                return
+            }
             if enableLocation {
-                await session.startTracking()
+                await enableTracking(in: scope)
             }
             // Only commit when the user actually picked regions in the manual
             // flow. The restore path reaches here with an empty selection (it
@@ -259,7 +275,7 @@ public struct OnboardingView: View {
             // selection), so a non-empty selection is exactly "the user picked".
             if selection.hasSelection {
                 do {
-                    try await selection.commit(using: session)
+                    try await selection.commit(using: scope)
                 } catch {
                     // Don't strand the user in onboarding on a write failure —
                     // log it and continue; they can re-pick in Settings.
@@ -270,6 +286,23 @@ public struct OnboardingView: View {
             }
             model.completeOnboarding()
             gate.complete()
+        }
+    }
+
+    /// Record the tracking intent and drive the system prompt, so it maps 1:1
+    /// to the tap that asked for it. Only these two halves happen here: the
+    /// `sync-auth` and `reconcile-tracking` steps run as soon as the gate
+    /// resolves, and they are what read the granted authorization back and
+    /// actually start GPS.
+    private func enableTracking(in scope: WhereScope) async {
+        scope.preferences.wantsTracking = true
+        do {
+            try await scope.services.ingestor.requestPermission()
+        } catch {
+            // Denied or restricted: nothing to recover here, and re-prompting
+            // won't help. Tracking stays intended-but-inactive, and the
+            // Location settings screen offers the route to the Settings app.
+            Self.logger { .locationPermissionDenied }
         }
     }
 
@@ -287,13 +320,17 @@ public struct OnboardingView: View {
 
     /// Import the chosen backup (a fresh install, so `.replace` mirrors the file
     /// exactly), then skip the manual pick/customize steps straight to the
-    /// location ask. On failure, surface an alert and stay in the intro.
+    /// location ask. Restoring is the user committing to their real data, so
+    /// this is one of the two places the store gets opened. On failure —
+    /// including a store that won't open — surface an alert and stay in the
+    /// intro, where they can retry or continue manually.
     private func restore(from url: URL) {
         guard !isRestoring else { return }
         isRestoring = true
         Task {
             do {
-                _ = try await session.services.backup.importBackup(from: url, strategy: .replace)
+                let scope = try await model.resolveScope()
+                _ = try await scope.services.backup.importBackup(from: url, strategy: .replace)
                 isRestoring = false
                 phase = .location
             } catch {
@@ -346,7 +383,6 @@ struct OnboardingPage: Identifiable {
                 // false and the capture lands on the intro phase.
                 OnboardingView(
                     gate: LifecycleGateHandle(id: LaunchStepID.onboarding, reason: .userForeground),
-                    session: PreviewSupport.loadedSession(),
                 )
                 .environment(PreviewSupport.onboardingModel())
             }

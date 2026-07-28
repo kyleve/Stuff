@@ -4,6 +4,9 @@ import PeriscopeCore
 /// coordinator. All are successful-lifecycle `.info` events.
 enum WhereModelLog: LogEvent {
     case onboardingCompleted
+    /// The user's real scope was built — the app's one on-disk store open.
+    /// Fires when they first commit to using the app for real, not at launch.
+    case openedRealScope
     case startedSession(year: Int)
     case endedSession
     case resetPreferences
@@ -14,6 +17,8 @@ enum WhereModelLog: LogEvent {
         switch self {
             case .onboardingCompleted:
                 "Onboarding completed"
+            case .openedRealScope:
+                "Opened the real scope"
             case let .startedSession(year):
                 "Started session (year: \(year))"
             case .endedSession:

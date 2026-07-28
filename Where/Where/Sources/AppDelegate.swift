@@ -62,10 +62,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // `CLLocationManager` installed below, so no launch-state guess is
         // needed to service it.
         //
-        // Open the durable Periscope log store and attach it to the shared
-        // logging pipeline. Off the launch critical path (it touches disk); the
-        // shared OSLog sink covers logging until the store is attached.
-        WhereLaunch.bootstrapLogging(model: model)
+        // Start the process-wide ambient log sources. The durable sink belongs
+        // to whichever scope the user ends up in (`WhereScope` opens it), and
+        // no scope exists this early, so these — and everything else logged
+        // before the launch resolves one — reach OSLog only.
+        WhereLaunch.startAmbientLogging()
         // `initializePrerequisites` installs the CLLocationManager synchronously
         // (so a queued location event isn't lost) and registers the
         // foreground-notification presenter; the rest (store open, etc.) runs as
