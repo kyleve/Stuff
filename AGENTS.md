@@ -551,12 +551,26 @@ tells a broken render from antialiasing drift.
 
 **Scope is explicit, not inferred from a cache.** `./test` derives affected
 bundles from the manifests (`swift package dump-package` plus `Project.swift`)
-and passes `-only-testing` for them. It deliberately does not rely on Tuist's
-selective testing: that needs `tuist test`, whose formatter swallows failure
-detail (a snapshot mismatch reached CI as "Recorded an issue", with no numbers
-and no path), and its hash cache is empty on a fresh checkout anyway. So there
-is no `--no-selective-testing` to remember — `--everything` is the "run it all"
-answer.
+and passes `-only-testing` for them, so there is no `--no-selective-testing` to
+remember — `--everything` is the "run it all" answer. Relying on Tuist's
+selective testing would mean running `tuist test`, and the two reasons not to
+are measured — see the header comment in [`test`](test), which also records how
+to re-verify them:
+
+- **Its formatter swallows the failure reason, with no flag that recovers it.**
+  Swift Testing's headline for a recorded issue is a contentless "Issue
+  recorded" and the reason lives in the `↳` block after it, which xcbeautify
+  drops — so a snapshot mismatch reached CI as "Recorded an issue" with no
+  numbers, no path, and no image.
+- **`-collect-test-diagnostics never` saves ~10 minutes per failing run.**
+  Without it xcodebuild waits out a fixed 600-second diagnostics timeout before
+  reporting: the same one-test failure took 28s through `./test` and 620s
+  through `tuist test`.
+
+Little is given up. Tuist's hash cache does work locally, but there is no Tuist
+server, so on CI's fresh checkout it skips nothing — and "changed against
+`origin/main`" is the better question for a PR than "changed since this
+machine's last successful run".
 
 ## Working in this repo
 

@@ -23,12 +23,41 @@ set -euo pipefail
 #      heartbeats when stdout is not one, because a carriage-return redraw is
 #      invisible in a captured log.
 #
-# Raw xcodebuild rather than `tuist test`, for the reason ./profile documents and
-# one more: Tuist's formatter *swallows the failure reason*. The snapshot
-# mismatch that reddened CI run 30367964813 reached the log as "Recorded an
-# issue" — no numbers, no image, no path. The trade is that Tuist's selective
-# testing doesn't apply; the affected-bundle selection below does that job
-# explicitly instead, and unlike the hash cache it works on a fresh checkout.
+# Raw xcodebuild rather than `tuist test`, for two measured reasons. Both were
+# re-verified on 2026-07-28 by corrupting one reference image and running the
+# same single test each way on the same simulator.
+#
+#   1. Tuist's formatter *swallows the failure reason*, and there is no flag
+#      that recovers it. Swift Testing's headline for a recorded issue is the
+#      contentless "Issue recorded"; the reason arrives in the `↳` block that
+#      follows it, carrying "does not match reference" plus the reference and
+#      failure image paths. xcbeautify — which `tuist test` pipes through —
+#      renders the headline and drops the block, so 100% of the diagnostic
+#      content is lost (upstream: cpisciotta/xcbeautify#402, still open; a
+#      Tuist maintainer's own advice for this is to run xcodebuild directly).
+#      That is how the mismatch that reddened CI run 30367964813 reached the
+#      log as "Recorded an issue" — no numbers, no image, no path. Raw output
+#      keeps the block, and `--review` adds the magnitude beside it.
+#
+#   2. `-collect-test-diagnostics never`, which is worth ~10 minutes on every
+#      *failing* run. Without it xcodebuild waits out
+#      "Failure collecting diagnostics from simulator: Timed out after 600.0
+#      seconds" before reporting. Same one-test failure: 28s here, 620s under
+#      `tuist test` — 609s of it that fixed timeout, for a test that ran in
+#      3.5s. The same stall is in CI run 30367964813, which took 24 minutes.
+#      (The flag would pass through `tuist test --`; the point is that the
+#      recipe people actually type doesn't.)
+#
+# The `--timings` / `--review` reports depend on raw output too: they harvest
+# SNAPSHOT_TIMING / SNAPSHOT_DIFF lines from the log, and a formatter that
+# discards Swift Testing's own detail lines is not one to trust with ours.
+#
+# Little is given up. Tuist's selective testing does work locally (its hash
+# cache skipped 19 unchanged bundles here), but there is no Tuist server — see
+# Tuist.swift — so on CI's fresh checkout the cache is empty and it skips
+# nothing. The affected-bundle selection below replaces it with better
+# semantics anyway: changed against origin/main, rather than since this
+# machine's last successful run.
 #
 # Exits non-zero when tests fail (./profile's posture, not ./flaky's).
 
