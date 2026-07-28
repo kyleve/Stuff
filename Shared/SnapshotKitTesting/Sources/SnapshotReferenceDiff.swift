@@ -199,11 +199,41 @@ private func magnitude(
         return !["", "0", "false", "no"].contains(value.lowercased())
     }
 
-    /// Reports `comparison` unless it is a byte-for-byte match, which is the
-    /// silent success case.
+    /// Prints the `SNAPSHOT_DIFF` line describing `comparison`, unless it is a
+    /// byte-for-byte match, which is the silent success case.
+    ///
+    /// **Only the capture pipeline may call this.** `./test --review` recovers
+    /// diffs by grepping `SNAPSHOT_DIFF` out of the run logs, so anything that
+    /// prints one appears in the report as a real differing capture — with no way
+    /// for a reader to tell it apart. Tests that need the payload ask
+    /// ``line(describing:identifier:reference:)`` for it instead.
     @discardableResult
     public static func report(
         _ comparison: SnapshotReferenceComparison,
+        identifier: String,
+        reference: URL,
+    ) -> String? {
+        guard let json = line(
+            describing: comparison,
+            identifier: identifier,
+            reference: reference,
+        ) else { return nil }
+        print("SNAPSHOT_DIFF \(json)")
+        return json
+    }
+
+    /// The JSON payload ``report(_:identifier:reference:)`` would print for
+    /// `comparison`, or `nil` when there is nothing to report — a byte-identical
+    /// capture, or a payload that failed to encode (which says so on stdout
+    /// rather than passing for "no difference found").
+    ///
+    /// Split from `report` so the wire shape can be asserted without *emitting* a
+    /// line. It used to be one function, and this module's own reporting test
+    /// consequently printed a `SNAPSHOT_DIFF` line for a reference that does not
+    /// exist — which `./test --review` then listed among the real captures, at the
+    /// top, because the fixture borrowed its numbers from a genuine regression.
+    public static func line(
+        describing comparison: SnapshotReferenceComparison,
         identifier: String,
         reference: URL,
     ) -> String? {
@@ -247,7 +277,6 @@ private func magnitude(
             print("SNAPSHOT_DIFF_ERROR could not encode diff for \(identifier)")
             return nil
         }
-        print("SNAPSHOT_DIFF \(json)")
         return json
     }
 }

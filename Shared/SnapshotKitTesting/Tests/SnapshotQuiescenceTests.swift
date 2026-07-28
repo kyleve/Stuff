@@ -140,7 +140,7 @@ struct SnapshotQuiescenceTests {
     @Test func settleComparisonIsOnlyReportedInBothMode() {
         for mechanism in [SnapshotSettleMechanism.pixel, .quiescence] {
             #expect(
-                SnapshotSettleReporting.report(
+                SnapshotSettleReporting.line(
                     identifier: "case",
                     mechanism: mechanism,
                     passes: 4,
@@ -150,8 +150,10 @@ struct SnapshotQuiescenceTests {
         }
     }
 
+    /// Asks for the payload rather than calling `report(...)`, which would print a
+    /// `SNAPSHOT_SETTLE` line for a capture that never happened.
     @Test func settleComparisonCountsTheDangerousDirectionSeparately() throws {
-        let json = try #require(SnapshotSettleReporting.report(
+        let json = try #require(SnapshotSettleReporting.line(
             identifier: "case_dark",
             mechanism: .both,
             passes: 18,

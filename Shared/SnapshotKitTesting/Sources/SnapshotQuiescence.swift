@@ -125,6 +125,10 @@ extension CALayer {
 /// Emits one `SNAPSHOT_SETTLE` line per capture that ran in `both` mode, so a
 /// full-suite run answers whether quiescence can replace the digest.
 @_spi(Testing) public enum SnapshotSettleReporting {
+    /// Prints the capture's `SNAPSHOT_SETTLE` line, and so belongs to the capture
+    /// pipeline alone. Nothing aggregates this channel today — the `both`-mode
+    /// experiment is read by hand — but the sibling channels are grepped out of the
+    /// run logs, so a line printed from anywhere else is a row in a report.
     @discardableResult
     public static func report(
         identifier: String,
@@ -132,22 +136,43 @@ extension CALayer {
         passes: Int,
         disagreements: [SettleDisagreement],
     ) -> String? {
+        guard let json = line(
+            identifier: identifier,
+            mechanism: mechanism,
+            passes: passes,
+            disagreements: disagreements,
+        ) else { return nil }
+        print("SNAPSHOT_SETTLE \(json)")
+        return json
+    }
+
+    /// The JSON payload ``report(identifier:mechanism:passes:disagreements:)``
+    /// would print, or `nil` outside `both` mode (or when the payload failed to
+    /// encode, which says so on stdout). Split from `report` so the wire shape can
+    /// be asserted without emitting a line — see the same split on
+    /// ``SnapshotDiffReporting`` and ``SnapshotCaptureTiming``, where a test
+    /// emitting one did reach a report.
+    public static func line(
+        identifier: String,
+        mechanism: SnapshotSettleMechanism,
+        passes: Int,
+        disagreements: [SettleDisagreement],
+    ) -> String? {
         guard mechanism == .both else { return nil }
         let early = disagreements.filter(\.quiescenceWasEarlier).count
-        let line = SnapshotSettleLine(
+        let payload = SnapshotSettleLine(
             id: identifier,
             passes: passes,
             disagreements: disagreements.count,
             quiescenceEarlier: early,
             firstEarlyPass: disagreements.first(where: \.quiescenceWasEarlier)?.pass,
         )
-        guard let data = try? JSONEncoder.snapshotSettle.encode(line),
+        guard let data = try? JSONEncoder.snapshotSettle.encode(payload),
               let json = String(data: data, encoding: .utf8)
         else {
             print("SNAPSHOT_SETTLE_ERROR could not encode settle comparison for \(identifier)")
             return nil
         }
-        print("SNAPSHOT_SETTLE \(json)")
         return json
     }
 }
