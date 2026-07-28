@@ -19,6 +19,22 @@ struct ThermalStateAmbientSourceTests {
         #expect(sink.records.contains { $0.message == expected.message })
     }
 
+    /// A device that launches hot and never cools posts no notification, so
+    /// without the baseline the snapshot would have no thermal state for the
+    /// whole session.
+    @Test func startingLogsTheCurrentStateAsABaseline() async {
+        let sink = CapturingSink()
+        let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
+        system.startAmbientSource(ThermalStateAmbientSource())
+        await system.flush()
+
+        let expected = ThermalStateAmbientSource
+            .event(for: ProcessInfo.processInfo.thermalState)
+        let baseline = sink.records.first { $0.message == expected.message }
+        #expect(baseline != nil)
+        #expect(baseline?.ambient?[.thermalState] == expected.value)
+    }
+
     @Test(arguments: [
         (ProcessInfo.ThermalState.nominal, "nominal", LogLevel.info),
         (.fair, "fair", .info),
