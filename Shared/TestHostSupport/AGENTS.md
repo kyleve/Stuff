@@ -1,20 +1,16 @@
 # TestHostSupport – Module Shape
 
-UIKit hosting + run-loop helpers (`show`, `hostKeyWindow`, `waitFor`)
-for the hosted Swift Testing bundles that run inside
-`StuffTestHost`. The single, dependency-free home for helpers that were
-previously duplicated across `WhereTesting` and `BroadwayTesting`. See
-[`README.md`](README.md).
+UIKit hosting + run-loop helpers (`show`, `hostKeyWindow`, `waitFor`) for the
+hosted Swift Testing bundles that run inside `StuffTestHost` — the single,
+dependency-free home for them. See [`README.md`](README.md).
 
 Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 
 ## Scope & dependencies
 
-- **UIKit + Foundation + ObjectiveC only, no sibling deps** (ObjectiveC for the
-  associated-object window marker below). Keeping it dependency-free is the
-  whole point: both the Where and Broadway test trees link it without dragging in
-  the Where domain (which is why the old `broadwayUnitTests` split existed — it's
-  gone now that both use this module).
+- **UIKit + Foundation + ObjectiveC only, no sibling deps** (ObjectiveC for
+  the associated-object window marker below). Keeping it dependency-free is
+  the point: every test tree links it without dragging in any domain module.
 - Library target in [`Package.swift`](../../Package.swift); consumed by hosted
   test bundles via the `unitTests` helper in [`Project.swift`](../../Project.swift)
   and by the `StuffTestHost` app. **Never linked from a shipping app target.**

@@ -334,8 +334,8 @@ struct WhereLaunchTests {
 
     @Test func startSessionHandsTheSessionsServicesToTheOnServicesReadyHook() async throws {
         // A model with services attached but no session yet — the app's shape
-        // when the open-store step runs (the preview/test init pre-builds the
-        // session; the open-store step then reuses the injected layer).
+        // when the resolve-scope step runs (the preview/test init pre-builds
+        // the session; resolve-scope then reuses the injected scope).
         let store = try SwiftDataStore.inMemory()
         let services = WhereServices(
             store: store,

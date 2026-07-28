@@ -93,7 +93,6 @@ inbox rather than here.
 
 ## P0s (Must do)
 - fix(Bumper) [quick-win]: `where.gregorian_calendar` matches only an explicit `Calendar` base, so it enforces nothing. It filters `MemberAccessExprSyntax` on `base?.trimmedDescription == "Calendar"` (`.bumper/Sources/WhereProjectRules.swift:121`), which catches a spelled-out `Calendar.current` but not the implicit-member form (`calendar: Calendar = .current`, `startOfDay(in: .current)`) — and after the Gregorian call-site pass (`fe99dde`) the implicit form is the only one left in the tree. CI hard-gates `bumper lint` at `severity: .error` and is green, which confirms it: the rule reports nothing while production sites drift. Also match a no-base `MemberAccessExprSyntax` whose contextual type is `Calendar`, or add a lexical `.current` check scoped to calendar parameters and arguments. A rule that reads as enforced but enforces nothing is worse than a documented convention, because it stops anyone from looking. Pairs with the `CalendarDay.displayDate` P1 in [`Where/TODOs.md`](Where/TODOs.md). (audit 2026-07-26)
-	- docs(Bumper) [quick-win]: Correct `.bumper/RULES.md:101` and `:143`, which claim three calendar violations and some preview-coverage violations are "left visible during this bootstrap". Neither exists — the lint gate is green, and `52f0136` closed the preview ones. Delete both paragraphs, and re-add the calendar one only if the widened rule genuinely finds drift. (audit 2026-07-26)
 
 ## P1s (Should do)
 
@@ -111,6 +110,9 @@ inbox rather than here.
 - refactor(StuffTestHost) [quick-win]: The scene configuration name is spelled twice, in `Shared/StuffTestHost/Sources/AppDelegate.swift:12` and `Project.swift:271`, so the two can drift silently. Reaches the root Tuist manifest, which is why it sits here rather than in a StuffTestHost file. (audit 2026-07-26)
 
 # Completed issues
+
+## P0s (Must do)
+- docs(Bumper) [quick-win]: Correct `.bumper/RULES.md:101` and `:143`, which claimed three calendar violations and some preview-coverage violations were "left visible during this bootstrap". Neither existed — the lint gate was green, and `52f0136` closed the preview ones. Closed by deleting both paragraphs after re-confirming a clean `swift run bumper lint .` ("No architecture violations found") and a green `swift run bumper test .`; re-add the calendar paragraph only if the widened rule genuinely finds drift. (audit 2026-07-26, closed 2026-07-27)
 
 ## P1s (Should do)
 - test(CreditKit) [needs-design]: The attribution drift guard didn't detect a stale report, so the app could ship notices that don't govern the code in it. **Closed by `./attribution --check`**, a network-free mode that re-derives the expected report from `Package.swift`, `Package.resolved`, and the skills manifest and diffs it against the committed one, gated in CI beside the other lints (`.github/workflows/ci.yml`). The literal name lists in `AppAttributionTests` are gone — a test bundle can't read the manifests, so all it could compare against was a literal — and that suite now asserts only what the shipping bundle can answer. **As originally filed this item was wrong on a detail worth recording:** it claimed the old guard caught an added dependency but not a bumped one. It caught neither. Comparing the report to a hardcoded list means a dependency added without regenerating leaves report and list still agreeing, which is exactly what happened — the guard passed on a report missing the two snapshot packages that merging `main` had added. (pr#140 review, closed 2026-07-26)

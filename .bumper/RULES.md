@@ -98,12 +98,6 @@ fully expresses Where's constructor facts.
 production sources. Day and year math uses an injected Gregorian calendar or,
 inside WhereIntents, `Calendar.whereIntents`.
 
-The current source tree intentionally contains three violations. They are left
-visible during this bootstrap so the live Bumper lint demonstrates the
-difference between a documented decision and an enforced one. The rule suite
-still passes because its fixtures assert both accepted Gregorian construction
-and rejected `Calendar.current` access.
-
 The architecture DSL and standard shapers cannot distinguish two static
 members of the same Foundation type, so this uses a typed
 `MemberAccessExprSyntax` query. TheButtonHeist's
@@ -139,10 +133,6 @@ typed event declarations live.
 `where.preview_coverage` requires every WhereUI or WhereWidgets source file
 that declares a `View`, `Widget`, or `WidgetBundle` struct to contain at least
 one `#Preview`.
-
-The current source tree intentionally contains preview-coverage violations.
-They remain visible during this bootstrap alongside the calendar violations so
-the live lint demonstrates documented rules finding existing drift.
 
 ## Transitive Broadway ownership
 

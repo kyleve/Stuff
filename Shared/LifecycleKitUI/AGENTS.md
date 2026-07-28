@@ -21,39 +21,28 @@ build system, formatting, and global conventions. Read that first.
 ## Invariants
 
 - **`content` is only ever built from `.ready`'s carried value** — never
-  re-read from shared state. Don't add a code path that renders the app
-  surface without the launch output in hand. It is built as soon as that value
-  exists (from `phase.readyValue`), *including while a splash hold still covers
-  it*, so the hold warms the destination instead of paying for its `.task`s and
-  first layout in the frame the reveal starts. Keep it to **one** `content` call
-  site: rendering it from separate held/revealed branches gives SwiftUI two
-  identities and rebuilds the whole destination at the reveal, defeating that.
+  re-read from shared state. It is built as soon as the value exists,
+  *including under a splash hold* (the hold warms the destination). Keep it to
+  **one** `content` call site — separate held/revealed branches give SwiftUI
+  two identities and rebuild the destination at the reveal.
 - **No view tree when `reason.buildsNoViewTree`** — even at `.ready`.
-- **Every splash-showing state resolves to one `LaunchOverlay.splash` case,** so
-  the splash keeps a single identity across `.launching` → each step → the hold.
-  Don't render it from per-phase `switch` arms: SwiftUI would treat each arm's
-  splash as a different view and remount it at every boundary, resetting the
-  animations and caption timers a long-lived splash (e.g. Where's
-  `LaunchSplashView`) documents as uninterrupted.
-- **`minimumSplashDuration` only holds a splash that was actually shown.** The
-  hold is armed when the splash *appears*, so a launch already `.ready` when the
-  container mounts reveals immediately rather than stalling behind a minimum for
-  a splash nobody saw (`minimumSplashDurationDoesNotHoldWhenNoSplashWasShown`
-  guards this; the timing half is device-verified, not host-testable). Assert
-  "revealed" via the *absent splash*, not via `content` — content is built
-  during a hold too, so it no longer distinguishes the two. `isShowingSplash`
-  must read the runner's own surface, never `displayedSurfaceIdentity` — that
-  reports `.splash` for a held `.ready`, which would re-arm the hold from its own
-  release and never reveal.
-- **Gate views resolve only their own handle.** The registry hands each gate
-  view the parked `LifecycleGateHandle`; a superseded drive's handle no-ops,
-  so don't route gate resolution through anything but the handle.
+- **Every splash-showing state resolves to one `LaunchOverlay.splash` case** —
+  never per-phase `switch` arms, which remount the splash at each boundary
+  and reset its animations and caption timers.
+- **`minimumSplashDuration` only holds a splash that was actually shown** —
+  armed when the splash *appears*, so an already-`.ready` mount reveals
+  immediately. Guard: `minimumSplashDurationDoesNotHoldWhenNoSplashWasShown`
+  (the timing half is device-verified, not host-testable). Assert "revealed"
+  via the *absent splash*, not via `content` (content is built during a hold
+  too); `isShowingSplash` must read the runner's own surface, never
+  `displayedSurfaceIdentity`, which reports `.splash` for a held `.ready` and
+  would re-arm the hold from its own release.
+- **Gate views resolve only their own handle** — a superseded drive's handle
+  no-ops; don't route gate resolution through anything else.
 - **One registration per gate type** (construction `precondition`); a parked
-  gate with no registration is a programmer error — the container logs it
-  (`os`, subsystem `com.stuff.lifecyclekitui`) and fails the gate's handle
-  with `MissingGateViewError`, landing on the failure surface (visible and
-  named (though terminal), identical in debug and release) rather than an indefinite
-  splash.
+  gate with no registration logs (`os`, subsystem `com.stuff.lifecyclekitui`)
+  and fails the handle with `MissingGateViewError` onto the terminal failure
+  surface — never an indefinite splash.
 
 ## Testing
 
