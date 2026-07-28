@@ -170,4 +170,4 @@ their own sessions and leave recovery to the app's next launch.
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
 (`PeriscopeCoreTests` bundle). Tests use fresh `Periscope` systems, in-memory
 stores (`@_spi(Testing) PeriscopeStore.inMemory`), and condition polling —
-run with `tuist test PeriscopeCoreTests`.
+run with `./test PeriscopeCoreTests`.

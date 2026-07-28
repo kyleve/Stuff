@@ -29,4 +29,4 @@ Complements the root [`AGENTS.md`](../../../AGENTS.md) and the group
   `BRootViewController`-set context still reaches SwiftUI).
 
 Tests: `BroadwayUITests` in `StuffTestHost`, linking `TestHostSupport`
-(`tuist test BroadwayUITests`).
+(`./test BroadwayUITests`).

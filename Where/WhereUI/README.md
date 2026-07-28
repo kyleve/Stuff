@@ -218,15 +218,12 @@ suite per view, so each view's references live in their own `__Snapshots__/`
 directory. They build as this module's own `WhereUISnapshotTests` bundle, which
 runs alongside the other modules' image suites in the shared
 `StuffSnapshotTests` scheme and its CI job;
-to re-record after an intentional UI change, forward the record mode into the
-test process (see the
+to re-record after an intentional UI change (see the
 [SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)
 for the mode values):
 
 ```bash
-TEST_RUNNER_SNAPSHOT_RECORD=failed mise exec -- tuist test StuffSnapshotTests \
-  --no-selective-testing -- \
-  -destination "platform=iOS Simulator,id=$(./simulator --os 27.0)"
+./test --snapshots --record failed
 ```
 
 then review and commit the images.

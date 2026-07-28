@@ -104,7 +104,10 @@ let package = Package(
                 .target(name: "SnapshotKit"),
                 .target(name: "TestHostSupport"),
                 .product(name: "SnapshotTesting", package: "swift-snapshot-testing"),
-                .product(name: "AccessibilitySnapshot", package: "AccessibilitySnapshot"),
+                // Only `AccessibilitySnapshotCore` is imported; the umbrella
+                // product additionally pulls in the XCTest-facing half, widening
+                // the statically embedded closure of every consuming test bundle
+                // for no benefit.
                 .product(name: "AccessibilitySnapshotCore", package: "AccessibilitySnapshot"),
             ],
             path: "Shared/SnapshotKitTesting/Sources",

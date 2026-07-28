@@ -90,6 +90,16 @@
                 summaryScheduler: NoopDailySummaryScheduler(),
                 issueAlertScheduler: NoopDataIssueAlertScheduler(),
                 widgetRefresher: NoopWidgetTimelineRefresher(),
+                // Pinned for the reason `referenceNow` exists: without it every
+                // collaborator built here — the data-issue scanner above all —
+                // computes against the wall clock, so a snapshot of anything
+                // day-relative drifts every real-world day. That is not
+                // hypothetical: `resolution.Empty_iPhone` rendered its
+                // missing-days row as "Jan 1 – Jul 25 / 206 days" because the
+                // reference happened to be recorded on July 25, and it had been
+                // silently wrong on every day since — passing only because two
+                // digit glyphs fall under the pixel threshold.
+                now: { referenceNow },
             )
         }
 

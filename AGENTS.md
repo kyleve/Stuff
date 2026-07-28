@@ -48,10 +48,11 @@ Xcode project](#generating-the-xcode-project)). A fresh machine needs `./ide
 --bootstrap` first, which installs `mise` and the pinned tools before
 generating; plain `./ide` fails fast pointing at it.
 
-The executables in the repo root are the dev scripts — `ide`, `swiftformat`,
-`sync-agents`, `profile`, `icons`, `flaky`, `simulator`, `xcstrings`,
-`attribution` — and each takes `--help`. Reach for one rather than hand-rolling
-its job: `icons`, `attribution`, and `simulator` in particular own state that is
+The executables in the repo root are the dev scripts — `ide`, `test`,
+`swiftformat`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
+`xcstrings`, `attribution` — and each takes `--help`. Reach for one rather than
+hand-rolling its job: `test` is the only way tests should be run (see [Running
+tests](#running-tests)), and `icons`, `attribution`, and `simulator` in particular own state that is
 easy to corrupt by hand — the last owns a simulator device per checkout (see
 [Managing app icons](#managing-app-icons), [Attribution](#attribution), and
 [Selecting a
@@ -178,8 +179,8 @@ boundary and every type-keyed lookup (SwiftUI `EnvironmentKey`s,
 `\.isCapturingSnapshot`, Broadway's
 `BTraits`/`BThemes`/`BStylesheets`) silently resolves against the wrong one.
 
-It reproduces only in the full multi-bundle scheme, never in an isolated
-`tuist test WhereUITests` run. Guard:
+It reproduces only in the full multi-bundle scheme (`./test --all`), never in an
+isolated `./test WhereUITests` run. Guard:
 `WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot` fails if a
 duplicate copy answers.
 
@@ -511,17 +512,78 @@ disrupts the user's session. Always pass `--no-open` when regenerating:
 `tuist test` / `tuist build` are CLI-only and do not open Xcode, so no
 flag is needed there.
 
+## Running tests
+
+**Use [`./test`](test).** It resolves the scheme, gets a UDID from
+`./simulator`, and streams progress; see `./test --help`. Don't hand-roll a
+`tuist test` or `xcodebuild` invocation — a bare one lets xcodebuild pick a
+device, which lands on the machine-wide simulator every other checkout is also
+using (see [Selecting a
+simulator](#selecting-a-simulator--one-device-per-checkout-addressed-by-udid)),
+and the image suite only compares correctly under the scheme carrying its
+`SNAPSHOT_EXPECTED_*` / `TZ` pins.
+
+Pick the **narrowest tier that covers the change** — running everything by
+reflex is what made a local check cost a coffee break:
+
+| Tier | Command | When |
+|------|---------|------|
+| Affected | `./test` | The default. Runs only the bundles your working tree affects. |
+| One bundle | `./test WhereCoreTests` | You know exactly what you touched. |
+| Unit suite | `./test --all` | Before committing a change that spans modules. |
+| Image suite | `./test --snapshots` | Only when the triggers below apply. |
+| Everything | `./test --everything` | Full revalidation, and what CI runs. |
+
+**The image suite is serial on purpose.** Splitting it across simulators was
+measured and rejected — 2.7x slower plus spurious failures, because every shard
+contends for one render server. The numbers and the two other dead ends are in
+[`Shared/SnapshotKitTesting/AGENTS.md`](Shared/SnapshotKitTesting/AGENTS.md);
+read them before proposing parallelism here.
+
+**The image suite is opt-in, not part of "done" by default.** It is the slow
+half, and most changes cannot affect it. Run `./test --snapshots` when the
+change touches a **view or its appearance** (a `WhereUI`/`BroadwayUI` view, a
+stylesheet token, a string that renders), **`SnapshotKit` or
+`SnapshotKitTesting`**, or **a reference image**. `./test` with no arguments
+already picks the image bundles up when the dependency graph says they're
+affected, so the explicit form is for when you want them *and* nothing else.
+
+Two flags exist for reading a snapshot run rather than just passing it:
+`./test --snapshots --timings` prints where capture time went per phase, and
+`--review` prints how each differing reference differs — pixel count, max
+channel delta, changed region — sorted by max delta, which is the column that
+tells a broken render from antialiasing drift.
+
+**Scope is explicit, not inferred from a cache.** `./test` derives affected
+bundles from the manifests (`swift package dump-package` plus `Project.swift`)
+and passes `-only-testing` for them, so there is no `--no-selective-testing` to
+remember — `--everything` is the "run it all" answer. Relying on Tuist's
+selective testing would mean running `tuist test`, and the two reasons not to
+are measured — see the header comment in [`test`](test), which also records how
+to re-verify them:
+
+- **Its formatter swallows the failure reason, with no flag that recovers it.**
+  Swift Testing's headline for a recorded issue is a contentless "Issue
+  recorded" and the reason lives in the `↳` block after it, which xcbeautify
+  drops — so a snapshot mismatch reached CI as "Recorded an issue" with no
+  numbers, no path, and no image.
+- **`-collect-test-diagnostics never` saves ~10 minutes per failing run.**
+  Without it xcodebuild waits out a fixed 600-second diagnostics timeout before
+  reporting: the same one-test failure took 28s through `./test` and 620s
+  through `tuist test`.
+
+Little is given up. Tuist's hash cache does work locally, but there is no Tuist
+server, so on CI's fresh checkout it skips nothing — and "changed against
+`origin/main`" is the better question for a PR than "changed since this
+machine's last successful run".
+
 ## Working in this repo
 
 - **Never commit on `main`.** Branch first (`git checkout -b <name>`) and keep
   every commit for one piece of work on that one branch.
-- **`./swiftformat --lint` and the matching `tuist test` scheme(s) are part of
-  "done".** Never commit a red tree. Run a scheme against this checkout's own
-  simulator — `tuist test <Bundle>Tests -- -destination "platform=iOS
-  Simulator,id=$(./simulator)"` — because a bare `tuist test` lets xcodebuild
-  pick a device, which lands you back on the machine-wide one every other
-  checkout is also using (see [Selecting a
-  simulator](#selecting-a-simulator--one-device-per-checkout-addressed-by-udid)).
+- **`./swiftformat --lint` and `./test` are part of "done".** Never commit a red
+  tree. `./test` owns the scheme, the destination, and the scope — see [Running
+  tests](#running-tests) for which tier a change calls for.
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
 - **Commit when asked, or when working through a plan.** If it's unclear whether
@@ -571,9 +633,11 @@ test failures but aren't (the suites that do run are green). So always pass a
 **UDID** to `simctl`, never a name, and get that UDID from `./simulator`:
 
 ```bash
-mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
-  -destination "platform=iOS Simulator,id=$(./simulator)"
+-destination "platform=iOS Simulator,id=$(./simulator)"
 ```
+
+`./test` does this for you; reach for the raw form only in a one-off
+`xcodebuild` invocation.
 
 It derives a device name from the checkout's path
 (`Stuff-<folder>-<hash>-iPhone-17-27.0`), **creates that device the first time
@@ -678,6 +742,5 @@ already isolated.
 mise install
 ./ide --no-open
 ./swiftformat --lint
-mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
-  -destination "platform=iOS Simulator,id=$(./simulator --os 27.0)"
+./test --everything
 ```

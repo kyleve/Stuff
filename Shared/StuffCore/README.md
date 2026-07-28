@@ -5,4 +5,4 @@ placeholder `StuffCore.version` constant so the module, test bundle, and docs
 exist before the first real API lands.
 
 Add shared types under [`Sources/`](Sources/) and wire consumers in
-[`Package.swift`](../../Package.swift). Run tests with `tuist test StuffCoreTests`.
+[`Package.swift`](../../Package.swift). Run tests with `./test StuffCoreTests`.

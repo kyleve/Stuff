@@ -1,0 +1,841 @@
+#!/bin/bash
+set -euo pipefail
+
+# test — the one way to run this repo's tests, for people and for agents.
+#
+# Three problems, one script:
+#
+#   1. The incantation. A correct run needs the right scheme, a UDID-resolved
+#      destination (see "Selecting a simulator" in AGENTS.md), and — for image
+#      snapshots — the scheme carrying the SNAPSHOT_EXPECTED_* / TZ pins. That
+#      was copied by hand into the docs, CI, and every agent session, so it
+#      drifted.
+#
+#   2. Scope. Running every bundle for a one-module change was the default
+#      nobody chose. With no arguments this runs only the bundles the working
+#      tree affects, derived from the two manifests — `swift package
+#      dump-package` for the library graph, Project.swift for which bundle links
+#      which product — rather than a table here that would go stale.
+#
+#   3. Silence. A run prints nothing useful for minutes, which is unnerving for
+#      a person and useless to an agent tailing the output. This streams
+#      progress: an in-place status line on a terminal, and newline-terminated
+#      heartbeats when stdout is not one, because a carriage-return redraw is
+#      invisible in a captured log.
+#
+# Raw xcodebuild rather than `tuist test`, for two measured reasons. Both were
+# re-verified on 2026-07-28 by corrupting one reference image and running the
+# same single test each way on the same simulator.
+#
+#   1. Tuist's formatter *swallows the failure reason*, and there is no flag
+#      that recovers it. Swift Testing's headline for a recorded issue is the
+#      contentless "Issue recorded"; the reason arrives in the `↳` block that
+#      follows it, carrying "does not match reference" plus the reference and
+#      failure image paths. xcbeautify — which `tuist test` pipes through —
+#      renders the headline and drops the block, so 100% of the diagnostic
+#      content is lost (upstream: cpisciotta/xcbeautify#402, still open; a
+#      Tuist maintainer's own advice for this is to run xcodebuild directly).
+#      That is how the mismatch that reddened CI run 30367964813 reached the
+#      log as "Recorded an issue" — no numbers, no image, no path. Raw output
+#      keeps the block, and `--review` adds the magnitude beside it.
+#
+#   2. `-collect-test-diagnostics never`, which is worth ~10 minutes on every
+#      *failing* run. Without it xcodebuild waits out
+#      "Failure collecting diagnostics from simulator: Timed out after 600.0
+#      seconds" before reporting. Same one-test failure: 28s here, 620s under
+#      `tuist test` — 609s of it that fixed timeout, for a test that ran in
+#      3.5s. The same stall is in CI run 30367964813, which took 24 minutes.
+#      (The flag would pass through `tuist test --`; the point is that the
+#      recipe people actually type doesn't.)
+#
+# The `--timings` / `--review` reports depend on raw output too: they harvest
+# SNAPSHOT_TIMING / SNAPSHOT_DIFF lines from the log, and a formatter that
+# discards Swift Testing's own detail lines is not one to trust with ours.
+#
+# Little is given up. Tuist's selective testing does work locally (its hash
+# cache skipped 19 unchanged bundles here), but there is no Tuist server — see
+# Tuist.swift — so on CI's fresh checkout the cache is empty and it skips
+# nothing. The affected-bundle selection below replaces it with better
+# semantics anyway: changed against origin/main, rather than since this
+# machine's last successful run.
+#
+# Exits non-zero when tests fail (./profile's posture, not ./flaky's).
+
+DEVICE="iPhone 17"
+OS="27.0"
+SCOPE=changed          # changed | all | snapshots | everything | bundles | only
+BUNDLES=()
+ONLY=()
+RECORD=""
+DO_BUILD=true
+DO_GENERATE=true
+HEARTBEAT=15
+STATUS_FILE=""
+TIMINGS=false
+REVIEW=false
+BASE_REF="origin/main"
+SHARED=false
+
+usage() {
+    cat <<'USAGE'
+Usage: ./test [options] [BundleName ...]
+
+Runs this repo's tests against the simulator this checkout owns, streaming
+progress as it goes. With no arguments it runs only the bundles affected by the
+working tree's changes.
+
+Scope:
+  (no arguments)    Bundles affected by the diff against origin/main, including
+                    uncommitted and untracked files
+  BundleName ...    Named bundles only (e.g. ./test WhereCoreTests)
+  --all             The full unit suite (Stuff-iOS-Tests)
+  --snapshots       The image-snapshot suite (StuffSnapshotTests)
+  --everything      Both suites — what CI runs
+  --only ID         An xcodebuild test identifier, repeatable:
+                    Bundle, Bundle/Suite, or 'Bundle/Suite/test()'
+  --base REF        Compare against REF instead of origin/main
+
+Running:
+  --no-build        Reuse the last build (test-without-building)
+  --no-generate     Skip `tuist generate` (assumes the project is current)
+  --record MODE     Re-record snapshots: all | failed | missing | never
+  --device NAME     Simulator device name (default: "iPhone 17")
+  --os VERSION      Simulator iOS version (default: "27.0")
+  --shared          Use any existing simulator with that name rather than this
+                    checkout's own — for a throwaway machine (CI) that is
+                    already isolated
+
+Reporting:
+  --timings         Collect per-phase snapshot capture timings and print a
+                    breakdown (sets SNAPSHOT_TIMING)
+  --review          Report how each differing snapshot differs — pixel count,
+                    max channel delta, changed region (sets SNAPSHOT_DIFF)
+  --heartbeat SECS  Seconds between progress lines when not on a terminal
+                    (default: 15)
+  --status-file P   Keep only the latest progress line in P, for a watcher that
+                    would rather read one small file than scan a log
+  -h, --help        Show this help
+
+Examples:
+  ./test                                  # just what your change affects
+  ./test WhereCoreTests WhereUITests
+  ./test --snapshots --review             # snapshots, with the diffs described
+  ./test --snapshots --timings            # where the capture time goes
+  ./test --everything                     # everything, as CI runs it
+  ./test --only 'WhereUITests/WhereStylesheetTests/resolvesTraitAwareTokens()'
+USAGE
+}
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --all) SCOPE=all ;;
+        --snapshots) SCOPE=snapshots ;;
+        --everything) SCOPE=everything ;;
+        --only)
+            shift
+            ONLY+=("${1:?--only requires a test identifier}")
+            [ "$SCOPE" = changed ] && SCOPE=only
+            ;;
+        --base) shift; BASE_REF="${1:?--base requires a git ref}" ;;
+        --no-build) DO_BUILD=false ;;
+        --no-generate) DO_GENERATE=false ;;
+        --record) shift; RECORD="${1:?--record requires a mode}" ;;
+        --device) shift; DEVICE="${1:?--device requires a value}" ;;
+        --shared) SHARED=true ;;
+        --os) shift; OS="${1:?--os requires a value}" ;;
+        --timings) TIMINGS=true ;;
+        --review) REVIEW=true ;;
+        --heartbeat) shift; HEARTBEAT="${1:?--heartbeat requires a value}" ;;
+        --status-file) shift; STATUS_FILE="${1:?--status-file requires a path}" ;;
+        -h|--help) usage; exit 0 ;;
+        -*) echo "error: unknown option '$1' (see ./test --help)" >&2; exit 1 ;;
+        *) BUNDLES+=("$1"); SCOPE=bundles ;;
+    esac
+    shift
+done
+
+cd "$(dirname "$0")"
+
+case "$RECORD" in
+    ""|all|failed|missing|never) ;;
+    *) echo "error: --record must be all, failed, missing or never (got '$RECORD')" >&2
+       exit 1 ;;
+esac
+
+WORKSPACE="Stuff.xcworkspace"
+UNIT_SCHEME="Stuff-iOS-Tests"
+SNAPSHOT_SCHEME="StuffSnapshotTests"
+# Overridable so CI can collect the logs and result bundles from a known path
+# rather than digging through DerivedData.
+WORKDIR="${TEST_WORKDIR:-${TMPDIR:-/tmp}/where-test}"
+# 700 because this directory holds the progress filter, which the run then
+# executes — a world-writable path would let anyone on the machine swap it.
+mkdir -p "$WORKDIR" && chmod 700 "$WORKDIR"
+
+rule() { printf '%s\n' "============================================================"; }
+
+# The image bundles, read from the manifest rather than listed here: a bundle can
+# only run from a scheme that contains it, and StuffSnapshotTests is the only one
+# carrying the SNAPSHOT_EXPECTED_* / TZ pins the comparisons rely on.
+snapshot_bundles() {
+    python3 - <<'PY'
+import re, pathlib
+manifest = pathlib.Path('Project.swift').read_text()
+print('\n'.join(sorted(set(re.findall(r'name:\s*"(\w+SnapshotTests)"', manifest)))))
+PY
+}
+
+# Which bundles a set of changed paths affects.
+affected_bundles() {
+    CHANGED_FILES="$1" python3 - <<'PY'
+import json, os, re, subprocess, pathlib, sys
+
+changed = [line for line in os.environ['CHANGED_FILES'].splitlines() if line.strip()]
+if not changed:
+    sys.exit(0)
+
+package = json.loads(subprocess.run(
+    ['swift', 'package', 'dump-package'],
+    capture_output=True, text=True, check=True).stdout)
+
+paths, deps = {}, {}
+for target in package['targets']:
+    paths[target['name']] = (target.get('path') or '').rstrip('/')
+    names = []
+    for dep in target.get('dependencies', []):
+        for key in ('byName', 'target', 'product'):
+            if key in dep:
+                names.append(dep[key][0])
+                break
+    deps[target['name']] = names
+
+# Reverse edges, so "what breaks if this target changes?" is a forward walk.
+reverse = {}
+for name, dependencies in deps.items():
+    for dependency in dependencies:
+        reverse.setdefault(dependency, set()).add(name)
+
+manifest = pathlib.Path('Project.swift').read_text()
+
+# Every unit-test bundle: the sources it owns and the package products it links.
+# Both declaration forms appear — the `unitTests(...)` helper and a hand-rolled
+# `.target(...)` for the app-hosted bundles.
+#
+# Declarations are delimited by indentation, because the two obvious shortcuts
+# both produce silently wrong answers. A fixed-size window runs past short
+# declarations and absorbs the next target's products (a LifecycleKit change then
+# looked like it affected StuffCoreTests). Splitting on the next
+# `unitTests(`/`.target(` truncates at the first `.target(name:)` *dependency*
+# line, dropping every product from the app-hosted bundles (a WhereUI change then
+# missed WhereTests). In this manifest a target declaration sits at indent 8 and a
+# dependency entry at 16, so indent 8 is the boundary. `verify_parse` below is
+# what keeps that assumption honest.
+DECLARATION = re.compile(r'^ {8}(?:unitTests\(|\.target\()', re.MULTILINE)
+starts = [m.start() for m in DECLARATION.finditer(manifest)] + [len(manifest)]
+
+def products_in(window):
+    """The package products a declaration links, however it spells them."""
+    found = set(re.findall(r'\.package\(product:\s*"(\w+)"\)', window))
+    dependency = re.search(r'productDependency:\s*"(\w+)"', window)
+    if dependency:
+        found.add(dependency.group(1))
+    extra = re.search(r'extraPackageProducts:\s*\[([^\]]*)\]', window)
+    if extra:
+        found.update(re.findall(r'"(\w+)"', extra.group(1)))
+    return found
+
+
+declarations = {}
+for index, start in enumerate(starts[:-1]):
+    window = manifest[start:starts[index + 1]]
+    name = re.search(r'name:\s*"(\w+)"', window)
+    if name:
+        declarations[name.group(1)] = window
+
+bundles = {}
+for name, window in declarations.items():
+    sources = re.search(r'sources:\s*\[\s*"([^"]+)"', window)
+    if not sources or not name.endswith('Tests'):
+        continue
+    products = products_in(window)
+    # An app-hosted bundle (WhereTests, BroadwayCatalogTests) links its app by
+    # target rather than by product, so it inherits what that app links —
+    # otherwise a BroadwayCore change misses BroadwayCatalogTests, whose app
+    # builds against Broadway even though the bundle itself only lists
+    # TestHostSupport.
+    hosts = [host for host in re.findall(r'\.target\(name:\s*"(\w+)"\)', window)
+             if host in declarations]
+    for host in hosts:
+        products |= products_in(declarations[host])
+    bundles[name] = {
+        'sources': sources.group(1).replace('/**', '').rstrip('/'),
+        'products': products,
+        'hostedByTarget': bool(hosts),
+    }
+
+
+def verify_parse():
+    """Reasons the parse can't be trusted, so a bad one fails loudly.
+
+    Silently mis-parsing this manifest under-selects, which is the one failure
+    mode worth crashing over: a skipped bundle looks exactly like a passing one.
+    """
+    problems = []
+    if len(bundles) < 15:
+        problems.append(f'only found {len(bundles)} test bundles')
+    for name, bundle in bundles.items():
+        if not bundle['sources']:
+            problems.append(f'{name} has no sources')
+        if not bundle['products'] and not bundle['hostedByTarget']:
+            problems.append(f'{name} links neither a package product nor a target')
+    return problems
+
+
+problems = verify_parse()
+if problems:
+    # Exit non-zero rather than printing a short list. An unreadable manifest
+    # must not degrade into "no bundle covers these changes", which is
+    # indistinguishable from a clean run.
+    print('could not read Project.swift reliably: ' + '; '.join(problems),
+          file=sys.stderr)
+    sys.exit(2)
+
+# Paths no target owns change what every target means: the manifests themselves,
+# the shared scripts, the format config, CI. Over-select rather than skip the
+# bundle that would have caught it.
+GLOBAL = {'Package.swift', 'Package.resolved', 'Project.swift', 'Tuist.swift',
+          '.swiftformat', '.mise.toml', 'test', 'simulator', 'ide'}
+
+selected, changed_targets, everything = set(), set(), False
+for path in changed:
+    if path in GLOBAL or path.startswith('.github/'):
+        everything = True
+        continue
+    owner = next((name for name, bundle in bundles.items()
+                  if bundle['sources'] and path.startswith(bundle['sources'] + '/')), None)
+    if owner:
+        # A changed test file only implicates the bundle that owns it.
+        selected.add(owner)
+        continue
+    target = next((name for name, source in paths.items()
+                   if source and path.startswith(source + '/')), None)
+    if target:
+        changed_targets.add(target)
+        continue
+    # An app target's own sources (Where/Where, BroadwayCatalog, …): no package
+    # target owns them, so fall back to bundles living in the same module folder.
+    module = '/'.join(path.split('/')[:2])
+    for name, bundle in bundles.items():
+        if bundle['sources'].startswith(module + '/'):
+            selected.add(name)
+
+if everything:
+    print('\n'.join(sorted(bundles)))
+    sys.exit(0)
+
+# Transitive closure: a WhereCore change implicates WhereUI and WhereIntents,
+# and therefore their bundles too.
+frontier, affected = list(changed_targets), set(changed_targets)
+while frontier:
+    target = frontier.pop()
+    for dependent in reverse.get(target, ()):
+        if dependent not in affected:
+            affected.add(dependent)
+            frontier.append(dependent)
+
+for name, bundle in bundles.items():
+    if bundle['products'] & affected:
+        selected.add(name)
+
+print('\n'.join(sorted(selected)))
+PY
+}
+
+# The progress filter. It can't be a heredoc on the pipe (that would take over
+# the stdin it needs to read) and it can't be passed with `python3 -c "$(cat
+# <<'PY' …)"` either — bash 3.2, which is what /bin/bash is on macOS, mis-parses
+# a heredoc this quote-heavy inside a command substitution. So it is written out
+# and run, and $WORKDIR is created mode 700 above so the thing we execute can't
+# be swapped by another user.
+PROGRESS="$WORKDIR/progress.py"
+cat >"$PROGRESS" <<'PROGRESS_PY'
+"""Streams a test run's progress, in whichever shape the reader can use.
+
+On a terminal this redraws one status line in place. When stdout is not a
+terminal — an agent tailing a captured log, or CI — it emits a newline-terminated
+line every `HEARTBEAT` seconds instead, because a carriage-return redraw leaves
+nothing behind in a log.
+
+Snapshot runs count *images*, not tests, when SNAPSHOT_TIMING is on: one test
+there can run 70 seconds across 16 captures, so test-level progress is
+indistinguishable from a hang.
+"""
+import json
+import os
+import pathlib
+import re
+import sys
+import time
+
+heartbeat = float(os.environ.get('HEARTBEAT') or 15)
+status_path = os.environ.get('STATUS_FILE') or ''
+counts_path = pathlib.Path(os.environ['COUNTS_FILE'])
+scheme = os.environ.get('SCHEME', '?')
+is_terminal = sys.stdout.isatty()
+# Only count captures when the run asked for timing lines; otherwise the timing
+# module's *own* tests, which emit sample lines, would read as captured images.
+count_images = bool(os.environ.get('COUNT_IMAGES'))
+
+# The denominator comes from the previous run of this scheme. Deliberately not
+# `-enumerate-tests`: that needs its own launch, and being wrong about the total
+# on a first run is cheaper than paying for it on every run.
+# The cache is keyed by scheme *and* filter set (see COUNTS_FILE), so a filtered
+# run compares against its own previous total rather than the whole scheme's —
+# which is what previously left the default `./test` invocation, always filtered,
+# with no denominator at all.
+expected = {'tests': 0, 'images': 0}
+if counts_path.exists():
+    try:
+        expected.update(json.loads(counts_path.read_text()))
+    except ValueError:
+        pass
+
+SUITE = re.compile(r'^[◇✔✘]\s+Suite (\S+) (started|passed|failed)')
+# `(?!run\b)` because Swift Testing announces the whole run as "Test run
+# started", which would otherwise register as a test named `run`.
+TEST_STARTED = re.compile(r'^◇\s+Test (?!run\b)(\S+?) started')
+TEST_DONE = re.compile(r'^[✔✘]\s+Test (?!run\b)(\S+?) (passed|failed) after')
+INTERESTING = re.compile(r'does not match reference|^error:|Failure collecting|'
+                         r'\*\* TEST (SUCCEEDED|FAILED) \*\*')
+
+started = time.monotonic()
+tests = images = failures = 0
+suite = ''
+current = ''
+last_emit = 0.0
+failed_names = []
+
+
+def elapsed():
+    seconds = int(time.monotonic() - started)
+    return f'{seconds // 60:d}:{seconds % 60:02d}'
+
+
+def status():
+    if expected['images'] and images:
+        done, total, unit = images, expected['images'], 'images'
+    elif expected['tests']:
+        done, total, unit = tests, expected['tests'], 'tests'
+    else:
+        done, total, unit = (images or tests), 0, ('images' if images else 'tests')
+    parts = [f'[{elapsed()}]']
+    # A cached total from a previous run can be stale — a bundle gained tests, or
+    # the cache predates a change in scope. Overshooting it means the denominator
+    # is wrong, so drop it rather than reporting 368/38 and a negative estimate.
+    if total and done <= total:
+        parts.append(f'{done}/{total} {unit} ({int(100 * done / total)}%)')
+        if done:
+            remaining = (time.monotonic() - started) / done * (total - done)
+            parts.append(f'~{int(remaining // 60)}:{int(remaining % 60):02d} left')
+    else:
+        parts.append(f'{done} {unit}')
+    if suite:
+        parts.append(suite)
+    if current:
+        parts.append(current)
+    parts.append(f'{failures} failed' if failures else 'ok')
+    return ' · '.join(parts)
+
+
+def emit(force=False):
+    global last_emit
+    now = time.monotonic()
+    line = status()
+    if status_path:
+        try:
+            pathlib.Path(status_path).write_text(line + '\n')
+        except OSError:
+            pass
+    if is_terminal:
+        sys.stdout.write('\r\033[K' + line)
+        sys.stdout.flush()
+    elif force or now - last_emit >= heartbeat:
+        print(line, flush=True)
+        last_emit = now
+
+
+print(f'    (progress for {scheme}; full log alongside it in the work directory)',
+      flush=True)
+
+for raw in sys.stdin:
+    line = raw.rstrip('\n')
+    if count_images and line.startswith('SNAPSHOT_TIMING '):
+        images += 1
+        emit()
+        continue
+    match = SUITE.match(line)
+    if match:
+        if match.group(2) == 'started':
+            suite = match.group(1)
+        emit()
+        continue
+    match = TEST_STARTED.match(line)
+    if match:
+        current = match.group(1)
+        emit()
+        continue
+    match = TEST_DONE.match(line)
+    if match:
+        tests += 1
+        if match.group(2) == 'failed':
+            failures += 1
+            failed_names.append(f'{suite}/{match.group(1)}')
+            # A failure is the one event worth interrupting the cadence for.
+            if is_terminal:
+                sys.stdout.write('\r\033[K')
+            print(f'    ✘ {suite}/{match.group(1)}', flush=True)
+            emit(force=True)
+        else:
+            current = ''
+            emit()
+        continue
+    if INTERESTING.search(line):
+        if is_terminal:
+            sys.stdout.write('\r\033[K')
+        print(f'    {line.strip()}', flush=True)
+        last_emit = 0.0
+
+if is_terminal:
+    sys.stdout.write('\r\033[K')
+    sys.stdout.flush()
+summary = f'    {tests} tests'
+if images:
+    summary += f', {images} images'
+summary += f' in {elapsed()}'
+if failures:
+    summary += f' — {failures} failed'
+elif tests:
+    summary += ' — all passed'
+else:
+    summary += ' — nothing ran'
+if tests == 0:
+    summary += '\n    error: this run matched no tests — check the --only identifier '
+    summary += '(Swift Testing filters at Bundle/Suite, not per function)'
+print(summary, flush=True)
+
+# Remember the totals so the next identically-scoped run can show a percentage.
+if tests:
+    counts_path.write_text(json.dumps({'tests': tests, 'images': images}))
+
+# Exit non-zero when nothing ran, so a filter that matches nothing can't read as
+# a pass. The shell reads xcodebuild's status, so this is surfaced via the log
+# line above plus the marker file the caller checks.
+if tests == 0:
+    pathlib.Path(str(counts_path) + '.empty').write_text('1')
+else:
+    pathlib.Path(str(counts_path) + '.empty').unlink(missing_ok=True)
+PROGRESS_PY
+
+# Resolve the run plan: which scheme(s), and which -only-testing filters.
+SCHEMES=()
+UNIT_FILTERS=()
+SNAPSHOT_FILTERS=()
+
+add_scheme() {
+    local candidate="$1" existing
+    for existing in ${SCHEMES[@]+"${SCHEMES[@]}"}; do
+        [ "$existing" = "$candidate" ] && return 0
+    done
+    SCHEMES+=("$candidate")
+}
+
+case "$SCOPE" in
+    all) add_scheme "$UNIT_SCHEME" ;;
+    snapshots) add_scheme "$SNAPSHOT_SCHEME" ;;
+    everything) add_scheme "$UNIT_SCHEME"; add_scheme "$SNAPSHOT_SCHEME" ;;
+    bundles|changed)
+        if [ "$SCOPE" = changed ]; then
+            if git rev-parse --verify --quiet "$BASE_REF" >/dev/null; then
+                base="$(git merge-base HEAD "$BASE_REF")"
+            else
+                echo "warning: '$BASE_REF' not found; using uncommitted changes only" >&2
+                base="HEAD"
+            fi
+            changed_files="$( { git diff --name-only "$base"
+                                git diff --name-only
+                                git ls-files --others --exclude-standard; } | sort -u )"
+            if [ -z "$changed_files" ]; then
+                echo "==> No changes against $BASE_REF — nothing to test."
+                exit 0
+            fi
+            set +e
+            selection="$(affected_bundles "$changed_files")"
+            selection_status=$?
+            set -e
+            if [ "$selection_status" -ne 0 ]; then
+                echo "error: could not work out which bundles your changes affect." >&2
+                echo "       Run an explicit scope instead: ./test --all, ./test --snapshots," >&2
+                echo "       or ./test --everything." >&2
+                exit 1
+            fi
+            while IFS= read -r bundle; do
+                [ -n "$bundle" ] && BUNDLES+=("$bundle")
+            done <<EOF
+$selection
+EOF
+            if [ "${#BUNDLES[@]}" -eq 0 ]; then
+                echo "==> No test bundle covers these changes:"
+                printf '%s\n' "$changed_files" | sed 's/^/      /'
+                exit 0
+            fi
+            echo "==> Affected bundles: ${BUNDLES[*]}"
+        fi
+        image_bundles="$(snapshot_bundles)"
+        for bundle in "${BUNDLES[@]}"; do
+            if printf '%s\n' "$image_bundles" | grep -qx "$bundle"; then
+                add_scheme "$SNAPSHOT_SCHEME"
+                SNAPSHOT_FILTERS+=("-only-testing:$bundle")
+            else
+                add_scheme "$UNIT_SCHEME"
+                UNIT_FILTERS+=("-only-testing:$bundle")
+            fi
+        done
+        ;;
+esac
+
+if [ "${#ONLY[@]}" -gt 0 ]; then
+    # An identifier's first component is its bundle, which decides the scheme —
+    # so `./test --only 'WhereUISnapshotTests/…'` needs no `--snapshots`. Without
+    # this, an identifier copied from the failure report above would run against
+    # a scheme that doesn't contain its bundle and match nothing.
+    only_images="$(snapshot_bundles)"
+    for identifier in "${ONLY[@]}"; do
+        if printf '%s\n' "$only_images" | grep -qx "${identifier%%/*}"; then
+            add_scheme "$SNAPSHOT_SCHEME"
+            SNAPSHOT_FILTERS+=("-only-testing:$identifier")
+        else
+            add_scheme "$UNIT_SCHEME"
+            UNIT_FILTERS+=("-only-testing:$identifier")
+        fi
+    done
+fi
+
+if [ "${#SCHEMES[@]}" -eq 0 ]; then
+    echo "error: nothing to run (see ./test --help)" >&2
+    exit 1
+fi
+
+if [ "$DO_GENERATE" = true ]; then
+    echo "==> Regenerating project (tuist generate --no-open)"
+    if ! mise exec -- tuist generate --no-open >"$WORKDIR/generate.log" 2>&1; then
+        echo "error: tuist generate failed. Tail of $WORKDIR/generate.log:" >&2
+        tail -n 20 "$WORKDIR/generate.log" >&2
+        exit 1
+    fi
+fi
+
+SIMULATOR_FLAGS=(--device "$DEVICE" --os "$OS")
+[ "$SHARED" = true ] && SIMULATOR_FLAGS+=(--shared)
+UDID="$(./simulator "${SIMULATOR_FLAGS[@]}")"
+DESTINATION="platform=iOS Simulator,id=$UDID"
+
+# xcodebuild strips the TEST_RUNNER_ prefix on the way in, which is why the
+# pipeline reads SNAPSHOT_* rather than these names.
+RUN_ENV=()
+[ -n "$RECORD" ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_RECORD=$RECORD")
+[ "$TIMINGS" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_TIMING=1")
+[ "$REVIEW" = true ] && RUN_ENV+=("TEST_RUNNER_SNAPSHOT_DIFF=1")
+
+overall_status=0
+RESULTS=()
+LOGS=()
+
+for scheme in "${SCHEMES[@]}"; do
+    filters=()
+    if [ "$scheme" = "$SNAPSHOT_SCHEME" ]; then
+        filters=(${SNAPSHOT_FILTERS[@]+"${SNAPSHOT_FILTERS[@]}"})
+    else
+        filters=(${UNIT_FILTERS[@]+"${UNIT_FILTERS[@]}"})
+    fi
+    log="$WORKDIR/$scheme.log"
+    result="$WORKDIR/$scheme.xcresult"
+    rm -rf "$result"
+
+    if [ "$DO_BUILD" = true ]; then
+        echo "==> Building $scheme for testing"
+        if ! xcodebuild build-for-testing \
+            -workspace "$WORKSPACE" \
+            -scheme "$scheme" \
+            -destination "$DESTINATION" \
+            >"$WORKDIR/$scheme-build.log" 2>&1
+        then
+            echo "error: build failed for $scheme. Tail of $WORKDIR/$scheme-build.log:" >&2
+            tail -n 30 "$WORKDIR/$scheme-build.log" >&2
+            exit 1
+        fi
+    fi
+
+    # One cache entry per scheme + filter set: a run of three bundles and a run
+    # of the whole scheme have different totals, and mixing them is what made the
+    # progress line read "368/38".
+    scope_key="$(printf '%s\n' "$scheme" ${filters[@]+"${filters[@]}"} \
+        | shasum | cut -c1-12)"
+    counts="$WORKDIR/counts-$scheme-$scope_key.json"
+
+    echo "==> Testing $scheme on $DEVICE / iOS $OS"
+    set +e
+    env ${RUN_ENV[@]+"${RUN_ENV[@]}"} \
+        xcodebuild test-without-building \
+        -workspace "$WORKSPACE" \
+        -scheme "$scheme" \
+        -destination "$DESTINATION" \
+        -resultBundlePath "$result" \
+        -collect-test-diagnostics never \
+        ${filters[@]+"${filters[@]}"} \
+        2>&1 \
+        | tee "$log" \
+        | HEARTBEAT="$HEARTBEAT" STATUS_FILE="$STATUS_FILE" \
+          COUNTS_FILE="$counts" SCHEME="$scheme" \
+          COUNT_IMAGES="$([ "$TIMINGS" = true ] && echo 1 || true)" \
+          python3 -u "$PROGRESS"
+    # [0] is xcodebuild; [1] is tee and [2] the progress filter, either of which
+    # exiting 0 would otherwise mask a failed run.
+    status="${PIPESTATUS[0]}"
+    set -e
+    RESULTS+=("$result")
+    LOGS+=("$log")
+    [ "$status" -ne 0 ] && overall_status="$status"
+    if [ -f "$counts.empty" ]; then
+        rm -f "$counts.empty"
+        [ "$overall_status" -eq 0 ] && overall_status=1
+    fi
+done
+
+# Failures, reprinted with the identifier that re-runs each one.
+if [ "$overall_status" -ne 0 ]; then
+    echo
+    rule
+    echo "FAILURES"
+    rule
+    for result in "${RESULTS[@]}"; do
+        [ -d "$result" ] || continue
+        # Via a file, not a pipe: `python3 - <<'PY'` takes its *program* from
+        # stdin, so piped data would never reach sys.stdin.
+        xcrun xcresulttool get test-results tests --path "$result" \
+            >"$WORKDIR/failures.json" 2>/dev/null || true
+        RESULT="$result" TESTS_JSON="$WORKDIR/failures.json" python3 - <<'PY'
+import json, os, sys
+
+def walk(node, bundle, suite, out):
+    kind, name = node.get('nodeType'), node.get('name', '')
+    if kind == 'Unit test bundle':
+        bundle = name
+    elif kind == 'Test Suite':
+        suite = name
+    elif kind == 'Test Case' and node.get('result') == 'Failed':
+        # Re-run at Bundle/Suite. A third (function) component is not usable
+        # here: with parentheses xcodebuild errors, and without them it silently
+        # matches zero tests and still exits 0.
+        out.append((f'{bundle}/{suite}/{name}', f'{bundle}/{suite}'))
+    for child in node.get('children', []):
+        walk(child, bundle, suite, out)
+
+try:
+    data = json.load(open(os.environ['TESTS_JSON']))
+except (ValueError, OSError):
+    sys.exit(0)
+failures = []
+for node in data.get('testNodes', []):
+    walk(node, '?', '?', failures)
+for label, identifier in failures:
+    print(f'  {label}')
+    print(f"      ./test --only '{identifier}'")
+if failures:
+    print(f"\n  Result bundle: {os.environ['RESULT']}")
+PY
+    done
+fi
+
+if [ "$TIMINGS" = true ]; then
+    echo
+    rule
+    echo "SNAPSHOT CAPTURE PHASES"
+    rule
+    : >"$WORKDIR/timings.jsonl"
+    for log in "${LOGS[@]}"; do
+        grep -o 'SNAPSHOT_TIMING {.*}' "$log" 2>/dev/null \
+            | sed 's/^SNAPSHOT_TIMING //' >>"$WORKDIR/timings.jsonl" || true
+    done
+    LINES="$WORKDIR/timings.jsonl" python3 - <<'PY'
+import json, os, sys, collections
+rows = [json.loads(line) for line in open(os.environ['LINES']) if line.strip()]
+if not rows:
+    print('  (no timing lines — was this a snapshot scheme?)')
+    sys.exit(0)
+grand = sum(row['total'] for row in rows)
+totals = collections.Counter()
+for row in rows:
+    for phase, seconds in row['phases'].items():
+        totals[phase] += seconds
+print(f'  {len(rows)} captures, {grand:.1f}s total, {grand / len(rows):.3f}s per image\n')
+print(f"  {'phase':20s} {'total':>9s} {'share':>7s} {'mean':>9s}")
+for phase, seconds in totals.most_common():
+    print(f'  {phase:20s} {seconds:8.2f}s {100 * seconds / grand:6.1f}% '
+          f'{seconds / len(rows):8.3f}s')
+passes = [row['settlePasses'] for row in rows]
+print(f'\n  settle passes: min {min(passes)}, max {max(passes)}, '
+      f'mean {sum(passes) / len(passes):.1f}')
+print('\n  slowest captures:')
+for row in sorted(rows, key=lambda row: -row['total'])[:8]:
+    print(f"    {row['total']:6.3f}s  {row['id']}")
+PY
+fi
+
+if [ "$REVIEW" = true ]; then
+    echo
+    rule
+    echo "SNAPSHOT DIFFERENCES"
+    rule
+    : >"$WORKDIR/diffs.jsonl"
+    for log in "${LOGS[@]}"; do
+        grep -o 'SNAPSHOT_DIFF {.*}' "$log" 2>/dev/null \
+            | sed 's/^SNAPSHOT_DIFF //' >>"$WORKDIR/diffs.jsonl" || true
+    done
+    LINES="$WORKDIR/diffs.jsonl" \
+        IS_RECORDING="$([ -n "$RECORD" ] && [ "$RECORD" != never ] && echo 1 || true)" \
+        python3 - <<'PY'
+import json, os, sys
+rows = [json.loads(line) for line in open(os.environ['LINES']) if line.strip()]
+# A missing reference is the expected state of a recording run, so reporting one
+# per image there is noise at exactly the moment nobody wants it.
+if os.environ.get('IS_RECORDING'):
+    rows = [row for row in rows if row['outcome'] != 'referenceMissing']
+if not rows:
+    print('  Every capture matched its reference byte for byte.')
+    sys.exit(0)
+differs = [row for row in rows if row['outcome'] == 'differs']
+print(f'  {len(rows)} capture(s) did not match byte for byte.\n')
+if differs:
+    # Sorted by max channel delta, because that is what separates a broken
+    # render from antialiasing drift. Pixel count does not: the worst real
+    # defect found so far touched fewer pixels than the noisiest harmless one.
+    print(f"  {'maxDelta':>8s} {'pixels':>8s} {'of image':>9s}  region (x,y,w,h)  reference")
+    for row in sorted(differs, key=lambda row: -row['maxChannelDelta']):
+        region = ','.join(str(value) for value in row['region'])
+        reference = row.get('reference', '?').split('__Snapshots__/')[-1]
+        print(f"  {row['maxChannelDelta']:8d} {row['differingPixels']:8d} "
+              f"{100 * row['differingFraction']:8.3f}%  ({region})  {reference}")
+    print('\n  A single-digit max delta is sub-visible drift; a large one is a real')
+    print('  change however few pixels it touches.')
+for row in (row for row in rows if row['outcome'] != 'differs'):
+    print(f"  {row['outcome']}: {row.get('reference') or row.get('detail')}")
+PY
+fi
+
+echo
+if [ "$overall_status" -eq 0 ]; then
+    echo "==> Passed. Logs and result bundles: $WORKDIR"
+else
+    echo "==> Failed (exit $overall_status). Logs and result bundles: $WORKDIR"
+fi
+exit "$overall_status"

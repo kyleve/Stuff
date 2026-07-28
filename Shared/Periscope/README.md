@@ -34,8 +34,8 @@ and no CI job.
 
 Libraries are declared in the root [`Package.swift`](../../Package.swift);
 their hosted test bundles in [`Project.swift`](../../Project.swift). Run e.g.
-`tuist test PeriscopeCoreTests`, `tuist test PeriscopeUITests`, or
-`tuist test PeriscopeToolsTests`.
+`./test PeriscopeCoreTests`, `./test PeriscopeUITests`, or
+`./test PeriscopeToolsTests`.
 
 ## Open work
 
