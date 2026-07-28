@@ -99,15 +99,24 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 - **Quiescence can't replace the pixel digest.** `SNAPSHOT_SETTLE` selects
   `pixel` (default), `quiescence` (a `beforeWaiting` run-loop observer plus a
   recursive `needsLayout`/`needsDisplay`/`animationKeys` walk), or `both`, which
-  runs them together and reports disagreements while letting the digest keep the
-  verdict. Run in `both` mode over all 260 references: 226 settle phases, 133
-  with some disagreement, and **11 where quiescence declared settled *earlier*
-  than the digest** — every one a `Loaded_*` case whose content arrives late.
-  That is the one dangerous direction (it would capture a frame no reference
-  recorded), and it is exactly what `settleContent`'s doc comment predicts: a
-  SwiftUI update deep in the hosted tree never dirties the root, and flags read
-  after a commit has flushed look clean. The mechanism is kept so the experiment
-  is re-runnable after a toolchain change; it is not a candidate default.
+  runs them together and reports disagreements. Run in `both` mode over all 260
+  references: 226 settle phases, 134 with some disagreement, and **8 where
+  quiescence declared settled *earlier* than the digest** — every one a
+  `Loaded_*` case whose content arrives late. That is the one dangerous
+  direction (it would capture a frame no reference recorded), and it is what
+  `settleContent`'s doc comment predicts: a SwiftUI update deep in the hosted
+  tree never dirties the root, and flags read after a commit has flushed look
+  clean. The mechanism is kept so the experiment is re-runnable after a
+  toolchain change; it is not a candidate default.
+
+  Two details that make those numbers mean what they say, both of which were
+  wrong in the first attempt at this measurement. Pending layout is sampled
+  **before** the loop's own `layoutIfNeeded`, because reading it afterwards makes
+  that third of the signal vacuously clean. And the two mechanisms keep
+  **separate** observed-change flags, so `both` genuinely leaves the verdict to
+  the digest — sharing one let quiescence flapping return `.timedOut` for content
+  the digest never saw change, i.e. the experiment altering its own result.
+  Guard: `SnapshotQuiescenceTests.staticContentSettlesRegardlessOfMechanism`.
 - **No public API sees pending dispatch or Swift-concurrency work.**
   `CFRunLoopGetNextTimerFireDate` reports only `CFRunLoopTimer`s, so "is
   something scheduled to land in 200ms?" is unanswerable — which is why the

@@ -159,6 +159,7 @@ func settleForCapture(
     minDuration: TimeInterval = 0.25,
     maxDuration: TimeInterval = 2.5,
     timing: SnapshotCaptureTiming? = nil,
+    mechanism: SnapshotSettleMechanism = .fromEnvironment,
 ) async -> SettleOutcome {
     // How long the rendered pixels must stay byte-identical to the quiet
     // window's anchor sample before the content counts as settled — matches the
@@ -179,12 +180,17 @@ func settleForCapture(
     var anchorTime = start
     var stablePasses = 0
     var passCount = 0
-    var observedContentChange = false
+    // One per mechanism, deliberately not shared. Both feed the `.timedOut` vs
+    // `.starved` decision, and only the mechanism holding the verdict may
+    // influence it — otherwise `both` mode could fail a capture that `pixel`
+    // alone would have kept retrying, which would make the experiment change the
+    // thing it exists to measure.
+    var pixelObservedChange = false
+    var quiescenceObservedChange = false
     // Reported on every exit path — including `.cancelled`, whose pass count is
     // exactly what distinguishes "gave up immediately" from "ground for 10s".
     defer { timing?.addSettlePasses(passCount) }
 
-    let mechanism = SnapshotSettleMechanism.fromEnvironment
     let idleCounter = RunLoopIdleCounter()
     var lastIdleCount = 0
     var disagreements: [SettleDisagreement] = []
@@ -210,19 +216,30 @@ func settleForCapture(
         } catch {
             return .cancelled
         }
+        // Sampled *before* this pass lays out, because the loop performs the
+        // layout itself: read afterwards, `needsLayout` is always clear and that
+        // third of the signal says nothing. Dirty layout here means something
+        // changed since the previous pass, which is exactly the question.
+        let hadPendingWorkBeforeLayout = mechanism == .pixel
+            ? false
+            : view.layer.hasPendingWork()
+
         CATransaction.performWithoutAnimation(view.layoutIfNeeded)
         passCount += 1
 
-        // Quiescence: the run loop has gone idle at least once since the last
-        // pass (so every runnable main-queue job drained) and nothing in the
-        // captured subtree has layout, display, or animation outstanding.
+        // Quiescence: the run loop went idle at least once since the last pass
+        // (so every runnable main-queue job drained), nothing was waiting to lay
+        // out, and nothing in the captured subtree still needs display or is
+        // animating.
         let isQuiescent: Bool? = if mechanism == .pixel {
             nil
         } else {
             {
                 let idled = idleCounter.idleCount > lastIdleCount
                 lastIdleCount = idleCounter.idleCount
-                return idled && !(view.layer.hasPendingWork())
+                return idled
+                    && !hadPendingWorkBeforeLayout
+                    && !view.layer.hasPendingWork()
             }()
         }
 
@@ -247,7 +264,7 @@ func settleForCapture(
                 // The first non-nil sample merely establishes the anchor; only a
                 // departure from an established anchor is the content changing.
                 if anchorSample != nil {
-                    observedContentChange = true
+                    pixelObservedChange = true
                 }
                 anchorSample = sample
                 anchorTime = clock.now
@@ -265,7 +282,7 @@ func settleForCapture(
             } else {
                 // Falling out of quiescence after having reached it is this
                 // mechanism's equivalent of the pixels changing.
-                if quiescentSince != nil { observedContentChange = true }
+                if quiescentSince != nil { quiescenceObservedChange = true }
                 quiescentSince = nil
                 quiescentPasses = 0
             }
@@ -280,9 +297,14 @@ func settleForCapture(
             ))
         }
 
-        // `both` deliberately lets the digest keep the verdict, so running the
+        // `both` deliberately lets the digest keep the verdict — both the
+        // "settled" call and the observed-change flag below — so running the
         // experiment can't change what any reference records.
-        let saysStable = mechanism == .quiescence ? quiescenceSaysStable : pixelSaysStable
+        let isQuiescenceDeciding = mechanism == .quiescence
+        let saysStable = isQuiescenceDeciding ? quiescenceSaysStable : pixelSaysStable
+        let observedContentChange = isQuiescenceDeciding
+            ? quiescenceObservedChange
+            : pixelObservedChange
         if saysStable, now >= minDeadline {
             return .settled
         }
@@ -340,7 +362,7 @@ extension UIView {
 /// the accessibility path re-lays-out between here and the render — and a commit
 /// costs microseconds.
 @MainActor
-func drainInFlightAnimations() {
+@_spi(Testing) public func drainInFlightAnimations() {
     CATransaction.flush()
 }
 

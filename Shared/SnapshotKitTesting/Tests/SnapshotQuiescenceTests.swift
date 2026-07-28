@@ -1,5 +1,6 @@
 import Foundation
 @_spi(Testing) import SnapshotKitTesting
+import TestHostSupport
 import Testing
 import UIKit
 
@@ -98,6 +99,42 @@ struct SnapshotQuiescenceTests {
         animation.duration = 5
         view.layer.add(animation, forKey: "fade")
         #expect(view.layer.hasPendingWork())
+    }
+
+    /// `both` runs the experiment; it must not decide anything.
+    ///
+    /// The two mechanisms keep separate observed-change flags, and only the one
+    /// holding the verdict feeds the `.timedOut` / `.starved` choice. When they
+    /// shared a flag, quiescence flapping could return `.timedOut` for content
+    /// the digest never saw change — failing a capture that `pixel` alone would
+    /// have kept retrying, which is precisely the experiment altering the thing
+    /// it exists to measure.
+    ///
+    /// Static content on a budget too short to prove stability is the case that
+    /// separates them: `pixel` must reach `.settled`, and it must do so under
+    /// every mechanism.
+    @Test(arguments: [
+        SnapshotSettleMechanism.pixel,
+        .both,
+    ])
+    func staticContentSettlesRegardlessOfMechanism(
+        mechanism: SnapshotSettleMechanism,
+    ) async throws {
+        try waitFor { hostKeyWindow() != nil }
+        let window = try #require(hostKeyWindow())
+        let view = UIView(frame: CGRect(x: 0, y: 0, width: 40, height: 40))
+        view.backgroundColor = .systemTeal
+        window.addSubview(view)
+        defer { view.removeFromSuperview() }
+
+        let outcome = await settleContent(
+            view,
+            named: "\(#function)-\(mechanism.rawValue)",
+            minDuration: 0,
+            maxDuration: 0.1,
+            mechanism: mechanism,
+        )
+        #expect(outcome == .settled, "\(mechanism.rawValue) changed the verdict")
     }
 
     @Test func settleComparisonIsOnlyReportedInBothMode() {

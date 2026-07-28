@@ -44,6 +44,11 @@ import UIKit
 /// `CFRunLoopObserver` rather than a target/selector because the run loop offers
 /// no notification for this; the handler is removed in `stop()`, which the settle
 /// loop calls in a `defer`.
+///
+/// The handler holds `self` **weakly**, so forgetting `stop()` leaks only the
+/// observer rather than immortalizing the counter — and a strong capture would
+/// form a cycle through the stored observer that made `deinit` unreachable, i.e.
+/// the one place that could otherwise clean up after a missed `stop()`.
 @MainActor
 @_spi(Testing) public final class RunLoopIdleCounter {
     private var observer: CFRunLoopObserver?
@@ -58,10 +63,10 @@ import UIKit
             CFRunLoopActivity.beforeWaiting.rawValue,
             true,
             0,
-        ) { _, _ in
+        ) { [weak self] _, _ in
             // The main run loop only runs on the main thread, which is where the
             // main actor lives, so this is that isolation rather than a hop.
-            MainActor.assumeIsolated { self.idleCount += 1 }
+            MainActor.assumeIsolated { self?.idleCount += 1 }
         }
         CFRunLoopAddObserver(CFRunLoopGetMain(), observer, .commonModes)
         self.observer = observer
@@ -72,6 +77,12 @@ import UIKit
         CFRunLoopRemoveObserver(CFRunLoopGetMain(), observer, .commonModes)
         self.observer = nil
     }
+
+    // No `deinit` cleanup: it would have to read main-actor-isolated,
+    // non-Sendable state from a nonisolated context. The weak capture above is
+    // what makes that acceptable — a missed `stop()` leaves a registered observer
+    // whose handler no-ops once the counter is gone, rather than keeping the
+    // counter alive forever as a strong capture would.
 }
 
 extension CALayer {

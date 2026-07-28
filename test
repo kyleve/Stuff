@@ -139,7 +139,9 @@ SNAPSHOT_SCHEME="StuffSnapshotTests"
 # Overridable so CI can collect the logs and result bundles from a known path
 # rather than digging through DerivedData.
 WORKDIR="${TEST_WORKDIR:-${TMPDIR:-/tmp}/where-test}"
-mkdir -p "$WORKDIR"
+# 700 because this directory holds the progress filter, which the run then
+# executes — a world-writable path would let anyone on the machine swap it.
+mkdir -p "$WORKDIR" && chmod 700 "$WORKDIR"
 
 rule() { printf '%s\n' "============================================================"; }
 
@@ -188,27 +190,86 @@ manifest = pathlib.Path('Project.swift').read_text()
 
 # Every unit-test bundle: the sources it owns and the package products it links.
 # Both declaration forms appear — the `unitTests(...)` helper and a hand-rolled
-# `.target(...)` for the app-hosted bundles — and both carry `name:` followed by
-# `sources:`, which is what this keys off. A `testScheme(name:)` reference has no
-# `sources:` nearby and is skipped.
-bundles = {}
-for match in re.finditer(r'name:\s*"(\w+Tests)"', manifest):
-    name = match.group(1)
-    window = manifest[match.end():match.end() + 900]
-    sources = re.search(r'sources:\s*\[\s*"([^"]+)"', window)
-    if not sources:
-        continue
-    products = set(re.findall(r'\.package\(product:\s*"(\w+)"\)', window))
+# `.target(...)` for the app-hosted bundles.
+#
+# Declarations are delimited by indentation, because the two obvious shortcuts
+# both produce silently wrong answers. A fixed-size window runs past short
+# declarations and absorbs the next target's products (a LifecycleKit change then
+# looked like it affected StuffCoreTests). Splitting on the next
+# `unitTests(`/`.target(` truncates at the first `.target(name:)` *dependency*
+# line, dropping every product from the app-hosted bundles (a WhereUI change then
+# missed WhereTests). In this manifest a target declaration sits at indent 8 and a
+# dependency entry at 16, so indent 8 is the boundary. `verify_parse` below is
+# what keeps that assumption honest.
+DECLARATION = re.compile(r'^ {8}(?:unitTests\(|\.target\()', re.MULTILINE)
+starts = [m.start() for m in DECLARATION.finditer(manifest)] + [len(manifest)]
+
+def products_in(window):
+    """The package products a declaration links, however it spells them."""
+    found = set(re.findall(r'\.package\(product:\s*"(\w+)"\)', window))
     dependency = re.search(r'productDependency:\s*"(\w+)"', window)
     if dependency:
-        products.add(dependency.group(1))
+        found.add(dependency.group(1))
     extra = re.search(r'extraPackageProducts:\s*\[([^\]]*)\]', window)
     if extra:
-        products.update(re.findall(r'"(\w+)"', extra.group(1)))
+        found.update(re.findall(r'"(\w+)"', extra.group(1)))
+    return found
+
+
+declarations = {}
+for index, start in enumerate(starts[:-1]):
+    window = manifest[start:starts[index + 1]]
+    name = re.search(r'name:\s*"(\w+)"', window)
+    if name:
+        declarations[name.group(1)] = window
+
+bundles = {}
+for name, window in declarations.items():
+    sources = re.search(r'sources:\s*\[\s*"([^"]+)"', window)
+    if not sources or not name.endswith('Tests'):
+        continue
+    products = products_in(window)
+    # An app-hosted bundle (WhereTests, BroadwayCatalogTests) links its app by
+    # target rather than by product, so it inherits what that app links —
+    # otherwise a BroadwayCore change misses BroadwayCatalogTests, whose app
+    # builds against Broadway even though the bundle itself only lists
+    # TestHostSupport.
+    hosts = [host for host in re.findall(r'\.target\(name:\s*"(\w+)"\)', window)
+             if host in declarations]
+    for host in hosts:
+        products |= products_in(declarations[host])
     bundles[name] = {
         'sources': sources.group(1).replace('/**', '').rstrip('/'),
         'products': products,
+        'hostedByTarget': bool(hosts),
     }
+
+
+def verify_parse():
+    """Reasons the parse can't be trusted, so a bad one fails loudly.
+
+    Silently mis-parsing this manifest under-selects, which is the one failure
+    mode worth crashing over: a skipped bundle looks exactly like a passing one.
+    """
+    problems = []
+    if len(bundles) < 15:
+        problems.append(f'only found {len(bundles)} test bundles')
+    for name, bundle in bundles.items():
+        if not bundle['sources']:
+            problems.append(f'{name} has no sources')
+        if not bundle['products'] and not bundle['hostedByTarget']:
+            problems.append(f'{name} links neither a package product nor a target')
+    return problems
+
+
+problems = verify_parse()
+if problems:
+    # Exit non-zero rather than printing a short list. An unreadable manifest
+    # must not degrade into "no bundle covers these changes", which is
+    # indistinguishable from a clean run.
+    print('could not read Project.swift reliably: ' + '; '.join(problems),
+          file=sys.stderr)
+    sys.exit(2)
 
 # Paths no target owns change what every target means: the manifests themselves,
 # the shared scripts, the format config, CI. Over-select rather than skip the
@@ -261,8 +322,12 @@ print('\n'.join(sorted(selected)))
 PY
 }
 
-# The progress filter. Written out rather than inlined in the pipe because a
-# heredoc would consume the stdin it needs to read.
+# The progress filter. It can't be a heredoc on the pipe (that would take over
+# the stdin it needs to read) and it can't be passed with `python3 -c "$(cat
+# <<'PY' …)"` either — bash 3.2, which is what /bin/bash is on macOS, mis-parses
+# a heredoc this quote-heavy inside a command substitution. So it is written out
+# and run, and $WORKDIR is created mode 700 above so the thing we execute can't
+# be swapped by another user.
 PROGRESS="$WORKDIR/progress.py"
 cat >"$PROGRESS" <<'PROGRESS_PY'
 """Streams a test run's progress, in whichever shape the reader can use.
@@ -295,10 +360,12 @@ count_images = bool(os.environ.get('COUNT_IMAGES'))
 # The denominator comes from the previous run of this scheme. Deliberately not
 # `-enumerate-tests`: that needs its own launch, and being wrong about the total
 # on a first run is cheaper than paying for it on every run.
-# A filtered run covers a different set than the cache describes, so showing a
-# percentage against it would be actively misleading.
+# The cache is keyed by scheme *and* filter set (see COUNTS_FILE), so a filtered
+# run compares against its own previous total rather than the whole scheme's —
+# which is what previously left the default `./test` invocation, always filtered,
+# with no denominator at all.
 expected = {'tests': 0, 'images': 0}
-if counts_path.exists() and not os.environ.get('IS_FILTERED'):
+if counts_path.exists():
     try:
         expected.update(json.loads(counts_path.read_text()))
     except ValueError:
@@ -427,9 +494,8 @@ if tests == 0:
     summary += '(Swift Testing filters at Bundle/Suite, not per function)'
 print(summary, flush=True)
 
-# Remember the totals so the next full run of this scheme can show a percentage.
-# A filtered run must not overwrite them with its partial counts.
-if tests and not os.environ.get('IS_FILTERED'):
+# Remember the totals so the next identically-scoped run can show a percentage.
+if tests:
     counts_path.write_text(json.dumps({'tests': tests, 'images': images}))
 
 # Exit non-zero when nothing ran, so a filter that matches nothing can't read as
@@ -472,10 +538,20 @@ case "$SCOPE" in
                 echo "==> No changes against $BASE_REF — nothing to test."
                 exit 0
             fi
+            set +e
+            selection="$(affected_bundles "$changed_files")"
+            selection_status=$?
+            set -e
+            if [ "$selection_status" -ne 0 ]; then
+                echo "error: could not work out which bundles your changes affect." >&2
+                echo "       Run an explicit scope instead: ./test --all, ./test --snapshots," >&2
+                echo "       or ./test --everything." >&2
+                exit 1
+            fi
             while IFS= read -r bundle; do
                 [ -n "$bundle" ] && BUNDLES+=("$bundle")
             done <<EOF
-$(affected_bundles "$changed_files")
+$selection
 EOF
             if [ "${#BUNDLES[@]}" -eq 0 ]; then
                 echo "==> No test bundle covers these changes:"
@@ -561,6 +637,13 @@ for scheme in "${SCHEMES[@]}"; do
         fi
     fi
 
+    # One cache entry per scheme + filter set: a run of three bundles and a run
+    # of the whole scheme have different totals, and mixing them is what made the
+    # progress line read "368/38".
+    scope_key="$(printf '%s\n' "$scheme" ${FILTERS[@]+"${FILTERS[@]}"} \
+        | shasum | cut -c1-12)"
+    counts="$WORKDIR/counts-$scheme-$scope_key.json"
+
     echo "==> Testing $scheme on $DEVICE / iOS $OS"
     set +e
     env ${RUN_ENV[@]+"${RUN_ENV[@]}"} \
@@ -574,9 +657,8 @@ for scheme in "${SCHEMES[@]}"; do
         2>&1 \
         | tee "$log" \
         | HEARTBEAT="$HEARTBEAT" STATUS_FILE="$STATUS_FILE" \
-          COUNTS_FILE="$WORKDIR/$scheme.counts" SCHEME="$scheme" \
+          COUNTS_FILE="$counts" SCHEME="$scheme" \
           COUNT_IMAGES="$([ "$TIMINGS" = true ] && echo 1 || true)" \
-          IS_FILTERED="$([ "${#FILTERS[@]}" -gt 0 ] && echo 1 || true)" \
           python3 -u "$PROGRESS"
     # [0] is xcodebuild; [1] is tee and [2] the progress filter, either of which
     # exiting 0 would otherwise mask a failed run.
@@ -585,8 +667,8 @@ for scheme in "${SCHEMES[@]}"; do
     RESULTS+=("$result")
     LOGS+=("$log")
     [ "$status" -ne 0 ] && overall_status="$status"
-    if [ -f "$WORKDIR/$scheme.counts.empty" ]; then
-        rm -f "$WORKDIR/$scheme.counts.empty"
+    if [ -f "$counts.empty" ]; then
+        rm -f "$counts.empty"
         [ "$overall_status" -eq 0 ] && overall_status=1
     fi
 done
@@ -681,9 +763,15 @@ if [ "$REVIEW" = true ]; then
         grep -o 'SNAPSHOT_DIFF {.*}' "$log" 2>/dev/null \
             | sed 's/^SNAPSHOT_DIFF //' >>"$WORKDIR/diffs.jsonl" || true
     done
-    LINES="$WORKDIR/diffs.jsonl" python3 - <<'PY'
+    LINES="$WORKDIR/diffs.jsonl" \
+        IS_RECORDING="$([ -n "$RECORD" ] && [ "$RECORD" != never ] && echo 1 || true)" \
+        python3 - <<'PY'
 import json, os, sys
 rows = [json.loads(line) for line in open(os.environ['LINES']) if line.strip()]
+# A missing reference is the expected state of a recording run, so reporting one
+# per image there is noise at exactly the moment nobody wants it.
+if os.environ.get('IS_RECORDING'):
+    rows = [row for row in rows if row['outcome'] != 'referenceMissing']
 if not rows:
     print('  Every capture matched its reference byte for byte.')
     sys.exit(0)
