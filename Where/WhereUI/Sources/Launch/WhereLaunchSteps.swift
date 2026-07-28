@@ -178,6 +178,24 @@ struct EraseDataStep: LifecycleStep {
     }
 }
 
+/// Leave the demo world behind. Takes the demo session as the teardown plan's
+/// root input, the same shape the reset teardown uses, so Settings hands in
+/// what it is tearing down rather than the step re-reading an optional.
+///
+/// There is deliberately no erase: a demo store only ever existed in memory,
+/// so releasing the scope is the whole cleanup. Quitting the app mid-demo
+/// takes the same path for free, which is why demo mode needs no teardown on
+/// the cold-launch side.
+struct ExitDemoStep: LifecycleStep {
+    let model: WhereModel
+
+    let id = LaunchStepID.exitDemo
+
+    func run(_: WhereSession, _: LifecycleStepContext) async throws {
+        await model.deactivateDemo()
+    }
+}
+
 /// Clear the persisted preferences that gate the relaunch (onboarding flag,
 /// tracking intent, reminder/summary schedules), so the next launch behaves
 /// like a fresh install.

@@ -131,6 +131,10 @@ public struct RootView: View {
             // reads it optionally — it can appear before login, where the
             // SwiftData inspector row simply hides.
             .environment(model.session)
+            // Which world the app is in, seeded once here so no view has to
+            // ask the model. Reading `isInDemoMode` tracks the scope state, so
+            // entering or leaving demo mode re-renders whatever branches on it.
+            .environment(\.isInDemoMode, model.isInDemoMode)
             // Settings' "Erase all data & reset" runs the teardown through the
             // `LifecycleProxy` that `LifecycleContainer` publishes into the
             // environment, which wipes data + preferences and re-drives the

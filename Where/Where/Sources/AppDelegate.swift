@@ -84,12 +84,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             .makeLauncher(model: model, reason: .undetermined) { [intentServices] in
                 await intentServices.install(.forIntents(sharingStoreOf: $0))
             }
-        Task {
+        Task { [model] in
             await launcher.run()
             // Index the tracked regions into Spotlight (a search for a region
             // name surfaces Where and its day-count query) through the stack
             // installed above, off the launch critical path. Indexing a
             // handful of items is cheap and idempotent.
+            //
+            // Never from demo mode: the Spotlight index is device state that
+            // outlives the process, and a demo must leave nothing behind. (The
+            // launch now waits on the user's choice, so by the time this runs
+            // it's known.)
+            guard !model.isInDemoMode else { return }
             await RegionSpotlightIndexer.indexRegions(resolving: intentServices)
         }
         return true

@@ -29,6 +29,13 @@ public struct DemoDataBuilder: Sendable {
         Coordinate(latitude: 40.7891, longitude: -73.1350), // Long Island
     ]
 
+    /// Where the demo user is "right now" — the fix a scripted location source
+    /// should answer a one-shot request with, so today lands where the rest of
+    /// the script says the user lives.
+    public static var homeCoordinate: Coordinate {
+        newYorkPlaces[0]
+    }
+
     /// Where the demo user travels.
     private static let californiaPlaces = [
         Coordinate(latitude: 37.7749, longitude: -122.4194), // San Francisco

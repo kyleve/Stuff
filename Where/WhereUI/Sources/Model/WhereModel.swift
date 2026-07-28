@@ -36,6 +36,11 @@ public final class WhereModel {
         case loggedOut(dormantReal: WhereScope?)
         /// Logged in to the user's real, persisted world.
         case real(WhereScope)
+        /// Logged in to a throwaway demo world. The real scope rides along
+        /// (dormant, and `nil` when the user never opened one — demoing from a
+        /// fresh install), so it can't be lost while the demo runs and exiting
+        /// doesn't have to reopen anything.
+        case demo(active: WhereScope, dormantReal: WhereScope?)
     }
 
     /// The scope state, and with it the store the app is working against.
@@ -48,7 +53,17 @@ public final class WhereModel {
         switch scopeState {
             case .loggedOut: nil
             case let .real(scope): scope
+            case let .demo(scope, _): scope
         }
+    }
+
+    /// Whether the app is running on demo data. Injected into the view tree as
+    /// `\.isInDemoMode` (see `RootView`), which is how surfaces that must
+    /// behave differently — Settings' exit button, the rows that would write
+    /// something durable — find out without reaching for the model.
+    public var isInDemoMode: Bool {
+        if case .demo = scopeState { return true }
+        return false
     }
 
     /// The logged-in, services-backed state, mirrored here for surfaces the
@@ -194,7 +209,7 @@ public final class WhereModel {
     /// later attempt can try again.
     func resolveScope() async throws -> WhereScope {
         switch scopeState {
-            case let .real(scope):
+            case let .real(scope), let .demo(scope, _):
                 return scope
             case let .loggedOut(dormantReal):
                 if let dormantReal {
@@ -217,6 +232,47 @@ public final class WhereModel {
     /// prerequisites path; opens no store, and prompts for nothing.
     public func prepareLocation() {
         bootstrap.prepareLocation()
+    }
+
+    // MARK: - Demo mode
+
+    /// Log in to a demo world, keeping whatever real scope exists dormant
+    /// beside it.
+    ///
+    /// Detaches the real scope's durable log sink first, so nothing logged
+    /// during the demo is written to the user's on-disk history: a demo
+    /// entered after a reset would otherwise still be journaling through the
+    /// dormant real scope's store. The demo scope brings its own in-memory
+    /// sink, so the logs are still there to browse — they just die with the
+    /// process, like everything else in demo mode.
+    public func activateDemo(_ scope: WhereScope) async {
+        guard !isInDemoMode else { return }
+        let dormantReal: WhereScope? = switch scopeState {
+            case let .loggedOut(dormantReal): dormantReal
+            case let .real(scope): scope
+            case let .demo(_, dormantReal): dormantReal
+        }
+        await dormantReal?.detachLogSink()
+        session = nil
+        scopeState = .demo(active: scope, dormantReal: dormantReal)
+        Self.logger { .enteredDemoMode }
+    }
+
+    /// Leave demo mode: drop the demo session and scope, and give the real
+    /// scope its durable log sink back. The demo scope — its store, its
+    /// preferences, its logs — is released here and never persisted anywhere.
+    ///
+    /// Lands logged out rather than back in the real world, because leaving a
+    /// demo means the user hasn't chosen yet: the relaunch parks on the
+    /// onboarding gate, which is where someone who has never onboarded belongs
+    /// (and, for someone who has, resolves straight through to their data).
+    public func deactivateDemo() async {
+        guard case let .demo(active, dormantReal) = scopeState else { return }
+        await active.detachLogSink()
+        session = nil
+        scopeState = .loggedOut(dormantReal: dormantReal)
+        dormantReal?.reattachLogSink()
+        Self.logger { .exitedDemoMode }
     }
 
     /// Create the logged-in `WhereSession` over `scope` and return it — the

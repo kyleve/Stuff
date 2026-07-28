@@ -48,6 +48,9 @@ public enum LaunchStepID: String, Sendable {
     /// Reset teardown: clear the persisted preferences that gate the relaunch
     /// (onboarding flag, tracking intent, reminder/summary schedules).
     case resetPreferences = "reset-preferences"
+    /// Demo teardown: drop the demo world and hand the real one its durable
+    /// log sink back.
+    case exitDemo = "exit-demo"
 }
 
 /// Assembles the Where app's cold-launch plan and the `LifecycleRunner` that
@@ -170,6 +173,20 @@ public enum WhereLaunch {
     {
         LaunchPlan(EraseDataStep(model: model))
             .then(ResetPreferencesStep(model: model))
+    }
+
+    /// The teardown Settings' "Exit demo mode" runs, rooted at the demo
+    /// session being left behind.
+    ///
+    /// Nothing is erased: a demo world was only ever in memory, so dropping it
+    /// *is* the cleanup. The relaunch lands on the onboarding gate — the demo's
+    /// `hasOnboarded` went with its preferences, and the user's real flag says
+    /// whatever it always did, so someone who had already onboarded goes
+    /// straight back to their data and everyone else gets the intro.
+    public static func exitDemoPlan(for model: WhereModel)
+        -> LaunchPlan<LaunchStepID, WhereSession, Void>
+    {
+        LaunchPlan(ExitDemoStep(model: model))
     }
 }
 

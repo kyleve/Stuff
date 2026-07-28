@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import PeriscopeCore
+import RegionKit
 import WhereCore
 
 /// Everything the app is logged in *to*: the service layer over one open
@@ -28,13 +29,18 @@ import WhereCore
 public final class WhereScope {
     /// The service layer — the entry point to the domain for every logged-in
     /// surface. Owns this scope's store.
-    let services: WhereServices
+    ///
+    /// Public because a scope *is* the composition value the app hands around:
+    /// the launch builds sessions from it, and the app target derives the App
+    /// Intents stack from the same services. Views still reach the domain
+    /// through their view models, not through here.
+    public let services: WhereServices
 
     /// The persisted user intent (onboarding, tracking, reminder/summary
     /// schedules) this scope reads and writes. A reference, shared with
     /// whoever else holds these preferences, so a write from onboarding and a
     /// read from the session see one store.
-    let preferences: WherePreferences
+    public let preferences: WherePreferences
 
     /// The durable log store this scope's records persist to, once it has
     /// opened. Observable because the DEBUG developer surface renders off its
@@ -54,10 +60,32 @@ public final class WhereScope {
     /// tracked in `Where/TODOs.md`.)
     private static let logRetention: TimeInterval = 100 * 24 * 60 * 60
 
+    /// Whether this scope is the user's real world or a throwaway demo one.
+    ///
+    /// Carried on the scope rather than derived at each call site because it
+    /// changes what a *session* may do — a demo session must not write to the
+    /// Spotlight index or the widget's shared file, which outlive it — and the
+    /// session is built from the scope.
+    let kind: Kind
+
+    /// Which world a scope represents.
+    enum Kind {
+        /// The user's real, persisted world.
+        case real
+        /// A demo world: in memory, discarded on exit, and never allowed to
+        /// leave a mark on the device.
+        case demo
+    }
+
     /// Build a scope over an already-assembled service layer, with no durable
     /// log store. The app builds its real scope with ``real(bootstrap:preferences:)``;
     /// this is the seam previews and tests inject one through.
-    public init(services: WhereServices, preferences: WherePreferences) {
+    public convenience init(services: WhereServices, preferences: WherePreferences) {
+        self.init(kind: .real, services: services, preferences: preferences)
+    }
+
+    init(kind: Kind, services: WhereServices, preferences: WherePreferences) {
+        self.kind = kind
         self.services = services
         self.preferences = preferences
     }
@@ -74,10 +102,64 @@ public final class WhereScope {
         preferences: WherePreferences,
     ) async throws -> WhereScope {
         let scope = try await WhereScope(
+            kind: .real,
             services: bootstrap.makeServices(),
             preferences: preferences,
         )
         scope.openDurableLogStore(from: bootstrap)
+        return scope
+    }
+
+    /// A throwaway world to demonstrate the app in: an in-memory store seeded
+    /// with a plausible year, in-memory preferences, and an in-memory log
+    /// store — nothing here survives the process, and nothing it does reaches
+    /// the user's data.
+    ///
+    /// Every collaborator that would touch the device outside the store is a
+    /// no-op: the schedulers never ask for notification permission, the widget
+    /// refresher never writes the shared snapshot file, and the location
+    /// source is scripted, so demo mode prompts for nothing. The scripted
+    /// source reports `.always` and answers a one-shot fix from New York, so
+    /// the app behaves as it would for a user who has granted everything.
+    ///
+    /// Building this is the slow part of entering demo mode (seeding a year),
+    /// which is why the entry point shows an interstitial while it runs.
+    public static func demo(now: @escaping @Sendable () -> Date) async throws -> WhereScope {
+        let aggregator = DayAggregator()
+        let locationSource = ScriptedLocationSource(authorizationStatus: .always)
+        locationSource.setNextRequestedLocation(LocationSample(
+            timestamp: now(),
+            coordinate: DemoDataBuilder.homeCoordinate,
+            horizontalAccuracy: 12,
+            source: .gpsVisit,
+        ))
+        let services = try await WhereServices.make(
+            store: SwiftDataStore.inMemory(),
+            locationSource: locationSource,
+            aggregator: aggregator,
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            locationOutbox: NoOpLocationOutbox(),
+            now: now,
+        )
+        try await DemoDataBuilder(now: now(), calendar: aggregator.calendar)
+            .seed(into: services)
+
+        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        // Onboarded and tracking, so the demo opens on the logged-in app with
+        // live tracking shown rather than on a first-run prompt. These are the
+        // demo's own preferences: the user's real ones are untouched, which is
+        // what makes quitting mid-demo return to onboarding.
+        preferences.hasOnboarded = true
+        preferences.wantsTracking = true
+
+        let scope = WhereScope(kind: .demo, services: services, preferences: preferences)
+        try await scope.attachLogSink(PeriscopeStore.make(
+            storage: .inMemory,
+            session: .current(),
+        ))
         return scope
     }
 
@@ -101,11 +183,26 @@ public final class WhereScope {
     /// Stop routing the shared pipeline into this scope's log store. Awaits
     /// the sink settling (it receives everything already emitted, then
     /// nothing), so a scope that is no longer active can't keep persisting
-    /// another scope's records.
-    func detachLogSink() async {
+    /// another scope's records. The store itself is retained, so a scope that
+    /// becomes active again can pick its sink back up.
+    ///
+    /// Public because whoever owns a scope has to be able to settle one it is
+    /// done with — `WhereModel` on the way in and out of demo mode, and a test
+    /// that builds a scope directly, which must leave no sink behind on the
+    /// process-wide pipeline.
+    public func detachLogSink() async {
         guard let logSink else { return }
         self.logSink = nil
         await Periscope.shared.remove(logSink)
+    }
+
+    /// Route the shared pipeline back into the log store this scope already
+    /// opened — the other half of `detachLogSink()`, for a scope that was set
+    /// aside while another world was active. A no-op for a scope that never
+    /// had a store or still has its sink.
+    func reattachLogSink() {
+        guard let logStore else { return }
+        attachLogSink(logStore)
     }
 
     /// Open the durable log store and attach it as this scope's sink, off the

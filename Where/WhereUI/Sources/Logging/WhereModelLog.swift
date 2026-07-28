@@ -10,6 +10,11 @@ enum WhereModelLog: LogEvent {
     case startedSession(year: Int)
     case endedSession
     case resetPreferences
+    /// Logged in to a demo world. Everything from here until
+    /// ``exitedDemoMode`` describes fabricated data in memory, so a log read
+    /// back later isn't mistaken for the user's real history.
+    case enteredDemoMode
+    case exitedDemoMode
 
     static let eventName = "WhereModel"
 
@@ -25,6 +30,10 @@ enum WhereModelLog: LogEvent {
                 "Ended session"
             case .resetPreferences:
                 "Reset preferences to first-install defaults"
+            case .enteredDemoMode:
+                "Entered demo mode"
+            case .exitedDemoMode:
+                "Exited demo mode"
         }
     }
 }
