@@ -208,6 +208,6 @@ in-memory fixture schema and apply no design-system root, so the capture shows
 what a consumer actually gets rather than any one host app's styling. They build
 as the module's own `SwiftDataInspectorSnapshotTests` bundle, which runs
 alongside every other module's image suite in the shared `StuffSnapshotTests`
-scheme. Run with `tuist test
-StuffSnapshotTests`; to re-record after an intentional UI change, see the
+scheme. Run with `./test
+--snapshots`; to re-record after an intentional UI change, see the
 [SnapshotKitTesting README](../SnapshotKitTesting/README.md#recording).
