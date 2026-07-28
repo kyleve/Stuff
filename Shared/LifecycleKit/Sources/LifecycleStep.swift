@@ -73,6 +73,12 @@ public protocol LifecycleGate {
     /// a gate's whole job is to wait for the user, which would park a
     /// headless launch forever, so it is skipped there and re-evaluated when
     /// `enterForeground()` promotes the launch.
+    ///
+    /// A gate that guards work a headless launch must not do anyway — one
+    /// rooting a plan, where nothing may be built until the user chooses —
+    /// should declare `.all` instead. Parking forever is then the point: no
+    /// later node runs, nothing is built, and the parked drive is superseded
+    /// when a scene promotes the launch.
     var modes: LifecycleModeSet { get }
 
     /// Whether the gate needs to present at all, evaluated when the trunk

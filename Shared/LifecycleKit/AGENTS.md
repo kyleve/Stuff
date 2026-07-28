@@ -43,6 +43,15 @@ system, formatting, and global conventions. Read that first.
   steps must keep `modes == .all` (plan-construction `precondition`) — a
   skipped producer would leave a hole in the data flow. Don't add a skip path
   for them.
+- **A plan may be rooted at a gate**, for an app that must build nothing until
+  the user chooses (Where roots at its onboarding/demo choice). The plan's
+  `Input` and `Output` are then the gate's `Value` — `Void` for a launch —
+  which is safe for the same reason `.gate` is: a gate transforms nothing. Such
+  a gate declares `modes: .all` rather than taking the `.foreground` default:
+  parking a headless launch is the *point*, not the deadlock the default avoids,
+  and the parked drive is superseded normally when a scene promotes the launch.
+  Since a gate carries no value, the choice reaches the next step through that
+  step's dependencies, not the trunk.
 - **Failure is terminal.** A thrown node parks `.failed` with no retry — the
   recovery is relaunching the app. A failed teardown likewise parks and does
   not relaunch (a thrown erase leaves state intact). Don't reintroduce a
