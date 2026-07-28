@@ -84,8 +84,11 @@ final class RegionAttribution: RegionAttributing {
         let changed = state.withLock { $0.trackedIDs != ids }
         guard changed else { return }
         // Canonical order so the rebuilt attributor's first-match priority is
-        // deterministic (see WhereServices.make).
-        let rebuilt = RegionAttributor(for: Region.inCanonicalOrder(tracked))
+        // deterministic (see WhereServices.make). Re-parsing every tracked
+        // region's GeoJSON is the expensive part, hence the span.
+        let rebuilt = Self.logger.measure(.rebuild, budget: .seconds(1)) {
+            RegionAttributor(for: Region.inCanonicalOrder(tracked))
+        }
         state.withLock { $0 = State(attributor: rebuilt, trackedIDs: ids) }
     }
 }

@@ -10,6 +10,8 @@ import Foundation
 public struct AbruptLocationChangeDetector: DataIssueDetector {
     public typealias Issue = AbruptChangeIssue
 
+    public let detects = DataIssueCategory.abruptChange
+
     public init() {}
 
     public func detectIssues(in input: DataIssueInput) -> [AbruptChangeIssue] {

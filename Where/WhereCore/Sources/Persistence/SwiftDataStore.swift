@@ -368,25 +368,32 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             writerContext = nil
             endExclusive()
         }
-        // Mark this store as transacting for the duration of the block so nested
-        // `perform` calls on this task reuse the peer above.
-        let result = try await Self.$activeTransactionStores.withValue(
-            Self.activeTransactionStores.union([ObjectIdentifier(self)]),
-        ) {
-            try await block()
+        // One span per committed transaction, opened *after* the exclusivity
+        // wait so it measures the write rather than the queueing behind another
+        // writer. Only the outermost `perform` spans, so a nested write doesn't
+        // nest a duplicate inside its own commit.
+        return try await Self.logger.measure(.commit) {
+            // Mark this store as transacting for the duration of the block so
+            // nested `perform` calls on this task reuse the peer above.
+            let result = try await Self.$activeTransactionStores.withValue(
+                Self.activeTransactionStores.union([ObjectIdentifier(self)]),
+            ) {
+                try await block()
+            }
+            // Outermost success: save the peer, which propagates the batched
+            // writes to the persistent store. The main `modelContext` picks the
+            // changes up on its next fetch. A throw before here (from the block
+            // or the save) skips the save, so the peer is discarded without
+            // reaching the persistent store — a clean rollback of the entire
+            // transaction — while `defer` still clears `writerContext` and
+            // releases the gate.
+            try peer.save()
+            // Committed: ping `changes()` subscribers so they re-read. Only the
+            // outermost `perform` reaches here (nested calls returned above
+            // without saving), so a transaction pings exactly once.
+            changeBroadcaster.send()
+            return result
         }
-        // Outermost success: save the peer, which propagates the batched writes
-        // to the persistent store. The main `modelContext` picks the changes up
-        // on its next fetch. A throw before here (from the block or the save)
-        // skips the save, so the peer is discarded without reaching the
-        // persistent store — a clean rollback of the entire transaction — while
-        // `defer` still clears `writerContext` and releases the gate.
-        try peer.save()
-        // Committed: ping `changes()` subscribers so they re-read. Only the
-        // outermost `perform` reaches here (nested calls returned above without
-        // saving), so a transaction pings exactly once.
-        changeBroadcaster.send()
-        return result
     }
 
     /// The context mutating methods write to. Mutations are
@@ -438,10 +445,15 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             sortBy: [SortDescriptor(\.timestamp)],
         )
         descriptor.includePendingChanges = true
-        return try context.fetch(descriptor).compactMap { record in
-            let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
-            return value
+        // Spanning the fetch *and* the materialization together is deliberate:
+        // decoding a year of rows into values is a real share of the cost, and
+        // splitting them would only obscure it.
+        return try Self.logger.measure(.fetchSamples) {
+            try context.fetch(descriptor).compactMap { record in
+                let value = record.toValue()
+                if value == nil { Self.logFault(forCorrupt: record) }
+                return value
+            }
         }
     }
 
@@ -487,10 +499,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             sortBy: [SortDescriptor(\.capturedAt)],
         )
         descriptor.includePendingChanges = true
-        return try context.fetch(descriptor).compactMap { record in
-            let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
-            return value
+        return try Self.logger.measure(.fetchEvidence) {
+            try context.fetch(descriptor).compactMap { record in
+                let value = record.toValue()
+                if value == nil { Self.logFault(forCorrupt: record) }
+                return value
+            }
         }
     }
 
@@ -508,7 +522,11 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     public func evidenceBlob(for id: UUID) async throws -> Data? {
         let context = readContext()
         let descriptor = FetchDescriptor<SDEvidence>(predicate: #Predicate { $0.id == id })
-        return try context.fetch(descriptor).first?.blob
+        // Blobs live in external storage, so this is a file read behind a fetch
+        // — the one evidence read whose cost scales with the attachment.
+        return try Self.logger.measure(.fetchEvidenceBlob) {
+            try context.fetch(descriptor).first?.blob
+        }
     }
 
     public func write(blob: Data, for id: UUID) async throws {
@@ -588,10 +606,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             sortBy: [SortDescriptor(\.dayKey)],
         )
         descriptor.includePendingChanges = true
-        return try context.fetch(descriptor).compactMap { record in
-            let value = record.toValue()
-            if value == nil { Self.logFault(forCorrupt: record) }
-            return value
+        return try Self.logger.measure(.fetchManualDays) {
+            try context.fetch(descriptor).compactMap { record in
+                let value = record.toValue()
+                if value == nil { Self.logFault(forCorrupt: record) }
+                return value
+            }
         }
     }
 
