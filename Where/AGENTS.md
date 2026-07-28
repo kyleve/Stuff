@@ -78,10 +78,12 @@ Rules the code enforces and agents must preserve:
   onboarding gate, so an install that never onboards creates no store file,
   contacts no CloudKit, and opens no log store. Guard:
   `WhereLaunchTests.firstRunForegroundLaunchParksOnTheOnboardingGateBeforeOpeningAnything`.
-- **The store opens at most once per process.** Logging out — a reset, or
-  leaving a demo — keeps the scope dormant, so logging back in reuses that
-  container rather than racing a second one over the file. Guard:
-  `WhereResetTests.loggingBackInAfterAResetReusesTheSameStore`.
+- **At most one scope is live at a time.** Logging out — a reset, or leaving a
+  demo — releases and tears down the scope; logging back in builds a fresh one.
+  What went wrong historically wasn't opening a second container *ever*, it was
+  two long-lived ones open *at once*, which sequenced teardown makes
+  unspellable. Guard:
+  `WhereResetTests.loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne`.
 - **The onboarding gate declares `modes: .all`,** not the `.foreground`
   default: parking a headless launch is the point. A background wake needs the
   permission this flow asks for, so `isNeeded` is false by then.
