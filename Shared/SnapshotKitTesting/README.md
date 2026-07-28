@@ -33,7 +33,11 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   host window) across its suspensions, so a concurrent call queues behind the
   in-flight capture instead of corrupting it. A case's
   `SnapshotSettle` picks the settle phase: `.settled` (default) waits for
-  pixel-stable renders so `.task`-driven content loads;
+  pixel-stable renders, which gives `.task`-driven content time to load but
+  cannot certify that it did — a loading placeholder is pixel-stable too, so a
+  case whose final content arrives asynchronously has to be made deterministic
+  (seed the fixture so the first frame is final, or gate on
+  `onReadyToSnapshot`);
   `.settledAtLeast(minDuration:)` raises the loop's minimum window for async
   appearance work that starts quiet and lands after the default floor (the
   iOS 26 glass toolbar/tab bar material adaptation); `.immediate` skips the

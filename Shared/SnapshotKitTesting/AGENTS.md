@@ -67,6 +67,17 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   settle timeout by widening the budget — freeze the motion behind
   `\.isCapturingSnapshot`, or use `.settledAtLeast` only for genuinely slow
   (not endless) content.
+- **A settled capture is not a ready capture.** The loop proves the pixels
+  stopped changing, not that the content the case meant to show ever arrived —
+  a loading placeholder is perfectly pixel-stable, so a gap between phases of
+  async work settles clean and bakes the spinner, and the suite reports green.
+  Pixel stability can't be strengthened into a readiness signal (nothing public
+  sees pending dispatch or Swift-concurrency work — see below), so a case whose
+  content arrives asynchronously must be made deterministic instead: seed the
+  fixture so its first frame is final (`resolution.Empty`), or await a
+  completion signal from `onReadyToSnapshot` (`root.LoggedIn`). Both incidents,
+  and how each was found, are ledgered in
+  [`Where/TODOs.md`](../../Where/TODOs.md).
 - **`.timedOut` requires observed motion; starvation is `.starved`.** A
   change-free settle loop keeps running until it can prove stability (a
   starved machine can fit fewer passes than stability needs), and only a hard
