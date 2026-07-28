@@ -50,4 +50,4 @@ WindowGroup {
 
 Local SPM library declared in the root [`Package.swift`](../../../Package.swift)
 (depends on BroadwayCore): `.package(product: "BroadwayUI")`. Run tests with
-`tuist test BroadwayUITests`.
+`./test BroadwayUITests`.

@@ -25,5 +25,5 @@ bundles live in the shared [`TestHostSupport`](../TestHostSupport) module.
 
 Libraries are declared in the root [`Package.swift`](../../Package.swift); the
 Catalog app and hosted test bundles in [`Project.swift`](../../Project.swift)
-(bundle IDs `com.stuff.broadway.*`). Run e.g. `tuist test BroadwayCoreTests`,
-`tuist test BroadwayUITests`, or `tuist test BroadwayCatalogTests`.
+(bundle IDs `com.stuff.broadway.*`). Run e.g. `./test BroadwayCoreTests`,
+`./test BroadwayUITests`, or `./test BroadwayCatalogTests`.

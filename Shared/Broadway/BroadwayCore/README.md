@@ -32,4 +32,4 @@ derived cache. `BContext+UITraits.swift` bridges the context onto a
 
 Local SPM library declared in the root [`Package.swift`](../../../Package.swift):
 depend on it with `.package(product: "BroadwayCore")`. Run tests with
-`tuist test BroadwayCoreTests`.
+`./test BroadwayCoreTests`.

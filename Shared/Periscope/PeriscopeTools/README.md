@@ -108,13 +108,13 @@ stylesheet axis carried on `\.logRowDensity`.
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
 (`PeriscopeToolsTests` bundle): models are driven directly over in-memory
 stores (`@_spi(Testing) PeriscopeStore.inMemory`), views host via
-`TestHostSupport.show`. Run with `tuist test PeriscopeToolsTests`.
+`TestHostSupport.show`. Run with `./test PeriscopeToolsTests`.
 
 How the tools render is pinned by image snapshots in
 [`SnapshotTests/`](SnapshotTests), with reference images under
 `SnapshotTests/__Snapshots__/` in Git LFS. They build as the module's own
 `PeriscopeToolsSnapshotTests` bundle, which runs alongside every other module's
 image suite in the shared `StuffSnapshotTests` scheme. Run with
-`tuist test StuffSnapshotTests`; to re-record
+`./test --snapshots`; to re-record
 after an intentional UI change, see the
 [SnapshotKitTesting README](../../SnapshotKitTesting/README.md#recording).
