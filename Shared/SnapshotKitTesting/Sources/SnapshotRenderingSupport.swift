@@ -72,7 +72,7 @@ func reportIfUnsettled(
 }
 
 /// Runs the settle phase a case declared: `.settled` waits for pixel-stable
-/// renders (see ``settleContent(_:minDuration:maxDuration:timing:)``);
+/// renders (see ``settleContent(_:named:minDuration:maxDuration:timing:)``);
 /// `.settledAtLeast` is the same loop with a raised `minDuration` floor (for
 /// quiet-starting async chrome like the glass toolbar's material adaptation);
 /// `.immediate` yields once — so a `.task` body that merely sets state
@@ -81,17 +81,19 @@ func reportIfUnsettled(
 @MainActor
 func settleForCapture(
     _ view: UIView,
+    named name: String,
     settle: SnapshotSettle,
     timing: SnapshotCaptureTiming,
 ) async -> SettleOutcome {
     switch settle {
         case .settled:
-            return await settleContent(view, timing: timing)
+            return await settleContent(view, named: name, timing: timing)
         case let .settledAtLeast(minDuration):
             // Keep the hang budget for never-quiescing content above the raised
             // floor, so the minimum is always honored.
             return await settleContent(
                 view,
+                named: name,
                 minDuration: minDuration,
                 maxDuration: max(2.5, minDuration + 2.5),
                 timing: timing,
@@ -153,6 +155,7 @@ func settleForCapture(
 @MainActor
 @_spi(Testing) public func settleContent(
     _ view: UIView,
+    named name: String,
     minDuration: TimeInterval = 0.25,
     maxDuration: TimeInterval = 2.5,
     timing: SnapshotCaptureTiming? = nil,
@@ -180,6 +183,27 @@ func settleForCapture(
     // Reported on every exit path — including `.cancelled`, whose pass count is
     // exactly what distinguishes "gave up immediately" from "ground for 10s".
     defer { timing?.addSettlePasses(passCount) }
+
+    let mechanism = SnapshotSettleMechanism.fromEnvironment
+    let idleCounter = RunLoopIdleCounter()
+    var lastIdleCount = 0
+    var disagreements: [SettleDisagreement] = []
+    var quiescentSince: ContinuousClock.Instant?
+    var quiescentPasses = 0
+    if mechanism != .pixel {
+        idleCounter.start()
+        lastIdleCount = idleCounter.idleCount
+    }
+    defer {
+        idleCounter.stop()
+        SnapshotSettleReporting.report(
+            identifier: name,
+            mechanism: mechanism,
+            passes: passCount,
+            disagreements: disagreements,
+        )
+    }
+
     while true {
         do {
             try await Task.sleep(for: .milliseconds(16))
@@ -188,31 +212,78 @@ func settleForCapture(
         }
         CATransaction.performWithoutAnimation(view.layoutIfNeeded)
         passCount += 1
-        let sample = view.renderedContentSample()
-        // Byte-exact on purpose — not the tolerance the final image compare uses.
-        // The final compare answers "does this match the reference?", where
-        // sub-pixel/gamut noise warrants a perceptual threshold. This loop answers
-        // a different question — "has rendering *stopped changing*?" — and the
-        // quarter-resolution sample already absorbs sub-pixel jitter, so exact
-        // equality is the right settled signal. A tolerance here would let a slow,
-        // still-drifting animation read as settled between adjacent samples.
-        if sample != nil, sample == anchorSample {
-            stablePasses += 1
+
+        // Quiescence: the run loop has gone idle at least once since the last
+        // pass (so every runnable main-queue job drained) and nothing in the
+        // captured subtree has layout, display, or animation outstanding.
+        let isQuiescent: Bool? = if mechanism == .pixel {
+            nil
         } else {
-            // The first non-nil sample merely establishes the anchor; only a
-            // departure from an established anchor is the content changing.
-            if anchorSample != nil {
-                observedContentChange = true
-            }
-            anchorSample = sample
-            anchorTime = clock.now
-            stablePasses = 0
+            {
+                let idled = idleCounter.idleCount > lastIdleCount
+                lastIdleCount = idleCounter.idleCount
+                return idled && !(view.layer.hasPendingWork())
+            }()
         }
+
+        // Skipped entirely in `.quiescence` mode — not rendering it is the whole
+        // point — so the expensive path only runs where its answer is used.
+        let sample = mechanism == .quiescence ? nil : view.renderedContentSample()
         let now = clock.now
-        if stablePasses >= 2,
-           now >= anchorTime.advanced(by: stableQuietDuration),
-           now >= minDeadline
-        {
+
+        var pixelSaysStable = false
+        if mechanism != .quiescence {
+            // Byte-exact on purpose — not the tolerance the final image compare
+            // uses. The final compare answers "does this match the reference?",
+            // where sub-pixel/gamut noise warrants a perceptual threshold. This
+            // loop answers a different question — "has rendering *stopped
+            // changing*?" — and the quarter-resolution sample already absorbs
+            // sub-pixel jitter, so exact equality is the right settled signal. A
+            // tolerance here would let a slow, still-drifting animation read as
+            // settled between adjacent samples.
+            if sample != nil, sample == anchorSample {
+                stablePasses += 1
+            } else {
+                // The first non-nil sample merely establishes the anchor; only a
+                // departure from an established anchor is the content changing.
+                if anchorSample != nil {
+                    observedContentChange = true
+                }
+                anchorSample = sample
+                anchorTime = clock.now
+                stablePasses = 0
+            }
+            pixelSaysStable = stablePasses >= 2
+                && now >= anchorTime.advanced(by: stableQuietDuration)
+        }
+
+        var quiescenceSaysStable = false
+        if mechanism != .pixel {
+            if isQuiescent == true {
+                if quiescentSince == nil { quiescentSince = now }
+                quiescentPasses += 1
+            } else {
+                // Falling out of quiescence after having reached it is this
+                // mechanism's equivalent of the pixels changing.
+                if quiescentSince != nil { observedContentChange = true }
+                quiescentSince = nil
+                quiescentPasses = 0
+            }
+            quiescenceSaysStable = quiescentPasses >= 2
+                && (quiescentSince.map { now >= $0.advanced(by: stableQuietDuration) } ?? false)
+        }
+
+        if mechanism == .both, quiescenceSaysStable != pixelSaysStable {
+            disagreements.append(SettleDisagreement(
+                pass: passCount,
+                quiescenceWasEarlier: quiescenceSaysStable,
+            ))
+        }
+
+        // `both` deliberately lets the digest keep the verdict, so running the
+        // experiment can't change what any reference records.
+        let saysStable = mechanism == .quiescence ? quiescenceSaysStable : pixelSaysStable
+        if saysStable, now >= minDeadline {
             return .settled
         }
         // Checked after the stability check on purpose: a pass that completes

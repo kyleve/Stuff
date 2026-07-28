@@ -68,6 +68,35 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   image for views past ~2000pt on iOS 27.0; don't remove the tiling without
   re-running the probe. Guard:
   `SnapshotKitTestingTests.LargeViewCaptureTests`.
+- **A settle phase costs its floor, not its passes.** Measured over all 260
+  references with `SNAPSHOT_TIMING=1`: 192 captures sit at 0.25-0.35s, the
+  `minDuration` floor plus a pass or two, and the floor accounts for ~70s of
+  the ~84s of settle time. The render passes themselves are ~14s across the
+  whole suite. So making passes cheaper is worth ~11% and removing floors is
+  worth ~54% — but a floor can only come off with a **deterministic completion
+  seam** for that case (as `root.LoggedIn` does by awaiting `launcher.run()`
+  from `onReadyToSnapshot`), never by introspection.
+
+## Two things measured and rejected — don't re-derive them
+
+- **Quiescence can't replace the pixel digest.** `SNAPSHOT_SETTLE` selects
+  `pixel` (default), `quiescence` (a `beforeWaiting` run-loop observer plus a
+  recursive `needsLayout`/`needsDisplay`/`animationKeys` walk), or `both`, which
+  runs them together and reports disagreements while letting the digest keep the
+  verdict. Run in `both` mode over all 260 references: 226 settle phases, 133
+  with some disagreement, and **11 where quiescence declared settled *earlier*
+  than the digest** — every one a `Loaded_*` case whose content arrives late.
+  That is the one dangerous direction (it would capture a frame no reference
+  recorded), and it is exactly what `settleContent`'s doc comment predicts: a
+  SwiftUI update deep in the hosted tree never dirties the root, and flags read
+  after a commit has flushed look clean. The mechanism is kept so the experiment
+  is re-runnable after a toolchain change; it is not a candidate default.
+- **No public API sees pending dispatch or Swift-concurrency work.**
+  `CFRunLoopGetNextTimerFireDate` reports only `CFRunLoopTimer`s, so "is
+  something scheduled to land in 200ms?" is unanswerable — which is why the
+  floors exist and why they need per-case seams. Relatedly,
+  `CATransaction.addCommitHandler` is **macOS-only** and absent from the iOS
+  SDK, so a commit-counting variant of the above isn't available either.
 
 ## Testing
 

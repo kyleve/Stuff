@@ -44,7 +44,7 @@ public enum SnapshotSizing: Sendable {
 ///
 /// `async` is load-bearing, not a convenience: the settle phase must *suspend*
 /// (freeing the main actor) for SwiftUI `.task`-driven content to load — see
-/// ``settleContent(_:minDuration:maxDuration:timing:)``. Callers assert on the returned
+/// ``settleContent(_:named:minDuration:maxDuration:timing:)``. Callers assert on the returned
 /// image (``assertSnapshots(of:named:configurations:record:fileID:file:testName:line:column:)``
 /// does this) rather than through a synchronous `Snapshotting` pullback, which
 /// could never settle such content.
@@ -201,7 +201,12 @@ private func renderSnapshotImageLocked(
 
         await reportIfUnsettled(
             timing.measure(.settle) {
-                await settleForCapture(wrappingViewController.view, settle: settle, timing: timing)
+                await settleForCapture(
+                    wrappingViewController.view,
+                    named: name,
+                    settle: settle,
+                    timing: timing,
+                )
             },
             phase: "content",
             of: viewController,
@@ -220,6 +225,7 @@ private func renderSnapshotImageLocked(
                         .performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
                     return await settleForCapture(
                         wrappingViewController.view,
+                        named: name,
                         settle: settle,
                         timing: timing,
                     )
@@ -331,7 +337,7 @@ private func resolveContentSize(
     probeWrapper.view.setNeedsLayout()
     CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
     await reportIfUnsettled(
-        settleForCapture(probeWrapper.view, settle: settle, timing: timing),
+        settleForCapture(probeWrapper.view, named: name, settle: settle, timing: timing),
         phase: "intrinsic measurement",
         of: viewController,
         named: name,

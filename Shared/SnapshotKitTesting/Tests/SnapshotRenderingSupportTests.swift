@@ -22,7 +22,7 @@ struct SnapshotRenderingSupportTests {
         window.addSubview(view)
         defer { view.removeFromSuperview() }
 
-        let outcome = await settleContent(view, minDuration: 0, maxDuration: 0.1)
+        let outcome = await settleContent(view, named: #function, minDuration: 0, maxDuration: 0.1)
         #expect(outcome == .settled)
     }
 
@@ -49,7 +49,7 @@ struct SnapshotRenderingSupportTests {
         }
         defer { timer.invalidate() }
 
-        let outcome = await settleContent(view, minDuration: 0, maxDuration: 0.15)
+        let outcome = await settleContent(view, named: #function, minDuration: 0, maxDuration: 0.15)
         #expect(outcome == .timedOut(budget: 0.15))
     }
 
@@ -62,7 +62,7 @@ struct SnapshotRenderingSupportTests {
         window.addSubview(view)
         defer { view.removeFromSuperview() }
 
-        let outcome = await settleContent(view, minDuration: 0, maxDuration: 0.05)
+        let outcome = await settleContent(view, named: #function, minDuration: 0, maxDuration: 0.05)
         guard case let .starved(passes, cap) = outcome else {
             Issue.record("expected .starved, got \(outcome)")
             return
