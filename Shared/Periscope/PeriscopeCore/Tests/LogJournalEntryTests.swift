@@ -29,7 +29,8 @@ struct LogJournalEntryTests {
             ],
             callSite: LogCallSite(function: "upload(_:)", fileID: "App/Uploader.swift"),
         )
-        let journaled = try LogJournalRecord(record: record, sequence: 42)
+        var journaled = try LogJournalRecord(record: record, sequence: 42)
+        journaled.ambient = AmbientSnapshot(id: UUID(), values: [.network: "satisfied"])
         let entry = LogJournalEntry.record(journaled)
         let decoded = try LogJournalEntry.decoded(from: entry.encoded())
 
@@ -39,6 +40,7 @@ struct LogJournalEntryTests {
         }
         #expect(back == journaled)
         #expect(back.sequence == 42)
+        #expect(back.ambient?[.network] == "satisfied")
         #expect(back.eventName == PhotoLogs.eventName)
         #expect(back.scopes == [scope.id.rawValue])
         #expect(back.tags[key] == .int(3))
@@ -87,6 +89,26 @@ struct LogJournalEntryTests {
         // A newer build's entry kind must be skippable, not fatal.
         let future = Data(#"{"v":9,"kind":"hologram","payload":""}"#.utf8)
         #expect(try LogJournalEntry.decoded(from: future) == nil)
+    }
+
+    /// A journal is written before an upgrade and ingested after one, so an
+    /// entry from a build that predates ambient state — no `ambient` key at
+    /// all — must still decode rather than throw the whole journal away.
+    @Test func entriesWithoutAmbientStateStillDecode() throws {
+        let record = LogRecord(
+            date: Date(timeIntervalSinceReferenceDate: 7),
+            event: Message(level: .info, "from an older build"),
+            scopes: [],
+        )
+        let journaled = try LogJournalRecord(record: record, sequence: 1)
+        let encoded = try LogJournalEntry.record(journaled).encoded()
+
+        let envelope = try #require(
+            JSONSerialization.jsonObject(with: encoded) as? [String: Any],
+        )
+        let payload = try #require(envelope["payload"] as? [String: Any])
+        #expect(payload["ambient"] == nil)
+        #expect(try LogJournalEntry.decoded(from: encoded) == .record(journaled))
     }
 
     @Test func malformedEntriesThrow() {
