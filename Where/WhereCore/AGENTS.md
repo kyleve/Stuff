@@ -168,7 +168,16 @@ Drive collaborators against `SwiftDataStore.inMemory()` + `ScriptedLocationSourc
 — never the on-disk/CloudKit store or `CoreLocationSource`. The CloudKit
 remote-import path uses the `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`. Internal types are reached via
-`@testable import WhereCore`. `InMemoryKeyValueStore` (the `KeyValueStore` test
-double) ships here behind `@_spi(Testing)` + `#if DEBUG` — not in a test-only
-module — so it never ships in release; test bundles get it with
-`@_spi(Testing) import WhereCore`.
+`@testable import WhereCore`.
+
+**The no-op collaborators are production API, not test scaffolding.**
+`InMemoryKeyValueStore` and the noop schedulers/refreshers
+(`NoopLoggingReminderScheduler`, `NoopDailySummaryScheduler`,
+`NoopDataIssueAlertScheduler`, `NoopWidgetTimelineRefresher`,
+`NoOpLocationOutbox`) are plain `public` and ship in release, because the app's
+**demo mode** assembles a whole session out of them — in-memory preferences and
+schedulers that never ask for a system permission. Tests and previews use them
+too, but that's no longer what keeps them here, so don't "restore" the
+`@_spi(Testing)` + `#if DEBUG` gating the first two used to carry. Genuine
+test-only hooks (failure injection, queue introspection, clock overrides) still
+follow the root convention.

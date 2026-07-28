@@ -179,6 +179,7 @@ on-disk/CloudKit store or `CoreLocationSource`. The CloudKit remote-import path
 is exercised via the `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`.
 
-`InMemoryKeyValueStore` — a `KeyValueStore` test double for `WherePreferences` —
-also ships here behind `@_spi(Testing)` (`#if DEBUG`); import it into test bundles
-with `@_spi(Testing) import WhereCore`.
+`InMemoryKeyValueStore` — a `KeyValueStore` for `WherePreferences` that keeps
+everything in memory — is plain `public` API, as are the noop schedulers and
+refreshers. They back tests and previews, but they ship because the app's demo
+mode is built out of them.

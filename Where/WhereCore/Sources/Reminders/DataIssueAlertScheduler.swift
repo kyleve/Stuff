@@ -29,30 +29,28 @@ public protocol DataIssueAlertScheduling: Sendable {
     func reconcile(enabled: Bool, time: ReminderTime, body: String) async
 }
 
-#if DEBUG
-    /// A `DataIssueAlertScheduling` that does nothing, for view-model tests that
-    /// need a controller without touching `UNUserNotificationCenter`. Reports
-    /// unauthorized so the UI's "denied" affordances stay exercisable.
-    ///
-    /// `@_spi(Testing)` + `#if DEBUG` per the agents.md testing-hook convention:
-    /// it's test-only scaffolding that mustn't ship in release. Import it with
-    /// `@_spi(Testing) import WhereCore` (add `@testable` in WhereCore's own
-    /// tests) and inject it via `WhereServices(issueAlertScheduler:)`.
-    @_spi(Testing)
-    public struct NoopDataIssueAlertScheduler: DataIssueAlertScheduling {
-        public init() {}
+/// A `DataIssueAlertScheduling` that does nothing. For SwiftUI previews,
+/// view-model tests, and the app's demo mode — anything that needs a
+/// reconciler without touching `UNUserNotificationCenter`. Reports
+/// unauthorized so the UI's "denied" affordances stay exercisable.
+///
+/// Ships in release, like its `NoopLoggingReminderScheduler` /
+/// `NoopDailySummaryScheduler` siblings: demo mode runs an entire session on
+/// noop schedulers so it never asks for a system permission, which makes this
+/// production wiring rather than test-only scaffolding.
+public struct NoopDataIssueAlertScheduler: DataIssueAlertScheduling {
+    public init() {}
 
-        public func requestAuthorization() async -> Bool {
-            false
-        }
-
-        public func isAuthorized() async -> Bool {
-            false
-        }
-
-        public func reconcile(enabled _: Bool, time _: ReminderTime, body _: String) async {}
+    public func requestAuthorization() async -> Bool {
+        false
     }
-#endif
+
+    public func isAuthorized() async -> Bool {
+        false
+    }
+
+    public func reconcile(enabled _: Bool, time _: ReminderTime, body _: String) async {}
+}
 
 /// Production `DataIssueAlertScheduling` backed by `UNUserNotificationCenter`.
 /// Schedules one repeating daily notification under a dedicated identifier, so
