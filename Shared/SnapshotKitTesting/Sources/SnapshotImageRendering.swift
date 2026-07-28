@@ -6,9 +6,18 @@ import UIKit
 /// Default fraction of pixels that must match within the perceptual tolerance.
 public let defaultSnapshotPrecision: Float = 0.999
 
-/// Default perceptual tolerance. ~98% mimics the human eye and absorbs
-/// sub-visible antialiasing / subpixel noise without hiding real regressions.
-public let defaultSnapshotPerceptualPrecision: Float = 0.98
+/// Default perceptual tolerance, as a ΔE threshold of `(1 - value) * 100` — so
+/// a pixel may differ by up to ΔE 10 before it counts against
+/// ``defaultSnapshotPrecision``.
+///
+/// Loose on purpose, because `CILabDeltaE` — the metric behind the verdict — is
+/// far steeper near black than the CIE76 it approximates. A ±1/255 difference,
+/// which is what a different GPU or OS build produces and is invisible by
+/// construction, measures ΔE 0.15-0.19 in pastels but up to 12 in near-black
+/// pixels. This knob bounds a pixel's *amplitude*; how much of the image may
+/// exceed it is ``defaultSnapshotPrecision``'s job. The measurements, and why
+/// 10 rather than 5, are in `AGENTS.md`.
+public let defaultSnapshotPerceptualPrecision: Float = 0.90
 
 /// How a snapshot resolves the size it renders at.
 public enum SnapshotSizing: Sendable {

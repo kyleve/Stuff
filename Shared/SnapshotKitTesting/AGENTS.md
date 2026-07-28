@@ -40,6 +40,26 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 - **The compare sees on-disk bytes.** Every capture round-trips through PNG
   encoding before comparison; removing it re-opens the wide-gamut vs. sRGB
   flake (see `renderSnapshotImage`'s doc).
+- **`CILabDeltaE` is not perceptually uniform, so the ΔE tolerance is loose by
+  design.** The verdict's metric is far steeper near black than the CIE76 it
+  approximates: measured on this toolchain, a ±1/255 drift reads as ΔE
+  0.15-0.19 in pastels, up to 4.2 in dark greys, and up to **12.1** in the
+  worst near-black corner when channels move in opposite directions — where
+  CIE76 calls the same drift ~0.3. That is why
+  `defaultSnapshotPerceptualPrecision` is **0.90** (ΔE 10) rather than
+  something eye-shaped like 0.98 (ΔE 2). Relax *this* knob, never
+  `defaultSnapshotPrecision`: environmental noise is bounded in per-pixel
+  amplitude but scatters over whatever content is dark, so widening the *area*
+  budget instead is what would hide a real regression confined to one
+  component. Evidence, from the CI attachments of run 30390830180
+  (`calendarContent.FullContent_fullHeight`, which 0.98 failed): every one of
+  its 30,572 differing pixels was off by exactly one unit, 87% of them
+  near-black glyph pixels, true CIE76 maximum **0.99** — invisible, yet 17,007
+  pixels (0.157%) cleared ΔE 2 and blew the 0.1% budget. At ΔE 10 that capture
+  contributes **zero** pixels, while the genuine glyph-shift regression in
+  `swiftDataInspector.SwiftDataInspector_iPhone_dark` (differing pixels massed
+  at ΔE 62) still fails at 0.178%. 0.95 (ΔE 5) was rejected: it passes, but
+  leaves 7,120 noise pixels at 66% of the budget, i.e. one bad CI day from red.
 - **The runner fails fast, once, on setup problems** (a simulator that doesn't
   match the `SNAPSHOT_EXPECTED_*` pins, two variants sharing one reference
   name) — one clear issue, never hundreds of pixel diffs.
