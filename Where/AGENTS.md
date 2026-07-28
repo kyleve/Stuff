@@ -158,10 +158,13 @@ What an agent must preserve when touching it:
   indexing in `AppDelegate`). Settings hides the groups that would reach past
   the demo — see `SettingsDestination.isAvailableInDemoMode`. A new surface
   that persists something needs the same treatment.
-- **The durable log sink is swapped, not shared.** Entering detaches the real
-  scope's on-disk sink (a demo entered after a reset would otherwise journal to
-  the user's history) and exiting reattaches it. `WhereScope` models that as one
-  `pending` / `routing` / `idle` state rather than a store beside a token,
+- **The durable log sink is swapped, not shared, and the model owns the swap.**
+  Entering stops the real scope's on-disk routing (a demo entered after a reset
+  would otherwise journal to the user's history) and exiting starts it again; a
+  scope *holds* its store from birth but only routes once `WhereModel` activates
+  it, so a demo world built and then abandoned leaves nothing registered.
+  `WhereScope` models that as one `pending` / `routing` / `idle` state rather
+  than a store beside a token,
   because the durable store opens *asynchronously*: one arriving while its scope
   is shadowed must be remembered without being attached, which independent
   optionals let you get wrong (and did —

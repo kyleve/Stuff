@@ -69,9 +69,10 @@ struct DemoModeTests {
         #expect(scope.preferences.hasOnboarded)
         #expect(scope.preferences.wantsTracking)
 
-        // Its log store is in memory, like everything else it owns.
+        // Its log store is in memory, like everything else it owns — held but
+        // not yet routed into, since the scope hasn't been activated.
         #expect(scope.logStore != nil)
-        await scope.detachLogSink()
+        await scope.stopLogRouting()
     }
 
     @Test func demoPreferencesNeverReachTheRealOnes() async throws {
@@ -288,6 +289,27 @@ struct DemoModeTests {
         Log<DemoProbeLog>(system: logSystem).info("after the demo")
         await logSystem.flush()
         #expect(try await messages(in: realLogStore).contains("after the demo"))
+    }
+
+    /// A demo world is built before anyone commits to entering it — the build
+    /// can fail, and the entry can be abandoned. Until it is activated it must
+    /// hold its log store without registering it, or an abandoned world would
+    /// keep receiving records for the rest of the process.
+    @Test func aDemoWorldBuiltButNeverEnteredReceivesNothing() async throws {
+        let logSystem = Periscope.isolated()
+        let model = try WhereModel(
+            preferences: makePreferences(),
+            bootstrap: ScriptedBootstrap(services: makeServices()),
+            logSystem: logSystem,
+        )
+        let abandoned = try await model.makeDemoScope()
+        let itsStore = try #require(abandoned.logStore)
+
+        Log<DemoProbeLog>(system: logSystem).info("nothing to do with the demo")
+        await logSystem.flush()
+
+        #expect(try await messages(in: itsStore).isEmpty)
+        #expect(!model.isInDemoMode)
     }
 
     private func messages(in store: PeriscopeStore) async throws -> [String] {

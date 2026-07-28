@@ -41,9 +41,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   kinds, both reached through `WhereModel`: the real one opens the app's single
   on-disk store, and `makeDemoScope()` builds a seeded in-memory world that
   leaves nothing behind. Its log sink is registered on an **injected**
-  `Periscope`, and whether it's routing is one state (`pending` / `routing` /
-  `idle`) so a store that finishes opening while the scope is shadowed is
-  remembered rather than attached.
+  `Periscope` — and only while `WhereModel` says the scope is active — with
+  routing modelled as one state (`pending` / `routing` / `idle`), so a store that
+  finishes opening while the scope is shadowed is remembered rather than routed
+  into.
 - **`WhereModel`** — app-level state that outlives any one scope: the
   onboarding flag, the active `WhereScope`, the owned `WhereSession`, and the
   lifecycle intents (`activate(scope:)`, `startSession(scope:)` — which

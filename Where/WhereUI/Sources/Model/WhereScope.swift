@@ -226,30 +226,33 @@ public final class WhereScope {
             preferences: preferences,
             logSystem: logSystem,
         )
-        try await scope.attachLogSink(PeriscopeStore.make(
+        // Handed over, not yet routed into: activating the scope starts that
+        // (see `WhereModel.activateDemo`), so a demo world built but never
+        // entered — a failed build, a cancelled entry — leaves no registration
+        // behind on the logging system.
+        try await scope.adopt(logStore: PeriscopeStore.make(
             storage: .inMemory,
             session: .current(),
         ))
         return scope
     }
 
-    /// Record `store` as the log store this scope's developer surface browses,
-    /// without routing anything into it. For previews and tests, which want the
-    /// viewer populated but must not leave a sink attached to the logging
-    /// system behind them.
-    func attach(logStore store: PeriscopeStore) {
+    /// Hand this scope the durable log store it will record into, without
+    /// starting to route yet. What a scope that owns its store from birth (a
+    /// demo world) and a preview that only wants something to browse both do —
+    /// so an unactivated scope never leaves a registration behind.
+    func adopt(logStore store: PeriscopeStore) {
         logRouting = .idle(store: store)
     }
 
-    /// Route the logging system into `store` and record it as this scope's
-    /// durable log store, so everything logged while this scope is active
-    /// persists there.
+    /// Record `store` as this scope's durable log store, routing into it if the
+    /// scope is still waiting for one.
     ///
-    /// A store arriving while the scope is `idle` is *remembered, not
-    /// attached*: the open was started when this scope was active, but another
-    /// world has become active since, and routing into a shadowed scope is
-    /// exactly the leak this state machine exists to prevent.
-    func attachLogSink(_ store: PeriscopeStore) {
+    /// A store arriving while the scope is `idle` is *remembered, not routed
+    /// into*: the open was started when this scope was active, but another world
+    /// has become active since, and routing into a shadowed scope is exactly the
+    /// leak this state machine exists to prevent.
+    private func receive(logStore store: PeriscopeStore) {
         switch logRouting {
             case .pending:
                 logRouting = .routing(store: store, token: logSystem.add(sink: store))
@@ -260,17 +263,29 @@ public final class WhereScope {
         }
     }
 
-    /// Stop routing into this scope's log store. Awaits the sink settling (it
-    /// receives everything already emitted, then nothing), so a scope that is
-    /// no longer active can't keep persisting another scope's records. The
-    /// store itself is retained, so a scope that becomes active again can pick
-    /// its sink back up — and a store still opening is pre-emptively barred
-    /// from attaching when it lands.
+    /// Start routing this scope's records into its log store — what `WhereModel`
+    /// calls when the scope becomes the active one. A scope whose store hasn't
+    /// arrived yet becomes `pending`, so the open still in flight routes into it
+    /// as it lands.
+    func startLogRouting() {
+        guard case let .idle(store) = logRouting else { return }
+        if let store {
+            logRouting = .routing(store: store, token: logSystem.add(sink: store))
+        } else {
+            logRouting = .pending
+        }
+    }
+
+    /// Stop routing. Awaits the sink settling (it receives everything already
+    /// emitted, then nothing), so a scope that is no longer active can't keep
+    /// persisting another scope's records. The store itself is retained, so a
+    /// scope that becomes active again can pick it back up — and a store still
+    /// opening is pre-emptively barred from routing when it lands.
     ///
     /// Public because whoever owns a scope has to be able to settle one it is
     /// done with — `WhereModel` on the way in and out of demo mode, and a test
     /// that builds a scope directly, which must leave no sink behind.
-    public func detachLogSink() async {
+    public func stopLogRouting() async {
         switch logRouting {
             case .pending:
                 logRouting = .idle(store: nil)
@@ -279,19 +294,6 @@ public final class WhereScope {
                 await logSystem.remove(token)
             case .idle:
                 break
-        }
-    }
-
-    /// Route back into the log store this scope already opened — the other half
-    /// of `detachLogSink()`, for a scope that was set aside while another world
-    /// was active. A scope whose store never arrived returns to `pending`, so
-    /// the open still in flight attaches it as it originally would have.
-    func reattachLogSink() {
-        guard case let .idle(store) = logRouting else { return }
-        if let store {
-            logRouting = .routing(store: store, token: logSystem.add(sink: store))
-        } else {
-            logRouting = .pending
         }
     }
 
@@ -317,7 +319,7 @@ public final class WhereScope {
                 return
             }
             guard let store else { return }
-            attachLogSink(store)
+            receive(logStore: store)
             Self.logger { .loggingStoreReady }
             pruneHistory(in: store)
         }

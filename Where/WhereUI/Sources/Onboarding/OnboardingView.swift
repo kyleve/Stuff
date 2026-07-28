@@ -361,6 +361,11 @@ public struct OnboardingView: View {
                 _ = try await settle
                 try await model.activateDemo(scope)
                 gate.complete()
+            } catch is CancellationError {
+                // Nothing to report: the only thing that cancels this is the
+                // work itself going away, and there is no user waiting on an
+                // answer about it.
+                isBuildingDemo = false
             } catch {
                 isBuildingDemo = false
                 demoError = error.localizedDescription

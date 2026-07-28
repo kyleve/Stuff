@@ -14,3 +14,15 @@ extension EnvironmentValues {
     /// wrongly believing you're in demo mode is hiding real controls.
     @Entry public var isInDemoMode: Bool = false
 }
+
+extension View {
+    /// Seed `\.isInDemoMode` from which world `model` is logged in to.
+    ///
+    /// A named modifier rather than an inline `environment(_:_:)` at the app
+    /// root, so the mapping from scope state to environment is one thing with a
+    /// test on it (`DemoModeEnvironmentTests`) instead of an expression that
+    /// could quietly be deleted, taking the way out of demo mode with it.
+    public func demoMode(of model: WhereModel) -> some View {
+        environment(\.isInDemoMode, model.isInDemoMode)
+    }
+}

@@ -197,10 +197,18 @@ public final class WhereModel {
     }
 
     /// Record a log store on the active scope for the developer surface to
-    /// browse, without routing the shared pipeline into it. Previews and tests
-    /// only — the app's scopes open their own.
+    /// browse, without routing anything into it. Previews and tests only — the
+    /// app's scopes open their own.
+    ///
+    /// A log store belongs to a scope, so there has to be one to give it to.
+    /// Reaching here logged out is a miswired fixture rather than anything a
+    /// user can do, so it trips in debug and is dropped in release.
     public func attach(logStore: PeriscopeStore) {
-        activeScope?.attach(logStore: logStore)
+        guard let activeScope else {
+            assertionFailure("No active scope to attach a log store to")
+            return
+        }
+        activeScope.adopt(logStore: logStore)
     }
 
     /// Log in to `scope`. Idempotent: a no-op once a scope is active, so an
@@ -283,9 +291,10 @@ public final class WhereModel {
             case let .real(scope): scope
             case let .demo(_, dormantReal): dormantReal
         }
-        await dormantReal?.detachLogSink()
+        await dormantReal?.stopLogRouting()
         session = nil
         scopeState = .demo(active: scope, dormantReal: dormantReal)
+        scope.startLogRouting()
         Self.logger { .enteredDemoMode }
     }
 
@@ -299,10 +308,10 @@ public final class WhereModel {
     /// (and, for someone who has, resolves straight through to their data).
     public func deactivateDemo() async {
         guard case let .demo(active, dormantReal) = scopeState else { return }
-        await active.detachLogSink()
+        await active.stopLogRouting()
         session = nil
         scopeState = .loggedOut(dormantReal: dormantReal)
-        dormantReal?.reattachLogSink()
+        dormantReal?.startLogRouting()
         Self.logger { .exitedDemoMode }
     }
 

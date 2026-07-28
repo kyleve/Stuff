@@ -135,9 +135,9 @@ public struct RootView: View {
             // SwiftData inspector row simply hides.
             .environment(model.session)
             // Which world the app is in, seeded once here so no view has to
-            // ask the model. Reading `isInDemoMode` tracks the scope state, so
-            // entering or leaving demo mode re-renders whatever branches on it.
-            .environment(\.isInDemoMode, model.isInDemoMode)
+            // ask the model. Reading the model's mode tracks its scope state,
+            // so entering or leaving demo mode re-renders what branches on it.
+            .demoMode(of: model)
             // Settings' "Erase all data & reset" runs the teardown through the
             // `LifecycleProxy` that `LifecycleContainer` publishes into the
             // environment, which wipes data + preferences and re-drives the
