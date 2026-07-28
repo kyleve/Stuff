@@ -344,6 +344,30 @@
         }
       }
     },
+    "demo.building.subtitle" : {
+      "comment" : "Interstitial subtitle shown while demo mode's sample year is generated.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Filling in a year of comings and goings."
+          }
+        }
+      }
+    },
+    "demo.building.title" : {
+      "comment" : "Interstitial title shown while demo mode's sample year is generated.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Building your demo…"
+          }
+        }
+      }
+    },
     "developer.button.label" : {
       "comment" : "Accessibility label for the floating developer button.",
       "extractionState" : "manual",
@@ -1491,6 +1515,18 @@
         }
       }
     },
+    "onboarding.demoErrorTitle" : {
+      "comment" : "Alert title shown when building the demo's sample data fails.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Couldn't build the demo"
+          }
+        }
+      }
+    },
     "onboarding.enableLocation" : {
       "comment" : "Button text to prompt the user to enable location services.",
       "extractionState" : "manual",
@@ -1618,6 +1654,18 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "Restoring…"
+          }
+        }
+      }
+    },
+    "onboarding.tryDemo" : {
+      "comment" : "Button on the onboarding intro that enters demo mode: a throwaway, in-memory sample year.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Explore a demo"
           }
         }
       }
@@ -3567,6 +3615,42 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Data"
+          }
+        }
+      }
+    },
+    "settings.demo.exit" : {
+      "comment" : "Button that leaves demo mode, discarding the sample data.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Exit demo mode"
+          }
+        }
+      }
+    },
+    "settings.demo.footer" : {
+      "comment" : "Footer explaining what leaving demo mode does.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "You're exploring sample data. None of it is saved — leaving discards it and returns to setup."
+          }
+        }
+      }
+    },
+    "settings.demo.header" : {
+      "comment" : "Header of the Settings section shown only while the app runs on demo data.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Demo mode"
           }
         }
       }

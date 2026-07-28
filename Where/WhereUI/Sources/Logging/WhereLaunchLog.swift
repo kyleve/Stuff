@@ -11,9 +11,9 @@ enum WhereLaunchLog: LogEvent {
     case runnerCreated(reason: String)
     case servicesAssembled
     /// Assembling the service layer (store open + `WhereServices.make`) failed;
-    /// the `open-store` step surfaces it and the launch parks in `.failed`.
+    /// the `resolve-scope` step surfaces it and the launch parks in `.failed`.
     case servicesAssemblyFailed(description: String)
-    /// The durable log store opened and attached to `Periscope.shared`. Fired
+    /// The durable log store opened and became the active scope's sink. Fired
     /// as soon as the store is browsable — retention pruning runs after, off the
     /// ready path (see ``historyPruned``).
     case loggingStoreReady

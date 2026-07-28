@@ -469,10 +469,15 @@ Smells that signal a missing type:
 **A shared resource is created exactly once, at the composition root, and
 reaches every consumer by injection** — init parameters, explicit arguments,
 or a composition hook — never by re-resolving a global. Template: the Where
-app's SwiftData store (the launch's `open-store` step is the process's only
-open; `WhereServices` carries it; the App Intents stack derives from it via
-the `onServicesReady` hook). Two subsystems independently "opening the same
-store" once raced a fresh install into a launch failure.
+app's SwiftData store (the launch's `resolve-scope` step is the process's only
+open; the resulting `WhereScope` carries it; the App Intents stack derives from
+it via the `onServicesReady` hook). Two subsystems independently "opening the
+same store" once raced a fresh install into a launch failure.
+
+**Create it when it's needed, not before.** That step runs *behind* the
+onboarding gate, so an install whose user never onboards opens nothing, and a
+second world (demo mode) is another scope rather than a flag threaded through
+the first. See [`Where/AGENTS.md`](Where/AGENTS.md#scopes-and-the-launch).
 
 - **No singletons or static get-or-create registries** for anything that can
   be injected — a global invites the double-create race and forces tests to

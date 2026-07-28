@@ -38,6 +38,10 @@ the build system, formatting, and global conventions. Read that first.
   (`NetworkPathAmbientSource` dedupes `NWPathMonitor`'s repeat callbacks);
   notification-based sources are deliberately *not* deduped — each repeated
   memory warning is a distinct event.
+- **`remove(_:)` is `async` because it settles the sink first** — the in-flight
+  drain is awaited and the sink flushed, so a removed sink is owed nothing and
+  hears nothing more. Removing a `PeriscopeStore` also uninstalls that store's
+  journal. Guard: `PeriscopeTests.removalDeliversAndFlushesWhatTheSinkWasOwed`.
 - **Sink failures never propagate or vanish** — logged to OSLog, counted, and
   persisted as a synthetic `StoreWriteFailed` marker; the pipeline reports
   drops with a synthetic `DroppedEvents` record.

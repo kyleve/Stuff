@@ -52,15 +52,57 @@ struct LaunchSplashView: View {
         stylesheet.palette.splash
     }
 
+    /// What, if anything, the splash says beneath the icon.
+    enum Caption {
+        /// The launch's own: nothing at first, and a launch-neutral
+        /// reassurance fading in only once the launch has run long.
+        case slowLaunchReassurance
+        /// Named work the user is waiting on, shown immediately — for a
+        /// deliberate wait (building the demo's data) rather than a launch
+        /// that happens to be slow. Nothing to fade in: the wait is expected,
+        /// and saying so late would read as something having gone wrong.
+        case work(title: String, subtitle: String)
+    }
+
+    private let caption: Caption
+
     /// Preview/test seam: when `nil`, the live selected icon is resolved from
     /// `UIApplication.shared.alternateIconName` in `body` (on the main actor).
     private let injectedPreviewImageName: String?
 
-    /// - Parameter previewShowsCaption: preview/test seam to render the slow-
-    ///   launch caption immediately instead of waiting out the caption delay.
-    init(previewImageName: String? = nil, previewShowsCaption: Bool = false) {
+    /// - Parameters:
+    ///   - caption: what to say beneath the icon. Defaults to the launch's own
+    ///     slow-launch reassurance.
+    ///   - previewShowsCaption: preview/test seam to render the slow-launch
+    ///     caption immediately instead of waiting out the caption delay.
+    ///     Ignored for `.work`, which is shown from the first frame anyway.
+    init(
+        caption: Caption = .slowLaunchReassurance,
+        previewImageName: String? = nil,
+        previewShowsCaption: Bool = false,
+    ) {
+        self.caption = caption
         injectedPreviewImageName = previewImageName
-        _showCaption = State(initialValue: previewShowsCaption)
+        switch caption {
+            case .slowLaunchReassurance:
+                _showCaption = State(initialValue: previewShowsCaption)
+            case .work:
+                _showCaption = State(initialValue: true)
+        }
+    }
+
+    private var captionTitle: String {
+        switch caption {
+            case .slowLaunchReassurance: String(localized: .launchCaptionTitle)
+            case let .work(title, _): title
+        }
+    }
+
+    private var captionSubtitle: String {
+        switch caption {
+            case .slowLaunchReassurance: String(localized: .launchCaptionSubtitle)
+            case let .work(_, subtitle): subtitle
+        }
     }
 
     var body: some View {
@@ -73,7 +115,7 @@ struct LaunchSplashView: View {
             if showCaption {
                 VStack {
                     Spacer()
-                    caption
+                    captionView
                         .padding(.bottom, stylesheet.size.launchCaptionBottomInset)
                 }
                 .transition(.opacity)
@@ -84,10 +126,12 @@ struct LaunchSplashView: View {
         .ignoresSafeArea()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            showCaption ? String(localized: .launchCaptionTitle) :
-                String(localized: .launchAccessibilityLabel),
+            showCaption ? captionTitle : String(localized: .launchAccessibilityLabel),
         )
         .task {
+            // A `.work` caption is already showing and never changes; only the
+            // launch's own reassurance is on a timer.
+            guard case .slowLaunchReassurance = caption else { return }
             // Under snapshot capture the caption must be deterministic — shown
             // iff the explicit `previewShowsCaption` seam says so — never a race
             // between this wall-clock timer and the capture's settle loop. Both
@@ -105,14 +149,14 @@ struct LaunchSplashView: View {
         }
     }
 
-    /// The reassurance shown below the icon once a launch runs long: the radar
-    /// and pulsing icon already say "working", so this is just text, pinned
-    /// light since the backdrop is always dark.
-    private var caption: some View {
+    /// The text below the icon — the slow-launch reassurance, or the named
+    /// work being waited on. The radar and pulsing icon already say "working",
+    /// so this is just text, pinned light since the backdrop is always dark.
+    private var captionView: some View {
         VStack(spacing: stylesheet.spacing.small) {
-            Text(String(localized: .launchCaptionTitle))
+            Text(captionTitle)
                 .font(.headline)
-            Text(String(localized: .launchCaptionSubtitle))
+            Text(captionSubtitle)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -230,13 +274,24 @@ extension TimelineViewDefaultContext {
             whereSnapshot(name: "SlowLaunchCaption", configurations: .phoneLightDark) {
                 LaunchSplashView(previewImageName: "AppIconClassic", previewShowsCaption: true)
             }
+            whereSnapshot(name: "WorkCaption", configurations: .phoneLightDark) {
+                LaunchSplashView(
+                    caption: .work(
+                        title: String(localized: .demoBuildingTitle),
+                        subtitle: String(localized: .demoBuildingSubtitle),
+                    ),
+                    previewImageName: "AppIconClassic",
+                )
+            }
         }
     }
 
     // The cutsheet covers the color-mode variation (which changes the rendered
-    // icon art) and the slow-launch caption. Reduce Motion isn't shown: it's a
-    // read-only environment value that can't be set via `.environment`, and at
-    // rest the animated splash looks identical to its motion-pinned frame.
+    // icon art) and each caption: absent, the slow-launch reassurance, and
+    // named work (demo mode's interstitial, shown from the first frame).
+    // Reduce Motion isn't shown: it's a read-only environment value that can't
+    // be set via `.environment`, and at rest the animated splash looks
+    // identical to its motion-pinned frame.
     #Preview {
         LaunchSplashView.snapshotPreviews
     }

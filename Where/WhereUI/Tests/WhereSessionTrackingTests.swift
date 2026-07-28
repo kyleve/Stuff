@@ -10,10 +10,6 @@ import WhereUI
 /// reflect real authorization + persisted intent, not just the last tap.
 @MainActor
 struct WhereSessionTrackingTests {
-    private func makePreferences() -> WherePreferences {
-        WherePreferences(store: InMemoryKeyValueStore())
-    }
-
     private func makeSession(
         status: LocationAuthorizationStatus,
         preferences: WherePreferences,
