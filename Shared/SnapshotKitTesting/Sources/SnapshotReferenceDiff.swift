@@ -205,18 +205,29 @@ private func magnitude(
     public static func report(
         _ comparison: SnapshotReferenceComparison,
         identifier: String,
+        reference: URL,
     ) -> String? {
+        // The identifier alone doesn't locate a diff — seven suites in this repo
+        // declare an `Empty` case, so `Empty_iPhone` names a reference in none of
+        // them in particular. The path does.
+        let path = reference.path
         let line: SnapshotDiffLine? = switch comparison {
             case .identicalBytes:
                 nil
             case let .referenceMissing(url):
-                SnapshotDiffLine(id: identifier, outcome: "referenceMissing", detail: url.path)
+                SnapshotDiffLine(id: identifier, outcome: "referenceMissing", reference: url.path)
             case let .incomparable(reason):
-                SnapshotDiffLine(id: identifier, outcome: "incomparable", detail: reason)
+                SnapshotDiffLine(
+                    id: identifier,
+                    outcome: "incomparable",
+                    reference: path,
+                    detail: reason,
+                )
             case let .differs(magnitude):
                 SnapshotDiffLine(
                     id: identifier,
                     outcome: "differs",
+                    reference: path,
                     differingPixels: magnitude.differingPixels,
                     totalPixels: magnitude.totalPixels,
                     differingFraction: (magnitude.differingFraction * 1_000_000).rounded() / 1e6,
@@ -245,6 +256,7 @@ private func magnitude(
 private struct SnapshotDiffLine: Encodable {
     let id: String
     let outcome: String
+    var reference: String?
     var detail: String?
     var differingPixels: Int?
     var totalPixels: Int?

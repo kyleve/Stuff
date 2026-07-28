@@ -250,31 +250,27 @@ extension UIView {
     }
 }
 
-/// Runs a zero-duration animation and pumps the run loop until its completion
-/// fires (or `timeout` elapses), so any in-flight animation's completion blocks —
-/// modal/transition settling — have run before the capture. Best-effort: returns
-/// whether it settled within the budget.
+/// Commits the pending Core Animation transaction, so any in-flight animation's
+/// completion blocks — modal/transition settling — have run before the capture.
 ///
-/// Animations are forced on for the flush itself (restored after): the completion
-/// block of a zero-duration `UIView.animate` won't fire while animations are
-/// globally disabled, which would otherwise burn the whole `timeout` every call.
+/// This used to run a zero-duration `UIView.animate` and pump the run loop until
+/// its completion fired, with a 1-second timeout as the backstop. Instrumenting
+/// the pipeline showed the completion **never** fired: the timeout was the only
+/// exit on 50 of 50 captures, so every image paid a flat second — about 35% of
+/// the whole snapshot suite — waiting for a callback that never arrived. An empty
+/// animation block with nothing animatable in it gives UIKit no animation to
+/// complete, and the doc comment's claim that re-enabling animations avoided
+/// exactly that was simply wrong.
+///
+/// `CATransaction.flush()` expresses the actual intent directly and
+/// synchronously. It is also close to redundant: the capture that immediately
+/// follows renders with `afterScreenUpdates: true`, which commits the
+/// transaction anyway. It is kept because that redundancy is not a guarantee —
+/// the accessibility path re-lays-out between here and the render — and a commit
+/// costs microseconds.
 @MainActor
-@discardableResult
-func drainInFlightAnimations(timeout: TimeInterval = 1) -> Bool {
-    let animationsWereEnabled = UIView.areAnimationsEnabled
-    UIView.setAnimationsEnabled(true)
-    defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
-
-    var completed = false
-    UIView.animate(withDuration: 0) {} completion: { _ in completed = true }
-
-    let clock = ContinuousClock()
-    let deadline = clock.now.advanced(by: .seconds(timeout))
-    while !completed {
-        if clock.now > deadline { return false }
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.001))
-    }
-    return true
+func drainInFlightAnimations() {
+    CATransaction.flush()
 }
 
 extension UIView {

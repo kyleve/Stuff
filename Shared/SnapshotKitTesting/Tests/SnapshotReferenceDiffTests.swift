@@ -107,7 +107,13 @@ struct SnapshotReferenceDiffTests {
     }
 
     @Test func reportEmitsNothingForAByteIdenticalCapture() {
-        #expect(SnapshotDiffReporting.report(.identicalBytes, identifier: "same") == nil)
+        #expect(
+            SnapshotDiffReporting.report(
+                .identicalBytes,
+                identifier: "same",
+                reference: URL(fileURLWithPath: "/ref.png"),
+            ) == nil,
+        )
     }
 
     @Test func reportDescribesADifferenceAsJSON() throws {
@@ -118,7 +124,11 @@ struct SnapshotReferenceDiffTests {
             changedRegion: CGRect(x: 85, y: 2394, width: 1037, height: 144),
         )
         let json = try #require(
-            SnapshotDiffReporting.report(.differs(magnitude), identifier: "case_dark"),
+            SnapshotDiffReporting.report(
+                .differs(magnitude),
+                identifier: "case_dark",
+                reference: URL(fileURLWithPath: "/refs/thing.case_dark.png"),
+            ),
         )
         let decoded = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any]
         let line = try #require(decoded)
@@ -127,6 +137,9 @@ struct SnapshotReferenceDiffTests {
         #expect(line["differingPixels"] as? Int == 7430)
         #expect(line["maxChannelDelta"] as? Int == 203)
         #expect(line["region"] as? [Int] == [85, 2394, 1037, 144])
+        // The path is what makes a diff attributable — seven suites here have an
+        // `Empty` case, so the identifier alone names none of them.
+        #expect(line["reference"] as? String == "/refs/thing.case_dark.png")
     }
 
     @Test(arguments: [

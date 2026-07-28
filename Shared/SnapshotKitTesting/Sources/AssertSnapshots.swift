@@ -134,16 +134,15 @@ public func assertSnapshots(
         // same run that reports the failure. Reads the reference from disk; the
         // byte-equality check short-circuits when the capture is deterministic.
         if isDiffReportingEnabled {
-            SnapshotDiffReporting.report(
-                compareAgainstReference(
-                    capturedPNG: capture.pngData,
-                    referenceURL: snapshotReferenceURL(
-                        testFilePath: "\(filePath)",
-                        testName: testName,
-                        identifier: identifier,
-                    ),
-                ),
+            let reference = snapshotReferenceURL(
+                testFilePath: "\(filePath)",
+                testName: testName,
                 identifier: identifier,
+            )
+            SnapshotDiffReporting.report(
+                compareAgainstReference(capturedPNG: capture.pngData, referenceURL: reference),
+                identifier: identifier,
+                reference: reference,
             )
         }
         timing.measure(.compare) {
