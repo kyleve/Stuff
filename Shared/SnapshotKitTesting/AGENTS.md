@@ -113,9 +113,6 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   Swift Testing presents none, so it lands everything on one worker and lets
   Swift Testing's own parallelism interleave captures in a single host process
   (24+ spurious mismatches, 1.2-3x slower).
-
-## Two things measured and rejected — don't re-derive them
-
 - **Quiescence can't replace the pixel digest.** `SNAPSHOT_SETTLE` selects
   `pixel` (default), `quiescence` (a `beforeWaiting` run-loop observer plus a
   recursive `needsLayout`/`needsDisplay`/`animationKeys` walk), or `both`, which
