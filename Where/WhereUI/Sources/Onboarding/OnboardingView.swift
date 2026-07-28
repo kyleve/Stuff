@@ -48,6 +48,17 @@ public struct OnboardingView: View {
     @State private var showRestoreError = false
     @State private var restoreError: String?
 
+    // Demo mode: the other way out of the intro, into a throwaway world.
+    @State private var isBuildingDemo = false
+    @State private var showDemoError = false
+    @State private var demoError: String?
+
+    /// How long the demo interstitial stays up at minimum. Seeding a year is
+    /// fast enough to flash by, and a screen that appears and vanishes reads
+    /// as a glitch rather than as work being done — so the wait is held long
+    /// enough to be legible, and no longer.
+    private static let demoBuildDisplayTime = Duration.seconds(2)
+
     private static let logger = WhereLog.session(OnboardingViewLog.self)
 
     public init(gate: LifecycleGateHandle) {
@@ -87,7 +98,16 @@ public struct OnboardingView: View {
 
     @ViewBuilder
     private var intro: some View {
-        if isRestoring {
+        if isBuildingDemo {
+            // The launch splash, captioned for the work: entering demo mode
+            // ends in a relaunch through that same splash, so borrowing it
+            // here makes the whole entry read as one continuous wait rather
+            // than two unrelated screens.
+            LaunchSplashView(caption: .work(
+                title: String(localized: .demoBuildingTitle),
+                subtitle: String(localized: .demoBuildingSubtitle),
+            ))
+        } else if isRestoring {
             // A backup restore is a whole-screen blocking wait, so show the
             // shared app-icon loading treatment (as first-load / scan / summary
             // do) rather than an inline spinner.
@@ -121,6 +141,15 @@ public struct OnboardingView: View {
             String(localized: .onboardingRestoreErrorTitle),
             isPresented: $showRestoreError,
             presenting: restoreError,
+        ) { _ in
+            Button(String(localized: .commonOk), role: .cancel) {}
+        } message: { message in
+            Text(message)
+        }
+        .alert(
+            String(localized: .onboardingDemoErrorTitle),
+            isPresented: $showDemoError,
+            presenting: demoError,
         ) { _ in
             Button(String(localized: .commonOk), role: .cancel) {}
         } message: { message in
@@ -167,7 +196,13 @@ public struct OnboardingView: View {
             // the restore's progress replaces the intro with the loading view.
             Button(String(localized: .onboardingRestoreBackup)) { showImporter = true }
                 .controlSize(.large)
+
+            // And anyone can look around first, without handing over a
+            // location permission or leaving anything on their device.
+            Button(String(localized: .onboardingTryDemo)) { enterDemoMode() }
+                .controlSize(.large)
         }
+        .disabled(isBuildingDemo)
     }
 
     // MARK: - Pick regions
@@ -303,6 +338,37 @@ public struct OnboardingView: View {
             // won't help. Tracking stays intended-but-inactive, and the
             // Location settings screen offers the route to the Settings app.
             Self.logger { .locationPermissionDenied }
+        }
+    }
+
+    // MARK: - Demo mode
+
+    /// Build a demo world and hand the launch to it: the whole of "entering
+    /// demo mode" from the user's side.
+    ///
+    /// Nothing durable happens here — no store is opened, no permission asked
+    /// — so there is nothing to undo if they leave. Resolving the gate is what
+    /// lets the launch continue, and it finds the demo scope already active.
+    private func enterDemoMode() {
+        guard !isBuildingDemo else { return }
+        isBuildingDemo = true
+        Task {
+            do {
+                // Seeding and the minimum display run together, so the wait is
+                // whichever is longer rather than the sum of the two.
+                async let scope = WhereScope.demo(now: { Date() })
+                async let settle: Void = Task.sleep(for: Self.demoBuildDisplayTime)
+                _ = try await settle
+                try await model.activateDemo(scope)
+                gate.complete()
+            } catch {
+                isBuildingDemo = false
+                demoError = error.localizedDescription
+                showDemoError = true
+                Self.logger(attachments: [.error(error, name: "demo-error")]) {
+                    .demoBuildFailed(description: error.localizedDescription)
+                }
+            }
         }
     }
 

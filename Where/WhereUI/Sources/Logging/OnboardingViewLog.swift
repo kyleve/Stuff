@@ -13,12 +13,15 @@ enum OnboardingViewLog: LogEvent {
     /// Opening the user's store failed, so onboarding can't hand the launch a
     /// world to run in. Fails the gate, landing on the failure surface.
     case scopeCreationFailed(description: String)
+    /// Building the demo world failed. Recoverable: the intro comes back with
+    /// an alert, and every other way forward still works.
+    case demoBuildFailed(description: String)
 
     static let eventName = "Onboarding"
 
     var level: LogLevel {
         switch self {
-            case .regionCommitFailed, .backupRestoreFailed: .warning
+            case .regionCommitFailed, .backupRestoreFailed, .demoBuildFailed: .warning
             case .locationPermissionDenied: .info
             case .scopeCreationFailed: .error
         }
@@ -34,6 +37,8 @@ enum OnboardingViewLog: LogEvent {
                 "Location access declined during onboarding"
             case let .scopeCreationFailed(description):
                 "Failed to open the store during onboarding: \(description)"
+            case let .demoBuildFailed(description):
+                "Failed to build the demo world: \(description)"
         }
     }
 }
