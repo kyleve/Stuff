@@ -348,7 +348,7 @@ struct WhereLaunchTests {
         let preferences = makePreferences()
         let logSystem = Periscope.isolated()
         let model = WhereModel(preferences: preferences, logSystem: logSystem)
-        model.activate(scope: WhereScope(
+        model.activate(scope: .fake(
             services: services,
             preferences: preferences,
             logSystem: logSystem,
@@ -383,7 +383,7 @@ struct WhereLaunchTests {
         let preferences = makePreferences()
         let logSystem = Periscope.isolated()
         let model = WhereModel(preferences: preferences, logSystem: logSystem)
-        model.activate(scope: WhereScope(
+        model.activate(scope: .fake(
             services: services,
             preferences: preferences,
             logSystem: logSystem,

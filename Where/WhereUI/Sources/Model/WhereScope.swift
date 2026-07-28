@@ -109,16 +109,19 @@ public final class WhereScope {
         case demo
     }
 
-    /// Build a scope over an already-assembled service layer, with no durable
-    /// log store. The app builds its real scope with
-    /// ``real(bootstrap:preferences:logSystem:)``; this is the seam previews and
-    /// tests inject one through.
-    public convenience init(
+    /// A stand-in world over an already-assembled service layer, with no
+    /// durable log store — for previews and tests, which supply their own
+    /// in-memory services.
+    ///
+    /// Named alongside ``real(bootstrap:preferences:logSystem:)`` and
+    /// ``demo(now:logSystem:)`` rather than exposed as an initializer, so a
+    /// call site says which of the three kinds of world it is asking for.
+    public static func fake(
         services: WhereServices,
         preferences: WherePreferences,
         logSystem: Periscope,
-    ) {
-        self.init(
+    ) -> WhereScope {
+        WhereScope(
             kind: .real,
             services: services,
             preferences: preferences,

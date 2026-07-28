@@ -42,16 +42,13 @@ public struct OnboardingView: View {
     @State private var selection = PrimaryRegionSelectionModel()
     @State private var isFinishing = false
 
-    // Restore-from-backup: the escape hatch that skips manual region setup.
-    @State private var showImporter = false
-    @State private var isRestoring = false
-    @State private var showRestoreError = false
-    @State private var restoreError: String?
+    /// What the intro is doing, and how it went — see ``OnboardingIntroState``.
+    @State private var intro = OnboardingIntroState()
 
-    // Demo mode: the other way out of the intro, into a throwaway world.
-    @State private var isBuildingDemo = false
-    @State private var showDemoError = false
-    @State private var demoError: String?
+    /// Whether the backup file picker is up. Separate from the intro's activity
+    /// because the system sheet isn't work the intro is doing: it can be
+    /// dismissed without starting anything.
+    @State private var showImporter = false
 
     /// How long the demo interstitial stays up at minimum. Seeding a year is
     /// fast enough to flash by, and a screen that appears and vanishes reads
@@ -70,7 +67,7 @@ public struct OnboardingView: View {
     public var body: some View {
         Group {
             switch phase {
-                case .intro: intro
+                case .intro: introScreen
                 case .pickRegions: pickRegions
                 case .customize: customize
                 case .location: location
@@ -97,8 +94,8 @@ public struct OnboardingView: View {
     // MARK: - Intro
 
     @ViewBuilder
-    private var intro: some View {
-        if isBuildingDemo {
+    private var introScreen: some View {
+        if intro.isBuildingDemo {
             // The launch splash, captioned for the work: entering demo mode
             // ends in a relaunch through that same splash, so borrowing it
             // here makes the whole entry read as one continuous wait rather
@@ -107,7 +104,7 @@ public struct OnboardingView: View {
                 title: String(localized: .demoBuildingTitle),
                 subtitle: String(localized: .demoBuildingSubtitle),
             ))
-        } else if isRestoring {
+        } else if intro.isRestoringBackup {
             // A backup restore is a whole-screen blocking wait, so show the
             // shared app-icon loading treatment (as first-load / scan / summary
             // do) rather than an inline spinner.
@@ -138,22 +135,25 @@ public struct OnboardingView: View {
             onCompletion: handleRestoreSelection,
         )
         .alert(
-            String(localized: .onboardingRestoreErrorTitle),
-            isPresented: $showRestoreError,
-            presenting: restoreError,
+            failureTitle,
+            isPresented: $intro.isShowingFailure,
+            presenting: intro.failure,
         ) { _ in
             Button(String(localized: .commonOk), role: .cancel) {}
-        } message: { message in
-            Text(message)
+        } message: { failure in
+            // Formatted here rather than stored: the state keeps the error
+            // itself, so nothing has to decide how to say it before it's shown.
+            Text(failure.error.localizedDescription)
         }
-        .alert(
-            String(localized: .onboardingDemoErrorTitle),
-            isPresented: $showDemoError,
-            presenting: demoError,
-        ) { _ in
-            Button(String(localized: .commonOk), role: .cancel) {}
-        } message: { message in
-            Text(message)
+    }
+
+    /// The alert's title, which names the task that failed. Empty when
+    /// nothing has, in which case the alert isn't presented.
+    private var failureTitle: String {
+        switch intro.failure?.flow {
+            case .restoreBackup: String(localized: .onboardingRestoreErrorTitle)
+            case .demo: String(localized: .onboardingDemoErrorTitle)
+            case nil: ""
         }
     }
 
@@ -202,7 +202,7 @@ public struct OnboardingView: View {
             Button(String(localized: .onboardingTryDemo)) { enterDemoMode() }
                 .controlSize(.large)
         }
-        .disabled(isBuildingDemo)
+        .disabled(intro.isBuildingDemo)
     }
 
     // MARK: - Pick regions
@@ -350,8 +350,8 @@ public struct OnboardingView: View {
     /// — so there is nothing to undo if they leave. Resolving the gate is what
     /// lets the launch continue, and it finds the demo scope already active.
     private func enterDemoMode() {
-        guard !isBuildingDemo else { return }
-        isBuildingDemo = true
+        guard !intro.isBuildingDemo else { return }
+        intro.activity = .buildingDemo
         Task {
             do {
                 // Seeding and the minimum display run together, so the wait is
@@ -365,11 +365,9 @@ public struct OnboardingView: View {
                 // Nothing to report: the only thing that cancels this is the
                 // work itself going away, and there is no user waiting on an
                 // answer about it.
-                isBuildingDemo = false
+                intro.activity = .browsing
             } catch {
-                isBuildingDemo = false
-                demoError = error.localizedDescription
-                showDemoError = true
+                intro.activity = .failed(.init(flow: .demo, error: error))
                 Self.logger(attachments: [.error(error, name: "demo-error")]) {
                     .demoBuildFailed(description: error.localizedDescription)
                 }
@@ -384,8 +382,7 @@ public struct OnboardingView: View {
             case let .success(url):
                 restore(from: url)
             case let .failure(error):
-                restoreError = error.localizedDescription
-                showRestoreError = true
+                intro.activity = .failed(.init(flow: .restoreBackup, error: error))
         }
     }
 
@@ -396,23 +393,83 @@ public struct OnboardingView: View {
     /// including a store that won't open — surface an alert and stay in the
     /// intro, where they can retry or continue manually.
     private func restore(from url: URL) {
-        guard !isRestoring else { return }
-        isRestoring = true
+        guard !intro.isRestoringBackup else { return }
+        intro.activity = .restoringBackup
         Task {
             do {
                 let scope = try await model.resolveScope()
                 _ = try await scope.services.backup.importBackup(from: url, strategy: .replace)
-                isRestoring = false
+                intro.activity = .browsing
                 phase = .location
             } catch {
-                isRestoring = false
-                restoreError = error.localizedDescription
-                showRestoreError = true
+                intro.activity = .failed(.init(flow: .restoreBackup, error: error))
                 Self.logger(attachments: [.error(error, name: "restore-error")]) {
                     .backupRestoreFailed(description: error.localizedDescription)
                 }
             }
         }
+    }
+}
+
+/// What the onboarding intro is doing, and how it went.
+///
+/// One value rather than a pair of "is running" flags beside a loose error:
+/// restoring a backup and building a demo each take over the whole screen, so
+/// only one can be underway, and a failure always belongs to whichever one
+/// produced it. As separate properties, "restoring *and* building" and "failed
+/// with no error" were both spellable.
+///
+/// `@Observable` for the same reason `SaveErrorAlertState` is: the activity
+/// stays the single source of truth while `isShowingFailure` gives
+/// `.alert(isPresented:)` the binding it wants, without a closure-built
+/// `Binding` in the view.
+@Observable
+final class OnboardingIntroState {
+    /// The long task the intro is running, if any.
+    enum Activity {
+        case browsing
+        case restoringBackup
+        case buildingDemo
+        case failed(Failure)
+    }
+
+    /// A task that didn't finish. Holds the error itself rather than a
+    /// message, so the view formats it where it presents it — and anything
+    /// else that wants to inspect it still can.
+    struct Failure {
+        /// Which of the intro's two ways forward failed, since they say
+        /// different things about it.
+        enum Flow {
+            case restoreBackup
+            case demo
+        }
+
+        let flow: Flow
+        let error: any Error
+    }
+
+    var activity: Activity = .browsing
+
+    var isRestoringBackup: Bool {
+        if case .restoringBackup = activity { return true }
+        return false
+    }
+
+    var isBuildingDemo: Bool {
+        if case .buildingDemo = activity { return true }
+        return false
+    }
+
+    var failure: Failure? {
+        if case let .failed(failure) = activity { return failure }
+        return nil
+    }
+
+    /// Drives the failure alert. Dismissing it returns the intro to browsing,
+    /// which is the only way `activity` leaves `.failed`.
+    var isShowingFailure: Bool {
+        get { failure != nil }
+        set { if !newValue { activity = .browsing } }
     }
 }
 

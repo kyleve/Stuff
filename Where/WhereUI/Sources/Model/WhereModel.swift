@@ -181,7 +181,7 @@ public final class WhereModel {
         logSystem: Periscope,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
-        let scope = WhereScope(
+        let scope = WhereScope.fake(
             services: services,
             preferences: preferences,
             logSystem: logSystem,

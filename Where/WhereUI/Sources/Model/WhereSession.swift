@@ -152,7 +152,7 @@ public final class WhereSession {
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.init(
-            scope: WhereScope(
+            scope: .fake(
                 services: services,
                 preferences: preferences,
                 logSystem: .shared,
