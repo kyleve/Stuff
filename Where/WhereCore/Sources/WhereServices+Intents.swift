@@ -17,12 +17,21 @@ extension WhereServices {
     /// never race it with a second container over the same file, and an
     /// intent write pings the same `changes()` signal the running UI
     /// refreshes from.
+    ///
+    /// The notification and widget seams come from `base` for the same reason
+    /// the attributor does: a stack derived from the demo world is built out of
+    /// no-ops, and minting real ones here would let a demo intent post a real
+    /// notification or reload the user's widgets.
     public static func forIntents(sharingStoreOf base: WhereServices) -> WhereServices {
         WhereServices(
             store: base.store,
             locationSource: IdleLocationSource(),
             attributor: base.attributor,
             aggregator: base.aggregator,
+            reminderScheduler: base.reminderScheduler,
+            summaryScheduler: base.summaryScheduler,
+            issueAlertScheduler: base.issueAlertScheduler,
+            widgetRefresher: base.widgetRefresher,
             now: base.now,
         )
     }
@@ -37,6 +46,14 @@ extension WhereServices {
         store: any WhereStore,
         now: @escaping @Sendable () -> Date = { Date() },
     ) async throws -> WhereServices {
-        try await make(store: store, locationSource: IdleLocationSource(), now: now)
+        try await make(
+            store: store,
+            locationSource: IdleLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            now: now,
+        )
     }
 }

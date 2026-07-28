@@ -51,6 +51,15 @@ public struct WhereServices: Sendable {
     /// stack (`forIntents(sharingStoreOf:)`) shares the *same* attributor
     /// rather than deriving a second live attribution over the same store.
     let attributor: any RegionAttributing
+    /// The notification and widget seams the stack was built with, retained so
+    /// a derived stack (`forIntents(sharingStoreOf:)`) reconciles through the
+    /// *same* ones. Re-minting real ones would let a stack derived from a demo
+    /// world — assembled entirely out of no-ops — post a real notification or
+    /// reload the user's widgets.
+    let reminderScheduler: any LoggingReminderScheduling
+    let summaryScheduler: any DailySummaryScheduling
+    let issueAlertScheduler: any DataIssueAlertScheduling
+    let widgetRefresher: any WidgetTimelineRefreshing
     /// The aggregation policy (calendar + time zone) the stack was built with,
     /// retained so a derived stack buckets days identically.
     let aggregator: DayAggregator
@@ -69,17 +78,22 @@ public struct WhereServices: Sendable {
     /// an async store read. Production wiring (the app launch, the App Intents
     /// process) goes through the public `make(...)`, which derives the attributor
     /// from the store's tracked regions.
+    ///
+    /// The notification and widget seams default to **no-ops**, because this is
+    /// the test/preview seam and the reconcilers behind them fire on ordinary
+    /// writes: a suite that named nothing used to schedule real notifications
+    /// and reload the user's real widget timelines as a side effect of saving a
+    /// day. Production names its own, via `make(...)`.
     @_spi(Testing)
     public init(
         store: any WhereStore,
         locationSource: any LocationSource,
         attributor: any RegionAttributing = RegionAttributor.shared,
         aggregator: DayAggregator = DayAggregator(),
-        reminderScheduler: any LoggingReminderScheduling = UserNotificationReminderScheduler(),
-        summaryScheduler: any DailySummaryScheduling = UserNotificationDailySummaryScheduler(),
-        issueAlertScheduler: any DataIssueAlertScheduling =
-            UserNotificationDataIssueAlertScheduler(),
-        widgetRefresher: any WidgetTimelineRefreshing = WidgetCenterTimelineRefresher(),
+        reminderScheduler: any LoggingReminderScheduling = NoopLoggingReminderScheduler(),
+        summaryScheduler: any DailySummaryScheduling = NoopDailySummaryScheduler(),
+        issueAlertScheduler: any DataIssueAlertScheduling = NoopDataIssueAlertScheduler(),
+        widgetRefresher: any WidgetTimelineRefreshing = NoopWidgetTimelineRefresher(),
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
         now: @escaping @Sendable () -> Date = { Date() },
@@ -203,6 +217,10 @@ public struct WhereServices: Sendable {
         self.store = store
         self.attributor = attributor
         self.aggregator = aggregator
+        self.reminderScheduler = reminderScheduler
+        self.summaryScheduler = summaryScheduler
+        self.issueAlertScheduler = issueAlertScheduler
+        self.widgetRefresher = widgetRefresher
         self.now = now
         modelContainer = (store as? SwiftDataStore)?.inspectorContainer
     }
@@ -221,11 +239,10 @@ public struct WhereServices: Sendable {
         store: any WhereStore,
         locationSource: any LocationSource,
         aggregator: DayAggregator = DayAggregator(),
-        reminderScheduler: any LoggingReminderScheduling = UserNotificationReminderScheduler(),
-        summaryScheduler: any DailySummaryScheduling = UserNotificationDailySummaryScheduler(),
-        issueAlertScheduler: any DataIssueAlertScheduling =
-            UserNotificationDataIssueAlertScheduler(),
-        widgetRefresher: any WidgetTimelineRefreshing = WidgetCenterTimelineRefresher(),
+        reminderScheduler: any LoggingReminderScheduling,
+        summaryScheduler: any DailySummaryScheduling,
+        issueAlertScheduler: any DataIssueAlertScheduling,
+        widgetRefresher: any WidgetTimelineRefreshing,
         locationOutbox: any LocationOutbox = NoOpLocationOutbox(),
         activitySummaryGenerator: any ActivitySummaryGenerating = FoundationModelSummaryGenerator(),
         now: @escaping @Sendable () -> Date = { Date() },

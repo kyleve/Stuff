@@ -116,3 +116,12 @@ Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in
 production API, not test scaffolding: demo mode assembles a session out of
 them. Don't restore the `@_spi(Testing)` + `#if DEBUG` gating the first two
 once carried (#150).
+
+The notification and widget seams run the other way round from most defaults
+here: the `@_spi(Testing)` `init` defaults them to the **no-ops**, while the
+public `make(...)` requires them. The reconcilers behind them fire on ordinary
+writes, so a suite that named nothing would schedule real notifications and
+reload the user's widget timelines as a side effect of saving a day. Only
+`WhereBootstrap` names the real ones. `forIntents(sharingStoreOf:)` inherits
+them from its base for the same reason it inherits the attributor — a stack
+derived from the demo world must stay made of no-ops.

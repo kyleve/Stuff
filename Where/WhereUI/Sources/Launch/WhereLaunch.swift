@@ -267,6 +267,14 @@ public final class WhereBootstrap: WhereScopeAssembling {
             let services = try await WhereServices.make(
                 store: store,
                 locationSource: source,
+                // The real world's seams, named here because this is the only
+                // place that wants them: the demo scope builds the same stack
+                // out of no-ops, and every test and preview gets no-ops by
+                // default.
+                reminderScheduler: UserNotificationReminderScheduler(),
+                summaryScheduler: UserNotificationDailySummaryScheduler(),
+                issueAlertScheduler: UserNotificationDataIssueAlertScheduler(),
+                widgetRefresher: WidgetCenterTimelineRefresher(),
                 locationOutbox: FileLocationOutbox.applicationSupport(),
             )
             Self.logger { .servicesAssembled }

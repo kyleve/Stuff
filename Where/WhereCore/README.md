@@ -195,3 +195,9 @@ is exercised via the `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 everything in memory — is plain `public` API, as are the noop schedulers and
 refreshers. They back tests and previews, but they ship because the app's demo
 mode is built out of them.
+
+They are also what the `@_spi(Testing)` `WhereServices.init` defaults its
+notification and widget seams to, so a test or preview that names nothing
+posts nothing and reloads nothing. The public `WhereServices.make(...)`
+requires those seams instead: naming the real world is the composition root's
+job, not something a caller falls into by omission.
