@@ -4,37 +4,64 @@ import WhereCore
 // The typed steps `WhereLaunch.plan(for:)` and `resetPlan(for:)` assemble.
 //
 // Each step's `Input`/`Output` is the launch's dependency scope at that
-// point (see the scope convention in `WhereLaunch`): `OpenStoreStep` mints
-// the store scope (`WhereServices`), `StartSessionStep` promotes it to the
-// session scope (`WhereSession`, which embeds the services), and everything
-// downstream takes the **non-optional** session as input — a step cannot be
-// scheduled before the thing it needs exists, and no step reaches into
-// `WhereModel` optionals to find what an earlier step "should have" set.
+// point (see the scope convention in `WhereLaunch`): `ResolveScopeStep` mints
+// the logged-in scope (`WhereScope`), `StartSessionStep` promotes it to the
+// session scope (`WhereSession`, which embeds the scope's services), and
+// everything downstream takes the **non-optional** session as input — a step
+// cannot be scheduled before the thing it needs exists.
+//
+// The trunk begins with the onboarding gate rather than a step, because
+// nothing may be built until the user has chosen a world to work in. That is
+// also the one place the "no step reaches into `WhereModel` for what an
+// earlier node should have set" rule bends: a gate carries no value (it is
+// pass-through by construction), so a choice made *at* the gate — onboarding
+// logging in for real, or demo mode activating an in-memory scope — reaches
+// `ResolveScopeStep` through the model rather than down the trunk. Every step
+// after that is threaded normally.
 
-/// Open the SwiftData store and assemble the service layer — the process's
-/// **one** store open (everything else shares the instance by injection; see
-/// `WhereBootstrap.makeServices`). Skipped work when services already exist
-/// (a preview/test injected them, or a prior session before a reset), so we
-/// never spin up a real store + CoreLocation behind a retained layer.
-/// Opening may run a lightweight migration; there's no separate UI for it —
-/// the launch splash (shown throughout) fades in its own launch-neutral
-/// "taking a moment" caption when any launch phase runs long.
-struct OpenStoreStep: LifecycleStep {
+/// First-run onboarding. Rooted at the trunk's head so that an install whose
+/// user hasn't chosen yet builds nothing: no store is opened, no CloudKit is
+/// contacted, and no session exists behind this.
+///
+/// Unlike most gates it applies to **all** launch reasons rather than the
+/// foreground-only default. Parking a headless launch is the point here — the
+/// alternative is opening the user's store for a launch they can't see and may
+/// never have consented to — and it costs nothing: a genuine background wake
+/// can only happen once location monitoring is running, which requires the
+/// permission this flow asks for, by which point `isNeeded` is false.
+struct OnboardingGate: LifecycleGate {
     let model: WhereModel
-    let bootstrap: WhereBootstrap
 
-    let id = LaunchStepID.openStore
+    let id = LaunchStepID.onboarding
+    let modes: LifecycleModeSet = .all
 
-    func run(_: Void, _: LifecycleStepContext) async throws -> WhereServices {
-        if let services = model.services { return services }
-        let services = try await bootstrap.makeServices()
-        model.attach(services: services)
-        return services
+    func isNeeded(_: Void) async -> Bool {
+        // An active scope means the choice has already been made — by
+        // onboarding just now, or by a preview/test injecting one — so don't
+        // ask again even though `hasOnboarded` may not be written yet.
+        model.activeScope == nil && !model.hasOnboarded
     }
 }
 
-/// Create the logged-in `WhereSession` over the assembled services and hand
-/// the service layer to the app's composition hook before any later node —
+/// Resolve the scope the rest of the launch runs against: the one the user's
+/// choice at the gate activated, or — for someone who onboarded on an earlier
+/// launch — their real scope, opening the app's **one** store on the way (see
+/// `WhereModel.resolveScope()`; everything else shares that store by
+/// injection). Opening may run a lightweight migration; there's no separate UI
+/// for it — the launch splash (shown throughout) fades in its own
+/// launch-neutral "taking a moment" caption when any launch phase runs long.
+struct ResolveScopeStep: LifecycleStep {
+    let model: WhereModel
+
+    let id = LaunchStepID.resolveScope
+
+    func run(_: Void, _: LifecycleStepContext) async throws -> WhereScope {
+        try await model.resolveScope()
+    }
+}
+
+/// Create the logged-in `WhereSession` over the active scope and hand the
+/// scope's service layer to the app's composition hook before any later node —
 /// or the UI — runs, so consumers awaiting it (parked App Intents) resume
 /// against this session's store. Runs on every session (re)start: first
 /// launch, a retry after a failed open, and the reset relaunch (the
@@ -45,25 +72,10 @@ struct StartSessionStep: LifecycleStep {
 
     let id = LaunchStepID.startSession
 
-    func run(_ services: WhereServices, _: LifecycleStepContext) async throws -> WhereSession {
-        let session = model.startSession(services: services)
+    func run(_ scope: WhereScope, _: LifecycleStepContext) async throws -> WhereSession {
+        let session = model.startSession(scope: scope)
         await onServicesReady(session.services)
         return session
-    }
-}
-
-/// First-run onboarding. A gate (foreground-only by default), so a headless
-/// launch skips it — and `isNeeded` re-evaluates when a scene promotes the
-/// launch, so a cold `.undetermined` start still onboards once it becomes
-/// user-visible. `RootView` registers `OnboardingView` for this gate type;
-/// the view receives the session this gate passes through.
-struct OnboardingGate: LifecycleGate {
-    let model: WhereModel
-
-    let id = LaunchStepID.onboarding
-
-    func isNeeded(_: WhereSession) async -> Bool {
-        !model.hasOnboarded
     }
 }
 
@@ -146,13 +158,12 @@ struct WidgetSnapshotStep: LifecycleStep {
 
 // MARK: - Reset teardown steps
 
-/// Stop GPS, wipe the store, and drop the session. Takes the session being
-/// erased as the teardown plan's root input — handed in by Settings, not
-/// re-read from an optional. If the erase throws the runner parks in
-/// `.failed` (terminally — teardown runs fire-once) with the session and
-/// preferences *intact*, so the reset is simply re-invocable from Settings
-/// after relaunching, rather than stranding the user in onboarding atop
-/// un-erased data.
+/// Stop GPS, wipe the store, and log out. Takes the session being erased as
+/// the teardown plan's root input — handed in by Settings, not re-read from an
+/// optional. If the erase throws the runner parks in `.failed` (terminally —
+/// teardown runs fire-once) with the session and preferences *intact*, so the
+/// reset is simply re-invocable from Settings after relaunching, rather than
+/// stranding the user in onboarding atop un-erased data.
 struct EraseDataStep: LifecycleStep {
     let model: WhereModel
 
@@ -160,9 +171,28 @@ struct EraseDataStep: LifecycleStep {
 
     func run(_ session: WhereSession, _: LifecycleStepContext) async throws {
         try await session.eraseSession()
-        // Dropping the session makes the relaunch rebuild a fresh one over
-        // the erased store (the services stay retained).
-        model.endSession()
+        // Logging out drops the session and releases the scope, so the
+        // relaunch parks on the onboarding gate with nothing open; logging
+        // back in builds a fresh scope over the erased store.
+        await model.endSession()
+    }
+}
+
+/// Leave the demo world behind. Takes the demo session as the teardown plan's
+/// root input, the same shape the reset teardown uses, so Settings hands in
+/// what it is tearing down rather than the step re-reading an optional.
+///
+/// There is deliberately no erase: a demo store only ever existed in memory,
+/// so releasing the scope is the whole cleanup. Quitting the app mid-demo
+/// takes the same path for free, which is why demo mode needs no teardown on
+/// the cold-launch side.
+struct ExitDemoStep: LifecycleStep {
+    let model: WhereModel
+
+    let id = LaunchStepID.exitDemo
+
+    func run(_: WhereSession, _: LifecycleStepContext) async throws {
+        await model.deactivateDemo()
     }
 }
 

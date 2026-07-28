@@ -10,7 +10,7 @@ import WhereCore
 /// derives a store-sharing stack from its services
 /// (`WhereServices.forIntents(sharingStoreOf:)`, wired through
 /// `WhereLaunch.makeLauncher`'s `onServicesReady` hook) and hands it to
-/// `install(_:)`. That makes the launch's `open-store` step the process's
+/// `install(_:)`. That makes the launch's `resolve-scope` step the process's
 /// *only* store open — an intent can never race it with a second container
 /// over the same store file (the fresh-install creation race), and an intent
 /// write pings the same `changes()` signal the running UI refreshes from.
@@ -48,6 +48,17 @@ public actor IntentServices {
         for continuation in parked.values {
             continuation.resume(returning: services)
         }
+    }
+
+    /// Release the installed stack, so nothing here keeps the app's store alive
+    /// once it has logged out of it (a reset, or leaving demo mode). The next
+    /// session's `install(_:)` replaces it.
+    ///
+    /// Intents that fire meanwhile **park**, exactly as they do before the
+    /// first install — the alternative is answering from a store the app has
+    /// abandoned, which is worse than waiting for the one it opens next.
+    public func clear() {
+        installed = nil
     }
 
     /// The installed stack, suspending until the launch installs one. Throws

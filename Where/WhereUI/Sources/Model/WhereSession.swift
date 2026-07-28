@@ -22,12 +22,13 @@ import WhereCore
 /// - the reminder/summary editing surface → view-scoped ``RemindersSettingsModel``;
 /// - backup export/import progress → view-scoped ``BackupModel``.
 ///
-/// A session only exists once the store is open: `WhereModel` creates it in the
-/// launch's `open-store` step and drops it on reset, so `services` is
-/// non-optional and there are no pre-attach nil guards. Logged-in views read it
-/// via `@Environment(WhereSession.self)`; the `TabView` renders only at `.ready`
-/// and onboarding runs after `open-store`, so the session is always present
-/// wherever those views appear. It also vends `services` / `preferences` / `now`
+/// A session only exists once the app is logged in to a scope: `WhereModel`
+/// creates it in the launch's `start-session` step and drops it on reset (and
+/// on entering demo mode), so `services` is non-optional and there are no
+/// pre-attach nil guards. Logged-in views read it via
+/// `@Environment(WhereSession.self)`; the `TabView` renders only at `.ready`
+/// and onboarding runs *before* the scope is resolved, so the session is always
+/// present wherever those views appear. It also vends `services` / `preferences` / `now`
 /// so `MainTabs` can build the scene's `YearReportModel` (and the tabs their
 /// view-scoped models) from the injected coordinator.
 @MainActor
@@ -128,16 +129,36 @@ public final class WhereSession {
         return SessionID(value: nextRawID)
     }
 
-    /// Build a coordinator over an already-assembled service layer.
-    public init(
+    /// Build a coordinator over the scope the app is logged in to. The
+    /// designated initializer: taking the whole scope is what guarantees the
+    /// services and the preferences a session reads belong to the same world.
+    init(scope: WhereScope, now: @escaping @Sendable () -> Date = { Date() }) {
+        id = Self.mintID()
+        services = scope.services
+        preferences = scope.preferences
+        self.now = now
+    }
+
+    /// Build a coordinator over a loose service layer, wrapping it in a scope.
+    /// For previews and tests that drive the coordinator directly and have no
+    /// reason to name the scope; the app always has one.
+    ///
+    /// The wrapper scope never opens a log store, so nothing is ever registered
+    /// on the logging system it names — which is why this doesn't ask the
+    /// caller for one.
+    public convenience init(
         services: WhereServices,
-        preferences: WherePreferences = WherePreferences(),
+        preferences: WherePreferences,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
-        id = Self.mintID()
-        self.services = services
-        self.preferences = preferences
-        self.now = now
+        self.init(
+            scope: .fake(
+                services: services,
+                preferences: preferences,
+                logSystem: .shared,
+            ),
+            now: now,
+        )
     }
 
     /// Cancel the authorization observer when the session is dropped (e.g. the

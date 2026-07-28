@@ -87,6 +87,28 @@ public final class Periscope: LogRecorder, Sendable {
         }
     }
 
+    /// A registered sink's handle, returned by ``add(sink:)`` and consumed by
+    /// ``remove(_:)``.
+    ///
+    /// A token rather than the sink itself because ``LogSink`` is not
+    /// class-constrained: a struct sink has no identity to match on, and two
+    /// value sinks that compare equal would be indistinguishable. Registration
+    /// mints one identity per `add`, so removing one of two identical sinks
+    /// removes exactly the one that token registered.
+    public struct SinkToken: Hashable, Sendable {
+        private let id: UUID
+
+        fileprivate init() {
+            id = UUID()
+        }
+    }
+
+    /// A sink and the token it was registered under.
+    private struct RegisteredSink {
+        let token: SinkToken
+        let sink: any LogSink
+    }
+
     /// The synthetic event reporting records dropped by the overflow policy.
     public struct DroppedEvents: LogEvent {
         public static let eventName = "dropped-events"
@@ -115,7 +137,7 @@ public final class Periscope: LogRecorder, Sendable {
 
     private struct State {
         var scopes: [ScopeID: LogScope] = [:]
-        var sinks: [any LogSink] = []
+        var sinks: [RegisteredSink] = []
         var pending: [PendingItem] = []
         var pendingRecordCount = 0
         var droppedCount = 0
@@ -170,7 +192,9 @@ public final class Periscope: LogRecorder, Sendable {
             "liveBufferCapacity must be positive",
         )
         self.configuration = configuration
-        state = OSAllocatedUnfairLock(initialState: State(sinks: sinks))
+        state = OSAllocatedUnfairLock(
+            initialState: State(sinks: sinks.map { RegisteredSink(token: SinkToken(), sink: $0) }),
+        )
         defineScope(systemScope)
     }
 
@@ -181,9 +205,15 @@ public final class Periscope: LogRecorder, Sendable {
     /// replay is *prepended*: records already pending must not reach the
     /// new sink ahead of the scopes they reference (existing sinks see the
     /// definitions again — idempotence is part of the sink contract).
-    public func add(sink: some LogSink) {
+    ///
+    /// The returned token detaches this registration again via
+    /// ``remove(_:)``; callers that keep a sink for the process lifetime can
+    /// discard it.
+    @discardableResult
+    public func add(sink: some LogSink) -> SinkToken {
+        let token = SinkToken()
         state.withLock { state in
-            state.sinks.append(sink)
+            state.sinks.append(RegisteredSink(token: token, sink: sink))
             state.pending.insert(
                 contentsOf: state.scopes.values.map(PendingItem.scope),
                 at: 0,
@@ -196,6 +226,51 @@ public final class Periscope: LogRecorder, Sendable {
             install(journal: journal)
         }
         scheduleDrainIfNeeded()
+        return token
+    }
+
+    /// Detach the sink `token` registered. When this returns, the sink has
+    /// received every record emitted before the call, has been flushed, and
+    /// will receive nothing further.
+    ///
+    /// Both halves of that need the drain, which is why removal is `async`
+    /// and brackets the deregistration with a wait:
+    ///
+    /// 1. Wait out the in-flight drain, so records already queued reach the
+    ///    sink while it is still registered — dropping it first would strand
+    ///    them, since nothing will deliver them to it afterwards.
+    /// 2. Drop the registration under the lock, so no later drain sees it.
+    /// 3. Wait again: a drain that started between the two is delivering
+    ///    against a snapshot taken before the removal.
+    ///
+    /// A record emitted *concurrently* with the call may land on either side
+    /// of it; the guarantee is about records emitted before it starts and
+    /// after it returns. An unknown or already-removed token is a no-op.
+    ///
+    /// A removed store also takes its crash journal with it: the journal is
+    /// the emit-side tap `add(sink:)` installed on that store's behalf, and
+    /// leaving it installed would keep journaling records to a store no
+    /// longer in the pipeline.
+    public func remove(_ token: SinkToken) async {
+        let isRegistered = state.withLock { state in
+            state.sinks.contains { $0.token == token }
+        }
+        guard isRegistered else { return }
+
+        await drainInFlightWork()
+        let removed: (any LogSink)? = state.withLock { state in
+            guard let index = state.sinks.firstIndex(where: { $0.token == token }) else {
+                return nil
+            }
+            let removed = state.sinks.remove(at: index).sink
+            if let store = removed as? PeriscopeStore, store.journal === state.journal {
+                state.journal = nil
+            }
+            return removed
+        }
+        guard let removed else { return }
+        await drainInFlightWork()
+        await removed.flush()
     }
 
     /// Install the crash journal: every subsequent buffered record appends
@@ -647,12 +722,18 @@ public final class Periscope: LogRecorder, Sendable {
     /// Wait until everything pending has reached every sink, then ask each
     /// sink to persist its own buffers.
     public func flush() async {
+        await drainInFlightWork()
+        let sinks = state.withLock(\.sinks)
+        for registered in sinks {
+            await registered.sink.flush()
+        }
+    }
+
+    /// Wait until no drain is in flight — every record queued before the call
+    /// has reached every sink registered when its batch was taken.
+    private func drainInFlightWork() async {
         while let task = state.withLock({ $0.drainTask }) {
             await task.value
-        }
-        let sinks = state.withLock(\.sinks)
-        for sink in sinks {
-            await sink.flush()
         }
     }
 
@@ -667,7 +748,7 @@ public final class Periscope: LogRecorder, Sendable {
         while true {
             let next: (
                 items: [PendingItem],
-                sinks: [any LogSink],
+                sinks: [RegisteredSink],
                 dropReport: LogRecord?,
             )? = state.withLock { state in
                 guard !state.pending.isEmpty else {
@@ -701,10 +782,10 @@ public final class Periscope: LogRecorder, Sendable {
                 items.insert(.record(dropReport), at: leadingScopes.count)
             }
             for chunk in Self.chunked(items) {
-                for sink in sinks {
+                for registered in sinks {
                     switch chunk {
-                        case let .scopes(scopes): await sink.defineScopes(scopes)
-                        case let .records(records): await sink.write(records)
+                        case let .scopes(scopes): await registered.sink.defineScopes(scopes)
+                        case let .records(records): await registered.sink.write(records)
                     }
                 }
             }

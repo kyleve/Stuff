@@ -27,19 +27,27 @@ public protocol DailySummaryScheduling: Sendable {
     func reconcile(enabled: Bool, time: ReminderTime, body: String) async
 }
 
-/// A `DailySummaryScheduling` that does nothing. For SwiftUI previews and
-/// view-model tests that need a controller without touching
-/// `UNUserNotificationCenter`. Reports unauthorized so the UI's "denied"
-/// affordances stay exercisable.
+/// A `DailySummaryScheduling` that does nothing. For SwiftUI previews,
+/// view-model tests, and demo mode — anything that needs a reconciler without
+/// touching `UNUserNotificationCenter`.
+///
+/// - Parameter authorized: what it reports back. Defaults to *un*authorized, so
+///   the UI's "denied" affordances stay exercisable in previews and tests. Demo
+///   mode passes `true`, presenting a fully-granted user; claiming denial there
+///   would log a spurious warning and offer a dead-end trip to Settings.
 public struct NoopDailySummaryScheduler: DailySummaryScheduling {
-    public init() {}
+    private let authorized: Bool
+
+    public init(authorized: Bool = false) {
+        self.authorized = authorized
+    }
 
     public func requestAuthorization() async -> Bool {
-        false
+        authorized
     }
 
     public func isAuthorized() async -> Bool {
-        false
+        authorized
     }
 
     public func reconcile(enabled _: Bool, time _: ReminderTime, body _: String) async {}

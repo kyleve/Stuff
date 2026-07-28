@@ -26,7 +26,7 @@ struct ResolveModelTests {
         )
         let resolve = ResolveModel(
             services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         try await services.journal.addManualDay(
@@ -52,7 +52,7 @@ struct ResolveModelTests {
         )
         let resolve = ResolveModel(
             services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         // Two calendar-adjacent days with disjoint regions produce a real,
@@ -88,7 +88,7 @@ struct ResolveModelTests {
         let services = flightServices(store: store, now: now)
         let resolve = ResolveModel(
             services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         try await seedCoastToCoastFlight(into: store)
@@ -114,7 +114,7 @@ struct ResolveModelTests {
         let services = flightServices(store: store, now: now)
         let resolve = ResolveModel(
             services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         try await seedCoastToCoastFlight(into: store)
@@ -206,7 +206,7 @@ struct ResolveModelTests {
         )
         let resolve = ResolveModel(
             services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         #expect(!resolve.hasLoaded)
@@ -246,7 +246,7 @@ struct ResolveModelTests {
         )
         let resolve = ResolveModel(
             services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         resolve.setDataIssues([])
@@ -267,7 +267,7 @@ struct ResolveModelTests {
         )
         let resolve = ResolveModel(
             services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         resolve.setDataIssues([])

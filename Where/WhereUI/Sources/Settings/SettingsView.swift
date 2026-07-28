@@ -22,6 +22,9 @@ struct SettingsView: View {
     @State private var showRegions = false
 
     @Environment(WhereSession.self) private var session
+    @Environment(WhereModel.self) private var model
+    @Environment(\.lifecycle) private var lifecycle
+    @Environment(\.isInDemoMode) private var isInDemoMode
 
     init(report: YearReportModel) {
         self.report = report
@@ -43,6 +46,16 @@ struct SettingsView: View {
 
     private var searchResults: [SettingsSearchResult] {
         SettingsCatalog.results(matching: searchQuery)
+            .filter { isAvailable($0.destination) }
+    }
+
+    /// Whether a group is offered right now. Everything is, except the few
+    /// groups a demo has no business showing (see
+    /// `SettingsDestination.isAvailableInDemoMode`) — filtered here rather than
+    /// per-row so the list and the search index can't disagree about what
+    /// exists.
+    private func isAvailable(_ destination: SettingsDestination) -> Bool {
+        !isInDemoMode || destination.isAvailableInDemoMode
     }
 
     var body: some View {
@@ -53,10 +66,16 @@ struct SettingsView: View {
                         searchNavigationRow(result)
                     }
                 } else {
+                    if isInDemoMode {
+                        demoSection
+                    }
                     ForEach(SettingsListSection.allCases, id: \.self) { section in
-                        Section {
-                            ForEach(section.destinations, id: \.self) { destination in
-                                groupNavigationRow(destination)
+                        let destinations = section.destinations.filter(isAvailable)
+                        if !destinations.isEmpty {
+                            Section {
+                                ForEach(destinations, id: \.self) { destination in
+                                    groupNavigationRow(destination)
+                                }
                             }
                         }
                     }
@@ -76,6 +95,37 @@ struct SettingsView: View {
                 RegionsSettingsView(usedThisYear: regionsUsedThisYear)
             }
         }
+    }
+
+    /// The way out of demo mode, at the very top of the list where a temporary
+    /// state belongs — above the real settings rather than filed among them.
+    ///
+    /// No confirmation: there is nothing to lose. Demo data was never saved,
+    /// and leaving is exactly what quitting the app would do anyway, so a
+    /// "are you sure?" would overstate the stakes.
+    private var demoSection: some View {
+        Section {
+            Button {
+                exitDemoMode()
+            } label: {
+                Label(
+                    String(localized: .settingsDemoExit),
+                    systemImage: "rectangle.portrait.and.arrow.right",
+                )
+            }
+        } header: {
+            Text(String(localized: .settingsDemoHeader))
+        } footer: {
+            Text(String(localized: .settingsDemoFooter))
+        }
+    }
+
+    /// Tear the demo world down and re-drive the launch, through the same
+    /// `LifecycleProxy` the reset flow uses. The relaunch parks on the
+    /// onboarding gate (or resolves straight through for someone who had
+    /// already onboarded before trying the demo).
+    private func exitDemoMode() {
+        Task { await lifecycle.teardown(WhereLaunch.exitDemoPlan(for: model), input: session) }
     }
 
     /// A top-level row that either pushes its sub-screen or, for a sheet group
@@ -215,6 +265,14 @@ struct SettingsView: View {
                 SettingsView(report: PreviewSupport.loadedYearReportModel())
                     .environment(PreviewSupport.loadedModel())
                     .environment(PreviewSupport.loadedSession())
+            }
+            // Demo mode: the exit section on top, and the groups that would
+            // reach past the demo (backup, erase/reset, app icon) gone.
+            whereSnapshot(name: "DemoMode", configurations: .phoneLightDark) {
+                SettingsView(report: PreviewSupport.loadedYearReportModel())
+                    .environment(PreviewSupport.loadedModel())
+                    .environment(PreviewSupport.loadedSession())
+                    .environment(\.isInDemoMode, true)
             }
         }
     }

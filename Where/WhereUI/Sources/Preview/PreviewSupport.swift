@@ -17,6 +17,15 @@
     public enum PreviewSupport {
         public static let year = 2026
 
+        /// A private logging system for fixtures, so a preview's or snapshot's
+        /// log sinks never join the process-wide pipeline (and a long-running
+        /// snapshot host doesn't accumulate them).
+        @MainActor
+        public static let logSystem = Periscope(
+            configuration: Periscope.Configuration(),
+            sinks: [],
+        )
+
         /// Fixed "now" for previews and snapshots — midday (Pacific) in the middle
         /// of the sample year, so "today" chrome (the calendar's current-day
         /// highlight, formatted dates, missing-day math) renders identically
@@ -59,6 +68,15 @@
             return YearReport(year: year, days: days, totals: totals)
         }
 
+        /// Memory-backed preferences shared by every preview fixture, honoring
+        /// the no-disk contract: a preview must never read or write the host's
+        /// real defaults, or a fixture's state outlives the preview and leaks
+        /// into the next one.
+        @MainActor
+        public static func previewPreferences() -> WherePreferences {
+            WherePreferences(store: InMemoryKeyValueStore())
+        }
+
         /// In-memory, no-op-backed services shared by every preview fixture.
         /// Every scheduler seam is a no-op — the issue-alert one included, so the
         /// launch sequence's `issue-alerts` step can't suspend on a real
@@ -94,7 +112,7 @@
         /// `*YearReportModel()` fixture instead.
         @MainActor
         public static func loadedSession() -> WhereSession {
-            WhereSession(services: previewServices())
+            WhereSession(services: previewServices(), preferences: previewPreferences())
         }
 
         // MARK: - Settings models (reminders / backup sub-screens)
@@ -103,7 +121,10 @@
         /// Settings reminders and alerts sub-screen previews/tests.
         @MainActor
         public static func remindersSettingsModel() -> RemindersSettingsModel {
-            RemindersSettingsModel(services: previewServices(), preferences: WherePreferences())
+            RemindersSettingsModel(
+                services: previewServices(),
+                preferences: previewPreferences(),
+            )
         }
 
         /// A backup export/import model over in-memory services, for the Settings
@@ -216,6 +237,7 @@
                 services: previewServices(),
                 report: sampleReport(),
                 selectedYear: year,
+                preferences: previewPreferences(),
                 now: { referenceNow },
             )
         }
@@ -228,6 +250,7 @@
                 services: previewServices(),
                 report: YearReport(year: year, days: [], totals: [:]),
                 selectedYear: year,
+                preferences: previewPreferences(),
                 now: { referenceNow },
             )
         }
@@ -251,6 +274,7 @@
                 services: previewServices(),
                 report: YearReport(year: year, days: days, totals: [.other: days.count]),
                 selectedYear: year,
+                preferences: previewPreferences(),
                 now: { referenceNow },
             )
         }
@@ -278,6 +302,7 @@
                 services: previewServices(),
                 report: YearReport(year: year, days: days, totals: [.california: days.count]),
                 selectedYear: year,
+                preferences: previewPreferences(),
                 now: { today },
             )
         }
@@ -334,7 +359,10 @@
         /// empty store found, and the capture raced that scan.
         @MainActor
         public static func resolveModel(seededWithIssues: Bool = true) -> ResolveModel {
-            let resolve = ResolveModel(services: previewServices(), preferences: WherePreferences())
+            let resolve = ResolveModel(
+                services: previewServices(),
+                preferences: previewPreferences(),
+            )
             resolve.setDataIssues(seededWithIssues ? sampleDataIssues() : [])
             return resolve
         }
@@ -484,13 +512,14 @@
         /// Synchronous, so it drops straight into `#Preview`.
         @MainActor
         public static func loadedModel() -> WhereModel {
-            let preferences = WherePreferences(store: InMemoryKeyValueStore())
+            let preferences = previewPreferences()
             preferences.hasOnboarded = true
             return WhereModel(
                 services: previewServices(),
                 report: sampleReport(),
                 selectedYear: year,
                 preferences: preferences,
+                logSystem: logSystem,
                 now: { referenceNow },
             )
         }
@@ -502,15 +531,14 @@
         public static let referenceWidgetDay = Date(timeIntervalSince1970: 1_770_000_000)
 
         /// A fresh, not-yet-onboarded model over **in-memory** preferences — for
-        /// the onboarding preview/snapshot. Uses `InMemoryKeyValueStore` rather
-        /// than the default `WherePreferences()` (which is backed by
-        /// `UserDefaults.standard`) so the fixture honors PreviewSupport's
-        /// no-disk contract and the host's real defaults can't leak in.
+        /// the onboarding preview/snapshot, honoring PreviewSupport's no-disk
+        /// contract so the host's real defaults can't leak in.
         @MainActor
         public static func onboardingModel() -> WhereModel {
             WhereModel(
                 services: previewServices(),
-                preferences: WherePreferences(store: InMemoryKeyValueStore()),
+                preferences: previewPreferences(),
+                logSystem: logSystem,
                 now: { referenceNow },
             )
         }

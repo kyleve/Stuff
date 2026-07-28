@@ -10,7 +10,10 @@ import Testing
 @MainActor
 struct SwiftDataInspectorWiringTests {
     @Test func configurationModelTypesMatchTheLiveSchema() throws {
-        let session = WhereSession(services: PreviewSupport.previewServices())
+        let session = WhereSession(
+            services: PreviewSupport.previewServices(),
+            preferences: PreviewSupport.previewPreferences(),
+        )
         let configuration = try #require(session.swiftDataInspectorConfiguration)
 
         let schemaNames = Set(configuration.container.schema.entities.map(\.name))
