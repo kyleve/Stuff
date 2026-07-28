@@ -189,8 +189,17 @@ public final class WhereScope {
             horizontalAccuracy: 12,
             source: .gpsVisit,
         ))
+        // Off the main actor, as the real scope opens its store
+        // (`WhereBootstrap.makeServices`): building a container is synchronous
+        // work, and this one runs while the entry interstitial is animating.
+        // Everything else here already hops off — seeding and the log store are
+        // `nonisolated async` — so this call was the last main-actor stall on
+        // the way into demo mode.
+        let store = try await Task.detached(priority: .userInitiated) {
+            try SwiftDataStore.inMemory()
+        }.value
         let services = try await WhereServices.make(
-            store: SwiftDataStore.inMemory(),
+            store: store,
             locationSource: locationSource,
             aggregator: aggregator,
             reminderScheduler: NoopLoggingReminderScheduler(),
