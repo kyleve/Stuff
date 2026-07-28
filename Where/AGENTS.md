@@ -151,7 +151,18 @@ What an agent must preserve when touching it:
   that persists something needs the same treatment.
 - **The durable log sink is swapped, not shared.** Entering detaches the real
   scope's on-disk sink (a demo entered after a reset would otherwise journal to
-  the user's history) and exiting reattaches it.
+  the user's history) and exiting reattaches it. `WhereScope` models that as one
+  `pending` / `routing` / `idle` state rather than a store beside a token,
+  because the durable store opens *asynchronously*: one arriving while its scope
+  is shadowed must be remembered without being attached, which independent
+  optionals let you get wrong (and did —
+  `aLogStoreOpeningLateNeverAttachesToAShadowedScope` is the guard).
+- **The logging system is injected, not global.** A scope registers its sink on
+  the `Periscope` handed down from the app root, so a test can assert which
+  world's records reached which store on a private system instead of polluting
+  `Periscope.shared`. `WhereModel`'s `logSystem` has no default for that reason.
+  (The `WhereLog` facade itself still emits into `.shared` — a separate,
+  pre-existing concern.)
 - **Demo mode asks for no permission.** The scripted location source reports
   `.always` and answers a one-shot fix, so the app behaves as it would for a
   fully-granted user without a single prompt.

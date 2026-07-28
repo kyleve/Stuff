@@ -103,6 +103,12 @@ public final class WhereModel {
     /// and the launch triggers it for an already-onboarded user.
     private let bootstrap: any WhereScopeAssembling
 
+    /// The logging system every scope this model creates records into. Carried
+    /// rather than reached for: the app hands down `Periscope.shared` from its
+    /// composition root, while tests and previews pass a private system so
+    /// their sinks never join the process-wide pipeline.
+    private let logSystem: Periscope
+
     private let now: @Sendable () -> Date
 
     /// The year the scene's `YearReportModel` opens on. Always the current year in
@@ -140,16 +146,23 @@ public final class WhereModel {
     /// The app-level model, logged out: no store is open, and none will be
     /// until something asks for a scope.
     ///
-    /// - Parameter bootstrap: assembles the pieces a real scope is built from.
-    ///   Substituted by tests that drive the logged-out → logged-in path,
-    ///   which must not open the app's on-disk store or log store.
+    /// - Parameters:
+    ///   - bootstrap: assembles the pieces a real scope is built from.
+    ///     Substituted by tests that drive the logged-out → logged-in path,
+    ///     which must not open the app's on-disk store or log store.
+    ///   - logSystem: the logging system this model's scopes record into.
+    ///     Deliberately has no default: the app passes `Periscope.shared`, and
+    ///     a test that omitted it would silently attach its sinks to the
+    ///     process-wide pipeline.
     public init(
         preferences: WherePreferences = WherePreferences(),
         bootstrap: any WhereScopeAssembling = WhereBootstrap(),
+        logSystem: Periscope,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.preferences = preferences
         self.bootstrap = bootstrap
+        self.logSystem = logSystem
         self.now = now
         initialSelectedYear = WhereModel.currentYear
         initialReport = nil
@@ -165,12 +178,18 @@ public final class WhereModel {
         report: YearReport? = nil,
         selectedYear: Int = WhereModel.currentYear,
         preferences: WherePreferences = WherePreferences(),
+        logSystem: Periscope,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
-        let scope = WhereScope(services: services, preferences: preferences)
+        let scope = WhereScope(
+            services: services,
+            preferences: preferences,
+            logSystem: logSystem,
+        )
         scopeState = .real(scope)
         self.preferences = preferences
         bootstrap = WhereBootstrap()
+        self.logSystem = logSystem
         self.now = now
         initialSelectedYear = selectedYear
         initialReport = report
@@ -207,7 +226,7 @@ public final class WhereModel {
     ///
     /// Throws if the store can't be opened, leaving the model logged out so a
     /// later attempt can try again.
-    func resolveScope() async throws -> WhereScope {
+    public func resolveScope() async throws -> WhereScope {
         switch scopeState {
             case let .real(scope), let .demo(scope, _):
                 return scope
@@ -219,6 +238,7 @@ public final class WhereModel {
                 let scope = try await WhereScope.real(
                     bootstrap: bootstrap,
                     preferences: preferences,
+                    logSystem: logSystem,
                 )
                 scopeState = .real(scope)
                 Self.logger { .openedRealScope }
@@ -235,6 +255,17 @@ public final class WhereModel {
     }
 
     // MARK: - Demo mode
+
+    /// Build a throwaway demo world — an in-memory store seeded with a
+    /// plausible year — over this model's clock and logging system. Slow (it
+    /// seeds a year), so the caller shows something while it runs.
+    ///
+    /// Separate from ``activateDemo(_:)`` because the entry point builds the
+    /// scope *before* committing to it: a build that fails leaves the user on
+    /// the intro with nothing changed.
+    public func makeDemoScope() async throws -> WhereScope {
+        try await WhereScope.demo(now: now, logSystem: logSystem)
+    }
 
     /// Log in to a demo world, keeping whatever real scope exists dormant
     /// beside it.

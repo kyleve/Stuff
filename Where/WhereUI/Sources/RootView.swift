@@ -55,7 +55,10 @@ public struct RootView: View {
     /// foreground runner for it. The runner isn't run by the app delegate
     /// here, so `.task` drives it (see `body`).
     public init() {
-        let model = WhereModel()
+        // Mirrors the app root's wiring (see `AppDelegate`). Nothing here
+        // attaches a sink unless a scope is actually resolved, which a preview
+        // or the hosted UI test never gets to.
+        let model = WhereModel(logSystem: .shared)
         _model = State(initialValue: model)
         launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
     }

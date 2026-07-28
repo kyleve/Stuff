@@ -62,7 +62,7 @@ struct WhereLaunchTests {
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        return WhereModel(services: services, preferences: preferences)
+        return WhereModel(services: services, preferences: preferences, logSystem: .isolated())
     }
 
     /// Like `makeModel`, but returns the backing store and location source so a
@@ -81,7 +81,11 @@ struct WhereLaunchTests {
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        return (WhereModel(services: services, preferences: preferences), store, source)
+        return (
+            WhereModel(services: services, preferences: preferences, logSystem: .isolated()),
+            store,
+            source,
+        )
     }
 
     /// In-memory services, for a model that must assemble its scope lazily
@@ -108,7 +112,7 @@ struct WhereLaunchTests {
     ) throws -> (WhereModel, ScriptedBootstrap) {
         let bootstrap = try ScriptedBootstrap(services: makeServices(status: status))
         return (
-            WhereModel(preferences: preferences, bootstrap: bootstrap),
+            WhereModel(preferences: preferences, bootstrap: bootstrap, logSystem: .isolated()),
             bootstrap,
         )
     }
@@ -289,7 +293,11 @@ struct WhereLaunchTests {
         // reading as a launch that simply never finished.
         let preferences = makePreferences()
         preferences.hasOnboarded = true
-        let model = WhereModel(preferences: preferences, bootstrap: FailingBootstrap())
+        let model = WhereModel(
+            preferences: preferences,
+            bootstrap: FailingBootstrap(),
+            logSystem: .isolated(),
+        )
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
@@ -338,8 +346,13 @@ struct WhereLaunchTests {
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let preferences = makePreferences()
-        let model = WhereModel(preferences: preferences)
-        model.activate(scope: WhereScope(services: services, preferences: preferences))
+        let logSystem = Periscope.isolated()
+        let model = WhereModel(preferences: preferences, logSystem: logSystem)
+        model.activate(scope: WhereScope(
+            services: services,
+            preferences: preferences,
+            logSystem: logSystem,
+        ))
         model.completeOnboarding()
 
         var receivedContainers: [ModelContainer?] = []
@@ -368,8 +381,13 @@ struct WhereLaunchTests {
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         let preferences = makePreferences()
-        let model = WhereModel(preferences: preferences)
-        model.activate(scope: WhereScope(services: services, preferences: preferences))
+        let logSystem = Periscope.isolated()
+        let model = WhereModel(preferences: preferences, logSystem: logSystem)
+        model.activate(scope: WhereScope(
+            services: services,
+            preferences: preferences,
+            logSystem: logSystem,
+        ))
         model.completeOnboarding()
 
         var hookFires = 0

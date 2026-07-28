@@ -17,6 +17,15 @@
     public enum PreviewSupport {
         public static let year = 2026
 
+        /// A private logging system for fixtures, so a preview's or snapshot's
+        /// log sinks never join the process-wide pipeline (and a long-running
+        /// snapshot host doesn't accumulate them).
+        @MainActor
+        public static let logSystem = Periscope(
+            configuration: Periscope.Configuration(),
+            sinks: [],
+        )
+
         /// Fixed "now" for previews and snapshots — midday (Pacific) in the middle
         /// of the sample year, so "today" chrome (the calendar's current-day
         /// highlight, formatted dates, missing-day math) renders identically
@@ -473,6 +482,7 @@
                 report: sampleReport(),
                 selectedYear: year,
                 preferences: preferences,
+                logSystem: logSystem,
                 now: { referenceNow },
             )
         }
@@ -493,6 +503,7 @@
             WhereModel(
                 services: previewServices(),
                 preferences: WherePreferences(store: InMemoryKeyValueStore()),
+                logSystem: logSystem,
                 now: { referenceNow },
             )
         }

@@ -51,7 +51,11 @@ struct WhereResetTests {
         status: LocationAuthorizationStatus = .always,
         preferences: WherePreferences,
     ) throws -> WhereModel {
-        try WhereModel(services: makeServices(status: status), preferences: preferences)
+        try WhereModel(
+            services: makeServices(status: status),
+            preferences: preferences,
+            logSystem: .isolated(),
+        )
     }
 
     /// A model plus the scripted location source backing it, so a test can push
@@ -69,7 +73,10 @@ struct WhereResetTests {
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        return (WhereModel(services: services, preferences: preferences), source)
+        return (
+            WhereModel(services: services, preferences: preferences, logSystem: .isolated()),
+            source,
+        )
     }
 
     @Test func resetPlanErasesThenClearsPreferences() throws {
@@ -100,7 +107,7 @@ struct WhereResetTests {
     @Test func eraseAllDataClearsTheStoreAndStopsTracking() async throws {
         let preferences = makePreferences()
         let services = try makeServices(status: .always)
-        let model = WhereModel(services: services, preferences: preferences)
+        let model = WhereModel(services: services, preferences: preferences, logSystem: .isolated())
         model.completeOnboarding()
         let session = try #require(model.session)
         // The scene's report model shares the coordinator's services (its store).
@@ -149,7 +156,11 @@ struct WhereResetTests {
         let preferences = makePreferences()
         let services = try makeServices()
         let bootstrap = ScriptedBootstrap(services: services)
-        let model = WhereModel(preferences: preferences, bootstrap: bootstrap)
+        let model = WhereModel(
+            preferences: preferences,
+            bootstrap: bootstrap,
+            logSystem: .isolated(),
+        )
         model.completeOnboarding()
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
@@ -218,7 +229,7 @@ struct WhereResetTests {
     @Test func resetReturnsToOnboardingWithDataErased() async throws {
         let preferences = makePreferences()
         let services = try makeServices(status: .always)
-        let model = WhereModel(services: services, preferences: preferences)
+        let model = WhereModel(services: services, preferences: preferences, logSystem: .isolated())
         model.completeOnboarding()
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
@@ -267,7 +278,7 @@ struct WhereResetTests {
         // reminders/summary off, and logged a day runs "Erase all data & reset".
         let preferences = makePreferences()
         let services = try makeServices(status: .always)
-        let model = WhereModel(services: services, preferences: preferences)
+        let model = WhereModel(services: services, preferences: preferences, logSystem: .isolated())
         let original = try #require(model.session)
         model.completeOnboarding()
         preferences.remindersEnabled = false

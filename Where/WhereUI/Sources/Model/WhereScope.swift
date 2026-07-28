@@ -42,15 +42,47 @@ public final class WhereScope {
     /// read from the session see one store.
     public let preferences: WherePreferences
 
+    /// Where this scope's records are going.
+    ///
+    /// One value rather than a store beside a token beside a flag, because the
+    /// interesting state isn't "do we have a store" — it's whether this scope
+    /// *should* be receiving records at all. A store that finishes opening
+    /// while the scope is set aside must be remembered without being attached,
+    /// which two independent optionals can't express: the version that did
+    /// silently routed a shadowed scope's records to disk.
+    private enum LogRouting {
+        /// No store yet. One may still be opening, and when it arrives this
+        /// scope will route into it.
+        case pending
+        /// Routing into `store`, registered on the logging system as `token`.
+        case routing(store: PeriscopeStore, token: Periscope.SinkToken)
+        /// Deliberately not routing — another scope is active, or this is a
+        /// preview that only wants something to browse. Carries the store once
+        /// one has opened, so routing can resume without reopening; `nil` when
+        /// the open hadn't landed yet, which is what tells that open to record
+        /// its store instead of attaching it.
+        case idle(store: PeriscopeStore?)
+    }
+
+    private var logRouting: LogRouting = .pending
+
     /// The durable log store this scope's records persist to, once it has
     /// opened. Observable because the DEBUG developer surface renders off its
     /// arrival. Nil in previews and tests, which log through the in-memory
     /// pipeline only.
-    public private(set) var logStore: PeriscopeStore?
+    public var logStore: PeriscopeStore? {
+        switch logRouting {
+            case .pending: nil
+            case let .routing(store, _): store
+            case let .idle(store): store
+        }
+    }
 
-    /// The pipeline registration for ``logStore``, kept so the sink can be
-    /// detached again when this scope stops being the active one.
-    @ObservationIgnored private var logSink: Periscope.SinkToken?
+    /// The logging system this scope's sink is registered on — injected rather
+    /// than reached for, so a test can assert exactly which world's records
+    /// reach which store without touching the process-wide pipeline. The app
+    /// passes `Periscope.shared` at its composition root.
+    @ObservationIgnored private let logSystem: Periscope
 
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
@@ -78,16 +110,32 @@ public final class WhereScope {
     }
 
     /// Build a scope over an already-assembled service layer, with no durable
-    /// log store. The app builds its real scope with ``real(bootstrap:preferences:)``;
-    /// this is the seam previews and tests inject one through.
-    public convenience init(services: WhereServices, preferences: WherePreferences) {
-        self.init(kind: .real, services: services, preferences: preferences)
+    /// log store. The app builds its real scope with
+    /// ``real(bootstrap:preferences:logSystem:)``; this is the seam previews and
+    /// tests inject one through.
+    public convenience init(
+        services: WhereServices,
+        preferences: WherePreferences,
+        logSystem: Periscope,
+    ) {
+        self.init(
+            kind: .real,
+            services: services,
+            preferences: preferences,
+            logSystem: logSystem,
+        )
     }
 
-    init(kind: Kind, services: WhereServices, preferences: WherePreferences) {
+    init(
+        kind: Kind,
+        services: WhereServices,
+        preferences: WherePreferences,
+        logSystem: Periscope,
+    ) {
         self.kind = kind
         self.services = services
         self.preferences = preferences
+        self.logSystem = logSystem
     }
 
     /// The user's real, persisted world: the app's **one** on-disk store (see
@@ -100,11 +148,13 @@ public final class WhereScope {
     static func real(
         bootstrap: any WhereScopeAssembling,
         preferences: WherePreferences,
+        logSystem: Periscope,
     ) async throws -> WhereScope {
         let scope = try await WhereScope(
             kind: .real,
             services: bootstrap.makeServices(),
             preferences: preferences,
+            logSystem: logSystem,
         )
         scope.openDurableLogStore(from: bootstrap)
         return scope
@@ -124,7 +174,13 @@ public final class WhereScope {
     ///
     /// Building this is the slow part of entering demo mode (seeding a year),
     /// which is why the entry point shows an interstitial while it runs.
-    public static func demo(now: @escaping @Sendable () -> Date) async throws -> WhereScope {
+    ///
+    /// Reached through ``WhereModel/makeDemoScope()``, which supplies the clock
+    /// and logging system it was composed with.
+    static func demo(
+        now: @escaping @Sendable () -> Date,
+        logSystem: Periscope,
+    ) async throws -> WhereScope {
         let aggregator = DayAggregator()
         let locationSource = ScriptedLocationSource(authorizationStatus: .always)
         locationSource.setNextRequestedLocation(LocationSample(
@@ -155,7 +211,12 @@ public final class WhereScope {
         preferences.hasOnboarded = true
         preferences.wantsTracking = true
 
-        let scope = WhereScope(kind: .demo, services: services, preferences: preferences)
+        let scope = WhereScope(
+            kind: .demo,
+            services: services,
+            preferences: preferences,
+            logSystem: logSystem,
+        )
         try await scope.attachLogSink(PeriscopeStore.make(
             storage: .inMemory,
             session: .current(),
@@ -164,45 +225,65 @@ public final class WhereScope {
     }
 
     /// Record `store` as the log store this scope's developer surface browses,
-    /// without routing the shared pipeline into it. For previews and tests,
-    /// which want the viewer populated but must not leave a sink attached to
-    /// the process-wide pipeline behind them.
+    /// without routing anything into it. For previews and tests, which want the
+    /// viewer populated but must not leave a sink attached to the logging
+    /// system behind them.
     func attach(logStore store: PeriscopeStore) {
-        logStore = store
+        logRouting = .idle(store: store)
     }
 
-    /// Route `Periscope.shared` into `store` and record it as this scope's
+    /// Route the logging system into `store` and record it as this scope's
     /// durable log store, so everything logged while this scope is active
     /// persists there.
+    ///
+    /// A store arriving while the scope is `idle` is *remembered, not
+    /// attached*: the open was started when this scope was active, but another
+    /// world has become active since, and routing into a shadowed scope is
+    /// exactly the leak this state machine exists to prevent.
     func attachLogSink(_ store: PeriscopeStore) {
-        guard logSink == nil else { return }
-        logStore = store
-        logSink = Periscope.shared.add(sink: store)
+        switch logRouting {
+            case .pending:
+                logRouting = .routing(store: store, token: logSystem.add(sink: store))
+            case .routing:
+                break
+            case .idle:
+                logRouting = .idle(store: store)
+        }
     }
 
-    /// Stop routing the shared pipeline into this scope's log store. Awaits
-    /// the sink settling (it receives everything already emitted, then
-    /// nothing), so a scope that is no longer active can't keep persisting
-    /// another scope's records. The store itself is retained, so a scope that
-    /// becomes active again can pick its sink back up.
+    /// Stop routing into this scope's log store. Awaits the sink settling (it
+    /// receives everything already emitted, then nothing), so a scope that is
+    /// no longer active can't keep persisting another scope's records. The
+    /// store itself is retained, so a scope that becomes active again can pick
+    /// its sink back up — and a store still opening is pre-emptively barred
+    /// from attaching when it lands.
     ///
     /// Public because whoever owns a scope has to be able to settle one it is
     /// done with — `WhereModel` on the way in and out of demo mode, and a test
-    /// that builds a scope directly, which must leave no sink behind on the
-    /// process-wide pipeline.
+    /// that builds a scope directly, which must leave no sink behind.
     public func detachLogSink() async {
-        guard let logSink else { return }
-        self.logSink = nil
-        await Periscope.shared.remove(logSink)
+        switch logRouting {
+            case .pending:
+                logRouting = .idle(store: nil)
+            case let .routing(store, token):
+                logRouting = .idle(store: store)
+                await logSystem.remove(token)
+            case .idle:
+                break
+        }
     }
 
-    /// Route the shared pipeline back into the log store this scope already
-    /// opened — the other half of `detachLogSink()`, for a scope that was set
-    /// aside while another world was active. A no-op for a scope that never
-    /// had a store or still has its sink.
+    /// Route back into the log store this scope already opened — the other half
+    /// of `detachLogSink()`, for a scope that was set aside while another world
+    /// was active. A scope whose store never arrived returns to `pending`, so
+    /// the open still in flight attaches it as it originally would have.
     func reattachLogSink() {
-        guard let logStore else { return }
-        attachLogSink(logStore)
+        guard case let .idle(store) = logRouting else { return }
+        if let store {
+            logRouting = .routing(store: store, token: logSystem.add(sink: store))
+        } else {
+            logRouting = .pending
+        }
     }
 
     /// Open the durable log store and attach it as this scope's sink, off the

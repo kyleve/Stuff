@@ -38,8 +38,12 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   they record into, created whole and never reconfigured. `WhereModel` owns
   which scope is active; `WhereSession` is built from one, so a logged-in
   surface can't read one world's store against another's preferences. Two
-  kinds: `real(bootstrap:preferences:)` opens the app's one on-disk store, and
-  `demo(now:)` builds a seeded in-memory world that leaves nothing behind.
+  kinds, both reached through `WhereModel`: the real one opens the app's single
+  on-disk store, and `makeDemoScope()` builds a seeded in-memory world that
+  leaves nothing behind. Its log sink is registered on an **injected**
+  `Periscope`, and whether it's routing is one state (`pending` / `routing` /
+  `idle`) so a store that finishes opening while the scope is shadowed is
+  remembered rather than attached.
 - **`WhereModel`** — app-level state that outlives any one scope: the
   onboarding flag, the active `WhereScope`, the owned `WhereSession`, and the
   lifecycle intents (`activate(scope:)`, `startSession(scope:)` — which

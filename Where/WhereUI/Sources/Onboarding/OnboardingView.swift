@@ -356,7 +356,7 @@ public struct OnboardingView: View {
             do {
                 // Seeding and the minimum display run together, so the wait is
                 // whichever is longer rather than the sum of the two.
-                async let scope = WhereScope.demo(now: { Date() })
+                async let scope = model.makeDemoScope()
                 async let settle: Void = Task.sleep(for: Self.demoBuildDisplayTime)
                 _ = try await settle
                 try await model.activateDemo(scope)

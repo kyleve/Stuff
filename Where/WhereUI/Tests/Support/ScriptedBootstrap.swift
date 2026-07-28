@@ -15,11 +15,23 @@ import WhereUI
 final class ScriptedBootstrap: WhereScopeAssembling {
     private let services: WhereServices
 
+    /// What `makeLogStore()` hands back — an in-memory stand-in for the app's
+    /// on-disk store, for the tests that assert *where* records are routed.
+    /// `nil` (the default) means "no durable logging", which is what most tests
+    /// want: nothing to open, nothing to settle.
+    private let logStore: PeriscopeStore?
+
+    /// Held open until the test releases it, so a test can hold the log store
+    /// mid-open and act while the scope is still waiting for it.
+    private var logStoreGate: CheckedContinuation<Void, Never>?
+    private var isLogStoreGated = false
+
     private(set) var prepareLocationCount = 0
     private(set) var makeServicesCount = 0
 
-    init(services: WhereServices) {
+    init(services: WhereServices, logStore: PeriscopeStore? = nil) {
         self.services = services
+        self.logStore = logStore
     }
 
     func prepareLocation() {
@@ -31,10 +43,24 @@ final class ScriptedBootstrap: WhereScopeAssembling {
         return services
     }
 
-    /// No durable store: a test must neither write one to disk nor leave a
-    /// sink attached to `Periscope.shared`.
     func makeLogStore() async throws -> PeriscopeStore? {
-        nil
+        if isLogStoreGated {
+            await withCheckedContinuation { logStoreGate = $0 }
+        }
+        return logStore
+    }
+
+    /// Make the next `makeLogStore()` suspend until `releaseLogStore()`, so a
+    /// test can reproduce the window where a scope has been set aside while its
+    /// durable store is still opening.
+    func gateLogStore() {
+        isLogStoreGated = true
+    }
+
+    func releaseLogStore() {
+        isLogStoreGated = false
+        logStoreGate?.resume()
+        logStoreGate = nil
     }
 }
 

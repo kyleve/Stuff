@@ -142,13 +142,21 @@ public final class WhereSession {
     /// Build a coordinator over a loose service layer, wrapping it in a scope.
     /// For previews and tests that drive the coordinator directly and have no
     /// reason to name the scope; the app always has one.
+    ///
+    /// The wrapper scope never opens a log store, so nothing is ever registered
+    /// on the logging system it names — which is why this doesn't ask the
+    /// caller for one.
     public convenience init(
         services: WhereServices,
         preferences: WherePreferences = WherePreferences(),
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.init(
-            scope: WhereScope(services: services, preferences: preferences),
+            scope: WhereScope(
+                services: services,
+                preferences: preferences,
+                logSystem: .shared,
+            ),
             now: now,
         )
     }

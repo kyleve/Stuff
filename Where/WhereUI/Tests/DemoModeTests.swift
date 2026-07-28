@@ -30,6 +30,19 @@ struct DemoModeTests {
         WherePreferences(store: InMemoryKeyValueStore())
     }
 
+    /// A logged-out model over an isolated logging system, with in-memory
+    /// services waiting behind a scripted bootstrap.
+    private func makeModel(
+        preferences: WherePreferences,
+        logSystem: Periscope = .isolated(),
+    ) throws -> (WhereModel, ScriptedBootstrap) {
+        let bootstrap = try ScriptedBootstrap(services: makeServices())
+        return (
+            WhereModel(preferences: preferences, bootstrap: bootstrap, logSystem: logSystem),
+            bootstrap,
+        )
+    }
+
     private func makeServices() throws -> WhereServices {
         try WhereServices(
             store: SwiftDataStore.inMemory(),
@@ -42,7 +55,8 @@ struct DemoModeTests {
     }
 
     @Test func demoScopeIsSeededAndSelfContained() async throws {
-        let scope = try await WhereScope.demo(now: { Date() })
+        let (model, _) = try makeModel(preferences: makePreferences())
+        let scope = try await model.makeDemoScope()
 
         // A year to look at, attributed to the two regions the demo tracks.
         let year = Calendar(identifier: .gregorian).component(.year, from: Date())
@@ -62,9 +76,8 @@ struct DemoModeTests {
 
     @Test func demoPreferencesNeverReachTheRealOnes() async throws {
         let realPreferences = makePreferences()
-        let model = WhereModel(preferences: realPreferences)
-        let scope = try await WhereScope.demo(now: { Date() })
-        await model.activateDemo(scope)
+        let (model, _) = try makeModel(preferences: realPreferences)
+        try await model.activateDemo(model.makeDemoScope())
 
         // The demo's own preferences say onboarded; the user's still say they
         // aren't, which is what makes quitting mid-demo return to onboarding.
@@ -81,8 +94,7 @@ struct DemoModeTests {
         // The strongest isolation claim: someone who only ever tries the demo
         // leaves no store behind, because none is ever assembled.
         let preferences = makePreferences()
-        let bootstrap = try ScriptedBootstrap(services: makeServices())
-        let model = WhereModel(preferences: preferences, bootstrap: bootstrap)
+        let (model, bootstrap) = try makeModel(preferences: preferences)
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         let task = Task { @MainActor in await launcher.run() }
@@ -90,7 +102,7 @@ struct DemoModeTests {
 
         // Enter demo mode the way the intro button does: activate the scope,
         // then resolve the gate.
-        try await model.activateDemo(WhereScope.demo(now: { Date() }))
+        try await model.activateDemo(model.makeDemoScope())
         launcher.phase.gateHandle?.complete()
         await task.value
 
@@ -103,13 +115,12 @@ struct DemoModeTests {
 
     @Test func demoSessionRunsOnTheDemoStore() async throws {
         let preferences = makePreferences()
-        let bootstrap = try ScriptedBootstrap(services: makeServices())
-        let model = WhereModel(preferences: preferences, bootstrap: bootstrap)
+        let (model, _) = try makeModel(preferences: preferences)
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         let task = Task { @MainActor in await launcher.run() }
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
-        let scope = try await WhereScope.demo(now: { Date() })
+        let scope = try await model.makeDemoScope()
         await model.activateDemo(scope)
         launcher.phase.gateHandle?.complete()
         await task.value
@@ -132,8 +143,7 @@ struct DemoModeTests {
         // and leaving it again must hand that same scope back — never open a
         // second container over the same store file.
         let preferences = makePreferences()
-        let bootstrap = try ScriptedBootstrap(services: makeServices())
-        let model = WhereModel(preferences: preferences, bootstrap: bootstrap)
+        let (model, bootstrap) = try makeModel(preferences: preferences)
         model.completeOnboarding()
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
@@ -149,7 +159,7 @@ struct DemoModeTests {
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
 
         // Try the demo from there.
-        let demoScope = try await WhereScope.demo(now: { Date() })
+        let demoScope = try await model.makeDemoScope()
         await model.activateDemo(demoScope)
         launcher.phase.gateHandle?.complete()
         await reset.value
@@ -175,13 +185,12 @@ struct DemoModeTests {
 
     @Test func exitingDemoFromAFreshInstallReturnsToOnboarding() async throws {
         let preferences = makePreferences()
-        let bootstrap = try ScriptedBootstrap(services: makeServices())
-        let model = WhereModel(preferences: preferences, bootstrap: bootstrap)
+        let (model, bootstrap) = try makeModel(preferences: preferences)
 
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         let launch = Task { @MainActor in await launcher.run() }
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
-        try await model.activateDemo(WhereScope.demo(now: { Date() }))
+        try await model.activateDemo(model.makeDemoScope())
         launcher.phase.gateHandle?.complete()
         await launch.value
 
@@ -200,8 +209,96 @@ struct DemoModeTests {
         await teardown.value
     }
 
-    @Test func exitDemoPlanIsASingleStep() {
-        let model = WhereModel(preferences: makePreferences())
+    @Test func exitDemoPlanIsASingleStep() throws {
+        let (model, _) = try makeModel(preferences: makePreferences())
         #expect(WhereLaunch.exitDemoPlan(for: model).nodeIDs == [.exitDemo])
+    }
+
+    // MARK: - Log routing
+
+    /// Records emitted while a world is active must reach that world's log
+    /// store and no other. Asserted by reading the stores back, so it covers
+    /// the routing itself rather than the bookkeeping around it.
+    @Test func demoRecordsNeverReachTheRealLogStore() async throws {
+        let logSystem = Periscope.isolated()
+        let realLogStore = try await PeriscopeStore.make(storage: .inMemory, session: .current())
+        let bootstrap = try ScriptedBootstrap(services: makeServices(), logStore: realLogStore)
+        let model = WhereModel(
+            preferences: makePreferences(),
+            bootstrap: bootstrap,
+            logSystem: logSystem,
+        )
+
+        // Log in for real, and wait for the durable store to be routing.
+        let realScope = try await model.resolveScope()
+        try await waitUntil { realScope.logStore != nil }
+        Log<DemoProbeLog>(system: logSystem).info("before the demo")
+
+        // Enter the demo: from here the real store must hear nothing.
+        try await model.activateDemo(model.makeDemoScope())
+        let demoStore = try #require(model.activeScope?.logStore)
+        Log<DemoProbeLog>(system: logSystem).info("during the demo")
+        await logSystem.flush()
+
+        var real = try await messages(in: realLogStore)
+        #expect(real.contains("before the demo"))
+        #expect(!real.contains("during the demo"))
+        #expect(try await messages(in: demoStore).contains("during the demo"))
+
+        // And leaving hands the real store its records back.
+        await model.deactivateDemo()
+        Log<DemoProbeLog>(system: logSystem).info("after the demo")
+        await logSystem.flush()
+        real = try await messages(in: realLogStore)
+        #expect(real.contains("after the demo"))
+        #expect(try await !messages(in: demoStore).contains("after the demo"))
+    }
+
+    /// The regression the routing state machine exists for: a durable store
+    /// that finishes opening *after* a demo has shadowed its scope must be
+    /// recorded, never attached — otherwise the demo's records land on the
+    /// user's disk. Reachable in the app when a failed backup restore opens the
+    /// store and the user then taps into the demo.
+    @Test func aLogStoreOpeningLateNeverAttachesToAShadowedScope() async throws {
+        let logSystem = Periscope.isolated()
+        let realLogStore = try await PeriscopeStore.make(storage: .inMemory, session: .current())
+        let bootstrap = try ScriptedBootstrap(services: makeServices(), logStore: realLogStore)
+        let model = WhereModel(
+            preferences: makePreferences(),
+            bootstrap: bootstrap,
+            logSystem: logSystem,
+        )
+        bootstrap.gateLogStore()
+
+        // Log in for real with the durable store held mid-open.
+        let realScope = try await model.resolveScope()
+        #expect(realScope.logStore == nil)
+
+        try await model.activateDemo(model.makeDemoScope())
+        bootstrap.releaseLogStore()
+        try await waitUntil { realScope.logStore != nil }
+
+        Log<DemoProbeLog>(system: logSystem).info("during the demo")
+        await logSystem.flush()
+        // The store arrived and is remembered, but nothing routed into it.
+        #expect(try await !messages(in: realLogStore).contains("during the demo"))
+
+        // Leaving resumes routing into the store that arrived while shadowed.
+        await model.deactivateDemo()
+        Log<DemoProbeLog>(system: logSystem).info("after the demo")
+        await logSystem.flush()
+        #expect(try await messages(in: realLogStore).contains("after the demo"))
+    }
+
+    private func messages(in store: PeriscopeStore) async throws -> [String] {
+        try await store.events(matching: LogQuery()).map(\.message)
+    }
+}
+
+/// A freeform probe event, so the routing tests can emit something they can
+/// then look for in a specific store.
+private struct DemoProbeLog: LogEvent {
+    var message: String {
+        ""
     }
 }

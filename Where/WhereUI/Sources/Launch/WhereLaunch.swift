@@ -75,9 +75,9 @@ public enum WhereLaunch {
 
     /// Start the built-in ambient sources (network path, thermal state, low
     /// power mode, app lifecycle, memory warnings, accessibility settings) on
-    /// the shared pipeline. Called once from the app delegate at process
-    /// launch — they describe the *process*, not a login, and are the one
-    /// logging concern that isn't a scope's.
+    /// `system`. Called once from the app delegate at process launch — they
+    /// describe the *process*, not a login, and are the one logging concern
+    /// that isn't a scope's.
     ///
     /// The durable sink is a scope's (see `WhereScope`), and no scope exists
     /// yet at this point, so everything logged until one is resolved — these
@@ -85,8 +85,8 @@ public enum WhereLaunch {
     /// cost of opening no store until the user asks for one. (Closing the
     /// pre-sink window properly — a bootstrap journal from process start — is
     /// tracked as a P0 in `Shared/Periscope/TODOs.md`.)
-    public static func startAmbientLogging() {
-        Periscope.shared.startDefaultAmbientSources()
+    public static func startAmbientLogging(on system: Periscope) {
+        system.startDefaultAmbientSources()
     }
 
     /// Build the runner for `model`, launching for `reason`.
