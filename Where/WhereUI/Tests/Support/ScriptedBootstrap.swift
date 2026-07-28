@@ -1,5 +1,6 @@
 import Foundation
 import PeriscopeCore
+import Testing
 @_spi(Testing) import WhereCore
 import WhereUI
 
@@ -74,6 +75,24 @@ final class FailingBootstrap: WhereScopeAssembling {
 
     func makeServices() async throws -> WhereServices {
         throw AssemblyFailure()
+    }
+
+    func makeLogStore() async throws -> PeriscopeStore? {
+        nil
+    }
+}
+
+/// For suites that never log in, so the model can be built without implying a
+/// world it will never assemble. Trips if a login is attempted anyway.
+@MainActor
+final class UnusedBootstrap: WhereScopeAssembling {
+    struct Unexpected: Error {}
+
+    func prepareLocation() {}
+
+    func makeServices() async throws -> WhereServices {
+        Issue.record("A suite that shouldn't log in asked for services")
+        throw Unexpected()
     }
 
     func makeLogStore() async throws -> PeriscopeStore? {

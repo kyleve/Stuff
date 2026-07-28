@@ -112,7 +112,11 @@ struct WhereLaunchTests {
     ) throws -> (WhereModel, ScriptedBootstrap) {
         let bootstrap = try ScriptedBootstrap(services: makeServices(status: status))
         return (
-            WhereModel(preferences: preferences, bootstrap: bootstrap, logSystem: .isolated()),
+            WhereModel(
+                preferences: preferences,
+                makeBootstrap: { bootstrap },
+                logSystem: .isolated(),
+            ),
             bootstrap,
         )
     }
@@ -295,7 +299,7 @@ struct WhereLaunchTests {
         preferences.hasOnboarded = true
         let model = WhereModel(
             preferences: preferences,
-            bootstrap: FailingBootstrap(),
+            makeBootstrap: { FailingBootstrap() },
             logSystem: .isolated(),
         )
 
@@ -347,7 +351,11 @@ struct WhereLaunchTests {
         )
         let preferences = makePreferences()
         let logSystem = Periscope.isolated()
-        let model = WhereModel(preferences: preferences, logSystem: logSystem)
+        let model = WhereModel(
+            preferences: preferences,
+            makeBootstrap: { ScriptedBootstrap(services: services) },
+            logSystem: logSystem,
+        )
         model.activate(scope: .fake(
             services: services,
             preferences: preferences,
@@ -382,7 +390,11 @@ struct WhereLaunchTests {
         )
         let preferences = makePreferences()
         let logSystem = Periscope.isolated()
-        let model = WhereModel(preferences: preferences, logSystem: logSystem)
+        let model = WhereModel(
+            preferences: preferences,
+            makeBootstrap: { ScriptedBootstrap(services: services) },
+            logSystem: logSystem,
+        )
         model.activate(scope: .fake(
             services: services,
             preferences: preferences,

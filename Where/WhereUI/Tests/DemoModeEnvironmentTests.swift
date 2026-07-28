@@ -61,9 +61,10 @@ struct DemoModeEnvironmentTests {
     }
 
     @Test func readsTrueOnceTheModelIsInDemoMode() async throws {
-        let model = try WhereModel(
+        let bootstrap = try ScriptedBootstrap(services: makeServices())
+        let model = WhereModel(
             preferences: WherePreferences(store: InMemoryKeyValueStore()),
-            bootstrap: ScriptedBootstrap(services: makeServices()),
+            makeBootstrap: { bootstrap },
             logSystem: .isolated(),
         )
         try await model.activateDemo(model.makeDemoScope())

@@ -128,37 +128,36 @@ struct WhereResetTests {
         #expect(report.trackedDayCount == 0)
     }
 
-    @Test func endSessionDropsTheSessionAndRelaunchRebuildsIt() async throws {
+    @Test func endSessionReleasesTheScopeAndRelaunchBuildsAFreshOne() async throws {
         let model = try makeModel(status: .always, preferences: makePreferences())
         model.completeOnboarding()
         let original = try #require(model.session)
         let scope = try #require(model.activeScope)
 
-        model.endSession()
+        await model.endSession()
         #expect(model.session == nil)
-        // Logged out, but the scope is kept dormant rather than discarded.
+        // Logging out releases the scope rather than parking it: the next
+        // login builds its own, and nothing keeps the old store alive.
         #expect(model.activeScope == nil)
 
-        // The re-driven launch rebuilds a fresh session over that same scope —
-        // its store is already open, and opening a second container over one
-        // file is the race the handoff exists to prevent.
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
         #expect(launcher.phase.isReady)
         let rebuilt = try #require(model.session)
         #expect(rebuilt !== original)
-        #expect(model.activeScope === scope)
+        #expect(model.activeScope !== scope)
     }
 
-    @Test func loggingBackInAfterAResetReusesTheSameStore() async throws {
-        // The reset teardown logs out; onboarding logs back in. That must not
-        // open a second container over the same store file.
+    @Test func loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne() async throws {
+        // The store is opened once per *login*, not once per process: the reset
+        // teardown releases the scope, and onboarding builds a new one. The
+        // onboarding gate sits between the two, so the old container is gone
+        // before the new one opens.
         let preferences = makePreferences()
-        let services = try makeServices()
-        let bootstrap = ScriptedBootstrap(services: services)
+        let bootstrap = try ScriptedBootstrap(services: makeServices())
         let model = WhereModel(
             preferences: preferences,
-            bootstrap: bootstrap,
+            makeBootstrap: { bootstrap },
             logSystem: .isolated(),
         )
         model.completeOnboarding()
@@ -173,12 +172,29 @@ struct WhereResetTests {
             await launcher.teardown(WhereLaunch.resetPlan(for: model), input: session)
         }
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        // Parked with nothing open: the scope is released and the relaunch is
+        // waiting on the user before it builds another.
+        #expect(model.activeScope == nil)
+        #expect(bootstrap.makeServicesCount == 1)
+
         launcher.phase.gateHandle?.complete()
         await task.value
 
         #expect(launcher.phase.isReady)
-        #expect(bootstrap.makeServicesCount == 1)
-        #expect(model.activeScope === scope)
+        #expect(bootstrap.makeServicesCount == 2)
+        #expect(model.activeScope !== scope)
+    }
+
+    @Test func loggingOutTellsTheCompositionRoot() async throws {
+        // The App Intents stack holds services derived from the scope, and
+        // nothing else would release them before the next login opens another
+        // container over the same file.
+        let model = try makeModel(preferences: makePreferences())
+        var logOuts = 0
+        model.onLoggedOut = { logOuts += 1 }
+
+        await model.endSession()
+        #expect(logOuts == 1)
     }
 
     @Test func authorizationChangeReachesTheRebuiltSessionAfterReset() async throws {

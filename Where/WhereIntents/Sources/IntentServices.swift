@@ -50,6 +50,17 @@ public actor IntentServices {
         }
     }
 
+    /// Release the installed stack, so nothing here keeps the app's store alive
+    /// once it has logged out of it (a reset, or leaving demo mode). The next
+    /// session's `install(_:)` replaces it.
+    ///
+    /// Intents that fire meanwhile **park**, exactly as they do before the
+    /// first install — the alternative is answering from a store the app has
+    /// abandoned, which is worse than waiting for the one it opens next.
+    public func clear() {
+        installed = nil
+    }
+
     /// The installed stack, suspending until the launch installs one. Throws
     /// only `CancellationError`, when the awaiting intent's task is cancelled
     /// while parked.

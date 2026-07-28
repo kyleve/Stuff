@@ -171,10 +171,10 @@ struct EraseDataStep: LifecycleStep {
 
     func run(_ session: WhereSession, _: LifecycleStepContext) async throws {
         try await session.eraseSession()
-        // Logging out drops the session and parks the relaunch on the
-        // onboarding gate, but keeps the scope dormant — onboarding logs back
-        // in to the same erased store rather than opening a second one.
-        model.endSession()
+        // Logging out drops the session and releases the scope, so the
+        // relaunch parks on the onboarding gate with nothing open; logging
+        // back in builds a fresh scope over the erased store.
+        await model.endSession()
     }
 }
 

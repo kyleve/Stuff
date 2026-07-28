@@ -23,7 +23,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     /// where that system enters the model graph: every scope the model creates
     /// registers its sink on the system handed down from here, so nothing below
     /// reaches for the global (and a test hands down a private one).
-    let model = WhereModel(logSystem: .shared)
+    let model = WhereModel(makeBootstrap: { WhereBootstrap() }, logSystem: .shared)
 
     /// The intent layer's services handoff, owned here — the composition root
     /// — and registered with the App Intents dependency container below, so
@@ -85,6 +85,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // once failed). Intents that fire earlier park in
         // `IntentServices.current()` until this lands; the derivation can't
         // fail, so nothing can strand them parked.
+        // The other half of that handoff: when the app logs out of a scope,
+        // release the derived stack too. Nothing else would, and holding it
+        // would keep the abandoned store alive past the point the next login
+        // opens another over the same file.
+        model.onLoggedOut = { [intentServices] in await intentServices.clear() }
         launcher = WhereLaunch
             .makeLauncher(model: model, reason: .undetermined) { [intentServices] in
                 await intentServices.install(.forIntents(sharingStoreOf: $0))

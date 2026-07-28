@@ -38,7 +38,11 @@ struct DemoModeTests {
     ) throws -> (WhereModel, ScriptedBootstrap) {
         let bootstrap = try ScriptedBootstrap(services: makeServices())
         return (
-            WhereModel(preferences: preferences, bootstrap: bootstrap, logSystem: logSystem),
+            WhereModel(
+                preferences: preferences,
+                makeBootstrap: { bootstrap },
+                logSystem: logSystem,
+            ),
             bootstrap,
         )
     }
@@ -158,11 +162,11 @@ struct DemoModeTests {
         await model.deactivateDemo()
     }
 
-    @Test func demoingAfterAResetLeavesTheRealScopeIntact() async throws {
+    @Test func demoingAfterAResetLandsBackOnAFreshRealScope() async throws {
         // The only way an existing user reaches the demo button is by resetting
-        // first, which leaves their (now erased) scope dormant. Trying the demo
-        // and leaving it again must hand that same scope back — never open a
-        // second container over the same store file.
+        // first, which logs them out. Trying the demo and leaving it must land
+        // them back on their own data — a scope built fresh, since logging out
+        // released the previous one.
         let preferences = makePreferences()
         let (model, bootstrap) = try makeModel(preferences: preferences)
         model.completeOnboarding()
@@ -172,7 +176,7 @@ struct DemoModeTests {
         let realScope = try #require(model.activeScope)
         #expect(bootstrap.makeServicesCount == 1)
 
-        // Reset: parks on the onboarding gate with the real scope dormant.
+        // Reset: parks on the onboarding gate, logged out.
         let realSession = try #require(model.session)
         let reset = Task { @MainActor in
             await launcher.teardown(WhereLaunch.resetPlan(for: model), input: realSession)
@@ -188,20 +192,24 @@ struct DemoModeTests {
         #expect(model.isInDemoMode)
         #expect(model.activeScope === demoScope)
 
-        // Leave it: back to the gate, out of demo mode, real scope untouched.
+        // Leave it: back to the gate, out of demo mode, nothing open.
         let demoSession = try #require(model.session)
         let exit = Task { @MainActor in
             await launcher.teardown(WhereLaunch.exitDemoPlan(for: model), input: demoSession)
         }
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
         #expect(!model.isInDemoMode)
+        #expect(model.activeScope == nil)
 
-        // Logging back in returns the dormant scope rather than assembling one.
+        // Logging back in builds a scope over the same store file — the demo
+        // never touched it, and the gate kept the two opens apart.
         launcher.phase.gateHandle?.complete()
         await exit.value
         #expect(launcher.phase.isReady)
-        #expect(model.activeScope === realScope)
-        #expect(bootstrap.makeServicesCount == 1)
+        let rebuilt = try #require(model.activeScope)
+        #expect(rebuilt !== realScope)
+        #expect(rebuilt !== demoScope)
+        #expect(bootstrap.makeServicesCount == 2)
     }
 
     @Test func exitingDemoFromAFreshInstallReturnsToOnboarding() async throws {
@@ -246,7 +254,7 @@ struct DemoModeTests {
         let bootstrap = try ScriptedBootstrap(services: makeServices(), logStore: realLogStore)
         let model = WhereModel(
             preferences: makePreferences(),
-            bootstrap: bootstrap,
+            makeBootstrap: { bootstrap },
             logSystem: logSystem,
         )
 
@@ -266,13 +274,20 @@ struct DemoModeTests {
         #expect(!real.contains("during the demo"))
         #expect(try await messages(in: demoStore).contains("during the demo"))
 
-        // And leaving hands the real store its records back.
+        // And leaving routes nowhere: logging out releases the demo world and
+        // the real one alike, so nothing persists until the next login.
         await model.deactivateDemo()
         Log<DemoProbeLog>(system: logSystem).info("after the demo")
         await logSystem.flush()
-        real = try await messages(in: realLogStore)
-        #expect(real.contains("after the demo"))
+        #expect(try await !messages(in: realLogStore).contains("after the demo"))
         #expect(try await !messages(in: demoStore).contains("after the demo"))
+
+        // Logging back in gives the new scope the durable store again.
+        _ = try await model.resolveScope()
+        try await waitUntil { model.activeScope?.logStore != nil }
+        Log<DemoProbeLog>(system: logSystem).info("logged back in")
+        await logSystem.flush()
+        #expect(try await messages(in: realLogStore).contains("logged back in"))
     }
 
     /// The regression the routing state machine exists for: a durable store
@@ -286,7 +301,7 @@ struct DemoModeTests {
         let bootstrap = try ScriptedBootstrap(services: makeServices(), logStore: realLogStore)
         let model = WhereModel(
             preferences: makePreferences(),
-            bootstrap: bootstrap,
+            makeBootstrap: { bootstrap },
             logSystem: logSystem,
         )
         bootstrap.gateLogStore()
@@ -301,14 +316,10 @@ struct DemoModeTests {
 
         Log<DemoProbeLog>(system: logSystem).info("during the demo")
         await logSystem.flush()
-        // The store arrived and is remembered, but nothing routed into it.
+        // The store arrived and is remembered, but nothing routed into it —
+        // the scope it belongs to was shadowed before it landed.
+        #expect(realScope.logStore != nil)
         #expect(try await !messages(in: realLogStore).contains("during the demo"))
-
-        // Leaving resumes routing into the store that arrived while shadowed.
-        await model.deactivateDemo()
-        Log<DemoProbeLog>(system: logSystem).info("after the demo")
-        await logSystem.flush()
-        #expect(try await messages(in: realLogStore).contains("after the demo"))
     }
 
     /// A demo world is built before anyone commits to entering it — the build
@@ -317,9 +328,10 @@ struct DemoModeTests {
     /// keep receiving records for the rest of the process.
     @Test func aDemoWorldBuiltButNeverEnteredReceivesNothing() async throws {
         let logSystem = Periscope.isolated()
-        let model = try WhereModel(
+        let bootstrap = try ScriptedBootstrap(services: makeServices())
+        let model = WhereModel(
             preferences: makePreferences(),
-            bootstrap: ScriptedBootstrap(services: makeServices()),
+            makeBootstrap: { bootstrap },
             logSystem: logSystem,
         )
         let abandoned = try await model.makeDemoScope()
