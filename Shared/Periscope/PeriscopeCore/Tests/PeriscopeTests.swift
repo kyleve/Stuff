@@ -1095,4 +1095,127 @@ struct PeriscopeTests {
         #expect(report.level == .warning)
         #expect(report.scopes == [system.systemScope.id])
     }
+
+    // MARK: Ambient state
+
+    @Test func recordsCarryNoAmbientStateBeforeAnySourceReports() async {
+        let system = makeSystem()
+        Log<AppLogs>(system: system).info("first")
+        await system.flush()
+
+        #expect(sink.records.first?.ambient == nil)
+    }
+
+    @Test func ambientStateStampsOntoEverySubsequentRecord() async throws {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .network, value: "satisfied") }
+        Log<AppLogs>(system: system).info("after")
+        await system.flush()
+
+        let record = try #require(sink.records.first { $0.message == "after" })
+        #expect(record.ambient?[.network] == "satisfied")
+    }
+
+    /// The ambient event must carry the state it *announces*, not the one it
+    /// replaced — otherwise the event and its own snapshot disagree.
+    @Test func anAmbientEventCarriesTheStateItAnnounces() async {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .thermalState, value: "nominal") }
+        ambient { AmbientEvent(kind: .thermalState, value: "serious") }
+        await system.flush()
+
+        let changes = sink.records.filter { $0.eventName == AmbientEvent.eventName }
+        #expect(changes.map { $0.ambient?[.thermalState] } == ["nominal", "serious"])
+    }
+
+    @Test func momentaryAmbientEventsDoNotStickToLaterRecords() async throws {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .network, value: "satisfied") }
+        ambient {
+            AmbientEvent(
+                kind: .memory,
+                value: "warning",
+                level: .warning,
+                reporting: .occurrence,
+            )
+        }
+        Log<AppLogs>(system: system).info("after")
+        await system.flush()
+
+        let record = try #require(sink.records.first { $0.message == "after" })
+        #expect(record.ambient?[.memory] == nil)
+        #expect(record.ambient?[.network] == "satisfied")
+    }
+
+    /// Re-reporting the current value must not mint a new snapshot identity,
+    /// or the store would write a row per repeat instead of per state.
+    @Test func unchangedAmbientStateReusesOneSnapshotIdentity() async {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        let log = Log<AppLogs>(system: system)
+        ambient { AmbientEvent(kind: .network, value: "satisfied") }
+        log.info("one")
+        ambient { AmbientEvent(kind: .network, value: "satisfied") }
+        log.info("two")
+        await system.flush()
+
+        let ids = sink.records.compactMap(\.ambient?.id)
+        #expect(ids.count == 4)
+        #expect(Set(ids).count == 1)
+    }
+
+    @Test func spanRecordsCarryAmbientState() async {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .powerMode, value: "low-power") }
+        Log<AppLogs>(system: system).measure("work") {}
+        await system.flush()
+
+        let spans = sink.records.filter { $0.spanID != nil }
+        #expect(spans.count == 2)
+        #expect(spans.allSatisfy { $0.ambient?[.powerMode] == "low-power" })
+    }
+
+    /// The drop report is synthesized during the drain and never passes
+    /// through the buffer path, so it needs its own stamp — a gap in the
+    /// history should still say what the system was doing.
+    @Test func theDropReportCarriesAmbientState() async throws {
+        let gate = GateSink()
+        let system = Periscope(
+            configuration: Periscope.Configuration(pendingBufferCapacity: 3),
+            sinks: [gate, sink],
+        )
+        let log = Log<AppLogs>(system: system)
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .network, value: "unsatisfied") }
+
+        log.info("r0")
+        let drainBlocked = await waitUntil { gate.batchCount >= 1 }
+        try #require(drainBlocked)
+        for index in 1 ... 5 {
+            log.info("r\(index)")
+        }
+        gate.open()
+        await system.flush()
+
+        let report = try #require(
+            sink.records.first { $0.eventName == Periscope.DroppedEvents.eventName },
+        )
+        #expect(report.ambient?[.network] == "unsatisfied")
+    }
+
+    @Test func liveObserversSeeTheStampedRecord() async throws {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .network, value: "satisfied") }
+        let records = system.liveRecords()
+
+        Log<AppLogs>(system: system).info("live")
+
+        let first = try #require(await records.first { _ in true })
+        #expect(first.ambient?[.network] == "satisfied")
+    }
 }

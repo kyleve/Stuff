@@ -21,6 +21,9 @@ import os
 ///   ``Configuration/pendingBufferCapacity``; on overflow the oldest records
 ///   drop and a synthetic ``DroppedEvents`` record marks the gap. Scope
 ///   definitions and span began/ended pairs are exempt — pairs never split.
+/// - **Ambient state** — `.state` ``AmbientEvent``s fold into a running
+///   ``AmbientSnapshot``, and every record is stamped with it, so any event
+///   can be joined to what the system was doing at that moment.
 /// - **Redaction** — ``Configuration/redact`` transforms (or suppresses)
 ///   every record before it is buffered or delivered anywhere. Span
 ///   began/ended records are transform-only: suppression falls back to a
@@ -125,6 +128,9 @@ public final class Periscope: LogRecorder, Sendable {
         var subtreeFloors: [ScopeID: LogLevel] = [:]
         var openSpans: [SpanKey: OpenSpan] = [:]
         var ambientSources: [any AmbientEventSource] = []
+        /// The running ambient state, folded from `.state` ambient events
+        /// and stamped onto every record — see `stamped(_:in:)`.
+        var ambient: AmbientSnapshot?
         var inspectModeEnabled = false
         var inspectObservers: [UUID: AsyncStream<Bool>.Continuation] = [:]
         /// The crash journal, installed when a `PeriscopeStore` sink is
@@ -288,10 +294,13 @@ public final class Periscope: LogRecorder, Sendable {
         if !original.bypassesFloors {
             guard shouldRecord(level: original.level, scopes: original.scopes) else { return }
         }
-        guard let record = redacted(original) else { return }
-        let journaled = state.withLock { state -> (LogJournal, Int)? in
-            Self.buffer(record, into: &state, configuration: configuration)
-            return Self.stampForJournal(&state)
+        guard let admitted = redacted(original) else { return }
+        // `buffer` returns the record as buffered — with its ambient state
+        // stamped on — and that copy is what journals and reaches sinks,
+        // so the durable and live views can't disagree about it.
+        let (record, journaled) = state.withLock { state -> (LogRecord, (LogJournal, Int)?) in
+            let buffered = Self.buffer(admitted, into: &state, configuration: configuration)
+            return (buffered, Self.stampForJournal(&state))
         }
         // The file append happens outside the lock (I/O must not serialize
         // every emitter); the sequence stamped inside it restores buffer
@@ -310,21 +319,41 @@ public final class Periscope: LogRecorder, Sendable {
         return (journal, state.journalSequence)
     }
 
-    /// Append `record` to the buffers and yield it to live observers — the
-    /// in-lock half of delivery, shared by ``record(_:)`` and
-    /// ``beginSpan(key:span:began:)``. Yields happen *inside* the lock so
-    /// live streams see buffered order: yields only buffer (no consumer
-    /// runs under us), and out-of-lock yields from racing emitters could
-    /// invert — e.g. a span's end reaching an observer before its began.
+    /// Stamp `record` with the ambient state, append it to the buffers, and
+    /// yield it to live observers — the in-lock half of delivery, shared by
+    /// ``record(_:)`` and ``beginSpan(key:span:began:)``. Returns the record
+    /// as buffered, which is what callers must journal and deliver.
+    ///
+    /// Yields happen *inside* the lock so live streams see buffered order:
+    /// yields only buffer (no consumer runs under us), and out-of-lock
+    /// yields from racing emitters could invert — e.g. a span's end reaching
+    /// an observer before its began.
     private static func buffer(
         _ record: LogRecord,
         into state: inout State,
         configuration: Configuration,
-    ) {
-        append(record, to: &state, configuration: configuration)
+    ) -> LogRecord {
+        let stamped = stamped(record, in: &state)
+        append(stamped, to: &state, configuration: configuration)
         for observer in state.observers.values {
-            observer.yield(record)
+            observer.yield(stamped)
         }
+        return stamped
+    }
+
+    /// Fold an ambient state change into the running snapshot, then stamp
+    /// that snapshot onto the record.
+    ///
+    /// Folding *before* stamping is deliberate: an ambient event carries the
+    /// state it announces, not the one it replaced, so an event and the
+    /// snapshot attached to it can never disagree.
+    private static func stamped(_ record: LogRecord, in state: inout State) -> LogRecord {
+        if let event = record.event as? AmbientEvent {
+            state.ambient = AmbientSnapshot.folding(event, into: state.ambient)
+        }
+        var stamped = record
+        stamped.ambient = state.ambient
+        return stamped
     }
 
     /// The outside-lock tail of delivery: kick the drain, and auto-flush
@@ -482,17 +511,17 @@ public final class Periscope: LogRecorder, Sendable {
         // code and may itself log, which would deadlock under our lock.
         // `redacted` never suppresses a protected began (transform-only),
         // so a floor-admitted pair stays whole through redaction too.
-        let buffered = began.flatMap { redacted($0) }
+        let admitted = began.flatMap { redacted($0) }
         // One lock acquisition for registry + buffer: the span becomes
         // visible for closing only with its began already in the pipeline,
         // so no interleaving can record this span's end first.
-        let (superseded, journaled) = state.withLock {
-            state -> (OpenSpan?, (LogJournal, Int)?) in
+        let (superseded, buffered, journaled) = state.withLock {
+            state -> (OpenSpan?, LogRecord?, (LogJournal, Int)?) in
             let prior = state.openSpans.removeValue(forKey: key)
             state.openSpans[key] = span
-            guard let buffered else { return (prior, nil) }
-            Self.buffer(buffered, into: &state, configuration: configuration)
-            return (prior, Self.stampForJournal(&state))
+            guard let admitted else { return (prior, nil, nil) }
+            let stamped = Self.buffer(admitted, into: &state, configuration: configuration)
+            return (prior, stamped, Self.stampForJournal(&state))
         }
         if let buffered {
             if let (journal, sequence) = journaled {
@@ -679,11 +708,16 @@ public final class Periscope: LogRecorder, Sendable {
                 state.pendingRecordCount = 0
                 var dropReport: LogRecord?
                 if state.droppedCount > 0 {
-                    dropReport = LogRecord(
+                    var report = LogRecord(
                         date: Date(),
                         event: DroppedEvents(count: state.droppedCount),
                         scopes: [systemScope.id],
                     )
+                    // Stamped here rather than in `buffer`: the report is
+                    // synthesized during the drain and never re-enters the
+                    // pending queue, so it never passes through it.
+                    report.ambient = state.ambient
+                    dropReport = report
                     state.droppedCount = 0
                 }
                 return (items, state.sinks, dropReport)
