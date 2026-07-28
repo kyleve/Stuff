@@ -12,6 +12,9 @@ struct LogEventDetailView: View {
 
     @Environment(\.stylesheet) private var stylesheet
     @State private var attachments: Result<[LogAttachment], Error>?
+    /// The event's ambient state, resolved on demand — the inner optional is
+    /// "the row is gone", distinct from a failed lookup.
+    @State private var ambient: Result<AmbientSnapshot?, Error>?
 
     var body: some View {
         List {
@@ -63,6 +66,12 @@ struct LogEventDetailView: View {
                 }
             }
 
+            if event.ambientSnapshotID != nil {
+                Section("Ambient") {
+                    ambientContent
+                }
+            }
+
             if let payload = event.prettyPayload {
                 Section("Payload") {
                     Text(payload)
@@ -98,6 +107,17 @@ struct LogEventDetailView: View {
             } catch {
                 attachments = .failure(error)
             }
+            await loadAmbient()
+        }
+    }
+
+    private func loadAmbient() async {
+        ambient = nil
+        guard let snapshotID = event.ambientSnapshotID else { return }
+        do {
+            ambient = try await .success(store.ambientSnapshot(for: snapshotID))
+        } catch {
+            ambient = .failure(error)
         }
     }
 
@@ -106,6 +126,29 @@ struct LogEventDetailView: View {
     private struct Inputs: Equatable {
         let store: ObjectIdentifier
         let event: UUID
+    }
+
+    /// What the system was doing when the event was recorded — one row per
+    /// ambient kind, sorted so the section doesn't reshuffle between events.
+    @ViewBuilder
+    private var ambientContent: some View {
+        switch ambient {
+            case nil:
+                ProgressView()
+            case let .failure(error):
+                Label(String(describing: error), systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.secondary)
+            case .success(nil):
+                Text("No longer stored")
+                    .foregroundStyle(.secondary)
+            case let .success(.some(snapshot)):
+                ForEach(
+                    snapshot.values.sorted { $0.key.rawValue < $1.key.rawValue },
+                    id: \.key,
+                ) { kind, value in
+                    LabeledContent(kind.rawValue, value: value)
+                }
+        }
     }
 
     @ViewBuilder

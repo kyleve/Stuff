@@ -147,7 +147,12 @@ final class PeriscopeViewerModel {
     /// Every event matching the active filters (unpaged), as NDJSON.
     func exportNDJSON() async throws -> String {
         let all = try await store.events(matching: activeQuery)
-        return NDJSONExporter.export(events: all, scopes: scopes)
+        let ambient = try await store.ambientSnapshots()
+        return NDJSONExporter.export(
+            events: all,
+            scopes: scopes,
+            ambient: Dictionary(uniqueKeysWithValues: ambient.map { ($0.id, $0) }),
+        )
     }
 
     /// The primary scope's path for a row's caption.

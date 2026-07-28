@@ -10,13 +10,23 @@ enum NDJSONExporter {
     )
 
     /// `events` newest first (as queried); the export reads chronologically.
-    static func export(events: [StoredLogEvent], scopes: [ScopeID: LogScope]) -> String {
+    /// `ambient` resolves ``StoredLogEvent/ambientSnapshotID`` — one row
+    /// serves many events, so the caller looks them up once.
+    static func export(
+        events: [StoredLogEvent],
+        scopes: [ScopeID: LogScope],
+        ambient: [UUID: AmbientSnapshot],
+    ) -> String {
         events.reversed()
-            .map { line(for: $0, scopes: scopes) }
+            .map { line(for: $0, scopes: scopes, ambient: ambient) }
             .joined(separator: "\n")
     }
 
-    static func line(for event: StoredLogEvent, scopes: [ScopeID: LogScope]) -> String {
+    static func line(
+        for event: StoredLogEvent,
+        scopes: [ScopeID: LogScope],
+        ambient: [UUID: AmbientSnapshot],
+    ) -> String {
         var object: [String: Any] = [
             "date": event.date.formatted(timestampFormat),
             "level": event.level.name,
@@ -48,6 +58,19 @@ enum NDJSONExporter {
         }
         if let externalID = event.externalID {
             object["externalID"] = externalID
+        }
+        if let snapshotID = event.ambientSnapshotID {
+            if let snapshot = ambient[snapshotID] {
+                object["ambient"] = Dictionary(
+                    uniqueKeysWithValues: snapshot.values.map { ($0.key.rawValue, $0.value) },
+                )
+            } else {
+                // Retention only drops *unreferenced* snapshots, so a
+                // referenced one going missing is a real inconsistency —
+                // the export says so rather than reading as "no ambient
+                // state was known".
+                object["ambientError"] = "snapshot \(snapshotID.uuidString) not found"
+            }
         }
         if !event.payload.isEmpty {
             if let payload = try? JSONSerialization.jsonObject(with: event.payload) {
