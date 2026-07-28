@@ -4,10 +4,10 @@ import SwiftData
 
 /// The Where feature's service layer: a small `Sendable` container of the
 /// focused collaborators that, together, do everything the old `WhereController`
-/// god-actor used to. `WhereBootstrap` assembles one in the launch's
-/// `open-store` step; `WhereSession` (and, transitionally, `WhereModel`) holds
-/// it and talks to the collaborators directly (`await services.journal.…`,
-/// `await services.reports.…`).
+/// god-actor used to. In the app one is assembled per `WhereScope` — the real
+/// world's by `WhereBootstrap` when the launch resolves it, a demo world's in
+/// memory — and `WhereSession` holds it and talks to the collaborators directly
+/// (`await services.journal.…`, `await services.reports.…`).
 ///
 /// The only cross-cutting operation that doesn't belong to a single
 /// collaborator is `reset()` (stop GPS, then wipe the store) — it lives here so

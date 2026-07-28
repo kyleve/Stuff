@@ -35,7 +35,7 @@ layering, localization, and the WhereUI duplicate-metadata rule).
   `IntentServices` instance and registers it with `AppDependencyManager` in
   `didFinishLaunching` (there is no singleton of ours); every intent and
   entity query declares `@Dependency private var intentServices:
-  IntentServices`. The launch's `open-store` step is the process's *only*
+  IntentServices`. The launch's `resolve-scope` step is the process's *only*
   store open: it hands the session's services to the composition root
   (`WhereLaunch.makeLauncher`'s `onServicesReady` hook), which derives the
   store-sharing intents stack (`WhereServices.forIntents(sharingStoreOf:)`)

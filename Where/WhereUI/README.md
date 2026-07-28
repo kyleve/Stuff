@@ -34,10 +34,12 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
 - **`WhereScope`** — what the app is logged in *to*: one open store's
-  `WhereServices` plus the `WherePreferences` driving it, created whole and
-  never reconfigured. `WhereModel` owns which scope is active; `WhereSession`
-  is built from one, so a logged-in surface can't read one world's store
-  against another's preferences.
+  `WhereServices`, the `WherePreferences` driving it, and the durable log store
+  they record into, created whole and never reconfigured. `WhereModel` owns
+  which scope is active; `WhereSession` is built from one, so a logged-in
+  surface can't read one world's store against another's preferences. Two
+  kinds: `real(bootstrap:preferences:)` opens the app's one on-disk store, and
+  `demo(now:)` builds a seeded in-memory world that leaves nothing behind.
 - **`WhereModel`** — app-level state that outlives any one scope: the
   onboarding flag, the active `WhereScope`, the owned `WhereSession`, and the
   lifecycle intents (`activate(scope:)`, `startSession(scope:)` — which
@@ -56,13 +58,16 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 ### Reusable views & styling
 
 - **`OnboardingView`** — the first-run flow, registered for the launch's
-  `OnboardingGate` and handed its `LifecycleGateHandle` + the gate's
-  `WhereSession`: a paged intro, then picking up to five primary US regions
-  (map or searchable list) and giving each a look, then the
-  location-permission ask. It commits the picks as the tracked-region set +
-  appearances before resolving the gate. The intro also offers **Restore from
-  a backup**, which imports a backup (`.replace`) and skips the manual
-  pick/customize steps straight to the location ask.
+  `OnboardingGate` and handed its `LifecycleGateHandle`. The gate roots the
+  trunk, so there is no session (and no open store) behind it: a paged intro,
+  then picking up to five primary US regions (map or searchable list) and
+  giving each a look, then the location-permission ask. Finishing logs in to
+  the real scope — the app's one store open — and commits the picks as the
+  tracked-region set + appearances before resolving the gate. The intro also
+  offers **Restore from a backup**, which opens the store, imports a backup
+  (`.replace`), and skips the manual pick/customize steps straight to the
+  location ask; and **Explore a demo**, which builds a throwaway in-memory
+  world behind a captioned launch splash and enters it.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and per-region color/emoji/icon customization,
   backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings

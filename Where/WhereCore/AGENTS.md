@@ -154,6 +154,14 @@ internal shape.
   re-evaluates on every `init`, and SwiftUI re-inits views constantly. `main`
   caches the decode for the process; `current(bundle:)` stays for tests and for
   any bundle that isn't `.main`.
+- **`DemoDataBuilder` writes data, not chrome.** It seeds the app's demo mode
+  through the ordinary `DayJournal` / `setPrimaryRegions` write paths — no
+  private back door into the store — so a demo exercises the same code a real
+  user does. Its note strings are deliberately plain English literals rather
+  than catalog lookups: they stand in for what a user typed, the same as the
+  coordinates stand in for where they went, and neither is app chrome. Keep the
+  script deterministic within a year, and keep it inside the two regions it
+  tracks.
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods are
   `async throws` so the CloudKit-backed store can report I/O failure; a `catch`
   must log via a `WhereLog` typed `LogEvent` (PII-free, `.public`) and leave

@@ -22,12 +22,13 @@ import WhereCore
 /// - the reminder/summary editing surface → view-scoped ``RemindersSettingsModel``;
 /// - backup export/import progress → view-scoped ``BackupModel``.
 ///
-/// A session only exists once the store is open: `WhereModel` creates it in the
-/// launch's `open-store` step and drops it on reset, so `services` is
-/// non-optional and there are no pre-attach nil guards. Logged-in views read it
-/// via `@Environment(WhereSession.self)`; the `TabView` renders only at `.ready`
-/// and onboarding runs after `open-store`, so the session is always present
-/// wherever those views appear. It also vends `services` / `preferences` / `now`
+/// A session only exists once the app is logged in to a scope: `WhereModel`
+/// creates it in the launch's `start-session` step and drops it on reset (and
+/// on entering demo mode), so `services` is non-optional and there are no
+/// pre-attach nil guards. Logged-in views read it via
+/// `@Environment(WhereSession.self)`; the `TabView` renders only at `.ready`
+/// and onboarding runs *before* the scope is resolved, so the session is always
+/// present wherever those views appear. It also vends `services` / `preferences` / `now`
 /// so `MainTabs` can build the scene's `YearReportModel` (and the tabs their
 /// view-scoped models) from the injected coordinator.
 @MainActor

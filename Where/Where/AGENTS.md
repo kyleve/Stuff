@@ -44,8 +44,17 @@ layering, and the domain rules this target merely starts up.
 - **This target owns exactly one of each shared thing** — one `WhereModel`, one
   `IntentServices`, one launcher — created here and injected down, per
   [Composition](../../AGENTS.md#composition-create-once-inject-down). The
-  launch's `open-store` step is the process's only store open; the intents
-  stack is *derived* from it in the `onServicesReady` hook.
+  launch's `resolve-scope` step is the process's only store open, and it runs
+  *behind* the onboarding gate, so this target opens nothing at startup; the
+  intents stack is *derived* from whatever scope the launch resolves, in the
+  `onServicesReady` hook.
+- **Nothing here may assume the user has a store.** `didFinishLaunching` starts
+  the ambient log sources (the durable sink belongs to a scope, so records
+  before one reach OSLog only) and drives the launch; anything else it wants to
+  do with the user's data has to wait for `.ready` and check what it got. The
+  Spotlight indexing after `launcher.run()` is the live example: it skips a demo
+  session, because that index outlives the process and a demo must leave no
+  trace. See [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
 - **Register the App Intents dependency before anything async.** The
   `AppDependencyManager.shared.add(...)` call must stay at the top of
   `didFinishLaunching` so `@Dependency` always resolves once the system starts

@@ -244,7 +244,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
     /// Open the SwiftData store (on a detached task so a slow open or first
     /// creation runs off the main actor the splash renders on) and assemble
     /// the services from it and the prepared location source. Throws on
-    /// persistence failure so the `open-store` step can surface it.
+    /// persistence failure so the `resolve-scope` step can surface it.
     ///
     /// This is the app process's **one** store open — everything else shares
     /// the instance by injection (the App Intents stack derives from these

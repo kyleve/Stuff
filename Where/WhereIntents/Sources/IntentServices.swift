@@ -10,7 +10,7 @@ import WhereCore
 /// derives a store-sharing stack from its services
 /// (`WhereServices.forIntents(sharingStoreOf:)`, wired through
 /// `WhereLaunch.makeLauncher`'s `onServicesReady` hook) and hands it to
-/// `install(_:)`. That makes the launch's `open-store` step the process's
+/// `install(_:)`. That makes the launch's `resolve-scope` step the process's
 /// *only* store open — an intent can never race it with a second container
 /// over the same store file (the fresh-install creation race), and an intent
 /// write pings the same `changes()` signal the running UI refreshes from.

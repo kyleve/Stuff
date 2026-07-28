@@ -52,7 +52,8 @@ Rules the code enforces and agents must preserve:
   `DataIssueScanner` drops its cache on the same signal. Launch is driven by
   [`LifecycleKit`](../Shared/LifecycleKit)'s typed `LaunchPlan` (see
   `WhereLaunch` in WhereUI: each step is a type whose `Input`/`Output` thread
-  the store scope → session scope through the trunk), rendered by
+  the logged-in scope → session scope through the trunk — see
+  [Scopes and the launch](#scopes-and-the-launch)), rendered by
   [`LifecycleKitUI`](../Shared/LifecycleKitUI)'s container in `RootView`.
 - **All logging goes through [Periscope](../Shared/Periscope)** via `WhereCore`'s
   `WhereLog` facade — never a raw string. A collaborator derives a typed
@@ -96,6 +97,70 @@ Rules the code enforces and agents must preserve:
   model's context, and model unavailability surfaces as a typed reason — never
   a silent empty summary.
 
+## Scopes and the launch
+
+**Nothing is opened until the user has chosen a world to work in.** The launch
+trunk is rooted at the onboarding gate, so a fresh install that never finishes
+onboarding creates no store file, contacts no CloudKit, and opens no durable
+log store. The rules that fall out of that, none of which are re-derivable from
+a single file:
+
+- **A `WhereScope` is what the app is logged in *to*** (WhereUI): one open
+  store's `WhereServices`, the `WherePreferences` driving it, and the durable
+  log store its records persist to. Created whole, never reconfigured;
+  `WhereSession` is built from one, so a logged-in surface can't read one
+  world's store against another's preferences. `WhereModel` outlives any scope
+  and owns which one is active.
+- **The store opens at most once per process, on demand.** Two callers mean
+  "the user is using the app for real now": the launch's `resolve-scope` step
+  (for someone already onboarded, so the gate didn't park) and onboarding
+  itself (finishing the flow, or restoring a backup). Logging out — the reset
+  teardown, or leaving a demo — keeps the scope **dormant** rather than
+  discarding it, so logging back in reuses that container instead of racing a
+  second one over the same file.
+- **The onboarding gate declares `modes: .all`,** not the `.foreground`
+  default: parking a headless launch is the point, since the alternative is
+  opening the user's store for a launch they can't see. It costs nothing —
+  a genuine background wake requires location monitoring, which requires the
+  permission this flow asks for, by which point the gate isn't needed.
+- **A gate carries no value,** so the choice made *at* it reaches
+  `resolve-scope` through `WhereModel` rather than down the trunk. That is the
+  one deliberate exception to the steps file's "no step reads model optionals"
+  rule; every step after it is threaded normally.
+- **Ambient log sources start at process launch; the durable sink is a
+  scope's.** So records emitted before a scope exists reach OSLog only — the
+  cost of opening no store until asked.
+
+### Demo mode
+
+Demo mode is a second scope, not a mode flag threaded through the first: an
+in-memory store seeded by `DemoDataBuilder`, in-memory preferences, an
+in-memory log store, and no-op schedulers, outbox, and widget refresher
+throughout. It is entered from a third button on the onboarding intro
+(build the scope, activate it, resolve the gate) and left from the top of
+Settings (`WhereLaunch.exitDemoPlan`). Quitting mid-demo needs no code: nothing
+was persisted, so the next launch is an ordinary one.
+
+What an agent must preserve when touching it:
+
+- **A demo leaves no mark on the device.** Anything that writes outside the
+  scope's own store is either injected as a no-op (notifications, the widget
+  snapshot file, the GPS retry outbox) or skipped at the call site (Spotlight
+  indexing in `AppDelegate`). Settings hides the groups that would reach past
+  the demo — see `SettingsDestination.isAvailableInDemoMode`. A new surface
+  that persists something needs the same treatment.
+- **The durable log sink is swapped, not shared.** Entering detaches the real
+  scope's on-disk sink (a demo entered after a reset would otherwise journal to
+  the user's history) and exiting reattaches it.
+- **Demo mode asks for no permission.** The scripted location source reports
+  `.always` and answers a one-shot fix, so the app behaves as it would for a
+  fully-granted user without a single prompt.
+- **Views branch on `\.isInDemoMode`,** seeded once at `RootView` — never by
+  reaching for the model.
+- App Intents *do* answer from the demo store while it is active
+  (`onServicesReady` fires per session). It is process-scoped and
+  self-correcting on exit or relaunch; accepted rather than special-cased.
+
 ## Navigation
 
 The logged-in shell is `MainTabs` — **three fixed tabs**: Locations, Your Year,
@@ -114,7 +179,9 @@ Settings itself is a typed-route list: `SettingsSearch.swift` owns
 `SettingsDestination` / `SettingsListSection` / `SettingsRoute`, and every
 switch over them is exhaustive, so a new drill-in is a set of compile errors to
 fill in rather than a screen you can forget to register. **About is deliberately
-the last block**, below everything actionable.
+the last block**, below everything actionable, and the demo-mode exit is
+deliberately the first — a temporary state belongs above the settings it is
+temporarily replacing, not filed among them.
 
 **Nothing on the About screen is a list hard-coded in the view.** It renders
 three sources: the generated attribution report (via `WhereCore.AppAttribution`),

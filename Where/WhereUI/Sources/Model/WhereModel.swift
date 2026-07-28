@@ -158,7 +158,7 @@ public final class WhereModel {
     /// Preview/test seam: inject already-built services (and optionally a
     /// preloaded report) so SwiftUI previews and unit tests skip the live
     /// SwiftData + CoreLocation wiring. Activates a scope over them and builds
-    /// the session up front, so the launch's `open-store` step is a no-op and
+    /// the session up front, so the launch's `resolve-scope` step is a no-op and
     /// the model's `session` is ready to drive immediately.
     public init(
         services: WhereServices,

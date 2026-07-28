@@ -510,14 +510,23 @@ Smells that signal a missing type:
 **A shared resource is created exactly once, at the composition root, and
 reaches every consumer by injection** — init parameters, explicit call-site
 arguments, or a composition hook — never by re-resolving a global. The Where
-app's SwiftData store is the template: the launch's `open-store` step performs
-the process's *only* store open, `WhereServices` carries it (plus the
-attribution and clock policies derived from it) to every collaborator, and the
-App Intents stack is derived *from* those services
-(`WhereServices.forIntents(sharingStoreOf:)`) via `WhereLaunch.makeLauncher`'s
-`onServicesReady` hook. Two subsystems independently "opening the same store"
-is how a fresh install once raced two `ModelContainer`s into a launch failure;
-injection made that state impossible to spell rather than merely unlikely.
+app's SwiftData store is the template: the launch's `resolve-scope` step
+performs the process's *only* store open, the resulting `WhereScope` carries
+its `WhereServices` (plus the attribution and clock policies derived from it)
+to every collaborator, and the App Intents stack is derived *from* those
+services (`WhereServices.forIntents(sharingStoreOf:)`) via
+`WhereLaunch.makeLauncher`'s `onServicesReady` hook. Two subsystems
+independently "opening the same store" is how a fresh install once raced two
+`ModelContainer`s into a launch failure; injection made that state impossible
+to spell rather than merely unlikely.
+
+**Create it when it's needed, not before.** That step runs *behind* the
+onboarding gate, so an install whose user hasn't chosen to use the app for
+real has opened nothing — and demo mode, which activates a scope of its own,
+is a whole second world the same shape as the first rather than a mode flag
+threaded through the first. Logging out (a reset, or leaving a demo) keeps the
+real scope dormant rather than discarding it, so logging back in reuses that
+one open container. See [`Where/AGENTS.md`](Where/AGENTS.md#scopes-and-the-launch).
 
 - **No singletons or static get-or-create registries** for anything that can
   be injected. A global hides the dependency edge, invites exactly the

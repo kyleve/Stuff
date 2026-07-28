@@ -13,7 +13,7 @@ extension WhereServices {
     /// hook that installs it (`WhereLaunch.makeLauncher`'s `onServicesReady`
     /// → `IntentServices` in WhereIntents) has no failure path that could
     /// strand parked intents behind a logged-and-dropped error. The launch's
-    /// `open-store` step stays the process's one store open, an intent can
+    /// `resolve-scope` step stays the process's one store open, an intent can
     /// never race it with a second container over the same file, and an
     /// intent write pings the same `changes()` signal the running UI
     /// refreshes from.

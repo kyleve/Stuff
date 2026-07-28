@@ -16,6 +16,11 @@ extended, and how its snapshot suites are organized (see
 - Presentation layer only — no domain rules, persistence, or store I/O here
   (see [Layering](../AGENTS.md#layering)). Dependencies live in the root
   [`Package.swift`](../../Package.swift).
+- The one exception is **composition**: `WhereScope` and `WhereModel` decide
+  *which world* the app is logged in to and assemble it (the real one through
+  `WhereBootstrap`, the demo one in memory). That's launch wiring, not domain
+  logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch) for
+  the rules it must uphold, including everything demo mode must not touch.
 - Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI and
   must **not** link `BroadwayUI`/`BroadwayCore` themselves (see the root
   [`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)).

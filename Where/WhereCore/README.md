@@ -27,7 +27,7 @@ one it belongs to rather than to a god-object:
   remote import. `SwiftDataStore.make()` is the production, CloudKit-backed
   implementation; `SwiftDataStore.inMemory()` backs tests and previews. Each
   process opens its on-disk store **once** and injects it where it's needed —
-  in the app, the launch's `open-store` step opens it and the App Intents
+  in the app, the launch's `resolve-scope` step opens it and the App Intents
   stack shares it via `WhereServices.forIntents(sharingStoreOf:)` — so two
   subsystems never race to create/open the same store file. It also
   holds the user's **tracked / primary regions** (`trackedRegions()` /
@@ -47,6 +47,12 @@ one it belongs to rather than to a god-object:
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
   dismissals. Each write commits, then awaits its reminder reconcile + widget
   publish so the next reader sees a fully-applied change.
+
+- **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
+  given `WhereServices`: a plausible current year of living in New York with
+  California trips, plus the gaps, backfills, and corrected attributions a real
+  year has, so an empty app has something true to show. Bound to the current
+  year and derived from it, so it stops at today and is the same every time.
 
 ### Reads & aggregation
 
@@ -120,7 +126,7 @@ target's dependencies in [`Package.swift`](../../Package.swift):
 
 ## Quick start
 
-Assemble a `WhereServices` (the app does this in its launch `open-store` step)
+Assemble a `WhereServices` (the app does this in its launch `resolve-scope` step)
 and talk to the collaborators:
 
 ```swift
