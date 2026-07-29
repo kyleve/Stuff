@@ -53,6 +53,10 @@ the build system, formatting, and global conventions. Read that first.
   "one stored row per distinct state" true rather than one row per record.
   Anything that mutates the snapshot must preserve that: a new identity per
   record would multiply the rows by the log volume.
+- **`remove(_:)` is `async` because it settles the sink first** — the in-flight
+  drain is awaited and the sink flushed, so a removed sink is owed nothing and
+  hears nothing more. Removing a `PeriscopeStore` also uninstalls that store's
+  journal. Guard: `PeriscopeTests.removalDeliversAndFlushesWhatTheSinkWasOwed`.
 - **Sink failures never propagate or vanish** — logged to OSLog, counted, and
   persisted as a synthetic `StoreWriteFailed` marker; the pipeline reports
   drops with a synthetic `DroppedEvents` record.

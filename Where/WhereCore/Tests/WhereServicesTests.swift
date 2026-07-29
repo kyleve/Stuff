@@ -58,6 +58,10 @@ struct WhereServicesTests {
             store: store,
             locationSource: ScriptedLocationSource(),
             aggregator: Self.makeAggregator(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            summaryScheduler: NoopDailySummaryScheduler(),
+            issueAlertScheduler: NoopDataIssueAlertScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
         )
         // Two samples on the same Pacific day: one in California, one in New York.
         try await store.perform {

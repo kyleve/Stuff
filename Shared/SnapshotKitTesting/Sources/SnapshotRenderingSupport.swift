@@ -72,24 +72,31 @@ func reportIfUnsettled(
 }
 
 /// Runs the settle phase a case declared: `.settled` waits for pixel-stable
-/// renders (see ``settleContent(_:minDuration:maxDuration:)``);
+/// renders (see ``settleContent(_:named:minDuration:maxDuration:timing:)``);
 /// `.settledAtLeast` is the same loop with a raised `minDuration` floor (for
 /// quiet-starting async chrome like the glass toolbar's material adaptation);
 /// `.immediate` yields once — so a `.task` body that merely sets state
 /// synchronously still runs — and re-lays-out, skipping the digest-render loop
 /// entirely.
 @MainActor
-func settleForCapture(_ view: UIView, settle: SnapshotSettle) async -> SettleOutcome {
+func settleForCapture(
+    _ view: UIView,
+    named name: String,
+    settle: SnapshotSettle,
+    timing: SnapshotCaptureTiming,
+) async -> SettleOutcome {
     switch settle {
         case .settled:
-            return await settleContent(view)
+            return await settleContent(view, named: name, timing: timing)
         case let .settledAtLeast(minDuration):
             // Keep the hang budget for never-quiescing content above the raised
             // floor, so the minimum is always honored.
             return await settleContent(
                 view,
+                named: name,
                 minDuration: minDuration,
                 maxDuration: max(2.5, minDuration + 2.5),
+                timing: timing,
             )
         case .immediate:
             await Task.yield()
@@ -148,8 +155,11 @@ func settleForCapture(_ view: UIView, settle: SnapshotSettle) async -> SettleOut
 @MainActor
 @_spi(Testing) public func settleContent(
     _ view: UIView,
+    named name: String,
     minDuration: TimeInterval = 0.25,
     maxDuration: TimeInterval = 2.5,
+    timing: SnapshotCaptureTiming? = nil,
+    mechanism: SnapshotSettleMechanism = .fromEnvironment,
 ) async -> SettleOutcome {
     // How long the rendered pixels must stay byte-identical to the quiet
     // window's anchor sample before the content counts as settled — matches the
@@ -170,40 +180,132 @@ func settleForCapture(_ view: UIView, settle: SnapshotSettle) async -> SettleOut
     var anchorTime = start
     var stablePasses = 0
     var passCount = 0
-    var observedContentChange = false
+    // One per mechanism, deliberately not shared. Both feed the `.timedOut` vs
+    // `.starved` decision, and only the mechanism holding the verdict may
+    // influence it — otherwise `both` mode could fail a capture that `pixel`
+    // alone would have kept retrying, which would make the experiment change the
+    // thing it exists to measure.
+    var pixelObservedChange = false
+    var quiescenceObservedChange = false
+    // Reported on every exit path — including `.cancelled`, whose pass count is
+    // exactly what distinguishes "gave up immediately" from "ground for 10s".
+    defer { timing?.addSettlePasses(passCount) }
+
+    let idleCounter = RunLoopIdleCounter()
+    var lastIdleCount = 0
+    var disagreements: [SettleDisagreement] = []
+    var quiescentSince: ContinuousClock.Instant?
+    var quiescentPasses = 0
+    if mechanism != .pixel {
+        idleCounter.start()
+        lastIdleCount = idleCounter.idleCount
+    }
+    defer {
+        idleCounter.stop()
+        SnapshotSettleReporting.report(
+            identifier: name,
+            mechanism: mechanism,
+            passes: passCount,
+            disagreements: disagreements,
+        )
+    }
+
     while true {
         do {
             try await Task.sleep(for: .milliseconds(16))
         } catch {
             return .cancelled
         }
+        // Sampled *before* this pass lays out, because the loop performs the
+        // layout itself: read afterwards, `needsLayout` is always clear and that
+        // third of the signal says nothing. Dirty layout here means something
+        // changed since the previous pass, which is exactly the question.
+        let hadPendingWorkBeforeLayout = mechanism == .pixel
+            ? false
+            : view.layer.hasPendingWork()
+
         CATransaction.performWithoutAnimation(view.layoutIfNeeded)
         passCount += 1
-        let sample = view.renderedContentSample()
-        // Byte-exact on purpose — not the tolerance the final image compare uses.
-        // The final compare answers "does this match the reference?", where
-        // sub-pixel/gamut noise warrants a perceptual threshold. This loop answers
-        // a different question — "has rendering *stopped changing*?" — and the
-        // quarter-resolution sample already absorbs sub-pixel jitter, so exact
-        // equality is the right settled signal. A tolerance here would let a slow,
-        // still-drifting animation read as settled between adjacent samples.
-        if sample != nil, sample == anchorSample {
-            stablePasses += 1
+
+        // Quiescence: the run loop went idle at least once since the last pass
+        // (so every runnable main-queue job drained), nothing was waiting to lay
+        // out, and nothing in the captured subtree still needs display or is
+        // animating.
+        let isQuiescent: Bool? = if mechanism == .pixel {
+            nil
         } else {
-            // The first non-nil sample merely establishes the anchor; only a
-            // departure from an established anchor is the content changing.
-            if anchorSample != nil {
-                observedContentChange = true
-            }
-            anchorSample = sample
-            anchorTime = clock.now
-            stablePasses = 0
+            {
+                let idled = idleCounter.idleCount > lastIdleCount
+                lastIdleCount = idleCounter.idleCount
+                return idled
+                    && !hadPendingWorkBeforeLayout
+                    && !view.layer.hasPendingWork()
+            }()
         }
+
+        // Skipped entirely in `.quiescence` mode — not rendering it is the whole
+        // point — so the expensive path only runs where its answer is used.
+        let sample = mechanism == .quiescence ? nil : view.renderedContentSample()
         let now = clock.now
-        if stablePasses >= 2,
-           now >= anchorTime.advanced(by: stableQuietDuration),
-           now >= minDeadline
-        {
+
+        var pixelSaysStable = false
+        if mechanism != .quiescence {
+            // Byte-exact on purpose — not the tolerance the final image compare
+            // uses. The final compare answers "does this match the reference?",
+            // where sub-pixel/gamut noise warrants a perceptual threshold. This
+            // loop answers a different question — "has rendering *stopped
+            // changing*?" — and the quarter-resolution sample already absorbs
+            // sub-pixel jitter, so exact equality is the right settled signal. A
+            // tolerance here would let a slow, still-drifting animation read as
+            // settled between adjacent samples.
+            if sample != nil, sample == anchorSample {
+                stablePasses += 1
+            } else {
+                // The first non-nil sample merely establishes the anchor; only a
+                // departure from an established anchor is the content changing.
+                if anchorSample != nil {
+                    pixelObservedChange = true
+                }
+                anchorSample = sample
+                anchorTime = clock.now
+                stablePasses = 0
+            }
+            pixelSaysStable = stablePasses >= 2
+                && now >= anchorTime.advanced(by: stableQuietDuration)
+        }
+
+        var quiescenceSaysStable = false
+        if mechanism != .pixel {
+            if isQuiescent == true {
+                if quiescentSince == nil { quiescentSince = now }
+                quiescentPasses += 1
+            } else {
+                // Falling out of quiescence after having reached it is this
+                // mechanism's equivalent of the pixels changing.
+                if quiescentSince != nil { quiescenceObservedChange = true }
+                quiescentSince = nil
+                quiescentPasses = 0
+            }
+            quiescenceSaysStable = quiescentPasses >= 2
+                && (quiescentSince.map { now >= $0.advanced(by: stableQuietDuration) } ?? false)
+        }
+
+        if mechanism == .both, quiescenceSaysStable != pixelSaysStable {
+            disagreements.append(SettleDisagreement(
+                pass: passCount,
+                quiescenceWasEarlier: quiescenceSaysStable,
+            ))
+        }
+
+        // `both` deliberately lets the digest keep the verdict — both the
+        // "settled" call and the observed-change flag below — so running the
+        // experiment can't change what any reference records.
+        let isQuiescenceDeciding = mechanism == .quiescence
+        let saysStable = isQuiescenceDeciding ? quiescenceSaysStable : pixelSaysStable
+        let observedContentChange = isQuiescenceDeciding
+            ? quiescenceObservedChange
+            : pixelObservedChange
+        if saysStable, now >= minDeadline {
             return .settled
         }
         // Checked after the stability check on purpose: a pass that completes
@@ -241,31 +343,27 @@ extension UIView {
     }
 }
 
-/// Runs a zero-duration animation and pumps the run loop until its completion
-/// fires (or `timeout` elapses), so any in-flight animation's completion blocks —
-/// modal/transition settling — have run before the capture. Best-effort: returns
-/// whether it settled within the budget.
+/// Commits the pending Core Animation transaction, so any in-flight animation's
+/// completion blocks — modal/transition settling — have run before the capture.
 ///
-/// Animations are forced on for the flush itself (restored after): the completion
-/// block of a zero-duration `UIView.animate` won't fire while animations are
-/// globally disabled, which would otherwise burn the whole `timeout` every call.
+/// This used to run a zero-duration `UIView.animate` and pump the run loop until
+/// its completion fired, with a 1-second timeout as the backstop. Instrumenting
+/// the pipeline showed the completion **never** fired: the timeout was the only
+/// exit on 50 of 50 captures, so every image paid a flat second — about 35% of
+/// the whole snapshot suite — waiting for a callback that never arrived. An empty
+/// animation block with nothing animatable in it gives UIKit no animation to
+/// complete, and the doc comment's claim that re-enabling animations avoided
+/// exactly that was simply wrong.
+///
+/// `CATransaction.flush()` expresses the actual intent directly and
+/// synchronously. It is also close to redundant: the capture that immediately
+/// follows renders with `afterScreenUpdates: true`, which commits the
+/// transaction anyway. It is kept because that redundancy is not a guarantee —
+/// the accessibility path re-lays-out between here and the render — and a commit
+/// costs microseconds.
 @MainActor
-@discardableResult
-func drainInFlightAnimations(timeout: TimeInterval = 1) -> Bool {
-    let animationsWereEnabled = UIView.areAnimationsEnabled
-    UIView.setAnimationsEnabled(true)
-    defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
-
-    var completed = false
-    UIView.animate(withDuration: 0) {} completion: { _ in completed = true }
-
-    let clock = ContinuousClock()
-    let deadline = clock.now.advanced(by: .seconds(timeout))
-    while !completed {
-        if clock.now > deadline { return false }
-        RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.001))
-    }
-    return true
+@_spi(Testing) public func drainInFlightAnimations() {
+    CATransaction.flush()
 }
 
 extension UIView {

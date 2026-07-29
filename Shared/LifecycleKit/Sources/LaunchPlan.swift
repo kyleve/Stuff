@@ -54,6 +54,30 @@ public struct LaunchPlan<ID: Hashable & Sendable, Input: Sendable, Output: Senda
         append(.step(StepNode(producing: step)))
     }
 
+    /// Root the plan at `gate`, so the first thing a launch does is wait for
+    /// the user — the shape an app takes when nothing may be built until a
+    /// choice is made (which account to open, whether to run against real
+    /// data at all). Everything the gate's resolution decides is then built by
+    /// the steps after it.
+    ///
+    /// A gate transforms nothing, so the plan's `Input` and `Output` are its
+    /// `Value`: rooting here can't leave a hole in the data flow the way a
+    /// skippable *producing* step would. In practice that means `Void`, since
+    /// a launch plan's root input is `Void` — the gate parks, and the step
+    /// after it mints the first real value.
+    ///
+    /// Note the default `modes` of `.foreground`, which skips a gate on a
+    /// headless launch and re-evaluates it on promotion. A root gate whose job
+    /// is to stop a headless launch from building anything wants `.all`
+    /// instead: parking is exactly the desired outcome there (see
+    /// ``LifecycleGate/modes-swift.property``).
+    public init<G: LifecycleGate>(_ gate: G)
+        where G.Value == Input, G.Value == Output, G.ID == ID
+    {
+        self.init(nodes: [])
+        append(.gate(GateNode(erasing: gate)))
+    }
+
     /// Run `step` after the trunk so far, its `Input` fed by the current
     /// trunk `Output`; the trunk value becomes the step's output. Required
     /// semantics: a throw fails the drive terminally — the recovery for a

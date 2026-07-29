@@ -173,6 +173,29 @@ struct LifecycleRunnerGateTests {
         #expect(runner.phase.isReady)
     }
 
+    @Test func rootGateParksBeforeAnythingIsBuilt() async throws {
+        // A plan rooted at an `.all` gate builds nothing until the user
+        // chooses — including on a headless launch, where parking forever is
+        // the point rather than a deadlock to avoid.
+        var built: [String] = []
+        let runner = LifecycleRunner(
+            reason: .undetermined,
+            plan: LaunchPlan(FixtureGate<Void>("choose-mode", modes: .all))
+                .then(FixtureStep<Void, String>("open") { _, _ in
+                    built.append("open")
+                    return "session"
+                }),
+        )
+        let task = Task { @MainActor in await runner.run() }
+        try await waitUntil { runner.phase.isAwaitingGate("choose-mode") }
+        #expect(built.isEmpty)
+
+        runner.phase.gateHandle?.complete()
+        await task.value
+        #expect(built == ["open"])
+        #expect(runner.phase.readyValue == "session")
+    }
+
     @Test func gateEvaluatesIsNeededAgainstTheTrunkValue() async {
         var seen: [String] = []
         let runner = LifecycleRunner(

@@ -44,7 +44,10 @@ final class SnapshotWrappingViewController: UIViewController {
 /// PNG, which made the perceptual compare diff in-memory captures against
 /// on-disk references nondeterministically.
 @MainActor
-func tileAndStitchImage(of wrappingViewController: SnapshotWrappingViewController) -> UIImage {
+func tileAndStitchImage(
+    of wrappingViewController: SnapshotWrappingViewController,
+    timing: SnapshotCaptureTiming,
+) -> UIImage {
     guard let contentView = wrappingViewController.content.view else {
         preconditionFailure("SnapshotWrappingViewController content has no view to capture.")
     }
@@ -85,18 +88,31 @@ func tileAndStitchImage(of wrappingViewController: SnapshotWrappingViewControlle
         tileRect.origin.y += tileDimension
     }
 
-    return UIGraphicsImageRenderer(
-        bounds: CGRect(origin: .zero, size: contentSize),
-        format: rendererFormat,
-    ).image { _ in
-        var drawPoint = CGPoint.zero
-        for row in rows {
-            for tile in row {
-                tile.draw(at: drawPoint)
-                drawPoint.x += tile.size.width
+    // A single tile *is* the capture, so stitching it would redraw the whole
+    // image through a second full-size renderer to produce a copy. Every
+    // reference in this repo is single-tile, so that second pass was the common
+    // case rather than the exception.
+    let stitched = if let onlyTile = rows.first?.first, rows.count == 1, rows[0].count == 1 {
+        onlyTile
+    } else {
+        UIGraphicsImageRenderer(
+            bounds: CGRect(origin: .zero, size: contentSize),
+            format: rendererFormat,
+        ).image { _ in
+            var drawPoint = CGPoint.zero
+            for row in rows {
+                for tile in row {
+                    tile.draw(at: drawPoint)
+                    drawPoint.x += tile.size.width
+                }
+                drawPoint.x = 0
+                drawPoint.y += row.first?.size.height ?? 0
             }
-            drawPoint.x = 0
-            drawPoint.y += row.first?.size.height ?? 0
         }
     }
+    timing.recordCaptureShape(
+        tiles: rows.reduce(0) { $0 + $1.count },
+        pixels: Int(stitched.size.width * stitched.scale * stitched.size.height * stitched.scale),
+    )
+    return stitched
 }

@@ -13,4 +13,4 @@ design system.
 Declared as a Tuist `.app` target (`com.stuff.broadway.catalog`, iPhone/iPad) in
 [`Project.swift`](../../../Project.swift). Generate the project with
 `./ide --no-open`, then build/run the `BroadwayCatalog` scheme. Tests:
-`tuist test BroadwayCatalogTests`.
+`./test BroadwayCatalogTests`.

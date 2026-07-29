@@ -22,7 +22,7 @@ struct SnapshotRenderingSupportTests {
         window.addSubview(view)
         defer { view.removeFromSuperview() }
 
-        let outcome = await settleContent(view, minDuration: 0, maxDuration: 0.1)
+        let outcome = await settleContent(view, named: #function, minDuration: 0, maxDuration: 0.1)
         #expect(outcome == .settled)
     }
 
@@ -49,7 +49,7 @@ struct SnapshotRenderingSupportTests {
         }
         defer { timer.invalidate() }
 
-        let outcome = await settleContent(view, minDuration: 0, maxDuration: 0.15)
+        let outcome = await settleContent(view, named: #function, minDuration: 0, maxDuration: 0.15)
         #expect(outcome == .timedOut(budget: 0.15))
     }
 
@@ -62,13 +62,50 @@ struct SnapshotRenderingSupportTests {
         window.addSubview(view)
         defer { view.removeFromSuperview() }
 
-        let outcome = await settleContent(view, minDuration: 0, maxDuration: 0.05)
+        let outcome = await settleContent(view, named: #function, minDuration: 0, maxDuration: 0.05)
         guard case let .starved(passes, cap) = outcome else {
             Issue.record("expected .starved, got \(outcome)")
             return
         }
         #expect(passes > 0)
         #expect(abs(cap - 0.2) < 0.001, "the hard cap is four budgets")
+    }
+
+    /// The pre-capture animation drain must stay effectively free.
+    ///
+    /// It used to run a zero-duration `UIView.animate` and pump the run loop
+    /// until its completion fired, with a 1-second timeout as the backstop. The
+    /// completion never fired, so every capture paid the whole second — 55% of a
+    /// capture, and about a third of the suite — waiting for a callback that
+    /// never arrived. Nothing but wall time caught that, and nothing but wall
+    /// time would catch its return: a reinstated pump keeps every reference
+    /// passing and just makes the suite slow again. Hence a duration assertion,
+    /// with a bound loose enough to survive a loaded machine and still an order
+    /// of magnitude under the budget it replaced.
+    @Test func drainingAnimationsDoesNotWaitOnACallback() {
+        let clock = ContinuousClock()
+        let began = clock.now
+        for _ in 0 ..< 5 {
+            drainInFlightAnimations()
+        }
+        let elapsed = began.duration(to: clock.now)
+        #expect(
+            elapsed < .milliseconds(250),
+            "five drains took \(elapsed); the pump this replaced cost 1s each",
+        )
+    }
+
+    /// The drain's actual job: commit the pending transaction so anything waiting
+    /// on it has run before the capture.
+    @Test func drainingAnimationsFlushesPendingCommitWork() throws {
+        let window = try hostWindow()
+        let view = UIView(frame: CGRect(x: 0, y: 0, width: 10, height: 10))
+        window.addSubview(view)
+        defer { view.removeFromSuperview() }
+
+        view.setNeedsLayout()
+        drainInFlightAnimations()
+        #expect(!view.layer.needsLayout(), "a commit should have laid the layer out")
     }
 
     private func hostWindow() throws -> UIWindow {

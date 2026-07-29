@@ -26,7 +26,7 @@ struct ResolveModelTests {
         )
         let resolve = ResolveModel(
             services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         try await services.journal.addManualDay(
@@ -52,7 +52,7 @@ struct ResolveModelTests {
         )
         let resolve = ResolveModel(
             services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         // Two calendar-adjacent days with disjoint regions produce a real,
@@ -88,7 +88,7 @@ struct ResolveModelTests {
         let services = flightServices(store: store, now: now)
         let resolve = ResolveModel(
             services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         try await seedCoastToCoastFlight(into: store)
@@ -114,7 +114,7 @@ struct ResolveModelTests {
         let services = flightServices(store: store, now: now)
         let resolve = ResolveModel(
             services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         try await seedCoastToCoastFlight(into: store)
@@ -206,12 +206,53 @@ struct ResolveModelTests {
         )
         let resolve = ResolveModel(
             services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         #expect(!resolve.hasLoaded)
         await resolve.load(year: 2026, primaryRegions: [.california])
         #expect(resolve.hasLoaded)
+    }
+
+    /// Both `PreviewSupport.resolveModel` modes come back loaded, so a preview or
+    /// snapshot renders the state it asked for on its first frame. The empty mode
+    /// used to skip seeding entirely, leaving `hasLoaded` false — indistinguishable
+    /// from "the first scan hasn't landed", so `ResolutionView` showed the loading
+    /// placeholder and then whatever a live scan of the empty store found. That
+    /// made `resolution.Empty`'s capture a race, which CI lost once the snapshot
+    /// pipeline stopped spending a spare second per image.
+    @Test(arguments: [true, false])
+    func theResolveFixtureIsLoadedUpFront(seededWithIssues: Bool) {
+        let resolve = PreviewSupport.resolveModel(seededWithIssues: seededWithIssues)
+
+        #expect(resolve.hasLoaded)
+        #expect(resolve.dataIssues.isEmpty == !seededWithIssues)
+    }
+
+    /// A seeded fixture survives the `load(...)` that `ResolutionView`'s
+    /// `.task(id:)` fires on appear. This is what keeps the empty fixture empty:
+    /// the same store the scan runs against here has no logged days, so an
+    /// un-short-circuited scan would fill the list with missing-day issues and
+    /// `resolution.Empty` would capture a populated list instead.
+    @Test func loadLeavesASeededFixtureAlone() async throws {
+        let store = try TestStore()
+        let now = date(year: 2026, month: 2, day: 10)
+        let services = WhereServices(
+            store: store,
+            locationSource: ScriptedLocationSource(),
+            reminderScheduler: NoopLoggingReminderScheduler(),
+            widgetRefresher: NoopWidgetTimelineRefresher(),
+            now: { now },
+        )
+        let resolve = ResolveModel(
+            services: services,
+            preferences: makePreferences(),
+        )
+
+        resolve.setDataIssues([])
+        await resolve.load(year: 2026, primaryRegions: [.california])
+
+        #expect(resolve.dataIssues.isEmpty)
     }
 
     /// Seeding a fixture also counts as loaded, so the seeded "empty" preview
@@ -226,7 +267,7 @@ struct ResolveModelTests {
         )
         let resolve = ResolveModel(
             services: services,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         resolve.setDataIssues([])

@@ -9,16 +9,18 @@ import WhereCore
 /// untracked step); an enum makes each ID a compile-checked symbol and gives
 /// the launch/reset parity tests a single source of truth.
 public enum LaunchStepID: String, Sendable {
-    /// Open the SwiftData store and assemble the services — the trunk's
-    /// store scope. The splash's slow-launch caption most often shows here.
-    case openStore = "open-store"
-    /// Build the logged-in session over the services and fire the app's
+    /// First-run onboarding gate, at the head of the trunk: until the user
+    /// chooses a world to work in, nothing downstream runs and no store is
+    /// opened. Applies to every launch reason — a headless launch parks here
+    /// rather than opening the user's store unseen.
+    case onboarding
+    /// Resolve the scope the launch runs against, opening the user's real
+    /// store if they onboarded on an earlier launch — the trunk's logged-in
+    /// scope. The splash's slow-launch caption most often shows here.
+    case resolveScope = "resolve-scope"
+    /// Build the logged-in session over the scope and fire the app's
     /// composition hook — promotes the trunk to the session scope.
     case startSession = "start-session"
-    /// First-run onboarding gate. Foreground-only, so a headless launch (an
-    /// unpromoted `.undetermined` cold launch or a `.background` relaunch)
-    /// skips it — it re-evaluates once a scene promotes the launch.
-    case onboarding
     /// Read location authorization into the coordinator and start observing
     /// live authorization changes. The report + data-issue scan (and their
     /// store-change subscription) load with the scene now, not here — so a
@@ -46,6 +48,9 @@ public enum LaunchStepID: String, Sendable {
     /// Reset teardown: clear the persisted preferences that gate the relaunch
     /// (onboarding flag, tracking intent, reminder/summary schedules).
     case resetPreferences = "reset-preferences"
+    /// Demo teardown: drop the demo world and hand the real one its durable
+    /// log sink back.
+    case exitDemo = "exit-demo"
 }
 
 /// Assembles the Where app's cold-launch plan and the `LifecycleRunner` that
@@ -55,10 +60,11 @@ public enum LaunchStepID: String, Sendable {
 /// is `LifecycleContainer`'s `content` (see `RootView`), handed the
 /// `WhereSession` the trunk produced once the runner reaches `.ready`.
 ///
-/// The trunk's value is the launch's dependency scope, growing monotonically
-/// by embedding: `OpenStoreStep` mints `WhereServices` (the store scope),
-/// `StartSessionStep` promotes it to `WhereSession` (which carries the
-/// services non-optionally), and every downstream node takes the session as
+/// The trunk begins with the onboarding gate — nothing may be built until the
+/// user has chosen a world to work in — and its value then grows monotonically
+/// by embedding: `ResolveScopeStep` mints the `WhereScope` the app is logged in
+/// to, `StartSessionStep` promotes it to `WhereSession` (which carries the
+/// scope's services non-optionally), and every downstream node takes the session as
 /// its typed input. The compiler holds the ordering — a node cannot be
 /// placed before its input exists, and only pass-through nodes (the
 /// onboarding gate, `thenKeeping` steps, the detached fan) may skip, so a
@@ -67,94 +73,37 @@ public enum LaunchStepID: String, Sendable {
 public enum WhereLaunch {
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
-    /// How much log history the on-disk store keeps: 100 days. Older events are
-    /// pruned at launch so the database can't grow without bound. (A size cap to
-    /// bound heavy-logging devices within the window is tracked in `Where/TODOs.md`.)
-    private static let logRetention: TimeInterval = 100 * 24 * 60 * 60
-
-    /// Open the process-global Periscope store, attach it to `Periscope.shared`
-    /// as the durable sink, start the built-in ambient sources, and prune
-    /// history past `logRetention` — then hand the store to `model` so the DEBUG
-    /// developer surface can browse it.
+    /// Start the built-in ambient sources (network path, thermal state, low
+    /// power mode, app lifecycle, memory warnings, accessibility settings) on
+    /// `system`. Called once from the app delegate at process launch — they
+    /// describe the *process*, not a login, and are the one logging concern
+    /// that isn't a scope's.
     ///
-    /// Runs off the launch critical path on its own task: opening the store
-    /// touches disk (and may run a lightweight migration), which must not block
-    /// `didFinishLaunching`. The OSLog sink already installed on
-    /// `Periscope.shared` covers the pre-attach window, and `add(sink:)` replays
-    /// every scope defined so far so the store resolves the records it sees.
-    /// (Fully closing that pre-attach window — a bootstrap journal from process
-    /// start — is tracked as a P0 in `Shared/Periscope/TODOs.md`.)
-    ///
-    /// Once the store is attached the developer surface can browse it
-    /// immediately: `.loggingStoreReady` fires right after `add(sink:)`, and
-    /// retention pruning runs *after* that on its own task, since trimming old
-    /// history isn't a readiness prerequisite.
-    ///
-    /// Degraded-but-handled on failure: if the store can't open, logging keeps
-    /// flowing through OSLog and the failure is recorded (with the error
-    /// attached) rather than crashing a launch over diagnostics.
-    ///
-    /// The session records how the app was built (see
-    /// `BuildInfo.logSessionAttributes`), because the version and build number
-    /// alone can't distinguish two sessions: the manifest pins both, so every
-    /// developer build reads `v1.0 (1)`. The optimization level in particular is
-    /// what lets a reader tell a measured duration that means something from one
-    /// taken off an unoptimized build.
-    ///
-    /// Called once from the app delegate at process launch.
-    public static func bootstrapLogging(model: WhereModel) {
-        Task {
-            let store: PeriscopeStore
-            let session = LogSession.current(
-                attributes: BuildInfo.current(bundle: .main).logSessionAttributes,
-            )
-            do {
-                store = try await PeriscopeStore.make(storage: .onDisk, session: session)
-            } catch {
-                logger(attachments: [.error(error, name: "open-error")]) {
-                    .loggingStoreUnavailable(description: String(describing: error))
-                }
-                return
-            }
-            Periscope.shared.add(sink: store)
-            Periscope.shared.startDefaultAmbientSources()
-            model.attach(logStore: store)
-            logger { .loggingStoreReady }
-            pruneHistory(in: store)
-        }
-    }
-
-    /// Trim log history past `logRetention` on its own task, so it never delays
-    /// `.loggingStoreReady`. The actual prune runs on the store actor (off the
-    /// main thread); a failure is degraded-but-handled — the store keeps its
-    /// last good history and stays usable, it just isn't trimmed this launch.
-    private static func pruneHistory(in store: PeriscopeStore) {
-        Task {
-            do {
-                let cutoff = Date().addingTimeInterval(-logRetention)
-                let pruned = try await store.pruneEvents(olderThan: cutoff)
-                logger { .historyPruned(prunedEventCount: pruned) }
-            } catch {
-                logger(attachments: [.error(error, name: "prune-error")]) {
-                    .historyPruneFailed(description: String(describing: error))
-                }
-            }
-        }
+    /// The durable sink is a scope's (see `WhereScope`), and no scope exists
+    /// yet at this point, so everything logged until one is resolved — these
+    /// sources' opening snapshots included — reaches OSLog only. That is the
+    /// cost of opening no store until the user asks for one. (Closing the
+    /// pre-sink window properly — a bootstrap journal from process start — is
+    /// tracked as a P0 in `Shared/Periscope/TODOs.md`.)
+    public static func startAmbientLogging(on system: Periscope) {
+        system.startDefaultAmbientSources()
     }
 
     /// Build the runner for `model`, launching for `reason`.
     ///
     /// `initializePrerequisites` runs the synchronous, must-exist-now launch
-    /// wiring before any async node: a `WhereBootstrap` installs the
+    /// wiring before any async node: the model's bootstrap installs the
     /// `CLLocationManager` (`prepareLocation()`) so a background relaunch's
-    /// queued event isn't lost while the async `open-store` step assembles the
-    /// services, and the foreground-notification presenter is registered so a
-    /// reminder fired while Where is open still shows. Keeping both here (rather
-    /// than in the app delegate) puts app-lifecycle wiring in one place.
+    /// queued event isn't lost while the launch resolves a scope, and the
+    /// foreground-notification presenter is registered so a reminder fired
+    /// while Where is open still shows. Keeping both here (rather than in the
+    /// app delegate) puts app-lifecycle wiring in one place. Neither opens a
+    /// store or prompts for anything, so both are safe before the user has
+    /// chosen a world.
     ///
     /// `onServicesReady` fires from the `start-session` step every time a
-    /// session is (re)started over the assembled services — first launch, the
-    /// fresh process after a failed (terminal) launch, and the in-process reset
+    /// session is (re)started over a scope — first launch, the fresh process
+    /// after a failed (terminal) launch, and the in-process reset
     /// relaunch. The app uses it to
     /// hand the service layer to consumers WhereUI can't see (deriving and
     /// installing the App Intents stack — see the app's `AppDelegate`);
@@ -164,19 +113,14 @@ public enum WhereLaunch {
         reason: LifecycleReason,
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LifecycleRunner<WhereSession> {
-        let bootstrap = WhereBootstrap()
         logger { .runnerCreated(reason: String(describing: reason)) }
         let runner = LifecycleRunner(
             reason: reason,
             initializePrerequisites: {
-                bootstrap.prepareLocation()
+                model.prepareLocation()
                 ForegroundNotificationPresenter.install()
             },
-            plan: plan(
-                for: model,
-                bootstrap: bootstrap,
-                onServicesReady: onServicesReady,
-            ),
+            plan: plan(for: model, onServicesReady: onServicesReady),
         )
         // Mirror detached-step failures into WhereLog: the runner only
         // records them on its observable `detachedFailures`, which nothing
@@ -188,23 +132,25 @@ public enum WhereLaunch {
 
     /// The typed launch plan. The trunk mirrors the imperative
     /// `WhereSession.start()` order (a parity test guards this); the only
-    /// insertions are the `start-session` scope promotion and the
-    /// `onboarding` gate, neither of which `start()` models. The independent
-    /// session-configuration steps fan out detached after the trunk — they
-    /// take the session, return nothing, and never block `.ready`.
+    /// insertions are the `onboarding` gate at its head and the
+    /// `resolve-scope` / `start-session` promotions, none of which `start()`
+    /// models. The independent session-configuration steps fan out detached
+    /// after the trunk — they take the session, return nothing, and never
+    /// block `.ready`.
     ///
-    /// `bootstrap` assembles the services in the `open-store` step, and
-    /// `onServicesReady` fires from `start-session` whenever a session is
-    /// (re)started (see `makeLauncher`); callers that only inspect the node
-    /// list (the parity test) can rely on the defaults.
+    /// Rooting at the gate is what makes the app's store open *lazily*: a user
+    /// who hasn't onboarded parks here, and nothing downstream — including the
+    /// store open — runs until they choose. `onServicesReady` fires from
+    /// `start-session` whenever a session is (re)started (see `makeLauncher`);
+    /// callers that only inspect the node list (the parity test) can rely on
+    /// the default.
     public static func plan(
         for model: WhereModel,
-        bootstrap: WhereBootstrap = WhereBootstrap(),
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LaunchPlan<LaunchStepID, Void, WhereSession> {
-        LaunchPlan(OpenStoreStep(model: model, bootstrap: bootstrap))
+        LaunchPlan(OnboardingGate(model: model))
+            .then(ResolveScopeStep(model: model))
             .then(StartSessionStep(model: model, onServicesReady: onServicesReady))
-            .gate(OnboardingGate(model: model))
             .thenKeeping(SyncAuthStep())
             .thenKeeping(ReconcileTrackingStep())
             .detached {
@@ -228,20 +174,60 @@ public enum WhereLaunch {
         LaunchPlan(EraseDataStep(model: model))
             .then(ResetPreferencesStep(model: model))
     }
+
+    /// The teardown Settings' "Exit demo mode" runs, rooted at the demo
+    /// session being left behind.
+    ///
+    /// Nothing is erased: a demo world was only ever in memory, so dropping it
+    /// *is* the cleanup. The relaunch lands on the onboarding gate — the demo's
+    /// `hasOnboarded` went with its preferences, and the user's real flag says
+    /// whatever it always did, so someone who had already onboarded goes
+    /// straight back to their data and everyone else gets the intro.
+    public static func exitDemoPlan(for model: WhereModel)
+        -> LaunchPlan<LaunchStepID, WhereSession, Void>
+    {
+        LaunchPlan(ExitDemoStep(model: model))
+    }
 }
 
-/// Owns the launch-time assembly of `WhereServices` so `WhereModel`
-/// consumes a finished service layer rather than wiring up persistence and
-/// CoreLocation itself.
+/// Assembles the outside-world pieces a real `WhereScope` is built from: the
+/// service layer over the app's one store, and the durable log store that
+/// scope's records persist to.
+///
+/// A protocol because the app opens those *lazily* — only once the user has
+/// chosen to use the app for real — so the assembly is reached through
+/// `WhereModel` rather than handed in at launch, and a test that drives that
+/// path needs to substitute a stack that touches no disk. Production is
+/// ``WhereBootstrap``.
+@MainActor
+public protocol WhereScopeAssembling {
+    /// Install the location manager without touching the store. Idempotent,
+    /// and cheap enough to run on the synchronous launch path.
+    func prepareLocation()
+
+    /// Open the store and assemble the services over it. The app process's
+    /// **one** store open.
+    func makeServices() async throws -> WhereServices
+
+    /// Open the durable log store the scope's records persist to, or `nil` for
+    /// an assembly with no durable logging — previews and tests, which log
+    /// through the in-memory pipeline and must leave no sink attached to the
+    /// process-wide one.
+    func makeLogStore() async throws -> PeriscopeStore?
+}
+
+/// Owns the assembly of the user's real world, so `WhereScope` and
+/// `WhereModel` consume finished pieces rather than wiring up persistence and
+/// CoreLocation themselves.
 ///
 /// `prepareLocation()` runs synchronously as the runner's
 /// `initializePrerequisites`, installing the `CLLocationManager` + delegate
 /// early so a background relaunch's queued significant-change / visit event is
 /// buffered (in `CoreLocationSource.sampleStream`) rather than dropped while
-/// the async `open-store` step runs. `makeServices()` then opens the store
-/// off the main actor and assembles the services from the two.
+/// the store opens. `makeServices()` then opens the store off the main actor
+/// and assembles the services from the two.
 @MainActor
-public final class WhereBootstrap {
+public final class WhereBootstrap: WhereScopeAssembling {
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
     private var locationSource: CoreLocationSource?
@@ -258,7 +244,7 @@ public final class WhereBootstrap {
     /// Open the SwiftData store (on a detached task so a slow open or first
     /// creation runs off the main actor the splash renders on) and assemble
     /// the services from it and the prepared location source. Throws on
-    /// persistence failure so the `open-store` step can surface it.
+    /// persistence failure so the `resolve-scope` step can surface it.
     ///
     /// This is the app process's **one** store open — everything else shares
     /// the instance by injection (the App Intents stack derives from these
@@ -281,6 +267,14 @@ public final class WhereBootstrap {
             let services = try await WhereServices.make(
                 store: store,
                 locationSource: source,
+                // The real world's seams, named here because this is the only
+                // place that wants them: the demo scope builds the same stack
+                // out of no-ops, and every test and preview gets no-ops by
+                // default.
+                reminderScheduler: UserNotificationReminderScheduler(),
+                summaryScheduler: UserNotificationDailySummaryScheduler(),
+                issueAlertScheduler: UserNotificationDataIssueAlertScheduler(),
+                widgetRefresher: WidgetCenterTimelineRefresher(),
                 locationOutbox: FileLocationOutbox.applicationSupport(),
             )
             Self.logger { .servicesAssembled }
@@ -291,6 +285,37 @@ public final class WhereBootstrap {
             }
             throw error
         }
+    }
+
+    /// Open the app's durable log store: `Periscope.store` on disk, plus this
+    /// launch's crash journal beside it. Opened per scope rather than per
+    /// process, because what a session persists depends on which world it is
+    /// in — an in-memory world must leave nothing behind.
+    public func makeLogStore() async throws -> PeriscopeStore? {
+        try await PeriscopeStore.make(
+            storage: Self.logStorage,
+            session: .current(
+                attributes: BuildInfo.current(bundle: .main).logSessionAttributes,
+            ),
+        )
+    }
+
+    /// Where a real scope's log store belongs, mirroring
+    /// `SwiftDataStore.Storage.default`'s test-runner guard: under a test host
+    /// it must stay in memory. A suite that logs in would otherwise write its
+    /// records into the user's `Periscope.store`, and opening that from a test
+    /// host's sandbox neither succeeds nor fails promptly — it stalls the
+    /// bundle instead of failing it.
+    ///
+    /// The environment check lives here rather than in `PeriscopeCore` because
+    /// a general-purpose logging framework has no business knowing what a test
+    /// host is. This is the app's composition root choosing its own world, and
+    /// `WhereBootstrap` is the only place that opens a durable one.
+    @_spi(Testing) public nonisolated static var logStorage: PeriscopeStore.Storage {
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            return .inMemory
+        }
+        return .onDisk
     }
 }
 
