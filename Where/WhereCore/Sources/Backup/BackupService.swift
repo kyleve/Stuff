@@ -94,15 +94,17 @@ public struct BackupService: Sendable {
         try fileManager.createDirectory(at: assetsDir, withIntermediateDirectories: true)
 
         var assetEntries: [BackupAssetEntry] = []
-        for item in evidence {
-            guard let blob = blobs[item.id] else { continue }
-            // Drain each write's file-I/O scratch (URL/Data bridging) per
-            // iteration so a large evidence set doesn't pile up autoreleased
-            // temporaries until the whole export finishes.
-            try autoreleasepool {
-                let filename = "\(Self.assetsDirectory)/\(item.id.uuidString)"
-                try blob.write(to: staging.appendingPathComponent(filename))
-                assetEntries.append(BackupAssetEntry(evidenceId: item.id, filename: filename))
+        try Self.logger.measure(.stageAssets) {
+            for item in evidence {
+                guard let blob = blobs[item.id] else { continue }
+                // Drain each write's file-I/O scratch (URL/Data bridging) per
+                // iteration so a large evidence set doesn't pile up autoreleased
+                // temporaries until the whole export finishes.
+                try autoreleasepool {
+                    let filename = "\(Self.assetsDirectory)/\(item.id.uuidString)"
+                    try blob.write(to: staging.appendingPathComponent(filename))
+                    assetEntries.append(BackupAssetEntry(evidenceId: item.id, filename: filename))
+                }
             }
         }
 
@@ -116,8 +118,10 @@ public struct BackupService: Sendable {
             primaryRegions: primaryRegions,
             assets: assetEntries,
         )
-        let manifestData = try Self.makeEncoder().encode(archive)
-        try manifestData.write(to: staging.appendingPathComponent(Self.manifestFilename))
+        try Self.logger.measure(.encodeManifest) {
+            let manifestData = try Self.makeEncoder().encode(archive)
+            try manifestData.write(to: staging.appendingPathComponent(Self.manifestFilename))
+        }
 
         let name = archiveName ?? Self.defaultArchiveName(for: exportedAt)
         let zipURL = workRoot.appendingPathComponent(name)
@@ -172,24 +176,28 @@ public struct BackupService: Sendable {
         guard fileManager.fileExists(atPath: manifestURL.path) else {
             throw BackupError.manifestMissing
         }
-        let manifestData = try Data(contentsOf: manifestURL)
-        let archive = try Self.makeDecoder().decode(BackupArchive.self, from: manifestData)
+        let archive = try Self.logger.measure(.decodeManifest) {
+            let manifestData = try Data(contentsOf: manifestURL)
+            return try Self.makeDecoder().decode(BackupArchive.self, from: manifestData)
+        }
         guard archive.formatVersion == BackupArchive.currentFormatVersion else {
             throw BackupError.unsupportedFormatVersion(archive.formatVersion)
         }
 
         var blobs: [UUID: Data] = [:]
-        for entry in archive.assets {
-            // Drain the per-read bridging scratch each iteration so walking a
-            // large asset set doesn't accumulate transient temporaries (the
-            // decoded blobs themselves are retained in `blobs`).
-            autoreleasepool {
-                let assetURL = extractDir.appendingPathComponent(entry.filename)
-                guard let data = try? Data(contentsOf: assetURL) else {
-                    Self.logger { .assetMissing(evidenceID: entry.evidenceId.uuidString) }
-                    return
+        Self.logger.measure(.loadAssets) {
+            for entry in archive.assets {
+                // Drain the per-read bridging scratch each iteration so walking a
+                // large asset set doesn't accumulate transient temporaries (the
+                // decoded blobs themselves are retained in `blobs`).
+                autoreleasepool {
+                    let assetURL = extractDir.appendingPathComponent(entry.filename)
+                    guard let data = try? Data(contentsOf: assetURL) else {
+                        Self.logger { .assetMissing(evidenceID: entry.evidenceId.uuidString) }
+                        return
+                    }
+                    blobs[entry.evidenceId] = data
                 }
-                blobs[entry.evidenceId] = data
             }
         }
         return ReadResult(archive: archive, blobs: blobs)

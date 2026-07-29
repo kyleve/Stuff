@@ -140,6 +140,25 @@ public final class UserNotificationReminderScheduler: LoggingReminderScheduling,
         reminderTime: ReminderTime,
         enabled: Bool,
     ) async {
+        await Self.logger.measure(.reconcileNotifications, budget: .seconds(1)) {
+            await performReconcile(
+                badgeCount: badgeCount,
+                scheduleDays: scheduleDays,
+                reminderTime: reminderTime,
+                enabled: enabled,
+            )
+        }
+    }
+
+    /// `reconcile`'s body, split out so the span covers every path — including
+    /// the disabled one, which still walks both notification sets to remove what
+    /// it owns.
+    private func performReconcile(
+        badgeCount: Int,
+        scheduleDays: [Date],
+        reminderTime: ReminderTime,
+        enabled: Bool,
+    ) async {
         guard enabled else {
             // Reminders are off, but the badge may still carry a decoupled
             // data-issue count (see `ReminderReconciler`), so honor the requested
