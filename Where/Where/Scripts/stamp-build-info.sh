@@ -24,10 +24,17 @@ sha=$(git -C "$SRCROOT" rev-parse --short=12 HEAD 2>/dev/null || echo "")
 if [ -z "$sha" ]; then
     sha="unknown"
     status="unknown"
-elif [ -n "$(git -C "$SRCROOT" status --porcelain 2>/dev/null)" ]; then
-    status="dirty"
+# The exit code and the output are separate signals: a failed `git status`
+# (index lock, permissions) also prints nothing, and folding that into the
+# empty-output branch would stamp a build `clean` on no evidence.
+elif porcelain=$(git -C "$SRCROOT" status --porcelain 2>/dev/null); then
+    if [ -n "$porcelain" ]; then
+        status="dirty"
+    else
+        status="clean"
+    fi
 else
-    status="clean"
+    status="unknown"
 fi
 
 set_key() {
