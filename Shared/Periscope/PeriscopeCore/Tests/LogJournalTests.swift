@@ -170,6 +170,37 @@ struct LogJournalTests {
         })
     }
 
+    @Test func removingAnOnDiskStoreUninstallsItsJournal() async throws {
+        // As in `onDiskStoresOpenAndInstallTheJournal`: the container outlives
+        // the test body, so the directory is left to the ephemeral tmp.
+        let root = makeDirectory()
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let session = LogSession.fixture()
+        let store = try await PeriscopeStore.onDisk(
+            databaseURL: root.appendingPathComponent("Periscope.store"),
+            session: session,
+        )
+        let system = Periscope(configuration: Periscope.Configuration(), sinks: [])
+        let token = system.add(sink: store)
+        Log<AppLogs>(system: system).warning("journaled")
+
+        await system.remove(token)
+        Log<AppLogs>(system: system).warning("after removal")
+
+        // The journal is the store's emit-side tap; detaching the store must
+        // stop it, or records keep landing in a journal nothing will ingest
+        // on behalf of a store no longer in the pipeline.
+        let recovered = try entries(in: store.journalDirectory(forSession: session.id))
+        #expect(recovered.contains { entry in
+            guard case let .record(record) = entry else { return false }
+            return record.message == "journaled"
+        })
+        #expect(!recovered.contains { entry in
+            guard case let .record(record) = entry else { return false }
+            return record.message == "after removal"
+        })
+    }
+
     @Test func inMemoryStoresNeverJournal() async throws {
         let store = try await PeriscopeStore.inMemory(session: .fixture())
         let system = Periscope(configuration: Periscope.Configuration(), sinks: [])

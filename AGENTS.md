@@ -48,10 +48,11 @@ Xcode project](#generating-the-xcode-project)). A fresh machine needs `./ide
 --bootstrap` first, which installs `mise` and the pinned tools before
 generating; plain `./ide` fails fast pointing at it.
 
-The executables in the repo root are the dev scripts — `ide`, `swiftformat`,
-`sync-agents`, `profile`, `icons`, `flaky`, `simulator`, `xcstrings`,
-`attribution` — and each takes `--help`. Reach for one rather than hand-rolling
-its job: `icons`, `attribution`, and `simulator` in particular own state that is
+The executables in the repo root are the dev scripts — `ide`, `test`,
+`swiftformat`, `sync-agents`, `profile`, `icons`, `flaky`, `simulator`,
+`xcstrings`, `attribution` — and each takes `--help`. Reach for one rather than
+hand-rolling its job: `test` is the only way tests should be run (see [Running
+tests](#running-tests)), and `icons`, `attribution`, and `simulator` in particular own state that is
 easy to corrupt by hand — the last owns a simulator device per checkout (see
 [Managing app icons](#managing-app-icons), [Attribution](#attribution), and
 [Selecting a
@@ -66,22 +67,15 @@ Run `./ide --no-open` after adding one.
 
 ### Version and build metadata
 
-The Where app's `CFBundleShortVersionString` / `CFBundleVersion` are stated
-**explicitly** in [`Project.swift`](Project.swift) rather than left to Tuist's
-`.extendingDefault` values, because Settings > About shows them — bump them
-there. The commit is *not* a manifest value: a post-build script phase
+Bump the Where app's `CFBundleShortVersionString` / `CFBundleVersion`
+explicitly in [`Project.swift`](Project.swift) (Settings > About shows them).
+The commit is stamped by a post-build script
 ([`Where/Where/Scripts/stamp-build-info.sh`](Where/Where/Scripts/stamp-build-info.sh))
-writes `WhereGitSHA` and `WhereGitStatus` into the built product's Info.plist,
-which `WhereCore`'s `BuildInfo` reads back.
-
-The two constraints worth knowing before touching it: it must stay a **post**
-script (it edits the plist "Process Info.plist" already wrote, and must land
-before signing seals the bundle), and it must keep
-`basedOnDependencyAnalysis: false`, or an unchanged source tree ships the
-previous commit's SHA. It reads `.git`, so it also depends on
-`ENABLE_USER_SCRIPT_SANDBOXING` staying unset (Xcode defaults it off; new
-project templates set it on). Only the app is stamped — the extensions never
-read these keys.
+into `WhereGitSHA` / `WhereGitStatus`, read back by `WhereCore.BuildInfo`;
+only the app is stamped. Tripwires: it must stay a **post** script (before
+signing seals the bundle), keep `basedOnDependencyAnalysis: false` (or an
+unchanged tree ships the previous commit's SHA), and needs
+`ENABLE_USER_SCRIPT_SANDBOXING` unset (it reads `.git`).
 
 ## Formatting
 
@@ -90,56 +84,31 @@ read these keys.
 - The pre-commit hook (enabled by `./ide` via `core.hooksPath`) formats staged
   `*.swift` files in place and re-stages them.
 - **String Catalogs are stored exactly as Xcode serializes them**, and
-  `./xcstrings` (`--lint` in CI) enforces it. Xcode rewrites a `.xcstrings` in
-  place during an *IDE* build whenever extraction finds a key the catalog
-  lacks — writing the entire file with its own serializer — so a catalog
-  written by anything else (a migration script's `json.dump`, a hand edit)
-  parses fine but turns the next build into thousands of lines of whitespace
-  churn around the one real entry. Write a catalog through Xcode, or normalize
-  it afterwards; the script only touches formatting, never content.
+  `./xcstrings` (`--lint` in CI) enforces it. A catalog written by anything
+  else parses fine but turns the next IDE build into thousands of lines of
+  whitespace churn — write catalogs through Xcode or normalize with the
+  script afterwards (it touches formatting only, never content).
 
 ## Attribution
 
-An app ships an **attribution report**: every third-party work it is built with,
-each carrying its license notice inline. Regenerate every app's report with:
+An app ships an **attribution report** — every third-party work it is built
+with, license notices inline. **Re-run `./attribution` and commit the result
+whenever you add or bump a package or an agent skill**; `./attribution
+--check` fails CI if you forget (offline, sub-second — an app's own tests
+can't do this job, since a test bundle can't read `Package.swift`).
 
-```bash
-./attribution
-```
-
-The split matters. [`Shared/CreditKit`](Shared/CreditKit/AGENTS.md) owns the
-*types and the reporting tool* and holds **no credits of its own**; each app
-declares its sources in an `attribution-sources.json` and ships the resulting
-manifest in **its own resources** (for Where,
-`Where/Where/Resources/attribution.json`). A report describes one app's
-dependency graph, so it is that app's data — and CreditKit stays a Foundation-only
-leaf that anything may depend on, so a package pulled in by *any* module gets
-credited without inverting the dependency that introduced it.
-
-The report is derived from what the repo already declares — packages a target
-links via `.product(name:package:)` (pinned by `Package.resolved`) and the agent
-skills in `.agents/external-skills.json` — with each notice read at the **pinned
-revision**. So a new dependency is credited wherever it lands, and a package
-resolved only for tooling (BumperBowling, swift-syntax) correctly isn't.
-**Re-run `./attribution` and commit the result whenever you add or bump a
-package or a skill.** `./attribution --check` fails CI if you forget: it
-re-derives the expected report from `Package.swift`, `Package.resolved`, and the
-skills manifest and diffs it against the committed one. It runs offline (a
-notice is fetched at the pinned revision, so a matching revision means matching
-text) and takes well under a second. An app's own tests can't do this job — a
-test bundle can't read `Package.swift`, so all it can assert is a literal that a
-stale report satisfies just as happily as a fresh one.
-
-`SoftwareCredit.Kind` keeps a **shipped library** apart from a **development
-tool**, and that distinction must survive into any UI: a tool is credited
-because the repo uses it, not because it reaches a device. **Kind is derived,
-not declared** — the config's `shippedFrom` names the package targets the app
-and its extensions link, and anything reachable from that closure is a library
-while any other linked package is a tool. Linking is not shipping: the
-snapshot-testing engine is linked by a test-support target and never reaches a
-binary, and crediting it as a library would tell a reader their app contains it.
-Data-source provenance for bundled geometry is separate and stays with its data,
-in [`RegionKit`](Where/RegionKit/AGENTS.md).
+- [`Shared/CreditKit`](Shared/CreditKit/AGENTS.md) owns the types and the
+  reporting tool and holds **no credits of its own**; each app declares its
+  sources in an `attribution-sources.json` and ships the report in its own
+  resources (for Where, `Where/Where/Resources/attribution.json`).
+- The report derives from `.product(name:package:)` links (pinned by
+  `Package.resolved`) and `.agents/external-skills.json`, notices read at the
+  pinned revision — so tooling-only packages correctly aren't credited.
+- **Kind is derived, not declared**: anything reachable from `shippedFrom`'s
+  target closure is a library, any other linked package a development tool —
+  linking is not shipping, and a UI must keep the two apart.
+- Data-source provenance for bundled geometry stays with its data, in
+  [`RegionKit`](Where/RegionKit/AGENTS.md).
 
 ## Architecture lint
 
@@ -171,30 +140,21 @@ by `./sync-agents`.
 - `./sync-agents --add <url> [name]` — add an external skill from GitHub.
 - `./sync-agents --update` — re-fetch all external skills to the latest commit.
 
-`.agents/external-skills.json` pins the **external** skills to a commit —
-currently Swift references (SwiftUI, Swift concurrency, Swift Testing,
-SwiftData) — and `.agents/skills/.gitignore` excludes those fetched copies, so
-anything else under `.agents/skills/` is a **repo-owned** skill and is committed
-(currently `todo-triage`).
+`.agents/external-skills.json` pins the **external** skills to a commit;
+`.agents/skills/.gitignore` excludes those fetched copies, so anything else
+under `.agents/skills/` is **repo-owned** and committed. External skills are
+also an **attribution** input — after adding or updating one, re-run
+`./attribution` (see [Attribution](#attribution)).
 
-That manifest is also an **attribution** input: external skills are third-party
-work the repo vendors, so an app's report credits them (as *development tools*,
-distinct from libraries the app links). After adding a skill or running
-`./sync-agents --update`, re-run `./attribution` and commit the regenerated
-reports — see [`Attribution`](#attribution).
+**`.agents/skills/` is the real home; edit the source, never the
+`.claude/skills/` mirror**, and run `./sync-agents` after adding or editing a
+skill (Cursor loads both directories, and the winning copy is undocumented —
+don't let them drift). A fresh clone carries only the repo-owned skills; the
+external ones arrive with the first `mise install`.
 
-**Cursor reads `.agents/skills/` natively** — that directory is the real home. The
-`.claude/skills/` mirror exists for Claude Code, so run `./sync-agents` after
-adding or editing a skill, and edit the source rather than the mirror. (Cursor
-*also* loads `.claude/skills/` for Claude compatibility, so a synced skill is
-discoverable twice and the winning copy is undocumented — one more reason not to
-let the two drift.) A fresh clone carries only the repo-owned skills: `CLAUDE.md`
-and `.claude/skills/` are gitignored, and the external four arrive with the
-first `mise install`.
-
-A skill carries **procedure** — the steps of a job someone does occasionally.
-Rules an agent must follow belong in an `AGENTS.md` or a `TODOs.md` instead, so
-that nothing in this repo depends on a skill having been loaded.
+A skill carries **procedure** — the steps of an occasional job. Rules an
+agent must follow belong in an `AGENTS.md` or a `TODOs.md`, so nothing in
+this repo depends on a skill having been loaded.
 
 ## Targets
 
@@ -204,10 +164,9 @@ that nothing in this repo depends on a skill having been loaded.
   `AGENTS.md` says what it is and how it may be used.
 - Add SPM library targets in `Package.swift` and wire apps/tests in `Project.swift` (see existing `unitTests` helper; native-macOS test bundles are declared directly, like `LedgerCoreTests`, since that helper hosts iOS bundles in StuffTestHost). A new module also ships a root `README.md` and `AGENTS.md` — see [Per-module docs](#per-module-docs).
 - **CI schemes**: CI runs explicit shared schemes rather than the autogenerated `Stuff-Workspace` scheme. **Stuff-iOS-Tests** covers the iOS bundles, and **Ledger-macOS-Tests** (the Ledger app + `LedgerCoreTests`) runs in its own `test-macos` job — the workspace mixes iOS targets with the native-macOS **Ledger** ones, and no single xcodebuild destination can build both. A new test bundle must be added to the matching scheme in `Project.swift` or CI won't run it.
-- **Image snapshots are the exception: one bundle per module, one shared scheme**: each module that owns image references has its own `*SnapshotTests` target (currently **WhereUISnapshotTests**, **PeriscopeToolsSnapshotTests**, **SwiftDataInspectorSnapshotTests**), and they are all listed in the single shared **StuffSnapshotTests** scheme, which a dedicated CI `snapshot` job runs in one invocation. They are slow and LFS-backed, so they stay deliberately **out of** `Stuff-iOS-Tests`. Reference images under any `__Snapshots__/` directory are stored in **Git LFS** (see `.gitattributes`); the CI job checks out with `lfs: true`. The framework halves live in `Shared/SnapshotKit` (shippable matrix + previews) and `Shared/SnapshotKitTesting` (test-only capture/compare pipeline). The pipeline's own regression tests are a *separate* bundle, **SnapshotKitTestingTests**, which pixel-probes captures (no LFS references) and so runs in the normal `Stuff-iOS-Tests` scheme / `test` job.
-- **A new image suite gets a target, not a scheme.** Add a `*SnapshotTests` target over the module's `SnapshotTests/` directory, list only `SnapshotKitTesting` in `extraPackageProducts`, and add it to the `StuffSnapshotTests` scheme's build and test target lists — never a scheme or CI job of its own. A module's image bundle should link only what that module needs, which is the point of splitting them: the Periscope and SwiftDataInspector suites don't build against WhereUI at all. References follow the sources automatically, since swift-snapshot-testing derives the `__Snapshots__` directory from the calling file's `#filePath`.
-- **Why separate snapshot bundles are safe — and what would make them unsafe.** Each `.xctest` statically embeds its own copy of `SnapshotKitTesting`, whose capture state is module-global and therefore per copy: the safe-area swizzle's depth counter and override globals, `SnapshotCaptureLock`, and the `UIView` category it installs. Two such copies **in one process** would count separate depths against the single shared `UIView` method exchange (captures silently rendering with the simulator's real safe-area insets), and neither lock would see the other's captures. That doesn't happen because **xcodebuild gives each test bundle its own `StuffTestHost` process** — measured on Xcode 27 by probing `ProcessInfo.processIdentifier` from two bundles in one scheme, which reported different PIDs on both a filtered and a full unfiltered run. This is the load-bearing assumption behind the layout: if a toolchain ever starts sharing one host process across bundles, re-measure before adding another image bundle.
-- A UI module that opts into image snapshots adds a `SnapshotTests/` folder alongside the usual `Sources/`+`Tests/` skeleton, holding the bundle and its LFS-tracked `__Snapshots__/` references.
+- **Image snapshots are the exception: one bundle per module, one shared scheme.** Each module owning image references has its own `*SnapshotTests` target over its `SnapshotTests/` folder, all listed in the single shared **StuffSnapshotTests** scheme and its dedicated CI `snapshot` job — slow and LFS-backed, so deliberately **out of** `Stuff-iOS-Tests`. References under any `__Snapshots__/` directory are Git LFS (`.gitattributes`; the CI job checks out with `lfs: true`). Framework halves: `Shared/SnapshotKit` (shippable matrix + previews) and `Shared/SnapshotKitTesting` (test-only pipeline, whose own regression bundle **SnapshotKitTestingTests** pixel-probes without LFS and runs in `Stuff-iOS-Tests`).
+- **A new image suite gets a target, not a scheme.** Add the `*SnapshotTests` target, list only `SnapshotKitTesting` in `extraPackageProducts`, and add it to the `StuffSnapshotTests` scheme's build and test lists — never a scheme or CI job of its own. An image bundle links only what its module needs (the Periscope and SwiftDataInspector suites don't build against WhereUI at all); references follow the sources automatically via `#filePath`.
+- **Separate snapshot bundles are safe because each `.xctest` gets its own `StuffTestHost` process** (measured on Xcode 27 — `ProcessInfo.processIdentifier` probes; details in the snapshot-bundle comment in [`Project.swift`](Project.swift)). Each bundle statically embeds its own copy of `SnapshotKitTesting`'s capture state, and two copies in one process would corrupt each other. Tripwire: if a toolchain ever shares one host process across bundles, re-measure before adding another image bundle.
 
 ### Never double-link a product WhereUI already carries
 
@@ -220,32 +179,18 @@ boundary and every type-keyed lookup (SwiftUI `EnvironmentKey`s,
 `\.isCapturingSnapshot`, Broadway's
 `BTraits`/`BThemes`/`BStylesheets`) silently resolves against the wrong one.
 
-Worth knowing rather than rediscovering: it reproduces only in the full
-multi-bundle scheme, never in an isolated `tuist test WhereUITests`. The
-mechanism is written out at the call site you'd be editing — the `WhereUITests`
-comment in [`Project.swift`](Project.swift) — and
-`WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot` is the guard
-that fails if a duplicate copy answers.
+It reproduces only in the full multi-bundle scheme (`./test --all`), never in an
+isolated `./test WhereUITests` run. Guard:
+`WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot` fails if a
+duplicate copy answers.
 
-**Nothing in this project is a dynamic framework.** Earlier versions of this
-rule (and of `SnapshotKitTesting/AGENTS.md`) described WhereUI as one; that is
-not what gets built. The local package is wired as an `XCLocalSwiftPackageReference`
-and handed to Xcode's own SPM integration, which links every product statically
-into each consumer: no `.framework` products exist and every `.app/Frameworks`
-is empty. So "WhereUI carries its dependencies" means *statically embeds them
-into whatever links WhereUI*, and a double-link lands two copies in one image.
-The rule above is unchanged; only its stated mechanism was wrong.
-
-One nuance measured while establishing that, because it predicts which
-duplications actually bite: **`external` symbols coalesce across images,
-`non-external` ones never do.** A `public` type's metadata is external, so dyld
-picks one definition and a type-keyed lookup still agrees — verified by
-splitting SnapshotKit across two images and watching `\.isCapturingSnapshot`
-keep working. A file-scope `private` global or an `enum`'s `static var` is
-`non-external` and is genuinely per copy — which is why `SnapshotKitTesting`'s
-capture state duplicates. This does not license double-linking (the historical
-failure was real and is still guarded), but it does mean the guard test is the
-authority on whether a given duplication is harmful, not the general claim.
+**Nothing in this project is a dynamic framework** — the local package is
+handed to Xcode's own SPM integration, which links every product statically
+into each consumer, so "WhereUI carries its dependencies" means *statically
+embeds them into whatever links WhereUI*, and a double-link lands two copies
+in one image. The guard test is the authority on whether a given duplication
+is harmful — measured symbol-coalescing detail and the correction history:
+PR #145.
 
 ## Deployment
 
@@ -293,6 +238,16 @@ the ones the code already owns — every style group on a stylesheet, every
 collaborator on a service, a pinned tool version. Name the one or two worth
 learning from and say where the live list is. An exhaustive copy reads
 authoritative long after it stops being true, which is worse than no list.
+
+**Rules state what, not why.** A rule is an imperative sentence, at most one
+clause of consequence (only when the rule would otherwise look wrong enough to
+"fix"), and a pointer to the proof — the guard test, the PR number or commit
+SHA (squash merges keep PR bodies reachable via `git log`), or a `TODOs.md`
+entry. Keep, at one line each: **tripwires** (conditions that invalidate a
+rule — "re-measure if X"), **diagnostic signatures** (the literal error text
+of a failure mode), and **decision rules**. History narration, mechanism
+walkthroughs, and persuasion belong in the PR that proved them — point, don't
+restate.
 
 ## Repo-level docs
 
@@ -363,16 +318,14 @@ scope and invariants on top rather than restating these.
   knobs) or a file accretes several behavioral areas, group related properties
   into nested structs and split responsibilities into focused child types —
   don't let one god-type keep growing.
-- Identifiers/keys are `Hashable` (ideally a typed enum) or `AnyHashable`, not
-  raw `String`s — a typed token can't silently typo into a new, untracked id,
-  and any `Hashable` converts to `AnyHashable` implicitly at the call site.
-  Prefer carrying the *concrete* type where a generic can: `LifecycleStep`
-  declares `associatedtype ID: Hashable & Sendable` and `LaunchPlan` is generic
-  over it, so a plan's nodes must share one identity domain and `nodeIDs` hands
-  tests back typed cases instead of erased `AnyHashable`s. Reach for
-  `AnyHashable` only where a generic can't reach (a non-generic environment
-  value, a heterogeneous container). The Where app keys its launch steps with
-  the `LaunchStepID` enum, and `WherePreferences` keys with a `Keys` enum.
+- Identifiers/keys are `Hashable` — a typed enum, or a dedicated struct when
+  the identity has structure (Where's `StoreURL` composite keys) — or
+  `AnyHashable`, never raw `String`s: a typed token can't silently typo into
+  a new, untracked id. Prefer carrying the *concrete* type where a generic
+  can (`LaunchPlan` is generic over its step `ID`); reach for `AnyHashable`
+  only where a generic can't reach (a non-generic environment value, a
+  heterogeneous container). Examples: `LaunchStepID`,
+  `WherePreferences.Keys`, `StoreURL`.
 - **Avoid parameter defaults on Core/store APIs.** Prefer explicit call-site
   arguments so new behavior isn't silently opted into. Reserve defaults for
   SwiftUI convenience inits and obvious zero values (`[]`, `.zero`) where
@@ -441,14 +394,11 @@ scope and invariants on top rather than restating these.
   obvious place (see `WhereShareExtension`'s `ShareViewController`).
 - **Observe with a target/selector, not a retained token; every `start` has
   a `stop`.** Register via `addObserver(_:selector:name:object:)` with `self`
-  as the observer so teardown is one `removeObserver(self)` — no opaque
-  tokens to keep, and a restart removes-before-re-adding so it replaces
-  rather than doubles (see `NotificationAmbientSource`, which every built-in
-  notification-based ambient source subclasses). Avoid block-based
-  `addObserver(forName:)`: its observation stays alive in the center whether
-  or not you keep the returned token, so dropping the token makes it
-  unremovable and immortalizes everything the block captured. Any
-  `start…`-style observation API gets a paired `stop()` that removes it.
+  so teardown is one `removeObserver(self)`, and a restart
+  removes-before-re-adding (see `NotificationAmbientSource`). Never
+  block-based `addObserver(forName:)` — dropping its token makes the
+  observation unremovable and immortalizes everything the block captured.
+  Any `start…`-style observation API gets a paired `stop()`.
 
 ### Architecture and reuse
 
@@ -480,19 +430,28 @@ scope and invariants on top rather than restating these.
 
 ### Modeling state
 
-**Make invalid states unrepresentable.** When a set of values is only meaningful
-in certain combinations, model it as a *single* type — usually an `enum`, often
-with associated values — instead of several parallel properties that can drift
-into nonsensical combinations. Default to one type; reach for separate stored
-properties only when the values are genuinely independent, and let that be the
-exception you can justify, not the reflex. A good type makes the illegal states
-impossible to spell and the legal ones obvious.
+**Make invalid states unrepresentable.** When a set of values is only
+meaningful in certain combinations, model it as a *single* type — usually an
+`enum` with associated values — instead of parallel properties that can drift
+into nonsensical combinations. Separate stored properties are the exception
+to justify, not the reflex.
 
-The Where app does this with `YearReportModel.LoadState` (`idle` / `loading` /
-`loaded` / `failed(LoadError)`) rather than juggling `isLoading` + `error` +
-`data`, and `CalendarContentView` keeps one `Result<[CalendarMonth], Error>?` instead
-of separate `months` and `layoutError` properties — success and failure can't
-both be set, and "not loaded yet" is the `nil`.
+Worked examples, smallest to largest:
+
+- `YearReportModel.LoadState` (`idle`/`loading`/`loaded`/`failed`) instead of
+  `isLoading` + `error` + `data`, and `CalendarContentView`'s single
+  `Result<[CalendarMonth], Error>?` — success and failure can't both be set,
+  and "not loaded yet" is the `nil`.
+- **LifecycleKit's typed `LaunchPlan`** applies it to *wiring*: steps are
+  types whose `Input`/`Output` must chain through the plan's combinators, so
+  a mis-ordered launch or a consumer without its producer is a compile error
+  — and value-producing steps can't be skipped, so a hole in the data flow
+  can't be spelled either (PR #116).
+- **`WhereScope`** applies it to *ownership*: the logged-in world is one
+  value — the open store's services, the preferences driving it, and the log
+  store they record into, created whole and never reconfigured — so a
+  logged-in surface can't read one world's store against another world's
+  preferences (PR #150).
 
 Smells that signal a missing type:
 
@@ -511,47 +470,39 @@ Smells that signal a missing type:
 ### Composition: create once, inject down
 
 **A shared resource is created exactly once, at the composition root, and
-reaches every consumer by injection** — init parameters, explicit call-site
-arguments, or a composition hook — never by re-resolving a global. The Where
-app's SwiftData store is the template: the launch's `open-store` step performs
-the process's *only* store open, `WhereServices` carries it (plus the
-attribution and clock policies derived from it) to every collaborator, and the
-App Intents stack is derived *from* those services
-(`WhereServices.forIntents(sharingStoreOf:)`) via `WhereLaunch.makeLauncher`'s
-`onServicesReady` hook. Two subsystems independently "opening the same store"
-is how a fresh install once raced two `ModelContainer`s into a launch failure;
-injection made that state impossible to spell rather than merely unlikely.
+reaches every consumer by injection** — init parameters, explicit arguments,
+or a composition hook — never by re-resolving a global. Template: the Where
+app's SwiftData store (the launch's `resolve-scope` step is the process's only
+open; the resulting `WhereScope` carries it; the App Intents stack derives from
+it via the `onServicesReady` hook). Two subsystems independently "opening the
+same store" once raced a fresh install into a launch failure.
+
+**Create it when it's needed, not before.** That step runs *behind* the
+onboarding gate, so an install whose user never onboards opens nothing, and a
+second world (demo mode) is another scope rather than a flag threaded through
+the first. See [`Where/AGENTS.md`](Where/AGENTS.md#scopes-and-the-launch).
 
 - **No singletons or static get-or-create registries** for anything that can
-  be injected. A global hides the dependency edge, invites exactly the
-  double-create race injection prevents, and forces tests to share — and
-  carefully reset — process-wide state. Needing `@Suite(.serialized)` plus a
-  reset hook to test something is the smell; injected dependencies get
-  hermetic per-test instances instead.
+  be injected — a global invites the double-create race and forces tests to
+  share process-wide state. Needing `@Suite(.serialized)` plus a reset hook
+  is the smell; injected dependencies get hermetic per-test instances.
 - **When the platform instantiates the consumer** (App Intents, extension
-  principal classes) and constructor injection can't reach it, use the
-  platform's own DI seam rather than minting a singleton: the composition
-  root creates the value and registers it (`AppDependencyManager.shared.add`
-  in `didFinishLaunching`; intents resolve it with `@Dependency`). And keep
-  that seam a **handoff, not a factory**: the root *installs* what it created
-  (`IntentServices.install(_:)`), early callers **await** installation
+  principal classes), use the platform's DI seam, and keep it a **handoff,
+  not a factory**: the root installs what it created
+  (`IntentServices.install(_:)`), early callers await installation
   (`current()` parks, cancellation-aware), and the seam never creates the
-  resource itself. A "create it myself" fallback — however unlikely to run —
-  quietly reintroduces the duplicate the design exists to prevent.
+  resource itself — a "create it myself" fallback quietly reintroduces the
+  duplicate the design exists to prevent.
 - **Derive, don't re-derive.** A stack built from an existing layer reuses
-  what that layer already computed (the store, the live attributor, the
-  injected clock) rather than re-reading it. That keeps derivation synchronous
-  and non-throwing — wiring it can't fail into a half-composed state — and a
-  derived stack can't drift from its base (duplicate change subscriptions,
-  diverging clocks).
+  what that layer computed (the store, the live attributor, the clock) —
+  derivation stays synchronous and non-throwing, and can't drift from its
+  base.
 - **Re-fire composition hooks wherever the lifecycle re-creates the thing.**
-  `onServicesReady` fires on every session (re)start — first launch, retry
-  after a failed launch, the reset relaunch — so consumers always hold the
-  current instance, never the first one.
+  `onServicesReady` fires on every session (re)start, so consumers always
+  hold the current instance, never the first one.
 
 This is [Modeling state](#modeling-state) applied to ownership and lifetime:
-one owner, created in one place, with the illegal wirings (two owners, zero
-owners, a stale copy) unrepresentable.
+one owner, created in one place, the illegal wirings unrepresentable.
 
 ## Generating the Xcode project
 
@@ -564,17 +515,78 @@ disrupts the user's session. Always pass `--no-open` when regenerating:
 `tuist test` / `tuist build` are CLI-only and do not open Xcode, so no
 flag is needed there.
 
+## Running tests
+
+**Use [`./test`](test).** It resolves the scheme, gets a UDID from
+`./simulator`, and streams progress; see `./test --help`. Don't hand-roll a
+`tuist test` or `xcodebuild` invocation — a bare one lets xcodebuild pick a
+device, which lands on the machine-wide simulator every other checkout is also
+using (see [Selecting a
+simulator](#selecting-a-simulator--one-device-per-checkout-addressed-by-udid)),
+and the image suite only compares correctly under the scheme carrying its
+`SNAPSHOT_EXPECTED_*` / `TZ` pins.
+
+Pick the **narrowest tier that covers the change** — running everything by
+reflex is what made a local check cost a coffee break:
+
+| Tier | Command | When |
+|------|---------|------|
+| Affected | `./test` | The default. Runs only the bundles your working tree affects. |
+| One bundle | `./test WhereCoreTests` | You know exactly what you touched. |
+| Unit suite | `./test --all` | Before committing a change that spans modules. |
+| Image suite | `./test --snapshots` | Only when the triggers below apply. |
+| Everything | `./test --everything` | Full revalidation, and what CI runs. |
+
+**The image suite is serial on purpose.** Splitting it across simulators was
+measured and rejected — 2.7x slower plus spurious failures, because every shard
+contends for one render server. The numbers and the two other dead ends are in
+[`Shared/SnapshotKitTesting/AGENTS.md`](Shared/SnapshotKitTesting/AGENTS.md);
+read them before proposing parallelism here.
+
+**The image suite is opt-in, not part of "done" by default.** It is the slow
+half, and most changes cannot affect it. Run `./test --snapshots` when the
+change touches a **view or its appearance** (a `WhereUI`/`BroadwayUI` view, a
+stylesheet token, a string that renders), **`SnapshotKit` or
+`SnapshotKitTesting`**, or **a reference image**. `./test` with no arguments
+already picks the image bundles up when the dependency graph says they're
+affected, so the explicit form is for when you want them *and* nothing else.
+
+Two flags exist for reading a snapshot run rather than just passing it:
+`./test --snapshots --timings` prints where capture time went per phase, and
+`--review` prints how each differing reference differs — pixel count, max
+channel delta, changed region — sorted by max delta, which is the column that
+tells a broken render from antialiasing drift.
+
+**Scope is explicit, not inferred from a cache.** `./test` derives affected
+bundles from the manifests (`swift package dump-package` plus `Project.swift`)
+and passes `-only-testing` for them, so there is no `--no-selective-testing` to
+remember — `--everything` is the "run it all" answer. Relying on Tuist's
+selective testing would mean running `tuist test`, and the two reasons not to
+are measured — see the header comment in [`test`](test), which also records how
+to re-verify them:
+
+- **Its formatter swallows the failure reason, with no flag that recovers it.**
+  Swift Testing's headline for a recorded issue is a contentless "Issue
+  recorded" and the reason lives in the `↳` block after it, which xcbeautify
+  drops — so a snapshot mismatch reached CI as "Recorded an issue" with no
+  numbers, no path, and no image.
+- **`-collect-test-diagnostics never` saves ~10 minutes per failing run.**
+  Without it xcodebuild waits out a fixed 600-second diagnostics timeout before
+  reporting: the same one-test failure took 28s through `./test` and 620s
+  through `tuist test`.
+
+Little is given up. Tuist's hash cache does work locally, but there is no Tuist
+server, so on CI's fresh checkout it skips nothing — and "changed against
+`origin/main`" is the better question for a PR than "changed since this
+machine's last successful run".
+
 ## Working in this repo
 
 - **Never commit on `main`.** Branch first (`git checkout -b <name>`) and keep
   every commit for one piece of work on that one branch.
-- **`./swiftformat --lint` and the matching `tuist test` scheme(s) are part of
-  "done".** Never commit a red tree. Run a scheme against this checkout's own
-  simulator — `tuist test <Bundle>Tests -- -destination "platform=iOS
-  Simulator,id=$(./simulator)"` — because a bare `tuist test` lets xcodebuild
-  pick a device, which lands you back on the machine-wide one every other
-  checkout is also using (see [Selecting a
-  simulator](#selecting-a-simulator--one-device-per-checkout-addressed-by-udid)).
+- **`./swiftformat --lint` and `./test` are part of "done".** Never commit a red
+  tree. `./test` owns the scheme, the destination, and the scope — see [Running
+  tests](#running-tests) for which tier a change calls for.
 - **Multi-step work lands one commit per step**, so history stays bisectable and
   can land piecewise — including pure-groundwork steps, which say so in the body.
 - **Commit when asked, or when working through a plan.** If it's unclear whether
@@ -614,29 +626,21 @@ immediately, and no amount of clearing DerivedData will surface it.
 ## Selecting a simulator — one device per checkout, addressed by UDID
 
 **Every checkout owns a simulator of its own, and `./simulator` is the only
-thing that hands one out.** Two failure modes make that the rule:
-
-- **A shared name is ambiguous.** A dev machine usually has an "iPhone 17" on
-  each installed runtime (26.x, 27.0, …) — a legitimate setup for testing
-  multiple OS versions — and **any `xcrun simctl` command matches by name
-  only**. `simctl boot "iPhone 17"` (or `shutdown` / `erase`) may act on a
-  *different* device than the one under test, leaving it mid-transition.
-- **A shared device is contended.** Several checkouts on one machine — clones,
-  worktrees, an agent working in each — otherwise resolve to the *same*
-  device, and then race each other booting it, installing and uninstalling the
-  same bundle ID, and erasing it out from under a run in flight.
-
-Both surface identically: `Application failed preflight checks (Busy)` or
-`Mach error -308 — server died` / `crashed with signal kill before establishing
-connection` — launch failures that look like test failures but aren't (the
-suites that do run are green, and the wall time is spent before and around
-them). So always pass a **UDID** to `simctl`, never a name, and get that UDID
-from `./simulator`:
+thing that hands one out.** A name is ambiguous (`simctl` matches by name
+only, and a machine usually has an "iPhone 17" per installed runtime), and a
+shared device is contended (parallel checkouts race each other booting,
+installing, and erasing it). Both surface identically: `Application failed
+preflight checks (Busy)`, or `Mach error -308 — server died` / `crashed with
+signal kill before establishing connection` — launch failures that look like
+test failures but aren't (the suites that do run are green). So always pass a
+**UDID** to `simctl`, never a name, and get that UDID from `./simulator`:
 
 ```bash
-mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
-  -destination "platform=iOS Simulator,id=$(./simulator)"
+-destination "platform=iOS Simulator,id=$(./simulator)"
 ```
+
+`./test` does this for you; reach for the raw form only in a one-off
+`xcodebuild` invocation.
 
 It derives a device name from the checkout's path
 (`Stuff-<folder>-<hash>-iPhone-17-27.0`), **creates that device the first time
@@ -671,19 +675,13 @@ it too, so a local repro targets a device nothing else can touch.
   also means remembering that `simctl shutdown` is async: poll until the
   device actually reads `(Shutdown)` before `erase`/`boot`.
 
-**CI takes the one exception, and still resolves by UDID.** A job owns its VM,
-so the isolation a per-checkout device buys is already there — the boot step
-passes `--shared`, which takes the image's existing iPhone 17 instead of
-creating (and then first-booting) a device per run. Resolution is not optional
-even there: the `xcode-27` image ships a single iPhone 17 today, so a
-`name=…,OS=…` destination does resolve — but *booting* is the expensive half,
-and a cold or wedged CoreSimulator has stretched the ~10-minute test job to
-**3.5–5 hours** on that image (runs on 2026-07-23, i.e. after the
-`xcrun simctl list` cache warm-up was already in place — that nudge fixes
-destination *resolution*, not a slow boot). So CI resolves the UDID,
-`bootstatus -b`s it, and passes `-destination "…,id=$UDID"`, under a
-`timeout-minutes` cap so a stuck boot fails fast instead of holding a runner.
-See [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+**CI takes the one exception, and still resolves by UDID.** A job owns its
+VM, so the boot step passes `--shared` (the image's existing iPhone 17,
+skipping a per-run first boot) — but it still resolves the UDID,
+`bootstatus -b`s it, and passes `-destination "…,id=$UDID"` under a
+`timeout-minutes` cap: a cold or wedged CoreSimulator has stretched the
+~10-minute test job to **3.5–5 hours** (runs on 2026-07-23). See
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
 ## Cursor Cloud specific instructions
 
@@ -699,17 +697,12 @@ environment: formatting and agent sync work; builds, tests, and running the
 trusts the config, runs `mise install`, installs `git-lfs`, and points Git at
 `.githooks/`. Nothing about a cloud agent's setup lives in a dashboard.
 
-`git-lfs` is not optional on either platform. `.githooks/` carries the Git LFS
-hooks beside the pre-commit formatter, and they **exit non-zero when the binary
-is missing** — so routing Git at them without it breaks checkout, merge, and
-push even for work that never touches snapshot tests. Both bootstraps handle it
-before setting `core.hooksPath`: `./ide` checks and instructs (`brew install
-git-lfs`), the cloud script installs it from apt.
-
-Two consequences worth knowing. A repo-defined environment follows branches, so
-a PR can change how its own agent is set up — and it **takes precedence over any
-dashboard-managed personal or team environment** for this repo. And it must stay
-idempotent: Cursor may re-run it against cached state.
+`git-lfs` is not optional on either platform — the `.githooks/` LFS hooks
+exit non-zero when the binary is missing, breaking checkout/merge/push even
+for work that never touches snapshots. Both bootstraps install it before
+setting `core.hooksPath`. The repo-defined environment follows branches,
+**takes precedence over any dashboard-managed environment**, and must stay
+idempotent (Cursor may re-run it against cached state).
 
 ### What works on Linux
 
@@ -752,8 +745,9 @@ already isolated.
 mise install
 ./ide --no-open
 ./swiftformat --lint
-mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
-  -destination "platform=iOS Simulator,id=$(./simulator --os 27.0)"
+./test --everything
+# `./test` drives the iOS schemes; the native-macOS Ledger scheme has no
+# simulator and runs in its own CI job, so add it here:
 mise exec -- tuist test Ledger-macOS-Tests --no-selective-testing -- \
   -destination 'platform=macOS'
 ```

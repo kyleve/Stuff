@@ -27,7 +27,7 @@ one it belongs to rather than to a god-object:
   remote import. `SwiftDataStore.make()` is the production, CloudKit-backed
   implementation; `SwiftDataStore.inMemory()` backs tests and previews. Each
   process opens its on-disk store **once** and injects it where it's needed —
-  in the app, the launch's `open-store` step opens it and the App Intents
+  in the app, the launch's `resolve-scope` step opens it and the App Intents
   stack shares it via `WhereServices.forIntents(sharingStoreOf:)` — so two
   subsystems never race to create/open the same store file. It also
   holds the user's **tracked / primary regions** (`trackedRegions()` /
@@ -47,6 +47,15 @@ one it belongs to rather than to a god-object:
   (`clearManualDay` / `clearYear` / `eraseAllData`), evidence, and issue
   dismissals. Each write commits, then awaits its reminder reconcile + widget
   publish so the next reader sees a fully-applied change.
+
+- **`DemoDataBuilder`** — writes the dataset the app's demo mode runs on into a
+  given `WhereServices`: a plausible current year of living in New York with
+  California trips, plus the backfills and corrected attributions a real year
+  has and a few recent days still unlogged, so an empty app has something true
+  to show. Bound to the current year and derived from it, so it stops at today
+  and is the same every time. Every feature is sized against the *elapsed* part
+  of the year, so a demo entered in January has the same shape as one entered in
+  December.
 
 ### Reads & aggregation
 
@@ -95,7 +104,10 @@ one it belongs to rather than to a god-object:
 - **`RecentActivitySummarizer`** — an on-device Foundation Models narrative over
   a selectable look-back `RecentActivityWindow`.
 - **`WherePreferences`** — persisted user intent (onboarding, tracking intent,
-  reminder / summary schedules) behind a `KeyValueStore`.
+  reminder / summary schedules) behind a `KeyValueStore`. The store has no
+  default: production names `UserDefaults.standard` and everything else names
+  `InMemoryKeyValueStore()`, so no test or preview can reach the host's real
+  defaults by saying nothing.
 - **`BuildInfo`** + **`AppAttribution`** — what Settings > About says about the
   bundle it is running in. `BuildInfo.current(bundle:)` reads the marketing
   version, build number, and the commit the app was built from;
@@ -120,7 +132,7 @@ target's dependencies in [`Package.swift`](../../Package.swift):
 
 ## Quick start
 
-Assemble a `WhereServices` (the app does this in its launch `open-store` step)
+Assemble a `WhereServices` (the app does this in its launch `resolve-scope` step)
 and talk to the collaborators:
 
 ```swift
@@ -179,6 +191,13 @@ on-disk/CloudKit store or `CoreLocationSource`. The CloudKit remote-import path
 is exercised via the `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`.
 
-`InMemoryKeyValueStore` — a `KeyValueStore` test double for `WherePreferences` —
-also ships here behind `@_spi(Testing)` (`#if DEBUG`); import it into test bundles
-with `@_spi(Testing) import WhereCore`.
+`InMemoryKeyValueStore` — a `KeyValueStore` for `WherePreferences` that keeps
+everything in memory — is plain `public` API, as are the noop schedulers and
+refreshers. They back tests and previews, but they ship because the app's demo
+mode is built out of them.
+
+They are also what the `@_spi(Testing)` `WhereServices.init` defaults its
+notification and widget seams to, so a test or preview that names nothing
+posts nothing and reloads nothing. The public `WhereServices.make(...)`
+requires those seams instead: naming the real world is the composition root's
+job, not something a caller falls into by omission.

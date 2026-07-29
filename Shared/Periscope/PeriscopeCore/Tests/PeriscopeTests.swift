@@ -78,6 +78,67 @@ struct PeriscopeTests {
         #expect(sink.definedScopes.count(where: { $0 == log.primaryScope }) >= 1)
     }
 
+    @Test func removedSinkReceivesNothingFurther() async {
+        let system = makeSystem()
+        let detachable = CapturingSink()
+        let token = system.add(sink: detachable)
+        let log = Log<AppLogs>(system: system)
+
+        log.info("before")
+        await system.remove(token)
+        log.info("after")
+        await system.flush()
+
+        #expect(detachable.records.map(\.message) == ["before"])
+        // The sink that stayed keeps receiving, so the removal detached one
+        // registration rather than stalling the pipeline.
+        #expect(sink.records.map(\.message) == ["before", "after"])
+    }
+
+    @Test func removalDeliversAndFlushesWhatTheSinkWasOwed() async {
+        let system = makeSystem()
+        let detachable = CapturingSink()
+        let token = system.add(sink: detachable)
+
+        Log<AppLogs>(system: system).info("owed")
+        // No flush first: removal alone must drain the pending record into the
+        // sink and flush it, since nothing else can once it's detached.
+        await system.remove(token)
+
+        #expect(detachable.records.map(\.message) == ["owed"])
+        #expect(detachable.flushCount == 1)
+    }
+
+    @Test func removingTheSameTokenTwiceIsANoOp() async {
+        let system = makeSystem()
+        let detachable = CapturingSink()
+        let token = system.add(sink: detachable)
+
+        await system.remove(token)
+        await system.remove(token)
+        Log<AppLogs>(system: system).info("after")
+        await system.flush()
+
+        #expect(detachable.records.isEmpty)
+        #expect(detachable.flushCount == 1)
+        #expect(sink.records.map(\.message) == ["after"])
+    }
+
+    @Test func removalDetachesOnlyItsOwnRegistrationOfAnIdenticalSink() async {
+        let system = makeSystem()
+        // Two registrations of one sink value: the token, not the sink, is
+        // the identity being removed.
+        let twice = CapturingSink()
+        let first = system.add(sink: twice)
+        system.add(sink: twice)
+
+        await system.remove(first)
+        Log<AppLogs>(system: system).info("still delivered")
+        await system.flush()
+
+        #expect(twice.records.map(\.message) == ["still delivered"])
+    }
+
     @Test func recentBufferKeepsOnlyTheNewestRecords() async {
         let system = makeSystem(recentBufferCapacity: 3)
         let log = Log<AppLogs>(system: system)

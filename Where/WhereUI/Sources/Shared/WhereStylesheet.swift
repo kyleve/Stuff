@@ -934,9 +934,9 @@ extension View {
     ///
     /// Lives here (not called as `broadwayRoot` at each site) so callers only
     /// need to import `WhereUI`: `WhereWidgets` must not link `BroadwayUI`
-    /// directly — it already gets it through `WhereUI` (a dynamic framework), and
-    /// a second copy would split Broadway's type-keyed environment metadata (see
-    /// the root `AGENTS.md` "Targets" note).
+    /// directly — it already gets it through `WhereUI`, and a second copy would
+    /// split Broadway's type-keyed environment metadata (see the root
+    /// `AGENTS.md` "Targets" note).
     ///
     /// Also seeds `\.regionStyles` so descendants resolve per-region looks
     /// (`region` cards, calendar dots, widgets, snippets) from one place. The app

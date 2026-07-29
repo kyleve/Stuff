@@ -4,6 +4,13 @@ import Foundation
 /// intent, and the reminder / daily-summary schedules — behind a `KeyValueStore`
 /// so production uses `UserDefaults` and tests use an in-memory double.
 ///
+/// `store` is deliberately not defaulted: defaulting it to
+/// `UserDefaults.standard` made the real, process-wide defaults the thing you
+/// got by *saying nothing*, so a test or preview that omitted it silently read
+/// and wrote the host's own settings — leaking state between tests and across
+/// runs. Production names `UserDefaults.standard`; everything else names
+/// `InMemoryKeyValueStore()`.
+///
 /// Owns the defaults keys and the `reset()` that returns them to first-install
 /// state, so that teardown lives in Core rather than the UI layer. Values are
 /// read/written eagerly; callers that need observation (SwiftUI) mirror them in
@@ -11,7 +18,7 @@ import Foundation
 public final class WherePreferences {
     private let store: any KeyValueStore
 
-    public init(store: any KeyValueStore = UserDefaults.standard) {
+    public init(store: any KeyValueStore) {
         self.store = store
     }
 

@@ -96,7 +96,9 @@ Periscope.shared.startDefaultAmbientSources()
   conveniences) rides along with any event; blobs persist externally and
   load on demand.
 - **System** — `Periscope`: the recorder and `LogSink` pipeline (OSLog sink
-  built in), level floors (`minimumLevel`, `setMinimumLevel(_:forSubtree:)`),
+  built in; `add(sink:)` returns a `SinkToken` that `remove(_:)` detaches —
+  see [Detaching a sink](#detaching-a-sink)), level floors (`minimumLevel`,
+  `setMinimumLevel(_:forSubtree:)`),
   flush threshold, bounded drop policy with synthetic `DroppedEvents`,
   redaction hook, recent buffer + `liveRecords()` stream, ambient
   sources (`startAmbientSource`, `startDefaultAmbientSources`,
@@ -118,6 +120,24 @@ events trigger an automatic flush; queue overflow drops oldest and reports
 the gap (scope definitions and span began/ended pairs are exempt). Event payloads persist as JSON keyed by `eventName` + `eventVersion`
 so old rows outlive their Swift types — `StoredLogEvent.decode(_:)` recovers
 the type, and tooling degrades to raw JSON when it can't.
+
+### Detaching a sink
+
+Most apps add their sinks once and keep them for the process, so `add(sink:)`'s
+`SinkToken` is `@discardableResult`. Detach one with `await
+system.remove(token)`, which settles the sink before letting go: it leaves the
+registry under the lock (so no later drain sees it), the call awaits any drain
+already mid-delivery, and the sink is flushed. When it returns, the sink has
+everything emitted before the call and will receive nothing after it.
+
+Removing a `PeriscopeStore` also uninstalls the crash journal that store
+installed, since the journal is the emit-side tap belonging to a store now out
+of the pipeline. The token — not the sink — is the identity removed, so one of
+two registrations of the same sink can be detached (`LogSink` isn't
+class-constrained, so a value sink has no identity of its own).
+
+The Where app uses this for its in-memory demo mode: entering swaps the durable
+on-disk store sink for an in-memory one, and exiting swaps back.
 
 **Crash durability**: on-disk stores also open a per-session journal
 ([JournalKit](../../JournalKit)) beside the database, and once the store is
@@ -150,4 +170,4 @@ their own sessions and leave recovery to the app's next launch.
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
 (`PeriscopeCoreTests` bundle). Tests use fresh `Periscope` systems, in-memory
 stores (`@_spi(Testing) PeriscopeStore.inMemory`), and condition polling —
-run with `tuist test PeriscopeCoreTests`.
+run with `./test PeriscopeCoreTests`.

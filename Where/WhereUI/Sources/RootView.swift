@@ -55,7 +55,14 @@ public struct RootView: View {
     /// foreground runner for it. The runner isn't run by the app delegate
     /// here, so `.task` drives it (see `body`).
     public init() {
-        let model = WhereModel()
+        // Mirrors the app root's wiring (see `AppDelegate`). Nothing here
+        // attaches a sink unless a scope is actually resolved, which a preview
+        // or the hosted UI test never gets to.
+        let model = WhereModel(
+            preferences: WherePreferences(store: UserDefaults.standard),
+            makeBootstrap: { WhereBootstrap() },
+            logSystem: .shared,
+        )
         _model = State(initialValue: model)
         launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
     }
@@ -70,11 +77,11 @@ public struct RootView: View {
                 splash: { _ in LaunchSplashView() },
                 failure: { LifecycleFailureView(failure: $0) },
                 gates: {
-                    // The gate passes the trunk's session through, so
-                    // onboarding is handed the session it commits regions
-                    // with — not left to find one in the environment.
-                    GateView(for: OnboardingGate.self) { handle, session in
-                        OnboardingView(gate: handle, session: session)
+                    // The gate roots the trunk, so there is no session (and no
+                    // open store) behind it yet — onboarding builds the scope
+                    // it commits regions with, through the model.
+                    GateView(for: OnboardingGate.self) { handle, _ in
+                        OnboardingView(gate: handle)
                     }
                 },
             ) { session in
@@ -131,6 +138,10 @@ public struct RootView: View {
             // reads it optionally — it can appear before login, where the
             // SwiftData inspector row simply hides.
             .environment(model.session)
+            // Which world the app is in, seeded once here so no view has to
+            // ask the model. Reading the model's mode tracks its scope state,
+            // so entering or leaving demo mode re-renders what branches on it.
+            .demoMode(of: model)
             // Settings' "Erase all data & reset" runs the teardown through the
             // `LifecycleProxy` that `LifecycleContainer` publishes into the
             // environment, which wipes data + preferences and re-drives the

@@ -43,12 +43,21 @@ back at `./ide --bootstrap`. If you'd rather manage `mise` yourself,
 `brew install mise` (or the [official installer](https://mise.jdx.dev))
 followed by `mise install` works too.
 
-Run tests with `mise exec -- tuist test` (or open the generated workspace in Xcode). Point them at the simulator this checkout owns, which `./simulator` creates on its first run and boots on every one:
+Run tests with `./test` (or open the generated workspace in Xcode). With no
+arguments it runs only the bundles your changes affect, against the simulator
+this checkout owns — which `./simulator` creates on its first run and boots on
+every one — and streams progress while it goes:
 
 ```bash
-mise exec -- tuist test Stuff-iOS-Tests --no-selective-testing -- \
-  -destination "platform=iOS Simulator,id=$(./simulator)"
+./test                  # just what your change affects
+./test WhereCoreTests   # one bundle
+./test --all            # the whole unit suite
+./test --snapshots      # the image-snapshot suite
+./test --everything     # both, as CI runs it
 ```
+
+See `./test --help` for the rest, including `--timings` and `--review` for
+reading a snapshot run.
 
 Every checkout — a second clone, a worktree — gets a device of its own, so two
 runs on one machine never fight over booting, installing to, or erasing the

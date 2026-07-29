@@ -24,24 +24,21 @@ system, formatting, and global conventions. Read that first.
   `UIApplicationSceneManifest` in `Project.swift` — and they must stay aligned
   or the scene never connects and every hosted test loses its window.
 
-## Bundle.module embedding checklist
+## Don't add products here for `Bundle.module`
 
-When a hosted test bundle exercises SPM code that loads **processed
-resources** via `Bundle.module`, the resource bundle must be embedded in
-**this host app**:
+The host depends on `TestHostSupport` and nothing else, and embeds no resource
+bundles. A hosted test's `Bundle.module` resolves through `Bundle(for:)` — the
+`.xctest`, which on Xcode 27 carries its own copies of the resource bundles for
+the code it links — so it never falls back to the host's `Bundle.main`. That
+follows from every product linking statically into each consumer, which the root
+[`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)
+records.
 
-1. Confirm the library uses `.process(...)` resources in
-   [`Package.swift`](../../Package.swift).
-2. Add `.package(product: "<Library>")` to the `StuffTestHost` target in
-   [`Project.swift`](../../Project.swift) (not only to the test bundle).
-3. Regenerate (`./ide --no-open`) and verify `Stuff_<Module>.bundle` lands in
-   the host's embedded resources.
-4. Add or extend a smoke test that touches the resource path so a missing
-   embed fails in CI.
-
-Today the host embeds **WhereCore** for GeoJSON region polygons even when a
-test bundle doesn't import WhereCore — a deliberate trade-off documented here
-until a slimmer host split is designed.
+A missing-resource failure is therefore fixed on the *test bundle* that needs
+it, by depending on the product that owns the resource; adding the product to
+the host makes every unrelated bundle in the scheme carry it. The
+`StuffTestHost` target in [`Project.swift`](../../Project.swift) records why the
+host's old `WhereCore` dependency was removed.
 
 ## Testing
 

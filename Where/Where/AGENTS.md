@@ -23,15 +23,14 @@ layering, and the domain rules this target merely starts up.
   it.
 - `Resources/AppIcon.xcassets` is managed by `./icons` (see the root
   [`AGENTS.md`](../../AGENTS.md#managing-app-icons)) — never hand-edit it.
-- `Resources/attribution.json` is the app's generated attribution report, and
-  `attribution-sources.json` beside it declares where the report reads from.
-  Both are `./attribution`'s (see
-  [Attribution](../../AGENTS.md#attribution)) — never hand-edit the report. This
-  is the **only** bundle that carries one, which is why `AppAttributionTests`
-  lives in this target's test bundle: it is the one hosted by `Where.app`, so
-  `Bundle.main` is the shipping bundle. Those tests cover the report being
-  usable; `./attribution --check` in CI covers it still matching the dependency
-  graph, which no test bundle can see.
+- `Resources/attribution.json` is the app's generated attribution report;
+  `attribution-sources.json` at this module's root declares where it reads
+  from. Both are `./attribution`'s
+  ([Attribution](../../AGENTS.md#attribution)) — never hand-edit the report.
+  Only this bundle carries one, so `AppAttributionTests` lives in this
+  target's test bundle (the one hosted by `Where.app`, where `Bundle.main` is
+  the shipping bundle); `./attribution --check` in CI covers the report still
+  matching the dependency graph, which no test bundle can see.
 
 ## Invariants
 
@@ -44,8 +43,16 @@ layering, and the domain rules this target merely starts up.
 - **This target owns exactly one of each shared thing** — one `WhereModel`, one
   `IntentServices`, one launcher — created here and injected down, per
   [Composition](../../AGENTS.md#composition-create-once-inject-down). The
-  launch's `open-store` step is the process's only store open; the intents
-  stack is *derived* from it in the `onServicesReady` hook.
+  launch's `resolve-scope` step is the process's only store open and runs
+  *behind* the onboarding gate, so this target opens nothing at startup; the
+  intents stack derives from whatever scope the launch resolves, in the
+  `onServicesReady` hook.
+- **Nothing here may assume the user has a store.** `didFinishLaunching` starts
+  the ambient log sources and drives the launch; anything wanting the user's
+  data waits for `.ready` and checks what it got — the Spotlight indexing after
+  `launcher.run()` skips a demo session, whose data must not reach an index that
+  outlives the process. See [Scopes and the
+  launch](../AGENTS.md#scopes-and-the-launch).
 - **Register the App Intents dependency before anything async.** The
   `AppDependencyManager.shared.add(...)` call must stay at the top of
   `didFinishLaunching` so `@Dependency` always resolves once the system starts

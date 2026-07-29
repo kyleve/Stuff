@@ -30,21 +30,15 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 - **`.accessibility` configs are preview-filtered.** `snapshotPreviews` drops
   them because VoiceOver annotations require the test-only library; they only
   render as snapshot tests. Don't "fix" previews to include them.
-- **`\.isCapturingSnapshot` is for motion end-states only.** The trait-bridged
-  environment flag (`SnapshotCaptureFlag.swift`) is set by the test pipeline
-  and the preview cutsheet; a view may read it only to freeze motion at a
-  deterministic phase — never to change layout, content, or behavior. The one
-  carve-out (documented on the property): content no settle window can make
-  deterministic — externally-loaded substrates, system controls that render
-  relative to wall-clock state, wall-clock timers that flip visible state
-  (skipped under capture; an explicit per-case seam pins each state) — may
+- **`\.isCapturingSnapshot` is for motion end-states only.** A view may read
+  it only to freeze motion at a deterministic phase — never to change layout,
+  content, or behavior. The one carve-out (documented on the property):
+  content no settle window can make deterministic — externally-loaded
+  substrates, wall-clock-dependent system controls, wall-clock timers — may
   substitute a placeholder of identical layout. It is a **hybrid** accessor
-  (like Broadway's `BContext+SwiftUI`): a pure-SwiftUI `EnvironmentKey` read
-  first — set synchronously by the preview cutsheet / any `.environment`
-  override, no `UITraitCollection` round-trip — falling back to a
-  `UITraitBridgedEnvironmentKey` (not `@Entry`), which is how the test
-  pipeline's `traitOverrides` value reaches SwiftUI through the re-hosting the
-  capture does. The setter mirrors into both.
+  (pure-SwiftUI `EnvironmentKey` first, `UITraitBridgedEnvironmentKey`
+  fallback; the setter mirrors into both) — mechanics and why on
+  `SnapshotCaptureFlag.swift`; don't simplify it to a plain `@Entry`.
 - **Design-system-agnostic.** SnapshotKit never imports Broadway/WhereUI; the
   Broadway root wrap is a consumer concern (`WhereUI`'s `whereSnapshot(...)`).
 

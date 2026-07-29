@@ -46,12 +46,39 @@ let whereAppGroupEntitlements: Entitlements = .dictionary([
     "com.apple.security.application-groups": .array([.string("group.com.stuff.where")]),
 ])
 
+/// The environment the LFS reference images were recorded on, and the single
+/// source of truth for it.
+///
+/// The `assertSnapshots` runner compares the `SNAPSHOT_EXPECTED_*` values
+/// against the live simulator and fails fast with one clear message on a
+/// mismatched runtime, screen scale, or timezone — instead of hundreds of
+/// confusing image diffs. `TZ` pins the test process's timezone itself: several
+/// references bake Pacific wall-clock dates/times into the image (widget day
+/// labels, log-viewer timestamps), so an unpinned UTC CI runner would shift
+/// every date-rendering snapshot. `SNAPSHOT_EXPECTED_TIMEZONE` is the guard
+/// that verifies the `TZ` pin actually reached the test process.
+///
+/// Set on **both** the snapshot targets and the aggregate scheme below, which
+/// is deliberate: Tuist autogenerates a scheme per target, so a target that
+/// carries these is correctly pinned when someone runs that one bundle from
+/// Xcode, while the aggregate scheme covers the CI invocation. Setting them in
+/// only one place leaves the other silently unpinned — and an unpinned run
+/// doesn't fail loudly, it just compares against references recorded somewhere
+/// else.
+let snapshotEnvironment: [String: EnvironmentVariable] = [
+    "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
+    "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
+    "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
+    "TZ": "America/Los_Angeles",
+]
+
 func unitTests(
     name: String,
     bundleIdSuffix: String,
     productDependency: String,
     sources: ProjectDescription.SourceFilesList,
     extraPackageProducts: [String] = [],
+    environmentVariables: [String: EnvironmentVariable] = [:],
 ) -> Target {
     var dependencies: [TargetDependency] = [
         .package(product: productDependency),
@@ -69,6 +96,7 @@ func unitTests(
         deploymentTargets: deployment,
         sources: sources,
         dependencies: dependencies,
+        environmentVariables: environmentVariables,
     )
 }
 
@@ -332,19 +360,31 @@ let project = Project(
                 ]),
             ]),
             sources: ["Shared/StuffTestHost/Sources/**"],
-            // Hosted Swift Testing bundles run inside StuffTestHost, so a package's
-            // `Bundle.module` resolves against the host app's main bundle at runtime.
-            // WhereCore is load-bearing here: depending on it embeds
-            // `Stuff_WhereCore.bundle` (its SwiftData schema/resources) and — because
-            // WhereCore depends on RegionKit — the GeoJSON `Stuff_RegionKit.bundle`
-            // into the host, so code the tests touch (e.g. `RegionAttributor.shared`,
-            // the live SwiftData store) finds its resources instead of trapping in the
-            // `Bundle.module` accessor. Verified load-bearing: dropping it fails
-            // WhereUITests' StringsTests + SwiftDataInspectorWiringTests. RegionKit
-            // itself needs no separate entry — WhereCore carries it in (also verified
-            // by running the full scheme without a direct RegionKit dep).
+            // Keep this host thin — it deliberately depends on nothing but
+            // TestHostSupport.
+            //
+            // It used to also depend on WhereCore, to embed `Stuff_WhereCore.bundle`
+            // and (transitively) the GeoJSON `Stuff_RegionKit.bundle` into the host,
+            // on the theory that a hosted bundle's `Bundle.module` resolves against
+            // the host's main bundle. That is no longer true, and on Xcode 27 it is
+            // no longer needed: each `.xctest` now carries its own copies of the
+            // resource bundles for the code it links (`WhereUITests.xctest` ships
+            // `Stuff_WhereCore.bundle`, `Stuff_RegionKit.bundle`,
+            // `Stuff_WhereUI.bundle`, `Stuff_LifecycleKitUI.bundle`), so SwiftPM's
+            // `Bundle.module` finds them via `Bundle(for: BundleFinder.self)` — the
+            // test bundle — and never falls back to `Bundle.main`. Verified by
+            // removing the dependency and running the full `Stuff-iOS-Tests` and
+            // image-snapshot schemes green, with the built host confirmed to contain
+            // no WhereCore symbols and no resource bundles at all. (One of the two
+            // canaries the old note cited as proof, `WhereUITests.StringsTests`, had
+            // also ceased to exist with the String Catalog symbol migration.)
+            //
+            // Don't re-add a product here to fix a missing-resource failure: that
+            // makes every unrelated bundle in the scheme pay for it, and duplicates
+            // the payload (the whole GeoJSON set was being embedded twice). Give the
+            // bundle that needs the resource a dependency on the product that owns
+            // it instead.
             dependencies: [
-                .package(product: "WhereCore"),
                 // Lets `SceneDelegate` stamp its window with `isMainTestHostWindow`
                 // so hosted tests can find it via `TestHostSupport.hostKeyWindow()`.
                 .package(product: "TestHostSupport"),
@@ -447,34 +487,27 @@ let project = Project(
             sources: ["Where/WhereCore/Tests/**"],
             extraPackageProducts: ["RegionKit"],
         ),
-        // WhereUITests deliberately lists no `extraPackageProducts`. WhereUI is a
-        // dynamic framework that statically embeds its own dependencies, so any
-        // product *also* linked here would land a second copy in this bundle;
-        // with several .xctest bundles loaded into one StuffTestHost that
-        // duplicates the module's type metadata, and any type-keyed lookup
-        // crossing the WhereUI boundary (SwiftUI `EnvironmentKey`s,
-        // `UITraitBridgedEnvironmentKey` bridging, the type-keyed
-        // BTraits/BThemes/BStylesheets containers) then silently resolves against
-        // the wrong copy — the writer stores under one copy's key type, the
-        // reader looks it up under another's. Everything the tests need
-        // (BroadwayCore/BroadwayUI, LifecycleKit/LifecycleKitUI, PeriscopeCore/UI/Tools,
-        // SwiftDataInspector, RegionKit + its GeoJSON bundle) is reached
-        // transitively through WhereUI.
-        // See "Never double-link a product a dynamic framework already
-        // carries" in the root AGENTS.md.
+        // WhereUITests deliberately lists no `extraPackageProducts`: everything it
+        // needs (Broadway, LifecycleKit/LifecycleKitUI, Periscope, SwiftDataInspector,
+        // RegionKit + its GeoJSON bundle) arrives statically through WhereUI, and
+        // re-listing one lands a second copy in this image, silently breaking
+        // type-keyed lookups — only in the full multi-bundle scheme, never in an
+        // isolated `tuist test WhereUITests` run.
+        // Guard: WhereStylesheetTests.resolvesTraitAwareTokensFromTheBroadwayRoot.
+        // See "Never double-link a product WhereUI already carries" in the root
+        // AGENTS.md; mechanism: PR #145.
         unitTests(
             name: "WhereUITests",
             bundleIdSuffix: "whereui",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/Tests/**"],
         ),
-        // WhereIntents depends on WhereUI (a dynamic framework) for its snippet
-        // cards, so — exactly like WhereUITests above — this bundle lists no
-        // `extraPackageProducts`: WhereUI/WhereCore/RegionKit/Broadway all arrive
-        // transitively, and re-listing any of them would land a duplicate copy
-        // that splits the module's type metadata across the WhereUI boundary.
-        // See "Never double-link a product a dynamic framework already
-        // carries" in the root AGENTS.md.
+        // WhereIntents depends on WhereUI for its snippet cards, so — exactly like
+        // WhereUITests above — this bundle lists no `extraPackageProducts`:
+        // WhereUI/WhereCore/RegionKit/Broadway all arrive transitively, and
+        // re-listing any of them would land a duplicate copy in this image.
+        // See "Never double-link a product WhereUI already carries" in the root
+        // AGENTS.md.
         unitTests(
             name: "WhereIntentsTests",
             bundleIdSuffix: "whereintents",
@@ -522,6 +555,7 @@ let project = Project(
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/SnapshotTests/**"],
             extraPackageProducts: ["SnapshotKitTesting"],
+            environmentVariables: snapshotEnvironment,
         ),
         unitTests(
             name: "PeriscopeToolsSnapshotTests",
@@ -529,6 +563,7 @@ let project = Project(
             productDependency: "PeriscopeTools",
             sources: ["Shared/Periscope/PeriscopeTools/SnapshotTests/**"],
             extraPackageProducts: ["SnapshotKitTesting"],
+            environmentVariables: snapshotEnvironment,
         ),
         unitTests(
             name: "SwiftDataInspectorSnapshotTests",
@@ -536,6 +571,7 @@ let project = Project(
             productDependency: "SwiftDataInspector",
             sources: ["Shared/SwiftDataInspector/SnapshotTests/**"],
             extraPackageProducts: ["SnapshotKitTesting"],
+            environmentVariables: snapshotEnvironment,
         ),
         .target(
             name: "BroadwayCatalog",
@@ -686,17 +722,10 @@ let project = Project(
         // `*SnapshotTests` target above and joins the lists here — it must not
         // get a scheme (or CI job) of its own.
         //
-        // The environment pins are why this scheme exists rather than folding
-        // the bundles into `Stuff-iOS-Tests`. The `assertSnapshots` runner
-        // compares the SNAPSHOT_EXPECTED_* values against the live simulator
-        // and fails fast with one clear message on a mismatched runtime,
-        // screen scale, or timezone — instead of hundreds of confusing image
-        // diffs. TZ pins the test process's timezone itself: several
-        // references bake Pacific wall-clock dates/times into the image
-        // (widget day labels, log-viewer timestamps), so an unpinned UTC CI
-        // runner would shift every date-rendering snapshot.
-        // SNAPSHOT_EXPECTED_TIMEZONE is the guard that verifies the TZ pin
-        // actually reached the test process.
+        // The environment pins (see `snapshotEnvironment`) are why this scheme
+        // exists rather than folding the bundles into `Stuff-iOS-Tests`. They
+        // are also set on each snapshot target, so the per-target schemes
+        // Tuist autogenerates are pinned too.
         .scheme(
             name: "StuffSnapshotTests",
             shared: true,
@@ -711,12 +740,7 @@ let project = Project(
                     "PeriscopeToolsSnapshotTests",
                     "SwiftDataInspectorSnapshotTests",
                 ],
-                arguments: .arguments(environmentVariables: [
-                    "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
-                    "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
-                    "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
-                    "TZ": "America/Los_Angeles",
-                ]),
+                arguments: .arguments(environmentVariables: snapshotEnvironment),
             ),
         ),
         testScheme(name: "WhereIntentsTests"),

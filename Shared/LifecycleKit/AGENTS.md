@@ -27,22 +27,24 @@ system, formatting, and global conventions. Read that first.
   proxy seam); their generic constraints guarantee every internal cast. Never
   add a second erasure site or a public API that traffics in `Any`.
 - **One identity domain per plan.** `LaunchPlan` is generic over
-  `ID: Hashable & Sendable` and every combinator requires the node's
-  `ID` to match, so a plan can't mix domains and a node keyed for another
-  plan can't be composed in; `nodeIDs` gives back `[ID]`, not erased keys.
-  IDs erase to `AnyHashable` *inside* `LaunchPlanNode` and stay erased from
-  there on — the runner's memo, `LifecycleFailure.stepID`,
-  `LifecycleStepContext.stepID`, and `LifecycleGateHandle.id` are all
-  `AnyHashable`, deliberately: `LifecycleDriving` (the seam behind the
-  non-generic `\.lifecycle` environment value) traffics in `[LaunchPlanNode]`,
-  so pushing `ID` past the plan would force it onto the runner, the container's
-  generic list, and every splash/failure/gate closure. If you want typed
-  `failed(at:)` / `isRunning(_:)` assertions, that's the (deliberate) cost to
-  price in — it isn't an oversight.
+  `ID: Hashable & Sendable` and every combinator requires matching `ID`s, so
+  a plan can't mix domains; `nodeIDs` gives back `[ID]`, not erased keys.
+  IDs erase to `AnyHashable` *inside* `LaunchPlanNode` and deliberately stay
+  erased from there on (the runner's memo, `LifecycleFailure.stepID`,
+  `LifecycleGateHandle.id`) — pushing `ID` past the plan would force it onto
+  the runner, the container, and every splash/failure/gate closure. Untyped
+  `failed(at:)` assertions are the priced-in cost, not an oversight.
 - **Only pass-through positions may skip.** Value-producing (`init`/`then`)
   steps must keep `modes == .all` (plan-construction `precondition`) — a
   skipped producer would leave a hole in the data flow. Don't add a skip path
   for them.
+- **A plan may be rooted at a gate**, for an app that must build nothing until
+  the user chooses (Where's onboarding/demo choice). `Input` and `Output` are
+  then the gate's `Value` — safe for the same reason `.gate` is: a gate
+  transforms nothing. Such a gate declares `modes: .all`, since parking a
+  headless launch is the point rather than the deadlock the default avoids, and
+  the choice reaches the next step through its dependencies, not the trunk.
+  Guard: `LaunchPlanTests.planCanRootAtAGate`.
 - **Failure is terminal.** A thrown node parks `.failed` with no retry — the
   recovery is relaunching the app. A failed teardown likewise parks and does
   not relaunch (a thrown erase leaves state intact). Don't reintroduce a
@@ -63,19 +65,16 @@ system, formatting, and global conventions. Read that first.
 - **Detached children are off the critical path by construction:** they never
   block `.ready`, never fail the drive, and surface failures only on
   `detachedFailures`.
-- **`.undetermined` is the honest UIScene launch reason.** Under the UIScene
-  lifecycle `UIApplication.applicationState` reads `.background` at
-  `didFinishLaunching` even for a user tap, so a consumer that can't yet tell a
-  headless wake from a user launch should launch `.undetermined` rather than
-  fabricate a `.background(cause)`. It gates to the background-safe nodes and
-  builds no view tree until `enterForeground()` promotes it; if no scene ever
-  connects it honestly stays `.undetermined`, never claiming a cause it didn't
-  observe.
-- **Promotion resolves a not-yet-foreground launch and is idempotent.**
-  `enterForeground()` no-ops once the reason *is* `.userForeground`, so a
-  repeat call costs nothing while `.background` and `.undetermined` both
-  promote; consumers must only call it once the scene is genuinely `.active`
-  (see `RootView` in WhereUI for the `scenePhase` gating pattern).
+- **`.undetermined` is the honest UIScene launch reason** — under UIScene,
+  `UIApplication.applicationState` reads `.background` at `didFinishLaunching`
+  even for a user tap, so launch `.undetermined` rather than fabricate a
+  `.background(cause)`. It gates to the background-safe nodes and builds no
+  view tree until promoted; if no scene ever connects it honestly stays
+  `.undetermined`.
+- **Promotion is idempotent.** `enterForeground()` promotes `.background` and
+  `.undetermined` and no-ops on `.userForeground`; call it only once the
+  scene is genuinely `.active` (see `RootView` in WhereUI for the
+  `scenePhase` gating pattern).
 
 ## Testing
 

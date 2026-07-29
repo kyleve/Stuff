@@ -60,4 +60,4 @@ duplicates logging behavior.
 Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
 (`PeriscopeUITests` bundle): probe views read `\.logContext` and log on
 appear, hosted via `TestHostSupport.show`, asserted against a private
-`Periscope` system's recent buffer. Run with `tuist test PeriscopeUITests`.
+`Periscope` system's recent buffer. Run with `./test PeriscopeUITests`.

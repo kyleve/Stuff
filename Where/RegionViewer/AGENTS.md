@@ -19,5 +19,6 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   feature needs more, add it in `WhereUI`/`WhereCore`.
 - **The repo's only Catalyst target** — keep it buildable for `ios-macabi`
   (`tuist build RegionViewer` on macOS verifies).
-- No test bundle; `RegionMapView` and the geometry catalog are covered from
-  WhereUI/WhereCore.
+- No test bundle; the geometry catalog is covered by `RegionKitTests`
+  (`RegionGeometryCatalogTests`), and `RegionMapView` by WhereUI's snapshot
+  bundle (`WhereUISnapshotTests`).

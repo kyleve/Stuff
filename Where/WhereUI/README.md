@@ -33,10 +33,23 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
-- **`WhereModel`** — app-level state: the onboarding flag, the owned
-  `WhereSession`, and the lifecycle intents (`attach(services:)`,
-  `startSession(services:)` — which *returns* the session the launch's
-  `start-session` step threads onward — `endSession()`, `resetPreferences()`).
+- **`WhereScope`** — what the app is logged in *to*: one open store's
+  `WhereServices`, the `WherePreferences` driving it, and the durable log store
+  they record into, created whole and never reconfigured. `WhereModel` owns
+  which scope is active; `WhereSession` is built from one, so a logged-in
+  surface can't read one world's store against another's preferences. Two
+  kinds, both reached through `WhereModel`: the real one opens the app's single
+  on-disk store, and `makeDemoScope()` builds a seeded in-memory world that
+  leaves nothing behind. Its log sink is registered on an **injected**
+  `Periscope` — and only while `WhereModel` says the scope is active — with
+  routing modelled as one state (`pending` / `routing` / `idle`), so a store that
+  finishes opening while the scope is shadowed is remembered rather than routed
+  into.
+- **`WhereModel`** — app-level state that outlives any one scope: the
+  onboarding flag, the active `WhereScope`, the owned `WhereSession`, and the
+  lifecycle intents (`activate(scope:)`, `startSession(scope:)` — which
+  *returns* the session the launch's `start-session` step threads onward —
+  `endSession()`, `resetPreferences()`).
 - **`WhereSession`** — the always-on coordinator: tracking + location
   authorization state and the intents that drive them (`requestPermission()`,
   `startTracking()` / `stopTracking()`, `refreshWidgetSnapshot()`). It holds no
@@ -50,13 +63,16 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 ### Reusable views & styling
 
 - **`OnboardingView`** — the first-run flow, registered for the launch's
-  `OnboardingGate` and handed its `LifecycleGateHandle` + the gate's
-  `WhereSession`: a paged intro, then picking up to five primary US regions
-  (map or searchable list) and giving each a look, then the
-  location-permission ask. It commits the picks as the tracked-region set +
-  appearances before resolving the gate. The intro also offers **Restore from
-  a backup**, which imports a backup (`.replace`) and skips the manual
-  pick/customize steps straight to the location ask.
+  `OnboardingGate` and handed its `LifecycleGateHandle`. The gate roots the
+  trunk, so there is no session (and no open store) behind it: a paged intro,
+  then picking up to five primary US regions (map or searchable list) and
+  giving each a look, then the location-permission ask. Finishing logs in to
+  the real scope — the app's one store open — and commits the picks as the
+  tracked-region set + appearances before resolving the gate. The intro also
+  offers **Restore from a backup**, which opens the store, imports a backup
+  (`.replace`), and skips the manual pick/customize steps straight to the
+  location ask; and **Explore a demo**, which builds a throwaway in-memory
+  world behind a captioned launch splash and enters it.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and per-region color/emoji/icon customization,
   backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings
@@ -117,14 +133,62 @@ model and a foreground launch runner.
 Appearance tokens — geometry, fonts, colors, motion — live in one place,
 `WhereStylesheet`, a Broadway `BStylesheet` resolved from the environment. Views
 read it with `@Environment(\.stylesheet)`; off the `View` tree (layout helpers,
-tests) code uses `WhereStylesheet.default`. Tokens are grouped per component
-(`CalendarStyle`, `AppIconStyle`, `CardStyle`, …) with shared scales for the
-cross-cutting bits (`Spacing`, `Palette`, `Typography`, `Motion`). Most values
-are fixed; a slice derives from accessibility traits (bigger tap targets at
-large Dynamic Type, a flatter card under Reduce Transparency, a crossfaded
-rather than rolling day count under Reduce Motion). See
-[`AGENTS.md`](AGENTS.md#design-system--wherestylesheet) for how to consume and
-extend it.
+tests) code uses `WhereStylesheet.default`. The active sheet is seeded by
+`whereBroadwayRoot()` at the app root and in each Broadway-root-less consumer
+(WhereWidgets); with no root present, resolution falls back to `.default`.
+The rules for what may and may not live in the sheet are in
+[`AGENTS.md`](AGENTS.md#design-system--wherestylesheet).
+
+### Using tokens
+
+For a component with more than one look, resolve the variant once: vend a
+resolved sub-spec and read it into a single property rather than branching
+through the body. `RegionSummaryCard` reads `stylesheet.card[variant]` into a
+`card` so its render is straight-line, with no `compact ? … : …` scattered
+across ~30 values.
+
+### Adding tokens — per-component style groups
+
+Group a component's whole appearance into one nested `Equatable` struct
+instead of adding loose properties to the top level. The stored properties
+declared at the top of `WhereStylesheet` are the live list of groups; two are
+worth copying as templates: `CardStyles` (a variant axis behind a `subscript`)
+and `CalendarStyle` (nested sub-parts). To add one:
+
+1. Define the struct in a `WhereStylesheet` extension with a doc comment
+   saying which component it styles and any invariants; nest further structs
+   for sub-parts (e.g. `CalendarStyle.MonthStyle`, `AppIconStyle.PanelStyle`).
+2. Give it a `static let standard` holding the fixed geometry, and add a
+   stored property on `WhereStylesheet` defaulted to it.
+3. If a look varies (the `compact` card), model the axis as a `Variant` enum
+   and expose a `subscript` on the styles struct so callers read one resolved
+   spec.
+
+Reach for a shared group only for genuinely cross-component values: the
+generic point scale on `Spacing`, one-off element sizes on `Size`, app-wide
+colors not owned by a single component on `Palette`, the few bespoke display
+faces on `Typography`, and animation tokens on `Motion`.
+
+### Trait-aware tokens
+
+Most tokens are fixed; a slice derives from the `BContext` traits in
+`init(context:)` — read the live set off that initializer. Today it grows
+day-grid tap targets at accessibility Dynamic Type sizes, flattens the card
+glow under Reduce Transparency, and crossfades the cards' day count under
+Reduce Motion.
+
+### Per-region styling
+
+`RegionStyle` is data-driven and resolved through the environment: views read
+`@Environment(\.regionStyles)` (a `RegionStyleResolver`) and call
+`regionStyles.style(for: region)`. The resolver is seeded by
+`whereBroadwayRoot(regionStyles:)`: the app passes `WhereSession`'s live
+resolver (updated on launch + `changes()`), the widget process one built from
+its `WidgetSnapshot`, and App Intents snippets one from their services; the
+default empty resolver yields the fallback looks
+(`RegionAppearanceCatalog.defaultAppearance(for:)`) for previews and the
+region-map viewer. The catalog also owns the selectable color/emoji/symbol
+option lists the picker shows.
 
 ## Previews
 
@@ -154,15 +218,12 @@ suite per view, so each view's references live in their own `__Snapshots__/`
 directory. They build as this module's own `WhereUISnapshotTests` bundle, which
 runs alongside the other modules' image suites in the shared
 `StuffSnapshotTests` scheme and its CI job;
-to re-record after an intentional UI change, forward the record mode into the
-test process (see the
+to re-record after an intentional UI change (see the
 [SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)
 for the mode values):
 
 ```bash
-TEST_RUNNER_SNAPSHOT_RECORD=failed mise exec -- tuist test StuffSnapshotTests \
-  --no-selective-testing -- \
-  -destination "platform=iOS Simulator,id=$(./simulator --os 27.0)"
+./test --snapshots --record failed
 ```
 
 then review and commit the images.

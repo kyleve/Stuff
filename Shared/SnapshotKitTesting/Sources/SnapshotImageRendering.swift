@@ -6,9 +6,18 @@ import UIKit
 /// Default fraction of pixels that must match within the perceptual tolerance.
 public let defaultSnapshotPrecision: Float = 0.999
 
-/// Default perceptual tolerance. ~98% mimics the human eye and absorbs
-/// sub-visible antialiasing / subpixel noise without hiding real regressions.
-public let defaultSnapshotPerceptualPrecision: Float = 0.98
+/// Default perceptual tolerance, as a ΔE threshold of `(1 - value) * 100` — so
+/// a pixel may differ by up to ΔE 10 before it counts against
+/// ``defaultSnapshotPrecision``.
+///
+/// Loose on purpose, because `CILabDeltaE` — the metric behind the verdict — is
+/// far steeper near black than the CIE76 it approximates. A ±1/255 difference,
+/// which is what a different GPU or OS build produces and is invisible by
+/// construction, measures ΔE 0.15-0.19 in pastels but up to 12 in near-black
+/// pixels. This knob bounds a pixel's *amplitude*; how much of the image may
+/// exceed it is ``defaultSnapshotPrecision``'s job. The measurements, and why
+/// 10 rather than 5, are in `AGENTS.md`.
+public let defaultSnapshotPerceptualPrecision: Float = 0.90
 
 /// How a snapshot resolves the size it renders at.
 public enum SnapshotSizing: Sendable {
@@ -44,7 +53,7 @@ public enum SnapshotSizing: Sendable {
 ///
 /// `async` is load-bearing, not a convenience: the settle phase must *suspend*
 /// (freeing the main actor) for SwiftUI `.task`-driven content to load — see
-/// ``settleContent(_:minDuration:maxDuration:)``. Callers assert on the returned
+/// ``settleContent(_:named:minDuration:maxDuration:timing:)``. Callers assert on the returned
 /// image (``assertSnapshots(of:named:configurations:record:fileID:file:testName:line:column:)``
 /// does this) rather than through a synchronous `Snapshotting` pullback, which
 /// could never settle such content.
@@ -62,40 +71,89 @@ public enum SnapshotSizing: Sendable {
 /// in-memory-vs-on-disk deltaE flake).
 ///
 /// Requires the StuffTestHost key window; call only from a hosted test bundle.
+///
+/// `named` labels the capture in settle-phase failures — `assertSnapshots`
+/// passes the full snapshot identifier, so a timeout on one configuration of a
+/// 16-image matrix names which one (the gap that made CI's About-screen settle
+/// failures undiagnosable from the result bundle alone).
 @MainActor
 public func renderSnapshotImage(
     of viewController: UIViewController,
+    named name: String,
     sizing: SnapshotSizing = .fixed,
     safeAreaInsets: UIEdgeInsets? = .zero,
     isAccessibility: Bool = false,
     settle: SnapshotSettle = .settled,
     onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
 ) async -> UIImage {
-    await SnapshotCaptureLock.withLock {
-        await renderSnapshotImageLocked(
-            of: viewController,
-            sizing: sizing,
-            safeAreaInsets: safeAreaInsets,
-            isAccessibility: isAccessibility,
-            settle: settle,
-            onReadyToSnapshot: onReadyToSnapshot,
-        )
-    }
+    await renderSnapshotCapture(
+        of: viewController,
+        named: name,
+        sizing: sizing,
+        safeAreaInsets: safeAreaInsets,
+        isAccessibility: isAccessibility,
+        settle: settle,
+        onReadyToSnapshot: onReadyToSnapshot,
+        timing: SnapshotCaptureTiming(identifier: name, isEnabled: false),
+    ).image
 }
 
-/// The capture body of
-/// ``renderSnapshotImage(of:sizing:safeAreaInsets:isAccessibility:settle:onReadyToSnapshot:)``,
-/// run while holding ``SnapshotCaptureLock``.
+/// A finished capture: the image to compare, and the PNG bytes it was
+/// round-tripped through.
+///
+/// Both, because they answer different questions and re-deriving either costs a
+/// full encode or decode: `assertSnapshot` wants the image, while the reference
+/// byte-comparison (``compareAgainstReference(capturedPNG:referenceURL:)``) wants
+/// exactly the bytes that would be written to disk.
+@_spi(Testing) public struct SnapshotCapture {
+    public let image: UIImage
+    public let pngData: Data
+}
+
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:settle:onReadyToSnapshot:)``
+/// with a caller-supplied phase recorder, so `assertSnapshots` can attribute the
+/// capture *and* the comparison that follows it to one line of output, and can
+/// compare the captured bytes against the reference without re-encoding.
 @MainActor
-private func renderSnapshotImageLocked(
+@_spi(Testing) public func renderSnapshotCapture(
     of viewController: UIViewController,
+    named name: String,
     sizing: SnapshotSizing,
     safeAreaInsets: UIEdgeInsets?,
     isAccessibility: Bool,
     settle: SnapshotSettle,
     onReadyToSnapshot: (@MainActor () async -> Void)?,
-) async -> UIImage {
-    func capture() async -> UIImage {
+    timing: SnapshotCaptureTiming,
+) async -> SnapshotCapture {
+    await SnapshotCaptureLock.withLock {
+        await renderSnapshotImageLocked(
+            of: viewController,
+            named: name,
+            sizing: sizing,
+            safeAreaInsets: safeAreaInsets,
+            isAccessibility: isAccessibility,
+            settle: settle,
+            onReadyToSnapshot: onReadyToSnapshot,
+            timing: timing,
+        )
+    }
+}
+
+/// The capture body of
+/// ``renderSnapshotImage(of:named:sizing:safeAreaInsets:isAccessibility:settle:onReadyToSnapshot:)``,
+/// run while holding ``SnapshotCaptureLock``.
+@MainActor
+private func renderSnapshotImageLocked(
+    of viewController: UIViewController,
+    named name: String,
+    sizing: SnapshotSizing,
+    safeAreaInsets: UIEdgeInsets?,
+    isAccessibility: Bool,
+    settle: SnapshotSettle,
+    onReadyToSnapshot: (@MainActor () async -> Void)?,
+    timing: SnapshotCaptureTiming,
+) async -> SnapshotCapture {
+    func capture() async -> SnapshotCapture {
         // `hostKeyWindow()` is the specific window `StuffTestHost` stamps with
         // `isMainTestHostWindow` — the guaranteed root window we set up, not
         // merely whatever window happens to be key. So this is stable regardless
@@ -121,13 +179,17 @@ private func renderSnapshotImageLocked(
         // surfaces it to SwiftUI as `\.isCapturingSnapshot`.
         viewController.traitOverrides[SnapshotCaptureTrait.self] = true
 
-        await resolveContentSize(
-            of: viewController,
-            sizing: sizing,
-            settle: settle,
-            hostedIn: hostRoot,
-            window: window,
-        )
+        await timing.measure(.intrinsicMeasure) {
+            await resolveContentSize(
+                of: viewController,
+                named: name,
+                sizing: sizing,
+                settle: settle,
+                hostedIn: hostRoot,
+                window: window,
+                timing: timing,
+            )
+        }
 
         let captureViewController: UIViewController = isAccessibility
             ? AccessibilitySnapshotViewController(wrapping: viewController)
@@ -139,28 +201,47 @@ private func renderSnapshotImageLocked(
         // appearance lifecycle (verified: `viewWillAppear`/`viewDidAppear`/SwiftUI
         // `onAppear` all fire through the containment forwarding — no manual
         // `beginAppearanceTransition` needed).
-        hostChildForCapture(wrappingViewController, in: hostRoot)
+        timing.measure(.host) {
+            hostChildForCapture(wrappingViewController, in: hostRoot)
+            wrappingViewController.view.setNeedsLayout()
+            CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
+        }
         defer { removeChildAfterCapture(wrappingViewController) }
 
-        wrappingViewController.view.setNeedsLayout()
-        CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
         await reportIfUnsettled(
-            settleForCapture(wrappingViewController.view, settle: settle),
+            timing.measure(.settle) {
+                await settleForCapture(
+                    wrappingViewController.view,
+                    named: name,
+                    settle: settle,
+                    timing: timing,
+                )
+            },
             phase: "content",
             of: viewController,
+            named: name,
         )
 
         // The pre-capture hook sees fully settled content, then its own
         // effects (a focused field, a presented state) are settled before the
         // accessibility parse and capture below reflect them.
         if let onReadyToSnapshot {
-            await onReadyToSnapshot()
-            wrappingViewController.view.setNeedsLayout()
-            CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
             await reportIfUnsettled(
-                settleForCapture(wrappingViewController.view, settle: settle),
+                timing.measure(.hook) {
+                    await onReadyToSnapshot()
+                    wrappingViewController.view.setNeedsLayout()
+                    CATransaction
+                        .performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
+                    return await settleForCapture(
+                        wrappingViewController.view,
+                        named: name,
+                        settle: settle,
+                        timing: timing,
+                    )
+                },
                 phase: "onReadyToSnapshot",
                 of: viewController,
+                named: name,
             )
         }
 
@@ -170,25 +251,31 @@ private func renderSnapshotImageLocked(
         if let accessibilityViewController =
             captureViewController as? AccessibilitySnapshotViewController
         {
-            accessibilityViewController.parseAccessibility()
-            wrappingViewController.view.frame.size = accessibilityViewController.view.frame.size
-            wrappingViewController.view.setNeedsLayout()
-            CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
+            timing.measure(.accessibilityParse) {
+                accessibilityViewController.parseAccessibility()
+                wrappingViewController.view.frame.size = accessibilityViewController.view.frame.size
+                wrappingViewController.view.setNeedsLayout()
+                CATransaction.performWithoutAnimation(wrappingViewController.view.layoutIfNeeded)
+            }
         }
 
         viewController.view.hideTextInputCursors()
-        drainInFlightAnimations()
+        timing.measure(.drain) { drainInFlightAnimations() }
 
-        let image = tileAndStitchImage(of: wrappingViewController)
+        let image = timing.measure(.tileStitch) {
+            tileAndStitchImage(of: wrappingViewController, timing: timing)
+        }
         // Round-trip through PNG bytes (preserving scale, which `UIImage(data:)`
         // alone would reset to 1) so the compare and the disk artifact are the
         // same bytes — see the doc comment above.
-        guard let pngData = image.pngData(),
-              let decoded = UIImage(data: pngData, scale: image.scale)
-        else {
-            preconditionFailure("Snapshot capture could not be PNG-encoded.")
+        return timing.measure(.pngRoundTrip) {
+            guard let pngData = image.pngData(),
+                  let decoded = UIImage(data: pngData, scale: image.scale)
+            else {
+                preconditionFailure("Snapshot capture could not be PNG-encoded.")
+            }
+            return SnapshotCapture(image: decoded, pngData: pngData)
         }
-        return decoded
     }
 
     if let safeAreaInsets {
@@ -242,10 +329,12 @@ private func removeChildAfterCapture(_ child: UIViewController) {
 @MainActor
 private func resolveContentSize(
     of viewController: UIViewController,
+    named name: String,
     sizing: SnapshotSizing,
     settle: SnapshotSettle,
     hostedIn hostRoot: UIViewController,
     window: UIWindow,
+    timing: SnapshotCaptureTiming,
 ) async {
     guard case let .intrinsic(width) = sizing else { return }
 
@@ -257,9 +346,10 @@ private func resolveContentSize(
     probeWrapper.view.setNeedsLayout()
     CATransaction.performWithoutAnimation(probeWrapper.view.layoutIfNeeded)
     await reportIfUnsettled(
-        settleForCapture(probeWrapper.view, settle: settle),
+        settleForCapture(probeWrapper.view, named: name, settle: settle, timing: timing),
         phase: "intrinsic measurement",
         of: viewController,
+        named: name,
     )
 
     func measureContent() -> CGSize {
