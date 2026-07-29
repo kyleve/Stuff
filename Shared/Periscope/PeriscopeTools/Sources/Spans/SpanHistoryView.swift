@@ -72,11 +72,7 @@ public struct SpanHistoryView: View {
                     systemImage: "stopwatch",
                     // A narrowed scope with nothing in it is a different fact
                     // from an empty store, and the reader needs to know which.
-                    description: Text(
-                        model.scope == .all
-                            ? "No closed spans have been recorded yet."
-                            : "No closed spans from \(model.scopeSummary.lowercased()).",
-                    ),
+                    description: Text(model.emptyStateDescription),
                 )
             case let .loaded(summaries):
                 List {

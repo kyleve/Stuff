@@ -135,12 +135,17 @@ final class SpanHistoryModel {
         self.store = store
     }
 
+    /// Distinct sessions among the ends the active scope admits — the
+    /// sessions actually *contributing* durations, not merely the ones the
+    /// scope would accept. A session that recorded no spans padding the
+    /// count would overstate how broad a reading is.
+    private(set) var contributingSessionCount = 0
+
     /// One line naming what the percentiles cover, so a reading can't be
-    /// mistaken for a different one — the count is of sessions contributing,
-    /// which is what makes "same optimization level" concrete.
+    /// mistaken for a different one — the count is of sessions contributing
+    /// ends, which is what makes "same optimization level" concrete.
     var scopeSummary: String {
-        let admitted = scope.sessionIDs(in: sessions, current: currentSession)
-        let count = admitted?.count ?? sessions.count
+        let count = contributingSessionCount
         let sessionCount = "\(count) session\(count == 1 ? "" : "s")"
         switch scope {
             case .all:
@@ -150,6 +155,22 @@ final class SpanHistoryModel {
             case .sameOptimizationLevel:
                 let level = currentSession?.attributes[.optimizationLevel] ?? "unstated"
                 return "Built at \(level) · \(sessionCount)"
+        }
+    }
+
+    /// The empty-state line for the active scope. Separate from
+    /// ``scopeSummary`` so the view never has to bend a summary into a
+    /// sentence — lowercasing one would garble case-sensitive values like
+    /// `-Onone`.
+    var emptyStateDescription: String {
+        switch scope {
+            case .all:
+                return "No closed spans have been recorded yet."
+            case .currentSession:
+                return "No closed spans from this session."
+            case .sameOptimizationLevel:
+                let level = currentSession?.attributes[.optimizationLevel] ?? "unstated"
+                return "No closed spans from builds at \(level)."
         }
     }
 
@@ -182,7 +203,7 @@ final class SpanHistoryModel {
             merge(ends: newEnds)
             scopes = Dictionary(uniqueKeysWithValues: scopeList.map { ($0.id, $0) })
             adopt(sessions: sessionList, current: current)
-            state = .loaded(Self.summaries(from: scopedEnds()))
+            present()
         } catch {
             PeriscopeToolsLog.failures.error(
                 "Span history could not read the store: \(error, privacy: .public)",
@@ -211,7 +232,16 @@ final class SpanHistoryModel {
     /// completed load produced.
     private func rebuild() {
         guard case .loaded = state else { return }
-        state = .loaded(Self.summaries(from: scopedEnds()))
+        present()
+    }
+
+    /// Publish the scoped reading: the per-kind summaries and the count of
+    /// sessions contributing to them, derived from the same set of ends so
+    /// the header can't describe a different reading than the rows show.
+    private func present() {
+        let scoped = scopedEnds()
+        contributingSessionCount = Set(scoped.map(\.sessionID)).count
+        state = .loaded(Self.summaries(from: scoped))
     }
 
     /// The accumulated ends the active scope admits. ``SpanHistoryScope/all``
@@ -268,9 +298,16 @@ final class SpanHistoryModel {
                     grouping it by its message: \(error, privacy: .public)
                     """,
                 )
+                // The name recovered from the message, not the raw message:
+                // a message embeds the exit reason and duration, which vary
+                // per instance and would fragment the kind into a bucket
+                // per row.
                 return Closed(
                     event: end,
-                    kind: .recovered(end.message.replacingOccurrences(of: "◀ ", with: "")),
+                    kind: .recovered(SpanEnded.nameRecovered(
+                        fromMessage: end.message,
+                        exit: end.spanExitMode,
+                    )),
                     duration: nil,
                 )
             }

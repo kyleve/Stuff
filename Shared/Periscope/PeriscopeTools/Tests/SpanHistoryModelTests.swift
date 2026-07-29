@@ -282,6 +282,45 @@ struct SpanHistoryModelTests {
         #expect(Set(summaries.map(\.kind)) == [.recorded("save"), .recovered("save")])
     }
 
+    /// Two corrupt rows of one kind share one bucket: the recovered name is
+    /// the message *minus* the exit, reason, and duration — the parts that
+    /// vary per instance and would otherwise mint a bucket per row.
+    @Test func unreadableEndsOfOneKindShareOneBucket() {
+        func corrupt(_ ended: SpanEnded, at date: Date) -> StoredLogEvent {
+            storedSpanEvent(
+                eventName: SpanEnded.eventName,
+                spanID: ended.spanID,
+                message: ended.message,
+                at: date,
+                payload: unreadablePayload,
+                exitMode: ended.exit.mode,
+            )
+        }
+        let summaries = SpanHistoryModel.summaries(from: [
+            corrupt(
+                SpanEnded(
+                    spanID: SpanID(),
+                    name: "save",
+                    duration: .seconds(1),
+                    exit: .failure("disk full"),
+                ),
+                at: date(0),
+            ),
+            corrupt(
+                SpanEnded(
+                    spanID: SpanID(),
+                    name: "save",
+                    duration: .seconds(9),
+                    exit: .failure("card declined"),
+                ),
+                at: date(1),
+            ),
+        ])
+
+        #expect(summaries.map(\.kind) == [.recovered("save")])
+        #expect(summaries.first?.count == 2)
+    }
+
     // MARK: - Build scoping
 
     /// Two sessions at different optimization levels, each with one recorded
@@ -442,6 +481,35 @@ struct SpanHistoryModelTests {
 
         model.scope = .sameOptimizationLevel
         #expect(model.scopeSummary == "Built at -Onone · 1 session")
+    }
+
+    /// A session that recorded no ends must not pad the count — the summary
+    /// names what the percentiles actually draw from, not what the scope
+    /// would have admitted.
+    @Test func summaryCountsOnlySessionsContributingEnds() async throws {
+        let (store, _, _) = try await makeTwoBuildStore()
+        // A third session that never records a span.
+        try await store.startSession(makeSession(attributes: [.optimizationLevel: "-Onone"]))
+
+        let model = SpanHistoryModel(store: store)
+        await model.load()
+        #expect(model.scopeSummary == "All builds · 2 sessions")
+
+        model.scope = .sameOptimizationLevel
+        #expect(model.scopeSummary == "Built at -Onone · 1 session")
+    }
+
+    /// The empty state names the scope without mangling case-sensitive
+    /// values — "-Onone" must not read back as "-onone".
+    @Test func emptyStateDescriptionPreservesTheOptimizationLevelSpelling() async throws {
+        let (store, _, _, _) = try await makeSeededStore(
+            sessionAttributes: [.optimizationLevel: "-Onone"],
+        )
+        let model = SpanHistoryModel(store: store)
+        await model.load()
+
+        model.scope = .sameOptimizationLevel
+        #expect(model.emptyStateDescription == "No closed spans from builds at -Onone.")
     }
 }
 

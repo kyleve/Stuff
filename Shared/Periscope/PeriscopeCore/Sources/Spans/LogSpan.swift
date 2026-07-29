@@ -102,6 +102,29 @@ public struct SpanEnded: LogEvent {
         self.duration = duration
         self.exit = exit
     }
+
+    /// Best-effort recovery of the span name from a rendered ``message``,
+    /// for stored rows whose payload no longer decodes. The inverse of the
+    /// `message` format, kept beside it so the two can't drift: strips the
+    /// leading marker and everything from the exit word on — the reason and
+    /// duration vary per instance, so leaving them in would fragment any
+    /// grouping done on the result into a bucket per row.
+    public static func nameRecovered(
+        fromMessage message: String,
+        exit mode: SpanExit.Mode?,
+    ) -> String {
+        var text = message.hasPrefix("◀ ") ? String(message.dropFirst(2)) : message
+        if let mode, let exitWord = text.range(of: " " + mode.described) {
+            text = String(text[..<exitWord.lowerBound])
+        } else if text.hasSuffix(")"),
+                  let duration = text.range(of: " (", options: .backwards)
+        {
+            // No usable exit column: at least the trailing duration
+            // parenthetical — the per-instance fragmenter — can go.
+            text = String(text[..<duration.lowerBound])
+        }
+        return text
+    }
 }
 
 extension SpanExit.Mode {
