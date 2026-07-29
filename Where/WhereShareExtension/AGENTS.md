@@ -35,7 +35,11 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   — keep the class name and Info.plist in sync. Save/cancel bridge to
   `extensionContext` completion; the root view has no `@Environment(\.dismiss)`.
 - **A share with no loadable bytes still composes** a metadata-only note rather
-  than failing.
+  than failing — but a provider that *reported* a reason for the empty result
+  logs it. `SharedItemLoader` reduces each callback to one `LoadedValue`, so
+  "nothing, and here's why" can't be flattened into the same silence as "nothing
+  was offered". The load is also the extension's one span (attachment count and
+  size are what the wait scales with).
 
 ## Testing
 

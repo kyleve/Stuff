@@ -33,6 +33,15 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
+- **`WhereLaunch`** — the launch and reset plans themselves. Every step declares
+  how long it should take (`BudgetedLaunchStep`) and joins the plan through
+  `.measured()`, so each run is one Periscope span named after the step
+  (`step(open-store)`) that warns while it overruns its budget — the launch's
+  cost breaks down per step instead of arriving as one slow splash. Its
+  `bootstrapLogging` opens the process's durable log store, attaches it as
+  Periscope's sink, starts the built-in ambient sources, and trims history with
+  `LogHistoryPruner` (a 100-day window *and* a 50k-event ceiling, so the store
+  is bounded however heavily the device logs).
 - **`WhereModel`** — app-level state: the onboarding flag, the owned
   `WhereSession`, and the lifecycle intents (`attach(services:)`,
   `startSession(services:)` — which *returns* the session the launch's

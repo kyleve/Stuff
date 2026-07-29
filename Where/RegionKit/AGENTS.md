@@ -56,7 +56,10 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   degrading to `.other`/an empty catalog in release rather than crashing.
 - **Logging goes through `RegionLog`**, RegionKit's own `"RegionKit"` root
   scope — never `WhereLog`, which it can't see — emitted into the shared
-  `Periscope.shared` so the app's sink still captures it.
+  `Periscope.shared` so the app's sink still captures it. The bundled-data loads
+  are spanned against a budget (the manifest decode, the whole polygon load, and
+  each region's geometry separately as `loadRegion(us-CA)`), because one region
+  with heavy geometry is otherwise invisible inside a slow attributor build.
 - **Object identities are `region://` URLs** — `RegionURL` (RegionKit's local
   analog of WhereCore's `StoreURL`) builds/parses `region://<collection>/<type>`
   URLs, and `Region.regionURL` vends `region://regions/<id>`. Used to key a
