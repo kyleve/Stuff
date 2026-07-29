@@ -256,6 +256,9 @@ public struct PeriscopeViewer: View {
                 do {
                     export = try await NDJSONExport(text: model.exportNDJSON())
                 } catch {
+                    PeriscopeToolsLog.failures.error(
+                        "NDJSON export could not read the store: \(error, privacy: .public)",
+                    )
                     exportFailed = true
                 }
             }

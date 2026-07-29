@@ -150,13 +150,18 @@ final class PeriscopeViewerModel {
         }
     }
 
-    /// Every event matching the active filters (unpaged), as NDJSON.
+    /// Every event matching the active filters (unpaged), as NDJSON —
+    /// headed by the referenced sessions' build attribution, fetched fresh
+    /// so the export can't miss a session the loaded page stack hasn't
+    /// caught up with.
     func exportNDJSON() async throws -> String {
         let all = try await store.events(matching: activeQuery)
+        let sessions = try await store.sessions()
         let ambient = try await store.ambientSnapshots()
         return NDJSONExporter.export(
             events: all,
             scopes: scopes,
+            sessions: sessions,
             ambient: Dictionary(uniqueKeysWithValues: ambient.map { ($0.id, $0) }),
         )
     }

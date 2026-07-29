@@ -13,11 +13,12 @@ struct PhotoLogs: LogEvent {
 
 /// A deterministic session for store-backed tests.
 func makeSession(
+    id: UUID = UUID(),
     startedAt: Date = Date(timeIntervalSinceReferenceDate: 0),
     attributes: [LogSessionAttributeKey: String] = [:],
 ) -> LogSession {
     LogSession(
-        id: UUID(),
+        id: id,
         startedAt: startedAt,
         appVersion: "1.0",
         buildNumber: "42",

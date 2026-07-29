@@ -65,6 +65,7 @@ struct NDJSONExporterTests {
                 stored(message: "oldest", date: date(1)),
             ],
             scopes: scopes,
+            sessions: [],
             ambient: [:],
         )
 
@@ -72,6 +73,37 @@ struct NDJSONExporterTests {
         #expect(lines.count == 2)
         #expect(lines[0].contains("\"oldest\""))
         #expect(lines[1].contains("\"newest\""))
+    }
+
+    /// A duration in a bug report is only answerable when the export names
+    /// the build it came from — the session header lines carry that, and
+    /// only for sessions the events actually reference.
+    @Test func referencedSessionsHeadTheExportWithTheirBuildAttribution() throws {
+        let session = makeSession(
+            id: sessionID,
+            attributes: [.optimizationLevel: "-Onone", .commit: "abc123"],
+        )
+        let unreferenced = makeSession()
+        let export = NDJSONExporter.export(
+            events: [stored(message: "hello", date: date(1))],
+            scopes: scopes,
+            sessions: [unreferenced, session],
+            ambient: [:],
+        )
+
+        let lines = export.split(separator: "\n")
+        #expect(lines.count == 2)
+        let header = try #require(
+            try JSONSerialization.jsonObject(with: Data(lines[0].utf8)) as? [String: Any],
+        )
+        #expect(header["record"] as? String == "session")
+        #expect(header["session"] as? String == sessionID.uuidString)
+        #expect(header["appVersion"] as? String == session.appVersion)
+        #expect(header["attributes"] as? [String: String] == [
+            "optimization-level": "-Onone",
+            "commit": "abc123",
+        ])
+        #expect(!export.contains(unreferenced.id.uuidString))
     }
 
     @Test func linesCarryTheEventFields() throws {

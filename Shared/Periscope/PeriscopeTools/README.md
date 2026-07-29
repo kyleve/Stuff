@@ -50,7 +50,9 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
     filterable by level / event type / scope subtree / session / span exit,
     paged, with exit-mode chips on span rows, per-event detail (exit + reason,
     payload JSON, tags, attachments, and the **ambient state** the event was
-    stamped with), NDJSON export (ambient state included), and a
+    stamped with), NDJSON export (ambient state included, headed by one
+    `"record": "session"` line per referenced session carrying its build
+    attributes), and a
     comfortable/compact **row-density** picker (persisted). The session filter
     names each session by its build — commit and optimization level when the
     session recorded them, so weeks-old logs can be tied to the code that
