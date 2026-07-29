@@ -72,11 +72,20 @@ struct LogEventDetailView: View {
                 }
             }
 
-            if let payload = event.prettyPayload {
+            if let payload = event.payloadPresentation {
                 Section("Payload") {
-                    Text(payload)
-                        .font(stylesheet.typography.payload)
-                        .textSelection(.enabled)
+                    switch payload {
+                        case let .json(pretty):
+                            Text(pretty)
+                                .font(stylesheet.typography.payload)
+                                .textSelection(.enabled)
+                        case let .unreadable(byteCount):
+                            Label(
+                                "Unreadable payload (\(byteCount) bytes)",
+                                systemImage: "exclamationmark.triangle",
+                            )
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
@@ -177,16 +186,26 @@ extension StoredLogEvent {
         (try? decode(SpanEnded.self))?.exit.reason
     }
 
-    /// The stored payload, pretty-printed; `nil` when the event carried no
-    /// structured fields or the payload isn't JSON.
-    var prettyPayload: String? {
-        guard !payload.isEmpty,
-              let object = try? JSONSerialization.jsonObject(with: payload),
+    /// The stored payload as the detail view presents it — `nil` only when
+    /// the event carried no structured fields.
+    enum PayloadPresentation: Equatable {
+        /// Pretty-printed JSON, keys sorted.
+        case json(String)
+        /// Bytes exist but don't parse. Persisted payloads are `JSONEncoder`
+        /// output, so this means on-disk corruption — the view must say a
+        /// payload existed and didn't survive, not hide the section as if
+        /// none was recorded.
+        case unreadable(byteCount: Int)
+    }
+
+    var payloadPresentation: PayloadPresentation? {
+        guard !payload.isEmpty else { return nil }
+        guard let object = try? JSONSerialization.jsonObject(with: payload),
               let data = try? JSONSerialization.data(
                   withJSONObject: object,
                   options: [.prettyPrinted, .sortedKeys],
               )
-        else { return nil }
-        return String(decoding: data, as: UTF8.self)
+        else { return .unreadable(byteCount: payload.count) }
+        return .json(String(decoding: data, as: UTF8.self))
     }
 }
