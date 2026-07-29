@@ -67,10 +67,13 @@ public enum LaunchStepID: String, Sendable {
 public enum WhereLaunch {
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
-    /// How much log history the on-disk store keeps: 100 days. Older events are
-    /// pruned at launch so the database can't grow without bound. (A size cap to
-    /// bound heavy-logging devices within the window is tracked in `Where/TODOs.md`.)
-    private static let logRetention: TimeInterval = 100 * 24 * 60 * 60
+    /// Trims the on-disk log store to ``LogHistoryPruner/Policy/standard`` at
+    /// launch — an age window *and* an event ceiling, so the database is bounded
+    /// whichever way this install logs.
+    private static let historyPruner = LogHistoryPruner(
+        policy: .standard,
+        now: { Date() },
+    )
 
     /// Open the process-global Periscope store, attach it to `Periscope.shared`
     /// as the durable sink, start the built-in ambient sources, and prune
@@ -128,18 +131,22 @@ public enum WhereLaunch {
         }
     }
 
-    /// Trim log history past `logRetention` on its own task, so it never delays
-    /// `.loggingStoreReady`. The actual prune runs on the store actor (off the
-    /// main thread); a failure is degraded-but-handled — the store keeps its
+    /// Trim log history to the retention policy on its own task, so it never
+    /// delays `.loggingStoreReady`. The actual prune runs on the store actor (off
+    /// the main thread); a failure is degraded-but-handled — the store keeps its
     /// last good history and stays usable, it just isn't trimmed this launch.
     private static func pruneHistory(in store: PeriscopeStore) {
         Task {
             do {
-                let cutoff = Date().addingTimeInterval(-logRetention)
                 let pruned = try await logger.measure(.pruneHistory, budget: .seconds(2)) {
-                    try await store.pruneEvents(olderThan: cutoff)
+                    try await historyPruner.prune(store)
                 }
-                logger { .historyPruned(prunedEventCount: pruned) }
+                logger {
+                    .historyPruned(
+                        expiredEventCount: pruned.expired,
+                        overflowEventCount: pruned.overflowed,
+                    )
+                }
             } catch {
                 logger(attachments: [.error(error, name: "prune-error")]) {
                     .historyPruneFailed(description: String(describing: error))

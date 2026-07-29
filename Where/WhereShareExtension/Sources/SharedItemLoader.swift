@@ -15,6 +15,27 @@ struct SharedAttachment {
     let filename: String?
 }
 
+/// What a provider returned for one representation, reduced to `Sendable`
+/// pieces so nothing non-`Sendable` crosses back out of the completion handler.
+///
+/// One value rather than a payload beside an `(any Error)?`: the callback can
+/// hand back either, neither, or both, while only "here it is" and "nothing, and
+/// here's why (if it said)" mean anything — so the rest can't be spelled. A
+/// nil-value/nil-error callback is a real case, and the one the discarded-error
+/// code couldn't tell apart from a reported failure.
+private enum LoadedValue<Value: Sendable> {
+    case loaded(Value)
+    case missing(reason: String?)
+
+    init(value: Value?, error: (any Error)?) {
+        if let value {
+            self = .loaded(value)
+        } else {
+            self = .missing(reason: error.map { String(describing: $0) })
+        }
+    }
+}
+
 /// Extracts every usable attachment from the share sheet's extension items.
 ///
 /// Share invocations carry one or more `NSExtensionItem`s, each with a list of
@@ -77,21 +98,25 @@ enum SharedItemLoader {
     ) async -> SharedAttachment? {
         // `loadDataRepresentation` returns `Progress`, so Swift gives it no
         // auto-generated async form — bridge the completion handler and resume
-        // with the `Sendable` bytes only, logging back on the actor.
-        let data: Data? = await withCheckedContinuation { continuation in
-            provider.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, _ in
-                continuation.resume(returning: data)
+        // with `Sendable` pieces only, logging back on the actor.
+        let loaded: LoadedValue<Data> = await withCheckedContinuation { continuation in
+            provider.loadDataRepresentation(forTypeIdentifier: type.identifier) { data, error in
+                continuation.resume(returning: LoadedValue(value: data, error: error))
             }
         }
-        guard let data else {
-            logger { .attachmentLoadFailed(typeIdentifier: type.identifier) }
-            return nil
+        switch loaded {
+            case let .loaded(data):
+                return SharedAttachment(
+                    data: data,
+                    typeIdentifier: type.identifier,
+                    filename: provider.suggestedName,
+                )
+            case let .missing(reason):
+                logger {
+                    .attachmentLoadFailed(typeIdentifier: type.identifier, reason: reason)
+                }
+                return nil
         }
-        return SharedAttachment(
-            data: data,
-            typeIdentifier: type.identifier,
-            filename: provider.suggestedName,
-        )
     }
 
     /// Load a shared URL and keep it as UTF-8 plain-text bytes so a link (e.g. a
@@ -102,23 +127,26 @@ enum SharedItemLoader {
         from provider: NSItemProvider,
         as type: UTType,
     ) async -> SharedAttachment? {
-        let string: String? = await withCheckedContinuation { continuation in
-            provider.loadItem(forTypeIdentifier: type.identifier, options: nil) { item, _ in
-                switch item {
-                    case let url as URL: continuation.resume(returning: url.absoluteString)
-                    case let text as String: continuation.resume(returning: text)
-                    default: continuation.resume(returning: nil)
+        let loaded: LoadedValue<String> = await withCheckedContinuation { continuation in
+            provider.loadItem(forTypeIdentifier: type.identifier, options: nil) { item, error in
+                let string: String? = switch item {
+                    case let url as URL: url.absoluteString
+                    case let text as String: text
+                    default: nil
                 }
+                continuation.resume(returning: LoadedValue(value: string, error: error))
             }
         }
-        guard let string else {
-            logger { .urlUnreadable }
-            return nil
+        switch loaded {
+            case let .loaded(string):
+                return SharedAttachment(
+                    data: Data(string.utf8),
+                    typeIdentifier: UTType.plainText.identifier,
+                    filename: provider.suggestedName,
+                )
+            case let .missing(reason):
+                logger { .urlUnreadable(reason: reason) }
+                return nil
         }
-        return SharedAttachment(
-            data: Data(string.utf8),
-            typeIdentifier: UTType.plainText.identifier,
-            filename: provider.suggestedName,
-        )
     }
 }

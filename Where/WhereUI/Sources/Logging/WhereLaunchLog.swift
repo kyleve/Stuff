@@ -41,9 +41,12 @@ enum WhereLaunchLog: LogEvent {
     /// Opening the durable log store failed; logging continues through the
     /// OSLog sink only, with no persisted history this launch.
     case loggingStoreUnavailable(description: String)
-    /// Retention pruning finished, removing `prunedEventCount` events past the
-    /// window. Runs after ``loggingStoreReady``, so it never delays readiness.
-    case historyPruned(prunedEventCount: Int)
+    /// Retention pruning finished. The two counts are reported separately
+    /// because they mean different things: `expiredEventCount` is routine, while
+    /// a nonzero `overflowEventCount` says this install out-logs its retention
+    /// window and is being held to the size cap instead. Runs after
+    /// ``loggingStoreReady``, so it never delays readiness.
+    case historyPruned(expiredEventCount: Int, overflowEventCount: Int)
     /// Retention pruning failed; the store is still usable (last good history
     /// preserved), it just isn't trimmed this launch.
     case historyPruneFailed(description: String)
@@ -82,8 +85,9 @@ enum WhereLaunchLog: LogEvent {
                 "Log store ready"
             case let .loggingStoreUnavailable(description):
                 "Log store unavailable: \(description)"
-            case let .historyPruned(prunedEventCount):
-                "Pruned \(prunedEventCount) log event(s) past retention"
+            case let .historyPruned(expiredEventCount, overflowEventCount):
+                "Pruned \(expiredEventCount) log event(s) past retention"
+                    + " and \(overflowEventCount) past the size cap"
             case let .historyPruneFailed(description):
                 "Failed to prune log history: \(description)"
             case let .detachedStepFailed(stepID, description):
