@@ -115,3 +115,7 @@ Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
 test (never the shared singleton), and injected clocks. `Log<Event>()`
 defaults to `.shared` — a deliberate ergonomics exception to the
 no-Core-defaults rule — so tests must always pass `system:` explicitly.
+`Tests/Fixtures/PreAmbientSchema.store` is a committed database written by
+the pre-ambient-snapshot schema; `PeriscopeSchemaUpgradeTests` opens it with
+the current schema so the lightweight migration stays proven, not assumed
+(its header documents how to regenerate it).
