@@ -18,7 +18,10 @@
             #expect(summarized)
         }
 
-        @Test func settingChangesLogTheCurrentState() async {
+        /// A toggle must re-report the full summary — the value folds into
+        /// the snapshot under one kind, so a single-setting delta would
+        /// replace the complete accessibility state.
+        @Test func settingChangesReReportTheFullSummary() async {
             let sink = CapturingSink()
             let system = Periscope(configuration: Periscope.Configuration(), sinks: [sink])
             system.startAmbientSource(AccessibilityAmbientSource())
@@ -29,9 +32,10 @@
             )
 
             // The observer runs on the main queue; poll for delivery. The
-            // simulator reports VoiceOver off.
+            // simulator has nothing enabled, so the change event's summary
+            // matches the baseline's — two records, one shape.
             let logged = await waitUntil {
-                sink.records.contains { $0.message == "accessibility: voiceover: off" }
+                sink.records.count(where: { $0.message == "accessibility: none enabled" }) >= 2
             }
             #expect(logged)
 
@@ -42,7 +46,7 @@
             )
             await system.flush()
             #expect(
-                sink.records.count(where: { $0.message == "accessibility: voiceover: off" }) == 1,
+                sink.records.count(where: { $0.message == "accessibility: none enabled" }) == 2,
             )
         }
     }

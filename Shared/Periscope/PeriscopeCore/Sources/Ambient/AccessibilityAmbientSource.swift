@@ -4,9 +4,9 @@
 
     /// Logs which accessibility settings are enabled: one summary event at
     /// start (the state any of the session's events can be read against),
-    /// then a change event per toggle — VoiceOver, Switch Control, Reduce
-    /// Motion, and friends often explain "it behaves differently for this
-    /// user".
+    /// then the refreshed summary on every toggle — VoiceOver, Switch
+    /// Control, Reduce Motion, and friends often explain "it behaves
+    /// differently for this user".
     public final class AccessibilityAmbientSource: NotificationAmbientSource {
         /// One observed setting: display name, change notification, and
         /// current-state accessor (UIAccessibility statics are main-actor).
@@ -67,25 +67,32 @@
             // Reads run on the main actor (UIAccessibility statics are
             // main-isolated); logging is async, so a hop is fine.
             Task { @MainActor in
-                let enabled = Self.settings.filter { $0.isEnabled() }.map(\.name)
-                let summary = enabled.isEmpty
-                    ? "none enabled"
-                    : "enabled: \(enabled.joined(separator: ", "))"
-                emit(AmbientEvent(kind: .accessibility, value: summary))
+                emit(Self.summaryEvent())
             }
         }
 
-        override public func receive(_ notification: Notification) {
-            // Selector delivery isn't guaranteed on the main thread; hop
-            // there to read the main-isolated UIAccessibility state.
-            // Capture only the name — `Notification` isn't `Sendable`.
-            let name = notification.name
+        override public func receive(_: Notification) {
+            // A toggle re-reports the *full* summary, not the one setting
+            // that changed: the event's value is what folds into the
+            // ambient snapshot under `.accessibility`, so a single-setting
+            // delta would replace the complete state every later record is
+            // stamped with. Selector delivery isn't guaranteed on the main
+            // thread; hop there to read the main-isolated state.
             Task { @MainActor in
-                guard let setting = Self.settings.first(where: { $0.notification == name })
-                else { return }
-                let state = setting.isEnabled() ? "on" : "off"
-                emit(AmbientEvent(kind: .accessibility, value: "\(setting.name): \(state)"))
+                emit(Self.summaryEvent())
             }
+        }
+
+        /// Every observed setting's current state as one value — the shape
+        /// both the baseline and change events report, so the snapshot
+        /// always carries the complete picture.
+        @MainActor
+        private static func summaryEvent() -> AmbientEvent {
+            let enabled = settings.filter { $0.isEnabled() }.map(\.name)
+            let summary = enabled.isEmpty
+                ? "none enabled"
+                : "enabled: \(enabled.joined(separator: ", "))"
+            return AmbientEvent(kind: .accessibility, value: summary)
         }
     }
 #endif
