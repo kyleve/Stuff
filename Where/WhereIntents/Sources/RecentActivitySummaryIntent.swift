@@ -27,13 +27,13 @@ public struct RecentActivitySummaryIntent: AppIntent {
         self.window = window
     }
 
-    private static let logger = WhereLog.root(WhereIntentsLog.self)
-
     public func perform() async throws -> some IntentResult & ProvidesDialog {
         let services = try await intentServices.current()
         let reader = WhereIntentReader(services: services)
         do {
-            let summary = try await reader.recentActivity(window.window)
+            let summary = try await measureIntent(.recentActivitySummary) {
+                try await reader.recentActivity(window.window)
+            }
             return .result(
                 dialog: IntentDialog(
                     "\(IntentStrings.recentActivity(summary, window: window.window))",
@@ -42,7 +42,9 @@ public struct RecentActivitySummaryIntent: AppIntent {
         } catch let error as ActivitySummaryUnavailableError {
             // User-recoverable (Apple Intelligence off, model warming): surface
             // the reason in the dialog and log it — never a silent empty result.
-            Self.logger { .recentActivityUnavailable(reason: String(describing: error.reason)) }
+            WhereIntentsLog.logger {
+                .recentActivityUnavailable(reason: String(describing: error.reason))
+            }
             return .result(
                 dialog: IntentDialog("\(IntentStrings.recentActivityUnavailable(error.reason))"),
             )

@@ -34,8 +34,10 @@ public struct DaysInRegionIntent: AppIntent {
     public func perform() async throws -> some IntentResult & ReturnsValue<Int> & ProvidesDialog {
         let services = try await intentServices.current()
         let resolvedYear = year ?? Calendar.whereIntents.component(.year, from: Date())
-        let count = try await WhereIntentReader(services: services)
-            .dayCount(in: region.region, year: resolvedYear)
+        let count = try await measureIntent(.daysInRegion) {
+            try await WhereIntentReader(services: services)
+                .dayCount(in: region.region, year: resolvedYear)
+        }
         // The value + dialog answer voice-only Siri; the interactive snippet
         // renders the card and its "Log today here" button on screen.
         return .result(

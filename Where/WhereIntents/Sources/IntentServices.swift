@@ -1,3 +1,4 @@
+import PeriscopeCore
 import WhereCore
 
 /// The handoff of the intent layer's `WhereServices`.
@@ -53,10 +54,23 @@ public actor IntentServices {
     /// The installed stack, suspending until the launch installs one. Throws
     /// only `CancellationError`, when the awaiting intent's task is cancelled
     /// while parked.
+    ///
+    /// Only the parking path is timed: the span's duration is how long an intent
+    /// waited on the launch, which is the whole question a Siri-racing-startup
+    /// report needs answered. It carries no budget — how long the wait may
+    /// reasonably run is the *launch*'s expectation, already declared per step.
     func current() async throws -> WhereServices {
         if let installed {
             return installed
         }
+        return try await WhereIntentsLog.logger.measure(.awaitServices) {
+            try await park()
+        }
+    }
+
+    /// Suspend until `install(_:)` resumes us, keyed so a cancelled waiter can
+    /// remove exactly itself.
+    private func park() async throws -> WhereServices {
         let id = nextWaiterID
         nextWaiterID += 1
         return try await withTaskCancellationHandler {

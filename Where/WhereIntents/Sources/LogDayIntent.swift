@@ -37,7 +37,9 @@ public struct LogDayIntent: AppIntent {
         }
         let services = try await intentServices.current()
         let day = date ?? Date()
-        try await WhereIntentWriter(services: services).logDay(date: day, regions: regionSet)
+        try await measureIntent(.logDay) {
+            try await WhereIntentWriter(services: services).logDay(date: day, regions: regionSet)
+        }
         return .result(
             dialog: IntentDialog(
                 "\(IntentStrings.loggedDay(date: day, regions: orderedRegions(regionSet)))",

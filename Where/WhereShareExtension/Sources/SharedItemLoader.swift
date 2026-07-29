@@ -34,15 +34,17 @@ enum SharedItemLoader {
     /// provider, in share order. Empty when nothing yields bytes (the compose
     /// form then saves metadata only).
     static func loadAttachments(from items: [NSExtensionItem]) async -> [SharedAttachment] {
-        var attachments: [SharedAttachment] = []
-        for item in items {
-            for provider in item.attachments ?? [] {
-                if let attachment = await load(from: provider) {
-                    attachments.append(attachment)
+        await logger.measure(.loadAttachments, budget: .seconds(3)) {
+            var attachments: [SharedAttachment] = []
+            for item in items {
+                for provider in item.attachments ?? [] {
+                    if let attachment = await load(from: provider) {
+                        attachments.append(attachment)
+                    }
                 }
             }
+            return attachments
         }
-        return attachments
     }
 
     private static func load(from provider: NSItemProvider) async -> SharedAttachment? {
