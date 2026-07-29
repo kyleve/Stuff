@@ -51,6 +51,29 @@ struct AmbientSnapshotTests {
         #expect(second[.memory] == nil)
     }
 
+    @Test func removingAKindDropsItUnderANewIdentity() {
+        let first = AmbientSnapshot(
+            id: UUID(),
+            values: [.network: "satisfied", .thermalState: "fair"],
+        )
+        let second = first.removing(.network)
+        #expect(second?[.network] == nil)
+        #expect(second?[.thermalState] == "fair")
+        #expect(second?.id != first.id)
+    }
+
+    @Test func removingAnAbsentKindKeepsTheSameIdentity() {
+        let first = AmbientSnapshot(id: UUID(), values: [.network: "satisfied"])
+        #expect(first.removing(.thermalState) == first)
+    }
+
+    /// Removing the last kind must not leave an empty snapshot behind — an
+    /// empty snapshot is not a state, it's the absence of one.
+    @Test func removingTheOnlyKindDissolvesTheSnapshot() {
+        let first = AmbientSnapshot(id: UUID(), values: [.network: "satisfied"])
+        #expect(first.removing(.network) == nil)
+    }
+
     @Test func roundTripsThroughCodable() throws {
         let snapshot = AmbientSnapshot(
             id: UUID(),

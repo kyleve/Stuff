@@ -38,6 +38,22 @@ public struct AmbientSnapshot: Sendable, Hashable, Codable, Identifiable {
         return AmbientSnapshot(id: UUID(), values: updated)
     }
 
+    /// The snapshot without `kind`: `self` when the kind isn't present
+    /// (identity preserved, like ``applying(_:)``), `nil` when it was the
+    /// only one — an empty snapshot is not a state, it's the absence of one.
+    ///
+    /// This is how a redaction-suppressed ambient event folds: the hook
+    /// ruled the value unrecordable, so the snapshot forgets the kind
+    /// rather than either leaking the suppressed value or keeping the
+    /// stale previous one.
+    public func removing(_ kind: AmbientKind) -> AmbientSnapshot? {
+        guard values[kind] != nil else { return self }
+        var remaining = values
+        remaining[kind] = nil
+        guard !remaining.isEmpty else { return nil }
+        return AmbientSnapshot(id: UUID(), values: remaining)
+    }
+
     /// Fold `event` into `snapshot`, where `nil` means nothing has been
     /// observed yet. A momentary event leaves `nil` alone, so an empty
     /// snapshot — a row claiming to describe a system state it knows nothing

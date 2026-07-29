@@ -1279,4 +1279,48 @@ struct PeriscopeTests {
         let first = try #require(await records.first { _ in true })
         #expect(first.ambient?[.network] == "satisfied")
     }
+
+    /// Floors are routing, not scrubbing: an ambient event they discard
+    /// still folds into the running snapshot, or every later record would
+    /// carry the state the discarded event replaced.
+    @Test func flooredAmbientEventsStillFoldIntoTheSnapshot() async throws {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .network, value: "satisfied") }
+        system.minimumLevel = .warning
+
+        ambient { AmbientEvent(kind: .network, value: "unsatisfied") } // .info — floored
+        Log<AppLogs>(system: system).warning("after")
+        await system.flush()
+
+        let record = try #require(sink.records.first { $0.message == "after" })
+        #expect(record.ambient?[.network] == "unsatisfied")
+        // The floor still discarded the event itself.
+        #expect(!sink.records.contains { $0.eventName == AmbientEvent.eventName
+                && $0.message.contains("unsatisfied")
+        })
+    }
+
+    /// Suppression is content scrubbing: the snapshot must neither smear
+    /// the suppressed value across later records nor keep claiming the
+    /// stale previous one — it forgets the kind.
+    @Test func redactionSuppressedAmbientEventsClearTheirKind() async throws {
+        let system = Periscope(
+            configuration: Periscope.Configuration(redact: { record in
+                record.message.contains("secret") ? nil : record
+            }),
+            sinks: [sink],
+        )
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .network, value: "wifi-public") }
+        ambient { AmbientEvent(kind: .thermalState, value: "nominal") }
+
+        ambient { AmbientEvent(kind: .network, value: "wifi-secret") } // suppressed
+        Log<AppLogs>(system: system).info("after")
+        await system.flush()
+
+        let record = try #require(sink.records.first { $0.message == "after" })
+        #expect(record.ambient?[.network] == nil)
+        #expect(record.ambient?[.thermalState] == "nominal")
+    }
 }

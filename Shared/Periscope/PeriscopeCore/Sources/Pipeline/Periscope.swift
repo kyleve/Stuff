@@ -23,7 +23,11 @@ import os
 ///   definitions and span began/ended pairs are exempt — pairs never split.
 /// - **Ambient state** — `.state` ``AmbientEvent``s fold into a running
 ///   ``AmbientSnapshot``, and every record is stamped with it, so any event
-///   can be joined to what the system was doing at that moment.
+///   can be joined to what the system was doing at that moment. Folding
+///   outlives the admission gates: a floor-discarded ambient event still
+///   folds (floors route, they don't scrub), and a redaction-suppressed one
+///   clears its kind from the snapshot — the stamped state never goes stale
+///   because an ambient event was kept out of the record stream.
 /// - **Redaction** — ``Configuration/redact`` transforms (or suppresses)
 ///   every record before it is buffered or delivered anywhere. Span
 ///   began/ended records are transform-only: suppression falls back to a
@@ -367,9 +371,27 @@ public final class Periscope: LogRecorder, Sendable {
         // span lifecycle records carry their begin-time decision instead
         // (see `LogRecord.bypassesFloors`).
         if !original.bypassesFloors {
-            guard shouldRecord(level: original.level, scopes: original.scopes) else { return }
+            guard shouldRecord(level: original.level, scopes: original.scopes) else {
+                // A floored ambient event still moved the world: floors are
+                // routing, not scrubbing, so the running snapshot folds the
+                // state in even though the event itself isn't recorded —
+                // otherwise every later record would carry a stale value.
+                foldDiscardedAmbientState(of: original) { event, snapshot in
+                    AmbientSnapshot.folding(event, into: snapshot)
+                }
+                return
+            }
         }
-        guard let admitted = redacted(original) else { return }
+        guard let admitted = redacted(original) else {
+            // Suppression is content scrubbing: folding the value in would
+            // smear exactly what the hook suppressed across every later
+            // record's snapshot, and keeping the previous value would lie —
+            // so the snapshot forgets the kind instead.
+            foldDiscardedAmbientState(of: original) { event, snapshot in
+                snapshot?.removing(event.kind)
+            }
+            return
+        }
         // `buffer` returns the record as buffered — with its ambient state
         // stamped on — and that copy is what journals and reaches sinks,
         // so the durable and live views can't disagree about it.
@@ -429,6 +451,21 @@ public final class Periscope: LogRecorder, Sendable {
         var stamped = record
         stamped.ambient = state.ambient
         return stamped
+    }
+
+    /// Update the running ambient snapshot for an ambient event the
+    /// admission gates discarded. The record never reaches `buffer` (and so
+    /// never `stamped(_:in:)`), but the state change it announced is still
+    /// real — `fold` decides how it lands, since a floored event and a
+    /// redaction-suppressed one warrant different treatment.
+    private func foldDiscardedAmbientState(
+        of record: LogRecord,
+        _ fold: @Sendable (AmbientEvent, AmbientSnapshot?) -> AmbientSnapshot?,
+    ) {
+        guard let event = record.event as? AmbientEvent, event.reporting == .state else { return }
+        state.withLock { state in
+            state.ambient = fold(event, state.ambient)
+        }
     }
 
     /// The outside-lock tail of delivery: kick the drain, and auto-flush

@@ -53,6 +53,12 @@ the build system, formatting, and global conventions. Read that first.
   "one stored row per distinct state" true rather than one row per record.
   Anything that mutates the snapshot must preserve that: a new identity per
   record would multiply the rows by the log volume.
+- **Folding outlives the admission gates.** An ambient `.state` event the
+  level floors discard still folds into the running snapshot (floors route,
+  they don't scrub); one that redaction *suppresses* clears its kind instead —
+  folding it would smear the suppressed value onto every later record, and
+  keeping the old value would lie. The snapshot must never go stale because
+  the event itself was kept out of the record stream.
 - **`remove(_:)` is `async` because it settles the sink first** — the in-flight
   drain is awaited and the sink flushed, so a removed sink is owed nothing and
   hears nothing more. Removing a `PeriscopeStore` also uninstalls that store's
