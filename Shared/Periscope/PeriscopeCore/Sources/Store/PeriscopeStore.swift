@@ -179,7 +179,10 @@ public actor PeriscopeStore: LogSink {
     /// ``SpanRelaunchPolicy`` decides: `.endsWithProcess` spans get a
     /// synthetic ``SpanEnded`` (`.orphaned`, duration unknowable — the
     /// process died at an unknown point); `.survivesRelaunch` spans stay
-    /// open. Runs degraded-but-handled: a sweep failure logs and counts, it
+    /// open. Each synthetic end is attributed to the *session that began
+    /// the span* — it closes that launch's work, and the new session's
+    /// "this session" readings must not count another launch's orphans.
+    /// Runs degraded-but-handled: a sweep failure logs and counts, it
     /// never fails the session start.
     ///
     /// The policy is read from the persisted ``SDLogEvent/spanRelaunchPolicy``
@@ -223,7 +226,11 @@ public actor PeriscopeStore: LogSink {
                 },
             ))
 
-            var orphans: [LogRecord] = []
+            // Grouped by the began's session: the synthetic end belongs to
+            // the launch whose span it closes, not to the session whose
+            // start swept it — "this session" tooling scopes must not count
+            // a previous launch's orphans.
+            var orphansBySession: [UUID: [LogRecord]] = [:]
             for row in began {
                 guard let spanID = row.spanID else { continue }
                 // Decoded for the span's name; the policy comes from the
@@ -236,7 +243,7 @@ public actor PeriscopeStore: LogSink {
                 {
                     continue
                 }
-                orphans.append(LogRecord(
+                orphansBySession[row.sessionID, default: []].append(LogRecord(
                     date: Date(),
                     event: SpanEnded(
                         spanID: SpanID(rawValue: spanID),
@@ -248,8 +255,10 @@ public actor PeriscopeStore: LogSink {
                     tags: Self.tags(from: row),
                 ))
             }
-            guard !orphans.isEmpty else { return }
-            try persist(orphans)
+            guard !orphansBySession.isEmpty else { return }
+            for (sessionID, orphans) in orphansBySession {
+                try persist(orphans, attributedTo: sessionID)
+            }
             notifyChanged()
         } catch {
             recoverFromFailedWrite()
@@ -345,7 +354,7 @@ public actor PeriscopeStore: LogSink {
     public func write(_ records: [LogRecord]) async {
         guard !records.isEmpty else { return }
         do {
-            try persist(records)
+            try persist(records, attributedTo: nil)
             notifyChanged()
         } catch {
             recoverFromFailedWrite()
@@ -370,7 +379,7 @@ public actor PeriscopeStore: LogSink {
             scopes: [],
         )
         do {
-            try persist([marker])
+            try persist([marker], attributedTo: nil)
             notifyChanged()
         } catch {
             recoverFromFailedWrite()
@@ -470,8 +479,12 @@ public actor PeriscopeStore: LogSink {
         return highest + 1
     }
 
-    private func persist(_ records: [LogRecord]) throws {
-        let session = try ensureActiveSession()
+    /// Insert and save `records`, attributed to `sessionID` — or to the
+    /// active session when `nil`. The override exists for the orphan sweep:
+    /// a synthetic end for a span an *earlier* launch began belongs to that
+    /// launch, not to the session whose start swept it.
+    private func persist(_ records: [LogRecord], attributedTo sessionID: UUID?) throws {
+        let session = try sessionID ?? ensureActiveSession().sessionID
         for record in records {
             let payload: Data
             do {
@@ -507,7 +520,7 @@ public actor PeriscopeStore: LogSink {
                 message: record.message,
                 payload: payload,
                 orderedScopeIDs: record.scopes.map(\.rawValue),
-                sessionID: session.sessionID,
+                sessionID: session,
                 ambientSnapshotID: ambientRow(for: record.ambient, at: record.date)?
                     .snapshotID,
                 spanID: record.spanID?.rawValue,

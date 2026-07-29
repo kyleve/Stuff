@@ -430,6 +430,32 @@ struct PeriscopeStoreTests {
         #expect(orphanRow.level == .warning)
     }
 
+    /// The synthetic end closes the *previous* launch's work — attributing
+    /// it to the sweeping session would make the new launch's "this
+    /// session" readings count another launch's orphans.
+    @Test func orphanedEndsAreAttributedToTheSessionThatBeganThem() async throws {
+        let firstSession = UUID()
+        let store = try await PeriscopeStore.inMemory(session: .fixture(id: firstSession))
+        let root = LogScope.root(named: "app")
+        await store.defineScopes([root])
+        let span = SpanID()
+        await writeSpanBegan(
+            store,
+            span: span,
+            name: "checkout",
+            relaunch: .endsWithProcess,
+            scope: root,
+        )
+
+        let secondSession = UUID()
+        try await store.startSession(.fixture(id: secondSession, startedAt: date(100)))
+
+        let pair = try await store.events(inSpan: span)
+        let orphan = try #require(pair.first { $0.eventName == SpanEnded.eventName })
+        #expect(orphan.sessionID == firstSession)
+        #expect(orphan.sessionID != secondSession)
+    }
+
     @Test func relaunchLeavesSurvivingSpansOpen() async throws {
         let (store, root, _, _) = try await makeStore()
         let span = SpanID()
