@@ -43,7 +43,7 @@ struct AmbientEventTests {
     }
 
     /// v1 rows predate `reporting` entirely; they must still decode (as
-    /// state changes, which is all v1 could express) rather than throw.
+    /// state changes, which is what v1 sources reported) rather than throw.
     @Test func decodesVersionOnePayloadWithoutReporting() throws {
         let v1 = try JSONEncoder().encode(
             VersionOneAmbientEvent(kind: .network, value: "unsatisfied", level: .info),
@@ -51,6 +51,17 @@ struct AmbientEventTests {
         let decoded = try JSONDecoder().decode(AmbientEvent.self, from: v1)
         #expect(decoded == AmbientEvent(kind: .network, value: "unsatisfied"))
         #expect(decoded.reporting == .state)
+    }
+
+    /// The one v1 exception: every v1 `.memory` event was a memory warning
+    /// — an instant, not a condition — so it must not read back as a state
+    /// the app was stuck in.
+    @Test func versionOneMemoryEventsDecodeAsOccurrences() throws {
+        let v1 = try JSONEncoder().encode(
+            VersionOneAmbientEvent(kind: .memory, value: "warning", level: .warning),
+        )
+        let decoded = try JSONDecoder().decode(AmbientEvent.self, from: v1)
+        #expect(decoded.reporting == .occurrence)
     }
 
     /// The payload shape v1 wrote: the same keys minus `reporting`. Encoded

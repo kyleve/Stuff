@@ -79,9 +79,12 @@ public struct AmbientEvent: LogEvent, Hashable {
 
 /// Hand-written `init(from:)` for one load-bearing reason: rows written as
 /// v1 have no `reporting` key, and synthesized decoding throws on a missing
-/// key rather than defaulting. Every v1 ambient event was a state change —
-/// the momentary distinction arrived with the snapshot — so absence decodes
-/// as `.state`. `encode(to:)` stays synthesized.
+/// key rather than defaulting. The momentary distinction arrived with the
+/// snapshot, so absence defaults by what v1 actually wrote: every v1
+/// ambient event was a state change *except* `.memory`, whose only v1
+/// source was the memory-warning source — a warning describes an instant,
+/// so those decode as `.occurrence` rather than reading back as a state
+/// the app was stuck in. `encode(to:)` stays synthesized.
 extension AmbientEvent {
     private enum CodingKeys: String, CodingKey {
         case kind
@@ -95,6 +98,7 @@ extension AmbientEvent {
         kind = try container.decode(AmbientKind.self, forKey: .kind)
         value = try container.decode(String.self, forKey: .value)
         level = try container.decode(LogLevel.self, forKey: .level)
-        reporting = try container.decodeIfPresent(Reporting.self, forKey: .reporting) ?? .state
+        reporting = try container.decodeIfPresent(Reporting.self, forKey: .reporting)
+            ?? (kind == .memory ? .occurrence : .state)
     }
 }
