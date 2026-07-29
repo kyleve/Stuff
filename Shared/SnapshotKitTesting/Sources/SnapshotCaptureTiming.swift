@@ -126,14 +126,29 @@ import Foundation
         self.pixels = pixels
     }
 
-    /// Emits the capture's line. Call once, after the comparison.
-    ///
-    /// Returns the JSON it printed (`nil` when disabled) so tests can assert on
-    /// the line without capturing stdout.
+    /// Prints the capture's `SNAPSHOT_TIMING` line. Call once, after the
+    /// comparison, and **only from the capture pipeline**: `./test --timings`
+    /// aggregates these by grepping them out of the run logs, so anything else
+    /// that prints one is counted as a capture that happened.
     @discardableResult
     public func emit() -> String? {
+        guard let json = line() else { return nil }
+        print("SNAPSHOT_TIMING \(json)")
+        return json
+    }
+
+    /// The JSON payload ``emit()`` would print, or `nil` when timing is disabled
+    /// (or the payload failed to encode, which says so on stdout rather than
+    /// passing for a capture that cost nothing).
+    ///
+    /// Split from `emit()` so the wire shape can be asserted without *emitting* a
+    /// line. It used to be one function whose doc invited tests to call it "without
+    /// capturing stdout" — which they did, and `./test --timings` then counted
+    /// their fixtures as real captures, blending invented phase totals into the
+    /// aggregate the suite's performance decisions are read off.
+    public func line() -> String? {
         guard isEnabled else { return nil }
-        let line = SnapshotCaptureTimingLine(
+        let payload = SnapshotCaptureTimingLine(
             id: identifier,
             phases: durations.reduce(into: [:]) { $0[$1.key.rawValue] = rounded($1.value) },
             settlePasses: settlePasses,
@@ -141,7 +156,7 @@ import Foundation
             pixels: pixels,
             total: rounded(elapsed(since: start)),
         )
-        guard let data = try? JSONEncoder.snapshotTiming.encode(line),
+        guard let data = try? JSONEncoder.snapshotTiming.encode(payload),
               let json = String(data: data, encoding: .utf8)
         else {
             // Emitting is diagnostic-only, but a silent drop would look like a
@@ -149,7 +164,6 @@ import Foundation
             print("SNAPSHOT_TIMING_ERROR could not encode timing for \(identifier)")
             return nil
         }
-        print("SNAPSHOT_TIMING \(json)")
         return json
     }
 

@@ -12,7 +12,7 @@ struct SnapshotCaptureTimingTests {
         let timing = SnapshotCaptureTiming(identifier: "disabled", isEnabled: false)
         timing.measure(.settle) {}
         timing.addSettlePasses(3)
-        #expect(timing.emit() == nil)
+        #expect(timing.line() == nil)
     }
 
     @Test func measuredPhaseIsAttributedToItsOwnKey() throws {
@@ -100,8 +100,13 @@ struct SnapshotCaptureTimingTests {
         let total: Double
     }
 
+    /// Asks for the payload rather than calling `emit()`, which would print a
+    /// `SNAPSHOT_TIMING` line. `./test --timings` aggregates those out of the run
+    /// log, so emitting here counted each fixture below as a capture that
+    /// happened — five of them, with invented phase totals, in any run that
+    /// included this bundle.
     private func decodedLine(from timing: SnapshotCaptureTiming) throws -> Line {
-        let json = try #require(timing.emit())
+        let json = try #require(timing.line())
         return try JSONDecoder().decode(Line.self, from: Data(json.utf8))
     }
 

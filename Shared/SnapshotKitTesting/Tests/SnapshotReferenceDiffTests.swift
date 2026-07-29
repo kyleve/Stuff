@@ -108,14 +108,19 @@ struct SnapshotReferenceDiffTests {
 
     @Test func reportEmitsNothingForAByteIdenticalCapture() {
         #expect(
-            SnapshotDiffReporting.report(
-                .identicalBytes,
+            SnapshotDiffReporting.line(
+                describing: .identicalBytes,
                 identifier: "same",
                 reference: URL(fileURLWithPath: "/ref.png"),
             ) == nil,
         )
     }
 
+    /// Asks for the payload rather than calling `report(...)`, which would *print*
+    /// a `SNAPSHOT_DIFF` line — and `./test --review` recovers diffs by grepping
+    /// those out of the run logs, so this fixture's imaginary reference would be
+    /// listed among the real captures. It sorted to the top, too, since the
+    /// numbers below are borrowed from a genuine regression.
     @Test func reportDescribesADifferenceAsJSON() throws {
         let magnitude = SnapshotDiffMagnitude(
             differingPixels: 7430,
@@ -124,8 +129,8 @@ struct SnapshotReferenceDiffTests {
             changedRegion: CGRect(x: 85, y: 2394, width: 1037, height: 144),
         )
         let json = try #require(
-            SnapshotDiffReporting.report(
-                .differs(magnitude),
+            SnapshotDiffReporting.line(
+                describing: .differs(magnitude),
                 identifier: "case_dark",
                 reference: URL(fileURLWithPath: "/refs/thing.case_dark.png"),
             ),

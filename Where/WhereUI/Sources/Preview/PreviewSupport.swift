@@ -349,13 +349,21 @@
         /// A Resolve model seeded (via the `@_spi(Testing)` seam) with one issue
         /// per category, so Resolve previews/tests render a populated list without
         /// raw samples to scan. Pass `seededWithIssues: false` for the empty state.
+        ///
+        /// Both cases seed, including the empty one: seeding is what marks the
+        /// model loaded *and* `isSeeded`, so `ResolutionView` renders the state
+        /// asked for instead of a spinner over a live `DataIssueScanner` pass.
+        /// Skipping it for the empty case left `hasLoaded` false, which the view
+        /// can't tell apart from "the first scan hasn't landed" — so the case
+        /// rendered the loading placeholder and then whatever the real scan of the
+        /// empty store found, and the capture raced that scan.
         @MainActor
         public static func resolveModel(seededWithIssues: Bool = true) -> ResolveModel {
             let resolve = ResolveModel(
                 services: previewServices(),
                 preferences: previewPreferences(),
             )
-            if seededWithIssues { resolve.setDataIssues(sampleDataIssues()) }
+            resolve.setDataIssues(seededWithIssues ? sampleDataIssues() : [])
             return resolve
         }
 

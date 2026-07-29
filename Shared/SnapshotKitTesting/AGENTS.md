@@ -60,6 +60,18 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   `swiftDataInspector.SwiftDataInspector_iPhone_dark` (differing pixels massed
   at ΔE 62) still fails at 0.178%. 0.95 (ΔE 5) was rejected: it passes, but
   leaves 7,120 noise pixels at 66% of the budget, i.e. one bad CI day from red.
+- **Only the pipeline prints a report channel; a test asks for the payload.**
+  `./test` recovers `SNAPSHOT_TIMING` and `SNAPSHOT_DIFF` (and, by hand,
+  `SNAPSHOT_SETTLE`) by grepping them out of the run logs, and it counts timing
+  lines as *captured images* for the progress line — so anything that prints one
+  is a row in a report and an image in the count, with nothing marking it
+  synthetic. Each channel is split for that reason: `report(...)` / `emit()`
+  print, `line(...)` only returns the JSON, and a test pinning the wire shape
+  calls `line(...)`. Not hypothetical — when they were one function, this
+  module's own tests put a fabricated reference at the *top* of
+  `./test --review` (its numbers were borrowed from a real regression) and five
+  invented captures into `--timings`, so a run that captured nothing at all
+  reported "5 captures, 0.024s per image".
 - **The runner fails fast, once, on setup problems** (a simulator that doesn't
   match the `SNAPSHOT_EXPECTED_*` pins, two variants sharing one reference
   name) — one clear issue, never hundreds of pixel diffs.
@@ -67,6 +79,17 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
   settle timeout by widening the budget — freeze the motion behind
   `\.isCapturingSnapshot`, or use `.settledAtLeast` only for genuinely slow
   (not endless) content.
+- **A settled capture is not a ready capture.** The loop proves the pixels
+  stopped changing, not that the content the case meant to show ever arrived —
+  a loading placeholder is perfectly pixel-stable, so a gap between phases of
+  async work settles clean and bakes the spinner, and the suite reports green.
+  Pixel stability can't be strengthened into a readiness signal (nothing public
+  sees pending dispatch or Swift-concurrency work — see below), so a case whose
+  content arrives asynchronously must be made deterministic instead: seed the
+  fixture so its first frame is final (`resolution.Empty`), or await a
+  completion signal from `onReadyToSnapshot` (`root.LoggedIn`). Both incidents,
+  and how each was found, are ledgered in
+  [`Where/TODOs.md`](../../Where/TODOs.md).
 - **`.timedOut` requires observed motion; starvation is `.starved`.** A
   change-free settle loop keeps running until it can prove stability (a
   starved machine can fit fewer passes than stability needs), and only a hard
