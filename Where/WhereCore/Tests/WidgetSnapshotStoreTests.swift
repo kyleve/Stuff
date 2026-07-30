@@ -53,6 +53,18 @@ struct WidgetSnapshotStoreTests {
         #expect(store.read() == nil)
     }
 
+    /// A file that exists but won't decode (a truncated write, a stale format)
+    /// still reads as the empty state — the widget has nothing better to render
+    /// and the next publish overwrites it — but unlike "nothing written yet" it's
+    /// a real failure, so it logs (see `WidgetSnapshotStoreLog`).
+    @Test func readReturnsNilOnAnUnreadableFile() throws {
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try Data("not a snapshot".utf8)
+            .write(to: directory.appending(path: "widget-snapshot.json"))
+
+        #expect(WidgetSnapshotStore(directory: directory).read() == nil)
+    }
+
     @Test func writeOverwritesPreviousSnapshot() throws {
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = WidgetSnapshotStore(directory: directory)

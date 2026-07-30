@@ -93,7 +93,10 @@ one it belongs to rather than to a god-object:
   timezone-independent `storageKey` (a `CalendarDay` ISO string), so a dismissal
   doesn't reappear after travel. The `FlightDayDetector` reads the per-day GPS
   fixes the scanner puts on `DataIssueInput.daySamples` (timestamped, GPS-only)
-  to spot cruise-speed points that added a spurious region.
+  to spot cruise-speed points that added a spurious region. Each detector
+  declares the category it finds (`DataIssueDetecting.detects`), which both
+  labels its scan span and lets the scanner talk about categories without
+  knowing the concrete detector types.
 - **Reconcilers** — `ReminderReconciler` (daily logging reminder + app-icon
   badge), `DailySummaryReconciler` (year-to-date recap),
   `DataIssueAlertReconciler` ("issues to resolve").
@@ -110,7 +113,11 @@ one it belongs to rather than to a god-object:
   defaults by saying nothing.
 - **`BuildInfo`** + **`AppAttribution`** — what Settings > About says about the
   bundle it is running in. `BuildInfo.current(bundle:)` reads the marketing
-  version, build number, and the commit the app was built from;
+  version, build number, the commit the app was built from, and how the Swift
+  compiler was invoked (`compilation`: configuration, optimization level,
+  compilation mode) — `logSessionAttributes` hands that to a Periscope
+  `LogSession` at launch, which is how a stored span duration can be told apart
+  from one measured in an unoptimized build;
   `AppAttribution.main` reads the generated attribution report, decoding it once
   per process (`current(bundle:)` for any other bundle). Both return
   `nil`-shaped honesty for a bundle outside the app target, which carries
@@ -118,8 +125,11 @@ one it belongs to rather than to a god-object:
   [`CreditKit`](../../Shared/CreditKit/README.md)'s; data-source provenance is
   [`RegionKit`](../RegionKit/README.md)'s.)
 - **`WhereLog`** — the Periscope logging facade: a `"Where"` root scope with
-  grouping scopes (`location`, `reminders`, `backup`, `widgets`, …) and a typed
-  `LogEvent` per collaborator, emitted into `Periscope.shared`.
+  grouping scopes (`location`, `reminders`, `backup`, `widgets`, `reporting`, …)
+  and a typed `LogEvent` per collaborator, emitted into `Periscope.shared`. Each
+  collaborator's expensive work is also timed against a declared budget through
+  its `*Log`'s `SpanName` cases, so slow reads, commits, and reconciles show up
+  in Periscope's span history rather than only as a slow screen.
 
 ## Installation
 

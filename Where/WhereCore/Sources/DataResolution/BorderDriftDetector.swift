@@ -19,6 +19,8 @@ import RegionKit
 public struct BorderDriftDetector: DataIssueDetector {
     public typealias Issue = BorderDriftIssue
 
+    public let detects = DataIssueCategory.borderDrift
+
     public init() {}
 
     public func detectIssues(in input: DataIssueInput) -> [BorderDriftIssue] {

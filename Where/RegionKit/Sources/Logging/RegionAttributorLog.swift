@@ -5,6 +5,30 @@ import PeriscopeCore
 /// `.fault` (paired with a debug `assertionFailure`); the region id rides on
 /// `externalID` so the tooling can pull every event about one region.
 enum RegionAttributorLog: LogEvent {
+    /// Names the loader's timed spans. Building an attributor parses one GeoJSON
+    /// file per region, which is the most expensive thing RegionKit does — and it
+    /// happens on the launch's critical path (and again whenever the tracked set
+    /// changes), so both the whole load and each region's share of it are timed.
+    ///
+    /// `description` is spelled out because ``loadRegion(_:)`` carries a region:
+    /// reflection would render it `loadRegion(RegionKit.Region(rawValue: "us-CA"))`,
+    /// which is both unreadable and a Swift-internal shape in a name the tools
+    /// group timings by.
+    enum SpanName: Hashable, CustomStringConvertible {
+        /// Loading every region an attributor was built for.
+        case loadPolygons
+        /// One region's GeoJSON read + decode, so a slow load attributes to the
+        /// region whose geometry is heavy rather than to the set.
+        case loadRegion(Region)
+
+        var description: String {
+            switch self {
+                case .loadPolygons: "loadPolygons"
+                case let .loadRegion(region): "loadRegion(\(region.rawValue))"
+            }
+        }
+    }
+
     /// The manifest names a geometry file the bundle doesn't contain.
     case missingGeometry(region: Region)
     /// The region's GeoJSON decoded to zero polygons.

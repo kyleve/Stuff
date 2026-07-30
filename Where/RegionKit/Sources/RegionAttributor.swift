@@ -105,31 +105,35 @@ public struct RegionAttributor: RegionAttributing {
     /// "region simply never matches" in release rather than crashing.
     private static func loadPolygons(for regions: [Region]) -> [RegionPolygons] {
         var entries: [RegionPolygons] = []
-        for region in regions {
-            guard region != .other else { continue }
-            guard let url = RegionCatalog.shared.geometryURL(for: region) else {
-                logger { .missingGeometry(region: region) }
-                assertionFailure("Missing bundled GeoJSON for region \(region.rawValue)")
-                continue
-            }
-            do {
-                let polygons = try GeoJSON.polygons(at: url)
-                guard !polygons.isEmpty else {
-                    logger { .emptyPolygons(region: region) }
-                    assertionFailure("Region \(region.rawValue) decoded no polygons")
+        logger.measure(.loadPolygons, budget: .seconds(1)) {
+            for region in regions {
+                guard region != .other else { continue }
+                guard let url = RegionCatalog.shared.geometryURL(for: region) else {
+                    logger { .missingGeometry(region: region) }
+                    assertionFailure("Missing bundled GeoJSON for region \(region.rawValue)")
                     continue
                 }
-                entries.append(RegionPolygons(region: region, polygons: polygons))
-            } catch {
-                logger(attachments: [.error(error, name: "decode-error")]) {
-                    .decodeFailed(
-                        region: region,
-                        description: error.localizedDescription,
+                do {
+                    let polygons = try logger.measure(.loadRegion(region)) {
+                        try GeoJSON.polygons(at: url)
+                    }
+                    guard !polygons.isEmpty else {
+                        logger { .emptyPolygons(region: region) }
+                        assertionFailure("Region \(region.rawValue) decoded no polygons")
+                        continue
+                    }
+                    entries.append(RegionPolygons(region: region, polygons: polygons))
+                } catch {
+                    logger(attachments: [.error(error, name: "decode-error")]) {
+                        .decodeFailed(
+                            region: region,
+                            description: error.localizedDescription,
+                        )
+                    }
+                    assertionFailure(
+                        "Failed to decode bundled GeoJSON for region \(region.rawValue): \(error)",
                     )
                 }
-                assertionFailure(
-                    "Failed to decode bundled GeoJSON for region \(region.rawValue): \(error)",
-                )
             }
         }
         logger { .loaded(regionCount: entries.count) }

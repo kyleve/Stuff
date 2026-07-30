@@ -49,8 +49,14 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
   - **Logs** — newest-first list over a `PeriscopeStore`, searchable,
     filterable by level / event type / scope subtree / session / span exit,
     paged, with exit-mode chips on span rows, per-event detail (exit + reason,
-    payload JSON, tags, attachments), NDJSON export, and a
-    comfortable/compact **row-density** picker (persisted).
+    payload JSON, tags, attachments, and the **ambient state** the event was
+    stamped with), NDJSON export (ambient state included, headed by one
+    `"record": "session"` line per referenced session carrying its build
+    attributes), and a
+    comfortable/compact **row-density** picker (persisted). The session filter
+    names each session by its build — commit and optimization level when the
+    session recorded them, so weeks-old logs can be tied to the code that
+    produced them.
   - **Hierarchy** — the scope tree (see `LogHierarchyView`).
 - **`LogHierarchyView(store:)`** — the scope-tree browser: the store's
   `LogScope` hierarchy (the tree the `Log<Event>` API builds in code) as an
@@ -90,7 +96,11 @@ Toggle("Log View Mode", isOn: $inspector.isEnabled)
   instance count and the p50/p90/p95/p99 of their durations (nearest-rank, so
   every figure is a real observed sample; a kind whose instances never recorded
   a duration reports none). Tapping a kind drills into every closed span of
-  that kind, newest first, each linking to its detail and the tracer. Reachable
+  that kind, newest first, each linking to its detail and the tracer. A
+  **build scope** picker narrows which sessions the percentiles pool — all
+  builds, this session only, or every session built at the current one's
+  optimization level — because a p95 mixing an `-Onone` build with an `-O` one
+  measures nothing; the active scope is named above the list. Reachable
   from the viewer's Logs toolbar (the **Spans** menu), and usable standalone.
 
 ## Design system

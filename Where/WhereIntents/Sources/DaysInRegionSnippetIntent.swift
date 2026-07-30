@@ -32,27 +32,34 @@ public struct DaysInRegionSnippetIntent: SnippetIntent {
     public func perform() async throws -> some IntentResult & ShowsSnippetView {
         let services = try await intentServices.current()
         let resolvedYear = year ?? Calendar.whereIntents.component(.year, from: Date())
-        let count = try await WhereIntentReader(services: services)
-            .dayCount(in: region.region, year: resolvedYear)
-        let snapshot = DaysInRegionSnapshot(
-            region: region.region,
-            year: resolvedYear,
-            dayCount: count,
-        )
-        // Seed the region look from the user's picks so the snippet renders the
-        // chosen color/emoji/icon (the intent process has no app view root).
-        let regionStyles = try await RegionStyleResolver(primaryRegions: services.primaryRegions())
-        // "Log today here" logs into the *current* year, so it can only change
-        // this card's count when the card is showing the current year. Omit it
-        // otherwise, rather than offer a button that appears to do nothing.
-        return .result(
-            view: DaysInRegionInteractiveSnippet(
+        // The span covers both reads the card needs — the count and the region
+        // looks — since a reload the user is watching waits on both.
+        let snippet = try await measureIntent(.daysInRegionSnippet) {
+            let count = try await WhereIntentReader(services: services)
+                .dayCount(in: region.region, year: resolvedYear)
+            let snapshot = DaysInRegionSnapshot(
+                region: region.region,
+                year: resolvedYear,
+                dayCount: count,
+            )
+            // Seed the region look from the user's picks so the snippet renders
+            // the chosen color/emoji/icon (the intent process has no app view
+            // root).
+            let regionStyles = try await RegionStyleResolver(
+                primaryRegions: services.primaryRegions(),
+            )
+            // "Log today here" logs into the *current* year, so it can only
+            // change this card's count when the card is showing the current
+            // year. Omit it otherwise, rather than offer a button that appears
+            // to do nothing.
+            return DaysInRegionInteractiveSnippet(
                 snapshot: snapshot,
                 region: region,
                 canLogToday: isCurrentYear(resolvedYear),
                 regionStyles: regionStyles,
-            ),
-        )
+            )
+        }
+        return .result(view: snippet)
     }
 }
 

@@ -6,6 +6,13 @@ import PeriscopeCore
 enum RecentActivitySummarizerLog: LogEvent {
     /// Names the summarizer's timed spans.
     enum SpanName: Hashable {
+        /// Attributing every reading in the window to a region and collapsing the
+        /// runs into dwell segments. A point-in-polygon test per reading, and a
+        /// long window holds thousands, so it's worth separating from the model
+        /// call it feeds — a slow summary is otherwise assumed to be the model's
+        /// fault.
+        case attribute
+        /// The on-device model call.
         case generate
     }
 

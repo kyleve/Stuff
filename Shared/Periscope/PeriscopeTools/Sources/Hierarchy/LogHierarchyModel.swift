@@ -74,6 +74,9 @@ final class LogHierarchyModel {
             scopes = Dictionary(uniqueKeysWithValues: scopeList.map { ($0.id, $0) })
             state = .loaded(Self.buildForest(scopes: scopeList, directCounts: directCounts))
         } catch {
+            PeriscopeToolsLog.failures.error(
+                "Log hierarchy could not read the store: \(error, privacy: .public)",
+            )
             state = .failed(String(describing: error))
         }
     }

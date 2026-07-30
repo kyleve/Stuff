@@ -265,9 +265,11 @@ public final class YearReportModel {
     /// folded together, because the drift-threshold change recomputes only the
     /// count (no report re-pull); this just names the pairing the shared sites use.
     func refreshAll(forceDataIssueCount: Bool) async {
-        await refresh()
-        await refreshEvidenceDayKeys()
-        await refreshDataIssueCount(force: forceDataIssueCount)
+        await Self.logger.measure(.sceneRefresh, budget: .seconds(3)) {
+            await refresh()
+            await refreshEvidenceDayKeys()
+            await refreshDataIssueCount(force: forceDataIssueCount)
+        }
     }
 
     /// Reload the set of days carrying evidence for the selected year. Runs on

@@ -211,7 +211,7 @@ public struct PeriscopeViewer: View {
             Picker("Session", selection: $model.selectedSessionID) {
                 Text("All Sessions").tag(UUID?.none)
                 ForEach(model.sessions) { session in
-                    Text(sessionLabel(session)).tag(UUID?.some(session.id))
+                    Text(session.displayLabel).tag(UUID?.some(session.id))
                 }
             }
             Picker("Span Exit", selection: $model.selectedSpanExitMode) {
@@ -256,17 +256,15 @@ public struct PeriscopeViewer: View {
                 do {
                     export = try await NDJSONExport(text: model.exportNDJSON())
                 } catch {
+                    PeriscopeToolsLog.failures.error(
+                        "NDJSON export could not read the store: \(error, privacy: .public)",
+                    )
                     exportFailed = true
                 }
             }
         } label: {
             Label("Export", systemImage: "square.and.arrow.up")
         }
-    }
-
-    private func sessionLabel(_ session: LogSession) -> String {
-        let started = session.startedAt.formatted(date: .abbreviated, time: .shortened)
-        return "\(started) — v\(session.appVersion) (\(session.buildNumber))"
     }
 }
 

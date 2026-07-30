@@ -15,7 +15,7 @@ struct MemoryWarningAmbientSourceTests {
         )
         await system.flush()
 
-        let record = sink.records.first { $0.message == "memory: warning" }
+        let record = sink.records.first { $0.message == "memory: pressure=warning" }
         #expect(record?.level == .warning)
     }
 }

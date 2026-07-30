@@ -55,25 +55,27 @@ public actor DataIssueAlertReconciler {
     /// scheduler: schedule the alert while issues remain (and the user has it
     /// enabled), clear it otherwise.
     func reconcile() async {
-        guard config.enabled else {
-            await scheduler.reconcile(enabled: false, time: config.time, body: "")
-            return
-        }
+        await Self.logger.measure(.reconcile, budget: .seconds(3)) {
+            guard config.enabled else {
+                await scheduler.reconcile(enabled: false, time: config.time, body: "")
+                return
+            }
 
-        let year = calendar.component(.year, from: now())
-        do {
-            let count = try await scanner.currentIssueCount(
-                year: year,
-                driftThresholdMeters: config.driftThresholdMeters,
-            )
-            await scheduler.reconcile(
-                enabled: count > 0,
-                time: config.time,
-                body: Self.body(count: count),
-            )
-        } catch {
-            Self.logger(attachments: [.error(error, name: "reconcile-error")]) {
-                .reconcileFailed(description: error.localizedDescription)
+            let year = calendar.component(.year, from: now())
+            do {
+                let count = try await scanner.currentIssueCount(
+                    year: year,
+                    driftThresholdMeters: config.driftThresholdMeters,
+                )
+                await scheduler.reconcile(
+                    enabled: count > 0,
+                    time: config.time,
+                    body: Self.body(count: count),
+                )
+            } catch {
+                Self.logger(attachments: [.error(error, name: "reconcile-error")]) {
+                    .reconcileFailed(description: error.localizedDescription)
+                }
             }
         }
     }

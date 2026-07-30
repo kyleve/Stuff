@@ -17,7 +17,9 @@
         }
 
         override public func event(for notification: Notification) -> AmbientEvent? {
-            Self.values[notification.name].map { AmbientEvent(kind: .appLifecycle, value: $0) }
+            Self.values[notification.name].map {
+                AmbientEvent(kind: .appLifecycle, value: ["phase": .string($0)])
+            }
         }
     }
 #endif

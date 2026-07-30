@@ -144,21 +144,27 @@ public enum WhereLaunch {
     /// `start-session` whenever a session is (re)started (see `makeLauncher`);
     /// callers that only inspect the node list (the parity test) can rely on
     /// the default.
+    ///
+    /// Every step is composed `.measured()`, so each run is a budgeted
+    /// Periscope span named after the step (see `MeasuredStep`) and a slow
+    /// launch attributes to a step rather than to "launch". The onboarding
+    /// gate is the one unmeasured node: it parks on the user, so its duration
+    /// is a human's, not the app's.
     public static func plan(
         for model: WhereModel,
         onServicesReady: @escaping @MainActor (WhereServices) async -> Void = { _ in },
     ) -> LaunchPlan<LaunchStepID, Void, WhereSession> {
         LaunchPlan(OnboardingGate(model: model))
-            .then(ResolveScopeStep(model: model))
-            .then(StartSessionStep(model: model, onServicesReady: onServicesReady))
-            .thenKeeping(SyncAuthStep())
-            .thenKeeping(ReconcileTrackingStep())
+            .then(ResolveScopeStep(model: model).measured())
+            .then(StartSessionStep(model: model, onServicesReady: onServicesReady).measured())
+            .thenKeeping(SyncAuthStep().measured())
+            .thenKeeping(ReconcileTrackingStep().measured())
             .detached {
-                CaptureTodayStep()
-                RemindersStep()
-                SummaryStep()
-                IssueAlertsStep()
-                WidgetSnapshotStep()
+                CaptureTodayStep().measured()
+                RemindersStep().measured()
+                SummaryStep().measured()
+                IssueAlertsStep().measured()
+                WidgetSnapshotStep().measured()
             }
     }
 
@@ -171,8 +177,8 @@ public enum WhereLaunch {
     public static func resetPlan(for model: WhereModel)
         -> LaunchPlan<LaunchStepID, WhereSession, Void>
     {
-        LaunchPlan(EraseDataStep(model: model))
-            .then(ResetPreferencesStep(model: model))
+        LaunchPlan(EraseDataStep(model: model).measured())
+            .then(ResetPreferencesStep(model: model).measured())
     }
 
     /// The teardown Settings' "Exit demo mode" runs, rooted at the demo
@@ -186,7 +192,7 @@ public enum WhereLaunch {
     public static func exitDemoPlan(for model: WhereModel)
         -> LaunchPlan<LaunchStepID, WhereSession, Void>
     {
-        LaunchPlan(ExitDemoStep(model: model))
+        LaunchPlan(ExitDemoStep(model: model).measured())
     }
 }
 
@@ -292,7 +298,12 @@ public final class WhereBootstrap: WhereScopeAssembling {
     /// process, because what a session persists depends on which world it is
     /// in — an in-memory world must leave nothing behind.
     public func makeLogStore() async throws -> PeriscopeStore? {
-        try await PeriscopeStore.make(storage: Self.logStorage, session: .current())
+        try await PeriscopeStore.make(
+            storage: Self.logStorage,
+            session: .current(
+                attributes: BuildInfo.current(bundle: .main).logSessionAttributes,
+            ),
+        )
     }
 
     /// Where a real scope's log store belongs, mirroring

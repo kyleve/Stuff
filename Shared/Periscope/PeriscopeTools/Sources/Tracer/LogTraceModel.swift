@@ -73,6 +73,9 @@ final class LogTraceModel {
                 }
             state = .loaded(Array(ordered.prefix(limit)))
         } catch {
+            PeriscopeToolsLog.failures.error(
+                "Log tracer could not read the store: \(error, privacy: .public)",
+            )
             state = .failed(String(describing: error))
         }
     }

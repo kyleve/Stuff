@@ -61,12 +61,42 @@ let whereAppGroupEntitlements: Entitlements = .dictionary([
 /// only one place leaves the other silently unpinned — and an unpinned run
 /// doesn't fail loudly, it just compares against references recorded somewhere
 /// else.
-let snapshotEnvironment: [String: EnvironmentVariable] = [
-    "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
-    "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
-    "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
-    "TZ": "America/Los_Angeles",
+/// Points SwiftPM's generated `Bundle.module` accessors at the built-products
+/// directory, where every package resource bundle lands — set on every test
+/// target and test action, hosted or not.
+///
+/// `PACKAGE_RESOURCE_BUNDLE_PATH` is the accessors' own first candidate
+/// (DEBUG-only, which test builds are; see any generated
+/// `resource_bundle_accessor.swift`, rdar://107766372). It exists because the
+/// default candidates — `Bundle.main` and `Bundle(for: BundleFinder.self)` —
+/// assume the class and its resource bundle travel together, and Xcode 27
+/// beta 4 broke that assumption for hosted tests: its package linking dedupes
+/// a statically-absorbed product's code into the one image that carries it
+/// (e.g. WhereCore's classes live only inside `WhereUI.framework`), while the
+/// product's resource bundle is still copied into each `.xctest`. The class
+/// resolves to the framework, the bundle sits unseen in the test bundle, and
+/// the accessor's `fatalError` kills the host (CI run 30484782772).
+///
+/// The pre-#144 remedy — embedding WhereCore in `StuffTestHost` so
+/// `Bundle.main` resolves — can't come back: under beta 4 a package product
+/// consumed by both the host and the bundles loses its String Catalog
+/// generate-symbols step and the build fails. The env override sidesteps
+/// linking entirely; simulator processes read host paths, so the
+/// built-products directory is always reachable. Remove this only when a
+/// later Xcode makes the default candidates resolve for hosted tests again —
+/// prove it by deleting the variable and running the full `Stuff-iOS-Tests`
+/// scheme on the Xcode CI uses.
+let packageResourceEnvironment: [String: EnvironmentVariable] = [
+    "PACKAGE_RESOURCE_BUNDLE_PATH": "$(BUILT_PRODUCTS_DIR)",
 ]
+
+let snapshotEnvironment: [String: EnvironmentVariable] =
+    packageResourceEnvironment.merging([
+        "SNAPSHOT_EXPECTED_SIMULATOR_RUNTIME_VERSION": "27.0",
+        "SNAPSHOT_EXPECTED_SCREEN_SCALE": "3",
+        "SNAPSHOT_EXPECTED_TIMEZONE": "America/Los_Angeles",
+        "TZ": "America/Los_Angeles",
+    ]) { _, new in new }
 
 func unitTests(
     name: String,
@@ -92,7 +122,8 @@ func unitTests(
         deploymentTargets: deployment,
         sources: sources,
         dependencies: dependencies,
-        environmentVariables: environmentVariables,
+        environmentVariables: packageResourceEnvironment
+            .merging(environmentVariables) { _, new in new },
     )
 }
 
@@ -109,9 +140,10 @@ func testScheme(
         buildAction: .buildAction(targets: ["\(name)"]),
         testAction: .targets(
             ["\(name)"],
-            arguments: testEnvironmentVariables.isEmpty
-                ? nil
-                : .arguments(environmentVariables: testEnvironmentVariables),
+            arguments: .arguments(
+                environmentVariables: packageResourceEnvironment
+                    .merging(testEnvironmentVariables) { _, new in new },
+            ),
         ),
     )
 }
@@ -282,6 +314,7 @@ let project = Project(
                 .package(product: "TestHostSupport"),
                 .package(product: "WhereUI"),
             ],
+            environmentVariables: packageResourceEnvironment,
         ),
         .target(
             name: "StuffTestHost",
@@ -309,27 +342,17 @@ let project = Project(
             // Keep this host thin — it deliberately depends on nothing but
             // TestHostSupport.
             //
-            // It used to also depend on WhereCore, to embed `Stuff_WhereCore.bundle`
-            // and (transitively) the GeoJSON `Stuff_RegionKit.bundle` into the host,
-            // on the theory that a hosted bundle's `Bundle.module` resolves against
-            // the host's main bundle. That is no longer true, and on Xcode 27 it is
-            // no longer needed: each `.xctest` now carries its own copies of the
-            // resource bundles for the code it links (`WhereUITests.xctest` ships
-            // `Stuff_WhereCore.bundle`, `Stuff_RegionKit.bundle`,
-            // `Stuff_WhereUI.bundle`, `Stuff_LifecycleKitUI.bundle`), so SwiftPM's
-            // `Bundle.module` finds them via `Bundle(for: BundleFinder.self)` — the
-            // test bundle — and never falls back to `Bundle.main`. Verified by
-            // removing the dependency and running the full `Stuff-iOS-Tests` and
-            // image-snapshot schemes green, with the built host confirmed to contain
-            // no WhereCore symbols and no resource bundles at all. (One of the two
-            // canaries the old note cited as proof, `WhereUITests.StringsTests`, had
-            // also ceased to exist with the String Catalog symbol migration.)
-            //
-            // Don't re-add a product here to fix a missing-resource failure: that
-            // makes every unrelated bundle in the scheme pay for it, and duplicates
-            // the payload (the whole GeoJSON set was being embedded twice). Give the
-            // bundle that needs the resource a dependency on the product that owns
-            // it instead.
+            // Hosted bundles' `Bundle.module` lookups do *not* resolve against
+            // this host: `packageResourceEnvironment` points the generated
+            // accessors at the built-products directory instead. Don't re-add a
+            // product here to fix a missing-resource failure. The host once
+            // embedded WhereCore for exactly that (removed in #144 as redundant
+            // on Xcode 27 beta 3), and when beta 4 broke resource resolution the
+            // embed could not come back: under beta 4 a package product consumed
+            // by both this host and the test bundles loses its String Catalog
+            // generate-symbols step, failing the build (verified with WhereCore
+            // and, via LifecycleKitUI, with WhereUI). See the note on
+            // `packageResourceEnvironment` for the full story.
             dependencies: [
                 // Lets `SceneDelegate` stamp its window with `isMainTestHostWindow`
                 // so hosted tests can find it via `TestHostSupport.hostKeyWindow()`.
@@ -624,28 +647,31 @@ let project = Project(
                 "BroadwayUITests",
                 "BroadwayCatalogTests",
             ]),
-            testAction: .targets([
-                "StuffCoreTests",
-                "CreditKitTests",
-                "LifecycleKitTests",
-                "LifecycleKitUITests",
-                "JournalKitTests",
-                "PeriscopeCoreTests",
-                "PeriscopeUITests",
-                "PeriscopeToolsTests",
-                "FlyoverTests",
-                "SwiftDataInspectorTests",
-                "SnapshotKitTests",
-                "SnapshotKitTestingTests",
-                "RegionKitTests",
-                "WhereCoreTests",
-                "WhereTests",
-                "WhereUITests",
-                "WhereIntentsTests",
-                "BroadwayCoreTests",
-                "BroadwayUITests",
-                "BroadwayCatalogTests",
-            ]),
+            testAction: .targets(
+                [
+                    "StuffCoreTests",
+                    "CreditKitTests",
+                    "LifecycleKitTests",
+                    "LifecycleKitUITests",
+                    "JournalKitTests",
+                    "PeriscopeCoreTests",
+                    "PeriscopeUITests",
+                    "PeriscopeToolsTests",
+                    "FlyoverTests",
+                    "SwiftDataInspectorTests",
+                    "SnapshotKitTests",
+                    "SnapshotKitTestingTests",
+                    "RegionKitTests",
+                    "WhereCoreTests",
+                    "WhereTests",
+                    "WhereUITests",
+                    "WhereIntentsTests",
+                    "BroadwayCoreTests",
+                    "BroadwayUITests",
+                    "BroadwayCatalogTests",
+                ],
+                arguments: .arguments(environmentVariables: packageResourceEnvironment),
+            ),
         ),
         testScheme(name: "StuffCoreTests"),
         testScheme(name: "CreditKitTests"),

@@ -18,9 +18,9 @@ layering, and the domain rules this target merely starts up.
 - `Scripts/` holds this target's build-phase scripts, not dev commands (those
   are the repo-root executables). Today that is
   [`stamp-build-info.sh`](Scripts/stamp-build-info.sh), which stamps the commit
-  into the built Info.plist — see [Version and build
-  metadata](../../AGENTS.md#version-and-build-metadata) for the constraints on
-  it.
+  and the Swift compiler settings into the built Info.plist — see [Version and
+  build metadata](../../AGENTS.md#version-and-build-metadata) for the
+  constraints on it.
 - `Resources/AppIcon.xcassets` is managed by `./icons` (see the root
   [`AGENTS.md`](../../AGENTS.md#managing-app-icons)) — never hand-edit it.
 - `Resources/attribution.json` is the app's generated attribution report;
