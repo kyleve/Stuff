@@ -324,3 +324,12 @@ struct AppIconImage: View {
         AppIconView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension AppIconView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            AppIconView.self,
+            title: "App Icon",
+        )
+    }
+#endif

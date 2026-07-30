@@ -118,12 +118,14 @@ slow.
   onboarding gate, so an install that never onboards creates no store file,
   contacts no CloudKit, and opens no log store. Guard:
   `WhereLaunchTests.firstRunForegroundLaunchParksOnTheOnboardingGateBeforeOpeningAnything`.
-- **At most one scope is live at a time.** Logging out — a reset, or leaving a
-  demo — releases and tears down the scope; logging back in builds a fresh one.
-  What went wrong historically wasn't opening a second container *ever*, it was
-  two long-lived ones open *at once*, which sequenced teardown makes
-  unspellable. Guard:
+- **At most one scope is active and log-routing at a time.** Logging out — a
+  reset, or leaving a demo — releases and tears down the scope; logging back in
+  builds a fresh one. Flyover is the narrow exception to "one open world": it
+  may retain one separately built, in-memory demo scope beside the active app
+  scope, but never activates or log-routes it and never opens a second copy of
+  the real store. Guards:
   `WhereResetTests.loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne`.
+  `WhereFlyoverWorldTests.buildsASeededSiblingWithoutActivatingIt`.
 - **The onboarding gate declares `modes: .all`,** not the `.foreground`
   default: parking a headless launch is the point. A background wake needs the
   permission this flow asks for, so `isNeeded` is false by then.
@@ -149,6 +151,10 @@ slow.
   store from birth and routes only while active, so one that opens while
   shadowed is remembered rather than attached. Guard:
   `DemoModeTests.aLogStoreOpeningLateNeverAttachesToAShadowedScope`.
+- **Flyover builds but never activates its demo scope.** Its frames share that
+  one in-memory world while the real app keeps its current scope; dismissing
+  Flyover releases the sibling. The process-global `WhereLog` facade remains a
+  known exception tracked in [`TODOs.md`](TODOs.md).
 - **The logging system is injected, not global** — `WhereModel.logSystem` has no
   default, so a test can't silently attach sinks to `Periscope.shared`. (The
   `WhereLog` facade still emits into `.shared`; pre-existing.)

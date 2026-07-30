@@ -202,3 +202,56 @@ private struct EvidenceRow: View {
         }
     }
 #endif
+
+#if DEBUG
+    extension EvidenceListView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData(
+            EvidenceListView.self,
+            routes: [
+                .push(to: EvidenceDetailView.flyoverID),
+                .modal(to: AddEvidenceView.flyoverID),
+            ],
+        ) { id, world in
+            .init(
+                id: id,
+                title: "Evidence",
+                variants: [
+                    WhereFlyoverData.hostedVariant(
+                        id: "loaded",
+                        title: "Loaded",
+                        world: world,
+                    ) {
+                        EvidenceListView(
+                            report: world.report,
+                            model: PreviewSupport.evidenceListModel(
+                                state: .loaded(PreviewSupport.sampleEvidence()),
+                            ),
+                        )
+                    },
+                    WhereFlyoverData.hostedVariant(
+                        id: "empty",
+                        title: "Empty",
+                        world: world,
+                    ) {
+                        EvidenceListView(
+                            report: world.report,
+                            model: PreviewSupport.evidenceListModel(state: .empty),
+                        )
+                    },
+                    WhereFlyoverData.hostedVariant(
+                        id: "failed",
+                        title: "Failed",
+                        world: world,
+                    ) {
+                        EvidenceListView(
+                            report: world.report,
+                            model: PreviewSupport.evidenceListModel(
+                                state: .failed("The attachment index is unavailable."),
+                            ),
+                        )
+                    },
+                ],
+            )
+        }
+    }
+#endif

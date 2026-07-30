@@ -601,3 +601,18 @@ private struct DayCell: View {
         CalendarContentView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension CalendarContentView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            CalendarContentView.self,
+            title: "Region Calendar",
+        )
+
+        static let yearFlyoverData = WhereFlyoverData.snapshots(
+            CalendarContentView.self,
+            id: WhereFlyoverScreenID(CalendarContentView.self, in: YearView.self),
+            title: "Calendar",
+        )
+    }
+#endif

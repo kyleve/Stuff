@@ -12,7 +12,7 @@
         let isPresented: Bool
         let corner: DeveloperOverlayModel.Corner
         let maxHeight: CGFloat
-        let onOpenTool: (DeveloperTool) -> Void
+        let onOpenDestination: (DeveloperDestination) -> Void
 
         @Environment(WhereModel.self) private var model: WhereModel?
         @Environment(WhereSession.self) private var session: WhereSession?
@@ -21,19 +21,22 @@
 
         var body: some View {
             let menu = stylesheet.developerOverlay.menu
-            let tools = DeveloperTool.available(
+            let destinations = DeveloperDestination.available(
                 hasLogStore: model?.logStore != nil,
                 hasInspector: session?.swiftDataInspectorConfiguration != nil,
             )
-            let itemCount = tools.count + (inspector == nil ? 0 : 1)
+            let itemCount = destinations.count + (inspector == nil ? 0 : 1)
             let origin: Edge = corner.isTop ? .top : .bottom
 
             ScrollView {
                 LazyVStack(spacing: menu.rowSpacing) {
-                    ForEach(Array(tools.enumerated()), id: \.element) { index, tool in
+                    ForEach(
+                        Array(destinations.enumerated()),
+                        id: \.element,
+                    ) { index, destination in
                         if isPresented {
-                            DeveloperToolMenuButton(tool: tool) {
-                                onOpenTool(tool)
+                            DeveloperToolMenuButton(destination: destination) {
+                                onOpenDestination(destination)
                             }
                             .transition(
                                 menu.motion.transition(
@@ -50,7 +53,7 @@
                             .transition(
                                 menu.motion.transition(
                                     from: origin,
-                                    index: tools.count,
+                                    index: destinations.count,
                                     itemCount: itemCount,
                                 ),
                             )

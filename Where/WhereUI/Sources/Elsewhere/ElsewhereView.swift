@@ -135,3 +135,15 @@ struct ElsewhereView: View {
         ElsewhereView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension ElsewhereView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            ElsewhereView.self,
+            title: "Elsewhere",
+            routes: [
+                .push(to: RegionDaysView.flyoverID),
+            ],
+        )
+    }
+#endif

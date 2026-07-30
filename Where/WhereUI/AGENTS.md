@@ -16,6 +16,22 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
+- Flyover infrastructure stays under `#if DEBUG` in
+  [`Sources/Developer/Flyover`](Sources/Developer/Flyover), while each
+  represented screen declares a DEBUG-only `WhereFlyoverProviding` extension
+  in its own source file. The integration may import the app-agnostic
+  `Flyover` module and build one unactivated in-memory `WhereScope`; the shared
+  module must never import WhereUI.
+- Derive `WhereFlyoverScreenID` from the represented view type, and keep that
+  screen's variants, viewport/navigation settings, and outgoing routes in its
+  colocated registration; never restore a centralized screen enum or catalog
+  factory methods.
+- Construct and retain the Where Flyover catalog once after its world loads;
+  never rebuild fixture state from a SwiftUI `body`.
+- Present Where Flyover from the developer accordion with `fullScreenCover`,
+  outside the selected-tool `NavigationStack`.
+- Register leaf screens against Flyover's default navigation container; use
+  `.none` only for views that own their root stack and for widgets/snippets.
 - Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI
   and must **not** link `BroadwayUI`/`BroadwayCore` themselves (root
   [double-link rule](../../AGENTS.md#never-double-link-a-product-whereui-already-carries));
@@ -83,6 +99,12 @@ rules:
 glue and `whereBroadwayRoot()` seeding, including the WhereWidgets path.
 Adding, renaming, or retuning a token means updating those assertions in the
 same change.
+
+`WhereFlyoverCatalogTests` pins the catalog against the colocated registrations
+assembled by `WhereFlyoverCatalog`; add a registration beside every new
+top-level screen and list its type in the appropriate catalog group. Flyover
+frames share one `WhereFlyoverWorld`; synthetic preview models are reserved for
+states the seeded demo cannot express.
 
 Screens, widgets, and app-flow surfaces are pinned as matrixed image
 snapshots under [`SnapshotTests/`](SnapshotTests) — those, not hosting smoke

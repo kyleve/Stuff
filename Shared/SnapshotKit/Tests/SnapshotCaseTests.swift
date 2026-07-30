@@ -48,6 +48,23 @@ struct SnapshotCaseTests {
         #expect(hookRan)
     }
 
+    @Test func contentBuilderRunsOnlyWhenContentIsRequested() {
+        var buildCount = 0
+        let content: @MainActor () -> Color = {
+            buildCount += 1
+            return .red
+        }
+        let snapshotCase = SnapshotCase(name: "States", configurations: []) {
+            content()
+        }
+
+        #expect(buildCount == 0)
+        _ = snapshotCase.content
+        #expect(buildCount == 1)
+        _ = snapshotCase.content
+        #expect(buildCount == 2)
+    }
+
     @Test func previewConfigurationsExcludeAccessibilityCaptures() {
         let snapshotCase = SnapshotCase(
             name: "States",

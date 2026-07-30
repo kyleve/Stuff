@@ -123,3 +123,18 @@ struct EvidenceDetailView: View {
         }
     }
 #endif
+
+#if DEBUG
+    extension EvidenceDetailView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            EvidenceDetailView.self,
+            title: "Evidence Detail",
+        ) { _ in
+            EvidenceDetailView(model: PreviewSupport.evidenceDetailModel(
+                kind: .planeTicket,
+                contentType: .plainText,
+                blob: Data("SFO → JFK · 14C".utf8),
+            ))
+        }
+    }
+#endif

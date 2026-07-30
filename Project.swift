@@ -415,6 +415,12 @@ let project = Project(
             ],
         ),
         unitTests(
+            name: "FlyoverTests",
+            bundleIdSuffix: "flyover",
+            productDependency: "Flyover",
+            sources: ["Shared/Flyover/Tests/**"],
+        ),
+        unitTests(
             name: "SwiftDataInspectorTests",
             bundleIdSuffix: "swiftdatainspector",
             productDependency: "SwiftDataInspector",
@@ -507,7 +513,7 @@ let project = Project(
         // process those copies would fight over the single `UIView` method
         // exchange; in separate processes each is genuinely process-wide, as
         // its docs claim. If a future toolchain ever starts sharing one host
-        // process across bundles, re-measure before adding a fourth.
+        // process across bundles, re-measure before adding another.
         //
         // Each lists only `SnapshotKitTesting` in `extraPackageProducts` — the
         // test-only capture pipeline, which no shipping module links. Nothing
@@ -523,6 +529,14 @@ let project = Project(
             bundleIdSuffix: "whereui.snapshot",
             productDependency: "WhereUI",
             sources: ["Where/WhereUI/SnapshotTests/**"],
+            extraPackageProducts: ["SnapshotKitTesting"],
+            environmentVariables: snapshotEnvironment,
+        ),
+        unitTests(
+            name: "FlyoverSnapshotTests",
+            bundleIdSuffix: "flyover.snapshot",
+            productDependency: "Flyover",
+            sources: ["Shared/Flyover/SnapshotTests/**"],
             extraPackageProducts: ["SnapshotKitTesting"],
             environmentVariables: snapshotEnvironment,
         ),
@@ -619,6 +633,7 @@ let project = Project(
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
                 "PeriscopeToolsTests",
+                "FlyoverTests",
                 "SwiftDataInspectorTests",
                 "SnapshotKitTests",
                 "SnapshotKitTestingTests",
@@ -642,6 +657,7 @@ let project = Project(
                     "PeriscopeCoreTests",
                     "PeriscopeUITests",
                     "PeriscopeToolsTests",
+                    "FlyoverTests",
                     "SwiftDataInspectorTests",
                     "SnapshotKitTests",
                     "SnapshotKitTestingTests",
@@ -665,6 +681,7 @@ let project = Project(
         testScheme(name: "PeriscopeCoreTests"),
         testScheme(name: "PeriscopeUITests"),
         testScheme(name: "PeriscopeToolsTests"),
+        testScheme(name: "FlyoverTests"),
         testScheme(name: "SwiftDataInspectorTests"),
         testScheme(name: "SnapshotKitTests"),
         testScheme(name: "SnapshotKitTestingTests"),
@@ -686,12 +703,14 @@ let project = Project(
             shared: true,
             buildAction: .buildAction(targets: [
                 "WhereUISnapshotTests",
+                "FlyoverSnapshotTests",
                 "PeriscopeToolsSnapshotTests",
                 "SwiftDataInspectorSnapshotTests",
             ]),
             testAction: .targets(
                 [
                     "WhereUISnapshotTests",
+                    "FlyoverSnapshotTests",
                     "PeriscopeToolsSnapshotTests",
                     "SwiftDataInspectorSnapshotTests",
                 ],

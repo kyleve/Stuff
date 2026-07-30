@@ -129,3 +129,14 @@ extension DataSettingsView: SettingsSection {
         .whereBroadwayRoot()
     }
 #endif
+
+#if DEBUG
+    extension DataSettingsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            DataSettingsView.self,
+            title: "Data",
+        ) { world in
+            DataSettingsView(report: world.report)
+        }
+    }
+#endif

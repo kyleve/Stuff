@@ -32,9 +32,10 @@ capture + comparison pipeline lives in the sibling
   expand a terse declaration into the full matrix.
 - **`SnapshotProviding`** — a type declares its variants via
   `static var snapshots: [SnapshotCase]`.
-- **`SnapshotCase`** — a named group of configurations plus the content to
-  render; it is also a `View`, so `snapshotPreviews` can render the whole matrix
-  as a scrollable cutsheet inside a `#Preview`. Its `settle` axis
+- **`SnapshotCase`** — a named group of configurations plus a lazy content
+  builder; declaring a matrix does not instantiate its views or models. It is
+  also a `View`, so `snapshotPreviews` can render the whole matrix as a
+  scrollable cutsheet inside a `#Preview`. Its `settle` axis
   (`SnapshotSettle`) declares whether the content needs the capture pipeline's
   async settle loop (`.settled`, the default) or is fully renderable after a
   layout pass (`.immediate` — skips the loop, so static content captures fast).

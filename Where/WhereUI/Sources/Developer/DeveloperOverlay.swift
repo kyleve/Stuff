@@ -1,7 +1,9 @@
 #if DEBUG
+    import PeriscopeTools
     import SnapshotKit
     import SwiftUI
     import UIKit
+    import WhereCore
 
     /// A global, DEBUG-only developer launcher and tool surface above the app.
     ///
@@ -10,7 +12,8 @@
     /// directly over the app; its clear backdrop consumes an outside tap without
     /// visually dimming the app. Choosing a route replaces the menu with the
     /// selected tool in a Liquid Glass HUD — draggable, resizable, and able to
-    /// grow into an inset full-screen modal.
+    /// grow into an inset full-screen modal. Flyover is the exception: it owns an
+    /// independent navigation domain and opens in a full-screen cover.
     ///
     /// The floating HUD reports its footprint through
     /// ``DeveloperOverlayInsetKey`` so app content scrolls clear of it. The tool
@@ -27,6 +30,7 @@
         @State private var model: DeveloperOverlayModel
         @State private var dragOffset: CGSize = .zero
         @State private var isDraggingButton = false
+        @State private var isPresentingFlyover = false
         /// The collapsed button's rendered size, measured rather than hardcoded so
         /// the drag/anchor math tracks whatever ``DeveloperOverlayButton`` draws
         /// (it scales with Dynamic Type).
@@ -77,7 +81,7 @@
                         isPresented: model.presentation.isMenuPresented,
                         corner: model.corner,
                         maxHeight: menuFrame.height,
-                        onOpenTool: openTool,
+                        onOpenDestination: openDestination,
                     )
                     .frame(width: menuFrame.width, height: menuFrame.height)
                     .position(x: menuFrame.midX, y: menuFrame.midY)
@@ -119,6 +123,9 @@
                     value: appContentInsets(in: proxy.size),
                 )
             }
+            .fullScreenCover(isPresented: $isPresentingFlyover) {
+                WhereFlyoverPresentationView()
+            }
             // Menu and full-screen states are modal to VoiceOver. Crossing either
             // boundary moves focus into/out of the active developer surface.
             .onChange(of: model.presentation) { old, new in
@@ -148,9 +155,17 @@
             }
         }
 
-        private func openTool(_ tool: DeveloperTool) {
-            withAnimation(stylesheet.developerOverlay.presentationAnimation) {
-                model.open(tool)
+        private func openDestination(_ destination: DeveloperDestination) {
+            switch destination {
+                case let .tool(tool):
+                    withAnimation(stylesheet.developerOverlay.presentationAnimation) {
+                        model.open(tool)
+                    }
+                case .flyover:
+                    withAnimation(stylesheet.developerOverlay.menu.motion.animation) {
+                        model.closeMenu()
+                    }
+                    isPresentingFlyover = true
             }
         }
 
@@ -393,5 +408,21 @@
 
     #Preview {
         DeveloperOverlay.snapshotPreviews
+    }
+#endif
+
+#if DEBUG
+    extension DeveloperOverlay: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            DeveloperOverlay.self,
+            title: "Developer Overlay",
+            navigationContainer: .none,
+            routes: [
+                .push(to: WhereFlyoverLogView.flyoverID),
+                .push(to: OpenSpansView.flyoverID),
+                .push(to: WhereFlyoverSwiftDataView.flyoverID),
+                .push(to: RegionMapView.flyoverID),
+            ],
+        )
     }
 #endif

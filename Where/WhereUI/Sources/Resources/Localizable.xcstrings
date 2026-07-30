@@ -428,6 +428,18 @@
         }
       }
     },
+    "developer.flyoverLink" : {
+      "comment" : "Label for the navigation link that opens the all-screens Flyover developer browser.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Flyover"
+          }
+        }
+      }
+    },
     "developer.inspectorLink" : {
       "comment" : "Label for the navigation link that opens the SwiftData inspector.",
       "extractionState" : "manual",
