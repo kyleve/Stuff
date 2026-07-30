@@ -1,4 +1,5 @@
 import Foundation
+import PeriscopeCore
 
 /// Reads and writes the widgets' published `WidgetSnapshot` as a small JSON
 /// file in the App Group container shared by the app and the widget
@@ -59,8 +60,25 @@ public struct WidgetSnapshotStore: Sendable {
     /// The last published snapshot, or `nil` if nothing has been written yet
     /// or the file can't be read/decoded. A `nil` result is the widget's cue
     /// to render its placeholder/empty state.
+    ///
+    /// The two ways of answering `nil` are told apart in the log rather than in
+    /// the return type: "nothing published yet" is the normal fresh-install path
+    /// and stays quiet, while a file that exists but won't decode is a real
+    /// failure and warns (see ``WidgetSnapshotStoreLog``). The empty state is
+    /// still the honest thing to render either way — the next publish replaces
+    /// the bad file — so the signature stays non-throwing for the widget's
+    /// timeline provider.
     public func read() -> WidgetSnapshot? {
         guard let data = try? Data(contentsOf: fileURL) else { return nil }
-        return try? JSONDecoder().decode(WidgetSnapshot.self, from: data)
+        do {
+            return try JSONDecoder().decode(WidgetSnapshot.self, from: data)
+        } catch {
+            Self.logger(attachments: [.error(error, name: "decode-error")]) {
+                .unreadableSnapshot(description: error.localizedDescription)
+            }
+            return nil
+        }
     }
+
+    private static let logger = WhereLog.widgets(WidgetSnapshotStoreLog.self)
 }

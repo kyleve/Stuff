@@ -3,6 +3,12 @@ import RegionKit
 
 /// Type-erased entry point so a heterogeneous detector list runs uniformly.
 public protocol DataIssueDetecting: Sendable {
+    /// The category of issue this detector finds — its identity to the scanner,
+    /// which spans each detector's pass under it so a slow scan attributes to a
+    /// detector rather than to "the scan". One detector per category; a second
+    /// detector for the same category would pool its timings with the first.
+    var detects: DataIssueCategory { get }
+
     func detectAnyIssues(in input: DataIssueInput) -> [any DataIssue]
 }
 

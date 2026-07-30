@@ -44,7 +44,10 @@ into it for lookup. RegionKit depends only on
 - **`RegionLog`** — RegionKit's Periscope logging facade: one `"RegionKit"`
   root scope with a typed `LogEvent` per collaborator (`RegionAttributor`,
   `RegionCatalog`, `RegionGeometryCatalog`), emitted into the process-wide
-  `Periscope.shared` system.
+  `Periscope.shared` system. The bundled-data loads are also timed as budgeted
+  spans — the manifest decode, the full polygon load, and each region's geometry
+  on its own — so a slow attributor build can be traced to the region
+  responsible.
 
 ## Installation
 

@@ -4,6 +4,28 @@ import PeriscopeCore
 /// and the durable retry queue. Persist failures carry the offending sample id
 /// on `externalID` so the tooling can trace one sample across retries.
 enum LocationIngestorLog: LogEvent {
+    /// Names the ingestor's timed spans.
+    ///
+    /// The single-sample commit isn't here — `SwiftDataStore` already spans every
+    /// transaction, and a second span around the same `perform` would only
+    /// restate it. What's spanned instead is everything *around* the write that
+    /// nothing else measures: waiting on CoreLocation, working through a
+    /// backlog, and the reconcile fan-out a persisted sample triggers.
+    enum SpanName: Hashable {
+        /// Waiting on the one-shot GPS fix behind `captureTodayIfNeeded(now:)`.
+        /// The slowest thing the ingestor does by an order of magnitude, and it
+        /// runs on a launch step's tail, so it's budgeted at CoreLocation's own
+        /// rough ceiling.
+        case acquireFix
+        /// Re-persisting a retry backlog, one transaction per queued sample.
+        /// Only a non-empty drain is spanned.
+        case drainBacklog
+        /// The post-persist reconcile fan-out (badge/reminders, issue alerts,
+        /// widget snapshot). Runs on the hot GPS path, so its cost is the
+        /// ingestor's, not the caller's.
+        case postPersist
+    }
+
     case monitoringStarted
     case monitoringStopped
     case restoredBacklog(count: Int)

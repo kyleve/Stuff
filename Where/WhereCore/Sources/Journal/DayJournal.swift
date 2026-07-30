@@ -50,9 +50,11 @@ public actor DayJournal {
     /// observation) so the reconciles below recount from fresh data rather than
     /// racing it.
     private func reconcileIssueState() async {
-        await issueScanner.invalidate()
-        await reminders.reconcile()
-        await issueAlerts.reconcile()
+        await Self.logger.measure(.reconcileIssueState, budget: .seconds(3)) {
+            await issueScanner.invalidate()
+            await reminders.reconcile()
+            await issueAlerts.reconcile()
+        }
     }
 
     /// Full reconcile after a change to persisted day data (manual overlays,
@@ -61,8 +63,10 @@ public actor DayJournal {
     /// stays in one place — including the backup import, which the composition
     /// root points at this method via `BackupCoordinator`'s `onImport` hook.
     func reconcileAfterDayChange() async {
-        await reconcileIssueState()
-        await widgets.publish()
+        await Self.logger.measure(.reconcileAfterDayChange, budget: .seconds(5)) {
+            await reconcileIssueState()
+            await widgets.publish()
+        }
     }
 
     // MARK: - Ingestion
@@ -80,9 +84,11 @@ public actor DayJournal {
     /// sample, which is quadratic in the batch size. An empty batch is a no-op.
     public func ingest(_ samples: [LocationSample]) async throws {
         guard !samples.isEmpty else { return }
-        try await store.perform {
-            for sample in samples {
-                try await store.add(sample: sample)
+        try await Self.logger.measure(.ingestBatch, budget: .seconds(5)) {
+            try await store.perform {
+                for sample in samples {
+                    try await store.add(sample: sample)
+                }
             }
         }
         await widgets.publish()
@@ -147,9 +153,11 @@ public actor DayJournal {
     public func clearManualDays(dates: [Date]) async throws {
         guard !dates.isEmpty else { return }
         let days = dates.map { CalendarDay(from: $0, in: aggregator.calendar) }
-        try await store.perform {
-            for day in days {
-                try await store.clearManualDay(day)
+        try await Self.logger.measure(.clearManualDays, budget: .seconds(2)) {
+            try await store.perform {
+                for day in days {
+                    try await store.clearManualDay(day)
+                }
             }
         }
         await reconcileAfterDayChange()
@@ -177,11 +185,13 @@ public actor DayJournal {
         guard !days.isEmpty else { return }
         // One audit stamps every day in the range — it records the single act of
         // entry, not a per-day fact.
-        try await store.perform {
-            for day in days {
-                try await store.setManualDay(
-                    DayPresence(day: day, regions: regions, audit: audit),
-                )
+        try await Self.logger.measure(.backfillDays, budget: .seconds(2)) {
+            try await store.perform {
+                for day in days {
+                    try await store.setManualDay(
+                        DayPresence(day: day, regions: regions, audit: audit),
+                    )
+                }
             }
         }
         await reconcileAfterDayChange()
@@ -195,7 +205,9 @@ public actor DayJournal {
     public func clearYear(_ year: Int) async throws {
         let interval = aggregator.yearInterval(year: year)
         let dayRange = CalendarDay.yearRange(year)
-        try await store.perform { try await store.clear(in: interval, manualDays: dayRange) }
+        try await Self.logger.measure(.clearYear, budget: .seconds(5)) {
+            try await store.perform { try await store.clear(in: interval, manualDays: dayRange) }
+        }
         await reconcileAfterDayChange()
         Self.logger { .clearedYear(year: year) }
     }
@@ -206,7 +218,9 @@ public actor DayJournal {
     /// `clearYear`'s reconciliation so the badge/reminders reflect the now-empty
     /// store immediately rather than relying on a later launch step.
     public func eraseAllData() async throws {
-        try await store.perform { try await store.clearAll() }
+        try await Self.logger.measure(.eraseAllData, budget: .seconds(10)) {
+            try await store.perform { try await store.clearAll() }
+        }
         await reconcileAfterDayChange()
         Self.logger { .erasedAllData }
     }

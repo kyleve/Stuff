@@ -86,11 +86,13 @@ public final class WhereScope {
 
     private static let logger = WhereLog.root(WhereLaunchLog.self)
 
-    /// How much log history the durable store keeps: 100 days. Older events
-    /// are pruned when the store opens so the database can't grow without
-    /// bound. (A size cap to bound heavy-logging devices within the window is
-    /// tracked in `Where/TODOs.md`.)
-    private static let logRetention: TimeInterval = 100 * 24 * 60 * 60
+    /// Trims the durable store to ``LogHistoryPruner/Policy/standard`` when it
+    /// opens — an age window *and* an event ceiling, so the database is
+    /// bounded whichever way this install logs.
+    private static let historyPruner = LogHistoryPruner(
+        policy: .standard,
+        now: { Date() },
+    )
 
     /// Whether this scope is the user's real world or a throwaway demo one.
     ///
@@ -313,6 +315,14 @@ public final class WhereScope {
     /// before it lands. (Fully closing that window — a bootstrap journal from
     /// process start — is tracked as a P0 in `Shared/Periscope/TODOs.md`.)
     ///
+    /// The bring-up is itself a span (`openLogStore`), deliberately ending
+    /// *after* the sink is routed rather than around the open alone: a span
+    /// that closes before the store is a sink records nowhere but OSLog and
+    /// Instruments. Its `SpanBegan` is still lost for that same reason — the
+    /// pre-sink window above — so the persisted history holds the end (and
+    /// with it the duration) without a matching begin, which is what the span
+    /// history reads anyway.
+    ///
     /// Degraded-but-handled on failure: if the store can't open, logging keeps
     /// flowing through OSLog and the failure is recorded (with the error
     /// attached) rather than taking a launch down over diagnostics. An
@@ -321,7 +331,11 @@ public final class WhereScope {
         Task {
             let store: PeriscopeStore?
             do {
-                store = try await bootstrap.makeLogStore()
+                store = try await Self.logger.measure(.openLogStore, budget: .seconds(1)) {
+                    guard let store = try await bootstrap.makeLogStore() else { return nil }
+                    receive(logStore: store)
+                    return store
+                }
             } catch {
                 Self.logger(attachments: [.error(error, name: "open-error")]) {
                     .loggingStoreUnavailable(description: String(describing: error))
@@ -329,22 +343,27 @@ public final class WhereScope {
                 return
             }
             guard let store else { return }
-            receive(logStore: store)
             Self.logger { .loggingStoreReady }
             pruneHistory(in: store)
         }
     }
 
-    /// Trim log history past `logRetention` on its own task, so it never
+    /// Trim log history to the retention policy on its own task, so it never
     /// delays `.loggingStoreReady`. The prune runs on the store actor (off the
     /// main thread); a failure is degraded-but-handled — the store keeps its
     /// last good history and stays usable, it just isn't trimmed this launch.
     private func pruneHistory(in store: PeriscopeStore) {
         Task {
             do {
-                let cutoff = Date().addingTimeInterval(-Self.logRetention)
-                let pruned = try await store.pruneEvents(olderThan: cutoff)
-                Self.logger { .historyPruned(prunedEventCount: pruned) }
+                let pruned = try await Self.logger.measure(.pruneHistory, budget: .seconds(2)) {
+                    try await Self.historyPruner.prune(store)
+                }
+                Self.logger {
+                    .historyPruned(
+                        expiredEventCount: pruned.expired,
+                        overflowEventCount: pruned.overflowed,
+                    )
+                }
             } catch {
                 Self.logger(attachments: [.error(error, name: "prune-error")]) {
                     .historyPruneFailed(description: String(describing: error))

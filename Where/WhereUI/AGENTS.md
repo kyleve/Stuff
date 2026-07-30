@@ -26,6 +26,11 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))
   for its static end-state — never hand-roll the
   `\.accessibilityReduceMotion` + `\.isCapturingSnapshot` pair.
+- A step joins `WhereLaunch`'s plan through `.measured()` and so must declare a
+  `budget` (`BudgetedLaunchStep`) — see [Spans](../AGENTS.md#spans). WhereUI also
+  owns log retention: `LogHistoryPruner` bounds the store by age *and* event
+  count, and both bounds are load-bearing (an age window alone leaves a
+  heavy-logging device unbounded inside it).
 - A compact form `DatePicker` goes through `WhereDatePicker`
   ([`Sources/Shared/WhereDatePicker.swift`](Sources/Shared/WhereDatePicker.swift)),
   which substitutes a deterministic stand-in under capture — the live control

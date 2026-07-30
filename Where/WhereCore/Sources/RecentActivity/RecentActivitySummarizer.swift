@@ -135,14 +135,16 @@ public actor RecentActivitySummarizer {
             Self.logger { .skippedNoSamples }
             return .empty
         }
-        let stops = samples.map { sample in
-            RecentActivityStop(
-                timestamp: sample.timestamp,
-                region: attributor.region(at: sample.coordinate),
-                coordinate: sample.coordinate,
-            )
+        let segments = Self.logger.measure(.attribute, budget: .seconds(1)) {
+            let stops = samples.map { sample in
+                RecentActivityStop(
+                    timestamp: sample.timestamp,
+                    region: attributor.region(at: sample.coordinate),
+                    coordinate: sample.coordinate,
+                )
+            }
+            return Self.segments(from: stops, limit: segmentLimit)
         }
-        let segments = Self.segments(from: stops, limit: segmentLimit)
         let text = try await Self.logger.measure(.generate) {
             try await generator.summarize(
                 RecentActivityInput(interval: interval, segments: segments),

@@ -4,6 +4,33 @@ import PeriscopeCore
 /// day (or year) rides on `externalID` so the tooling can pull every event
 /// about one day. All are successful-operation `.info` events.
 enum DayJournalLog: LogEvent {
+    /// Names the journal's timed spans: the writes whose cost scales with how
+    /// much the user asked for, plus the reconcile fan-out every write pays.
+    ///
+    /// Single-row writes (one manual day, one override, one evidence record, one
+    /// dismissal) aren't here — each is a `SwiftDataStore` commit followed by one
+    /// of the fan-outs below, and both are already spanned, so a span of their
+    /// own would only sum its two children.
+    enum SpanName: Hashable {
+        /// A bulk sample load in one transaction (fixtures, future imports).
+        case ingestBatch
+        /// A date-range manual-day backfill in one transaction.
+        case backfillDays
+        /// A multi-day overlay clear in one transaction.
+        case clearManualDays
+        /// Deleting a whole year of samples and overlays.
+        case clearYear
+        /// Emptying the store — the write half of the app's reset.
+        case eraseAllData
+        /// The reconcile every committed write pays: invalidate the issue
+        /// scanner, then recount the badge and the issue notification.
+        case reconcileIssueState
+        /// ``reconcileIssueState`` plus the widget republish, for writes that
+        /// changed day data. Nests the former, so the difference between the two
+        /// spans is what WidgetKit cost.
+        case reconcileAfterDayChange
+    }
+
     case addedManualDay(day: String, regionCount: Int)
     case overrodeDay(day: String, regionCount: Int)
     case clearedManualDay(day: String)

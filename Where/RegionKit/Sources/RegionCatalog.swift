@@ -101,15 +101,17 @@ extension RegionCatalog {
             return RegionCatalog(entries: [])
         }
         do {
-            let data = try Data(contentsOf: url)
-            let items = try JSONDecoder().decode([ManifestItem].self, from: data)
-            let entries = items.map { item in
-                Entry(
-                    region: Region(unchecked: item.id),
-                    name: item.name,
-                    localizationKey: item.localizationKey,
-                    geometryFile: item.geometry.file,
-                )
+            let entries = try logger.measure(.loadManifest, budget: .milliseconds(100)) {
+                let data = try Data(contentsOf: url)
+                let items = try JSONDecoder().decode([ManifestItem].self, from: data)
+                return items.map { item in
+                    Entry(
+                        region: Region(unchecked: item.id),
+                        name: item.name,
+                        localizationKey: item.localizationKey,
+                        geometryFile: item.geometry.file,
+                    )
+                }
             }
             logger { .loaded(regionCount: entries.count) }
             return RegionCatalog(entries: entries)

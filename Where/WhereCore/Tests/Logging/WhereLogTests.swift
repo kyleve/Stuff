@@ -22,6 +22,8 @@ struct WhereLogTreeTests {
         #expect(WhereLog.session.primaryScope.name == "session")
         #expect(WhereLog.evidence.primaryScope.name == "evidence")
         #expect(WhereLog.recentActivity.primaryScope.name == "recentActivity")
+        #expect(WhereLog.reporting.primaryScope.name == "reporting")
+        #expect(WhereLog.reporting.primaryScope.parentID == rootID)
     }
 
     @Test func collaboratorLeavesDescendFromTheirGroup() {
@@ -34,6 +36,50 @@ struct WhereLogTreeTests {
         let store = WhereLog.root(SwiftDataStoreLog.self)
         #expect(store.primaryScope.name == "SwiftDataStore")
         #expect(store.primaryScope.parentID == WhereLog.root.primaryScope.id)
+    }
+
+    @Test func theReadPathsSpanOnlyLeavesShareTheReportingGroup() {
+        let reportingID = WhereLog.reporting.primaryScope.id
+        for scope in [
+            WhereLog.reporting(ReportReaderLog.self).primaryScope,
+            WhereLog.reporting(DataIssueScannerLog.self).primaryScope,
+            WhereLog.reporting(PresenceCalendarLog.self).primaryScope,
+        ] {
+            #expect(scope.parentID == reportingID)
+        }
+    }
+}
+
+// MARK: - Span names
+
+/// Covers the span names that aren't just their Swift case name — the ones with
+/// a payload, where reflection would leak the module into recorded history.
+struct WhereLogSpanNameTests {
+    @Test func detectorSpansAreNamedAfterTheCategoryTheyScanFor() {
+        #expect(
+            String(describing: DataIssueScannerLog.SpanName.detect(.missingDays))
+                == "detect(missing-days)",
+        )
+        #expect(
+            String(describing: DataIssueScannerLog.SpanName.detect(.borderDrift))
+                == "detect(border-drift)",
+        )
+        #expect(String(describing: DataIssueScannerLog.SpanName.scan) == "scan")
+    }
+
+    @Test func everyCategoryHasAHyphenatedNameOfItsOwn() {
+        // A new category must earn a name rather than inherit one — duplicates
+        // would pool two detectors' timings under one span.
+        let names = DataIssueCategory.allCases.map(\.name)
+        #expect(Set(names).count == DataIssueCategory.allCases.count)
+        #expect(names.allSatisfy { !$0.isEmpty && $0 == $0.lowercased() })
+    }
+
+    @Test func detectorsDeclareTheCategoryTheyDetect() {
+        #expect(MissingDaysDetector().detects == .missingDays)
+        #expect(BorderDriftDetector().detects == .borderDrift)
+        #expect(AbruptLocationChangeDetector().detects == .abruptChange)
+        #expect(FlightDayDetector().detects == .flightDay)
     }
 }
 

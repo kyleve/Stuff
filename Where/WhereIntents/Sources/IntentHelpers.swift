@@ -14,3 +14,24 @@ func orderedRegions(_ regions: Set<Region>) -> [Region] {
 func isCurrentYear(_ year: Int, now: Date = Date(), calendar: Calendar = .whereIntents) -> Bool {
     calendar.component(.year, from: now) == year
 }
+
+/// Time an intent's work as one span named for `intent`, budgeted by
+/// `IntentName.budget`.
+///
+/// Wraps the WhereCore read/write a `perform()` delegates to — not the whole
+/// `perform()`: the `IntentServices.current()` wait is spanned separately (a
+/// cold-start park is not a slow intent), and building the dialog and snippet
+/// view from the result is free. `isolation` is forwarded so a `@MainActor`
+/// `perform()` measures without hopping actors.
+func measureIntent<R>(
+    _ intent: WhereIntentsLog.IntentName,
+    isolation: isolated (any Actor)? = #isolation,
+    _ body: () async throws -> R,
+) async rethrows -> R {
+    try await WhereIntentsLog.logger.measure(
+        .perform(intent),
+        budget: intent.budget,
+        isolation: isolation,
+        body,
+    )
+}

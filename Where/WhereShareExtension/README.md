@@ -23,7 +23,10 @@ Host app Share sheet
   bytes (so a multi-item share — the activation rule allows up to 20 — keeps them
   all), preferring the most preview-friendly representation each registered:
   PDF → image → concrete file (`.pkpass`, `.eml`, …) → text → URL (kept as its
-  string). A share with nothing loadable still composes as a metadata-only note.
+  string). A share with nothing loadable still composes as a metadata-only note,
+  with whatever reason the provider gave logged as a warning. The whole load is
+  one Periscope span, since it's what the wait between tapping Share and seeing
+  the compose form is spent on.
 - **`ShareEvidenceModel`** holds the editable fields, classifies each attachment
   with [`EvidenceContentType.classify`](../WhereCore/Sources/Evidence/EvidenceContentType+Classify.swift),
   and persists one `Evidence` per attachment (all sharing the form's

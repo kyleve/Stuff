@@ -33,6 +33,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
+- **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
+  step declares how long it should take (`BudgetedLaunchStep`) and joins the
+  plan through `.measured()`, so each run is one Periscope span named after
+  the step (`step(resolve-scope)`) that warns while it overruns its budget —
+  the launch's cost breaks down per step instead of arriving as one slow
+  splash. (The onboarding gate is the one unmeasured node: it parks on the
+  user.)
 - **`WhereScope`** — what the app is logged in *to*: one open store's
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into, created whole and never reconfigured. `WhereModel` owns
@@ -44,7 +51,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `Periscope` — and only while `WhereModel` says the scope is active — with
   routing modelled as one state (`pending` / `routing` / `idle`), so a store that
   finishes opening while the scope is shadowed is remembered rather than routed
-  into.
+  into. When the durable store opens, its bring-up is spanned (`openLogStore`)
+  and history is trimmed with `LogHistoryPruner` (a 100-day window *and* a
+  50k-event ceiling, so the store is bounded however heavily the device logs).
 - **`WhereModel`** — app-level state that outlives any one scope: the
   onboarding flag, the active `WhereScope`, the owned `WhereSession`, and the
   lifecycle intents (`activate(scope:)`, `startSession(scope:)` — which
