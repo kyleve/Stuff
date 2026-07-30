@@ -24,7 +24,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
   Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
   button, and the data screens (attachments, logged days, regions) sit in the
-  Settings "Data" group. `AboutSettingsView` is the last Settings block — build
+  Settings "Data" group. Backup and destructive data management share one Data
+  drill-in. `AboutSettingsView` is the last Settings block — build
   identity, the app's generated attribution report (linked libraries and
   development tools as separate sections), and bundled-data provenance, each
   vended by whoever owns it rather than listed in the view; it renders an

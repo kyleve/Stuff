@@ -93,7 +93,6 @@
                 AppearanceSettingsView.flyoverData,
                 AppIconView.flyoverData,
                 VisibleYearSettingsView.flyoverData,
-                BackupSettingsView.flyoverData,
                 DataSettingsView.flyoverData,
                 AboutSettingsView.flyoverData,
                 LicenseView.flyoverData,

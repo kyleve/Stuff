@@ -3,11 +3,10 @@ import SwiftUI
 import UniformTypeIdentifiers
 import WhereCore
 
-/// Settings drill-in for whole-database backup: export to a shareable `.zip`,
-/// and import (merge or replace) from one.
-struct BackupSettingsView: View {
+/// The whole-database backup section embedded in ``DataSettingsView``: export
+/// to a shareable `.zip`, or import one by merging or replacing the store.
+struct BackupSettingsSection: View {
     let backup: BackupModel
-    var focus: SettingsFocus?
 
     /// Backup export: the ready-to-share archive built up-front, revealed as a
     /// `ShareLink` once the background export finishes.
@@ -25,57 +24,56 @@ struct BackupSettingsView: View {
 
     var body: some View {
         @Bindable var backup = backup
-        SettingsFocusScope(focus: focus) {
-            Form {
-                backupSection
+        backupSection
+            .fileImporter(
+                isPresented: $showImporter,
+                allowedContentTypes: [.zip],
+                onCompletion: handleImportSelection,
+            )
+            .confirmationDialog(
+                String(localized: .settingsBackupImportStrategyTitle),
+                isPresented: $showStrategyDialog,
+                titleVisibility: .visible,
+                presenting: pendingImportURL,
+            ) { url in
+                Button(String(localized: .settingsBackupMerge)) { runImport(
+                    url: url,
+                    strategy: .merge,
+                )
+                }
+                Button(String(localized: .settingsBackupReplace), role: .destructive) {
+                    runImport(url: url, strategy: .replace)
+                }
+                Button(String(localized: .settingsDataCancel), role: .cancel) {
+                    pendingImportURL = nil
+                }
+            } message: { _ in
+                Text(String(localized: .settingsBackupImportStrategyMessage))
             }
-        }
-        .navigationTitle(String(localized: .settingsBackupHeader))
-        .navigationBarTitleDisplayMode(.inline)
-        .fileImporter(
-            isPresented: $showImporter,
-            allowedContentTypes: [.zip],
-            onCompletion: handleImportSelection,
-        )
-        .confirmationDialog(
-            String(localized: .settingsBackupImportStrategyTitle),
-            isPresented: $showStrategyDialog,
-            titleVisibility: .visible,
-            presenting: pendingImportURL,
-        ) { url in
-            Button(String(localized: .settingsBackupMerge)) { runImport(url: url, strategy: .merge)
+            .alert(
+                String(localized: .settingsBackupImportedTitle),
+                isPresented: $backup.isShowingImportSuccess,
+                presenting: backup.lastImportSummary,
+            ) { _ in
+                Button(String(localized: .commonOk), role: .cancel) {}
+            } message: { summary in
+                Text(WhereFormat.settingsBackupImportedMessage(
+                    samples: summary.sampleCount,
+                    evidence: summary.evidenceCount,
+                    manualDays: summary.manualDayCount,
+                    dismissedIssues: summary.dismissedIssueCount,
+                    trackedRegions: summary.trackedRegionCount,
+                ))
             }
-            Button(String(localized: .settingsBackupReplace), role: .destructive) {
-                runImport(url: url, strategy: .replace)
+            .alert(
+                String(localized: .settingsBackupErrorTitle),
+                isPresented: $backup.isShowingBackupError,
+                presenting: backup.backupError,
+            ) { _ in
+                Button(String(localized: .commonOk), role: .cancel) {}
+            } message: { message in
+                Text(message)
             }
-            Button(String(localized: .settingsDataCancel), role: .cancel) { pendingImportURL = nil }
-        } message: { _ in
-            Text(String(localized: .settingsBackupImportStrategyMessage))
-        }
-        .alert(
-            String(localized: .settingsBackupImportedTitle),
-            isPresented: $backup.isShowingImportSuccess,
-            presenting: backup.lastImportSummary,
-        ) { _ in
-            Button(String(localized: .commonOk), role: .cancel) {}
-        } message: { summary in
-            Text(WhereFormat.settingsBackupImportedMessage(
-                samples: summary.sampleCount,
-                evidence: summary.evidenceCount,
-                manualDays: summary.manualDayCount,
-                dismissedIssues: summary.dismissedIssueCount,
-                trackedRegions: summary.trackedRegionCount,
-            ))
-        }
-        .alert(
-            String(localized: .settingsBackupErrorTitle),
-            isPresented: $backup.isShowingBackupError,
-            presenting: backup.backupError,
-        ) { _ in
-            Button(String(localized: .commonOk), role: .cancel) {}
-        } message: { message in
-            Text(message)
-        }
     }
 
     private var backupSection: some View {
@@ -100,7 +98,7 @@ struct BackupSettingsView: View {
                 }
             }
             .disabled(backup.backupState != .idle)
-            .settingsRow(Item.exportBackup)
+            .settingsRow(DataSettingsView.Item.exportBackup)
 
             if backup.backupState == .idle, let url = exportedArchiveURL {
                 ShareLink(
@@ -130,7 +128,7 @@ struct BackupSettingsView: View {
                 }
             }
             .disabled(backup.backupState != .idle)
-            .settingsRow(Item.importBackup)
+            .settingsRow(DataSettingsView.Item.importBackup)
         } header: {
             Text(String(localized: .settingsBackupHeader))
         } footer: {
@@ -201,47 +199,11 @@ struct BackupSettingsView: View {
     }
 }
 
-extension BackupSettingsView: SettingsSection {
-    static var destination: SettingsDestination {
-        .backup
-    }
-
-    enum Item: SettingsItem {
-        case exportBackup
-        case importBackup
-
-        var title: String {
-            switch self {
-                case .exportBackup: String(localized: .settingsBackupExport)
-                case .importBackup: String(localized: .settingsBackupImport)
-            }
-        }
-
-        var keywords: [String] {
-            switch self {
-                case .exportBackup: splitKeywords(String(localized: .settingsKeywordsExport))
-                case .importBackup: splitKeywords(String(localized: .settingsKeywordsImport))
-            }
-        }
-    }
-}
-
 #if DEBUG
     #Preview {
-        NavigationStack {
-            BackupSettingsView(backup: PreviewSupport.backupModel())
+        Form {
+            BackupSettingsSection(backup: PreviewSupport.backupModel())
         }
         .whereBroadwayRoot()
-    }
-#endif
-
-#if DEBUG
-    extension BackupSettingsView: WhereFlyoverProviding {
-        static let flyoverData = WhereFlyoverData.hosted(
-            BackupSettingsView.self,
-            title: "Backup",
-        ) { world in
-            BackupSettingsView(backup: world.backup)
-        }
     }
 #endif
