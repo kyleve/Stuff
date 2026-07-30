@@ -18,7 +18,7 @@
         configurations: [SnapshotConfiguration],
         settle: SnapshotSettle = .settled,
         onReadyToSnapshot: (@MainActor () async -> Void)? = nil,
-        @ViewBuilder content: @MainActor () -> some View,
+        @ViewBuilder content: @escaping @MainActor () -> some View,
     ) -> SnapshotCase {
         SnapshotCase(
             name: name,

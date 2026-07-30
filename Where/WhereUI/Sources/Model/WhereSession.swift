@@ -198,16 +198,18 @@ public final class WhereSession {
     /// and the widget snapshot (calendar-day rollover). The scene's `YearReportModel`
     /// separately re-pulls the report on `.active`.
     public func appBecameActive() async {
-        await syncAuthorization()
-        await reconcileTracking()
-        await captureTodayIfNeeded()
-        await applyReminderConfiguration()
-        await applySummaryConfiguration()
-        await applyIssueAlertConfiguration()
-        // The calendar day may have rolled over while backgrounded; recompute
-        // so the widget's "today" reflects the current day rather than stale
-        // foreground state.
-        await refreshWidgetSnapshot()
+        await Self.logger.measure(.foregroundRefresh, budget: .seconds(5)) {
+            await syncAuthorization()
+            await reconcileTracking()
+            await captureTodayIfNeeded()
+            await applyReminderConfiguration()
+            await applySummaryConfiguration()
+            await applyIssueAlertConfiguration()
+            // The calendar day may have rolled over while backgrounded;
+            // recompute so the widget's "today" reflects the current day rather
+            // than stale foreground state.
+            await refreshWidgetSnapshot()
+        }
     }
 
     /// Republish the widget snapshot from whatever is on disk. A launch step

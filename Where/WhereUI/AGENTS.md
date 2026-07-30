@@ -19,6 +19,22 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - The DEBUG developer menu may only latch or clear
   `InspectorModeController` for the next launch. It must not host a live
   SwiftData inspector or switch the current runtime.
+- Flyover infrastructure stays under `#if DEBUG` in
+  [`Sources/Developer/Flyover`](Sources/Developer/Flyover), while each
+  represented screen declares a DEBUG-only `WhereFlyoverProviding` extension
+  in its own source file. The integration may import the app-agnostic
+  `Flyover` module and build one unactivated in-memory `WhereScope`; the shared
+  module must never import WhereUI.
+- Derive `WhereFlyoverScreenID` from the represented view type, and keep that
+  screen's variants, viewport/navigation settings, and outgoing routes in its
+  colocated registration; never restore a centralized screen enum or catalog
+  factory methods.
+- Construct and retain the Where Flyover catalog once after its world loads;
+  never rebuild fixture state from a SwiftUI `body`.
+- Present Where Flyover from Developer Tools with `fullScreenCover`, outside
+  its `NavigationStack`.
+- Register leaf screens against Flyover's default navigation container; use
+  `.none` only for views that own their root stack and for widgets/snippets.
 - Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI
   and must **not** link `BroadwayUI`/`BroadwayCore` themselves (root
   [double-link rule](../../AGENTS.md#never-double-link-a-product-whereui-already-carries));
@@ -29,6 +45,11 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   ([`Sources/Shared/MotionIsStatic.swift`](Sources/Shared/MotionIsStatic.swift))
   for its static end-state — never hand-roll the
   `\.accessibilityReduceMotion` + `\.isCapturingSnapshot` pair.
+- A step joins `WhereLaunch`'s plan through `.measured()` and so must declare a
+  `budget` (`BudgetedLaunchStep`) — see [Spans](../AGENTS.md#spans). WhereUI also
+  owns log retention: `LogHistoryPruner` bounds the store by age *and* event
+  count, and both bounds are load-bearing (an age window alone leaves a
+  heavy-logging device unbounded inside it).
 - A compact form `DatePicker` goes through `WhereDatePicker`
   ([`Sources/Shared/WhereDatePicker.swift`](Sources/Shared/WhereDatePicker.swift)),
   which substitutes a deterministic stand-in under capture — the live control
@@ -81,6 +102,12 @@ rules:
 glue and `whereBroadwayRoot()` seeding, including the WhereWidgets path.
 Adding, renaming, or retuning a token means updating those assertions in the
 same change.
+
+`WhereFlyoverCatalogTests` pins the catalog against the colocated registrations
+assembled by `WhereFlyoverCatalog`; add a registration beside every new
+top-level screen and list its type in the appropriate catalog group. Flyover
+frames share one `WhereFlyoverWorld`; synthetic preview models are reserved for
+states the seeded demo cannot express.
 
 Screens, widgets, and app-flow surfaces are pinned as matrixed image
 snapshots under [`SnapshotTests/`](SnapshotTests) — those, not hosting smoke

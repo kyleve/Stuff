@@ -102,6 +102,13 @@ internal shape.
   `.public`, error as `LogAttachment.error(_:)`) and leaves state honest —
   never a benign-looking default. The `WhereLog` facade and every
   `*Log.swift` event type live together in `Sources/Logging/`.
+- **Expensive Core work is spanned, with a budget** — bulk reads and `perform`
+  commits, aggregation, calendar layout, issue detection, the reconcile
+  fan-out, backup, GPS acquisition. Names come from each `*Log`'s nested
+  `SpanName`; see [Spans](../AGENTS.md#spans) for the convention. A detector
+  names its own span through `DataIssueDetecting.detects`, so
+  `DataIssueScanner` reports per-category cost (`detect(border-drift)`) without
+  a switch over concrete detector types.
 
 ## Testing
 

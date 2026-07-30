@@ -54,22 +54,24 @@ public actor DailySummaryReconciler {
     /// push it to the summary scheduler. When disabled, the owned notification
     /// is cleared.
     func reconcile() async {
-        guard config.enabled else {
-            await scheduler.reconcile(enabled: false, time: config.time, body: "")
-            return
-        }
+        await Self.logger.measure(.reconcile, budget: .seconds(2)) {
+            guard config.enabled else {
+                await scheduler.reconcile(enabled: false, time: config.time, body: "")
+                return
+            }
 
-        let year = calendar.component(.year, from: now())
-        do {
-            let report = try await reportReader.yearReport(for: year)
-            await scheduler.reconcile(
-                enabled: true,
-                time: config.time,
-                body: summaryBody(for: report),
-            )
-        } catch {
-            Self.logger(attachments: [.error(error, name: "reconcile-error")]) {
-                .reconcileFailed(description: error.localizedDescription)
+            let year = calendar.component(.year, from: now())
+            do {
+                let report = try await reportReader.yearReport(for: year)
+                await scheduler.reconcile(
+                    enabled: true,
+                    time: config.time,
+                    body: summaryBody(for: report),
+                )
+            } catch {
+                Self.logger(attachments: [.error(error, name: "reconcile-error")]) {
+                    .reconcileFailed(description: error.localizedDescription)
+                }
             }
         }
     }

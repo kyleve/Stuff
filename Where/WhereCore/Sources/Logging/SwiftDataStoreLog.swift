@@ -5,8 +5,26 @@ import PeriscopeCore
 /// corrupt record is a programmer error, so it logs at `.fault`.
 enum SwiftDataStoreLog: LogEvent {
     /// Names the store's timed spans (`log.measure(.open) { … }`).
+    ///
+    /// Only the reads a normal session leans on are spanned, and only where the
+    /// row count grows with the user's history: the small fixed-size fetches
+    /// (tracked/primary regions, dismissals) would add records to every store
+    /// change without ever explaining a slow screen, and the whole-table reads
+    /// belong to the backup export that spans itself. Leaves like these carry no
+    /// budget — the operation that asked for them does.
     enum SpanName: Hashable {
         case open
+        /// A windowed GPS-sample fetch — the query behind every year report.
+        case fetchSamples
+        /// A day-range manual-day fetch.
+        case fetchManualDays
+        /// A windowed evidence fetch.
+        case fetchEvidence
+        /// One evidence blob, read out of external storage.
+        case fetchEvidenceBlob
+        /// The outermost `perform` of a write transaction, up to and including
+        /// the save — so every batched mutation lands in one measured commit.
+        case commit
     }
 
     /// Opened an in-memory store (tests/previews).

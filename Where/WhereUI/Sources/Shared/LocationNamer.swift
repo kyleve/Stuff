@@ -1,6 +1,7 @@
 import CoreLocation
 import Foundation
 import MapKit
+import PeriscopeCore
 import RegionKit
 import WhereCore
 
@@ -78,13 +79,32 @@ actor LocationNamer {
     /// label, returning `nil` on any failure. Runs on the main actor because
     /// `MKReverseGeocodingRequest` vends its (non-`Sendable`) `MKMapItem`s
     /// there; only the resulting `String` crosses back.
+    ///
+    /// Every `nil` is honest, but they aren't all failures: a lookup with no
+    /// match is a real answer and stays quiet, while a refused coordinate or a
+    /// thrown request warns (see ``LocationNamerLog``).
     @MainActor
     private static func reverseGeocode(_ coordinate: Coordinate) async -> String? {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
-        guard let request = MKReverseGeocodingRequest(location: location) else { return nil }
-        guard
-            let representations = try? await request.mapItems.first?.addressRepresentations
-        else { return nil }
-        return PlaceComponents(representations).displayName
+        guard let request = MKReverseGeocodingRequest(location: location) else {
+            logger { .unusableCoordinate }
+            return nil
+        }
+        do {
+            guard
+                let representations = try await request.mapItems.first?.addressRepresentations
+            else {
+                // No match — an unnamed place or open water. Nothing failed.
+                return nil
+            }
+            return PlaceComponents(representations).displayName
+        } catch {
+            logger(attachments: [.error(error, name: "geocode-error")]) {
+                .geocodeFailed(description: error.localizedDescription)
+            }
+            return nil
+        }
     }
+
+    private static let logger = WhereLog.root(LocationNamerLog.self)
 }

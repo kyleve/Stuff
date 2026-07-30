@@ -213,3 +213,14 @@ struct AddEvidenceView: View {
         AddEvidenceView(model: PreviewSupport.addEvidenceModel())
     }
 #endif
+
+#if DEBUG
+    extension AddEvidenceView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            AddEvidenceView.self,
+            title: "Add Evidence",
+        ) { _ in
+            AddEvidenceView(model: PreviewSupport.addEvidenceModel())
+        }
+    }
+#endif

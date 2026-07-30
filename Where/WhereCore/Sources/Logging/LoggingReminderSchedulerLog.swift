@@ -3,6 +3,15 @@ import PeriscopeCore
 /// Structured events for `LoggingReminderScheduler` — authorization outcomes and
 /// the reconcile of scheduled/removed reminders + badge.
 enum LoggingReminderSchedulerLog: LogEvent {
+    /// Names the scheduler's timed span. The sibling summary/issue-alert
+    /// schedulers stay unspanned: each is a single add-or-remove, whereas this
+    /// one walks the pending *and* delivered sets and can add a week of
+    /// requests — several `UNUserNotificationCenter` round-trips, all of them
+    /// cross-process.
+    enum SpanName: Hashable {
+        case reconcileNotifications
+    }
+
     case authorizationRequestFailed(description: String)
     case authorizationNotGranted
     case authorizationUnknown

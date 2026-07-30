@@ -9,10 +9,15 @@ import WhereCore
 struct YearView: View {
     let report: YearReportModel
 
-    @State private var mode: YearMode = .calendar
+    @State private var mode: YearMode
     @State private var showingRecentActivity = false
 
     @Environment(\.stylesheet) private var stylesheet
+
+    init(report: YearReportModel, initialMode: YearMode = .calendar) {
+        self.report = report
+        _mode = State(initialValue: initialMode)
+    }
 
     var body: some View {
         NavigationStack {
@@ -55,7 +60,7 @@ struct YearView: View {
 }
 
 /// The two lenses on the selected year the bottom pill zooms between.
-private enum YearMode: String, Hashable, CaseIterable {
+enum YearMode: String, Hashable, CaseIterable {
     case calendar
     case timeline
 
@@ -131,9 +136,8 @@ private struct YearModePicker: View {
 
 #if DEBUG
     extension YearView: SnapshotProviding {
-        /// Only the calendar mode is captured here: the timeline mode is the
-        /// same `PresenceTimelineList` that carries its own matrix, and the mode
-        /// is private `@State` with no capture seam to drive it.
+        /// Timeline rendering is owned by `PresenceTimelineList`'s matrix; the
+        /// initializer seam is used by Flyover without duplicating that suite.
         static var snapshots: [SnapshotCase] {
             whereSnapshot(
                 name: "Loaded",
@@ -150,5 +154,38 @@ private struct YearModePicker: View {
 
     #Preview {
         YearView.snapshotPreviews
+    }
+#endif
+
+#if DEBUG
+    extension YearView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData(
+            YearView.self,
+            routes: [
+                .modal(to: RecentActivitySummaryView.flyoverID),
+            ],
+        ) { id, world in
+            .init(
+                id: id,
+                title: "Your Year",
+                navigationContainer: .none,
+                variants: [
+                    WhereFlyoverData.hostedVariant(
+                        id: "calendar",
+                        title: "Calendar",
+                        world: world,
+                    ) {
+                        YearView(report: world.report, initialMode: .calendar)
+                    },
+                    WhereFlyoverData.hostedVariant(
+                        id: "timeline",
+                        title: "Timeline",
+                        world: world,
+                    ) {
+                        YearView(report: world.report, initialMode: .timeline)
+                    },
+                ],
+            )
+        }
     }
 #endif

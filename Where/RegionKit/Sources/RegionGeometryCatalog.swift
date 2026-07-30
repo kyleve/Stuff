@@ -1,4 +1,5 @@
 import Foundation
+import PeriscopeCore
 
 /// Which set of region polygons to vend, for the developer region-map
 /// viewer's source toggle.
@@ -122,19 +123,21 @@ public enum RegionGeometryCatalog {
     /// fidelity, each outline tagged with the `Region` it belongs to and titled
     /// by its `localizedName`.
     static func buildSourceOutlines() throws -> [RegionOutline] {
-        var builder = OutlineBuilder()
-        for entry in RegionCatalog.shared.entries {
-            for feature in try namedPolygons(for: entry.region) {
-                for polygon in feature.polygons {
-                    builder.add(
-                        title: entry.region.localizedName,
-                        region: entry.region,
-                        coordinates: polygon.vertices,
-                    )
+        try RegionLog.geometryCatalog.measure(.buildSourceOutlines, budget: .seconds(2)) {
+            var builder = OutlineBuilder()
+            for entry in RegionCatalog.shared.entries {
+                for feature in try namedPolygons(for: entry.region) {
+                    for polygon in feature.polygons {
+                        builder.add(
+                            title: entry.region.localizedName,
+                            region: entry.region,
+                            coordinates: polygon.vertices,
+                        )
+                    }
                 }
             }
+            return builder.outlines
         }
-        return builder.outlines
     }
 
     private static func namedPolygons(for region: Region) throws -> [GeoJSON.NamedPolygons] {

@@ -66,4 +66,17 @@ struct RegionLogTests {
         #expect(event.level == .warning)
         #expect(event.message.contains("source"))
     }
+
+    // MARK: - Span names
+
+    @Test func perRegionLoadSpansAreNamedAfterTheRegionNotItsSwiftShape() {
+        // Reflection would render this `loadRegion(RegionKit.Region(rawValue:
+        // "us-CA"))`, pinning a Swift-internal spelling into recorded history and
+        // into the name the span tools group timings by.
+        #expect(
+            String(describing: RegionAttributorLog.SpanName.loadRegion(.california))
+                == "loadRegion(us-CA)",
+        )
+        #expect(String(describing: RegionAttributorLog.SpanName.loadPolygons) == "loadPolygons")
+    }
 }

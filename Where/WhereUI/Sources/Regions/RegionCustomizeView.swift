@@ -261,3 +261,16 @@ struct RegionCustomizeView: View {
         .whereBroadwayRoot()
     }
 #endif
+
+#if DEBUG
+    extension RegionCustomizeView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            RegionCustomizeView.self,
+            title: "Customize Regions",
+        ) { _ in
+            RegionCustomizeView(
+                model: PreviewSupport.primaryRegionSelectionModel(),
+            )
+        }
+    }
+#endif

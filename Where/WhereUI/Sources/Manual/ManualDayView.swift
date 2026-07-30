@@ -569,3 +569,12 @@ extension ManualDayView {
         ManualDayView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension ManualDayView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            ManualDayView.self,
+            title: "Manual Day",
+        )
+    }
+#endif

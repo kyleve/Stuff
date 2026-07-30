@@ -36,6 +36,13 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 - **Developer tools** — DEBUG-only logging, span, region-map, and next-launch
   Inspector controls. The menu only updates `InspectorModeController`; the
   current regular runtime continues until the developer relaunches.
+- **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
+  step declares how long it should take (`BudgetedLaunchStep`) and joins the
+  plan through `.measured()`, so each run is one Periscope span named after
+  the step (`step(resolve-scope)`) that warns while it overruns its budget —
+  the launch's cost breaks down per step instead of arriving as one slow
+  splash. (The onboarding gate is the one unmeasured node: it parks on the
+  user.)
 - **`WhereScope`** — what the app is logged in *to*: one open store's
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into, created whole and never reconfigured. `WhereModel` owns
@@ -47,7 +54,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `Periscope` — and only while `WhereModel` says the scope is active — with
   routing modelled as one state (`pending` / `routing` / `idle`), so a store that
   finishes opening while the scope is shadowed is remembered rather than routed
-  into.
+  into. When the durable store opens, its bring-up is spanned (`openLogStore`)
+  and history is trimmed with `LogHistoryPruner` (a 100-day window *and* a
+  50k-event ceiling, so the store is bounded however heavily the device logs).
 - **`WhereModel`** — app-level state that outlives any one scope: the
   onboarding flag, the active `WhereScope`, the owned `WhereSession`, and the
   lifecycle intents (`activate(scope:)`, `startSession(scope:)` — which
@@ -95,6 +104,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   system](#design-system)). Applied by `RootView` and by each widget.
 - **`RegionMapView`** — the developer region-map tool (also hosted standalone by
   the RegionViewer Mac Catalyst app).
+- **Flyover** — a DEBUG-only all-screens browser reached from the floating
+  Developer Overlay. It renders the app's screens on a zoomable navigation
+  canvas or linear list, shows push/modal routes, switches global device and
+  accessibility traits, and opens any frame in a live focused inspector.
 
 ## Installation
 
@@ -202,6 +215,32 @@ disk, CloudKit, or CoreLocation. Pull services and models from there rather than
 constructing them inline, and cover the empty / loaded / edge states, not just
 the happy path. See the feature
 [`Where/AGENTS.md`](../AGENTS.md#swiftui-views--previews).
+
+## Flyover
+
+`Sources/Developer/Flyover` owns an explicit `WhereFlyoverScreenID` catalog.
+The enum is exhaustive and completeness-tested, so adding a top-level screen
+produces one obvious registration update rather than depending on source
+scanning or a macro that cannot discover navigation across the module.
+
+Opening Flyover asynchronously builds one `WhereScope.demo` and shares its
+seeded in-memory services, preferences, and session across live frames. That
+scope is never activated and never log-routed; the app's current scope remains
+untouched. The loader constructs and retains the completed catalog once, so
+host-view updates preserve those frame fixtures and their controls. Synthetic
+`PreviewSupport` states fill the gaps the demo data cannot express cleanly
+(empty, failed, unavailable, widget, and intent-snippet states). Frame-local
+controls can mutate only their own observable fixture—for example, Locations
+can show or hide its Resolve toolbar item—and Reset restores that fixture.
+
+Overview frames ignore hit testing so embedded navigation containers cannot
+fight the canvas. Leaf screens receive an isolated navigation stack so their
+titles, toolbar items, and destinations render inside the frame rather than
+escaping into the Developer Tools stack; app roots, widgets, and snippets opt
+out. Selecting the inspect button opens the same screen in a full-screen
+interactive viewport. Flyover's appearance, device, Dynamic Type, contrast,
+layout-direction, and bold-text choices are session-only and apply only to
+registered content.
 
 ## Testing
 

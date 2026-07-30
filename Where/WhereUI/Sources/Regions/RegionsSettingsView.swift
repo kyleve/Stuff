@@ -141,3 +141,18 @@ extension RegionsSettingsView: SettingsSection {
             .whereBroadwayRoot()
     }
 #endif
+
+#if DEBUG
+    extension RegionsSettingsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            RegionsSettingsView.self,
+            title: "Regions",
+        ) { world in
+            RegionsSettingsView(
+                usedThisYear: Set(
+                    world.report.report.map { Array($0.totals.keys) } ?? [],
+                ),
+            )
+        }
+    }
+#endif

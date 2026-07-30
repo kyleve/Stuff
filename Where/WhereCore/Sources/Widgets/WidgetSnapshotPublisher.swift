@@ -76,18 +76,20 @@ public actor WidgetSnapshotPublisher {
     /// can change what a widget shows. A failure here is non-fatal: the widget
     /// keeps showing its last published snapshot.
     func publish() async {
-        do {
-            let snapshot = try await widgetReader.snapshot(asOf: now())
-            await widgetRefresher.publish(snapshot)
-            lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
-            Self.logger {
-                .published(
-                    day: dayLogLabel(snapshot.day),
-                    regionCount: snapshot.dayRegions.count,
-                )
+        await Self.logger.measure(.publish, budget: .seconds(2)) {
+            do {
+                let snapshot = try await widgetReader.snapshot(asOf: now())
+                await widgetRefresher.publish(snapshot)
+                lastPublished = PublishedWidgetSnapshot(snapshot: snapshot, publishedAt: now())
+                Self.logger {
+                    .published(
+                        day: dayLogLabel(snapshot.day),
+                        regionCount: snapshot.dayRegions.count,
+                    )
+                }
+            } catch {
+                Self.logger { .buildFailed(description: error.localizedDescription) }
             }
-        } catch {
-            Self.logger { .buildFailed(description: error.localizedDescription) }
         }
     }
 

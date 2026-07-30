@@ -268,3 +268,17 @@ extension AlertsSettingsView: SettingsSection {
         .whereBroadwayRoot()
     }
 #endif
+
+#if DEBUG
+    extension AlertsSettingsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            AlertsSettingsView.self,
+            title: "Alerts Settings",
+        ) { world in
+            AlertsSettingsView(
+                report: world.report,
+                reminders: world.reminders,
+            )
+        }
+    }
+#endif

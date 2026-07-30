@@ -64,3 +64,17 @@ extension AppearanceSettingsView: SettingsSection {
         .whereBroadwayRoot()
     }
 #endif
+
+#if DEBUG
+    extension AppearanceSettingsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            AppearanceSettingsView.self,
+            title: "Appearance Settings",
+            routes: [
+                .modal(to: AppIconView.flyoverID),
+            ],
+        ) { _ in
+            AppearanceSettingsView()
+        }
+    }
+#endif

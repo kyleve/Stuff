@@ -17,6 +17,7 @@ let package = Package(
         .library(name: "PeriscopeUI", targets: ["PeriscopeUI"]),
         .library(name: "PeriscopeTools", targets: ["PeriscopeTools"]),
         .library(name: "Inspector", targets: ["Inspector"]),
+        .library(name: "Flyover", targets: ["Flyover"]),
         .library(name: "SnapshotKit", targets: ["SnapshotKit"]),
         .library(name: "SnapshotKitTesting", targets: ["SnapshotKitTesting"]),
         .library(name: "TestHostSupport", targets: ["TestHostSupport"]),
@@ -95,6 +96,15 @@ let package = Package(
             path: "Shared/Inspector/Sources",
         ),
         .target(
+            name: "Flyover",
+            dependencies: [
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
+                .target(name: "SnapshotKit"),
+            ],
+            path: "Shared/Flyover/Sources",
+        ),
+        .target(
             name: "SnapshotKit",
             path: "Shared/SnapshotKit/Sources",
         ),
@@ -146,6 +156,7 @@ let package = Package(
                 .target(name: "BroadwayCore"),
                 .target(name: "BroadwayUI"),
                 .target(name: "CreditKit"),
+                .target(name: "Flyover"),
                 .target(name: "LifecycleKit"),
                 .target(name: "LifecycleKitUI"),
                 .target(name: "PeriscopeCore"),

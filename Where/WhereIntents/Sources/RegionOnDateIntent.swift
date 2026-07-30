@@ -30,7 +30,9 @@ public struct RegionOnDateIntent: AppIntent {
     @MainActor
     public func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let services = try await intentServices.current()
-        let regions = try await WhereIntentReader(services: services).regions(on: date)
+        let regions = try await measureIntent(.regionOnDate) {
+            try await WhereIntentReader(services: services).regions(on: date)
+        }
         let ordered = orderedRegions(regions)
         return .result(
             dialog: IntentDialog("\(IntentStrings.regionsOnDate(date, regions: ordered))"),

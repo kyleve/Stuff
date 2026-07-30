@@ -321,3 +321,15 @@ private struct LoggedDayRow: View {
         LoggedDaysView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension LoggedDaysView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            LoggedDaysView.self,
+            title: "Logged Days",
+            routes: [
+                .modal(to: ManualDayView.flyoverID),
+            ],
+        )
+    }
+#endif

@@ -31,6 +31,8 @@ import RegionKit
 public struct FlightDayDetector: DataIssueDetector {
     public typealias Issue = FlightDayIssue
 
+    public let detects = DataIssueCategory.flightDay
+
     /// Minimum ground speed for a leg to count as flight. ~300 km/h sits well
     /// above sustained driving / rail and far below jet cruise (~800-900 km/h),
     /// so it separates the two with a wide margin.

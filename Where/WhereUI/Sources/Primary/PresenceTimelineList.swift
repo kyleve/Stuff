@@ -106,3 +106,12 @@ private struct StintRow: View {
         PresenceTimelineList.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension PresenceTimelineList: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            PresenceTimelineList.self,
+            title: "Timeline",
+        )
+    }
+#endif

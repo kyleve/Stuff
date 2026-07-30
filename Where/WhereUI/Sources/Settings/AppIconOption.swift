@@ -1,5 +1,7 @@
 import Foundation
+import PeriscopeCore
 import UIKit
+import WhereCore
 
 /// A typed, `Hashable` identifier for an app-icon option.
 ///
@@ -66,6 +68,28 @@ enum AppIconCatalog {
         return try JSONDecoder().decode(Manifest.self, from: data).icons
     }
 
+    /// The bundled manifest, degrading to an empty list when it can't be read.
+    ///
+    /// A missing or malformed `AppIcons.json` is a packaging error rather than
+    /// anything a user can cause or recover from, so it trips an
+    /// `assertionFailure` in debug and — in release — leaves the picker empty and
+    /// the icon surfaces on their Classic fallback. Every best-effort caller goes
+    /// through here, so the load failure can't be dropped at one site and
+    /// reported at another.
+    static func loadedOptions() -> [AppIconOption] {
+        do {
+            return try load(from: .module)
+        } catch {
+            logger(attachments: [.error(error, name: "load-error")]) {
+                .manifestUnreadable(description: String(describing: error))
+            }
+            assertionFailure("Failed to load the bundled AppIcons.json manifest: \(error)")
+            return []
+        }
+    }
+
+    private static let logger = WhereLog.root(AppIconCatalogLog.self)
+
     /// Resolve which option matches the live `alternateIconName`, falling back to
     /// the primary (or first) option when the active icon isn't listed — e.g. it
     /// was removed from the manifest since it was last set, or `nil` (the primary
@@ -86,7 +110,7 @@ enum AppIconCatalog {
     /// in-app surface that renders the selected icon (launch splash, the
     /// recent-activity loading indicator) so they stay in lockstep.
     @MainActor static func liveSelectedPreviewImageName() -> String {
-        let options = (try? load()) ?? []
+        let options = loadedOptions()
         let selected = selectedOption(
             in: options,
             current: UIApplication.shared.alternateIconName,

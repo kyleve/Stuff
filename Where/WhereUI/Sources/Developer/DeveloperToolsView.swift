@@ -24,11 +24,13 @@
         @Environment(InspectorModeController.self) private var modeController:
             InspectorModeController?
         @Environment(\.periscopeInspector) private var inspector
+        @State private var isPresentingFlyover = false
 
         /// Extra bottom scroll inset so the last rows clear the floating HUD's
         /// resize grip. Zero (the default) when hosted without the overlay chrome
         /// (previews, tests, full screen).
         var bottomContentInset: CGFloat = 0
+        private var openFlyover: @MainActor () -> Void = {}
 
         var body: some View {
             NavigationStack {
@@ -50,6 +52,14 @@
                         } label: {
                             Label(String(localized: .developerOpenSpansLink), systemImage: "timer")
                         }
+
+                        Button(action: presentFlyover) {
+                            Label(
+                                String(localized: .developerFlyoverLink),
+                                systemImage: "rectangle.3.group",
+                            )
+                        }
+                        .buttonStyle(.plain)
 
                         NavigationLink {
                             RegionMapView()
@@ -74,6 +84,20 @@
                 .scrollContentBackground(.hidden)
                 .contentMargins(.bottom, bottomContentInset, for: .scrollContent)
             }
+            .fullScreenCover(isPresented: $isPresentingFlyover) {
+                WhereFlyoverPresentationView()
+            }
+        }
+
+        func onOpenFlyover(_ action: @escaping @MainActor () -> Void) -> Self {
+            var copy = self
+            copy.openFlyover = action
+            return copy
+        }
+
+        private func presentFlyover() {
+            openFlyover()
+            isPresentingFlyover = true
         }
     }
 
@@ -145,5 +169,22 @@
 
     #Preview {
         DeveloperToolsView.snapshotPreviews
+    }
+#endif
+
+#if DEBUG
+    extension DeveloperToolsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            DeveloperToolsView.self,
+            title: "Developer Tools",
+            navigationContainer: .none,
+            routes: [
+                .push(to: WhereFlyoverLogView.flyoverID),
+                .push(to: OpenSpansView.flyoverID),
+                .push(to: RegionMapView.flyoverID),
+            ],
+        ) { _ in
+            DeveloperToolsView()
+        }
     }
 #endif

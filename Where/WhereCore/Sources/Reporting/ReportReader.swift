@@ -9,6 +9,8 @@ import RegionKit
 /// so it's a cheap `Sendable` value that each collaborator that needs reads can
 /// keep its own copy of, rather than routing every read back through one actor.
 public struct ReportReader: Sendable {
+    private static let logger = WhereLog.reporting(ReportReaderLog.self)
+
     let store: any WhereStore
     let aggregator: DayAggregator
     let attributor: any RegionAttributing
@@ -24,16 +26,23 @@ public struct ReportReader: Sendable {
     }
 
     /// Read everything in `year` and aggregate it into a snapshot-stable report.
+    ///
+    /// The report is the app's hottest read — the calendar, the reminders badge,
+    /// the daily summary, the widget snapshot, and the issue scan all go through
+    /// it — so it is spanned with a budget: past a second, whatever asked for it
+    /// is visibly waiting.
     public func yearReport(for year: Int) async throws -> YearReport {
-        let interval = aggregator.yearInterval(year: year)
-        let samples = try await store.samples(in: interval)
-        let manuals = try await store.manualDays(in: dayRange(for: year))
-        return aggregator.report(
-            for: year,
-            samples: samples,
-            manualDays: manuals,
-            attributor: attributor,
-        )
+        try await Self.logger.measure(.yearReport, budget: .seconds(1)) {
+            let interval = aggregator.yearInterval(year: year)
+            let samples = try await store.samples(in: interval)
+            let manuals = try await store.manualDays(in: dayRange(for: year))
+            return aggregator.report(
+                for: year,
+                samples: samples,
+                manualDays: manuals,
+                attributor: attributor,
+            )
+        }
     }
 
     /// Everything a data-issue scan needs from a **single** year-samples read:
@@ -43,27 +52,29 @@ public struct ReportReader: Sendable {
     /// no longer fetches them three times over (report + `.other` locations +
     /// raw); the `DaySamples` grouping is itself deferred until a detector asks.
     public func dataIssueReads(for year: Int) async throws -> DataIssueReads {
-        let samples = try await store.samples(in: aggregator.yearInterval(year: year))
-        let manuals = try await store.manualDays(in: dayRange(for: year))
-        let report = aggregator.report(
-            for: year,
-            samples: samples,
-            manualDays: manuals,
-            attributor: attributor,
-        )
-        let otherLocations = aggregator.locations(
-            in: .other,
-            samples: samples,
-            attributor: attributor,
-        )
-        let otherDayCoordinates = Dictionary(
-            uniqueKeysWithValues: otherLocations.map { ($0.day, $0.points.map(\.coordinate)) },
-        )
-        return DataIssueReads(
-            report: report,
-            otherDayCoordinates: otherDayCoordinates,
-            daySamples: DaySamples(samples: samples, calendar: aggregator.calendar),
-        )
+        try await Self.logger.measure(.dataIssueReads, budget: .seconds(2)) {
+            let samples = try await store.samples(in: aggregator.yearInterval(year: year))
+            let manuals = try await store.manualDays(in: dayRange(for: year))
+            let report = aggregator.report(
+                for: year,
+                samples: samples,
+                manualDays: manuals,
+                attributor: attributor,
+            )
+            let otherLocations = aggregator.locations(
+                in: .other,
+                samples: samples,
+                attributor: attributor,
+            )
+            let otherDayCoordinates = Dictionary(
+                uniqueKeysWithValues: otherLocations.map { ($0.day, $0.points.map(\.coordinate)) },
+            )
+            return DataIssueReads(
+                report: report,
+                otherDayCoordinates: otherDayCoordinates,
+                daySamples: DaySamples(samples: samples, calendar: aggregator.calendar),
+            )
+        }
     }
 
     /// The manual-day records (backfills and authoritative overrides) the user
@@ -79,9 +90,11 @@ public struct ReportReader: Sendable {
     /// day, so the Elsewhere drill-in can map and name where you actually were.
     /// Manual overlays don't contribute coordinates (see `DayAggregator`).
     public func locations(in region: Region, year: Int) async throws -> [RegionDayLocations] {
-        let interval = aggregator.yearInterval(year: year)
-        let samples = try await store.samples(in: interval)
-        return aggregator.locations(in: region, samples: samples, attributor: attributor)
+        try await Self.logger.measure(.regionLocations, budget: .seconds(1)) {
+            let interval = aggregator.yearInterval(year: year)
+            let samples = try await store.samples(in: interval)
+            return aggregator.locations(in: region, samples: samples, attributor: attributor)
+        }
     }
 
     /// The recorded points for a single calendar `day`, grouped by the region
@@ -90,21 +103,25 @@ public struct ReportReader: Sendable {
     /// day's samples (a half-open [start-of-day, next-day) window). Manual
     /// overlays don't contribute coordinates (see `DayAggregator`).
     public func locations(onDay day: CalendarDay) async throws -> [Region: [RegionDayPoint]] {
-        let start = day.startOfDay(in: aggregator.calendar)
-        guard let end = aggregator.calendar.date(byAdding: .day, value: 1, to: start) else {
-            return [:]
+        try await Self.logger.measure(.dayLocations, budget: .milliseconds(500)) {
+            let start = day.startOfDay(in: aggregator.calendar)
+            guard let end = aggregator.calendar.date(byAdding: .day, value: 1, to: start) else {
+                return [:]
+            }
+            let samples = try await store.samples(in: DateInterval(start: start, end: end))
+            return aggregator.pointsByRegion(onDay: day, samples: samples, attributor: attributor)
         }
-        let samples = try await store.samples(in: DateInterval(start: start, end: end))
-        return aggregator.pointsByRegion(onDay: day, samples: samples, attributor: attributor)
     }
 
     /// One representative coordinate per region for `year` — the most heavily
     /// sampled spot in each — so the Elsewhere cards can show a "where" teaser
     /// with a single geocode per region.
     public func representativeCoordinates(for year: Int) async throws -> [Region: Coordinate] {
-        let interval = aggregator.yearInterval(year: year)
-        let samples = try await store.samples(in: interval)
-        return aggregator.representativeCoordinates(samples: samples, attributor: attributor)
+        try await Self.logger.measure(.representativeCoordinates, budget: .seconds(1)) {
+            let interval = aggregator.yearInterval(year: year)
+            let samples = try await store.samples(in: interval)
+            return aggregator.representativeCoordinates(samples: samples, attributor: attributor)
+        }
     }
 
     /// Every persisted dismissed data-resolution issue id.

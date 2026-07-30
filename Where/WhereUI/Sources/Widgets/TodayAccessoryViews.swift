@@ -124,3 +124,23 @@ public struct TodayCircularAccessoryView: View {
         TodayCircularAccessoryView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension TodayInlineAccessoryView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            TodayInlineAccessoryView.self,
+            title: "Today Inline",
+            viewport: .fixed(CGSize(width: 338, height: 60)),
+            navigationContainer: .none,
+        )
+    }
+
+    extension TodayCircularAccessoryView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            TodayCircularAccessoryView.self,
+            title: "Today Circular",
+            viewport: .fixed(CGSize(width: 76, height: 76)),
+            navigationContainer: .none,
+        )
+    }
+#endif

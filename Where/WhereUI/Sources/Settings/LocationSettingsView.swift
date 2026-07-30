@@ -124,3 +124,14 @@ extension LocationSettingsView: SettingsSection {
         .whereBroadwayRoot()
     }
 #endif
+
+#if DEBUG
+    extension LocationSettingsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            LocationSettingsView.self,
+            title: "Location Settings",
+        ) { _ in
+            LocationSettingsView()
+        }
+    }
+#endif

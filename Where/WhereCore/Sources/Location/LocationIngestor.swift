@@ -139,11 +139,13 @@ public actor LocationIngestor {
         // Flush anything that failed to persist before this session started,
         // before we (re)attach the stream consumer.
         let drainedDays = await drainRetryQueue()
-        await onPersisted(IngestOutcome(
-            changedDays: drainedDays,
-            liveSample: nil,
-            needsFullWidgetRebuild: !drainedDays.isEmpty,
-        ))
+        await Self.logger.measure(.postPersist, budget: .seconds(2)) {
+            await onPersisted(IngestOutcome(
+                changedDays: drainedDays,
+                liveSample: nil,
+                needsFullWidgetRebuild: !drainedDays.isEmpty,
+            ))
+        }
         guard ingestTask == nil else { return }
         let stream = locationSource.sampleStream
         ingestTask = Task { [weak self] in
@@ -268,7 +270,10 @@ public actor LocationIngestor {
             Self.logger { .foregroundCaptureReadFailed(description: error.localizedDescription) }
             return
         }
-        guard let sample = await locationSource.requestCurrentLocation() else { return }
+        let fix = await Self.logger.measure(.acquireFix, budget: .seconds(10)) {
+            await locationSource.requestCurrentLocation()
+        }
+        guard let sample = fix else { return }
         // The ~10s fix may have straddled a `quiesce()`; re-check the gate before
         // persisting, mirroring `ingest(_:)`. The guard and the `capturePersistTask`
         // assignment are synchronous (no `await` between), so a concurrent
@@ -324,11 +329,13 @@ public actor LocationIngestor {
             try await store.perform { try await store.add(sample: sample) }
             var changedDays = drainedDays
             changedDays.insert(calendar.startOfDay(for: sample.timestamp))
-            await onPersisted(IngestOutcome(
-                changedDays: changedDays,
-                liveSample: sample,
-                needsFullWidgetRebuild: !drainedDays.isEmpty,
-            ))
+            await Self.logger.measure(.postPersist, budget: .seconds(2)) {
+                await onPersisted(IngestOutcome(
+                    changedDays: changedDays,
+                    liveSample: sample,
+                    needsFullWidgetRebuild: !drainedDays.isEmpty,
+                ))
+            }
         } catch {
             // Persistence failures (SwiftData save, CloudKit, etc.) are surfaced
             // via `os.Logger` rather than silently dropped. The stream keeps
@@ -357,22 +364,26 @@ public actor LocationIngestor {
     /// is re-queued at the tail; the next call gets the chance to retry it. The
     /// durable backlog is rewritten to match the post-drain queue.
     private func drainRetryQueue() async -> Set<Date> {
+        // Spanned below the guard, so the common case — nothing queued, which is
+        // every drain on a healthy device — records nothing at all.
         guard !retryQueue.isEmpty else { return [] }
         let pending = retryQueue
         retryQueue.removeAll(keepingCapacity: true)
         var persistedDays: Set<Date> = []
-        for sample in pending {
-            do {
-                try await store.perform { try await store.add(sample: sample) }
-                persistedDays.insert(calendar.startOfDay(for: sample.timestamp))
-            } catch {
-                Self.logger(attachments: [.error(error, name: "retry-error")]) {
-                    .retryStillFailing(
-                        sampleID: String(describing: sample.id),
-                        description: error.localizedDescription,
-                    )
+        await Self.logger.measure(.drainBacklog, budget: .seconds(5)) {
+            for sample in pending {
+                do {
+                    try await store.perform { try await store.add(sample: sample) }
+                    persistedDays.insert(calendar.startOfDay(for: sample.timestamp))
+                } catch {
+                    Self.logger(attachments: [.error(error, name: "retry-error")]) {
+                        .retryStillFailing(
+                            sampleID: String(describing: sample.id),
+                            description: error.localizedDescription,
+                        )
+                    }
+                    enqueueForRetry(sample)
                 }
-                enqueueForRetry(sample)
             }
         }
         if !persistedDays.isEmpty {
