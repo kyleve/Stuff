@@ -18,6 +18,7 @@ struct NDJSONExporterTests {
         payload: Data = Data(),
         tags: [LogTag] = [],
         spanExitMode: SpanExit.Mode? = nil,
+        ambientSnapshotID: UUID? = nil,
     ) -> StoredLogEvent {
         StoredLogEvent(
             id: UUID(),
@@ -36,6 +37,7 @@ struct NDJSONExporterTests {
             externalID: nil,
             attachments: [],
             sessionID: sessionID,
+            ambientSnapshotID: ambientSnapshotID,
         )
     }
 
@@ -46,6 +48,7 @@ struct NDJSONExporterTests {
         let line = NDJSONExporter.line(
             for: stored(message: "hello", date: date(1), payload: Data([0xFF, 0x00])),
             scopes: scopes,
+            ambient: [:],
         )
 
         let object = try #require(
@@ -62,12 +65,45 @@ struct NDJSONExporterTests {
                 stored(message: "oldest", date: date(1)),
             ],
             scopes: scopes,
+            sessions: [],
+            ambient: [:],
         )
 
         let lines = export.split(separator: "\n")
         #expect(lines.count == 2)
         #expect(lines[0].contains("\"oldest\""))
         #expect(lines[1].contains("\"newest\""))
+    }
+
+    /// A duration in a bug report is only answerable when the export names
+    /// the build it came from — the session header lines carry that, and
+    /// only for sessions the events actually reference.
+    @Test func referencedSessionsHeadTheExportWithTheirBuildAttribution() throws {
+        let session = makeSession(
+            id: sessionID,
+            attributes: [.optimizationLevel: "-Onone", .commit: "abc123"],
+        )
+        let unreferenced = makeSession()
+        let export = NDJSONExporter.export(
+            events: [stored(message: "hello", date: date(1))],
+            scopes: scopes,
+            sessions: [unreferenced, session],
+            ambient: [:],
+        )
+
+        let lines = export.split(separator: "\n")
+        #expect(lines.count == 2)
+        let header = try #require(
+            try JSONSerialization.jsonObject(with: Data(lines[0].utf8)) as? [String: Any],
+        )
+        #expect(header["record"] as? String == "session")
+        #expect(header["session"] as? String == sessionID.uuidString)
+        #expect(header["appVersion"] as? String == session.appVersion)
+        #expect(header["attributes"] as? [String: String] == [
+            "optimization-level": "-Onone",
+            "commit": "abc123",
+        ])
+        #expect(!export.contains(unreferenced.id.uuidString))
     }
 
     @Test func linesCarryTheEventFields() throws {
@@ -80,6 +116,7 @@ struct NDJSONExporterTests {
                 tags: [LogTag(key: LogTagKey("payment-id"), value: "pay_1")],
             ),
             scopes: scopes,
+            ambient: [:],
         )
 
         let object = try #require(
@@ -98,6 +135,7 @@ struct NDJSONExporterTests {
         let line = NDJSONExporter.line(
             for: stored(message: "◀ save failed", date: date(1), spanExitMode: .failure),
             scopes: scopes,
+            ambient: [:],
         )
         let object = try #require(
             try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
@@ -123,14 +161,56 @@ struct NDJSONExporterTests {
             externalID: nil,
             attachments: [],
             sessionID: sessionID,
+            ambientSnapshotID: nil,
         )
 
-        let line = NDJSONExporter.line(for: orphan, scopes: scopes)
+        let line = NDJSONExporter.line(for: orphan, scopes: scopes, ambient: [:])
         let object = try #require(
             try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
         )
         #expect(object["scopePath"] == nil)
         #expect(object["payload"] == nil)
         #expect(object["message"] as? String == "bare")
+    }
+
+    @Test func linesCarryTheAmbientStateAsNestedObjects() throws {
+        let snapshot = AmbientSnapshot(
+            id: UUID(),
+            values: [
+                .network: ["status": "unsatisfied", "expensive": false],
+                .powerMode: ["low-power": true],
+            ],
+        )
+        let line = NDJSONExporter.line(
+            for: stored(message: "offline", date: date(1), ambientSnapshotID: snapshot.id),
+            scopes: scopes,
+            ambient: [snapshot.id: snapshot],
+        )
+
+        let object = try #require(
+            try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+        )
+        let ambient = try #require(object["ambient"] as? [String: [String: Any]])
+        #expect(ambient["network"]?["status"] as? String == "unsatisfied")
+        #expect(ambient["network"]?["expensive"] as? Bool == false)
+        #expect(ambient["power-mode"]?["low-power"] as? Bool == true)
+    }
+
+    /// Retention only drops unreferenced snapshots, so a referenced one
+    /// going missing is an inconsistency the export must not render as
+    /// "nothing was known about the system".
+    @Test func missingAmbientSnapshotsAreMarkedNotOmitted() throws {
+        let missing = UUID()
+        let line = NDJSONExporter.line(
+            for: stored(message: "offline", date: date(1), ambientSnapshotID: missing),
+            scopes: scopes,
+            ambient: [:],
+        )
+
+        let object = try #require(
+            try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
+        )
+        #expect(object["ambient"] == nil)
+        #expect(object["ambientError"] as? String == "snapshot \(missing.uuidString) not found")
     }
 }

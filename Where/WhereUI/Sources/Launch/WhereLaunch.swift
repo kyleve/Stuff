@@ -292,7 +292,12 @@ public final class WhereBootstrap: WhereScopeAssembling {
     /// process, because what a session persists depends on which world it is
     /// in — an in-memory world must leave nothing behind.
     public func makeLogStore() async throws -> PeriscopeStore? {
-        try await PeriscopeStore.make(storage: Self.logStorage, session: .current())
+        try await PeriscopeStore.make(
+            storage: Self.logStorage,
+            session: .current(
+                attributes: BuildInfo.current(bundle: .main).logSessionAttributes,
+            ),
+        )
     }
 
     /// Where a real scope's log store belongs, mirroring

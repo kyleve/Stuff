@@ -186,6 +186,7 @@ extension LogSession {
     static func fixture(
         id: UUID = UUID(),
         startedAt: Date = Date(timeIntervalSinceReferenceDate: 0),
+        attributes: [LogSessionAttributeKey: String] = [:],
     ) -> LogSession {
         LogSession(
             id: id,
@@ -194,6 +195,7 @@ extension LogSession {
             buildNumber: "42",
             osVersion: "TestOS 1.0",
             deviceModel: "TestDevice1,1",
+            attributes: attributes,
         )
     }
 }

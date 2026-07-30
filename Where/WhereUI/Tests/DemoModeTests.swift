@@ -246,7 +246,10 @@ struct DemoModeTests {
     /// the routing itself rather than the bookkeeping around it.
     @Test func demoRecordsNeverReachTheRealLogStore() async throws {
         let logSystem = Periscope.isolated()
-        let realLogStore = try await PeriscopeStore.make(storage: .inMemory, session: .current())
+        let realLogStore = try await PeriscopeStore.make(
+            storage: .inMemory,
+            session: .current(attributes: [:]),
+        )
         let bootstrap = try ScriptedBootstrap(services: makeServices(), logStore: realLogStore)
         let model = WhereModel(
             preferences: makePreferences(),
@@ -293,7 +296,10 @@ struct DemoModeTests {
     /// store and the user then taps into the demo.
     @Test func aLogStoreOpeningLateNeverAttachesToAShadowedScope() async throws {
         let logSystem = Periscope.isolated()
-        let realLogStore = try await PeriscopeStore.make(storage: .inMemory, session: .current())
+        let realLogStore = try await PeriscopeStore.make(
+            storage: .inMemory,
+            session: .current(attributes: [:]),
+        )
         let bootstrap = try ScriptedBootstrap(services: makeServices(), logStore: realLogStore)
         let model = WhereModel(
             preferences: makePreferences(),

@@ -45,6 +45,17 @@ a Broadway `BStylesheet` — never inline in views. Read with
 - **Read-only over the store.** Tooling queries `PeriscopeCore`'s store and
   live buffer; it never records events of its own (except through the normal
   logging API).
+- **The tools report their own failures to OSLog, not to Periscope.**
+  `PeriscopeToolsLog.failures` is the channel for a store read that threw or a
+  stored payload that wouldn't decode. Logging those through Periscope would
+  commit a change these surfaces then reload for — one corrupt row becomes a
+  refresh loop. Every `catch` still logs; a `.failed` state alone isn't enough.
+- **A reading never claims more than the row can say.** Values that come from
+  different sources — an exit mode from an indexed column, a duration from a
+  payload — must be modeled as one state, or a decode failure renders
+  contradictions (`SpanNode.Outcome` exists because an ended span used to show
+  an exit chip beside a "running" duration). A name recovered from a row's
+  message is labelled as recovered rather than passed off as the recorded one.
 - **The toast is hookable** — apps override the default handler. Handlers
   must not log at or above the alerter threshold (they'd alert themselves in
   a loop).
@@ -65,6 +76,12 @@ a Broadway `BStylesheet` — never inline in views. Read with
 - **Tool views rebind on in-place input swaps** — each view's `.task(id:)` is
   keyed on store identity plus its other inputs; a new identity-relevant
   input must join the key, or the view silently keeps serving the old inputs.
+- **A timing reading names the builds it pools.** `SpanHistoryScope` filters
+  the accumulated ends (never a refetch), and `SpanHistoryView` labels the
+  active scope — percentiles mixing an `-Onone` build with an `-O` one measure
+  nothing, and an unlabelled reading can't be told apart from a narrowed one.
+  A scope the sessions can't resolve is not offered, and a selection that
+  stops resolving falls back to `.all`.
 
 ## Testing
 

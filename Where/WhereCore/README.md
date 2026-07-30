@@ -110,7 +110,11 @@ one it belongs to rather than to a god-object:
   defaults by saying nothing.
 - **`BuildInfo`** + **`AppAttribution`** — what Settings > About says about the
   bundle it is running in. `BuildInfo.current(bundle:)` reads the marketing
-  version, build number, and the commit the app was built from;
+  version, build number, the commit the app was built from, and how the Swift
+  compiler was invoked (`compilation`: configuration, optimization level,
+  compilation mode) — `logSessionAttributes` hands that to a Periscope
+  `LogSession` at launch, which is how a stored span duration can be told apart
+  from one measured in an unoptimized build;
   `AppAttribution.main` reads the generated attribution report, decoding it once
   per process (`current(bundle:)` for any other bundle). Both return
   `nil`-shaped honesty for a bundle outside the app target, which carries

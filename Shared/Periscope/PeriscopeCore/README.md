@@ -20,8 +20,9 @@ inspect mode live in [`PeriscopeTools`](../PeriscopeTools).
 | Scope | OTel `InstrumentationScope` — a node in the logger hierarchy |
 | Link | OTel span links — one event referencing several scopes |
 | Span | OTel span — a timed operation with a shared `SpanID` |
-| Session | OTel `Resource` — per-launch app/OS/device metadata |
+| Session | OTel `Resource` — per-launch app/OS/device/build metadata |
 | Tag | Datadog/Jaeger tags — typed key/value (`LogTagValue`: string, int, double, bool, or any `Codable` via `.encoding`) stamped on events |
+| Ambient snapshot | No direct equivalent — the system state (network, thermal, power, lifecycle) as of one event |
 
 ## Installation
 
@@ -60,7 +61,11 @@ let tagged = joined.tagged(.paymentID, payment.id)  // stamps every event
 Wire persistence at startup:
 
 ```swift
-let store = try await PeriscopeStore.make(storage: .onDisk, session: .current())
+// `attributes` is how the app names its own build — Periscope sits below the
+// app modules, so it can't read the build stamp itself. See
+// `LogSessionAttributeKey` for the well-known keys.
+let session = LogSession.current(attributes: BuildInfo.current(bundle: .main).logSessionAttributes)
+let store = try await PeriscopeStore.make(storage: .onDisk, session: session)
 Periscope.shared.add(sink: store)
 Periscope.shared.startDefaultAmbientSources()
 ```
@@ -104,11 +109,30 @@ Periscope.shared.startDefaultAmbientSources()
   sources (`startAmbientSource`, `startDefaultAmbientSources`,
   `stopAmbientSources`), and the `isInspectModeEnabled` flag behind
   PeriscopeTools' log view mode.
+- **Ambient state** — `AmbientEventSource`s report what the system is doing
+  (`NetworkPathAmbientSource`, thermal, low-power, lifecycle, memory
+  warnings, accessibility). Each `AmbientEvent` carries its state as named
+  fields (`[String: AmbientValue]` — a plain JSON object in the payload,
+  e.g. `["status": "satisfied", "voiceover": false]`) and declares its
+  `reporting`: a `.state` event is a lasting condition, an `.occurrence` a
+  momentary one (a memory warning). The pipeline folds the `.state` events
+  into an `AmbientSnapshot` and stamps it on **every** record — so any error
+  joins to the connectivity, thermal state, and power mode at that moment
+  without a timestamp hunt.
+- **Session attributes** — `LogSession.current(attributes:)` takes
+  `[LogSessionAttributeKey: String]`, the build facts only the app can name:
+  `.commit` / `.commitStatus`, `.configuration`, `.optimizationLevel`,
+  `.compilationMode`. The optimization level is the load-bearing one — a
+  span duration from an `-Onone` build says nothing about the shipping app,
+  and the configuration alone can't answer it (a `Debug` configuration can
+  be compiled `-O`).
 - **Store** — `PeriscopeStore` (`@ModelActor` `LogSink`): sessions
-  (`LogSession`), `events(matching: LogQuery)` (time range, level floor,
+  (`LogSession`, plus `currentSession` for this launch),
+  `events(matching: LogQuery)` (time range, level floor,
   event name, session, scope/subtree, tags (AND), search, an incremental
   `afterSequence` cursor, paging), `events(inSpan:)`,
-  `attachments(forEvent:)`, retention
+  `attachments(forEvent:)`, `ambientSnapshot(for:)` /
+  `ambientSnapshots()`, retention
   (`pruneEvents(olderThan:/keepingNewest:)`), and a `changes()` signal.
 
 ## How it works
@@ -120,6 +144,13 @@ events trigger an automatic flush; queue overflow drops oldest and reports
 the gap (scope definitions and span began/ended pairs are exempt). Event payloads persist as JSON keyed by `eventName` + `eventVersion`
 so old rows outlive their Swift types — `StoredLogEvent.decode(_:)` recovers
 the type, and tooling degrades to raw JSON when it can't.
+
+Ambient state is stamped at buffer time, not resolved at read time: the
+pipeline keeps the current `AmbientSnapshot` and hands each record the one in
+force when it was emitted. A snapshot keeps its identity until a `.state`
+event actually moves a value, so a run of records under one system state
+shares one identity — and the store persists one row per *distinct* state
+that events reference by ID, rather than a copy per event.
 
 ### Detaching a sink
 
@@ -143,7 +174,14 @@ on-disk store sink for an in-memory one, and exiting swaps back.
 ([JournalKit](../../JournalKit)) beside the database, and once the store is
 added as a sink, every record appends to it *synchronously* at emit
 (microseconds — a page-cache write that survives the process dying by any
-means; fault-level records `F_FULLFSYNC` for kernel-panic coverage). At the
+means; fault-level records `F_FULLFSYNC` for kernel-panic coverage). The
+journal does **not** yet cover the whole process lifetime: it opens with the
+store, and `PeriscopeStore.make` is `async`, so records emitted between
+process launch and `add(sink:)` — early launch steps, ambient start-up
+snapshots — reach neither the store nor a journal. They survive only in the
+recent buffer and OSLog. Closing that window (a bootstrap journal from
+process start, ingested when the store attaches) is tracked in
+[`TODOs.md`](../TODOs.md). At the
 next launch the store ingests prior journals before the session starts:
 undelivered records persist (deduplicated by event ID), recovered span
 begans join the orphan sweep, a `.notice` marks the recovery, and the

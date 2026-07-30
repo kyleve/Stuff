@@ -193,6 +193,29 @@ struct PeriscopeStoreTests {
         #expect(events.map(\.message) == ["in first"])
     }
 
+    @Test func sessionsKeepTheBuildAttributesTheyWereStartedWith() async throws {
+        let (store, _, _, _) = try await makeStore()
+        let session = LogSession.fixture(attributes: [
+            .commit: "a18a9309c5d6",
+            .optimizationLevel: "-Onone",
+        ])
+        try await store.startSession(session)
+
+        let stored = try #require(try await store.sessions().first { $0.id == session.id })
+        #expect(stored.attributes == [.commit: "a18a9309c5d6", .optimizationLevel: "-Onone"])
+    }
+
+    /// An app that never names its build is the supported case, not a broken
+    /// one — the attributes are a seam a host app may simply not fill.
+    @Test func sessionsStartedWithoutAttributesReadBackEmpty() async throws {
+        let (store, _, _, _) = try await makeStore()
+        let session = LogSession.fixture()
+        try await store.startSession(session)
+
+        let stored = try #require(try await store.sessions().first { $0.id == session.id })
+        #expect(stored.attributes.isEmpty)
+    }
+
     @Test func messageSearchFilters() async throws {
         let (store, root, _, _) = try await makeStore()
         await store.write([
@@ -407,6 +430,32 @@ struct PeriscopeStoreTests {
         #expect(orphanRow.level == .warning)
     }
 
+    /// The synthetic end closes the *previous* launch's work — attributing
+    /// it to the sweeping session would make the new launch's "this
+    /// session" readings count another launch's orphans.
+    @Test func orphanedEndsAreAttributedToTheSessionThatBeganThem() async throws {
+        let firstSession = UUID()
+        let store = try await PeriscopeStore.inMemory(session: .fixture(id: firstSession))
+        let root = LogScope.root(named: "app")
+        await store.defineScopes([root])
+        let span = SpanID()
+        await writeSpanBegan(
+            store,
+            span: span,
+            name: "checkout",
+            relaunch: .endsWithProcess,
+            scope: root,
+        )
+
+        let secondSession = UUID()
+        try await store.startSession(.fixture(id: secondSession, startedAt: date(100)))
+
+        let pair = try await store.events(inSpan: span)
+        let orphan = try #require(pair.first { $0.eventName == SpanEnded.eventName })
+        #expect(orphan.sessionID == firstSession)
+        #expect(orphan.sessionID != secondSession)
+    }
+
     @Test func relaunchLeavesSurvivingSpansOpen() async throws {
         let (store, root, _, _) = try await makeStore()
         let span = SpanID()
@@ -423,6 +472,57 @@ struct PeriscopeStoreTests {
         let events = try await store.events(inSpan: span)
         #expect(events.count == 1)
         #expect(events.first?.eventName == SpanBegan.eventName)
+    }
+
+    /// Bytes that are not `JSONEncoder` output — on-disk corruption of a
+    /// payload, which is the only way a began's declared policy becomes
+    /// unreadable.
+    private var unreadablePayload: Data {
+        Data([0xFF, 0x00])
+    }
+
+    /// The sweep decides from the persisted policy column, so a span that asked
+    /// to survive does — even when its payload is beyond saving.
+    @Test func relaunchKeepsASurvivingSpanOpenWithoutReadingItsPayload() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let span = SpanID()
+        await writeSpanBegan(
+            store,
+            span: span,
+            name: "long-download",
+            relaunch: .survivesRelaunch,
+            scope: root,
+        )
+        try await store.degradeSpanBegan(span, payload: unreadablePayload)
+
+        try await store.startSession(.fixture(startedAt: date(100)))
+
+        #expect(try await store.events(inSpan: span).count == 1)
+    }
+
+    /// A corrupt payload can't veto the column: the span still closes as
+    /// orphaned, with its synthetic end named from the row's message since
+    /// the recorded name is unreadable.
+    @Test func relaunchClosesACorruptBeganFromItsColumnAlone() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let span = SpanID()
+        await writeSpanBegan(
+            store,
+            span: span,
+            name: "checkout",
+            relaunch: .endsWithProcess,
+            scope: root,
+        )
+        try await store.degradeSpanBegan(span, payload: unreadablePayload)
+
+        try await store.startSession(.fixture(startedAt: date(100)))
+
+        let pair = try await store.events(inSpan: span)
+        #expect(pair.count == 2)
+        let orphan = try #require(pair.first { $0.eventName == SpanEnded.eventName })
+        let ended = try orphan.decode(SpanEnded.self)
+        #expect(ended.exit == .orphaned)
+        #expect(ended.name == "▶ checkout")
     }
 
     @Test func relaunchIgnoresProperlyEndedSpans() async throws {
@@ -701,6 +801,94 @@ struct PeriscopeStoreTests {
         var query = LogQuery()
         query.tags = [LogTag(key: key, value: "pay_old")]
         #expect(try await store.events(matching: query).map(\.message) == ["old pair reused"])
+    }
+
+    // MARK: Ambient state
+
+    @Test func eventsResolveTheAmbientStateTheyWereStampedWith() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let offline = AmbientSnapshot(id: UUID(), values: [.network: ["status": "unsatisfied"]])
+        await store.write([
+            makeRecord("failed", date: date(1), scopes: [root.id]).stamped(ambient: offline),
+        ])
+
+        let event = try #require(try await store.events(matching: LogQuery()).first)
+        let snapshotID = try #require(event.ambientSnapshotID)
+        #expect(try await store.ambientSnapshot(for: snapshotID) == offline)
+    }
+
+    /// One row per distinct state, not per event — the whole reason
+    /// `AmbientSnapshot` keeps its identity stable when nothing moves.
+    @Test func eventsSharingOneStateShareOneSnapshotRow() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let state = AmbientSnapshot(id: UUID(), values: [.thermalState: ["level": "fair"]])
+        await store.write((1 ... 5).map { index in
+            makeRecord("\(index)", date: date(TimeInterval(index)), scopes: [root.id])
+                .stamped(ambient: state)
+        })
+
+        #expect(try await store.ambientSnapshots() == [state])
+        let events = try await store.events(matching: LogQuery())
+        #expect(Set(events.compactMap(\.ambientSnapshotID)) == [state.id])
+    }
+
+    @Test func changedStateWritesAnotherSnapshotRow() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let nominal = AmbientSnapshot(id: UUID(), values: [.thermalState: ["level": "nominal"]])
+        let serious = AmbientSnapshot(id: UUID(), values: [.thermalState: ["level": "serious"]])
+        await store.write([
+            makeRecord("cool", date: date(1), scopes: [root.id]).stamped(ambient: nominal),
+            makeRecord("hot", date: date(2), scopes: [root.id]).stamped(ambient: serious),
+        ])
+
+        #expect(try await store.ambientSnapshots() == [nominal, serious])
+    }
+
+    @Test func unstampedEventsStoreNoSnapshot() async throws {
+        let (store, root, _, _) = try await makeStore()
+        await store.write([makeRecord("plain", date: date(1), scopes: [root.id])])
+
+        #expect(try await store.events(matching: LogQuery()).first?.ambientSnapshotID == nil)
+        #expect(try await store.ambientSnapshots().isEmpty)
+    }
+
+    /// Snapshot rows accumulate for as long as the app changes state, so
+    /// retention has to take the unreferenced ones with it.
+    @Test func pruningRemovesOrphanedSnapshots() async throws {
+        let (store, root, _, _) = try await makeStore()
+        let old = AmbientSnapshot(id: UUID(), values: [.network: ["status": "unsatisfied"]])
+        let kept = AmbientSnapshot(id: UUID(), values: [.network: ["status": "satisfied"]])
+        await store.write([
+            makeRecord("old", date: date(1), scopes: [root.id]).stamped(ambient: old),
+            makeRecord("new", date: date(100), scopes: [root.id]).stamped(ambient: kept),
+        ])
+
+        #expect(try await store.pruneEvents(olderThan: date(50)) == 1)
+        #expect(try await store.ambientSnapshots() == [kept])
+
+        // The dropped row is re-creatable: the cache let go of it rather
+        // than handing back a deleted row.
+        await store.write([
+            makeRecord("offline again", date: date(200), scopes: [root.id]).stamped(ambient: old),
+        ])
+        #expect(try await store.ambientSnapshots().map(\.id) == [kept.id, old.id])
+    }
+
+    @Test func ambientStateFlowsFromThePipelineIntoTheStore() async throws {
+        let store = try await PeriscopeStore.inMemory(session: .fixture())
+        let system = Periscope(configuration: Periscope.Configuration(), sinks: [])
+        system.add(sink: store)
+
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .powerMode, value: ["low-power": true]) }
+        Log<AppLogs>(system: system).error("slow while saving battery")
+        await system.flush()
+
+        let events = try await store.events(matching: LogQuery())
+        let failure = try #require(events.first { $0.message == "slow while saving battery" })
+        let snapshotID = try #require(failure.ambientSnapshotID)
+        let snapshot = try await store.ambientSnapshot(for: snapshotID)
+        #expect(snapshot?[.powerMode] == ["low-power": true])
     }
 
     @Test func pruneKeepingNewestKeepsTheCount() async throws {

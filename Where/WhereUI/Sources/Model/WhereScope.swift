@@ -240,7 +240,9 @@ public final class WhereScope {
         // behind on the logging system.
         try await scope.adopt(logStore: PeriscopeStore.make(
             storage: .inMemory,
-            session: .current(),
+            session: .current(
+                attributes: BuildInfo.current(bundle: .main).logSessionAttributes,
+            ),
         ))
         return scope
     }

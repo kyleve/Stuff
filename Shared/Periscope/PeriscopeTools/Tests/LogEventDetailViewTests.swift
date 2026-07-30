@@ -25,6 +25,7 @@ struct LogEventDetailViewTests {
             externalID: nil,
             attachments: [],
             sessionID: UUID(),
+            ambientSnapshotID: nil,
         )
     }
 
@@ -52,9 +53,12 @@ struct LogEventDetailViewTests {
         #expect(stored(payload: Data([0xFF, 0x00])).exitReason == nil)
     }
 
-    @Test func prettyPayloadIndentsAndSortsKeys() throws {
+    @Test func payloadPresentationIndentsAndSortsKeys() throws {
         let payload = try JSONEncoder().encode(["zebra": 1, "apple": 2])
-        let pretty = try #require(stored(payload: payload).prettyPayload)
+        guard case let .json(pretty) = stored(payload: payload).payloadPresentation else {
+            Issue.record("Expected a JSON presentation")
+            return
+        }
 
         #expect(pretty.contains("\n"))
         let apple = try #require(pretty.range(of: "\"apple\""))
@@ -62,8 +66,15 @@ struct LogEventDetailViewTests {
         #expect(apple.lowerBound < zebra.lowerBound)
     }
 
-    @Test func prettyPayloadIsNilForEmptyOrGarbagePayloads() {
-        #expect(stored(payload: Data()).prettyPayload == nil)
-        #expect(stored(payload: Data([0xFF, 0x00])).prettyPayload == nil)
+    @Test func payloadPresentationIsNilOnlyWhenNoPayloadWasRecorded() {
+        #expect(stored(payload: Data()).payloadPresentation == nil)
+    }
+
+    /// Garbage bytes mean on-disk corruption — the detail view must say a
+    /// payload existed and didn't survive, not hide the section as if none
+    /// was recorded.
+    @Test func payloadPresentationMarksUnparseableBytesAsUnreadable() {
+        let presentation = stored(payload: Data([0xFF, 0x00])).payloadPresentation
+        #expect(presentation == .unreadable(byteCount: 2))
     }
 }

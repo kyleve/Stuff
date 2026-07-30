@@ -128,6 +128,7 @@ struct LogInspectorModelTests {
             externalID: nil,
             attachments: [],
             sessionID: UUID(),
+            ambientSnapshotID: nil,
         )
         #expect(model.depth(of: scopeless, below: photos.id) == 0)
     }

@@ -93,10 +93,17 @@ import Foundation
     @_spi(Testing) public var tags: [LogTag]
     @_spi(Testing) public var spanID: UUID?
     @_spi(Testing) public var spanExitMode: String?
+    /// A span began's relaunch policy. `Optional` for the same reason as
+    /// ``ambient``, and because it's only ever set on a began.
+    @_spi(Testing) public var spanRelaunchPolicy: String?
     @_spi(Testing) public var callFunction: String?
     @_spi(Testing) public var callFileID: String?
     @_spi(Testing) public var externalID: String?
     @_spi(Testing) public var attachments: [LogJournalAttachment]
+    /// The ambient state stamped on the record. `Optional` so entries
+    /// written by a build that predates it still decode — the journal is
+    /// written before an upgrade and ingested after one.
+    @_spi(Testing) public var ambient: AmbientSnapshot?
 
     /// Attachment blobs above this size are omitted from the journal (the
     /// async path still delivers them when the process survives) — inlining
@@ -117,9 +124,11 @@ import Foundation
         tags = record.tags
         spanID = record.spanID?.rawValue
         spanExitMode = record.spanExit?.mode.rawValue
+        spanRelaunchPolicy = record.spanRelaunchPolicy?.rawValue
         callFunction = record.callSite?.function
         callFileID = record.callSite?.fileID
         externalID = record.externalID
+        ambient = record.ambient
         attachments = record.attachments.map { attachment in
             attachment.data.count <= Self.maximumInlineAttachmentBytes
                 ? .inline(attachment)
