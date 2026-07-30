@@ -98,7 +98,11 @@ SNAPSHOT_SCHEME="StuffSnapshotTests"
 # another checkout can't perturb these numbers by sharing it.
 DESTINATION="platform=iOS Simulator,id=$(./simulator --device "$DEVICE" --os "$OS")"
 
-WORKDIR="${TMPDIR:-/tmp}/where-profile"
+CHECKOUT_HASH="$(printf '%s' "$(pwd -P)" | shasum -a 256 | cut -c1-12)"
+# Keep profiling artifacts isolated just like the checkout-owned simulator:
+# concurrent clones/worktrees must not replace one another's DerivedData,
+# logs, or result bundles. PROFILE_WORKDIR remains an explicit CI override.
+WORKDIR="${PROFILE_WORKDIR:-${TMPDIR:-/tmp}/where-profile-$CHECKOUT_HASH}"
 DERIVED="$WORKDIR/DerivedData"
 BUILD_LOG="$WORKDIR/build.log"
 TEST_LOG="$WORKDIR/test.log"
@@ -108,7 +112,7 @@ SNAPSHOT_BUILD_LOG="$WORKDIR/snapshot-build.log"
 SNAPSHOT_TEST_LOG="$WORKDIR/snapshot-test.log"
 SNAPSHOT_RESULT_BUNDLE="$WORKDIR/snapshot-tests.xcresult"
 SNAPSHOT_TESTS_JSON="$WORKDIR/snapshot-tests.json"
-mkdir -p "$WORKDIR"
+mkdir -p "$WORKDIR" && chmod 700 "$WORKDIR"
 
 rule() { printf '%s\n' "============================================================"; }
 

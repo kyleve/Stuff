@@ -1,0 +1,41 @@
+#if DEBUG
+    import Foundation
+
+    /// A destination launched from the DEBUG-only developer overlay.
+    ///
+    /// Keeping the destination typed lets the overlay carry the selected tool
+    /// through floating/full-screen transitions without retaining a parallel
+    /// collection of labels, icons, or route flags.
+    enum DeveloperTool: Hashable, Identifiable {
+        case logs
+        case openSpans
+        case swiftDataInspector
+        case regionMap
+
+        var id: Self {
+            self
+        }
+
+        var title: String {
+            switch self {
+                case .logs:
+                    String(localized: .developerLogsLink)
+                case .openSpans:
+                    String(localized: .developerOpenSpansLink)
+                case .swiftDataInspector:
+                    String(localized: .developerInspectorLink)
+                case .regionMap:
+                    String(localized: .developerRegionMapLink)
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+                case .logs: "ladybug"
+                case .openSpans: "timer"
+                case .swiftDataInspector: "cylinder.split.1x2"
+                case .regionMap: "map"
+            }
+        }
+    }
+#endif
