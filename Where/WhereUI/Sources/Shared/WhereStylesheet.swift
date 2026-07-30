@@ -27,6 +27,7 @@ struct WhereStylesheet: BStylesheet {
     var launch = LaunchStyle.standard
     var typography = Typography.standard
     var settings = SettingsStyle.standard
+    var developerOverlay = DeveloperOverlayStyle.standard
 
     init() {}
 
@@ -52,6 +53,7 @@ struct WhereStylesheet: BStylesheet {
         // crossfades to the new number instead.
         if traits.accessibility.isReduceMotionEnabled {
             card.dayCount = .reducedMotion
+            developerOverlay.menu.motion = .reduced
         }
     }
 
@@ -85,6 +87,137 @@ extension WhereStylesheet {
         /// (the "updating your data" line shown during a slow store open), kept
         /// clear of the home indicator.
         var launchCaptionBottomInset: CGFloat = 72
+    }
+}
+
+// MARK: - Developer overlay
+
+extension WhereStylesheet {
+    /// Appearance and motion for the DEBUG-only developer launcher, accordion,
+    /// and selected-tool HUD.
+    struct DeveloperOverlayStyle: Equatable {
+        var edgeInset: CGFloat
+        var presentationAnimation: Animation
+        var floatingWindow: FloatingWindow
+        var panel: Panel
+        var menu: Menu
+
+        /// Persisted floating-window constraints used by the overlay model's pure
+        /// layout functions.
+        struct FloatingWindow: Equatable {
+            var maxWidth: CGFloat
+            var maxHeight: CGFloat
+            var heightFraction: CGFloat
+            var minSize: CGSize
+            var maxContentInsetFraction: CGFloat
+
+            static let standard = FloatingWindow(
+                maxWidth: 420,
+                maxHeight: 620,
+                heightFraction: 0.62,
+                minSize: CGSize(width: 260, height: 320),
+                maxContentInsetFraction: 0.8,
+            )
+        }
+
+        /// Chrome around a selected tool.
+        struct Panel: Equatable {
+            var cornerRadius: CGFloat
+            var fullScreenInset: CGFloat
+            var shadowOpacity: Double
+            var shadowRadius: CGFloat
+            var shadowOffsetY: CGFloat
+            var controlHorizontalPadding: CGFloat
+            var controlVerticalPadding: CGFloat
+            var dragHandleSize: CGSize
+            var dragHandleMinHeight: CGFloat
+            var resizeGripSize: CGFloat
+            var resizeIconSize: CGFloat
+            var resizeGripClearance: CGFloat
+        }
+
+        /// Geometry and staggered reveal for the lightweight route menu.
+        struct Menu: Equatable {
+            var maxWidth: CGFloat
+            var launcherSpacing: CGFloat
+            var rowSpacing: CGFloat
+            var horizontalPadding: CGFloat
+            var verticalPadding: CGFloat
+            var minRowHeight: CGFloat
+            var cornerRadius: CGFloat
+            var subtitleSpacing: CGFloat
+            var iconWidth: CGFloat
+            var motion: MenuMotion
+        }
+
+        /// One resolved menu-motion treatment. Reduce Motion swaps this entire
+        /// value so the spatial move/scale and stagger disappear together.
+        struct MenuMotion: Equatable {
+            var animation: Animation
+            var stagger: Double
+            var scale: CGFloat
+            var usesSpatialMotion: Bool
+
+            func transition(from edge: Edge, index: Int, itemCount: Int) -> AnyTransition {
+                let base: AnyTransition = usesSpatialMotion
+                    ? .move(edge: edge).combined(with: .scale(scale: scale))
+                    .combined(with: .opacity)
+                    : .opacity
+                let insertion = animation.delay(stagger * Double(index))
+                let removalIndex = max(itemCount - index - 1, 0)
+                let removal = animation.delay(stagger * Double(removalIndex))
+                return .asymmetric(
+                    insertion: base.animation(insertion),
+                    removal: base.animation(removal),
+                )
+            }
+
+            static let standard = MenuMotion(
+                animation: .spring(duration: 0.42, bounce: 0.2),
+                stagger: 0.04,
+                scale: 0.86,
+                usesSpatialMotion: true,
+            )
+
+            static let reduced = MenuMotion(
+                animation: .easeInOut(duration: 0.18),
+                stagger: 0,
+                scale: 1,
+                usesSpatialMotion: false,
+            )
+        }
+
+        static let standard = DeveloperOverlayStyle(
+            edgeInset: 16,
+            presentationAnimation: .snappy(duration: 0.3),
+            floatingWindow: .standard,
+            panel: Panel(
+                cornerRadius: 22,
+                fullScreenInset: 12,
+                shadowOpacity: 0.3,
+                shadowRadius: 20,
+                shadowOffsetY: 6,
+                controlHorizontalPadding: 16,
+                controlVerticalPadding: 10,
+                dragHandleSize: CGSize(width: 40, height: 5),
+                dragHandleMinHeight: 28,
+                resizeGripSize: 44,
+                resizeIconSize: 13,
+                resizeGripClearance: 40,
+            ),
+            menu: Menu(
+                maxWidth: 310,
+                launcherSpacing: 10,
+                rowSpacing: 8,
+                horizontalPadding: 14,
+                verticalPadding: 10,
+                minRowHeight: 44,
+                cornerRadius: 18,
+                subtitleSpacing: 2,
+                iconWidth: 24,
+                motion: .standard,
+            ),
+        )
     }
 }
 
