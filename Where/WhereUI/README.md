@@ -92,6 +92,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   system](#design-system)). Applied by `RootView` and by each widget.
 - **`RegionMapView`** — the developer region-map tool (also hosted standalone by
   the RegionViewer Mac Catalyst app).
+- **Flyover** — a DEBUG-only all-screens browser reached from the floating
+  Developer Overlay. It renders the app's screens on a zoomable navigation
+  canvas or linear list, shows push/modal routes, switches global device and
+  accessibility traits, and opens any frame in a live focused inspector.
 
 ## Installation
 
@@ -198,6 +202,29 @@ disk, CloudKit, or CoreLocation. Pull services and models from there rather than
 constructing them inline, and cover the empty / loaded / edge states, not just
 the happy path. See the feature
 [`Where/AGENTS.md`](../AGENTS.md#swiftui-views--previews).
+
+## Flyover
+
+`Sources/Developer/Flyover` owns an explicit `WhereFlyoverScreenID` catalog.
+The enum is exhaustive and completeness-tested, so adding a top-level screen
+produces one obvious registration update rather than depending on source
+scanning or a macro that cannot discover navigation across the module.
+
+Opening Flyover asynchronously builds one `WhereScope.demo` and shares its
+seeded in-memory services, preferences, and session across live frames. That
+scope is never activated and never log-routed; the app's current scope remains
+untouched. The loader constructs and retains the completed catalog once, so
+host-view updates preserve those frame fixtures and their controls. Synthetic
+`PreviewSupport` states fill the gaps the demo data cannot express cleanly
+(empty, failed, unavailable, widget, and intent-snippet states). Frame-local
+controls can mutate only their own observable fixture—for example, Locations
+can show or hide its Resolve toolbar item—and Reset restores that fixture.
+
+Overview frames ignore hit testing so embedded navigation containers cannot
+fight the canvas. Selecting the inspect button opens the same screen in a
+full-screen interactive viewport. Flyover's appearance, device, Dynamic Type,
+contrast, layout-direction, and bold-text choices are session-only and apply
+only to registered content.
 
 ## Testing
 

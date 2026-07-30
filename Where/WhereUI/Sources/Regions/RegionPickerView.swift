@@ -18,7 +18,7 @@ struct RegionPickerView: View {
         case list
     }
 
-    @State private var mode: Mode = .list
+    @State private var mode: Mode
     @State private var searchText = ""
     /// Bumped whenever a map tap is ignored because the selection is full, to
     /// drive the warning haptic.
@@ -31,6 +31,11 @@ struct RegionPickerView: View {
     @Environment(\.regionStyles) private var regionStyles
 
     private static let logger = WhereLog.session(RegionPickerViewLog.self)
+
+    init(model: PrimaryRegionSelectionModel, initialMode: Mode = .list) {
+        self.model = model
+        _mode = State(initialValue: initialMode)
+    }
 
     var body: some View {
         VStack(spacing: stylesheet.spacing.medium) {

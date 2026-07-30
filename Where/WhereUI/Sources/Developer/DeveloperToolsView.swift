@@ -28,6 +28,7 @@
         /// resize grip. Zero (the default) when hosted without the overlay chrome
         /// (previews, tests, full screen).
         var bottomContentInset: CGFloat = 0
+        private var openFlyover: @MainActor () -> Void = {}
 
         var body: some View {
             NavigationStack {
@@ -62,6 +63,16 @@
                         }
 
                         NavigationLink {
+                            WhereFlyoverView()
+                                .onAppear(perform: openFlyover)
+                        } label: {
+                            Label(
+                                String(localized: .developerFlyoverLink),
+                                systemImage: "rectangle.3.group",
+                            )
+                        }
+
+                        NavigationLink {
                             RegionMapView()
                         } label: {
                             Label(String(localized: .developerRegionMapLink), systemImage: "map")
@@ -80,6 +91,12 @@
                 .scrollContentBackground(.hidden)
                 .contentMargins(.bottom, bottomContentInset, for: .scrollContent)
             }
+        }
+
+        func onOpenFlyover(_ action: @escaping @MainActor () -> Void) -> Self {
+            var copy = self
+            copy.openFlyover = action
+            return copy
         }
     }
 

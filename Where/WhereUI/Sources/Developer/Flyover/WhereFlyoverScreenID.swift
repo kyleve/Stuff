@@ -1,0 +1,50 @@
+#if DEBUG
+    /// Every top-level/renderable WhereUI surface registered in Flyover.
+    enum WhereFlyoverScreenID: String, CaseIterable, Hashable {
+        case launch
+        case onboarding
+        case regionPicker
+        case regionCustomize
+        case locations
+        case regionCalendar
+        case elsewhere
+        case regionDays
+        case resolution
+        case manualDay
+        case dayRelabel
+        case abruptChange
+        case flightDay
+        case year
+        case calendar
+        case timeline
+        case recentActivity
+        case settings
+        case evidenceList
+        case evidenceDetail
+        case addEvidence
+        case loggedDays
+        case regions
+        case locationSettings
+        case alertsSettings
+        case appearanceSettings
+        case appIcon
+        case visibleYear
+        case backup
+        case dataSettings
+        case about
+        case license
+        case developerOverlay
+        case developerTools
+        case logs
+        case openSpans
+        case swiftDataInspector
+        case regionMap
+        case todayWidget
+        case todayInline
+        case todayCircular
+        case yearTotalsWidget
+        case yearTotalsRectangular
+        case daysSnippet
+        case regionsSnippet
+    }
+#endif

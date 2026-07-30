@@ -2,6 +2,7 @@
     import SnapshotKit
     import SwiftUI
     import UIKit
+    import WhereCore
 
     /// A global, DEBUG-only developer surface that floats above the entire app.
     ///
@@ -30,7 +31,7 @@
         /// without hardcoding its height. Zero when logged out.
         var tabBarInset: CGFloat = 0
 
-        @State private var model = DeveloperOverlayModel()
+        @State private var model: DeveloperOverlayModel
         @State private var dragOffset: CGSize = .zero
         /// The collapsed button's rendered size, measured rather than hardcoded so
         /// the drag/anchor math tracks whatever ``DeveloperOverlayButton`` draws
@@ -47,6 +48,14 @@
         /// Margin around the inset full-screen modal, so it reads as a devtools
         /// modal floating over the app rather than replacing it edge-to-edge.
         private let fullScreenInset: CGFloat = 12
+
+        init(
+            tabBarInset: CGFloat = 0,
+            store: any KeyValueStore = UserDefaults.standard,
+        ) {
+            self.tabBarInset = tabBarInset
+            _model = State(initialValue: DeveloperOverlayModel(store: store))
+        }
 
         var body: some View {
             GeometryReader { proxy in
@@ -289,6 +298,11 @@
                 controlBar
                 Divider().opacity(0.5)
                 DeveloperToolsView(bottomContentInset: bottomContentInset)
+                    .onOpenFlyover {
+                        if !isFullScreen {
+                            onToggleFullScreen()
+                        }
+                    }
             }
             .overlay(alignment: .bottomTrailing) {
                 if !isFullScreen { resizeGrip }
@@ -378,7 +392,7 @@
     extension DeveloperOverlay: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(name: "Collapsed", configurations: .phoneLightDark) {
-                DeveloperOverlay()
+                DeveloperOverlay(store: InMemoryKeyValueStore())
                     .environment(PreviewSupport.loadedSession())
             }
         }
