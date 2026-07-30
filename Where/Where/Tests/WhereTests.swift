@@ -1,4 +1,5 @@
 import Inspector
+import PeriscopeCore
 import SwiftUI
 import Testing
 import UIKit
@@ -70,7 +71,7 @@ struct WhereAppTests {
             #expect(inspectorCount == 0)
         }
 
-        @Test func inspectorConfigurationNamesOnlyWhereInspectionResources() throws {
+        @Test func inspectorConfigurationNamesAppInspectionResources() throws {
             let suiteName = "where.inspector.configuration.\(UUID().uuidString)"
             let defaults = try #require(UserDefaults(suiteName: suiteName))
             defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -96,10 +97,17 @@ struct WhereAppTests {
             )
             #expect(configuration.fileContainers.last?.rootURL == groupURL)
             #expect(configuration.defaultsDomains.map(\.persistentDomainName) == [suiteName])
-            #expect(configuration.swiftDataSources.count == 1)
             #expect(
-                configuration.swiftDataSources.first?.modelTypes?.count
+                configuration.swiftDataSources.map(\.id.rawValue)
+                    == ["where", "periscope"],
+            )
+            #expect(
+                configuration.swiftDataSources[0].modelTypes?.count
                     == SwiftDataStore.inspectorModelTypes.count,
+            )
+            #expect(
+                configuration.swiftDataSources[1].modelTypes?.count
+                    == PeriscopeStore.inspectorModelTypes.count,
             )
         }
     #endif

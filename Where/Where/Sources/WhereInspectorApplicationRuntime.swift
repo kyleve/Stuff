@@ -1,6 +1,7 @@
 #if DEBUG
     import Foundation
     import Inspector
+    import PeriscopeCore
     import SwiftUI
     import UIKit
     import WhereCore
@@ -81,6 +82,15 @@
                         modelTypes: SwiftDataStore.inspectorModelTypes,
                         makeContainer: {
                             try SwiftDataStore.makeContainer(storage: .default)
+                        },
+                    ),
+                    .init(
+                        id: .init(rawValue: "periscope"),
+                        title: "Periscope SwiftData",
+                        storageRootURL: applicationSupport,
+                        modelTypes: PeriscopeStore.inspectorModelTypes,
+                        makeContainer: {
+                            try PeriscopeStore.makeContainer(storage: .onDisk)
                         },
                     ),
                 ],

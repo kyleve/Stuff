@@ -45,9 +45,12 @@ steps immediately and builds no view tree; when a scene actually activates,
 `RootView` promotes the launch to `.userForeground` and the remaining steps run.
 
 The Inspector runtime returns its standalone `InspectorView` and starts none of
-the model, launch, CoreLocation, notification, Periscope, App Intents, or
-Spotlight systems. Its exit control selects the regular runtime for the next
-manual relaunch; neither runtime swaps live.
+the model, launch, CoreLocation, notification, Periscope pipeline, App Intents,
+or Spotlight systems. It opens Where and Periscope containers only through
+their schema adapters for inspection; a container that cannot open remains
+listed with its error and conservative file-deletion protection. Its exit
+control selects the regular runtime for the next manual relaunch; neither
+runtime swaps live.
 
 ## Build & run
 

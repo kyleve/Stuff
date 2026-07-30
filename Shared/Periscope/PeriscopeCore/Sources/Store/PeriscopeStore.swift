@@ -77,6 +77,13 @@ public actor PeriscopeStore: LogSink {
         return try ModelContainer(for: schema, configurations: [configuration])
     }
 
+    /// The live record types, erased so a generic Inspector runtime can
+    /// enumerate them without exposing Periscope's internal model classes.
+    /// Mirrors the schema used by ``makeContainer(storage:)``.
+    public static var inspectorModelTypes: [any PersistentModel.Type] {
+        PeriscopeSchema.models
+    }
+
     /// App-wiring factory: opens the store and starts `session` so every
     /// subsequent event is attributed to this launch. On-disk stores also
     /// open this launch's crash journal beside the database — the

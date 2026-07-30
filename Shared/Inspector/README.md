@@ -106,6 +106,11 @@ returns only `Sendable` value snapshots and `PersistentIdentifier`s. A complete
 erase calls `ModelContainer.erase()` and reopens through the source factory;
 raw SQLite deletion remains unavailable.
 
+Every configured SwiftData source remains in the sidebar when its container
+cannot open. Inspector shows the opening error instead of entity tables and
+disables filesystem deletion throughout that source's declared storage root,
+leaving unrelated sources and file containers usable.
+
 Inspector deliberately does not reflectively edit SwiftData attributes.
 
 ## SwiftData browsing

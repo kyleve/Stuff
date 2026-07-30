@@ -134,6 +134,9 @@ Periscope.shared.startDefaultAmbientSources()
   `attachments(forEvent:)`, `ambientSnapshot(for:)` /
   `ambientSnapshots()`, retention
   (`pruneEvents(olderThan:/keepingNewest:)`), and a `changes()` signal.
+  `makeContainer(storage:)` and `inspectorModelTypes` expose the narrow
+  schema adapter a standalone Inspector runtime needs without starting a
+  logging session or exposing the internal SwiftData model classes.
 
 ## How it works
 
