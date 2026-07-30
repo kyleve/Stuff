@@ -275,6 +275,48 @@ struct WhereStylesheetTests {
         #expect(settings.scrollSettleDelay == .milliseconds(350))
     }
 
+    @Test func developerOverlayStyle() {
+        let overlay = style.developerOverlay
+        #expect(overlay.edgeInset == 16)
+        #expect(overlay.presentationAnimation == .snappy(duration: 0.3))
+        #expect(overlay.floatingWindow == .standard)
+        #expect(overlay.floatingWindow.maxWidth == 420)
+        #expect(overlay.floatingWindow.maxHeight == 620)
+        #expect(overlay.floatingWindow.heightFraction == 0.62)
+        #expect(overlay.floatingWindow.minSize == CGSize(width: 260, height: 320))
+        #expect(overlay.floatingWindow.maxContentInsetFraction == 0.8)
+
+        let panel = overlay.panel
+        #expect(panel.cornerRadius == 22)
+        #expect(panel.fullScreenInset == 12)
+        #expect(panel.shadowOpacity == 0.3)
+        #expect(panel.shadowRadius == 20)
+        #expect(panel.shadowOffsetY == 6)
+        #expect(panel.controlHorizontalPadding == 16)
+        #expect(panel.controlVerticalPadding == 10)
+        #expect(panel.dragHandleSize == CGSize(width: 40, height: 5))
+        #expect(panel.dragHandleMinHeight == 28)
+        #expect(panel.resizeGripSize == 44)
+        #expect(panel.resizeIconSize == 13)
+        #expect(panel.resizeGripClearance == 40)
+
+        let menu = overlay.menu
+        #expect(menu.maxWidth == 310)
+        #expect(menu.launcherSpacing == 10)
+        #expect(menu.rowSpacing == 8)
+        #expect(menu.horizontalPadding == 14)
+        #expect(menu.verticalPadding == 10)
+        #expect(menu.minRowHeight == 44)
+        #expect(menu.cornerRadius == 18)
+        #expect(menu.subtitleSpacing == 2)
+        #expect(menu.iconWidth == 24)
+        #expect(menu.motion == .standard)
+        #expect(menu.motion.animation == .spring(duration: 0.42, bounce: 0.2))
+        #expect(menu.motion.stagger == 0.04)
+        #expect(menu.motion.scale == 0.86)
+        #expect(menu.motion.usesSpatialMotion)
+    }
+
     @Test func paletteColors() {
         let palette = style.palette
         #expect(palette.primary.backgroundTop == Color(red: 0.07, green: 0.08, blue: 0.13))
@@ -324,6 +366,8 @@ struct WhereStylesheetTests {
         context.traitOverrides.accessibility = BAccessibility(isReduceMotionEnabled: true)
         let resolved = try context.stylesheets.get(WhereStylesheet.self)
         #expect(resolved.card.dayCount == .reducedMotion)
+        #expect(resolved.developerOverlay.menu.motion == .reduced)
+        #expect(resolved.developerOverlay.menu.motion.usesSpatialMotion == false)
     }
 }
 

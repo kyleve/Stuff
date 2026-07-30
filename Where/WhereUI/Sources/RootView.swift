@@ -107,9 +107,10 @@ public struct RootView: View {
             .safeAreaPadding(developerOverlayInsets)
             #endif
 
-            // The floating developer surface sits above every launch phase and
-            // tab so its tools are reachable from anywhere (even logged out). It's
-            // DEBUG-only and compiled out of release entirely.
+            // The floating developer launcher/accordion sits above every launch
+            // phase and tab so its tools are reachable from anywhere (even logged
+            // out). Selected tools open in its HUD. The whole surface is DEBUG-only
+            // and compiled out of release entirely.
             #if DEBUG
                 DeveloperOverlay(tabBarInset: developerTabBarInset)
                 // High-severity log toasts float above everything, including the

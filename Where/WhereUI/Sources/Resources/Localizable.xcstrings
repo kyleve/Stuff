@@ -451,18 +451,6 @@
         }
       }
     },
-    "developer.footer" : {
-      "comment" : "Footer for the developer tools list.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "On-device logs and data tools. Debug builds only."
-          }
-        }
-      }
-    },
     "developer.inspectorLink" : {
       "comment" : "Label for the navigation link that opens the SwiftData inspector.",
       "extractionState" : "manual",
@@ -533,6 +521,18 @@
         }
       }
     },
+    "developer.menu.close" : {
+      "comment" : "Accessibility label for collapsing the open developer tools menu.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close developer tools menu"
+          }
+        }
+      }
+    },
     "developer.openSpansLink" : {
       "comment" : "Label for a button that opens the developer's spans.",
       "extractionState" : "manual",
@@ -570,14 +570,26 @@
         }
       }
     },
-    "developer.title" : {
-      "comment" : "Navigation title of the developer tools list.",
+    "developer.unavailable.description" : {
+      "comment" : "Description shown when a developer tool loses its session dependency while open.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Developer"
+            "value" : "This tool is no longer available in the current app session."
+          }
+        }
+      }
+    },
+    "developer.unavailable.title" : {
+      "comment" : "Title shown when a developer tool loses its session dependency while open.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tool unavailable"
           }
         }
       }

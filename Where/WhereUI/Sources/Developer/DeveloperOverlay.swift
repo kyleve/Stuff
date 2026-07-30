@@ -1,38 +1,36 @@
 #if DEBUG
+    import PeriscopeTools
     import SnapshotKit
     import SwiftUI
     import UIKit
     import WhereCore
 
-    /// A global, DEBUG-only developer surface that floats above the entire app.
+    /// A global, DEBUG-only developer launcher and tool surface above the app.
     ///
     /// Collapsed, it's a small draggable button (``DeveloperOverlayButton``) that
-    /// snaps to the nearest corner. Tapping expands it into a Liquid Glass HUD
-    /// window hosting ``DeveloperToolsView`` — draggable by its top bar and
-    /// resizable from a bottom-trailing grip, with its position and size persisted
-    /// across launches (see ``DeveloperOverlayModel``). From there it grows to an
-    /// inset full-screen modal and shrinks back. In the collapsed and floating
-    /// states the rest of the app stays interactive behind it — only the
-    /// button/window capture touches — so the tools are reachable from anywhere,
-    /// including before login.
+    /// snaps to the nearest corner. Tapping unfolds a labeled glass accordion
+    /// directly over the app; its clear backdrop consumes an outside tap without
+    /// visually dimming the app. Choosing a route replaces the menu with the
+    /// selected tool in a Liquid Glass HUD — draggable, resizable, and able to
+    /// grow into an inset full-screen modal. Flyover is the exception: it owns an
+    /// independent navigation domain and opens in a full-screen cover.
     ///
-    /// Because the floating HUD is non-modal, it also reports the footprint it
-    /// occupies (``DeveloperOverlayInsetKey``) so ``RootView`` can extend the app
-    /// content's safe area and screens behind it scroll clear of the window.
-    ///
-    /// The tools surface keeps its navigation state across the floating ↔ full
-    /// screen toggle because it stays the *same* view (only its frame changes);
-    /// only the collapsed ↔ expanded change swaps view identity.
+    /// The floating HUD reports its footprint through
+    /// ``DeveloperOverlayInsetKey`` so app content scrolls clear of it. The tool
+    /// host keeps its identity across floating/full-screen changes, preserving
+    /// the tool's navigation state; closing it returns to the collapsed launcher.
     ///
     /// Attached once at ``RootView`` and compiled out of release (`#if DEBUG`).
     struct DeveloperOverlay: View {
         /// The logged-in tab bar's height, measured by `MainTabs` and threaded in
         /// via `RootView`, so the resting button clears the floating tab bar
         /// without hardcoding its height. Zero when logged out.
-        var tabBarInset: CGFloat = 0
+        private let tabBarInset: CGFloat
 
         @State private var model: DeveloperOverlayModel
         @State private var dragOffset: CGSize = .zero
+        @State private var isDraggingButton = false
+        @State private var isPresentingFlyover = false
         /// The collapsed button's rendered size, measured rather than hardcoded so
         /// the drag/anchor math tracks whatever ``DeveloperOverlayButton`` draws
         /// (it scales with Dynamic Type).
@@ -43,41 +41,81 @@
         @State private var windowDrag: CGSize = .zero
         @State private var windowResize: CGSize = .zero
 
-        private let edgeInset: CGFloat = 16
-        private let panelCornerRadius: CGFloat = 22
-        /// Margin around the inset full-screen modal, so it reads as a devtools
-        /// modal floating over the app rather than replacing it edge-to-edge.
-        private let fullScreenInset: CGFloat = 12
+        @Environment(\.stylesheet) private var stylesheet
 
-        init(
-            tabBarInset: CGFloat = 0,
-            store: any KeyValueStore = UserDefaults.standard,
-        ) {
+        init(tabBarInset: CGFloat = 0) {
             self.tabBarInset = tabBarInset
-            _model = State(initialValue: DeveloperOverlayModel(store: store))
+            _model = State(initialValue: DeveloperOverlayModel())
+        }
+
+        init(tabBarInset: CGFloat = 0, model: DeveloperOverlayModel) {
+            self.tabBarInset = tabBarInset
+            _model = State(initialValue: model)
         }
 
         var body: some View {
             GeometryReader { proxy in
+                let style = stylesheet.developerOverlay
+                let anchor = anchorPoint(for: model.corner, in: proxy.size)
+                let menuFrame = menuFrame(anchor: anchor, in: proxy.size)
+
                 ZStack {
-                    // A dimmed scrim only in full screen; it still captures touches
-                    // (blocking the app behind the modal) but lets the inset edges
-                    // hint at the app underneath. The floating (HUD) state has no
-                    // scrim — the app behind stays visible and usable.
-                    if model.presentation == .fullScreen {
+                    if model.presentation.isFullScreen {
                         Color.black.opacity(0.4)
                             .ignoresSafeArea()
                             .transition(.opacity)
                     }
 
-                    switch model.presentation {
-                        case .collapsed:
-                            collapsedButton(in: proxy)
-                        case .floating, .fullScreen:
-                            panel(in: proxy)
+                    if model.presentation.isMenuPresented {
+                        Button(action: closeMenu) {
+                            Color.clear
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHidden(true)
+                    }
+
+                    // Kept mounted in every state so menu rows can animate out in
+                    // reverse even while the selected tool HUD animates in.
+                    DeveloperOverlayMenu(
+                        isPresented: model.presentation.isMenuPresented,
+                        corner: model.corner,
+                        maxHeight: menuFrame.height,
+                        onOpenDestination: openDestination,
+                    )
+                    .frame(width: menuFrame.width, height: menuFrame.height)
+                    .position(x: menuFrame.midX, y: menuFrame.midY)
+
+                    if let tool = model.presentation.tool {
+                        panel(
+                            tool: tool,
+                            isFullScreen: model.presentation.isFullScreen,
+                            in: proxy,
+                        )
+                    }
+
+                    if model.presentation.tool == nil {
+                        DeveloperOverlayButton(
+                            isMenuPresented: model.presentation.isMenuPresented,
+                            action: toggleMenu,
+                        )
+                        .onGeometryChange(for: CGSize.self) { $0.size } action: { buttonSize = $0 }
+                        .position(
+                            x: anchor.x + dragOffset.width,
+                            y: anchor.y + dragOffset.height,
+                        )
+                        .simultaneousGesture(
+                            dragGesture(in: proxy),
+                            isEnabled: model.presentation == .collapsed,
+                        )
+                        .transition(.scale.combined(with: .opacity))
                     }
                 }
-                .animation(.snappy(duration: 0.3), value: model.presentation)
+                .animation(style.presentationAnimation, value: model.presentation)
+                .accessibilityElement(children: .contain)
+                .accessibilityAddTraits(
+                    model.presentation.isAccessibilityModal ? .isModal : [],
+                )
                 // Report the footprint the non-modal HUD occupies so `RootView`
                 // can inset the app content behind it.
                 .preference(
@@ -85,13 +123,13 @@
                     value: appContentInsets(in: proxy.size),
                 )
             }
-            // Nudge VoiceOver to re-scan when the surface changes: crossing the
-            // full-screen boundary flips the modal (see `panel`), so post
-            // `.screenChanged` to move focus into/out of the modal; the lighter
-            // open/close of the non-modal floating panel only warrants
-            // `.layoutChanged`.
+            .fullScreenCover(isPresented: $isPresentingFlyover) {
+                WhereFlyoverPresentationView()
+            }
+            // Menu and full-screen states are modal to VoiceOver. Crossing either
+            // boundary moves focus into/out of the active developer surface.
             .onChange(of: model.presentation) { old, new in
-                let modalChanged = (old == .fullScreen) != (new == .fullScreen)
+                let modalChanged = old.isAccessibilityModal != new.isAccessibilityModal
                 UIAccessibility.post(
                     notification: modalChanged ? .screenChanged : .layoutChanged,
                     argument: nil,
@@ -99,23 +137,42 @@
             }
         }
 
-        // MARK: Collapsed button
+        private func toggleMenu() {
+            guard isDraggingButton == false else { return }
+            let motion = stylesheet.developerOverlay.menu.motion.animation
+            withAnimation(motion) {
+                if model.presentation.isMenuPresented {
+                    model.closeMenu()
+                } else {
+                    model.openMenu()
+                }
+            }
+        }
 
-        private func collapsedButton(in proxy: GeometryProxy) -> some View {
-            let anchor = anchorPoint(for: model.corner, in: proxy.size)
-            return DeveloperOverlayButton()
-                .onGeometryChange(for: CGSize.self) { $0.size } action: { buttonSize = $0 }
-                .position(x: anchor.x + dragOffset.width, y: anchor.y + dragOffset.height)
-                .gesture(dragGesture(in: proxy))
-                .onTapGesture { model.open() }
-                .transition(.scale.combined(with: .opacity))
+        private func closeMenu() {
+            withAnimation(stylesheet.developerOverlay.menu.motion.animation) {
+                model.closeMenu()
+            }
+        }
+
+        private func openDestination(_ destination: DeveloperDestination) {
+            switch destination {
+                case let .tool(tool):
+                    withAnimation(stylesheet.developerOverlay.presentationAnimation) {
+                        model.open(tool)
+                    }
+                case .flyover:
+                    withAnimation(stylesheet.developerOverlay.menu.motion.animation) {
+                        model.closeMenu()
+                    }
+                    isPresentingFlyover = true
+            }
         }
 
         private func dragGesture(in proxy: GeometryProxy) -> some Gesture {
-            // A small minimum distance lets a stationary tap fall through to
-            // `onTapGesture` (open) while any real drag moves the button.
             DragGesture(minimumDistance: 8)
                 .onChanged { value in
+                    isDraggingButton = true
                     dragOffset = value.translation
                 }
                 .onEnded { value in
@@ -128,9 +185,15 @@
                         to: dropPoint,
                         in: proxy.size,
                     )
-                    withAnimation(.snappy(duration: 0.3)) {
+                    withAnimation(stylesheet.developerOverlay.presentationAnimation) {
                         model.setCorner(newCorner)
                         dragOffset = .zero
+                    }
+                    // Keep the suppression flag set through the release event so
+                    // the semantic Button does not also open the menu after a drag.
+                    Task { @MainActor in
+                        await Task.yield()
+                        isDraggingButton = false
                     }
                 }
         }
@@ -145,6 +208,7 @@
         ) -> CGPoint {
             let halfWidth = buttonSize.width / 2
             let halfHeight = buttonSize.height / 2
+            let edgeInset = stylesheet.developerOverlay.edgeInset
             let leadingX = edgeInset + halfWidth
             let trailingX = size.width - edgeInset - halfWidth
             let topY = edgeInset + halfHeight
@@ -157,23 +221,50 @@
             }
         }
 
-        // MARK: Expanded panel
+        private func menuFrame(anchor: CGPoint, in container: CGSize) -> CGRect {
+            let style = stylesheet.developerOverlay
+            let menuWidth = min(
+                style.menu.maxWidth,
+                max(container.width - style.edgeInset * 2, 0),
+            )
+            let buttonHalfHeight = buttonSize.height / 2
+            let startY: CGFloat
+            let endY: CGFloat
+            if model.corner.isTop {
+                startY = anchor.y + buttonHalfHeight + style.menu.launcherSpacing
+                endY = container.height - style.edgeInset
+            } else {
+                startY = style.edgeInset
+                endY = anchor.y - buttonHalfHeight - style.menu.launcherSpacing
+            }
+            let height = max(endY - startY, 0)
+            let minX = model.corner.isLeading
+                ? style.edgeInset
+                : container.width - style.edgeInset - menuWidth
+            return CGRect(x: minX, y: startY, width: menuWidth, height: height)
+        }
 
-        private func panel(in proxy: GeometryProxy) -> some View {
-            let isFullScreen = model.presentation == .fullScreen
+        private func panel(
+            tool: DeveloperTool,
+            isFullScreen: Bool,
+            in proxy: GeometryProxy,
+        ) -> some View {
+            let style = stylesheet.developerOverlay
             let layout = displayedLayout(in: proxy.size)
             let size = isFullScreen ? fullScreenSize(in: proxy.size) : layout.size
             let center = isFullScreen
                 ? CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2)
                 : layout.center
-            let shape = RoundedRectangle(cornerRadius: panelCornerRadius, style: .continuous)
+            let shape = RoundedRectangle(cornerRadius: style.panel.cornerRadius)
             return DeveloperSurface(
+                tool: tool,
                 isFullScreen: isFullScreen,
-                bottomContentInset: isFullScreen ? 0 : Self.resizeGripClearance,
                 onToggleFullScreen: {
-                    withAnimation(.snappy(duration: 0.3)) { model.toggleFullScreen() }
+                    withAnimation(style.presentationAnimation) { model.toggleFullScreen() }
                 },
-                onClose: { model.close() },
+                onClose: {
+                    withAnimation(style.presentationAnimation) { model.closeTool() }
+                },
                 onMove: { translation, ended in
                     moveWindow(by: translation, ended: ended, in: proxy.size)
                 },
@@ -182,18 +273,13 @@
                 },
             )
             .frame(width: size.width, height: size.height)
-            // One glass surface for the whole HUD (rather than glass-on-glass): the
-            // list's own scroll background is cleared in `DeveloperSurface` so this
-            // shows through.
             .glassEffect(.regular, in: shape)
             .clipShape(shape)
-            .shadow(color: .black.opacity(isFullScreen ? 0 : 0.3), radius: 20, y: 6)
-            // Full screen covers the app, so it becomes an accessibility modal:
-            // VoiceOver ignores everything behind it and stays trapped in the
-            // tools. The floating HUD stays non-modal — the app behind is still
-            // reachable — matching its visible, tap-through behavior.
-            .accessibilityElement(children: .contain)
-            .accessibilityAddTraits(isFullScreen ? .isModal : [])
+            .shadow(
+                color: .black.opacity(isFullScreen ? 0 : style.panel.shadowOpacity),
+                radius: style.panel.shadowRadius,
+                y: style.panel.shadowOffsetY,
+            )
             .position(x: center.x, y: center.y)
             .transition(.scale(scale: 0.12, anchor: .bottomTrailing).combined(with: .opacity))
         }
@@ -205,9 +291,15 @@
         /// only clamped for the container that was current when they were written.
         /// Display and the gesture-end commit share this so they can't disagree.
         private func currentBase(in container: CGSize) -> DeveloperOverlayModel.FloatingLayout {
-            DeveloperOverlayModel.clamp(
-                model.floating ?? DeveloperOverlayModel.defaultLayout(in: container),
+            let style = stylesheet.developerOverlay
+            return DeveloperOverlayModel.clamp(
+                model.floating ?? DeveloperOverlayModel.defaultLayout(
+                    in: container,
+                    style: style.floatingWindow,
+                    edgeInset: style.edgeInset,
+                ),
                 in: container,
+                style: style.floatingWindow,
             )
         }
 
@@ -216,26 +308,43 @@
         /// model during layout — the model is only updated at gesture end (see
         /// `moveWindow` / `resizeWindow`).
         private func displayedLayout(in container: CGSize) -> DeveloperOverlayModel.FloatingLayout {
+            let style = stylesheet.developerOverlay.floatingWindow
             let base = currentBase(in: container)
             let resized = windowResize == .zero
                 ? base
-                : DeveloperOverlayModel.resized(base, by: windowResize, in: container)
+                : DeveloperOverlayModel.resized(
+                    base,
+                    by: windowResize,
+                    in: container,
+                    style: style,
+                )
             return windowDrag == .zero
                 ? resized
-                : DeveloperOverlayModel.moved(resized, by: windowDrag, in: container)
+                : DeveloperOverlayModel.moved(
+                    resized,
+                    by: windowDrag,
+                    in: container,
+                    style: style,
+                )
         }
 
         private func fullScreenSize(in container: CGSize) -> CGSize {
-            CGSize(
-                width: max(container.width - fullScreenInset * 2, 0),
-                height: max(container.height - fullScreenInset * 2, 0),
+            let inset = stylesheet.developerOverlay.panel.fullScreenInset
+            return CGSize(
+                width: max(container.width - inset * 2, 0),
+                height: max(container.height - inset * 2, 0),
             )
         }
 
         private func moveWindow(by translation: CGSize, ended: Bool, in container: CGSize) {
             if ended {
                 let base = currentBase(in: container)
-                model.setFloating(DeveloperOverlayModel.moved(base, by: translation, in: container))
+                model.setFloating(DeveloperOverlayModel.moved(
+                    base,
+                    by: translation,
+                    in: container,
+                    style: stylesheet.developerOverlay.floatingWindow,
+                ))
                 windowDrag = .zero
             } else {
                 windowDrag = translation
@@ -250,6 +359,7 @@
                         base,
                         by: translation,
                         in: container,
+                        style: stylesheet.developerOverlay.floatingWindow,
                     ))
                 windowResize = .zero
             } else {
@@ -262,138 +372,36 @@
         /// live in ``DeveloperOverlayModel/contentInsets(for:in:edgeTolerance:)``,
         /// fed the on-screen (clamped) `displayedLayout`.
         private func appContentInsets(in container: CGSize) -> EdgeInsets {
-            guard model.presentation == .floating else { return EdgeInsets() }
+            guard case .floating = model.presentation else { return EdgeInsets() }
+            let style = stylesheet.developerOverlay
             return DeveloperOverlayModel.contentInsets(
                 for: displayedLayout(in: container),
                 in: container,
-                edgeTolerance: edgeInset,
+                edgeTolerance: style.edgeInset,
+                style: style.floatingWindow,
             )
-        }
-
-        /// Bottom content inset the tools list reserves so its last rows scroll
-        /// clear of the bottom-trailing resize grip.
-        private static let resizeGripClearance: CGFloat = 40
-    }
-
-    /// The chrome + content of the expanded panel: a slim HUD control strip (close
-    /// / drag handle / resize) above the tools, plus a bottom-trailing resize grip.
-    /// The strip lives here — outside ``DeveloperToolsView``'s own
-    /// `NavigationStack` — so it stays visible no matter how deep the user
-    /// navigates into a tool. Drag / resize gestures live on the handle and grip
-    /// (never the whole bar) so the close / full-screen buttons stay tappable, and
-    /// report their translation back to ``DeveloperOverlay`` via `onMove` /
-    /// `onResize` (which own the in-flight state and the persisted commit).
-    private struct DeveloperSurface: View {
-        let isFullScreen: Bool
-        let bottomContentInset: CGFloat
-        let onToggleFullScreen: () -> Void
-        let onClose: () -> Void
-        /// Reports the window drag handle's translation; `ended` marks the commit.
-        let onMove: (CGSize, _ ended: Bool) -> Void
-        /// Reports the resize grip's translation; `ended` marks the commit.
-        let onResize: (CGSize, _ ended: Bool) -> Void
-
-        var body: some View {
-            VStack(spacing: 0) {
-                controlBar
-                Divider().opacity(0.5)
-                DeveloperToolsView(bottomContentInset: bottomContentInset)
-                    .onOpenFlyover {
-                        if !isFullScreen {
-                            onToggleFullScreen()
-                        }
-                    }
-            }
-            .overlay(alignment: .bottomTrailing) {
-                if !isFullScreen { resizeGrip }
-            }
-            // Compact the chrome + tools so the small HUD window fits more. A dev
-            // surface deliberately ignores the user's Dynamic Type here to reclaim
-            // space; text styles (`.title3`, list rows) all scale down from this.
-            .dynamicTypeSize(.small)
-        }
-
-        private var controlBar: some View {
-            HStack(spacing: 0) {
-                Button(action: onClose) {
-                    Image(systemName: "xmark.circle.fill")
-                        .symbolRenderingMode(.hierarchical)
-                }
-                .accessibilityLabel(String(localized: .developerClose))
-
-                Spacer(minLength: 0)
-
-                dragHandle
-
-                Spacer(minLength: 0)
-
-                Button(action: onToggleFullScreen) {
-                    Image(systemName: isFullScreen
-                        ? "arrow.down.right.and.arrow.up.left"
-                        : "arrow.up.left.and.arrow.down.right")
-                }
-                .accessibilityLabel(
-                    isFullScreen
-                        ? String(localized: .developerCollapse)
-                        : String(localized: .developerExpand),
-                )
-            }
-            .font(.title3)
-            .buttonStyle(.plain)
-            .foregroundStyle(.primary)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-        }
-
-        /// The grabber in the center of the control bar. It's the only drag target
-        /// (the flanking buttons stay tappable); a wide content shape makes it easy
-        /// to grab. Hidden in full screen, where the window fills its inset frame.
-        @ViewBuilder private var dragHandle: some View {
-            if isFullScreen {
-                Color.clear.frame(width: 1, height: 1)
-            } else {
-                Capsule()
-                    .fill(.secondary)
-                    .frame(width: 40, height: 5)
-                    .frame(maxWidth: .infinity, minHeight: 28)
-                    .contentShape(Rectangle())
-                    // Measure in the global space: the handle rides on the window
-                    // we're moving, so a `.local` translation would be relative to a
-                    // frame that's itself moving under the finger — it oscillates and
-                    // reads as jitter. Global keeps the translation anchored to the
-                    // screen.
-                    .gesture(
-                        DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                            .onChanged { onMove($0.translation, false) }
-                            .onEnded { onMove($0.translation, true) },
-                    )
-                    .accessibilityLabel(String(localized: .developerDragHandle))
-            }
-        }
-
-        private var resizeGrip: some View {
-            Image(systemName: "arrow.down.right")
-                .font(.system(size: 13, weight: .bold))
-                .foregroundStyle(.secondary)
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
-                // Global space for the same reason as the drag handle: the grip
-                // sits at the growing bottom-trailing corner, so a `.local`
-                // translation would chase the moving corner and jitter.
-                .gesture(
-                    DragGesture(minimumDistance: 1, coordinateSpace: .global)
-                        .onChanged { onResize($0.translation, false) }
-                        .onEnded { onResize($0.translation, true) },
-                )
-                .accessibilityLabel(String(localized: .developerResizeHandle))
         }
     }
 
     extension DeveloperOverlay: SnapshotProviding {
         static var snapshots: [SnapshotCase] {
             whereSnapshot(name: "Collapsed", configurations: .phoneLightDark) {
-                DeveloperOverlay(store: InMemoryKeyValueStore())
-                    .environment(PreviewSupport.loadedSession())
+                DeveloperOverlayPreview(presentation: .collapsed)
+            }
+            whereSnapshot(name: "MenuBottomTrailing", configurations: .phoneLightDark) {
+                DeveloperOverlayPreview(presentation: .menu)
+            }
+            whereSnapshot(
+                name: "MenuTopLeading",
+                configurations: SnapshotConfiguration.combinations(devices: [.iPhone]),
+            ) {
+                DeveloperOverlayPreview(presentation: .menu, corner: .topLeading)
+            }
+            whereSnapshot(
+                name: "SelectedTool",
+                configurations: SnapshotConfiguration.combinations(devices: [.iPhone]),
+            ) {
+                DeveloperOverlayPreview(presentation: .floating(.regionMap))
             }
         }
     }
@@ -409,6 +417,12 @@
             DeveloperOverlay.self,
             title: "Developer Overlay",
             navigationContainer: .none,
+            routes: [
+                .push(to: WhereFlyoverLogView.flyoverID),
+                .push(to: OpenSpansView.flyoverID),
+                .push(to: WhereFlyoverSwiftDataView.flyoverID),
+                .push(to: RegionMapView.flyoverID),
+            ],
         )
     }
 #endif

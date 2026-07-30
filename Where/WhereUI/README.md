@@ -107,8 +107,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   system](#design-system)). Applied by `RootView` and by each widget.
 - **`RegionMapView`** — the developer region-map tool (also hosted standalone by
   the RegionViewer Mac Catalyst app).
-- **Flyover** — a DEBUG-only all-screens browser reached from the floating
-  Developer Overlay. It renders the app's screens on a zoomable navigation
+- **Flyover** — a DEBUG-only all-screens browser reached from the developer
+  launcher's accordion. It renders the app's screens on a zoomable navigation
   canvas or linear list, shows push/modal routes, switches global device and
   accessibility traits, and opens any frame in a live focused inspector.
 
