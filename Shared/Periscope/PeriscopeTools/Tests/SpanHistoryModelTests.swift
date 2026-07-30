@@ -23,7 +23,7 @@ struct SpanHistoryModelTests {
             Issue.record("Expected loaded summaries, got \(model.state)")
             return
         }
-        #expect(summaries.map(\.name) == ["save", "load"])
+        #expect(summaries.map(\.kind.text) == ["save", "load"])
         #expect(summaries.map(\.count) == [3, 1])
         // The drill-in list is newest first.
         let save = try #require(summaries.first)
@@ -170,7 +170,7 @@ struct SpanHistoryModelTests {
 
         let shown = await waitUntil {
             guard case let .loaded(summaries) = model.state else { return false }
-            return summaries.map(\.name) == ["late"]
+            return summaries.map(\.kind.text) == ["late"]
         }
         #expect(shown)
     }
@@ -230,6 +230,286 @@ struct SpanHistoryModelTests {
             return summaries.count == 1 && summaries.first?.count == 2
         }
         #expect(total)
+    }
+
+    // MARK: - Unreadable payloads
+
+    /// An end whose payload won't decode still counts, grouped under a name
+    /// recovered from its message — and marked as recovered, so the bucket
+    /// doesn't read as a span kind the code declares.
+    @Test func groupsAnUnreadableEndUnderARecoveredName() {
+        let summaries = SpanHistoryModel.summaries(from: [
+            storedSpanEvent(
+                eventName: SpanEnded.eventName,
+                spanID: SpanID(),
+                message: "◀ save",
+                at: date(0),
+                payload: unreadablePayload,
+                exitMode: .success,
+            ),
+        ])
+
+        #expect(summaries.map(\.kind) == [.recovered("save")])
+        #expect(summaries.first?.count == 1)
+        // No duration survived the corrupt payload, so there is nothing to
+        // compute percentiles from — reporting zero would invent a measurement.
+        #expect(summaries.first?.percentiles == nil)
+    }
+
+    /// The recovered name matches the real kind's name here, and the buckets
+    /// still don't merge: a row whose payload is corrupt can't be presented as
+    /// another instance of a kind that decoded fine.
+    @Test func aRecoveredBucketStaysSeparateFromTheRecordedKind() throws {
+        let summaries = try SpanHistoryModel.summaries(from: [
+            storedSpanEnded(
+                SpanID(),
+                name: "save",
+                at: date(0),
+                duration: .seconds(1),
+                exit: .success,
+            ),
+            storedSpanEvent(
+                eventName: SpanEnded.eventName,
+                spanID: SpanID(),
+                message: "◀ save",
+                at: date(1),
+                payload: unreadablePayload,
+                exitMode: .success,
+            ),
+        ])
+
+        #expect(summaries.count == 2)
+        #expect(Set(summaries.map(\.kind)) == [.recorded("save"), .recovered("save")])
+    }
+
+    /// Two corrupt rows of one kind share one bucket: the recovered name is
+    /// the message *minus* the exit, reason, and duration — the parts that
+    /// vary per instance and would otherwise mint a bucket per row.
+    @Test func unreadableEndsOfOneKindShareOneBucket() {
+        func corrupt(_ ended: SpanEnded, at date: Date) -> StoredLogEvent {
+            storedSpanEvent(
+                eventName: SpanEnded.eventName,
+                spanID: ended.spanID,
+                message: ended.message,
+                at: date,
+                payload: unreadablePayload,
+                exitMode: ended.exit.mode,
+            )
+        }
+        let summaries = SpanHistoryModel.summaries(from: [
+            corrupt(
+                SpanEnded(
+                    spanID: SpanID(),
+                    name: "save",
+                    duration: .seconds(1),
+                    exit: .failure("disk full"),
+                ),
+                at: date(0),
+            ),
+            corrupt(
+                SpanEnded(
+                    spanID: SpanID(),
+                    name: "save",
+                    duration: .seconds(9),
+                    exit: .failure("card declined"),
+                ),
+                at: date(1),
+            ),
+        ])
+
+        #expect(summaries.map(\.kind) == [.recovered("save")])
+        #expect(summaries.first?.count == 2)
+    }
+
+    // MARK: - Build scoping
+
+    /// Two sessions at different optimization levels, each with one recorded
+    /// `save` — the shape the scopes exist to separate. `current` is the
+    /// unoptimized one, since it's started last.
+    private func makeTwoBuildStore() async throws -> (
+        store: PeriscopeStore,
+        root: LogScope,
+        optimizedSession: LogSession
+    ) {
+        let (store, root, _, _) = try await makeSeededStore(
+            sessionAttributes: [.optimizationLevel: "-O"],
+        )
+        let optimized = try #require(await store.currentSession)
+        await store.write([
+            spanEnded(SpanID(), name: "save", at: date(0), duration: .seconds(1), scope: root.id),
+        ])
+
+        try await store.startSession(makeSession(attributes: [.optimizationLevel: "-Onone"]))
+        await store.write([
+            spanEnded(SpanID(), name: "save", at: date(1), duration: .seconds(9), scope: root.id),
+        ])
+        return (store, root, optimized)
+    }
+
+    @Test func poolsEveryBuildByDefault() async throws {
+        let (store, _, _) = try await makeTwoBuildStore()
+        let model = SpanHistoryModel(store: store)
+        await model.load()
+
+        #expect(model.scope == .all)
+        guard case let .loaded(summaries) = model.state else {
+            Issue.record("Expected loaded summaries, got \(model.state)")
+            return
+        }
+        #expect(summaries.first?.count == 2)
+    }
+
+    /// Narrowing to this session drops the other build's durations, so the
+    /// percentiles describe one build rather than an average of two.
+    @Test func narrowingToThisSessionExcludesEarlierSessions() async throws {
+        let (store, _, _) = try await makeTwoBuildStore()
+        let model = SpanHistoryModel(store: store)
+        await model.load()
+
+        model.scope = .currentSession
+
+        guard case let .loaded(summaries) = model.state else {
+            Issue.record("Expected loaded summaries, got \(model.state)")
+            return
+        }
+        #expect(summaries.first?.count == 1)
+        #expect(summaries.first?.percentiles?.p50 == .seconds(9))
+    }
+
+    @Test func narrowingToTheSameOptimizationLevelExcludesOtherLevels() async throws {
+        let (store, _, _) = try await makeTwoBuildStore()
+        let model = SpanHistoryModel(store: store)
+        await model.load()
+
+        model.scope = .sameOptimizationLevel
+
+        guard case let .loaded(summaries) = model.state else {
+            Issue.record("Expected loaded summaries, got \(model.state)")
+            return
+        }
+        #expect(summaries.first?.percentiles?.p50 == .seconds(9))
+    }
+
+    /// A third session at the level already selected joins the reading, which is
+    /// the point of scoping by level rather than by session.
+    @Test func sameOptimizationLevelSpansSessionsAtThatLevel() async throws {
+        let (store, root, _) = try await makeTwoBuildStore()
+        try await store.startSession(makeSession(attributes: [.optimizationLevel: "-Onone"]))
+        await store.write([
+            spanEnded(SpanID(), name: "save", at: date(2), duration: .seconds(7), scope: root.id),
+        ])
+
+        let model = SpanHistoryModel(store: store)
+        await model.load()
+        model.scope = .sameOptimizationLevel
+
+        guard case let .loaded(summaries) = model.state else {
+            Issue.record("Expected loaded summaries, got \(model.state)")
+            return
+        }
+        #expect(summaries.first?.count == 2)
+    }
+
+    /// Re-scoping filters the ends already accumulated rather than refetching,
+    /// so a span written after the load doesn't appear until the next load —
+    /// which is how this pins "filter, not fetch" without a read counter.
+    @Test func rescopingFiltersAccumulatedEndsRatherThanRefetching() async throws {
+        let (store, root, _) = try await makeTwoBuildStore()
+        let model = SpanHistoryModel(store: store)
+        await model.load()
+        await store.write([
+            spanEnded(SpanID(), name: "save", at: date(3), duration: .seconds(4), scope: root.id),
+        ])
+
+        model.scope = .currentSession
+
+        guard case let .loaded(scoped) = model.state else {
+            Issue.record("Expected loaded summaries, got \(model.state)")
+            return
+        }
+        #expect(scoped.first?.count == 1)
+
+        // The next load picks the unseen end up, so it was never lost.
+        await model.load()
+        guard case let .loaded(reloaded) = model.state else {
+            Issue.record("Expected loaded summaries, got \(model.state)")
+            return
+        }
+        #expect(reloaded.first?.count == 2)
+    }
+
+    @Test func rescopingToTheSameScopeIsANoOp() async throws {
+        let (store, _, _) = try await makeTwoBuildStore()
+        let model = SpanHistoryModel(store: store)
+        await model.load()
+        guard case let .loaded(before) = model.state else {
+            Issue.record("Expected loaded summaries, got \(model.state)")
+            return
+        }
+
+        model.scope = .all
+
+        guard case let .loaded(after) = model.state else {
+            Issue.record("Expected loaded summaries, got \(model.state)")
+            return
+        }
+        #expect(before.map(\.count) == after.map(\.count))
+    }
+
+    @Test func offersOnlyTheScopesTheSessionsCanSupport() async throws {
+        // The seeded session names no optimization level, so it can't be
+        // compared to others by one.
+        let (store, _, _, _) = try await makeSeededStore()
+        let model = SpanHistoryModel(store: store)
+        await model.load()
+        #expect(model.availableScopes == [.all, .currentSession])
+
+        let (levelled, _, _) = try await makeTwoBuildStore()
+        let levelledModel = SpanHistoryModel(store: levelled)
+        await levelledModel.load()
+        #expect(levelledModel.availableScopes == SpanHistoryScope.allCases)
+    }
+
+    @Test func summarizesWhatTheActiveScopeCovers() async throws {
+        let (store, _, _) = try await makeTwoBuildStore()
+        let model = SpanHistoryModel(store: store)
+        await model.load()
+        #expect(model.scopeSummary == "All builds · 2 sessions")
+
+        model.scope = .currentSession
+        #expect(model.scopeSummary == "This session only")
+
+        model.scope = .sameOptimizationLevel
+        #expect(model.scopeSummary == "Built at -Onone · 1 session")
+    }
+
+    /// A session that recorded no ends must not pad the count — the summary
+    /// names what the percentiles actually draw from, not what the scope
+    /// would have admitted.
+    @Test func summaryCountsOnlySessionsContributingEnds() async throws {
+        let (store, _, _) = try await makeTwoBuildStore()
+        // A third session that never records a span.
+        try await store.startSession(makeSession(attributes: [.optimizationLevel: "-Onone"]))
+
+        let model = SpanHistoryModel(store: store)
+        await model.load()
+        #expect(model.scopeSummary == "All builds · 2 sessions")
+
+        model.scope = .sameOptimizationLevel
+        #expect(model.scopeSummary == "Built at -Onone · 1 session")
+    }
+
+    /// The empty state names the scope without mangling case-sensitive
+    /// values — "-Onone" must not read back as "-onone".
+    @Test func emptyStateDescriptionPreservesTheOptimizationLevelSpelling() async throws {
+        let (store, _, _, _) = try await makeSeededStore(
+            sessionAttributes: [.optimizationLevel: "-Onone"],
+        )
+        let model = SpanHistoryModel(store: store)
+        await model.load()
+
+        model.scope = .sameOptimizationLevel
+        #expect(model.emptyStateDescription == "No closed spans from builds at -Onone.")
     }
 }
 

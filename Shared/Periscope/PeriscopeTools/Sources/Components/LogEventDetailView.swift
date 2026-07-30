@@ -12,6 +12,9 @@ struct LogEventDetailView: View {
 
     @Environment(\.stylesheet) private var stylesheet
     @State private var attachments: Result<[LogAttachment], Error>?
+    /// The event's ambient state, resolved on demand — the inner optional is
+    /// "the row is gone", distinct from a failed lookup.
+    @State private var ambient: Result<AmbientSnapshot?, Error>?
 
     var body: some View {
         List {
@@ -63,11 +66,26 @@ struct LogEventDetailView: View {
                 }
             }
 
-            if let payload = event.prettyPayload {
+            if event.ambientSnapshotID != nil {
+                Section("Ambient") {
+                    ambientContent
+                }
+            }
+
+            if let payload = event.payloadPresentation {
                 Section("Payload") {
-                    Text(payload)
-                        .font(stylesheet.typography.payload)
-                        .textSelection(.enabled)
+                    switch payload {
+                        case let .json(pretty):
+                            Text(pretty)
+                                .font(stylesheet.typography.payload)
+                                .textSelection(.enabled)
+                        case let .unreadable(byteCount):
+                            Label(
+                                "Unreadable payload (\(byteCount) bytes)",
+                                systemImage: "exclamationmark.triangle",
+                            )
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 
@@ -98,6 +116,17 @@ struct LogEventDetailView: View {
             } catch {
                 attachments = .failure(error)
             }
+            await loadAmbient()
+        }
+    }
+
+    private func loadAmbient() async {
+        ambient = nil
+        guard let snapshotID = event.ambientSnapshotID else { return }
+        do {
+            ambient = try await .success(store.ambientSnapshot(for: snapshotID))
+        } catch {
+            ambient = .failure(error)
         }
     }
 
@@ -106,6 +135,29 @@ struct LogEventDetailView: View {
     private struct Inputs: Equatable {
         let store: ObjectIdentifier
         let event: UUID
+    }
+
+    /// What the system was doing when the event was recorded — one row per
+    /// ambient kind, sorted so the section doesn't reshuffle between events.
+    @ViewBuilder
+    private var ambientContent: some View {
+        switch ambient {
+            case nil:
+                ProgressView()
+            case let .failure(error):
+                Label(String(describing: error), systemImage: "exclamationmark.triangle")
+                    .foregroundStyle(.secondary)
+            case .success(nil):
+                Text("No longer stored")
+                    .foregroundStyle(.secondary)
+            case let .success(.some(snapshot)):
+                ForEach(
+                    snapshot.values.sorted { $0.key.rawValue < $1.key.rawValue },
+                    id: \.key,
+                ) { kind, value in
+                    LabeledContent(kind.rawValue, value: value.ambientDescription)
+                }
+        }
     }
 
     @ViewBuilder
@@ -134,16 +186,26 @@ extension StoredLogEvent {
         (try? decode(SpanEnded.self))?.exit.reason
     }
 
-    /// The stored payload, pretty-printed; `nil` when the event carried no
-    /// structured fields or the payload isn't JSON.
-    var prettyPayload: String? {
-        guard !payload.isEmpty,
-              let object = try? JSONSerialization.jsonObject(with: payload),
+    /// The stored payload as the detail view presents it — `nil` only when
+    /// the event carried no structured fields.
+    enum PayloadPresentation: Equatable {
+        /// Pretty-printed JSON, keys sorted.
+        case json(String)
+        /// Bytes exist but don't parse. Persisted payloads are `JSONEncoder`
+        /// output, so this means on-disk corruption — the view must say a
+        /// payload existed and didn't survive, not hide the section as if
+        /// none was recorded.
+        case unreadable(byteCount: Int)
+    }
+
+    var payloadPresentation: PayloadPresentation? {
+        guard !payload.isEmpty else { return nil }
+        guard let object = try? JSONSerialization.jsonObject(with: payload),
               let data = try? JSONSerialization.data(
                   withJSONObject: object,
                   options: [.prettyPrinted, .sortedKeys],
               )
-        else { return nil }
-        return String(decoding: data, as: UTF8.self)
+        else { return .unreadable(byteCount: payload.count) }
+        return .json(String(decoding: data, as: UTF8.self))
     }
 }

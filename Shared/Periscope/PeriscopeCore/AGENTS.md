@@ -38,6 +38,31 @@ the build system, formatting, and global conventions. Read that first.
   (`NetworkPathAmbientSource` dedupes `NWPathMonitor`'s repeat callbacks);
   notification-based sources are deliberately *not* deduped — each repeated
   memory warning is a distinct event.
+- **An ambient event declares whether it's a state or an occurrence.**
+  `AmbientEvent.reporting` decides whether the event folds into the
+  `AmbientSnapshot` stamped on later records. A momentary signal (a memory
+  warning) is `.occurrence` and never becomes state — folding it in would
+  leave every subsequent record claiming the app was mid-memory-warning. A
+  source whose signal *is* a lasting condition should also report it at
+  `started()`, or the state is unknown until it next changes (thermal and
+  low-power do; `AppLifecycleAmbientSource` deliberately doesn't — it has no
+  way to know the phase it started in).
+- **Ambient state is stamped at emit, not joined at read.** `Periscope.buffer`
+  hands each record the snapshot in force at that moment, and a snapshot keeps
+  its `id` until a `.state` event actually moves a value — which is what makes
+  "one stored row per distinct state" true rather than one row per record.
+  Anything that mutates the snapshot must preserve that: a new identity per
+  record would multiply the rows by the log volume.
+- **Folding outlives the admission gates.** An ambient `.state` event the
+  level floors discard still folds into the running snapshot (floors route,
+  they don't scrub); one that redaction *suppresses* clears its kind instead —
+  folding it would smear the suppressed value onto every later record, and
+  keeping the old value would lie. The snapshot must never go stale because
+  the event itself was kept out of the record stream.
+- **`remove(_:)` is `async` because it settles the sink first** — the in-flight
+  drain is awaited and the sink flushed, so a removed sink is owed nothing and
+  hears nothing more. Removing a `PeriscopeStore` also uninstalls that store's
+  journal. Guard: `PeriscopeTests.removalDeliversAndFlushesWhatTheSinkWasOwed`.
 - **Sink failures never propagate or vanish** — logged to OSLog, counted, and
   persisted as a synthetic `StoreWriteFailed` marker; the pipeline reports
   drops with a synthetic `DroppedEvents` record.
@@ -54,7 +79,16 @@ the build system, formatting, and global conventions. Read that first.
   not eat the live app's). Concurrently live processes sharing one on-disk
   store is unsupported; see [`TODOs.md`](../TODOs.md).
 - **Payloads persist as versioned JSON** (`eventName` + `eventVersion`) — an
-  event shape change must not require a SwiftData migration.
+  event shape change must not require a SwiftData migration. While the app is
+  pre-release, shape changes need no decode tolerance either: the store is
+  deleted rather than migrated, so keep `Codable` conformances synthesized
+  instead of hand-writing defaults for older rows.
+- **A session names its build only as far as the app told it.**
+  `LogSession.attributes` is filled by the host app at bootstrap —
+  PeriscopeCore sits below the app modules and cannot read a build stamp. An
+  unstamped bundle yields an empty dictionary; nothing here invents a
+  placeholder, because a session claiming it was built from a commit named
+  `unknown` is worse than one that admits it can't say.
 - **Every span eventually ends, and its began is delivered first.** `measure`
   closes on every path; bounded spans expire via the watchdog; re-begins
   supersede; relaunch orphan-closes `endsWithProcess` spans (the
@@ -67,6 +101,11 @@ the build system, formatting, and global conventions. Read that first.
   (`OpenSpan.beganRecorded`, `LogRecord.bypassesFloors`): a recorded began
   always gets its end, and a floored began silences the entire span — never a
   dangling half.
+- **The relaunch sweep decides from a column, and says so when it can't.**
+  `SDLogEvent.spanRelaunchPolicy` carries `SpanRelaunchPolicy` on began rows,
+  so the launch-path sweep filters survivors without loading a payload; a
+  payload that won't decode only costs the synthetic end its recorded name —
+  and the decode failure is logged, never silently absorbed.
 
 ## Testing
 

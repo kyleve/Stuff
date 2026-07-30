@@ -27,10 +27,6 @@ private func waitUntil(
 /// onboarding, then re-drives the launch back to its first-run state.
 @MainActor
 struct WhereResetTests {
-    private func makePreferences() -> WherePreferences {
-        WherePreferences(store: InMemoryKeyValueStore())
-    }
-
     private func makeServices(
         status: LocationAuthorizationStatus = .always,
     ) throws -> WhereServices {
@@ -51,7 +47,11 @@ struct WhereResetTests {
         status: LocationAuthorizationStatus = .always,
         preferences: WherePreferences,
     ) throws -> WhereModel {
-        try WhereModel(services: makeServices(status: status), preferences: preferences)
+        try WhereModel(
+            services: makeServices(status: status),
+            preferences: preferences,
+            logSystem: .isolated(),
+        )
     }
 
     /// A model plus the scripted location source backing it, so a test can push
@@ -69,7 +69,10 @@ struct WhereResetTests {
             issueAlertScheduler: NoopDataIssueAlertScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        return (WhereModel(services: services, preferences: preferences), source)
+        return (
+            WhereModel(services: services, preferences: preferences, logSystem: .isolated()),
+            source,
+        )
     }
 
     @Test func resetPlanErasesThenClearsPreferences() throws {
@@ -100,7 +103,7 @@ struct WhereResetTests {
     @Test func eraseAllDataClearsTheStoreAndStopsTracking() async throws {
         let preferences = makePreferences()
         let services = try makeServices(status: .always)
-        let model = WhereModel(services: services, preferences: preferences)
+        let model = WhereModel(services: services, preferences: preferences, logSystem: .isolated())
         model.completeOnboarding()
         let session = try #require(model.session)
         // The scene's report model shares the coordinator's services (its store).
@@ -121,21 +124,73 @@ struct WhereResetTests {
         #expect(report.trackedDayCount == 0)
     }
 
-    @Test func endSessionDropsTheSessionAndRelaunchRebuildsIt() async throws {
+    @Test func endSessionReleasesTheScopeAndRelaunchBuildsAFreshOne() async throws {
         let model = try makeModel(status: .always, preferences: makePreferences())
         model.completeOnboarding()
         let original = try #require(model.session)
+        let scope = try #require(model.activeScope)
 
-        model.endSession()
+        await model.endSession()
         #expect(model.session == nil)
+        // Logging out releases the scope rather than parking it: the next
+        // login builds its own, and nothing keeps the old store alive.
+        #expect(model.activeScope == nil)
 
-        // The re-driven launch rebuilds a fresh session from the retained
-        // (still-open) services rather than reopening the store.
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
         #expect(launcher.phase.isReady)
         let rebuilt = try #require(model.session)
         #expect(rebuilt !== original)
+        #expect(model.activeScope !== scope)
+    }
+
+    @Test func loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne() async throws {
+        // The store is opened once per *login*, not once per process: the reset
+        // teardown releases the scope, and onboarding builds a new one. The
+        // onboarding gate sits between the two, so the old container is gone
+        // before the new one opens.
+        let preferences = makePreferences()
+        let bootstrap = try ScriptedBootstrap(services: makeServices())
+        let model = WhereModel(
+            preferences: preferences,
+            makeBootstrap: { bootstrap },
+            logSystem: .isolated(),
+        )
+        model.completeOnboarding()
+
+        let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
+        await launcher.run()
+        #expect(bootstrap.makeServicesCount == 1)
+        let scope = try #require(model.activeScope)
+
+        let session = try #require(model.session)
+        let task = Task { @MainActor in
+            await launcher.teardown(WhereLaunch.resetPlan(for: model), input: session)
+        }
+        try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
+        // Parked with nothing open: the scope is released and the relaunch is
+        // waiting on the user before it builds another.
+        #expect(model.activeScope == nil)
+        #expect(bootstrap.makeServicesCount == 1)
+
+        launcher.phase.gateHandle?.complete()
+        await task.value
+
+        #expect(launcher.phase.isReady)
+        #expect(bootstrap.makeServicesCount == 2)
+        #expect(model.activeScope !== scope)
+    }
+
+    @Test func loggingOutTellsTheCompositionRoot() async throws {
+        // The App Intents stack holds services derived from the scope, and
+        // nothing else would release them before the next login opens another
+        // container over the same file.
+        let model = try makeModel(preferences: makePreferences())
+        var logOuts = 0
+        model.onLoggedOut = { logOuts += 1 }
+
+        await model.endSession()
+        #expect(logOuts == 1)
     }
 
     @Test func authorizationChangeReachesTheRebuiltSessionAfterReset() async throws {
@@ -186,7 +241,7 @@ struct WhereResetTests {
     @Test func resetReturnsToOnboardingWithDataErased() async throws {
         let preferences = makePreferences()
         let services = try makeServices(status: .always)
-        let model = WhereModel(services: services, preferences: preferences)
+        let model = WhereModel(services: services, preferences: preferences, logSystem: .isolated())
         model.completeOnboarding()
         let launcher = WhereLaunch.makeLauncher(model: model, reason: .userForeground)
         await launcher.run()
@@ -208,17 +263,23 @@ struct WhereResetTests {
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
 
         // Teardown ran before the relaunch reached onboarding: data erased, the
-        // session dropped + rebuilt, and the onboarding gate reopened.
+        // preferences cleared, and the app logged out — parked at the gate with
+        // no session, since the relaunch rebuilds one only once the user has
+        // chosen a world again.
         #expect(!model.hasOnboarded)
-        let rebuilt = try #require(model.session)
-        #expect(rebuilt !== session)
-        #expect(!rebuilt.isTracking)
+        #expect(model.session == nil)
         #expect(launcher.phase.gateHandle != nil)
+        // The erase quiesced GPS before wiping, so the torn-down session is no
+        // longer tracking and can't write into the store as it's cleared.
+        #expect(!session.isTracking)
 
         launcher.phase.gateHandle?.complete()
         await task.value
 
         #expect(launcher.phase.isReady)
+        // Resolving the gate rebuilt a fresh session over the erased scope.
+        let rebuilt = try #require(model.session)
+        #expect(rebuilt !== session)
         // The store was wiped: a fresh report read against it finds nothing.
         await report.refresh()
         #expect(report.trackedDayCount == 0)
@@ -229,7 +290,7 @@ struct WhereResetTests {
         // reminders/summary off, and logged a day runs "Erase all data & reset".
         let preferences = makePreferences()
         let services = try makeServices(status: .always)
-        let model = WhereModel(services: services, preferences: preferences)
+        let model = WhereModel(services: services, preferences: preferences, logSystem: .isolated())
         let original = try #require(model.session)
         model.completeOnboarding()
         preferences.remindersEnabled = false
@@ -248,11 +309,11 @@ struct WhereResetTests {
         }
         try await waitUntil { launcher.phase.isAwaitingGate(LaunchStepID.onboarding) }
 
-        // Mid-relaunch: the session was dropped and rebuilt fresh, and the
-        // preferences were cleared (onboarding gate reopened; the reminder/summary
-        // schedules default back on) — not the off state above.
-        let rebuilt = try #require(model.session)
-        #expect(rebuilt !== original)
+        // Mid-relaunch: the session was dropped (the relaunch is parked before
+        // it rebuilds one) and the preferences were cleared — onboarding gate
+        // reopened, reminder/summary schedules defaulted back on rather than
+        // the off state above.
+        #expect(model.session == nil)
         #expect(!model.hasOnboarded)
         #expect(preferences.remindersEnabled)
         #expect(preferences.summaryEnabled)
@@ -260,6 +321,8 @@ struct WhereResetTests {
         launcher.phase.gateHandle?.complete()
         await task.value
         #expect(launcher.phase.isReady)
+        let rebuilt = try #require(model.session)
+        #expect(rebuilt !== original)
         // The store was wiped: a fresh report read against it is empty.
         await report.refresh()
         #expect(report.trackedDayCount == 0)

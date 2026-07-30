@@ -46,6 +46,12 @@ struct PeriscopeViewerSnapshotTests {
             buildNumber: "1",
             osVersion: "iOS 26.0",
             deviceModel: "iPhone17,1",
+            attributes: [
+                .commit: "a18a9309c5d6",
+                .commitStatus: "clean",
+                .configuration: "Release",
+                .optimizationLevel: "-O",
+            ],
         )
         let store = try await PeriscopeStore.inMemory(session: session)
 

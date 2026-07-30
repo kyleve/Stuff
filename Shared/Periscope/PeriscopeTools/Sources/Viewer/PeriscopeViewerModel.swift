@@ -121,6 +121,9 @@ final class PeriscopeViewerModel {
             sessions = sessionList
             canLoadMore = page.count == Self.pageSize
         } catch {
+            PeriscopeToolsLog.failures.error(
+                "Log viewer could not read the store: \(error, privacy: .public)",
+            )
             guard requested == generation else { return }
             state = .failed(String(describing: error))
         }
@@ -139,15 +142,28 @@ final class PeriscopeViewerModel {
             state = .loaded(current + next)
             canLoadMore = next.count == Self.pageSize
         } catch {
+            PeriscopeToolsLog.failures.error(
+                "Log viewer could not read the next page: \(error, privacy: .public)",
+            )
             guard requested == generation else { return }
             state = .failed(String(describing: error))
         }
     }
 
-    /// Every event matching the active filters (unpaged), as NDJSON.
+    /// Every event matching the active filters (unpaged), as NDJSON —
+    /// headed by the referenced sessions' build attribution, fetched fresh
+    /// so the export can't miss a session the loaded page stack hasn't
+    /// caught up with.
     func exportNDJSON() async throws -> String {
         let all = try await store.events(matching: activeQuery)
-        return NDJSONExporter.export(events: all, scopes: scopes)
+        let sessions = try await store.sessions()
+        let ambient = try await store.ambientSnapshots()
+        return NDJSONExporter.export(
+            events: all,
+            scopes: scopes,
+            sessions: sessions,
+            ambient: Dictionary(uniqueKeysWithValues: ambient.map { ($0.id, $0) }),
+        )
     }
 
     /// The primary scope's path for a row's caption.

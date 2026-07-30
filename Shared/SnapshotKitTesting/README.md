@@ -33,7 +33,11 @@ re-exports `SnapshotKit` and `SnapshotTesting`, so a test author needs a single
   host window) across its suspensions, so a concurrent call queues behind the
   in-flight capture instead of corrupting it. A case's
   `SnapshotSettle` picks the settle phase: `.settled` (default) waits for
-  pixel-stable renders so `.task`-driven content loads;
+  pixel-stable renders, which gives `.task`-driven content time to load but
+  cannot certify that it did — a loading placeholder is pixel-stable too, so a
+  case whose final content arrives asynchronously has to be made deterministic
+  (seed the fixture so the first frame is final, or gate on
+  `onReadyToSnapshot`);
   `.settledAtLeast(minDuration:)` raises the loop's minimum window for async
   appearance work that starts quiet and lands after the default floor (the
   iOS 26 glass toolbar/tab bar material adaptation); `.immediate` skips the
@@ -81,16 +85,15 @@ a failure by design, so a run that records can't be mistaken for a pass.
 
 `assertSnapshots` defaults to the `.missing` mode (records only images that
 don't exist yet; an existing-image mismatch always fails). To re-record without
-editing source, forward a `SNAPSHOT_RECORD` environment variable into the test
-process —
-xcodebuild passes any `TEST_RUNNER_`-prefixed variable through, so in this repo
-(verified working):
+editing source:
 
 ```bash
-TEST_RUNNER_SNAPSHOT_RECORD=failed mise exec -- tuist test StuffSnapshotTests \
-  --no-selective-testing -- \
-  -destination "platform=iOS Simulator,id=$(./simulator --os 27.0)"
+./test --snapshots --record failed
 ```
+
+That forwards `SNAPSHOT_RECORD` into the test process — xcodebuild passes any
+`TEST_RUNNER_`-prefixed variable through, which is why the pipeline reads the
+unprefixed name.
 
 Values map onto `SnapshotTestingConfiguration.Record`: `all` (rewrite
 everything), `failed` (rewrite only failing comparisons — the usual re-record
@@ -103,11 +106,31 @@ commit.
 
 ## Diffing failures
 
-Failure messages print the reference and failed-capture file URLs by default.
-To get a ready-to-run [Kaleidoscope](https://kaleidoscope.app) command instead,
-forward `SNAPSHOT_DIFF_TOOL=ksdiff` the same way
-(`TEST_RUNNER_SNAPSHOT_DIFF_TOOL=ksdiff mise exec -- tuist test …`). Absent or
-unknown values keep the default plain output.
+`./test --snapshots --review` describes every capture that didn't match its
+reference byte for byte: how many pixels differ, what fraction of the image that
+is, the largest single-channel delta, and the bounding box of the change. Read
+the **max delta** first — it is what separates a broken render from
+sub-visible drift, and pixel count does not. The worst genuine defect found so
+far touched fewer pixels than the noisiest harmless difference in the suite.
+
+Failure messages also print the reference and failed-capture file URLs. To get a
+ready-to-run [Kaleidoscope](https://kaleidoscope.app) command instead, forward
+`SNAPSHOT_DIFF_TOOL=ksdiff` into the test process
+(`TEST_RUNNER_SNAPSHOT_DIFF_TOOL=ksdiff`). Absent or unknown values keep the
+default plain output.
+
+## Where a capture's time goes
+
+`./test --snapshots --timings` sets `SNAPSHOT_TIMING` and prints a per-phase
+breakdown — `settle`, `tileStitch`, `compare`, `pngRoundTrip`, `host`,
+`accessibilityParse`, `hook`, `intrinsicMeasure`, `drain` — plus the settle pass
+distribution and the slowest individual captures. Reach for it before optimizing
+anything here: it is what showed that `drainInFlightAnimations` was burning a
+flat second on every image, and that the settle *floor* rather than its render
+passes is what the remaining time buys.
+
+`SNAPSHOT_SETTLE` selects the stability mechanism (`pixel`, `quiescence`,
+`both`); see [`AGENTS.md`](AGENTS.md) for why `pixel` is the only safe default.
 
 ## Requirements
 

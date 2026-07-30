@@ -78,6 +78,67 @@ struct PeriscopeTests {
         #expect(sink.definedScopes.count(where: { $0 == log.primaryScope }) >= 1)
     }
 
+    @Test func removedSinkReceivesNothingFurther() async {
+        let system = makeSystem()
+        let detachable = CapturingSink()
+        let token = system.add(sink: detachable)
+        let log = Log<AppLogs>(system: system)
+
+        log.info("before")
+        await system.remove(token)
+        log.info("after")
+        await system.flush()
+
+        #expect(detachable.records.map(\.message) == ["before"])
+        // The sink that stayed keeps receiving, so the removal detached one
+        // registration rather than stalling the pipeline.
+        #expect(sink.records.map(\.message) == ["before", "after"])
+    }
+
+    @Test func removalDeliversAndFlushesWhatTheSinkWasOwed() async {
+        let system = makeSystem()
+        let detachable = CapturingSink()
+        let token = system.add(sink: detachable)
+
+        Log<AppLogs>(system: system).info("owed")
+        // No flush first: removal alone must drain the pending record into the
+        // sink and flush it, since nothing else can once it's detached.
+        await system.remove(token)
+
+        #expect(detachable.records.map(\.message) == ["owed"])
+        #expect(detachable.flushCount == 1)
+    }
+
+    @Test func removingTheSameTokenTwiceIsANoOp() async {
+        let system = makeSystem()
+        let detachable = CapturingSink()
+        let token = system.add(sink: detachable)
+
+        await system.remove(token)
+        await system.remove(token)
+        Log<AppLogs>(system: system).info("after")
+        await system.flush()
+
+        #expect(detachable.records.isEmpty)
+        #expect(detachable.flushCount == 1)
+        #expect(sink.records.map(\.message) == ["after"])
+    }
+
+    @Test func removalDetachesOnlyItsOwnRegistrationOfAnIdenticalSink() async {
+        let system = makeSystem()
+        // Two registrations of one sink value: the token, not the sink, is
+        // the identity being removed.
+        let twice = CapturingSink()
+        let first = system.add(sink: twice)
+        system.add(sink: twice)
+
+        await system.remove(first)
+        Log<AppLogs>(system: system).info("still delivered")
+        await system.flush()
+
+        #expect(twice.records.map(\.message) == ["still delivered"])
+    }
+
     @Test func recentBufferKeepsOnlyTheNewestRecords() async {
         let system = makeSystem(recentBufferCapacity: 3)
         let log = Log<AppLogs>(system: system)
@@ -1094,5 +1155,177 @@ struct PeriscopeTests {
         )
         #expect(report.level == .warning)
         #expect(report.scopes == [system.systemScope.id])
+    }
+
+    // MARK: Ambient state
+
+    @Test func recordsCarryNoAmbientStateBeforeAnySourceReports() async {
+        let system = makeSystem()
+        Log<AppLogs>(system: system).info("first")
+        await system.flush()
+
+        #expect(sink.records.first?.ambient == nil)
+    }
+
+    @Test func ambientStateStampsOntoEverySubsequentRecord() async throws {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        Log<AppLogs>(system: system).info("after")
+        await system.flush()
+
+        let record = try #require(sink.records.first { $0.message == "after" })
+        #expect(record.ambient?[.network] == ["status": "satisfied"])
+    }
+
+    /// The ambient event must carry the state it *announces*, not the one it
+    /// replaced — otherwise the event and its own snapshot disagree.
+    @Test func anAmbientEventCarriesTheStateItAnnounces() async {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .thermalState, value: ["level": "nominal"]) }
+        ambient { AmbientEvent(kind: .thermalState, value: ["level": "serious"]) }
+        await system.flush()
+
+        let changes = sink.records.filter { $0.eventName == AmbientEvent.eventName }
+        #expect(changes.map { $0.ambient?[.thermalState] } == [
+            ["level": "nominal"],
+            ["level": "serious"],
+        ])
+    }
+
+    @Test func momentaryAmbientEventsDoNotStickToLaterRecords() async throws {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        ambient {
+            AmbientEvent(
+                kind: .memory,
+                value: ["pressure": "warning"],
+                level: .warning,
+                reporting: .occurrence,
+            )
+        }
+        Log<AppLogs>(system: system).info("after")
+        await system.flush()
+
+        let record = try #require(sink.records.first { $0.message == "after" })
+        #expect(record.ambient?[.memory] == nil)
+        #expect(record.ambient?[.network] == ["status": "satisfied"])
+    }
+
+    /// Re-reporting the current value must not mint a new snapshot identity,
+    /// or the store would write a row per repeat instead of per state.
+    @Test func unchangedAmbientStateReusesOneSnapshotIdentity() async {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        let log = Log<AppLogs>(system: system)
+        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        log.info("one")
+        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        log.info("two")
+        await system.flush()
+
+        let ids = sink.records.compactMap(\.ambient?.id)
+        #expect(ids.count == 4)
+        #expect(Set(ids).count == 1)
+    }
+
+    @Test func spanRecordsCarryAmbientState() async {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .powerMode, value: ["low-power": true]) }
+        Log<AppLogs>(system: system).measure("work") {}
+        await system.flush()
+
+        let spans = sink.records.filter { $0.spanID != nil }
+        #expect(spans.count == 2)
+        #expect(spans.allSatisfy { $0.ambient?[.powerMode] == ["low-power": true] })
+    }
+
+    /// The drop report is synthesized during the drain and never passes
+    /// through the buffer path, so it needs its own stamp — a gap in the
+    /// history should still say what the system was doing.
+    @Test func theDropReportCarriesAmbientState() async throws {
+        let gate = GateSink()
+        let system = Periscope(
+            configuration: Periscope.Configuration(pendingBufferCapacity: 3),
+            sinks: [gate, sink],
+        )
+        let log = Log<AppLogs>(system: system)
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
+
+        log.info("r0")
+        let drainBlocked = await waitUntil { gate.batchCount >= 1 }
+        try #require(drainBlocked)
+        for index in 1 ... 5 {
+            log.info("r\(index)")
+        }
+        gate.open()
+        await system.flush()
+
+        let report = try #require(
+            sink.records.first { $0.eventName == Periscope.DroppedEvents.eventName },
+        )
+        #expect(report.ambient?[.network] == ["status": "unsatisfied"])
+    }
+
+    @Test func liveObserversSeeTheStampedRecord() async throws {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        let records = system.liveRecords()
+
+        Log<AppLogs>(system: system).info("live")
+
+        let first = try #require(await records.first { _ in true })
+        #expect(first.ambient?[.network] == ["status": "satisfied"])
+    }
+
+    /// Floors are routing, not scrubbing: an ambient event they discard
+    /// still folds into the running snapshot, or every later record would
+    /// carry the state the discarded event replaced.
+    @Test func flooredAmbientEventsStillFoldIntoTheSnapshot() async throws {
+        let system = makeSystem()
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .network, value: ["status": "satisfied"]) }
+        system.minimumLevel = .warning
+
+        // .info — floored.
+        ambient { AmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
+        Log<AppLogs>(system: system).warning("after")
+        await system.flush()
+
+        let record = try #require(sink.records.first { $0.message == "after" })
+        #expect(record.ambient?[.network] == ["status": "unsatisfied"])
+        // The floor still discarded the event itself.
+        #expect(!sink.records.contains { $0.eventName == AmbientEvent.eventName
+                && $0.message.contains("unsatisfied")
+        })
+    }
+
+    /// Suppression is content scrubbing: the snapshot must neither smear
+    /// the suppressed value across later records nor keep claiming the
+    /// stale previous one — it forgets the kind.
+    @Test func redactionSuppressedAmbientEventsClearTheirKind() async throws {
+        let system = Periscope(
+            configuration: Periscope.Configuration(redact: { record in
+                record.message.contains("secret") ? nil : record
+            }),
+            sinks: [sink],
+        )
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .network, value: ["ssid": "wifi-public"]) }
+        ambient { AmbientEvent(kind: .thermalState, value: ["level": "nominal"]) }
+
+        // Suppressed by the redaction hook.
+        ambient { AmbientEvent(kind: .network, value: ["ssid": "wifi-secret"]) }
+        Log<AppLogs>(system: system).info("after")
+        await system.flush()
+
+        let record = try #require(sink.records.first { $0.message == "after" })
+        #expect(record.ambient?[.network] == nil)
+        #expect(record.ambient?[.thermalState] == ["level": "nominal"])
     }
 }

@@ -41,18 +41,18 @@ struct MeasuredStepTests {
 
     @Test func spansEachRunUnderTheStepsID() async throws {
         let system = makeSystem()
-        let step = ProbeStep(id: .openStore, budget: .seconds(1))
+        let step = ProbeStep(id: .resolveScope, budget: .seconds(1))
         let measured = MeasuredStep(wrapping: step, spanningInto: makeLogger(system: system))
 
-        let output = try await measured.run("input", context(.openStore))
+        let output = try await measured.run("input", context(.resolveScope))
 
         // Pass-through: the wrapper returns exactly what the step produced.
         #expect(output == "input-ran")
         let records = system.recentRecords()
         let began = try #require(records.compactMap { $0.event as? SpanBegan }.first)
         let ended = try #require(records.compactMap { $0.event as? SpanEnded }.first)
-        #expect(began.name == "step(open-store)")
-        #expect(ended.name == "step(open-store)")
+        #expect(began.name == "step(resolve-scope)")
+        #expect(ended.name == "step(resolve-scope)")
         // One span, not two halves of different ones.
         #expect(ended.spanID == began.spanID)
         #expect(ended.exit.mode == .success)
@@ -115,7 +115,8 @@ struct MeasuredStepTests {
     /// Span names are what the tools group timings by, so each step must read as
     /// its own stable ID rather than a reflected Swift case name.
     @Test func namesSpansAfterTheStepIDNotTheSwiftCase() {
-        #expect(String(describing: WhereLaunchLog.SpanName.step(.openStore)) == "step(open-store)")
+        #expect(String(describing: WhereLaunchLog.SpanName.step(.resolveScope)) ==
+            "step(resolve-scope)")
         #expect(
             String(describing: WhereLaunchLog.SpanName.step(.issueAlerts)) == "step(issue-alerts)",
         )

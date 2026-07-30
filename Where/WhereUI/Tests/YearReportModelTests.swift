@@ -64,7 +64,11 @@ struct YearReportModelTests {
             audit: nil,
         )
 
-        let report = YearReportModel(services: services, selectedYear: 2026)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
         await store.enableFirstSamplesGate()
 
         // Start the 2024 fetch; it suspends inside the gated `samples(in:)`.
@@ -95,7 +99,11 @@ struct YearReportModelTests {
             reminderScheduler: NoopLoggingReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let report = YearReportModel(services: services, selectedYear: 2026)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
 
         await #expect(throws: ManualSaveFailure.self) {
             try await report.setManualDay(
@@ -118,7 +126,11 @@ struct YearReportModelTests {
             reminderScheduler: NoopLoggingReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let report = YearReportModel(services: services, selectedYear: 2026)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
 
         await #expect(throws: ManualSaveFailure.self) {
             try await report.setManualDays(
@@ -140,7 +152,11 @@ struct YearReportModelTests {
             reminderScheduler: NoopLoggingReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let report = YearReportModel(services: services, selectedYear: 2026)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
 
         await report.refresh()
 
@@ -165,6 +181,7 @@ struct YearReportModelTests {
                 totals: [.california: present.count],
             ),
             selectedYear: 2026,
+            preferences: makePreferences(),
             now: { today },
         )
 
@@ -184,6 +201,7 @@ struct YearReportModelTests {
             services: makeServices(),
             report: YearReport(year: 2025, days: [], totals: [:]),
             selectedYear: 2025,
+            preferences: makePreferences(),
             now: { today },
         )
 
@@ -203,7 +221,12 @@ struct YearReportModelTests {
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )
-        let report = YearReportModel(services: services, selectedYear: 2026, now: { now })
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
 
         try await services.journal.addManualDay(
             date: date(year: 2026, month: 1, day: 1),
@@ -224,7 +247,7 @@ struct YearReportModelTests {
             reminderScheduler: NoopLoggingReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        let preferences = makePreferences()
         let report = YearReportModel(
             services: services,
             selectedYear: 2026,
@@ -249,7 +272,7 @@ struct YearReportModelTests {
             reminderScheduler: NoopLoggingReminderScheduler(),
             widgetRefresher: NoopWidgetTimelineRefresher(),
         )
-        let preferences = WherePreferences(store: InMemoryKeyValueStore())
+        let preferences = makePreferences()
         let report = YearReportModel(
             services: services,
             report: YearReport(year: 2026, days: [], totals: [:]),
@@ -279,7 +302,7 @@ struct YearReportModelTests {
             services: services,
             report: YearReport(year: 2026, days: [], totals: [:]),
             selectedYear: 2026,
-            preferences: WherePreferences(store: InMemoryKeyValueStore()),
+            preferences: makePreferences(),
         )
 
         let before = report.dataIssueScanInputs
@@ -303,7 +326,12 @@ struct YearReportModelTests {
             widgetRefresher: NoopWidgetTimelineRefresher(),
             now: { now },
         )
-        let report = YearReportModel(services: services, selectedYear: 2026, now: { now })
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
 
         // Observer only — no `refresh()` called here, so any state change must
         // arrive through the committed write's ping.
@@ -337,7 +365,11 @@ struct YearReportModelTests {
                 reminderScheduler: NoopLoggingReminderScheduler(),
                 widgetRefresher: NoopWidgetTimelineRefresher(),
             )
-            let report = YearReportModel(services: services, selectedYear: 2026)
+            let report = YearReportModel(
+                services: services,
+                selectedYear: 2026,
+                preferences: makePreferences(),
+            )
             weakReport = report
             report.observeDataChanges()
             #expect(weakReport != nil)
@@ -365,7 +397,12 @@ struct YearReportModelTests {
             audit: nil,
         )
 
-        let report = YearReportModel(services: services, selectedYear: 2026, now: { now })
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
         await report.activate()
         #expect(report.report?.days.count == 1)
         #expect(report.loadState == .loaded)
@@ -394,12 +431,22 @@ struct YearReportModelTests {
             now: { now },
         )
 
-        let report = YearReportModel(services: services, selectedYear: 2026, now: { now })
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
         await report.activate()
         #expect(report.report?.days.count == 0)
         report.deactivate()
 
-        let probe = YearReportModel(services: services, selectedYear: 2026, now: { now })
+        let probe = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
         await probe.activate()
 
         try await services.journal.addManualDay(
@@ -427,7 +474,12 @@ struct YearReportModelTests {
             now: { now },
         )
 
-        let report = YearReportModel(services: services, selectedYear: 2026, now: { now })
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+            now: { now },
+        )
         await report.activate()
         #expect(report.report?.days.count == 0)
         report.deactivate()
@@ -456,7 +508,11 @@ struct YearReportModelTests {
             Evidence(kind: .planeTicket, capturedAt: captured, contentType: .pdf),
             blob: nil,
         )
-        let report = YearReportModel(services: services, selectedYear: 2026)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
 
         await report.activate()
 
@@ -468,7 +524,11 @@ struct YearReportModelTests {
     /// own.
     @Test func addingEvidenceRefreshesDayKeysViaObserver() async throws {
         let services = try makeServices()
-        let report = YearReportModel(services: services, selectedYear: 2026)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
         report.observeDataChanges()
 
         try await services.journal.addEvidence(
@@ -495,7 +555,11 @@ struct YearReportModelTests {
             ),
             blob: nil,
         )
-        let report = YearReportModel(services: services, selectedYear: 2026)
+        let report = YearReportModel(
+            services: services,
+            selectedYear: 2026,
+            preferences: makePreferences(),
+        )
         await report.activate()
         #expect(report.evidenceDayKeys == [Self.cday(2026, 5, 2)])
 

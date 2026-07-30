@@ -28,7 +28,7 @@ This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
   "Logged with Siri" audit and no captured location.
 - **Resolve services through the `@Dependency`-injected `IntentServices`;
   intents never open a store.** The app's `AppDelegate` owns the one instance
-  and registers it in `didFinishLaunching`; the launch's `open-store` step is
+  and registers it in `didFinishLaunching`; the launch's `resolve-scope` step is
   the process's only store open, and the `onServicesReady` hook derives and
   installs the store-sharing intents stack (re-fired on retry and reset
   relaunches). An intent that fires before installation **parks** in

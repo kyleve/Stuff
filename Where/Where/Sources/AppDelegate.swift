@@ -1,5 +1,6 @@
 import AppIntents
 import LifecycleKit
+import PeriscopeCore
 import UIKit
 import WhereCore
 import WhereIntents
@@ -18,7 +19,15 @@ import WhereUI
 /// tracking off the main thread.
 @MainActor
 final class AppDelegate: NSObject, UIApplicationDelegate {
-    let model = WhereModel()
+    /// The app's model, logging into the process-wide Periscope system. This is
+    /// where that system enters the model graph: every scope the model creates
+    /// registers its sink on the system handed down from here, so nothing below
+    /// reaches for the global (and a test hands down a private one).
+    let model = WhereModel(
+        preferences: WherePreferences(store: UserDefaults.standard),
+        makeBootstrap: { WhereBootstrap() },
+        logSystem: .shared,
+    )
 
     /// The intent layer's services handoff, owned here — the composition root
     /// — and registered with the App Intents dependency container below, so
@@ -62,10 +71,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // `CLLocationManager` installed below, so no launch-state guess is
         // needed to service it.
         //
-        // Open the durable Periscope log store and attach it to the shared
-        // logging pipeline. Off the launch critical path (it touches disk); the
-        // shared OSLog sink covers logging until the store is attached.
-        WhereLaunch.bootstrapLogging(model: model)
+        // Start the process-wide ambient log sources. The durable sink belongs
+        // to whichever scope the user ends up in (`WhereScope` opens it), and
+        // no scope exists this early, so these — and everything else logged
+        // before the launch resolves one — reach OSLog only.
+        WhereLaunch.startAmbientLogging(on: .shared)
         // `initializePrerequisites` installs the CLLocationManager synchronously
         // (so a queued location event isn't lost) and registers the
         // foreground-notification presenter; the rest (store open, etc.) runs as
@@ -79,16 +89,27 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // once failed). Intents that fire earlier park in
         // `IntentServices.current()` until this lands; the derivation can't
         // fail, so nothing can strand them parked.
+        // The other half of that handoff: when the app logs out of a scope,
+        // release the derived stack too. Nothing else would, and holding it
+        // would keep the abandoned store alive past the point the next login
+        // opens another over the same file.
+        model.onLoggedOut = { [intentServices] in await intentServices.clear() }
         launcher = WhereLaunch
             .makeLauncher(model: model, reason: .undetermined) { [intentServices] in
                 await intentServices.install(.forIntents(sharingStoreOf: $0))
             }
-        Task {
+        Task { [model] in
             await launcher.run()
             // Index the tracked regions into Spotlight (a search for a region
             // name surfaces Where and its day-count query) through the stack
             // installed above, off the launch critical path. Indexing a
             // handful of items is cheap and idempotent.
+            //
+            // Never from demo mode: the Spotlight index is device state that
+            // outlives the process, and a demo must leave nothing behind. (The
+            // launch now waits on the user's choice, so by the time this runs
+            // it's known.)
+            guard !model.isInDemoMode else { return }
             await RegionSpotlightIndexer.indexRegions(resolving: intentServices)
         }
         return true

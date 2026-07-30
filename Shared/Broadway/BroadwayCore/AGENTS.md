@@ -26,4 +26,4 @@ Complements the root [`AGENTS.md`](../../../AGENTS.md) and the group
 - **`@_spi(CopyOnWrite)`** exposes the copy-on-write box internals
   (`_unsafeUnderlyingValue`) — used by that in-place cache write and by tests.
 
-Tests: `BroadwayCoreTests` in `StuffTestHost` (`tuist test BroadwayCoreTests`).
+Tests: `BroadwayCoreTests` in `StuffTestHost` (`./test BroadwayCoreTests`).

@@ -29,30 +29,31 @@ public protocol DataIssueAlertScheduling: Sendable {
     func reconcile(enabled: Bool, time: ReminderTime, body: String) async
 }
 
-#if DEBUG
-    /// A `DataIssueAlertScheduling` that does nothing, for view-model tests that
-    /// need a controller without touching `UNUserNotificationCenter`. Reports
-    /// unauthorized so the UI's "denied" affordances stay exercisable.
-    ///
-    /// `@_spi(Testing)` + `#if DEBUG` per the agents.md testing-hook convention:
-    /// it's test-only scaffolding that mustn't ship in release. Import it with
-    /// `@_spi(Testing) import WhereCore` (add `@testable` in WhereCore's own
-    /// tests) and inject it via `WhereServices(issueAlertScheduler:)`.
-    @_spi(Testing)
-    public struct NoopDataIssueAlertScheduler: DataIssueAlertScheduling {
-        public init() {}
+/// A `DataIssueAlertScheduling` that does nothing. For SwiftUI previews,
+/// view-model tests, and demo mode — anything that needs a reconciler without
+/// touching `UNUserNotificationCenter`.
+///
+/// - Parameter authorized: what it reports back. Defaults to *un*authorized, so
+///   the UI's "denied" affordances stay exercisable in previews and tests. Demo
+///   mode passes `true`, presenting a fully-granted user; claiming denial there
+///   would log a spurious warning and offer a dead-end trip to Settings.
+public struct NoopDataIssueAlertScheduler: DataIssueAlertScheduling {
+    private let authorized: Bool
 
-        public func requestAuthorization() async -> Bool {
-            false
-        }
-
-        public func isAuthorized() async -> Bool {
-            false
-        }
-
-        public func reconcile(enabled _: Bool, time _: ReminderTime, body _: String) async {}
+    public init(authorized: Bool = false) {
+        self.authorized = authorized
     }
-#endif
+
+    public func requestAuthorization() async -> Bool {
+        authorized
+    }
+
+    public func isAuthorized() async -> Bool {
+        authorized
+    }
+
+    public func reconcile(enabled _: Bool, time _: ReminderTime, body _: String) async {}
+}
 
 /// Production `DataIssueAlertScheduling` backed by `UNUserNotificationCenter`.
 /// Schedules one repeating daily notification under a dedicated identifier, so

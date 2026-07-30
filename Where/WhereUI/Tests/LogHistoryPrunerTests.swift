@@ -19,7 +19,7 @@ struct LogHistoryPrunerTests {
     }
 
     private func makeStore() async throws -> (store: PeriscopeStore, root: LogScope) {
-        let store = try await PeriscopeStore.inMemory(session: .current())
+        let store = try await PeriscopeStore.inMemory(session: .current(attributes: [:]))
         let root = LogScope.root(named: "app")
         await store.defineScopes([root])
         return (store, root)

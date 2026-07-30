@@ -9,7 +9,7 @@ enum WhereLaunchLog: LogEvent {
     ///
     /// `description` is spelled out rather than left to `String(describing:)`
     /// because ``step(_:)`` carries a payload: reflection would render it
-    /// `step(WhereUI.LaunchStepID.openStore)`, leaking the module and the Swift
+    /// `step(WhereUI.LaunchStepID.resolveScope)`, leaking the module and the Swift
     /// case name into a span name the tools group by. The hand-written form
     /// yields `step(open-store)`, matching the step IDs everywhere else.
     enum SpanName: Hashable, CustomStringConvertible {
@@ -32,9 +32,9 @@ enum WhereLaunchLog: LogEvent {
     case runnerCreated(reason: String)
     case servicesAssembled
     /// Assembling the service layer (store open + `WhereServices.make`) failed;
-    /// the `open-store` step surfaces it and the launch parks in `.failed`.
+    /// the `resolve-scope` step surfaces it and the launch parks in `.failed`.
     case servicesAssemblyFailed(description: String)
-    /// The durable log store opened and attached to `Periscope.shared`. Fired
+    /// The durable log store opened and became the active scope's sink. Fired
     /// as soon as the store is browsable — retention pruning runs after, off the
     /// ready path (see ``historyPruned``).
     case loggingStoreReady

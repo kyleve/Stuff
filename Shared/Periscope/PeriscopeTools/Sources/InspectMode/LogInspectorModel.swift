@@ -67,6 +67,9 @@ final class LogInspectorModel {
             }
             state = .loaded(Array(ordered.prefix(limit)))
         } catch {
+            PeriscopeToolsLog.failures.error(
+                "Log inspector could not read the store: \(error, privacy: .public)",
+            )
             state = .failed(String(describing: error))
         }
     }

@@ -18,6 +18,7 @@ final class SDLogEvent {
         [\.severity],
         [\.eventName],
         [\.sessionID],
+        [\.ambientSnapshotID],
         [\.spanID],
         [\.spanExitMode],
         [\.externalID],
@@ -40,11 +41,20 @@ final class SDLogEvent {
     /// Every scope the event references, primary first, in emission order.
     var orderedScopeIDs: [UUID]
     var sessionID: UUID
+    /// The ambient state the event was stamped with (see
+    /// ``SDAmbientSnapshot``), or `nil` when no ambient source had reported
+    /// anything yet. Indexed so "everything that happened while offline" is
+    /// one query.
+    var ambientSnapshotID: UUID?
     /// Set on span begin/end events so a span's pair resolves in one fetch.
     var spanID: UUID?
     /// `SpanExit.Mode.rawValue` on span-ended events — queryable, so the
     /// viewer can filter "everything that failed/expired/orphaned".
     var spanExitMode: String?
+    /// `SpanRelaunchPolicy.rawValue` on span-*began* events, so the next
+    /// launch's orphan sweep can honor the policy from a column instead of
+    /// decoding every unmatched began's payload; `nil` on every other event.
+    var spanRelaunchPolicy: String?
     /// The emitting function/file (`#function`/`#fileID`), when captured.
     var callFunction: String?
     var callFileID: String?
@@ -69,8 +79,10 @@ final class SDLogEvent {
         payload: Data,
         orderedScopeIDs: [UUID],
         sessionID: UUID,
+        ambientSnapshotID: UUID?,
         spanID: UUID?,
         spanExitMode: String?,
+        spanRelaunchPolicy: String?,
         callFunction: String?,
         callFileID: String?,
         externalID: String?,
@@ -89,14 +101,23 @@ final class SDLogEvent {
         self.payload = payload
         self.orderedScopeIDs = orderedScopeIDs
         self.sessionID = sessionID
+        self.ambientSnapshotID = ambientSnapshotID
         self.spanID = spanID
         self.spanExitMode = spanExitMode
+        self.spanRelaunchPolicy = spanRelaunchPolicy
         self.callFunction = callFunction
         self.callFileID = callFileID
         self.externalID = externalID
         self.scopes = scopes
         self.tags = tags
         self.attachments = attachments
+    }
+
+    /// ``spanRelaunchPolicy`` as its enum, or `nil` when the row carries no
+    /// policy — it isn't a span began, or it names a policy this build
+    /// doesn't recognize.
+    var declaredRelaunchPolicy: SpanRelaunchPolicy? {
+        spanRelaunchPolicy.flatMap(SpanRelaunchPolicy.init(rawValue:))
     }
 }
 
@@ -180,6 +201,9 @@ final class SDLogSession {
     var buildNumber: String
     var osVersion: String
     var deviceModel: String
+    /// `LogSessionAttributeKey.rawValue` → value (commit, configuration,
+    /// optimization level). Empty when the build couldn't name itself.
+    var attributes: [String: String]
 
     init(session: LogSession) {
         sessionID = session.id
@@ -188,6 +212,11 @@ final class SDLogSession {
         buildNumber = session.buildNumber
         osVersion = session.osVersion
         deviceModel = session.deviceModel
+        // Injective (`LogSessionAttributeKey` wraps its raw value), so
+        // neither direction can collide into a duplicate key.
+        attributes = Dictionary(
+            uniqueKeysWithValues: session.attributes.map { ($0.key.rawValue, $0.value) },
+        )
     }
 
     var toValue: LogSession {
@@ -198,6 +227,50 @@ final class SDLogSession {
             buildNumber: buildNumber,
             osVersion: osVersion,
             deviceModel: deviceModel,
+            attributes: Dictionary(
+                uniqueKeysWithValues: attributes
+                    .map { (LogSessionAttributeKey($0.key), $0.value) },
+            ),
+        )
+    }
+}
+
+/// One row per distinct ambient state (see `AmbientSnapshot`), referenced by
+/// every event stamped with it — the ambient counterpart to `SDLogSession`.
+///
+/// Events point at it with a plain `ambientSnapshotID` rather than a
+/// relationship, matching how they reference their session: the write path
+/// stays free of relationship bookkeeping, and one row serves the whole run
+/// of events that shared that state.
+@Model
+final class SDAmbientSnapshot {
+    #Index<SDAmbientSnapshot>([\.snapshotID])
+
+    @Attribute(.unique) var snapshotID: UUID
+    /// `AmbientKind.rawValue` → the state's named fields. A dictionary
+    /// rather than a JSON blob so reading a snapshot back has no manual
+    /// decode step, and therefore no failure mode to swallow.
+    var values: [String: [String: AmbientValue]]
+    /// When this state was first persisted. A snapshot row is written once
+    /// and referenced thereafter, so this is also when the state began.
+    var firstSeenAt: Date
+
+    init(snapshot: AmbientSnapshot, firstSeenAt: Date) {
+        snapshotID = snapshot.id
+        // Both maps are injective (`AmbientKind` wraps its raw value), so
+        // neither direction can collide into a duplicate key.
+        values = Dictionary(
+            uniqueKeysWithValues: snapshot.values.map { ($0.key.rawValue, $0.value) },
+        )
+        self.firstSeenAt = firstSeenAt
+    }
+
+    var toValue: AmbientSnapshot {
+        AmbientSnapshot(
+            id: snapshotID,
+            values: Dictionary(
+                uniqueKeysWithValues: values.map { (AmbientKind($0.key), $0.value) },
+            ),
         )
     }
 }
@@ -210,6 +283,7 @@ enum PeriscopeSchema {
             SDLogSession.self,
             SDLogTag.self,
             SDLogAttachment.self,
+            SDAmbientSnapshot.self,
         ]
     }
 }

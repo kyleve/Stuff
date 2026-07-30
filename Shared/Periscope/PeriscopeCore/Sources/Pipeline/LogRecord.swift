@@ -55,6 +55,13 @@ public struct LogRecord: Sendable, Identifiable {
     /// if floors rose mid-span (see `Log.begin`).
     var bypassesFloors = false
 
+    /// The ambient system state when this record was buffered — network,
+    /// thermal, power, lifecycle. Stamped by the recorder, never by the
+    /// call site (hence `internal(set)`), so *every* record can be joined
+    /// to what the system was doing rather than only the ambient events
+    /// themselves. `nil` until an ambient source has reported some state.
+    public internal(set) var ambient: AmbientSnapshot?
+
     public init(
         id: UUID = UUID(),
         date: Date,
@@ -72,6 +79,18 @@ public struct LogRecord: Sendable, Identifiable {
         self.attachments = attachments
         self.callSite = callSite
     }
+
+    #if DEBUG
+        /// Test seam: a copy carrying `ambient`, standing in for what the
+        /// recorder stamps. Store tests hand records to
+        /// `PeriscopeStore.write(_:)` directly — with dates they choose —
+        /// so they can't get a stamped record out of a live pipeline.
+        @_spi(Testing) public func stamped(ambient: AmbientSnapshot?) -> LogRecord {
+            var copy = self
+            copy.ambient = ambient
+            return copy
+        }
+    #endif
 
     public var level: LogLevel {
         event.level

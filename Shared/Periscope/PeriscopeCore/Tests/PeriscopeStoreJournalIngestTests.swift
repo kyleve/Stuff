@@ -89,6 +89,43 @@ struct PeriscopeStoreJournalIngestTests {
         #expect(!FileManager.default.fileExists(atPath: crashedJournal.path))
     }
 
+    /// The full crash path for ambient state: stamped at emit, journaled,
+    /// recovered, and given its row at ingest — so the events that only
+    /// exist because of a crash still say what the system was doing.
+    @Test func recoveredEventsKeepTheirAmbientState() async throws {
+        let root = try makeRoot()
+        let crashed = LogSession.fixture(startedAt: date(0))
+        let scope = LogScope.root(named: "app")
+        try writeCrashedJournal(
+            root: root,
+            session: crashed,
+            scopes: [scope],
+            records: [
+                LogRecord(
+                    date: date(1),
+                    event: AmbientEvent(kind: .network, value: ["status": "unsatisfied"]),
+                    scopes: [scope.id],
+                ),
+                LogRecord(
+                    date: date(2),
+                    event: Message(level: .error, "died while offline"),
+                    scopes: [scope.id],
+                ),
+            ],
+        )
+
+        let store = try await PeriscopeStore.onDisk(
+            databaseURL: databaseURL(in: root),
+            session: .fixture(startedAt: date(100)),
+        )
+
+        let events = try await store.events(matching: LogQuery())
+        let recovered = try #require(events.first { $0.message == "died while offline" })
+        let snapshotID = try #require(recovered.ambientSnapshotID)
+        let snapshot = try await store.ambientSnapshot(for: snapshotID)
+        #expect(snapshot?[.network] == ["status": "unsatisfied"])
+    }
+
     @Test func alreadyDeliveredRecordsAreNotDuplicated() async throws {
         let root = try makeRoot()
         let crashed = LogSession.fixture(startedAt: date(0))
@@ -154,6 +191,31 @@ struct PeriscopeStoreJournalIngestTests {
         #expect(pair.count == 2)
         let ended = try #require(pair.first { $0.eventName == SpanEnded.eventName })
         #expect(try ended.decode(SpanEnded.self).exit == .orphaned)
+    }
+
+    /// A span that asked to survive a relaunch must survive one it reached
+    /// through the crash journal too: the recovered row carries the policy, so
+    /// the sweep that runs right after ingest leaves it open.
+    @Test func recoveredSpanBegansKeepTheirRelaunchPolicy() async throws {
+        let root = try makeRoot()
+        let crashed = LogSession.fixture(startedAt: date(0))
+        let scope = LogScope.root(named: "app")
+        let began = SpanBegan(
+            spanID: SpanID(),
+            name: "long-download",
+            lifetime: .indefinite,
+            relaunchPolicy: .survivesRelaunch,
+        )
+        let record = LogRecord(date: date(1), event: began, scopes: [scope.id])
+        try writeCrashedJournal(root: root, session: crashed, scopes: [scope], records: [record])
+
+        let store = try await PeriscopeStore.onDisk(
+            databaseURL: databaseURL(in: root),
+            session: .fixture(startedAt: date(100)),
+        )
+
+        let events = try await store.events(inSpan: began.spanID)
+        #expect(events.map(\.eventName) == [SpanBegan.eventName])
     }
 
     @Test func tornJournalsEscalateTheRecoveryMarker() async throws {

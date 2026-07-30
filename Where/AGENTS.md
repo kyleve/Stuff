@@ -79,7 +79,7 @@ slow.
 
 - **Names are a typed `enum SpanName`** nested on the `*Log`, never a raw
   string. When a name carries a value, give it `CustomStringConvertible` so the
-  history buckets by something readable — `step(open-store)`,
+  history buckets by something readable — `step(resolve-scope)`,
   `loadRegion(us-CA)`, `detect(border-drift)` — not the Swift case's shape.
 - **The budget is the promise, and it lives next to the work.** Overrunning it
   emits a `SpanOverdue` warning while the span keeps running, so a budget is a
@@ -87,7 +87,7 @@ slow.
   timeout. Omit it only where no ceiling is meaningful — user-driven backup
   export/import, which scales with the archive.
 - **Launch and reset steps declare a budget, not a `measure` call.** Every step
-  in `WhereLaunch`'s plan conforms to `BudgetedLaunchStep` and joins the plan
+  in `WhereLaunch`'s plans conforms to `BudgetedLaunchStep` and joins the plan
   through `.measured()`, which wraps it in `MeasuredStep` — so a new step is
   spanned by declaring `budget`, and `MeasuredStep` pointedly isn't itself
   budgeted, so nothing can be measured twice into nested duplicate spans. Gates
@@ -102,11 +102,64 @@ slow.
   `struct` conforming to `LogEvent` with a `private init` and an empty `message`
   (`ReportReaderLog`, `DataIssueScannerLog`, `PresenceCalendarLog`). It names
   spans without inventing an event nobody emits.
-- **The earliest launch spans are half-persisted.** A `SpanBegan` emitted before
-  `bootstrapLogging` attaches the store is only in OSLog; the `SpanEnded` lands
-  in the store, so durations survive but the pair doesn't. That gap is
-  Periscope's to close (P0 in its
+- **Spans emitted before a scope's durable store attaches are
+  half-persisted.** A `SpanBegan` from the pre-sink window is only in OSLog;
+  the `SpanEnded` lands in the store, so durations survive but the pair
+  doesn't. That gap is Periscope's to close (P0 in its
   [`TODOs.md`](../Shared/Periscope/TODOs.md)) — don't work around it here.
+
+## Scopes and the launch
+
+- **A `WhereScope` is what the app is logged in *to*** — one open store's
+  `WhereServices`, the `WherePreferences` driving it, and the durable log store
+  they record into. Created whole; `WhereSession` is built from one, so a
+  surface can't read one world's store against another's preferences.
+- **Nothing opens until the user picks a world.** The trunk is rooted at the
+  onboarding gate, so an install that never onboards creates no store file,
+  contacts no CloudKit, and opens no log store. Guard:
+  `WhereLaunchTests.firstRunForegroundLaunchParksOnTheOnboardingGateBeforeOpeningAnything`.
+- **At most one scope is live at a time.** Logging out — a reset, or leaving a
+  demo — releases and tears down the scope; logging back in builds a fresh one.
+  What went wrong historically wasn't opening a second container *ever*, it was
+  two long-lived ones open *at once*, which sequenced teardown makes
+  unspellable. Guard:
+  `WhereResetTests.loggingOutReleasesTheScopeBeforeTheNextLoginOpensOne`.
+- **The onboarding gate declares `modes: .all`,** not the `.foreground`
+  default: parking a headless launch is the point. A background wake needs the
+  permission this flow asks for, so `isNeeded` is false by then.
+- **A gate carries no value,** so a choice made *at* it reaches `resolve-scope`
+  through `WhereModel` — the one step that reads model state rather than the
+  trunk.
+- **Ambient log sources start at process launch; the durable sink is a
+  scope's.** Records emitted before a scope exists reach OSLog only.
+
+### Demo mode
+
+- **Demo mode is a second scope, not a flag** — in-memory store seeded by
+  `DemoDataBuilder`, in-memory preferences and log store, noop schedulers,
+  outbox, and widget refresher. Entered from the onboarding intro, left from the
+  first block of Settings (`WhereLaunch.exitDemoPlan`); quitting mid-demo needs
+  no teardown.
+- **A demo leaves no mark on the device.** Anything that writes outside its own
+  store is injected as a no-op or skipped at the call site (Spotlight indexing
+  in `AppDelegate`), and Settings hides the groups that would reach past it
+  (`SettingsDestination.isAvailableInDemoMode`). A new persisting surface needs
+  the same treatment.
+- **`WhereModel` decides when a scope routes its logs.** A scope holds its log
+  store from birth and routes only while active, so one that opens while
+  shadowed is remembered rather than attached. Guard:
+  `DemoModeTests.aLogStoreOpeningLateNeverAttachesToAShadowedScope`.
+- **The logging system is injected, not global** — `WhereModel.logSystem` has no
+  default, so a test can't silently attach sinks to `Periscope.shared`. (The
+  `WhereLog` facade still emits into `.shared`; pre-existing.)
+- **Demo mode asks for no permission and presents a granted user** — the
+  scripted location source reports `.always`, and the noop schedulers are built
+  `authorized: true` so no surface nags about a permission the demo can't
+  obtain. Guard: `DemoModeTests.demoPresentsAFullyGrantedUser`.
+- **Views branch on `\.isInDemoMode`,** seeded once at `RootView` via
+  `demoMode(of:)`. Guard: `DemoModeEnvironmentTests`.
+- App Intents answer from the demo store while it is active: process-scoped and
+  self-correcting on exit, accepted rather than special-cased (#150).
 
 ## Navigation
 
@@ -118,7 +171,7 @@ scene-scoped `YearReportModel` by explicit init injection; the always-on
 `WhereSession` coordinator travels in the environment. Settings is a
 typed-route list (`SettingsSearch.swift`; every switch is exhaustive), so a
 new drill-in is a set of compile errors to fill in; About stays the last
-block.
+block and the demo-mode exit the first.
 
 The About screen renders three live sources — the generated attribution
 report (`WhereCore.AppAttribution`), `RegionDataSource`, and `BuildInfo` —

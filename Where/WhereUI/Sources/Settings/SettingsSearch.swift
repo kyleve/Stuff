@@ -67,6 +67,21 @@ enum SettingsDestination: Hashable, CaseIterable {
         }
     }
 
+    /// Whether the group is offered while the app is running on demo data.
+    ///
+    /// The three that aren't would each reach past the demo and touch the
+    /// device: **backup** writes (or restores) a real archive, **data** erases
+    /// and resets — which in a demo world would only blank the demo, while
+    /// reading as if it erased something real — and **appearance** exists
+    /// solely to set an alternate app icon, which outlives the process. A demo
+    /// leaves no trace, so it doesn't offer the ways to leave one.
+    var isAvailableInDemoMode: Bool {
+        switch self {
+            case .backup, .data, .appearance: false
+            case .attachments, .loggedDays, .location, .regions, .alerts, .year, .about: true
+        }
+    }
+
     /// Whether the group opens as a modal **sheet** (an editor/commit flow with
     /// explicit Cancel/Save) rather than a pushed sub-screen. Regions is the one
     /// top-level committing editor; the rest are plain drill-in settings.

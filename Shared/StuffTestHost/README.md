@@ -19,19 +19,20 @@ plus `TestHostSupport` and run inside this app (see [`Project.swift`](../../Proj
 
 ## Bundle.module and resources
 
-Some SPM resources (notably WhereCore's GeoJSON region data) resolve via
-`Bundle.module` at runtime. That accessor looks the bundle up with
-`Bundle(for:)` — the bundle the code is linked into — and on Xcode 27 each
-`.xctest` carries its own copies of the resource bundles for what it links, so a
-hosted test finds them in the test bundle and never falls back to the host's
-`Bundle.main`.
+Some SPM resources (notably RegionKit's GeoJSON region data and the string
+catalogs) resolve via `Bundle.module` at runtime. The host embeds no resource
+bundles for that: every test scheme sets `PACKAGE_RESOURCE_BUNDLE_PATH` — the
+generated accessors' own first lookup candidate — to the built-products
+directory, and `./test` delivers the concrete path (xcodebuild doesn't expand
+build-setting macros in scheme environment variables, so the scheme value
+covers Xcode-IDE runs and the script covers everything else).
 
-So the host embeds no resource bundles and depends on nothing but
-`TestHostSupport`. If a bundle hits a missing resource, give *that* bundle a
-dependency on the product that owns it rather than adding the product to the
-host, which would make every unrelated bundle in the scheme pay for it. The
-`StuffTestHost` target in [`Project.swift`](../../Project.swift) carries the
-long form of this.
+The override exists because Xcode 27 beta 4's package linking separates a
+product's classes from its resource bundle for hosted tests, defeating the
+accessors' default candidates — and the old remedy, embedding WhereCore in
+this host, breaks String Catalog symbol generation under the same beta. The
+`packageResourceEnvironment` note in [`Project.swift`](../../Project.swift)
+carries the full history and how to retire the override.
 
 ## Testing the host
 

@@ -33,19 +33,32 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
-- **`WhereLaunch`** — the launch and reset plans themselves. Every step declares
-  how long it should take (`BudgetedLaunchStep`) and joins the plan through
-  `.measured()`, so each run is one Periscope span named after the step
-  (`step(open-store)`) that warns while it overruns its budget — the launch's
-  cost breaks down per step instead of arriving as one slow splash. Its
-  `bootstrapLogging` opens the process's durable log store, attaches it as
-  Periscope's sink, starts the built-in ambient sources, and trims history with
-  `LogHistoryPruner` (a 100-day window *and* a 50k-event ceiling, so the store
-  is bounded however heavily the device logs).
-- **`WhereModel`** — app-level state: the onboarding flag, the owned
-  `WhereSession`, and the lifecycle intents (`attach(services:)`,
-  `startSession(services:)` — which *returns* the session the launch's
-  `start-session` step threads onward — `endSession()`, `resetPreferences()`).
+- **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
+  step declares how long it should take (`BudgetedLaunchStep`) and joins the
+  plan through `.measured()`, so each run is one Periscope span named after
+  the step (`step(resolve-scope)`) that warns while it overruns its budget —
+  the launch's cost breaks down per step instead of arriving as one slow
+  splash. (The onboarding gate is the one unmeasured node: it parks on the
+  user.)
+- **`WhereScope`** — what the app is logged in *to*: one open store's
+  `WhereServices`, the `WherePreferences` driving it, and the durable log store
+  they record into, created whole and never reconfigured. `WhereModel` owns
+  which scope is active; `WhereSession` is built from one, so a logged-in
+  surface can't read one world's store against another's preferences. Two
+  kinds, both reached through `WhereModel`: the real one opens the app's single
+  on-disk store, and `makeDemoScope()` builds a seeded in-memory world that
+  leaves nothing behind. Its log sink is registered on an **injected**
+  `Periscope` — and only while `WhereModel` says the scope is active — with
+  routing modelled as one state (`pending` / `routing` / `idle`), so a store that
+  finishes opening while the scope is shadowed is remembered rather than routed
+  into. When the durable store opens, its bring-up is spanned (`openLogStore`)
+  and history is trimmed with `LogHistoryPruner` (a 100-day window *and* a
+  50k-event ceiling, so the store is bounded however heavily the device logs).
+- **`WhereModel`** — app-level state that outlives any one scope: the
+  onboarding flag, the active `WhereScope`, the owned `WhereSession`, and the
+  lifecycle intents (`activate(scope:)`, `startSession(scope:)` — which
+  *returns* the session the launch's `start-session` step threads onward —
+  `endSession()`, `resetPreferences()`).
 - **`WhereSession`** — the always-on coordinator: tracking + location
   authorization state and the intents that drive them (`requestPermission()`,
   `startTracking()` / `stopTracking()`, `refreshWidgetSnapshot()`). It holds no
@@ -59,13 +72,16 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
 ### Reusable views & styling
 
 - **`OnboardingView`** — the first-run flow, registered for the launch's
-  `OnboardingGate` and handed its `LifecycleGateHandle` + the gate's
-  `WhereSession`: a paged intro, then picking up to five primary US regions
-  (map or searchable list) and giving each a look, then the
-  location-permission ask. It commits the picks as the tracked-region set +
-  appearances before resolving the gate. The intro also offers **Restore from
-  a backup**, which imports a backup (`.replace`) and skips the manual
-  pick/customize steps straight to the location ask.
+  `OnboardingGate` and handed its `LifecycleGateHandle`. The gate roots the
+  trunk, so there is no session (and no open store) behind it: a paged intro,
+  then picking up to five primary US regions (map or searchable list) and
+  giving each a look, then the location-permission ask. Finishing logs in to
+  the real scope — the app's one store open — and commits the picks as the
+  tracked-region set + appearances before resolving the gate. The intro also
+  offers **Restore from a backup**, which opens the store, imports a backup
+  (`.replace`), and skips the manual pick/customize steps straight to the
+  location ask; and **Explore a demo**, which builds a throwaway in-memory
+  world behind a captioned launch splash and enters it.
 - **`RegionPickerView` / `RegionCustomizeView`** — the shared primary-region
   picker (segmented map/list) and per-region color/emoji/icon customization,
   backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings
@@ -211,15 +227,12 @@ suite per view, so each view's references live in their own `__Snapshots__/`
 directory. They build as this module's own `WhereUISnapshotTests` bundle, which
 runs alongside the other modules' image suites in the shared
 `StuffSnapshotTests` scheme and its CI job;
-to re-record after an intentional UI change, forward the record mode into the
-test process (see the
+to re-record after an intentional UI change (see the
 [SnapshotKitTesting README](../../Shared/SnapshotKitTesting/README.md#recording)
 for the mode values):
 
 ```bash
-TEST_RUNNER_SNAPSHOT_RECORD=failed mise exec -- tuist test StuffSnapshotTests \
-  --no-selective-testing -- \
-  -destination "platform=iOS Simulator,id=$(./simulator --os 27.0)"
+./test --snapshots --record failed
 ```
 
 then review and commit the images.

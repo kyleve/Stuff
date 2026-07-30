@@ -170,7 +170,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
     /// this is the supported entry point for opening a store.
     ///
     /// Each process opens its on-disk store **once** and injects it where
-    /// it's needed — in the app, the launch's `open-store` step opens it and
+    /// it's needed — in the app, the launch's `resolve-scope` step opens it
+    /// (only once the user has committed to using the app for real) and
     /// the App Intents stack shares it via
     /// `WhereServices.forIntents(sharingStoreOf:)` — rather than a second
     /// caller opening another container over the same file (two containers

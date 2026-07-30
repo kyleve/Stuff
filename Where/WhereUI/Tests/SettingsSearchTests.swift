@@ -17,6 +17,14 @@ struct SettingsSearchTests {
         #expect(grouped.count == SettingsDestination.allCases.count)
     }
 
+    @Test func demoModeHidesOnlyTheGroupsThatReachPastIt() {
+        let hidden = SettingsDestination.allCases.filter { !$0.isAvailableInDemoMode }
+        // Backup writes a real archive, data erases and resets, and appearance
+        // exists only to set an app icon that outlives the process. Everything
+        // else is safe to explore, and the list would be a poor demo without it.
+        #expect(Set(hidden) == [.backup, .data, .appearance])
+    }
+
     @Test func focusTokensAreUnique() {
         let focuses = SettingsCatalog.results.map(\.focus)
         #expect(Set(focuses).count == focuses.count)

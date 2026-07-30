@@ -192,7 +192,7 @@ public final class YearReportModel {
         services: WhereServices,
         report: YearReport? = nil,
         selectedYear: Int = WhereModel.currentYear,
-        preferences: WherePreferences = WherePreferences(),
+        preferences: WherePreferences,
         now: @escaping @Sendable () -> Date = { Date() },
     ) {
         self.services = services

@@ -10,6 +10,12 @@ public struct LogSession: Sendable, Identifiable, Hashable, Codable {
     public let buildNumber: String
     public let osVersion: String
     public let deviceModel: String
+    /// How this build was produced — commit, configuration, optimization
+    /// level (see ``LogSessionAttributeKey``). The version and build number
+    /// alone can't tell an optimized build from an unoptimized one, which is
+    /// the difference between a span duration that means something and one
+    /// that doesn't. Only the app knows these, so it supplies them.
+    public let attributes: [LogSessionAttributeKey: String]
 
     public init(
         id: UUID,
@@ -18,6 +24,7 @@ public struct LogSession: Sendable, Identifiable, Hashable, Codable {
         buildNumber: String,
         osVersion: String,
         deviceModel: String,
+        attributes: [LogSessionAttributeKey: String],
     ) {
         self.id = id
         self.startedAt = startedAt
@@ -25,11 +32,13 @@ public struct LogSession: Sendable, Identifiable, Hashable, Codable {
         self.buildNumber = buildNumber
         self.osVersion = osVersion
         self.deviceModel = deviceModel
+        self.attributes = attributes
     }
 
-    /// A fresh session describing this launch: main-bundle version info,
-    /// OS version, and hardware model.
-    public static func current() -> LogSession {
+    /// A fresh session describing this launch: main-bundle version info, OS
+    /// version, hardware model, and whatever build `attributes` the caller
+    /// can name.
+    public static func current(attributes: [LogSessionAttributeKey: String]) -> LogSession {
         let info = Bundle.main.infoDictionary ?? [:]
         return LogSession(
             id: UUID(),
@@ -38,6 +47,7 @@ public struct LogSession: Sendable, Identifiable, Hashable, Codable {
             buildNumber: info["CFBundleVersion"] as? String ?? "unknown",
             osVersion: ProcessInfo.processInfo.operatingSystemVersionString,
             deviceModel: hardwareModel(),
+            attributes: attributes,
         )
     }
 

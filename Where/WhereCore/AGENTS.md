@@ -91,6 +91,11 @@ internal shape.
   from them and rebuilds on `changes()`; assemble via the async
   `WhereServices.make(...)` / `forIntents()` so both attribute against the
   same synced set. `distanceToBoundary` is `nil` outside the tracked set.
+- **`DemoDataBuilder` seeds through the ordinary write paths** (`DayJournal`,
+  `setPrimaryRegions`) — no private door into the store, so a demo exercises
+  the code a real user does. Its data is sized against the *elapsed* year, not
+  the calendar; fixed sizes made a January demo mostly-unlogged. Guard:
+  `DemoDataBuilderTests.holdsItsShapeWhereverInTheYearItIsEntered`.
 - **Impossible states trap; recoverable ones surface.** `WhereStore` methods
   are `async throws`; a `catch` logs a typed `WhereLog` event (PII-free,
   `.public`, error as `LogAttachment.error(_:)`) and leaves state honest —
@@ -112,6 +117,18 @@ Swift Testing in [`Tests/`](Tests) (`WhereCoreTests`), hosted in
 `CoreLocationSource`. The CloudKit remote-import path uses the
 `@_spi(Testing)` `inMemory(remoteChangeSource:)` +
 `ScriptedStoreRemoteChangeSource`. Internal types are reached via
-`@testable import WhereCore`. `InMemoryKeyValueStore` (the `KeyValueStore`
-test double) ships here behind `@_spi(Testing)` + `#if DEBUG`; test bundles
-import it with `@_spi(Testing) import WhereCore`.
+`@testable import WhereCore`.
+
+`InMemoryKeyValueStore` and the noop schedulers/refreshers are plain `public`
+production API, not test scaffolding: demo mode assembles a session out of
+them. Don't restore the `@_spi(Testing)` + `#if DEBUG` gating the first two
+once carried (#150).
+
+The notification and widget seams run the other way round from most defaults
+here: the `@_spi(Testing)` `init` defaults them to the **no-ops**, while the
+public `make(...)` requires them. The reconcilers behind them fire on ordinary
+writes, so a suite that named nothing would schedule real notifications and
+reload the user's widget timelines as a side effect of saving a day. Only
+`WhereBootstrap` names the real ones. `forIntents(sharingStoreOf:)` inherits
+them from its base for the same reason it inherits the attributor — a stack
+derived from the demo world must stay made of no-ops.

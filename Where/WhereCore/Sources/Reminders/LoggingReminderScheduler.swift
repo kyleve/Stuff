@@ -59,19 +59,28 @@ public protocol LoggingReminderScheduling: Sendable {
     ) async
 }
 
-/// A `LoggingReminderScheduling` that does nothing. For SwiftUI previews and
-/// view-model tests that need a controller without touching
-/// `UNUserNotificationCenter`. Reports unauthorized so the UI's "denied"
-/// affordances stay exercisable.
+/// A `LoggingReminderScheduling` that does nothing. For SwiftUI previews,
+/// view-model tests, and demo mode — anything that needs a reconciler without
+/// touching `UNUserNotificationCenter`.
+///
+/// - Parameter authorized: what it reports back. Defaults to *un*authorized, so
+///   the UI's "denied" affordances stay exercisable in previews and tests. Demo
+///   mode passes `true`: it presents a fully-granted user (as its location
+///   source does), and a scheduler claiming denial there would both log a
+///   spurious warning and offer a dead-end trip to the Settings app.
 public struct NoopLoggingReminderScheduler: LoggingReminderScheduling {
-    public init() {}
+    private let authorized: Bool
+
+    public init(authorized: Bool = false) {
+        self.authorized = authorized
+    }
 
     public func requestAuthorization() async -> Bool {
-        false
+        authorized
     }
 
     public func isAuthorized() async -> Bool {
-        false
+        authorized
     }
 
     public func reconcile(

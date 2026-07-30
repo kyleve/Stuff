@@ -97,6 +97,9 @@ public func assertSnapshots(
     // default plain output.
     let resolvedRecord = record ?? environmentRecordMode()
     let resolvedDiffTool = environmentDiffTool()
+    // Read once per call rather than per configuration: the environment can't
+    // change mid-run, and the pixel walk is the cost worth gating, not this.
+    let isDiffReportingEnabled = SnapshotDiffReporting.isEnabledByEnvironment
 
     for configuration in configurations {
         let hostingController = makeHostingController(for: view, configuration: configuration)
@@ -113,7 +116,11 @@ public func assertSnapshots(
                 .intrinsic(width: width)
         }
         let identifier = fullSnapshotIdentifier(caseName: name, configuration: configuration)
-        let image = await renderSnapshotImage(
+        let timing = SnapshotCaptureTiming(
+            identifier: identifier,
+            isEnabled: SnapshotCaptureTiming.isEnabledByEnvironment,
+        )
+        let capture = await renderSnapshotCapture(
             of: hostingController,
             named: identifier,
             sizing: sizing,
@@ -121,22 +128,41 @@ public func assertSnapshots(
             isAccessibility: configuration.snapshotType == .accessibility,
             settle: settle,
             onReadyToSnapshot: onReadyToSnapshot,
+            timing: timing,
         )
-        withSnapshotTesting(record: resolvedRecord, diffTool: resolvedDiffTool) {
-            assertSnapshot(
-                of: image,
-                as: .image(
-                    precision: defaultSnapshotPrecision,
-                    perceptualPrecision: defaultSnapshotPerceptualPrecision,
-                ),
-                named: identifier,
-                fileID: fileID,
-                file: filePath,
+        // Before the verdict, so a reviewer gets the shape of the delta on the
+        // same run that reports the failure. Reads the reference from disk; the
+        // byte-equality check short-circuits when the capture is deterministic.
+        if isDiffReportingEnabled {
+            let reference = snapshotReferenceURL(
+                testFilePath: "\(filePath)",
                 testName: testName,
-                line: line,
-                column: column,
+                identifier: identifier,
+            )
+            SnapshotDiffReporting.report(
+                compareAgainstReference(capturedPNG: capture.pngData, referenceURL: reference),
+                identifier: identifier,
+                reference: reference,
             )
         }
+        timing.measure(.compare) {
+            withSnapshotTesting(record: resolvedRecord, diffTool: resolvedDiffTool) {
+                assertSnapshot(
+                    of: capture.image,
+                    as: .image(
+                        precision: defaultSnapshotPrecision,
+                        perceptualPrecision: defaultSnapshotPerceptualPrecision,
+                    ),
+                    named: identifier,
+                    fileID: fileID,
+                    file: filePath,
+                    testName: testName,
+                    line: line,
+                    column: column,
+                )
+            }
+        }
+        timing.emit()
     }
 }
 

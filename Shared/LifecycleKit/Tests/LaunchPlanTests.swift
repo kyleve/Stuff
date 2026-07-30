@@ -75,6 +75,30 @@ struct LaunchPlanTests {
         #expect(seen == ["session"])
     }
 
+    @Test func planCanRootAtAGate() async {
+        // The shape an app takes when nothing may be built until the user
+        // chooses: the gate parks first, and the step after it mints the
+        // first real value.
+        var evaluated = false
+        let plan = LaunchPlan(FixtureGate<Void>("choose-mode", modes: .all) { _ in
+            evaluated = true
+            return true
+        })
+        .then(FixtureStep<Void, String>("open") { _, _ in "session" })
+
+        #expect(plan.nodes.flatMap(\.ids) == ["choose-mode", "open"])
+        guard case let .gate(gate) = plan.nodes[0] else {
+            Issue.record("expected a gate node")
+            return
+        }
+        // `.all` is the point of a root gate: a headless launch parks rather
+        // than skipping ahead and building the world anyway.
+        #expect(gate.modes == .all)
+        let needed = await gate.isNeeded(())
+        #expect(needed)
+        #expect(evaluated)
+    }
+
     @Test func detachedChildrenKeepTheirDeclaredModes() {
         let plan = LaunchPlan(FixtureStep<Void, String>("open") { _, _ in "session" })
             .detached {

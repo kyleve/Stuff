@@ -17,10 +17,6 @@ struct WhereSessionTests {
         )!
     }
 
-    private func makePreferences() -> WherePreferences {
-        WherePreferences(store: InMemoryKeyValueStore())
-    }
-
     private func makeSession(
         preferences: WherePreferences,
         scheduler: SpyDailySummaryScheduler,
@@ -119,7 +115,7 @@ struct WhereSessionTests {
             widgetRefresher: refresher,
             now: { now },
         )
-        return (WhereSession(services: services), refresher)
+        return (WhereSession(services: services, preferences: makePreferences()), refresher)
     }
 }
 

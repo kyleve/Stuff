@@ -12,10 +12,6 @@ import WhereUI
 /// a time edit — down through the reconciler.
 @MainActor
 struct RemindersSettingsModelTests {
-    private func makePreferences() -> WherePreferences {
-        WherePreferences(store: InMemoryKeyValueStore())
-    }
-
     private func makeServices() throws -> WhereServices {
         try WhereServices(
             store: SwiftDataStore.inMemory(),

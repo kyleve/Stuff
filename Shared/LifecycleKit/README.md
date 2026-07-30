@@ -41,7 +41,9 @@ and it only grows, by each step embedding what came before:
   flows past them, so they *may* gate on the launch reason.
 - **Gates** park the trunk awaiting external (user) resolution — onboarding
   is the canonical one. Pass-through by construction, foreground-only by
-  default, re-evaluated when a headless launch is promoted.
+  default, re-evaluated when a headless launch is promoted. A plan may also be
+  *rooted* at one, when nothing may be built until the user chooses (see
+  [Rooting a plan at a gate](#rooting-a-plan-at-a-gate)).
 - **Detached children** take the trunk value and return `Void`, so nothing
   can depend on a fire-and-forget step. They run concurrently, never block
   `.ready`, and a failure lands on the runner's `detachedFailures`
@@ -85,6 +87,7 @@ Add it to a target's dependencies in [`Package.swift`](../../Package.swift):
 // teardown), Output the trunk's final value.
 @MainActor public struct LaunchPlan<ID: Hashable & Sendable, Input: Sendable, Output: Sendable> {
     public init<S: LifecycleStep>(_ step: S)
+    public init<G: LifecycleGate>(_ gate: G)   // root at a gate: Input == Output == Value
         where S.Input == Input, S.Output == Output, S.ID == ID
     public func then<S>(_ step: S) -> LaunchPlan<ID, Input, S.Output>
         where S.Input == Output, S.ID == ID
@@ -182,6 +185,34 @@ plan.detached { StartSessionStep() }        // ✗ detached children must be Voi
 LaunchPlan(OpenStoreStep(deps: deps))
     .gate(OnboardingGate(deps: deps))       // ✗ the gate's Value is Session, not Services
 ```
+
+### Rooting a plan at a gate
+
+Some apps must build *nothing* until the user chooses — which account to open,
+or whether to run against real data at all. Root the plan at the gate, and let
+the steps after it build whatever the choice decided:
+
+```swift
+struct ChooseModeGate: LifecycleGate {
+    let deps: Deps
+    let id = StepID.chooseMode
+    // Not the `.foreground` default: parking a headless launch here is the
+    // point — nothing downstream runs, so nothing is built for a launch the
+    // user hasn't chosen a world for yet.
+    let modes: LifecycleModeSet = .all
+    func isNeeded(_: Void) async -> Bool { deps.activeScope == nil }
+}
+
+let plan = LaunchPlan(ChooseModeGate(deps: deps))   // Void → Void
+    .then(ResolveScopeStep(deps: deps))             // Void → Scope
+    .then(StartSessionStep())                       // Scope → Session
+```
+
+A gate transforms nothing, so rooting at one can't leave a hole in the data
+flow the way a skippable producing step would; the plan's `Input` and `Output`
+are the gate's `Value`, which for a launch means `Void`. Since a gate carries
+no value, whatever the user chose reaches the next step through the
+dependencies it was built with, not through the trunk.
 
 Rendering — the phase-to-surface mapping, gate-view registration, and the
 `\.lifecycle` environment proxy — lives in

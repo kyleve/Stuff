@@ -77,6 +77,28 @@ struct LogJournalTests {
         #expect(records[0].spanID == records[1].spanID)
     }
 
+    @Test func journaledRecordsCarryTheAmbientStateTheyWereStampedWith() throws {
+        // Crash recovery must not lose the system context: a record whose
+        // only copy is the journal should still say what the network was
+        // doing when it was emitted.
+        let directory = makeDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let system = Periscope(configuration: Periscope.Configuration(), sinks: [CapturingSink()])
+        let journal = try LogJournal(directory: directory, session: .fixture())
+        system.install(journal: journal)
+
+        let ambient = Log<AmbientEvent>(system: system)
+        ambient { AmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
+        Log<AppLogs>(system: system).error("failed while offline")
+
+        let records = try entries(in: directory).compactMap { entry -> LogJournalRecord? in
+            guard case let .record(record) = entry else { return nil }
+            return record
+        }
+        let failure = try #require(records.first { $0.message == "failed while offline" })
+        #expect(failure.ambient?[.network] == ["status": "unsatisfied"])
+    }
+
     @Test func journalWritesOnlyRedactedContent() throws {
         // The journal taps in *after* redaction — the highest-consequence
         // placement in the pipeline, since journal files outlive the
@@ -167,6 +189,37 @@ struct LogJournalTests {
         #expect(recovered.contains { entry in
             guard case let .record(record) = entry else { return false }
             return record.message == "journaled via the store"
+        })
+    }
+
+    @Test func removingAnOnDiskStoreUninstallsItsJournal() async throws {
+        // As in `onDiskStoresOpenAndInstallTheJournal`: the container outlives
+        // the test body, so the directory is left to the ephemeral tmp.
+        let root = makeDirectory()
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let session = LogSession.fixture()
+        let store = try await PeriscopeStore.onDisk(
+            databaseURL: root.appendingPathComponent("Periscope.store"),
+            session: session,
+        )
+        let system = Periscope(configuration: Periscope.Configuration(), sinks: [])
+        let token = system.add(sink: store)
+        Log<AppLogs>(system: system).warning("journaled")
+
+        await system.remove(token)
+        Log<AppLogs>(system: system).warning("after removal")
+
+        // The journal is the store's emit-side tap; detaching the store must
+        // stop it, or records keep landing in a journal nothing will ingest
+        // on behalf of a store no longer in the pipeline.
+        let recovered = try entries(in: store.journalDirectory(forSession: session.id))
+        #expect(recovered.contains { entry in
+            guard case let .record(record) = entry else { return false }
+            return record.message == "journaled"
+        })
+        #expect(!recovered.contains { entry in
+            guard case let .record(record) = entry else { return false }
+            return record.message == "after removal"
         })
     }
 

@@ -22,7 +22,7 @@ import SwiftData
 /// ```swift
 /// let store = try await PeriscopeStore.make(
 ///     storage: .onDisk,
-///     session: .current(),
+///     session: .current(attributes: [:]),
 /// )
 /// Periscope.shared.add(sink: store)
 /// ```
@@ -48,6 +48,7 @@ public actor PeriscopeStore: LogSink {
     private var activeSessionRow: SDLogSession?
     private var scopeRowCache: [UUID: SDLogScope] = [:]
     private var tagRowCache: [LogTag: SDLogTag] = [:]
+    private var ambientRowCache: [UUID: SDAmbientSnapshot] = [:]
     private var changeObservers: [UUID: AsyncStream<Void>.Continuation] = [:]
     var writeFailures = 0
     private var nextSequence: Int?
@@ -174,28 +175,37 @@ public actor PeriscopeStore: LogSink {
         closeOrphanedSpans(startedSessionID: session.id)
     }
 
-    /// Close spans that earlier sessions began but never ended. The begin
-    /// payload's ``SpanRelaunchPolicy`` decides: `.endsWithProcess` spans
-    /// get a synthetic ``SpanEnded`` (`.orphaned`, duration unknowable —
-    /// the process died at an unknown point); `.survivesRelaunch` spans
-    /// stay open. Runs degraded-but-handled: a sweep failure logs and
-    /// counts, it never fails the session start.
+    /// Close spans that earlier sessions began but never ended. The began's
+    /// ``SpanRelaunchPolicy`` decides: `.endsWithProcess` spans get a
+    /// synthetic ``SpanEnded`` (`.orphaned`, duration unknowable — the
+    /// process died at an unknown point); `.survivesRelaunch` spans stay
+    /// open. Each synthetic end is attributed to the *session that began
+    /// the span* — it closes that launch's work, and the new session's
+    /// "this session" readings must not count another launch's orphans.
+    /// Runs degraded-but-handled: a sweep failure logs and counts, it
+    /// never fails the session start.
+    ///
+    /// The policy is read from the persisted ``SDLogEvent/spanRelaunchPolicy``
+    /// column, so a surviving span is recognized without its payload ever
+    /// being loaded, let alone decoded.
     private func closeOrphanedSpans(startedSessionID: UUID) {
         do {
             let beganName = SpanBegan.eventName
             let endedName = SpanEnded.eventName
 
             // This runs on the launch path with weeks of history behind it,
-            // so the began/ended passes fetch only the spanID column; full
-            // rows (payload for the policy, tags for attribution) load only
-            // for the few orphan candidates.
+            // so the began/ended passes fetch only the columns they decide
+            // from; full rows (tags for attribution, a payload for the span
+            // name) load only for the few orphan candidates.
             var beganDescriptor = FetchDescriptor<SDLogEvent>(
                 predicate: #Predicate {
                     $0.eventName == beganName && $0.sessionID != startedSessionID
                 },
             )
-            beganDescriptor.propertiesToFetch = [\.spanID]
-            let beganIDs = try modelContext.fetch(beganDescriptor).compactMap(\.spanID)
+            beganDescriptor.propertiesToFetch = [\.spanID, \.spanRelaunchPolicy]
+            let beganIDs = try modelContext.fetch(beganDescriptor)
+                .filter { $0.declaredRelaunchPolicy != .survivesRelaunch }
+                .compactMap(\.spanID)
             guard !beganIDs.isEmpty else { return }
 
             var endedDescriptor = FetchDescriptor<SDLogEvent>(
@@ -213,16 +223,17 @@ public actor PeriscopeStore: LogSink {
                 },
             ))
 
-            var orphans: [LogRecord] = []
+            // Grouped by the began's session: the synthetic end belongs to
+            // the launch whose span it closes, not to the session whose
+            // start swept it — "this session" tooling scopes must not count
+            // a previous launch's orphans.
+            var orphansBySession: [UUID: [LogRecord]] = [:]
             for row in began {
                 guard let spanID = row.spanID else { continue }
-                // A payload that no longer decodes can't prove it wanted to
-                // survive — closing it is the honest fallback.
-                let event = try? JSONDecoder().decode(SpanBegan.self, from: row.payload)
-                if event?.relaunchPolicy == .survivesRelaunch {
-                    continue
-                }
-                orphans.append(LogRecord(
+                // Decoded only for the span's name; the policy came from the
+                // column, and the pass above already dropped every survivor.
+                let event = decodedSpanBegan(in: row)
+                orphansBySession[row.sessionID, default: []].append(LogRecord(
                     date: Date(),
                     event: SpanEnded(
                         spanID: SpanID(rawValue: spanID),
@@ -234,14 +245,46 @@ public actor PeriscopeStore: LogSink {
                     tags: Self.tags(from: row),
                 ))
             }
-            guard !orphans.isEmpty else { return }
-            try persist(orphans)
+            guard !orphansBySession.isEmpty else { return }
+            for (sessionID, orphans) in orphansBySession {
+                try persist(orphans, attributedTo: sessionID)
+            }
             notifyChanged()
         } catch {
             recoverFromFailedWrite()
             writeFailures += 1
             Self.failureLogger.warning("Failed to close orphaned spans: \(error)")
         }
+    }
+
+    /// The `SpanBegan` behind `row`, or `nil` — logged, never dropped
+    /// silently — when its payload won't decode (on-disk corruption). The
+    /// sweep needs it only for the span's name; the synthetic end degrades
+    /// to the row's message.
+    private func decodedSpanBegan(in row: SDLogEvent) -> SpanBegan? {
+        do {
+            return try JSONDecoder().decode(SpanBegan.self, from: row.payload)
+        } catch {
+            Self.failureLogger.warning(
+                """
+                Orphan sweep could not decode the SpanBegan payload for span \
+                \(row.spanID?.uuidString ?? "unknown", privacy: .public); \
+                naming its synthetic end from the row's message: \(error)
+                """,
+            )
+            return nil
+        }
+    }
+
+    /// The session writes are being attributed to, or `nil` before one exists.
+    ///
+    /// Tooling needs this to tell "this launch" from the other sessions in the
+    /// store, and to read the current build's attributes. It stays `nil` rather
+    /// than synthesizing a session: ``ensureActiveSession()`` is what mints the
+    /// fallback, and it does so on the first *write*, so answering here would
+    /// mean a read had invented the session a later write then adopts.
+    public var currentSession: LogSession? {
+        activeSession
     }
 
     /// Every recorded session, newest first.
@@ -261,7 +304,9 @@ public actor PeriscopeStore: LogSink {
         if let activeSessionRow {
             return activeSessionRow
         }
-        let session = activeSession ?? .current()
+        // No attributes: an app that never called `startSession` never
+        // told us how it was built.
+        let session = activeSession ?? .current(attributes: [:])
         activeSession = session
         let id = session.id
         var descriptor = FetchDescriptor<SDLogSession>(
@@ -297,7 +342,7 @@ public actor PeriscopeStore: LogSink {
     public func write(_ records: [LogRecord]) async {
         guard !records.isEmpty else { return }
         do {
-            try persist(records)
+            try persist(records, attributedTo: nil)
             notifyChanged()
         } catch {
             recoverFromFailedWrite()
@@ -322,7 +367,7 @@ public actor PeriscopeStore: LogSink {
             scopes: [],
         )
         do {
-            try persist([marker])
+            try persist([marker], attributedTo: nil)
             notifyChanged()
         } catch {
             recoverFromFailedWrite()
@@ -352,6 +397,28 @@ public actor PeriscopeStore: LogSink {
         @_spi(Testing) public func injectNextWriteFailure(_ error: any Error) {
             pendingWriteFailure = error
         }
+
+        /// Test seam: rewrite `span`'s persisted began row into a shape a
+        /// running app can't produce — `payload` bytes that aren't
+        /// `JSONEncoder` output, standing in for on-disk corruption.
+        ///
+        /// Without it the orphan sweep's degraded-name path is unreachable
+        /// from a test: every write encodes its own payload, so nothing a
+        /// test can *write* exercises what happens when one can't be read.
+        @_spi(Testing) public func degradeSpanBegan(
+            _ span: SpanID,
+            payload: Data,
+        ) throws {
+            let spanID = span.rawValue
+            let beganName = SpanBegan.eventName
+            let rows = try modelContext.fetch(FetchDescriptor<SDLogEvent>(
+                predicate: #Predicate { $0.eventName == beganName && $0.spanID == spanID },
+            ))
+            for row in rows {
+                row.payload = payload
+            }
+            try modelContext.save()
+        }
     #endif
 
     /// Discard the failed transaction so a poisoned batch can't wedge every
@@ -362,6 +429,7 @@ public actor PeriscopeStore: LogSink {
         modelContext.rollback()
         scopeRowCache.removeAll()
         tagRowCache.removeAll()
+        ambientRowCache.removeAll()
         activeSessionRow = nil
     }
 
@@ -392,8 +460,12 @@ public actor PeriscopeStore: LogSink {
         return highest + 1
     }
 
-    private func persist(_ records: [LogRecord]) throws {
-        let session = try ensureActiveSession()
+    /// Insert and save `records`, attributed to `sessionID` — or to the
+    /// active session when `nil`. The override exists for the orphan sweep:
+    /// a synthetic end for a span an *earlier* launch began belongs to that
+    /// launch, not to the session whose start swept it.
+    private func persist(_ records: [LogRecord], attributedTo sessionID: UUID?) throws {
+        let session = try sessionID ?? ensureActiveSession().sessionID
         for record in records {
             let payload: Data
             do {
@@ -429,9 +501,12 @@ public actor PeriscopeStore: LogSink {
                 message: record.message,
                 payload: payload,
                 orderedScopeIDs: record.scopes.map(\.rawValue),
-                sessionID: session.sessionID,
+                sessionID: session,
+                ambientSnapshotID: ambientRow(for: record.ambient, at: record.date)?
+                    .snapshotID,
                 spanID: record.spanID?.rawValue,
                 spanExitMode: record.spanExit?.mode.rawValue,
+                spanRelaunchPolicy: record.spanRelaunchPolicy?.rawValue,
                 callFunction: record.callSite?.function,
                 callFileID: record.callSite?.fileID,
                 externalID: record.externalID,
@@ -534,6 +609,50 @@ public actor PeriscopeStore: LogSink {
         modelContext.insert(row)
         tagRowCache[tag] = row
         return row
+    }
+
+    // MARK: Ambient state
+
+    /// Fetch-or-create the shared row for an ambient state, first seen at
+    /// `date`. A run of records normally shares one snapshot, so the cache
+    /// keeps this to one fetch per distinct state rather than one per record.
+    func ambientRow(for snapshot: AmbientSnapshot?, at date: Date) throws -> SDAmbientSnapshot? {
+        guard let snapshot else { return nil }
+        if let cached = ambientRowCache[snapshot.id] {
+            return cached
+        }
+        if let existing = try fetchAmbientRow(id: snapshot.id) {
+            ambientRowCache[snapshot.id] = existing
+            return existing
+        }
+        let row = SDAmbientSnapshot(snapshot: snapshot, firstSeenAt: date)
+        modelContext.insert(row)
+        ambientRowCache[snapshot.id] = row
+        return row
+    }
+
+    /// The ambient state an event was stamped with, resolved from
+    /// ``StoredLogEvent/ambientSnapshotID``. Queries don't join it per row —
+    /// one snapshot serves a whole run of events, so callers resolve the
+    /// ones they actually display.
+    public func ambientSnapshot(for id: UUID) throws -> AmbientSnapshot? {
+        try fetchAmbientRow(id: id)?.toValue
+    }
+
+    /// Every stored ambient state, oldest first.
+    public func ambientSnapshots() throws -> [AmbientSnapshot] {
+        let descriptor = FetchDescriptor<SDAmbientSnapshot>(
+            sortBy: [SortDescriptor(\.firstSeenAt)],
+        )
+        return try modelContext.fetch(descriptor).map(\.toValue)
+    }
+
+    private func fetchAmbientRow(id: UUID) throws -> SDAmbientSnapshot? {
+        var descriptor = FetchDescriptor<SDAmbientSnapshot>(
+            predicate: #Predicate { $0.snapshotID == id },
+        )
+        descriptor.fetchLimit = 1
+        return try modelContext.fetch(descriptor).first
     }
 
     /// `subtree` plus every descendant, resolved against the stored
@@ -925,6 +1044,7 @@ public actor PeriscopeStore: LogSink {
                     )
                 },
             sessionID: row.sessionID,
+            ambientSnapshotID: row.ambientSnapshotID,
         )
     }
 
@@ -994,6 +1114,9 @@ public actor PeriscopeStore: LogSink {
     ///
     /// - Sessions with no remaining events go, except the active launch's.
     /// - Tag rows with no remaining events go (their cache entries too).
+    /// - Ambient snapshot rows with no remaining events go (cache entries
+    ///   too) — one row per distinct system state, so they accumulate for as
+    ///   long as the app keeps changing network, thermal, or power state.
     /// - Scopes go leaf-first when they have no events *and* no children,
     ///   so ancestors of still-populated scopes survive for path
     ///   resolution.
@@ -1001,11 +1124,7 @@ public actor PeriscopeStore: LogSink {
         for session in try modelContext.fetch(FetchDescriptor<SDLogSession>()) {
             let sessionID = session.sessionID
             guard sessionID != activeSession?.id else { continue }
-            var events = FetchDescriptor<SDLogEvent>(
-                predicate: #Predicate { $0.sessionID == sessionID },
-            )
-            events.fetchLimit = 1
-            if try modelContext.fetchCount(events) == 0 {
+            if try hasNoEvents(matching: #Predicate { $0.sessionID == sessionID }) {
                 modelContext.delete(session)
             }
         }
@@ -1016,6 +1135,14 @@ public actor PeriscopeStore: LogSink {
                 value: LogTagValue(kind: tag.valueKind, stored: tag.value),
             )] = nil
             modelContext.delete(tag)
+        }
+
+        for snapshot in try modelContext.fetch(FetchDescriptor<SDAmbientSnapshot>()) {
+            let snapshotID = snapshot.snapshotID
+            if try hasNoEvents(matching: #Predicate { $0.ambientSnapshotID == snapshotID }) {
+                ambientRowCache[snapshotID] = nil
+                modelContext.delete(snapshot)
+            }
         }
 
         var scopes = try modelContext.fetch(FetchDescriptor<SDLogScope>())
@@ -1033,6 +1160,16 @@ public actor PeriscopeStore: LogSink {
                 return true
             }
         }
+    }
+
+    /// Whether no event matches `predicate`. `fetchCount` honors
+    /// `fetchLimit`, so this asks the store for at most one row instead of
+    /// tallying every match — which is easy to misread from a bare
+    /// limit-then-count at the call site, hence the name.
+    private func hasNoEvents(matching predicate: Predicate<SDLogEvent>) throws -> Bool {
+        var descriptor = FetchDescriptor<SDLogEvent>(predicate: predicate)
+        descriptor.fetchLimit = 1
+        return try modelContext.fetchCount(descriptor) == 0
     }
 
     // MARK: Change notification
