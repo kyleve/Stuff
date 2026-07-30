@@ -27,18 +27,19 @@ system, formatting, and global conventions. Read that first.
 ## Don't add products here for `Bundle.module`
 
 The host depends on `TestHostSupport` and nothing else, and embeds no resource
-bundles. A hosted test's `Bundle.module` resolves through `Bundle(for:)` — the
-`.xctest`, which on Xcode 27 carries its own copies of the resource bundles for
-the code it links — so it never falls back to the host's `Bundle.main`. That
-follows from every product linking statically into each consumer, which the root
-[`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)
-records.
+bundles. Hosted tests' `Bundle.module` lookups resolve through
+`PACKAGE_RESOURCE_BUNDLE_PATH` — the accessors' own DEBUG-only override,
+pointed at the built-products directory by every test scheme and by `./test`
+(see `packageResourceEnvironment` in [`Project.swift`](../../Project.swift)
+for the whole story, including why Xcode 27 beta 4 made the override
+necessary and why the old WhereCore host embed cannot come back).
 
-A missing-resource failure is therefore fixed on the *test bundle* that needs
-it, by depending on the product that owns the resource; adding the product to
-the host makes every unrelated bundle in the scheme carry it. The
-`StuffTestHost` target in [`Project.swift`](../../Project.swift) records why the
-host's old `WhereCore` dependency was removed.
+Never fix a missing-resource failure by adding a product here (the embed
+breaks String Catalog symbol generation under beta 4) or by adding a product
+`WhereUI` already embeds to a test bundle's `extraPackageProducts` — that
+mints the duplicate type metadata the root
+[`AGENTS.md`](../../AGENTS.md#never-double-link-a-product-whereui-already-carries)
+double-linking rule exists to prevent.
 
 ## Testing
 
