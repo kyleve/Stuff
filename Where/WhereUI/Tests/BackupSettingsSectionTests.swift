@@ -4,10 +4,10 @@ import Testing
 @testable import WhereUI
 
 @MainActor
-struct BackupSettingsViewTests {
+struct BackupSettingsSectionTests {
     @Test func hostsWithABackupModel() throws {
-        let rootView = NavigationStack {
-            BackupSettingsView(backup: PreviewSupport.backupModel())
+        let rootView = Form {
+            BackupSettingsSection(backup: PreviewSupport.backupModel())
         }
         try show(UIHostingController(rootView: rootView)) { hosted in
             #expect(hosted.view != nil)
