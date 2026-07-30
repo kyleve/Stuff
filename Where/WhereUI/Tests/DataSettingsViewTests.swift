@@ -9,7 +9,10 @@ struct DataSettingsViewTests {
     /// environment.
     @Test func hosts() throws {
         let rootView = NavigationStack {
-            DataSettingsView(report: PreviewSupport.loadedYearReportModel())
+            DataSettingsView(
+                report: PreviewSupport.loadedYearReportModel(),
+                backup: PreviewSupport.backupModel(),
+            )
         }
         .environment(PreviewSupport.loadedModel())
         .environment(PreviewSupport.loadedSession())
@@ -24,7 +27,11 @@ struct DataSettingsViewTests {
             SettingsCatalog.results.first { $0.destination == .data },
         ).focus
         let rootView = NavigationStack {
-            DataSettingsView(report: PreviewSupport.loadedYearReportModel(), focus: focus)
+            DataSettingsView(
+                report: PreviewSupport.loadedYearReportModel(),
+                backup: PreviewSupport.backupModel(),
+                focus: focus,
+            )
         }
         .environment(PreviewSupport.loadedModel())
         .environment(PreviewSupport.loadedSession())

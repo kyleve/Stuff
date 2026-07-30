@@ -27,7 +27,7 @@
                     group(
                         id: "developer",
                         title: "Developer tools",
-                        root: DeveloperToolsView.flyoverID,
+                        root: DeveloperOverlay.flyoverID,
                         registrations: developerRegistrations,
                         world: world,
                     ),
@@ -93,7 +93,6 @@
                 AppearanceSettingsView.flyoverData,
                 AppIconView.flyoverData,
                 VisibleYearSettingsView.flyoverData,
-                BackupSettingsView.flyoverData,
                 DataSettingsView.flyoverData,
                 AboutSettingsView.flyoverData,
                 LicenseView.flyoverData,
@@ -103,7 +102,6 @@
         private static var developerRegistrations: [WhereFlyoverData] {
             [
                 DeveloperOverlay.flyoverData,
-                DeveloperToolsView.flyoverData,
                 WhereFlyoverLogView.flyoverData,
                 OpenSpansView.flyoverData,
                 RegionMapView.flyoverData,

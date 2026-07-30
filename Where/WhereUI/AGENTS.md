@@ -16,7 +16,7 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
-- The DEBUG developer menu may only latch or clear
+- The DEBUG developer accordion may only latch or clear
   `InspectorModeController` for the next launch. It must not host a live
   SwiftData inspector or switch the current runtime.
 - Flyover infrastructure stays under `#if DEBUG` in
@@ -31,8 +31,8 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   factory methods.
 - Construct and retain the Where Flyover catalog once after its world loads;
   never rebuild fixture state from a SwiftUI `body`.
-- Present Where Flyover from Developer Tools with `fullScreenCover`, outside
-  its `NavigationStack`.
+- Present Where Flyover from the developer accordion with `fullScreenCover`,
+  outside the selected-tool `NavigationStack`.
 - Register leaf screens against Flyover's default navigation container; use
   `.none` only for views that own their root stack and for widgets/snippets.
 - Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI

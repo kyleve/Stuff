@@ -165,9 +165,12 @@ esac
 WORKSPACE="Stuff.xcworkspace"
 UNIT_SCHEME="Stuff-iOS-Tests"
 SNAPSHOT_SCHEME="StuffSnapshotTests"
+CHECKOUT_HASH="$(printf '%s' "$(pwd -P)" | shasum -a 256 | cut -c1-12)"
 # Overridable so CI can collect the logs and result bundles from a known path
-# rather than digging through DerivedData.
-WORKDIR="${TEST_WORKDIR:-${TMPDIR:-/tmp}/where-test}"
+# rather than digging through DerivedData. Local runs include the canonical
+# checkout path's hash so clones/worktrees cannot overwrite one another's
+# logs, progress state, or result bundles while running concurrently.
+WORKDIR="${TEST_WORKDIR:-${TMPDIR:-/tmp}/where-test-$CHECKOUT_HASH}"
 # 700 because this directory holds the progress filter, which the run then
 # executes — a world-writable path would let anyone on the machine swap it.
 mkdir -p "$WORKDIR" && chmod 700 "$WORKDIR"

@@ -534,6 +534,13 @@ simulator](#selecting-a-simulator--one-device-per-checkout-addressed-by-udid)),
 and the image suite only compares correctly under the scheme carrying its
 `SNAPSHOT_EXPECTED_*` / `TZ` pins.
 
+`./test` and `./profile` derive their temporary work directory from the
+checkout's canonical path, just as `./simulator` derives a checkout-owned
+device. Preserve that per-checkout isolation: parallel clones/worktrees must
+never share logs, progress state, result bundles, or profiling DerivedData.
+`TEST_WORKDIR` / `PROFILE_WORKDIR` are explicit CI overrides, not required for
+ordinary local runs.
+
 Pick the **narrowest tier that covers the change** — running everything by
 reflex is what made a local check cost a coffee break:
 

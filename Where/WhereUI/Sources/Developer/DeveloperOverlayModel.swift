@@ -2,12 +2,12 @@
     import SwiftUI
     import WhereCore
 
-    /// State for the floating developer overlay: how it's currently presented,
-    /// which corner the collapsed button rests in, and — while floating — the
-    /// window's dragged position and resized dimensions.
+    /// State for the developer overlay: its collapsed launcher, lightweight
+    /// route menu, or one selected tool in the floating/full-screen HUD.
     ///
-    /// The presentation is a single enum rather than a set of `Bool`s so the
-    /// illegal combinations (e.g. "floating *and* full screen") can't be spelled.
+    /// The presentation is one enum rather than route/window `Bool`s and an
+    /// optional selection, so a HUD without a tool (or a tool that is both
+    /// floating and full screen) cannot be represented.
     ///
     /// The floating window's geometry (`floating`) and resting `corner` persist
     /// across launches through an injected ``KeyValueStore`` (production
@@ -22,13 +22,37 @@
     @MainActor
     @Observable
     final class DeveloperOverlayModel {
-        /// How the overlay is shown. Collapsed is the resting state (a small
-        /// button); `floating` is the Picture-in-Picture panel; `fullScreen`
-        /// covers the app.
+        /// How the overlay is shown. The selected tool travels with both HUD
+        /// cases, preserving its identity across a floating/full-screen toggle.
         enum Presentation: Equatable {
             case collapsed
-            case floating
-            case fullScreen
+            case menu
+            case floating(DeveloperTool)
+            case fullScreen(DeveloperTool)
+
+            var tool: DeveloperTool? {
+                switch self {
+                    case .collapsed, .menu: nil
+                    case let .floating(tool), let .fullScreen(tool): tool
+                }
+            }
+
+            var isMenuPresented: Bool {
+                self == .menu
+            }
+
+            var isFullScreen: Bool {
+                if case .fullScreen = self { true } else { false }
+            }
+
+            /// Menu interaction is modal despite its clear backdrop; the
+            /// full-screen HUD is modal because it covers the app.
+            var isAccessibilityModal: Bool {
+                switch self {
+                    case .menu, .fullScreen: true
+                    case .collapsed, .floating: false
+                }
+            }
         }
 
         /// The resting corner of the collapsed button. Snapped to on drag end, so
@@ -39,6 +63,20 @@
             case topTrailing
             case bottomLeading
             case bottomTrailing
+
+            var isTop: Bool {
+                switch self {
+                    case .topLeading, .topTrailing: true
+                    case .bottomLeading, .bottomTrailing: false
+                }
+            }
+
+            var isLeading: Bool {
+                switch self {
+                    case .topLeading, .bottomLeading: true
+                    case .topTrailing, .bottomTrailing: false
+                }
+            }
         }
 
         /// The floating window's geometry: its center in the container's
@@ -47,21 +85,6 @@
         struct FloatingLayout: Equatable {
             var center: CGPoint
             var size: CGSize
-        }
-
-        /// Sizing/spacing constants for the floating window, kept here (rather than
-        /// in the view) so the pure layout math below is self-contained and
-        /// unit-testable.
-        enum Layout {
-            static let edgeInset: CGFloat = 16
-            static let maxWidth: CGFloat = 420
-            static let maxHeight: CGFloat = 620
-            static let heightFraction: CGFloat = 0.62
-            static let minSize = CGSize(width: 260, height: 320)
-            /// The most of each container dimension the window's footprint may
-            /// claim as a safe-area inset on the app content behind it, so a large
-            /// window can't collapse that content to nothing (see `contentInsets`).
-            static let maxContentInsetFraction: CGFloat = 0.8
         }
 
         private let store: any KeyValueStore
@@ -75,35 +98,60 @@
 
         /// - Parameter store: where the window geometry + corner persist. Defaults
         ///   to `UserDefaults.standard`; tests inject an `InMemoryKeyValueStore`.
-        init(store: any KeyValueStore = UserDefaults.standard) {
+        init(
+            store: any KeyValueStore = UserDefaults.standard,
+            initialPresentation: Presentation = .collapsed,
+            initialCorner: Corner? = nil,
+        ) {
             self.store = store
+            presentation = initialPresentation
             // Assigning in `init` doesn't fire an observer, so loading here can't
             // re-persist what we just read.
-            if let raw = store.object(forKey: Keys.corner.rawValue) as? String,
-               let restored = Corner(rawValue: raw)
+            if let initialCorner {
+                corner = initialCorner
+            } else if let raw = store.object(forKey: Keys.corner.rawValue) as? String,
+                      let restored = Corner(rawValue: raw)
             {
                 corner = restored
             }
             floating = Self.loadLayout(from: store)
         }
 
-        /// Expand the collapsed button into the floating panel.
-        func open() {
-            presentation = .floating
+        /// Expand the collapsed launcher into the route menu.
+        func openMenu() {
+            guard presentation == .collapsed else { return }
+            presentation = .menu
         }
 
-        /// Return to the collapsed button from any expanded state.
-        func close() {
+        /// Collapse the route menu. A selected tool must close through
+        /// ``closeTool()`` so unrelated states cannot dismiss one another.
+        func closeMenu() {
+            guard presentation == .menu else { return }
             presentation = .collapsed
         }
 
-        /// Toggle between the floating panel and full screen. A no-op from
-        /// `collapsed` (there's no panel to resize yet).
+        /// Replace the menu with a floating HUD rooted at `tool`.
+        func open(_ tool: DeveloperTool) {
+            guard presentation == .menu else { return }
+            presentation = .floating(tool)
+        }
+
+        /// Close a selected tool back to the collapsed launcher.
+        func closeTool() {
+            guard presentation.tool != nil else { return }
+            presentation = .collapsed
+        }
+
+        /// Toggle the selected tool between its floating HUD and full screen. A
+        /// no-op from the launcher/menu states, where there is no tool to resize.
         func toggleFullScreen() {
             switch presentation {
-                case .collapsed: break
-                case .floating: presentation = .fullScreen
-                case .fullScreen: presentation = .floating
+                case .collapsed, .menu:
+                    break
+                case let .floating(tool):
+                    presentation = .fullScreen(tool)
+                case let .fullScreen(tool):
+                    presentation = .floating(tool)
             }
         }
 
@@ -146,14 +194,18 @@
 
         /// The centered, default-sized floating window for a given container —
         /// used the first time the window opens (before the user has moved it).
-        nonisolated static func defaultLayout(in container: CGSize) -> FloatingLayout {
-            let width = min(max(container.width - Layout.edgeInset * 2, 0), Layout.maxWidth)
-            let height = min(container.height * Layout.heightFraction, Layout.maxHeight)
+        nonisolated static func defaultLayout(
+            in container: CGSize,
+            style: WhereStylesheet.DeveloperOverlayStyle.FloatingWindow = .standard,
+            edgeInset: CGFloat = WhereStylesheet.DeveloperOverlayStyle.standard.edgeInset,
+        ) -> FloatingLayout {
+            let width = min(max(container.width - edgeInset * 2, 0), style.maxWidth)
+            let height = min(container.height * style.heightFraction, style.maxHeight)
             let layout = FloatingLayout(
                 center: CGPoint(x: container.width / 2, y: container.height / 2),
                 size: CGSize(width: width, height: max(height, 0)),
             )
-            return clamp(layout, in: container)
+            return clamp(layout, in: container, style: style)
         }
 
         /// Keep a layout fully on-screen within `container`, enforcing the minimum
@@ -162,15 +214,16 @@
         nonisolated static func clamp(
             _ layout: FloatingLayout,
             in container: CGSize,
+            style: WhereStylesheet.DeveloperOverlayStyle.FloatingWindow = .standard,
         ) -> FloatingLayout {
             var size = layout.size
             size.width = min(
-                max(size.width, Layout.minSize.width),
-                max(container.width, Layout.minSize.width),
+                max(size.width, style.minSize.width),
+                max(container.width, style.minSize.width),
             )
             size.height = min(
-                max(size.height, Layout.minSize.height),
-                max(container.height, Layout.minSize.height),
+                max(size.height, style.minSize.height),
+                max(container.height, style.minSize.height),
             )
 
             let halfWidth = size.width / 2
@@ -188,11 +241,12 @@
             _ base: FloatingLayout,
             by translation: CGSize,
             in container: CGSize,
+            style: WhereStylesheet.DeveloperOverlayStyle.FloatingWindow = .standard,
         ) -> FloatingLayout {
             var moved = base
             moved.center.x += translation.width
             moved.center.y += translation.height
-            return clamp(moved, in: container)
+            return clamp(moved, in: container, style: style)
         }
 
         /// `base` resized by a bottom-trailing drag `translation`: the top-leading
@@ -203,6 +257,7 @@
             _ base: FloatingLayout,
             by translation: CGSize,
             in container: CGSize,
+            style: WhereStylesheet.DeveloperOverlayStyle.FloatingWindow = .standard,
         ) -> FloatingLayout {
             let topLeading = CGPoint(
                 x: base.center.x - base.size.width / 2,
@@ -212,18 +267,18 @@
                 width: base.size.width + translation.width,
                 height: base.size.height + translation.height,
             )
-            size.width = max(size.width, Layout.minSize.width)
-            size.height = max(size.height, Layout.minSize.height)
-            size.width = min(size.width, max(container.width - topLeading.x, Layout.minSize.width))
+            size.width = max(size.width, style.minSize.width)
+            size.height = max(size.height, style.minSize.height)
+            size.width = min(size.width, max(container.width - topLeading.x, style.minSize.width))
             size.height = min(
                 size.height,
-                max(container.height - topLeading.y, Layout.minSize.height),
+                max(container.height - topLeading.y, style.minSize.height),
             )
             let center = CGPoint(
                 x: topLeading.x + size.width / 2,
                 y: topLeading.y + size.height / 2,
             )
-            return clamp(FloatingLayout(center: center, size: size), in: container)
+            return clamp(FloatingLayout(center: center, size: size), in: container, style: style)
         }
 
         /// The safe-area inset the floating window's footprint claims on each edge
@@ -242,14 +297,15 @@
             for layout: FloatingLayout,
             in container: CGSize,
             edgeTolerance: CGFloat,
+            style: WhereStylesheet.DeveloperOverlayStyle.FloatingWindow = .standard,
         ) -> EdgeInsets {
             guard container.width > 0, container.height > 0 else { return EdgeInsets() }
             let minX = layout.center.x - layout.size.width / 2
             let maxX = layout.center.x + layout.size.width / 2
             let minY = layout.center.y - layout.size.height / 2
             let maxY = layout.center.y + layout.size.height / 2
-            let maxVertical = container.height * Layout.maxContentInsetFraction
-            let maxHorizontal = container.width * Layout.maxContentInsetFraction
+            let maxVertical = container.height * style.maxContentInsetFraction
+            let maxHorizontal = container.width * style.maxContentInsetFraction
 
             let nearTop = minY <= edgeTolerance
             let nearBottom = maxY >= container.height - edgeTolerance

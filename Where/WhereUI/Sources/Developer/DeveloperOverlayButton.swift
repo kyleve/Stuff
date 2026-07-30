@@ -1,58 +1,66 @@
 #if DEBUG
     import SwiftUI
 
-    /// The collapsed, floating developer entry point.
+    /// The floating developer launcher.
     ///
-    /// Kept as its own view (with no behavior of its own) so the look can be
-    /// swapped without touching the overlay's drag / presentation logic in
-    /// ``DeveloperOverlay``. A circular Liquid Glass disc around a wrench glyph:
-    /// the glass adapts to light/dark (and to whatever's behind it) on its own,
-    /// and the glyph uses `.primary` so it stays legible in either appearance. A
-    /// faint shadow keeps the disc separated from busy backgrounds; `contentShape`
-    /// keeps the whole circle tappable.
+    /// A semantic button so VoiceOver and Voice Control receive the same
+    /// interaction as touch users. Its wrench becomes a close glyph while the
+    /// accordion is open; dragging remains owned by ``DeveloperOverlay``.
     ///
     /// It sizes itself — the diameter scales with Dynamic Type via `@ScaledMetric`
     /// — so the number lives here once rather than being duplicated at the call
     /// site; the overlay measures the rendered size for its drag math.
     struct DeveloperOverlayButton: View {
+        let isMenuPresented: Bool
+        let action: () -> Void
+
         @ScaledMetric(relativeTo: .title2) private var diameter: CGFloat = 52
 
         var body: some View {
-            Image(systemName: "wrench.and.screwdriver")
-                .font(.system(size: diameter * 0.4, weight: .semibold))
-                .foregroundStyle(.primary)
-                .frame(width: diameter, height: diameter)
-                .glassEffect(.regular.interactive(), in: Circle())
-                .contentShape(Circle())
-                .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
-                .accessibilityLabel(String(localized: .developerButtonLabel))
-                .accessibilityAddTraits(.isButton)
+            Button(action: action) {
+                Image(systemName: isMenuPresented ? "xmark" : "wrench.and.screwdriver")
+                    .font(.system(size: diameter * 0.4, weight: .semibold))
+                    .foregroundStyle(.primary)
+                    .frame(width: diameter, height: diameter)
+                    .contentTransition(.symbolEffect(.replace))
+            }
+            .buttonStyle(.plain)
+            .glassEffect(.regular.interactive(), in: Circle())
+            .contentShape(Circle())
+            .shadow(color: .black.opacity(0.15), radius: 3, y: 1)
+            .accessibilityLabel(
+                isMenuPresented
+                    ? String(localized: .developerMenuClose)
+                    : String(localized: .developerButtonLabel),
+            )
         }
     }
 
     #Preview("Light") {
-        DeveloperButtonPreview()
-            .environment(\.colorScheme, .light)
+        ZStack {
+            LinearGradient(
+                colors: [.teal, .orange, .black],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing,
+            )
+            .ignoresSafeArea()
+
+            DeveloperOverlayButton(isMenuPresented: false, action: {})
+        }
+        .environment(\.colorScheme, .light)
     }
 
     #Preview("Dark") {
-        DeveloperButtonPreview()
-            .environment(\.colorScheme, .dark)
-    }
+        ZStack {
+            LinearGradient(
+                colors: [.teal, .orange, .black],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing,
+            )
+            .ignoresSafeArea()
 
-    /// Over a gradient to confirm the glass + glyph read on varied backgrounds.
-    private struct DeveloperButtonPreview: View {
-        var body: some View {
-            ZStack {
-                LinearGradient(
-                    colors: [.teal, .orange, .black],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing,
-                )
-                .ignoresSafeArea()
-
-                DeveloperOverlayButton()
-            }
+            DeveloperOverlayButton(isMenuPresented: true, action: {})
         }
+        .environment(\.colorScheme, .dark)
     }
 #endif

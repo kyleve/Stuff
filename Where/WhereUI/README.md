@@ -24,7 +24,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `MainTabs`, the Liquid Glass tab bar over three tabs — Locations, Your Year,
   Settings. Elsewhere is an entry card on Locations, Resolve a Locations toolbar
   button, and the data screens (attachments, logged days, regions) sit in the
-  Settings "Data" group. `AboutSettingsView` is the last Settings block — build
+  Settings "Data" group. Backup and destructive data management share one Data
+  drill-in. `AboutSettingsView` is the last Settings block — build
   identity, the app's generated attribution report (linked libraries and
   development tools as separate sections), and bundled-data provenance, each
   vended by whoever owns it rather than listed in the view; it renders an
@@ -33,9 +34,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
-- **Developer tools** — DEBUG-only logging, span, region-map, and next-launch
-  Inspector controls. The menu only updates `InspectorModeController`; the
-  current regular runtime continues until the developer relaunches.
+- **Developer tools** — DEBUG-only logging, span, region-map, Flyover, and
+  next-launch Inspector controls. The global launcher's accordion only updates
+  `InspectorModeController`; the current regular runtime continues until the
+  developer relaunches.
 - **`WhereLaunch`** — the launch, reset, and exit-demo plans themselves. Every
   step declares how long it should take (`BudgetedLaunchStep`) and joins the
   plan through `.measured()`, so each run is one Periscope span named after
@@ -104,8 +106,8 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   system](#design-system)). Applied by `RootView` and by each widget.
 - **`RegionMapView`** — the developer region-map tool (also hosted standalone by
   the RegionViewer Mac Catalyst app).
-- **Flyover** — a DEBUG-only all-screens browser reached from the floating
-  Developer Overlay. It renders the app's screens on a zoomable navigation
+- **Flyover** — a DEBUG-only all-screens browser reached from the developer
+  launcher's accordion. It renders the app's screens on a zoomable navigation
   canvas or linear list, shows push/modal routes, switches global device and
   accessibility traits, and opens any frame in a live focused inspector.
 

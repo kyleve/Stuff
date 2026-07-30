@@ -19,10 +19,10 @@ struct SettingsSearchTests {
 
     @Test func demoModeHidesOnlyTheGroupsThatReachPastIt() {
         let hidden = SettingsDestination.allCases.filter { !$0.isAvailableInDemoMode }
-        // Backup writes a real archive, data erases and resets, and appearance
+        // Data writes or restores an archive, erases, and resets; appearance
         // exists only to set an app icon that outlives the process. Everything
         // else is safe to explore, and the list would be a poor demo without it.
-        #expect(Set(hidden) == [.backup, .data, .appearance])
+        #expect(Set(hidden) == [.data, .appearance])
     }
 
     @Test func focusTokensAreUnique() {
@@ -37,7 +37,7 @@ struct SettingsSearchTests {
 
     @Test func matchesOnTitle() {
         let results = SettingsCatalog.results(matching: String(localized: .settingsBackupExport))
-        #expect(results.contains { $0.destination == .backup })
+        #expect(results.contains { $0.destination == .data })
     }
 
     @Test func matchesOnKeyword() {
