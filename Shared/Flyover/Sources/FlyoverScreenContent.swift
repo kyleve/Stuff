@@ -8,6 +8,7 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
     let isOverview: Bool
     @State private var content: AnyView?
     @Environment(\.colorScheme) private var systemColorScheme
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
         let state = model.state(for: screen)
@@ -50,7 +51,9 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
             height: size.height * scale,
             alignment: .topLeading,
         )
-        .clipShape(.rect(cornerRadius: isOverview ? 18 : 0))
+        .clipShape(
+            .rect(cornerRadius: isOverview ? stylesheet.screenContent.cornerRadius : 0),
+        )
         .allowsHitTesting(isOverview == false)
         .task(id: contentID) {
             content = nil
@@ -78,7 +81,8 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
         guard isOverview else {
             return 1
         }
-        return min(260 / size.width, 430 / size.height, 1)
+        let maximumSize = stylesheet.screenContent.overviewMaximumSize
+        return min(maximumSize.width / size.width, maximumSize.height / size.height, 1)
     }
 
     private struct ContentID: Hashable {

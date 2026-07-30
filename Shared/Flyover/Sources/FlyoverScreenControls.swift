@@ -4,12 +4,14 @@ import SwiftUI
 struct FlyoverScreenControls<ScreenID: Hashable>: View {
     let screen: FlyoverScreen<ScreenID>
     let model: FlyoverModel<ScreenID>
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
         @Bindable var state = model.state(for: screen)
+        let style = stylesheet.screenControls
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: style.spacing) {
                 if screen.variants.count > 1 {
                     Picker("Variant", selection: $state.variantID) {
                         ForEach(screen.variants, id: \.id) { variant in
@@ -41,9 +43,9 @@ struct FlyoverScreenControls<ScreenID: Hashable>: View {
                 .buttonStyle(.borderless)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(12)
+            .padding(style.padding)
         }
-        .frame(maxHeight: 126)
-        .controlSize(.small)
+        .frame(maxHeight: style.maximumHeight)
+        .controlSize(style.controlSize)
     }
 }

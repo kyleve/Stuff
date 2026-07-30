@@ -4,15 +4,16 @@ import SwiftUI
 struct FlyoverFocusedControls<ScreenID: Hashable>: View {
     let screen: FlyoverScreen<ScreenID>
     let model: FlyoverModel<ScreenID>
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: 16) {
+            HStack(spacing: stylesheet.controlBar.focusedSpacing) {
                 FlyoverFocusedVariantPicker(screen: screen, model: model)
 
                 ForEach(screen.controls, id: \.id) { control in
                     control.content
-                        .frame(minWidth: 160)
+                        .frame(minWidth: stylesheet.controlBar.focusedControlMinimumWidth)
                 }
 
                 if let customControls = screen.customControls {
@@ -23,13 +24,9 @@ struct FlyoverFocusedControls<ScreenID: Hashable>: View {
                     model.reset(screen)
                 }
             }
-            .padding(.horizontal)
-            .padding(.vertical, 10)
+            .padding(.horizontal, stylesheet.controlBar.horizontalPadding)
+            .padding(.vertical, stylesheet.controlBar.verticalPadding)
         }
-        .controlSize(.small)
-        .background(.regularMaterial)
-        .overlay(alignment: .top) {
-            Divider()
-        }
+        .flyoverBarSurface()
     }
 }

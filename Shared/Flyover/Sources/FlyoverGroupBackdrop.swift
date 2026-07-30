@@ -4,16 +4,18 @@ import SwiftUI
 struct FlyoverGroupBackdrop: View {
     let title: String
     let frame: CGRect
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 28)
-            .fill(.background.opacity(0.75))
-            .stroke(.quaternary, lineWidth: 2)
+        let style = stylesheet.group
+        RoundedRectangle(cornerRadius: style.cornerRadius)
+            .fill(style.fill.opacity(style.fillOpacity))
+            .stroke(.quaternary, lineWidth: style.strokeWidth)
             .frame(width: frame.width, height: frame.height)
             .overlay(alignment: .topLeading) {
                 Text(title)
-                    .font(.title2.bold())
-                    .padding(20)
+                    .font(style.titleFont)
+                    .padding(style.titlePadding)
             }
             .position(x: frame.midX, y: frame.midY)
             .accessibilityElement(children: .ignore)

@@ -4,14 +4,15 @@ import SwiftUI
 struct FlyoverCompactControlBar<ScreenID: Hashable>: View {
     let catalog: FlyoverCatalog<ScreenID>
     @Bindable var model: FlyoverModel<ScreenID>
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
         ScrollView(.horizontal) {
-            HStack(spacing: 12) {
+            HStack(spacing: stylesheet.controlBar.compactSpacing) {
                 FlyoverViewModePicker(model: model)
-                    .frame(width: 160)
+                    .frame(width: stylesheet.controlBar.compactViewModeWidth)
                 FlyoverZoomSlider(model: model)
-                    .frame(width: 180)
+                    .frame(width: stylesheet.controlBar.compactZoomWidth)
                 FlyoverViewportMenu(model: model)
                     .labelStyle(.iconOnly)
                 FlyoverAppearanceMenu(model: model)

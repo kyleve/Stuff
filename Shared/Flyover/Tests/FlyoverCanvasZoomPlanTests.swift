@@ -7,6 +7,7 @@ struct FlyoverCanvasZoomPlanTests {
         let plan = FlyoverCanvasZoomPlan(
             canvasSize: CGSize(width: 1200, height: 6000),
             availableSize: CGSize(width: 500, height: 800),
+            edgeInset: FlyoverStylesheet.default.canvas.framingInset,
         )
 
         #expect(abs(plan.widthZoom - 0.39) < 0.0001)
@@ -17,6 +18,7 @@ struct FlyoverCanvasZoomPlanTests {
         let plan = FlyoverCanvasZoomPlan(
             canvasSize: CGSize(width: 100, height: 100),
             availableSize: CGSize(width: 500, height: 800),
+            edgeInset: FlyoverStylesheet.default.canvas.framingInset,
         )
 
         #expect(plan.widthZoom == 1)
@@ -27,6 +29,7 @@ struct FlyoverCanvasZoomPlanTests {
         let plan = FlyoverCanvasZoomPlan(
             canvasSize: CGSize(width: 10000, height: 10000),
             availableSize: CGSize(width: 500, height: 800),
+            edgeInset: FlyoverStylesheet.default.canvas.framingInset,
         )
 
         #expect(plan.widthZoom == 0.15)

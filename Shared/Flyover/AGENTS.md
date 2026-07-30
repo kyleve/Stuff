@@ -8,8 +8,8 @@ conventions.
 
 ## Scope & dependencies
 
-- Flyover may import SwiftUI and SnapshotKit; it must not import WhereCore,
-  WhereUI, persistence frameworks, or any app module.
+- Flyover may import SwiftUI, BroadwayCore/BroadwayUI, and SnapshotKit; it must
+  not import WhereCore, WhereUI, persistence frameworks, or any app module.
 - Apps own their typed screen IDs, demo/synthetic state, catalog construction,
   and the DEBUG-only entry point that hosts ``FlyoverView``.
 - Strings in this developer-only shared tool are English literals. An app
@@ -21,6 +21,8 @@ conventions.
   build scripts, or macros without revisiting the API and build-cost tradeoff.
 - Present Flyover outside an ambient `NavigationStack`; use a separate
   presentation domain such as `fullScreenCover`.
+- Route Flyover appearance through `FlyoverStylesheet`; keep fixed tokens in
+  property defaults and trait-derived adjustments in `init(context:)`.
 - Overview screen content is inert. Native interaction is enabled only in the
   focused inspector; per-frame controls remain interactive in both modes.
 - Every screen receives a `NavigationStack` by default so its navigation chrome

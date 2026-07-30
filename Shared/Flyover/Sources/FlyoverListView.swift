@@ -4,10 +4,11 @@ import SwiftUI
 struct FlyoverListView<ScreenID: Hashable>: View {
     let catalog: FlyoverCatalog<ScreenID>
     let model: FlyoverModel<ScreenID>
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: 40) {
+            LazyVStack(alignment: .leading, spacing: stylesheet.list.groupSpacing) {
                 ForEach(catalog.groups, id: \.id) { group in
                     Section {
                         ForEach(group.screens, id: \.id) { screen in
@@ -20,12 +21,12 @@ struct FlyoverListView<ScreenID: Hashable>: View {
                         }
                     } header: {
                         Text(group.title)
-                            .font(.title.bold())
+                            .font(stylesheet.list.groupTitleFont)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
-            .padding(32)
+            .padding(stylesheet.list.contentPadding)
         }
     }
 }

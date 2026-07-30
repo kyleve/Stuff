@@ -5,7 +5,10 @@ import Testing
 @MainActor
 struct FlyoverLayoutTests {
     @Test func forwardRoutesAdvanceAcrossColumns() throws {
-        let layout = FlyoverLayout(catalog: makeFlyoverTestCatalog()).resolve()
+        let layout = FlyoverLayout(
+            catalog: makeFlyoverTestCatalog(),
+            style: FlyoverStylesheet.default.layout,
+        ).resolve()
         let root = try #require(layout.screenFrames[.root])
         let pushed = try #require(layout.screenFrames[.pushed])
         let modal = try #require(layout.screenFrames[.modal])
@@ -39,7 +42,10 @@ struct FlyoverLayoutTests {
                 ),
             ],
         )
-        let layout = FlyoverLayout(catalog: catalog).resolve()
+        let layout = FlyoverLayout(
+            catalog: catalog,
+            style: FlyoverStylesheet.default.layout,
+        ).resolve()
         let frame = try #require(layout.screenFrames[.pushed])
 
         #expect(frame.minX > 1500)

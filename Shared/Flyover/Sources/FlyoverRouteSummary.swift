@@ -4,12 +4,14 @@ import SwiftUI
 struct FlyoverRouteSummary<ScreenID: Hashable>: View {
     let screen: FlyoverScreen<ScreenID>
     let catalog: FlyoverCatalog<ScreenID>
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
         let outgoing = catalog.transitions.filter { $0.source == screen.id }
         let incoming = catalog.transitions.filter { $0.destination == screen.id }
+        let style = stylesheet.routeSummary
 
-        HStack(spacing: 8) {
+        HStack(spacing: style.spacing) {
             ForEach(Array(outgoing.enumerated()), id: \.offset) { _, transition in
                 Label(
                     transition.label ?? destinationTitle(for: transition),
@@ -24,13 +26,13 @@ struct FlyoverRouteSummary<ScreenID: Hashable>: View {
                 )
             }
         }
-        .font(.caption2)
+        .font(style.font)
         .foregroundStyle(.secondary)
         .lineLimit(1)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 12)
-        .padding(.bottom, 10)
-        .frame(height: 34)
+        .padding(.horizontal, style.horizontalPadding)
+        .padding(.bottom, style.bottomPadding)
+        .frame(height: style.height)
     }
 
     private func destinationTitle(

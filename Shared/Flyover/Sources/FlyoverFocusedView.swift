@@ -5,6 +5,7 @@ struct FlyoverFocusedView<ScreenID: Hashable>: View {
     let screen: FlyoverScreen<ScreenID>
     let model: FlyoverModel<ScreenID>
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
         NavigationStack {
@@ -14,9 +15,9 @@ struct FlyoverFocusedView<ScreenID: Hashable>: View {
                     model: model,
                     isOverview: false,
                 )
-                .padding(24)
+                .padding(stylesheet.focused.contentPadding)
             }
-            .background(Color(uiColor: .systemGroupedBackground))
+            .background(stylesheet.canvas.background)
             .navigationTitle(screen.title)
             .navigationBarTitleDisplayMode(.inline)
             .safeAreaInset(edge: .bottom, spacing: 0) {

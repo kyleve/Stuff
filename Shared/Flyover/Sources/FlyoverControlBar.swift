@@ -4,14 +4,15 @@ import SwiftUI
 struct FlyoverControlBar<ScreenID: Hashable>: View {
     let catalog: FlyoverCatalog<ScreenID>
     @Bindable var model: FlyoverModel<ScreenID>
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
-            HStack(spacing: 16) {
+            HStack(spacing: stylesheet.controlBar.wideSpacing) {
                 FlyoverViewModePicker(model: model)
-                    .frame(width: 220)
+                    .frame(width: stylesheet.controlBar.wideViewModeWidth)
                 FlyoverZoomSlider(model: model)
-                    .frame(width: 240)
+                    .frame(width: stylesheet.controlBar.wideZoomWidth)
                 FlyoverViewportMenu(model: model)
                 FlyoverAppearanceMenu(model: model)
                 Button(
@@ -23,13 +24,9 @@ struct FlyoverControlBar<ScreenID: Hashable>: View {
 
             FlyoverCompactControlBar(catalog: catalog, model: model)
         }
-        .controlSize(.small)
-        .padding(.horizontal)
-        .padding(.vertical, 10)
-        .background(.regularMaterial)
-        .overlay(alignment: .top) {
-            Divider()
-        }
+        .padding(.horizontal, stylesheet.controlBar.horizontalPadding)
+        .padding(.vertical, stylesheet.controlBar.verticalPadding)
+        .flyoverBarSurface()
     }
 
     private func resetAll() {

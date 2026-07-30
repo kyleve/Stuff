@@ -9,6 +9,7 @@ displays. Selecting a card opens a full-screen live inspector.
 Flyover owns presentation, not app discovery or data. The host supplies a typed
 catalog and should build its screen content from an isolated in-memory world.
 Flyover never opens a store, persists preferences, or resolves app globals.
+Its chrome resolves through Broadway's trait-aware `FlyoverStylesheet`.
 
 ## Installation
 
@@ -105,6 +106,8 @@ orientation, color scheme, Dynamic Type, contrast, layout direction, and bold
 text. These settings are kept only for the current Flyover session and are
 applied to screen content through SnapshotKit's trait renderer. On compact
 widths, the bar scrolls horizontally so every control remains reachable.
+Flyover seeds its own Broadway root for chrome; registered screen content keeps
+the isolated styling environment supplied by its host app.
 
 Overview content deliberately ignores hit testing so dozens of embedded
 navigation stacks cannot compete with the canvas. Its controls stay live. Open a

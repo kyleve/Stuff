@@ -6,9 +6,13 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
     @Bindable var model: FlyoverModel<ScreenID>
     @State private var zoomAtGestureStart: Double?
     @State private var visibleRect = CGRect.zero
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
-        let layout = FlyoverLayout(catalog: catalog).resolve()
+        let layout = FlyoverLayout(
+            catalog: catalog,
+            style: stylesheet.layout,
+        ).resolve()
         let renderPlan = FlyoverCanvasRenderPlan(
             zoom: model.zoom,
             visibleRect: visibleRect,
@@ -70,9 +74,9 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
                     fitAll(layout: layout, in: proxy.size)
                 }
                 .buttonStyle(.bordered)
-                .controlSize(.small)
+                .controlSize(stylesheet.canvas.overlayControlSize)
                 .fixedSize()
-                .padding()
+                .padding(stylesheet.canvas.overlayPadding)
             }
             .task {
                 applyInitialWidthFit(layout: layout, in: proxy.size)
@@ -104,6 +108,7 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
             FlyoverCanvasZoomPlan(
                 canvasSize: layout.canvasSize,
                 availableSize: availableSize,
+                edgeInset: stylesheet.canvas.framingInset,
             ).widthZoom,
         )
     }
@@ -112,6 +117,7 @@ struct FlyoverCanvasView<ScreenID: Hashable>: View {
         model.zoom = FlyoverCanvasZoomPlan(
             canvasSize: layout.canvasSize,
             availableSize: availableSize,
+            edgeInset: stylesheet.canvas.framingInset,
         ).allZoom
     }
 }

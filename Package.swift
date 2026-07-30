@@ -94,6 +94,8 @@ let package = Package(
         .target(
             name: "Flyover",
             dependencies: [
+                .target(name: "BroadwayCore"),
+                .target(name: "BroadwayUI"),
                 .target(name: "SnapshotKit"),
             ],
             path: "Shared/Flyover/Sources",

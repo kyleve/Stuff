@@ -3,21 +3,14 @@ import CoreGraphics
 /// Places catalog screens by graph depth while preserving registration order.
 @MainActor
 struct FlyoverLayout<ScreenID: Hashable> {
-    static var cardSize: CGSize {
-        CGSize(width: 300, height: 650)
-    }
-
     let catalog: FlyoverCatalog<ScreenID>
+    let style: FlyoverStylesheet.LayoutStyle
 
     func resolve() -> FlyoverLayoutResult<ScreenID> {
-        let card = Self.cardSize
-        let horizontalSpacing: CGFloat = 100
-        let verticalSpacing: CGFloat = 90
-        let groupPadding: CGFloat = 60
-        let groupSpacing: CGFloat = 120
+        let card = style.cardSize
         var screenFrames: [ScreenID: CGRect] = [:]
         var groupFrames: [FlyoverGroupID: CGRect] = [:]
-        var groupOriginY: CGFloat = 40
+        var groupOriginY = style.canvasPadding
         var maximumWidth: CGFloat = 0
 
         for group in catalog.groups {
@@ -54,15 +47,15 @@ struct FlyoverLayout<ScreenID: Hashable> {
 
             let maximumColumn = resolvedPositions.values.map(\.column).max() ?? 0
             let maximumRow = resolvedPositions.values.map(\.row).max() ?? 0
-            let groupWidth = groupPadding * 2
+            let groupWidth = style.groupPadding * 2
                 + CGFloat(maximumColumn + 1) * card.width
-                + CGFloat(maximumColumn) * horizontalSpacing
-            let groupHeight = groupPadding * 2
+                + CGFloat(maximumColumn) * style.horizontalSpacing
+            let groupHeight = style.groupPadding * 2
                 + CGFloat(maximumRow + 1) * card.height
-                + CGFloat(maximumRow) * verticalSpacing
-                + 44
+                + CGFloat(maximumRow) * style.verticalSpacing
+                + style.groupHeaderHeight
             let groupFrame = CGRect(
-                x: 40,
+                x: style.canvasPadding,
                 y: groupOriginY,
                 width: groupWidth,
                 height: groupHeight,
@@ -74,24 +67,27 @@ struct FlyoverLayout<ScreenID: Hashable> {
                     continue
                 }
                 let origin = CGPoint(
-                    x: groupFrame.minX + groupPadding
-                        + CGFloat(position.column) * (card.width + horizontalSpacing),
-                    y: groupFrame.minY + groupPadding + 44
-                        + CGFloat(position.row) * (card.height + verticalSpacing),
+                    x: groupFrame.minX + style.groupPadding
+                        + CGFloat(position.column) * (card.width + style.horizontalSpacing),
+                    y: groupFrame.minY + style.groupPadding + style.groupHeaderHeight
+                        + CGFloat(position.row) * (card.height + style.verticalSpacing),
                 )
                 screenFrames[screen.id] = CGRect(origin: origin, size: card)
             }
 
             maximumWidth = max(maximumWidth, groupFrame.maxX)
-            groupOriginY = groupFrame.maxY + groupSpacing
+            groupOriginY = groupFrame.maxY + style.groupSpacing
         }
 
         return FlyoverLayoutResult(
             screenFrames: screenFrames,
             groupFrames: groupFrames,
             canvasSize: CGSize(
-                width: maximumWidth + 40,
-                height: max(groupOriginY - groupSpacing + 40, 1),
+                width: maximumWidth + style.canvasPadding,
+                height: max(
+                    groupOriginY - style.groupSpacing + style.canvasPadding,
+                    1,
+                ),
             ),
         )
     }

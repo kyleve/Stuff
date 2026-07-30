@@ -4,6 +4,7 @@ import SwiftUI
 struct FlyoverConnectorCanvas<ScreenID: Hashable>: View {
     let catalog: FlyoverCatalog<ScreenID>
     let layout: FlyoverLayoutResult<ScreenID>
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
         Canvas { context, _ in
@@ -33,9 +34,13 @@ struct FlyoverConnectorCanvas<ScreenID: Hashable>: View {
         to destination: CGRect,
         context: inout GraphicsContext,
     ) {
+        let style = stylesheet.connector
         let start = CGPoint(x: source.maxX, y: source.midY)
         let end = CGPoint(x: destination.minX, y: destination.midY)
-        let controlOffset = max((end.x - start.x) * 0.45, 40)
+        let controlOffset = max(
+            (end.x - start.x) * style.curvature,
+            style.minimumControlOffset,
+        )
         var path = Path()
         path.move(to: start)
         path.addCurve(
@@ -43,39 +48,52 @@ struct FlyoverConnectorCanvas<ScreenID: Hashable>: View {
             control1: CGPoint(x: start.x + controlOffset, y: start.y),
             control2: CGPoint(x: end.x - controlOffset, y: end.y),
         )
-        let style = StrokeStyle(
-            lineWidth: 3,
+        let strokeStyle = StrokeStyle(
+            lineWidth: style.lineWidth,
             lineCap: .round,
-            dash: transition.kind == .modal ? [12, 8] : [],
+            dash: transition.kind == .modal ? style.modalDash : [],
         )
-        context.stroke(path, with: .color(color(for: transition.kind)), style: style)
+        context.stroke(path, with: .color(color(for: transition.kind)), style: strokeStyle)
 
         var arrow = Path()
-        arrow.move(to: CGPoint(x: end.x - 12, y: end.y - 7))
+        arrow.move(to: CGPoint(
+            x: end.x - style.arrowWidth,
+            y: end.y - style.arrowHalfHeight,
+        ))
         arrow.addLine(to: end)
-        arrow.addLine(to: CGPoint(x: end.x - 12, y: end.y + 7))
+        arrow.addLine(to: CGPoint(
+            x: end.x - style.arrowWidth,
+            y: end.y + style.arrowHalfHeight,
+        ))
         context.stroke(
             arrow,
             with: .color(color(for: transition.kind)),
-            style: StrokeStyle(lineWidth: 3, lineCap: .round, lineJoin: .round),
+            style: StrokeStyle(
+                lineWidth: style.lineWidth,
+                lineCap: .round,
+                lineJoin: .round,
+            ),
         )
 
         let title = transition.label ?? transition.kind.title
         let label = context.resolve(
             Text(title)
-                .font(.caption.bold())
+                .font(style.labelFont)
                 .foregroundStyle(color(for: transition.kind)),
         )
         context.draw(
             label,
-            at: CGPoint(x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 - 12),
+            at: CGPoint(
+                x: (start.x + end.x) / 2,
+                y: (start.y + end.y) / 2 - style.labelOffsetY,
+            ),
         )
     }
 
     private func color(for kind: FlyoverTransition<ScreenID>.Kind) -> Color {
         switch kind {
-            case .push: .blue
-            case .modal: .purple
+            case .push: stylesheet.connector.pushColor
+            case .modal: stylesheet.connector.modalColor
         }
     }
 }

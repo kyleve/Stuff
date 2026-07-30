@@ -4,11 +4,12 @@ import SwiftUI
 struct FlyoverScreenHeader<ScreenID: Hashable>: View {
     let screen: FlyoverScreen<ScreenID>
     let model: FlyoverModel<ScreenID>
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
         HStack {
             Text(screen.title)
-                .font(.headline)
+                .font(stylesheet.screen.header.font)
                 .lineLimit(1)
             Spacer()
             Button("Inspect \(screen.title)", systemImage: "arrow.up.left.and.arrow.down.right") {
@@ -16,6 +17,6 @@ struct FlyoverScreenHeader<ScreenID: Hashable>: View {
             }
             .labelStyle(.iconOnly)
         }
-        .padding(12)
+        .padding(stylesheet.screen.header.padding)
     }
 }

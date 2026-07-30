@@ -6,8 +6,10 @@ struct FlyoverScreenFrame<ScreenID: Hashable>: View {
     let catalog: FlyoverCatalog<ScreenID>
     let model: FlyoverModel<ScreenID>
     var rendersContent = true
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
+        let style = stylesheet.screen
         VStack(spacing: 0) {
             FlyoverScreenHeader(screen: screen, model: model)
 
@@ -18,8 +20,8 @@ struct FlyoverScreenFrame<ScreenID: Hashable>: View {
                     FlyoverScreenPlaceholder(screen: screen, model: model)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: 440)
-            .background(.black.opacity(0.08))
+            .frame(maxWidth: .infinity, maxHeight: style.contentMaximumHeight)
+            .background(style.contentShade.opacity(style.contentShadeOpacity))
 
             Divider()
 
@@ -27,39 +29,35 @@ struct FlyoverScreenFrame<ScreenID: Hashable>: View {
 
             FlyoverRouteSummary(screen: screen, catalog: catalog)
         }
-        .frame(width: FlyoverLayout<ScreenID>.cardSize.width)
-        .frame(height: FlyoverLayout<ScreenID>.cardSize.height)
-        .background(.background)
-        .clipShape(.rect(cornerRadius: 22))
-        .overlay {
-            RoundedRectangle(cornerRadius: 22)
-                .stroke(.quaternary)
-        }
-        .shadow(color: .black.opacity(0.12), radius: 12, y: 5)
+        .frame(width: stylesheet.layout.cardSize.width)
+        .frame(height: stylesheet.layout.cardSize.height)
+        .flyoverScreenFrame()
     }
 }
 
 private struct FlyoverScreenPlaceholder<ScreenID: Hashable>: View {
     let screen: FlyoverScreen<ScreenID>
     let model: FlyoverModel<ScreenID>
+    @Environment(\.flyoverStylesheet) private var stylesheet
 
     var body: some View {
-        VStack(spacing: 12) {
+        let style = stylesheet.screen.placeholder
+        VStack(spacing: style.spacing) {
             Image(systemName: "viewfinder")
-                .font(.largeTitle)
+                .font(style.iconFont)
                 .foregroundStyle(.secondary)
             Text(model.variant(for: screen).title)
-                .font(.headline)
+                .font(style.titleFont)
             Text("Move this frame toward the center, render it here, or inspect it full-screen.")
-                .font(.caption)
+                .font(style.messageFont)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 220)
+                .frame(maxWidth: style.messageMaximumWidth)
             Button("Render Preview", systemImage: "play.fill") {
                 model.preview(screen)
             }
             .buttonStyle(.bordered)
-            .controlSize(.small)
+            .controlSize(style.controlSize)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .accessibilityElement(children: .combine)
