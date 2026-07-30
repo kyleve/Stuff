@@ -1124,11 +1124,7 @@ public actor PeriscopeStore: LogSink {
         for session in try modelContext.fetch(FetchDescriptor<SDLogSession>()) {
             let sessionID = session.sessionID
             guard sessionID != activeSession?.id else { continue }
-            var events = FetchDescriptor<SDLogEvent>(
-                predicate: #Predicate { $0.sessionID == sessionID },
-            )
-            events.fetchLimit = 1
-            if try modelContext.fetchCount(events) == 0 {
+            if try hasNoEvents(matching: #Predicate { $0.sessionID == sessionID }) {
                 modelContext.delete(session)
             }
         }
@@ -1143,11 +1139,7 @@ public actor PeriscopeStore: LogSink {
 
         for snapshot in try modelContext.fetch(FetchDescriptor<SDAmbientSnapshot>()) {
             let snapshotID = snapshot.snapshotID
-            var events = FetchDescriptor<SDLogEvent>(
-                predicate: #Predicate { $0.ambientSnapshotID == snapshotID },
-            )
-            events.fetchLimit = 1
-            if try modelContext.fetchCount(events) == 0 {
+            if try hasNoEvents(matching: #Predicate { $0.ambientSnapshotID == snapshotID }) {
                 ambientRowCache[snapshotID] = nil
                 modelContext.delete(snapshot)
             }
@@ -1168,6 +1160,16 @@ public actor PeriscopeStore: LogSink {
                 return true
             }
         }
+    }
+
+    /// Whether no event matches `predicate`. `fetchCount` honors
+    /// `fetchLimit`, so this asks the store for at most one row instead of
+    /// tallying every match — which is easy to misread from a bare
+    /// limit-then-count at the call site, hence the name.
+    private func hasNoEvents(matching predicate: Predicate<SDLogEvent>) throws -> Bool {
+        var descriptor = FetchDescriptor<SDLogEvent>(predicate: predicate)
+        descriptor.fetchLimit = 1
+        return try modelContext.fetchCount(descriptor) == 0
     }
 
     // MARK: Change notification
