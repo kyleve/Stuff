@@ -103,7 +103,6 @@ func unitTests(
     bundleIdSuffix: String,
     productDependency: String,
     sources: ProjectDescription.SourceFilesList,
-    resources: ProjectDescription.ResourceFileElements? = nil,
     extraPackageProducts: [String] = [],
     environmentVariables: [String: EnvironmentVariable] = [:],
 ) -> Target {
@@ -122,7 +121,6 @@ func unitTests(
         bundleId: "com.stuff.\(bundleIdSuffix).tests",
         deploymentTargets: deployment,
         sources: sources,
-        resources: resources,
         dependencies: dependencies,
         environmentVariables: packageResourceEnvironment
             .merging(environmentVariables) { _, new in new },
@@ -397,8 +395,6 @@ let project = Project(
             bundleIdSuffix: "periscopecore",
             productDependency: "PeriscopeCore",
             sources: ["Shared/Periscope/PeriscopeCore/Tests/**"],
-            // The committed pre-upgrade store the schema-upgrade tests open.
-            resources: ["Shared/Periscope/PeriscopeCore/Tests/Fixtures/**"],
             extraPackageProducts: ["JournalKit"],
         ),
         unitTests(

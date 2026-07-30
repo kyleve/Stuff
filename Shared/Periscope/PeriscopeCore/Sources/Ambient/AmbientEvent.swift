@@ -34,8 +34,6 @@ extension AmbientKind {
 /// diagnose what the system was doing around an error.
 public struct AmbientEvent: LogEvent, Hashable {
     public static let eventName = "ambient"
-    /// v2 added ``reporting``; v1 rows decode as ``Reporting/state``.
-    public static let eventVersion = 2
 
     /// Whether an event announces a lasting condition or a passing moment.
     ///
@@ -74,31 +72,5 @@ public struct AmbientEvent: LogEvent, Hashable {
         self.value = value
         self.level = level
         self.reporting = reporting
-    }
-}
-
-/// Hand-written `init(from:)` for one load-bearing reason: rows written as
-/// v1 have no `reporting` key, and synthesized decoding throws on a missing
-/// key rather than defaulting. The momentary distinction arrived with the
-/// snapshot, so absence defaults by what v1 actually wrote: every v1
-/// ambient event was a state change *except* `.memory`, whose only v1
-/// source was the memory-warning source — a warning describes an instant,
-/// so those decode as `.occurrence` rather than reading back as a state
-/// the app was stuck in. `encode(to:)` stays synthesized.
-extension AmbientEvent {
-    private enum CodingKeys: String, CodingKey {
-        case kind
-        case value
-        case level
-        case reporting
-    }
-
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        kind = try container.decode(AmbientKind.self, forKey: .kind)
-        value = try container.decode(String.self, forKey: .value)
-        level = try container.decode(LogLevel.self, forKey: .level)
-        reporting = try container.decodeIfPresent(Reporting.self, forKey: .reporting)
-            ?? (kind == .memory ? .occurrence : .state)
     }
 }

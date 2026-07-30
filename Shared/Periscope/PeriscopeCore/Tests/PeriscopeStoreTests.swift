@@ -493,70 +493,36 @@ struct PeriscopeStoreTests {
             relaunch: .survivesRelaunch,
             scope: root,
         )
-        try await store.degradeSpanBegan(
-            span,
-            payload: unreadablePayload,
-            clearingRelaunchPolicyColumn: false,
-        )
+        try await store.degradeSpanBegan(span, payload: unreadablePayload)
 
         try await store.startSession(.fixture(startedAt: date(100)))
 
         #expect(try await store.events(inSpan: span).count == 1)
     }
 
-    /// A row written before the policy column existed carries the policy only
-    /// in its payload, and the sweep still honors it.
-    @Test func relaunchHonorsThePolicyInAPreColumnBegansPayload() async throws {
+    /// A corrupt payload can't veto the column: the span still closes as
+    /// orphaned, with its synthetic end named from the row's message since
+    /// the recorded name is unreadable.
+    @Test func relaunchClosesACorruptBeganFromItsColumnAlone() async throws {
         let (store, root, _, _) = try await makeStore()
         let span = SpanID()
         await writeSpanBegan(
             store,
             span: span,
-            name: "long-download",
-            relaunch: .survivesRelaunch,
+            name: "checkout",
+            relaunch: .endsWithProcess,
             scope: root,
         )
-        try await store.degradeSpanBegan(
-            span,
-            payload: JSONEncoder().encode(SpanBegan(
-                spanID: span,
-                name: "long-download",
-                lifetime: .indefinite,
-                relaunchPolicy: .survivesRelaunch,
-            )),
-            clearingRelaunchPolicyColumn: true,
-        )
-
-        try await store.startSession(.fixture(startedAt: date(100)))
-
-        #expect(try await store.events(inSpan: span).count == 1)
-    }
-
-    /// Neither source can be read: no column, and a payload that won't decode.
-    /// Closing is the honest fallback — an unreadable payload can't prove the
-    /// span asked to survive, and leaving it open would strand it forever.
-    @Test func relaunchClosesAPreColumnBeganWhosePolicyIsUnreadable() async throws {
-        let (store, root, _, _) = try await makeStore()
-        let span = SpanID()
-        await writeSpanBegan(
-            store,
-            span: span,
-            name: "long-download",
-            relaunch: .survivesRelaunch,
-            scope: root,
-        )
-        try await store.degradeSpanBegan(
-            span,
-            payload: unreadablePayload,
-            clearingRelaunchPolicyColumn: true,
-        )
+        try await store.degradeSpanBegan(span, payload: unreadablePayload)
 
         try await store.startSession(.fixture(startedAt: date(100)))
 
         let pair = try await store.events(inSpan: span)
         #expect(pair.count == 2)
         let orphan = try #require(pair.first { $0.eventName == SpanEnded.eventName })
-        #expect(try orphan.decode(SpanEnded.self).exit == .orphaned)
+        let ended = try orphan.decode(SpanEnded.self)
+        #expect(ended.exit == .orphaned)
+        #expect(ended.name == "▶ checkout")
     }
 
     @Test func relaunchIgnoresProperlyEndedSpans() async throws {

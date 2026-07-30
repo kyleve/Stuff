@@ -42,23 +42,4 @@ struct LogSessionTests {
         )
         #expect(json["attributes"] as? [String: String] == ["configuration": "Release"])
     }
-
-    /// A session written by a build that predates `attributes` is a session
-    /// that couldn't name itself, not a corrupt one — the crash journal ingests
-    /// entries across app versions.
-    @Test func sessionsWithoutAttributesStillDecode() throws {
-        let session = LogSession.fixture()
-        let data = try JSONEncoder().encode(session)
-        var json = try #require(
-            try JSONSerialization.jsonObject(with: data) as? [String: Any],
-        )
-        json.removeValue(forKey: "attributes")
-
-        let decoded = try JSONDecoder().decode(
-            LogSession.self,
-            from: JSONSerialization.data(withJSONObject: json),
-        )
-        #expect(decoded.attributes.isEmpty)
-        #expect(decoded.id == session.id)
-    }
 }

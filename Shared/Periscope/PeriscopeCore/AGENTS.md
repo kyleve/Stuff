@@ -79,10 +79,10 @@ the build system, formatting, and global conventions. Read that first.
   not eat the live app's). Concurrently live processes sharing one on-disk
   store is unsupported; see [`TODOs.md`](../TODOs.md).
 - **Payloads persist as versioned JSON** (`eventName` + `eventVersion`) — an
-  event shape change must not require a SwiftData migration. A payload field
-  added to an existing version needs a hand-written `init(from:)` that
-  defaults it (see `AmbientEvent`, `LogSession`), since synthesized decoding
-  throws on the missing key and would discard every older row.
+  event shape change must not require a SwiftData migration. While the app is
+  pre-release, shape changes need no decode tolerance either: the store is
+  deleted rather than migrated, so keep `Codable` conformances synthesized
+  instead of hand-writing defaults for older rows.
 - **A session names its build only as far as the app told it.**
   `LogSession.attributes` is filled by the host app at bootstrap —
   PeriscopeCore sits below the app modules and cannot read a build stamp. An
@@ -103,10 +103,9 @@ the build system, formatting, and global conventions. Read that first.
   dangling half.
 - **The relaunch sweep decides from a column, and says so when it can't.**
   `SDLogEvent.spanRelaunchPolicy` carries `SpanRelaunchPolicy` on began rows,
-  so the launch-path sweep filters survivors without loading a payload. A row
-  written before the column falls back to its payload; a payload that won't
-  decode can't prove the span asked to survive, so it is closed — and the
-  decode failure is logged, never silently decided.
+  so the launch-path sweep filters survivors without loading a payload; a
+  payload that won't decode only costs the synthetic end its recorded name —
+  and the decode failure is logged, never silently absorbed.
 
 ## Testing
 
@@ -115,7 +114,3 @@ Swift Testing in [`Tests/`](Tests), hosted in `StuffTestHost`
 test (never the shared singleton), and injected clocks. `Log<Event>()`
 defaults to `.shared` — a deliberate ergonomics exception to the
 no-Core-defaults rule — so tests must always pass `system:` explicitly.
-`Tests/Fixtures/PreAmbientSchema.store` is a committed database written by
-the pre-ambient-snapshot schema; `PeriscopeSchemaUpgradeTests` opens it with
-the current schema so the lightweight migration stays proven, not assumed
-(its header documents how to regenerate it).

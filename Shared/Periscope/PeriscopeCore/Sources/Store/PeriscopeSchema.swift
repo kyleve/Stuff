@@ -53,9 +53,7 @@ final class SDLogEvent {
     var spanExitMode: String?
     /// `SpanRelaunchPolicy.rawValue` on span-*began* events, so the next
     /// launch's orphan sweep can honor the policy from a column instead of
-    /// decoding every unmatched began's payload. Optional so rows written
-    /// before the column existed take SwiftData's lightweight migration; the
-    /// sweep falls back to their payload.
+    /// decoding every unmatched began's payload; `nil` on every other event.
     var spanRelaunchPolicy: String?
     /// The emitting function/file (`#function`/`#fileID`), when captured.
     var callFunction: String?
@@ -116,9 +114,8 @@ final class SDLogEvent {
     }
 
     /// ``spanRelaunchPolicy`` as its enum, or `nil` when the row carries no
-    /// policy — it isn't a span began, or it was written before the column
-    /// existed — or names one this build doesn't recognize. The orphan sweep
-    /// reads the payload only in those cases.
+    /// policy — it isn't a span began, or it names a policy this build
+    /// doesn't recognize.
     var declaredRelaunchPolicy: SpanRelaunchPolicy? {
         spanRelaunchPolicy.flatMap(SpanRelaunchPolicy.init(rawValue:))
     }
@@ -205,10 +202,8 @@ final class SDLogSession {
     var osVersion: String
     var deviceModel: String
     /// `LogSessionAttributeKey.rawValue` → value (commit, configuration,
-    /// optimization level). Optional so rows written before the column
-    /// existed take SwiftData's lightweight migration; `nil` reads back as
-    /// "this build couldn't name itself".
-    var attributes: [String: String]?
+    /// optimization level). Empty when the build couldn't name itself.
+    var attributes: [String: String]
 
     init(session: LogSession) {
         sessionID = session.id
@@ -233,7 +228,7 @@ final class SDLogSession {
             osVersion: osVersion,
             deviceModel: deviceModel,
             attributes: Dictionary(
-                uniqueKeysWithValues: (attributes ?? [:])
+                uniqueKeysWithValues: attributes
                     .map { (LogSessionAttributeKey($0.key), $0.value) },
             ),
         )

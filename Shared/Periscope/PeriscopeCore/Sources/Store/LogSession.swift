@@ -61,34 +61,3 @@ public struct LogSession: Sendable, Identifiable, Hashable, Codable {
         }
     }
 }
-
-/// Hand-written `init(from:)` for one load-bearing reason: a crash journal
-/// written by a build without `attributes` is ingested by one that has them,
-/// and synthesized decoding throws on the missing key rather than defaulting.
-/// An older build simply couldn't name itself, which is an empty set of
-/// attributes — not a corrupt session. `encode(to:)` stays synthesized.
-extension LogSession {
-    private enum CodingKeys: String, CodingKey {
-        case id
-        case startedAt
-        case appVersion
-        case buildNumber
-        case osVersion
-        case deviceModel
-        case attributes
-    }
-
-    public init(from decoder: any Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(UUID.self, forKey: .id)
-        startedAt = try container.decode(Date.self, forKey: .startedAt)
-        appVersion = try container.decode(String.self, forKey: .appVersion)
-        buildNumber = try container.decode(String.self, forKey: .buildNumber)
-        osVersion = try container.decode(String.self, forKey: .osVersion)
-        deviceModel = try container.decode(String.self, forKey: .deviceModel)
-        attributes = try container.decodeIfPresent(
-            [LogSessionAttributeKey: String].self,
-            forKey: .attributes,
-        ) ?? [:]
-    }
-}
