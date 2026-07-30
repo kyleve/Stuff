@@ -23,25 +23,29 @@ public final class ThermalStateAmbientSource: NotificationAmbientSource {
     /// The ambient event for a given thermal state — exposed for tests via
     /// `@_spi(Testing)` so the mapping stays asserted.
     @_spi(Testing) public static func event(for state: ProcessInfo.ThermalState) -> AmbientEvent {
-        let value: String
-        let level: LogLevel
+        let level: String
+        let logLevel: LogLevel
         switch state {
             case .nominal:
-                value = "nominal"
-                level = .info
+                level = "nominal"
+                logLevel = .info
             case .fair:
-                value = "fair"
-                level = .info
+                level = "fair"
+                logLevel = .info
             case .serious:
-                value = "serious"
-                level = .warning
+                level = "serious"
+                logLevel = .warning
             case .critical:
-                value = "critical"
-                level = .warning
+                level = "critical"
+                logLevel = .warning
             @unknown default:
-                value = "unknown"
-                level = .info
+                level = "unknown"
+                logLevel = .info
         }
-        return AmbientEvent(kind: .thermalState, value: value, level: level)
+        return AmbientEvent(
+            kind: .thermalState,
+            value: ["level": .string(level)],
+            level: logLevel,
+        )
     }
 }

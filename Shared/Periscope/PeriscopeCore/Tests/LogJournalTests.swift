@@ -88,7 +88,7 @@ struct LogJournalTests {
         system.install(journal: journal)
 
         let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .network, value: "unsatisfied") }
+        ambient { AmbientEvent(kind: .network, value: ["status": "unsatisfied"]) }
         Log<AppLogs>(system: system).error("failed while offline")
 
         let records = try entries(in: directory).compactMap { entry -> LogJournalRecord? in
@@ -96,7 +96,7 @@ struct LogJournalTests {
             return record
         }
         let failure = try #require(records.first { $0.message == "failed while offline" })
-        #expect(failure.ambient?[.network] == "unsatisfied")
+        #expect(failure.ambient?[.network] == ["status": "unsatisfied"])
     }
 
     @Test func journalWritesOnlyRedactedContent() throws {

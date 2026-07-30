@@ -111,12 +111,14 @@ Periscope.shared.startDefaultAmbientSources()
   PeriscopeTools' log view mode.
 - **Ambient state** — `AmbientEventSource`s report what the system is doing
   (`NetworkPathAmbientSource`, thermal, low-power, lifecycle, memory
-  warnings, accessibility). Each `AmbientEvent` declares its `reporting`:
-  a `.state` event is a lasting condition, an `.occurrence` a momentary one
-  (a memory warning). The pipeline folds the `.state` events into an
-  `AmbientSnapshot` and stamps it on **every** record — so any error joins
-  to the connectivity, thermal state, and power mode at that moment without
-  a timestamp hunt.
+  warnings, accessibility). Each `AmbientEvent` carries its state as named
+  fields (`[String: AmbientValue]` — a plain JSON object in the payload,
+  e.g. `["status": "satisfied", "voiceover": false]`) and declares its
+  `reporting`: a `.state` event is a lasting condition, an `.occurrence` a
+  momentary one (a memory warning). The pipeline folds the `.state` events
+  into an `AmbientSnapshot` and stamps it on **every** record — so any error
+  joins to the connectivity, thermal state, and power mode at that moment
+  without a timestamp hunt.
 - **Session attributes** — `LogSession.current(attributes:)` takes
   `[LogSessionAttributeKey: String]`, the build facts only the app can name:
   `.commit` / `.commitStatus`, `.configuration`, `.optimizationLevel`,

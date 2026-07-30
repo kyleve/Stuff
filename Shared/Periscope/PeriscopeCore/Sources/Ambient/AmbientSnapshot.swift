@@ -16,14 +16,14 @@ public struct AmbientSnapshot: Sendable, Hashable, Codable, Identifiable {
     public let id: UUID
     /// The latest value per kind. Momentary events
     /// (``AmbientEvent/Reporting/occurrence``) never appear here.
-    public let values: [AmbientKind: String]
+    public let values: [AmbientKind: [String: AmbientValue]]
 
-    public init(id: UUID, values: [AmbientKind: String]) {
+    public init(id: UUID, values: [AmbientKind: [String: AmbientValue]]) {
         self.id = id
         self.values = values
     }
 
-    public subscript(kind: AmbientKind) -> String? {
+    public subscript(kind: AmbientKind) -> [String: AmbientValue]? {
         values[kind]
     }
 

@@ -88,11 +88,13 @@
         /// always carries the complete picture.
         @MainActor
         private static func summaryEvent() -> AmbientEvent {
-            let enabled = settings.filter { $0.isEnabled() }.map(\.name)
-            let summary = enabled.isEmpty
-                ? "none enabled"
-                : "enabled: \(enabled.joined(separator: ", "))"
-            return AmbientEvent(kind: .accessibility, value: summary)
+            AmbientEvent(
+                kind: .accessibility,
+                value: Dictionary(
+                    uniqueKeysWithValues: settings
+                        .map { ($0.name, AmbientValue.bool($0.isEnabled())) },
+                ),
+            )
         }
     }
 #endif

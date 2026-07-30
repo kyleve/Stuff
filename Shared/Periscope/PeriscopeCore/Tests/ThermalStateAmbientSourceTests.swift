@@ -47,7 +47,7 @@ struct ThermalStateAmbientSourceTests {
         level: LogLevel,
     ) {
         let event = ThermalStateAmbientSource.event(for: state)
-        #expect(event.value == value)
+        #expect(event.value == ["level": .string(value)])
         #expect(event.level == level)
     }
 }

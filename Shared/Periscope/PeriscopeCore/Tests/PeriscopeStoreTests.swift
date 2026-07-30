@@ -807,7 +807,7 @@ struct PeriscopeStoreTests {
 
     @Test func eventsResolveTheAmbientStateTheyWereStampedWith() async throws {
         let (store, root, _, _) = try await makeStore()
-        let offline = AmbientSnapshot(id: UUID(), values: [.network: "unsatisfied"])
+        let offline = AmbientSnapshot(id: UUID(), values: [.network: ["status": "unsatisfied"]])
         await store.write([
             makeRecord("failed", date: date(1), scopes: [root.id]).stamped(ambient: offline),
         ])
@@ -821,7 +821,7 @@ struct PeriscopeStoreTests {
     /// `AmbientSnapshot` keeps its identity stable when nothing moves.
     @Test func eventsSharingOneStateShareOneSnapshotRow() async throws {
         let (store, root, _, _) = try await makeStore()
-        let state = AmbientSnapshot(id: UUID(), values: [.thermalState: "fair"])
+        let state = AmbientSnapshot(id: UUID(), values: [.thermalState: ["level": "fair"]])
         await store.write((1 ... 5).map { index in
             makeRecord("\(index)", date: date(TimeInterval(index)), scopes: [root.id])
                 .stamped(ambient: state)
@@ -834,8 +834,8 @@ struct PeriscopeStoreTests {
 
     @Test func changedStateWritesAnotherSnapshotRow() async throws {
         let (store, root, _, _) = try await makeStore()
-        let nominal = AmbientSnapshot(id: UUID(), values: [.thermalState: "nominal"])
-        let serious = AmbientSnapshot(id: UUID(), values: [.thermalState: "serious"])
+        let nominal = AmbientSnapshot(id: UUID(), values: [.thermalState: ["level": "nominal"]])
+        let serious = AmbientSnapshot(id: UUID(), values: [.thermalState: ["level": "serious"]])
         await store.write([
             makeRecord("cool", date: date(1), scopes: [root.id]).stamped(ambient: nominal),
             makeRecord("hot", date: date(2), scopes: [root.id]).stamped(ambient: serious),
@@ -856,8 +856,8 @@ struct PeriscopeStoreTests {
     /// retention has to take the unreferenced ones with it.
     @Test func pruningRemovesOrphanedSnapshots() async throws {
         let (store, root, _, _) = try await makeStore()
-        let old = AmbientSnapshot(id: UUID(), values: [.network: "unsatisfied"])
-        let kept = AmbientSnapshot(id: UUID(), values: [.network: "satisfied"])
+        let old = AmbientSnapshot(id: UUID(), values: [.network: ["status": "unsatisfied"]])
+        let kept = AmbientSnapshot(id: UUID(), values: [.network: ["status": "satisfied"]])
         await store.write([
             makeRecord("old", date: date(1), scopes: [root.id]).stamped(ambient: old),
             makeRecord("new", date: date(100), scopes: [root.id]).stamped(ambient: kept),
@@ -880,7 +880,7 @@ struct PeriscopeStoreTests {
         system.add(sink: store)
 
         let ambient = Log<AmbientEvent>(system: system)
-        ambient { AmbientEvent(kind: .powerMode, value: "low-power") }
+        ambient { AmbientEvent(kind: .powerMode, value: ["low-power": true]) }
         Log<AppLogs>(system: system).error("slow while saving battery")
         await system.flush()
 
@@ -888,7 +888,7 @@ struct PeriscopeStoreTests {
         let failure = try #require(events.first { $0.message == "slow while saving battery" })
         let snapshotID = try #require(failure.ambientSnapshotID)
         let snapshot = try await store.ambientSnapshot(for: snapshotID)
-        #expect(snapshot?[.powerMode] == "low-power")
+        #expect(snapshot?[.powerMode] == ["low-power": true])
     }
 
     @Test func pruneKeepingNewestKeepsTheCount() async throws {

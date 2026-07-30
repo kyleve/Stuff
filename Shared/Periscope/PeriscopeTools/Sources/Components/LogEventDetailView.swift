@@ -155,7 +155,7 @@ struct LogEventDetailView: View {
                     snapshot.values.sorted { $0.key.rawValue < $1.key.rawValue },
                     id: \.key,
                 ) { kind, value in
-                    LabeledContent(kind.rawValue, value: value)
+                    LabeledContent(kind.rawValue, value: value.ambientDescription)
                 }
         }
     }

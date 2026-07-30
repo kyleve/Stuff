@@ -6,7 +6,7 @@ import Testing
 /// A source that logs one event the moment it starts.
 private final class ImmediateSource: AmbientEventSource {
     func start(log: Log<AmbientEvent>) {
-        log { AmbientEvent(kind: AmbientKind("test-kind"), value: "started") }
+        log { AmbientEvent(kind: AmbientKind("test-kind"), value: ["phase": "started"]) }
     }
 
     func stop() {}
@@ -28,7 +28,7 @@ private final class NotificationSource: NotificationAmbientSource {
     }
 
     override func event(for _: Notification) -> AmbientEvent? {
-        AmbientEvent(kind: AmbientKind("test-kind"), value: "fired")
+        AmbientEvent(kind: AmbientKind("test-kind"), value: ["phase": "fired"])
     }
 }
 
@@ -45,7 +45,7 @@ struct AmbientEventSourceTests {
         await system.flush()
 
         #expect(sink.records.count == 1)
-        #expect(sink.records.first?.message == "test-kind: started")
+        #expect(sink.records.first?.message == "test-kind: phase=started")
 
         let scope = sink.records.first?.scopes.first
         #expect(scope.flatMap { system.scope(for: $0) }?.name == AmbientEvent.eventName)
@@ -70,12 +70,12 @@ struct AmbientEventSourceTests {
 
         NotificationCenter.default.post(name: name, object: nil)
         await system.flush()
-        #expect(sink.records.count(where: { $0.message == "test-kind: fired" }) == 1)
+        #expect(sink.records.count(where: { $0.message == "test-kind: phase=fired" }) == 1)
 
         system.stopAmbientSources()
         NotificationCenter.default.post(name: name, object: nil)
         await system.flush()
-        #expect(sink.records.count(where: { $0.message == "test-kind: fired" }) == 1)
+        #expect(sink.records.count(where: { $0.message == "test-kind: phase=fired" }) == 1)
     }
 
     @Test func restartingASourceReplacesItsObservationInsteadOfDoubling() async {
@@ -88,7 +88,7 @@ struct AmbientEventSourceTests {
         NotificationCenter.default.post(name: name, object: nil)
         await system.flush()
 
-        #expect(sink.records.count(where: { $0.message == "test-kind: fired" }) == 1)
+        #expect(sink.records.count(where: { $0.message == "test-kind: phase=fired" }) == 1)
         source.stop()
     }
 }

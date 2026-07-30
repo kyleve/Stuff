@@ -93,7 +93,11 @@ enum NDJSONExporter {
         if let snapshotID = event.ambientSnapshotID {
             if let snapshot = ambient[snapshotID] {
                 object["ambient"] = Dictionary(
-                    uniqueKeysWithValues: snapshot.values.map { ($0.key.rawValue, $0.value) },
+                    uniqueKeysWithValues: snapshot.values.map { kind, value in
+                        (kind.rawValue, Dictionary(
+                            uniqueKeysWithValues: value.map { ($0.key, jsonValue(for: $0.value)) },
+                        ))
+                    },
                 )
             } else {
                 // Retention only drops *unreferenced* snapshots, so a
@@ -143,6 +147,17 @@ enum NDJSONExporter {
                     with: Data(json.utf8),
                     options: [.fragmentsAllowed],
                 )) ?? json
+        }
+    }
+
+    /// An ambient field as its native JSON type, so exported snapshots stay
+    /// plain JSON objects.
+    private static func jsonValue(for value: AmbientValue) -> Any {
+        switch value {
+            case let .string(string): string
+            case let .int(int): int
+            case let .double(double): double
+            case let .bool(bool): bool
         }
     }
 

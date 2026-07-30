@@ -36,14 +36,14 @@ struct NetworkPathAmbientSourceTests {
         let source = NetworkPathAmbientSource()
         let log = Log<AmbientEvent>(recorder: system)
 
-        source.emit("satisfied (wifi)", to: log)
-        source.emit("satisfied (wifi)", to: log) // NWPathMonitor churn: dropped
-        source.emit("unsatisfied", to: log)
+        source.emit(wifi, to: log)
+        source.emit(wifi, to: log) // NWPathMonitor churn: dropped
+        source.emit(offline, to: log)
 
         // Delivery preserves emission order, so once the final emit lands
         // every earlier one has too.
-        _ = await waitUntil { networkValues(sink).contains("unsatisfied") }
-        #expect(networkValues(sink) == ["satisfied (wifi)", "unsatisfied"])
+        _ = await waitUntil { networkValues(sink).contains(offline) }
+        #expect(networkValues(sink) == [wifi, offline])
     }
 
     @Test func reemitsAValueThatRecursAfterADifferentOne() async {
@@ -54,22 +54,17 @@ struct NetworkPathAmbientSourceTests {
         let source = NetworkPathAmbientSource()
         let log = Log<AmbientEvent>(recorder: system)
 
-        source.emit("satisfied (wifi)", to: log)
-        source.emit("satisfied (cellular)", to: log)
-        source.emit("satisfied (wifi)", to: log)
-        source.emit("unsatisfied", to: log)
+        source.emit(wifi, to: log)
+        source.emit(cellular, to: log)
+        source.emit(wifi, to: log)
+        source.emit(offline, to: log)
 
-        _ = await waitUntil { networkValues(sink).contains("unsatisfied") }
-        #expect(networkValues(sink) == [
-            "satisfied (wifi)",
-            "satisfied (cellular)",
-            "satisfied (wifi)",
-            "unsatisfied",
-        ])
+        _ = await waitUntil { networkValues(sink).contains(offline) }
+        #expect(networkValues(sink) == [wifi, cellular, wifi, offline])
     }
 
     @Test func stoppingResetsTheChangeFilter() async {
-        // stop() (like a restart) forgets the last description, so current
+        // stop() (like a restart) forgets the last value, so current
         // connectivity re-reports rather than being swallowed as a
         // duplicate of the prior run.
         let sink = CapturingSink()
@@ -77,23 +72,31 @@ struct NetworkPathAmbientSourceTests {
         let source = NetworkPathAmbientSource()
         let log = Log<AmbientEvent>(recorder: system)
 
-        source.emit("satisfied (wifi)", to: log)
-        source.stop() // clears the last-description filter
-        source.emit("satisfied (wifi)", to: log)
-        source.emit("unsatisfied", to: log)
+        source.emit(wifi, to: log)
+        source.stop() // clears the last-value filter
+        source.emit(wifi, to: log)
+        source.emit(offline, to: log)
 
-        _ = await waitUntil { networkValues(sink).contains("unsatisfied") }
-        #expect(networkValues(sink) == [
-            "satisfied (wifi)",
-            "satisfied (wifi)",
-            "unsatisfied",
-        ])
+        _ = await waitUntil { networkValues(sink).contains(offline) }
+        #expect(networkValues(sink) == [wifi, wifi, offline])
     }
 
-    private func networkValues(_ sink: CapturingSink) -> [String] {
-        let prefix = "network: "
-        return sink.records
-            .filter { $0.message.hasPrefix(prefix) }
-            .map { String($0.message.dropFirst(prefix.count)) }
+    private var wifi: [String: AmbientValue] {
+        ["status": "satisfied", "interfaces": "wifi"]
+    }
+
+    private var cellular: [String: AmbientValue] {
+        ["status": "satisfied", "interfaces": "cellular"]
+    }
+
+    private var offline: [String: AmbientValue] {
+        ["status": "unsatisfied"]
+    }
+
+    private func networkValues(_ sink: CapturingSink) -> [[String: AmbientValue]] {
+        sink.records
+            .compactMap { $0.event as? AmbientEvent }
+            .filter { $0.kind == .network }
+            .map(\.value)
     }
 }

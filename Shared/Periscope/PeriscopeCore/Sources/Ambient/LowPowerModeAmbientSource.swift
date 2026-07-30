@@ -22,6 +22,6 @@ public final class LowPowerModeAmbientSource: NotificationAmbientSource {
 
     private static func currentEvent() -> AmbientEvent {
         let enabled = ProcessInfo.processInfo.isLowPowerModeEnabled
-        return AmbientEvent(kind: .powerMode, value: enabled ? "low-power" : "normal")
+        return AmbientEvent(kind: .powerMode, value: ["low-power": .bool(enabled)])
     }
 }

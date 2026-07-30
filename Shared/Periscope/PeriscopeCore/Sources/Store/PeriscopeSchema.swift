@@ -247,10 +247,10 @@ final class SDAmbientSnapshot {
     #Index<SDAmbientSnapshot>([\.snapshotID])
 
     @Attribute(.unique) var snapshotID: UUID
-    /// `AmbientKind.rawValue` → value. A dictionary rather than a JSON blob
-    /// so reading a snapshot back has no decode step, and therefore no
-    /// failure mode to swallow.
-    var values: [String: String]
+    /// `AmbientKind.rawValue` → the state's named fields. A dictionary
+    /// rather than a JSON blob so reading a snapshot back has no manual
+    /// decode step, and therefore no failure mode to swallow.
+    var values: [String: [String: AmbientValue]]
     /// When this state was first persisted. A snapshot row is written once
     /// and referenced thereafter, so this is also when the state began.
     var firstSeenAt: Date

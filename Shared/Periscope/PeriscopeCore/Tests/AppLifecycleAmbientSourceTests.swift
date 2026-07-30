@@ -26,7 +26,7 @@ struct AppLifecycleAmbientSourceTests {
         await system.flush()
 
         #expect(sink.records.contains { record in
-            record.message == "app-lifecycle: \(value)"
+            record.message == "app-lifecycle: phase=\(value)"
         })
     }
 

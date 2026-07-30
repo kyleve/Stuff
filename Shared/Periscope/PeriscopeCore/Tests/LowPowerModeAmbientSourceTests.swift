@@ -11,8 +11,8 @@ struct LowPowerModeAmbientSourceTests {
         NotificationCenter.default.post(name: .NSProcessInfoPowerStateDidChange, object: nil)
         await system.flush()
 
-        let expected = ProcessInfo.processInfo.isLowPowerModeEnabled ? "low-power" : "normal"
-        #expect(sink.records.contains { $0.message == "power-mode: \(expected)" })
+        let enabled = ProcessInfo.processInfo.isLowPowerModeEnabled
+        #expect(sink.records.contains { $0.message == "power-mode: low-power=\(enabled)" })
     }
 
     /// A session that runs entirely in (or out of) Low Power Mode never
@@ -24,9 +24,9 @@ struct LowPowerModeAmbientSourceTests {
         system.startAmbientSource(LowPowerModeAmbientSource())
         await system.flush()
 
-        let expected = ProcessInfo.processInfo.isLowPowerModeEnabled ? "low-power" : "normal"
-        let baseline = sink.records.first { $0.message == "power-mode: \(expected)" }
+        let enabled = ProcessInfo.processInfo.isLowPowerModeEnabled
+        let baseline = sink.records.first { $0.message == "power-mode: low-power=\(enabled)" }
         #expect(baseline != nil)
-        #expect(baseline?.ambient?[.powerMode] == expected)
+        #expect(baseline?.ambient?[.powerMode] == ["low-power": .bool(enabled)])
     }
 }

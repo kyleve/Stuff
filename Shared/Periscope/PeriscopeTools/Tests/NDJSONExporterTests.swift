@@ -173,10 +173,13 @@ struct NDJSONExporterTests {
         #expect(object["message"] as? String == "bare")
     }
 
-    @Test func linesCarryTheAmbientStateAsAnObject() throws {
+    @Test func linesCarryTheAmbientStateAsNestedObjects() throws {
         let snapshot = AmbientSnapshot(
             id: UUID(),
-            values: [.network: "unsatisfied", .powerMode: "low-power"],
+            values: [
+                .network: ["status": "unsatisfied", "expensive": false],
+                .powerMode: ["low-power": true],
+            ],
         )
         let line = NDJSONExporter.line(
             for: stored(message: "offline", date: date(1), ambientSnapshotID: snapshot.id),
@@ -187,10 +190,10 @@ struct NDJSONExporterTests {
         let object = try #require(
             try JSONSerialization.jsonObject(with: Data(line.utf8)) as? [String: Any],
         )
-        #expect(object["ambient"] as? [String: String] == [
-            "network": "unsatisfied",
-            "power-mode": "low-power",
-        ])
+        let ambient = try #require(object["ambient"] as? [String: [String: Any]])
+        #expect(ambient["network"]?["status"] as? String == "unsatisfied")
+        #expect(ambient["network"]?["expensive"] as? Bool == false)
+        #expect(ambient["power-mode"]?["low-power"] as? Bool == true)
     }
 
     /// Retention only drops unreferenced snapshots, so a referenced one

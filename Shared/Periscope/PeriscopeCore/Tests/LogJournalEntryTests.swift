@@ -30,7 +30,7 @@ struct LogJournalEntryTests {
             callSite: LogCallSite(function: "upload(_:)", fileID: "App/Uploader.swift"),
         )
         var journaled = try LogJournalRecord(record: record, sequence: 42)
-        journaled.ambient = AmbientSnapshot(id: UUID(), values: [.network: "satisfied"])
+        journaled.ambient = AmbientSnapshot(id: UUID(), values: [.network: ["status": "satisfied"]])
         let entry = LogJournalEntry.record(journaled)
         let decoded = try LogJournalEntry.decoded(from: entry.encoded())
 
@@ -40,7 +40,7 @@ struct LogJournalEntryTests {
         }
         #expect(back == journaled)
         #expect(back.sequence == 42)
-        #expect(back.ambient?[.network] == "satisfied")
+        #expect(back.ambient?[.network] == ["status": "satisfied"])
         #expect(back.eventName == PhotoLogs.eventName)
         #expect(back.scopes == [scope.id.rawValue])
         #expect(back.tags[key] == .int(3))

@@ -103,7 +103,7 @@ struct PeriscopeStoreJournalIngestTests {
             records: [
                 LogRecord(
                     date: date(1),
-                    event: AmbientEvent(kind: .network, value: "unsatisfied"),
+                    event: AmbientEvent(kind: .network, value: ["status": "unsatisfied"]),
                     scopes: [scope.id],
                 ),
                 LogRecord(
@@ -123,7 +123,7 @@ struct PeriscopeStoreJournalIngestTests {
         let recovered = try #require(events.first { $0.message == "died while offline" })
         let snapshotID = try #require(recovered.ambientSnapshotID)
         let snapshot = try await store.ambientSnapshot(for: snapshotID)
-        #expect(snapshot?[.network] == "unsatisfied")
+        #expect(snapshot?[.network] == ["status": "unsatisfied"])
     }
 
     @Test func alreadyDeliveredRecordsAreNotDuplicated() async throws {

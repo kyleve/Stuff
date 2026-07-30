@@ -14,7 +14,7 @@
             // so this must not stick to every later record's snapshot.
             AmbientEvent(
                 kind: .memory,
-                value: "warning",
+                value: ["pressure": .string("warning")],
                 level: .warning,
                 reporting: .occurrence,
             )

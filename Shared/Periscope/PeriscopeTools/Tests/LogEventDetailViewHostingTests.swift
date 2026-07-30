@@ -14,7 +14,7 @@ struct LogEventDetailViewHostingTests {
         let (store, _, _, album) = try await makeSeededStore()
         let offline = AmbientSnapshot(
             id: UUID(),
-            values: [.network: "unsatisfied", .powerMode: "low-power"],
+            values: [.network: ["status": "unsatisfied"], .powerMode: ["low-power": true]],
         )
         await store.write([
             makeRecord("failed", level: .error, date: date(1), scopes: [album.id])
