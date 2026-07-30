@@ -205,3 +205,33 @@ extension RegionsSnippetView {
             .whereBroadwayRoot()
     }
 #endif
+
+#if DEBUG
+    extension DaysInRegionSnippetView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            DaysInRegionSnippetView.self,
+            title: "Days in Region Snippet",
+            viewport: .fixed(CGSize(width: 360, height: 150)),
+            navigationContainer: .none,
+        ) { _ in
+            DaysInRegionSnippetView(
+                snapshot: DaysInRegionSnapshot(
+                    region: .california,
+                    year: PreviewSupport.year,
+                    dayCount: 132,
+                ),
+            )
+        }
+    }
+
+    extension RegionsSnippetView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            RegionsSnippetView.self,
+            title: "Regions Snippet",
+            viewport: .fixed(CGSize(width: 360, height: 190)),
+            navigationContainer: .none,
+        ) { _ in
+            RegionsSnippetView.today(regions: [.california, .newYork])
+        }
+    }
+#endif

@@ -389,3 +389,12 @@ private struct LegendGroup: Identifiable {
         RegionMapView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension RegionMapView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            RegionMapView.self,
+            title: "Region Map",
+        )
+    }
+#endif

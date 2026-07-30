@@ -109,3 +109,32 @@ struct AbruptChangeDetailView: View {
         }
     }
 #endif
+
+#if DEBUG
+    extension AbruptChangeDetailView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            AbruptChangeDetailView.self,
+            title: "Abrupt Change",
+            routes: [
+                .push(to: DayRelabelView.flyoverID),
+            ],
+        ) { world in
+            AbruptChangeDetailView(
+                issue: AbruptChangeIssue(
+                    earlierDay: DayPresence(
+                        date: PreviewSupport.referenceNow,
+                        in: world.report.calendar,
+                        regions: [.california],
+                    ),
+                    laterDay: DayPresence(
+                        date: PreviewSupport.referenceNow.addingTimeInterval(86400),
+                        in: world.report.calendar,
+                        regions: [.newYork],
+                    ),
+                ),
+                report: world.report,
+                resolve: PreviewSupport.resolveModel(),
+            )
+        }
+    }
+#endif

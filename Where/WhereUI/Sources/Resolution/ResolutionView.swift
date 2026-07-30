@@ -237,3 +237,18 @@ private struct IssueRow: View {
         ResolutionView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension ResolutionView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            ResolutionView.self,
+            title: "Resolve",
+            routes: [
+                .push(to: ManualDayView.flyoverID),
+                .push(to: DayRelabelView.flyoverID),
+                .push(to: AbruptChangeDetailView.flyoverID),
+                .push(to: FlightDayDetailView.flyoverID),
+            ],
+        )
+    }
+#endif

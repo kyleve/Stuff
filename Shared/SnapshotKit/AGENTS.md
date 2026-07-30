@@ -30,6 +30,9 @@ Complements the root [`AGENTS.md`](../../AGENTS.md) — read that first.
 - **`.accessibility` configs are preview-filtered.** `snapshotPreviews` drops
   them because VoiceOver annotations require the test-only library; they only
   render as snapshot tests. Don't "fix" previews to include them.
+- **`SnapshotCase` content builders stay lazy.** Constructing a provider's
+  descriptor array must not instantiate every view or model; each content
+  access creates the independent value rendered by that configuration.
 - **`\.isCapturingSnapshot` is for motion end-states only.** A view may read
   it only to freeze motion at a deterministic phase — never to change layout,
   content, or behavior. The one carve-out (documented on the property):

@@ -139,3 +139,14 @@ public struct TodayWidgetView: View {
         TodayWidgetView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension TodayWidgetView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            TodayWidgetView.self,
+            title: "Today Widget",
+            viewport: .fixed(CGSize(width: 338, height: 158)),
+            navigationContainer: .none,
+        )
+    }
+#endif

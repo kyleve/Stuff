@@ -160,3 +160,15 @@ private struct DayRow: View {
         RegionDaysView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension RegionDaysView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            RegionDaysView.self,
+            title: "Region Days",
+            routes: [
+                .push(to: DayRelabelView.flyoverID),
+            ],
+        )
+    }
+#endif

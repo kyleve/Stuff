@@ -81,3 +81,12 @@ struct LicenseView: View {
         LicenseView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension LicenseView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            LicenseView.self,
+            title: "License",
+        )
+    }
+#endif
