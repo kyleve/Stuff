@@ -177,3 +177,12 @@ struct RecentActivitySummaryView: View {
         RecentActivitySummaryView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension RecentActivitySummaryView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            RecentActivitySummaryView.self,
+            title: "Recent Activity",
+        )
+    }
+#endif

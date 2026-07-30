@@ -234,3 +234,14 @@ extension BackupSettingsView: SettingsSection {
         .whereBroadwayRoot()
     }
 #endif
+
+#if DEBUG
+    extension BackupSettingsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            BackupSettingsView.self,
+            title: "Backup",
+        ) { world in
+            BackupSettingsView(backup: world.backup)
+        }
+    }
+#endif

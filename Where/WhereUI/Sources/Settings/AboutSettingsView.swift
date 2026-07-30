@@ -279,3 +279,15 @@ extension AboutSettingsView: SettingsSection {
         AboutSettingsView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension AboutSettingsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            AboutSettingsView.self,
+            title: "About",
+            routes: [
+                .push(to: LicenseView.flyoverID),
+            ],
+        )
+    }
+#endif

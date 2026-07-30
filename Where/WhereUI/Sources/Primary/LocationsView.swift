@@ -251,3 +251,42 @@ private struct ResolveToolbarLabel: View {
         LocationsView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension LocationsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData(
+            LocationsView.self,
+            routes: [
+                .push(to: CalendarContentView.flyoverID),
+                .push(to: ElsewhereView.flyoverID),
+                .modal(to: ResolutionView.flyoverID),
+            ],
+        ) { id, world in
+            let state = WhereFlyoverLocationsState(report: world.report)
+            return .init(
+                id: id,
+                title: "Locations",
+                navigationContainer: .none,
+                variants: [
+                    WhereFlyoverData.hostedVariant(
+                        id: "demo",
+                        title: "Demo data",
+                        world: world,
+                    ) {
+                        LocationsView(report: state.report)
+                    },
+                    WhereFlyoverData.hostedVariant(
+                        id: "empty",
+                        title: "Empty",
+                        world: world,
+                    ) {
+                        LocationsView(report: PreviewSupport.emptyYearReportModel())
+                    },
+                ],
+                reset: state.reset,
+            ) {
+                WhereFlyoverLocationsControls(state: state)
+            }
+        }
+    }
+#endif

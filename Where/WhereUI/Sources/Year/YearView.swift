@@ -156,3 +156,36 @@ private struct YearModePicker: View {
         YearView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension YearView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData(
+            YearView.self,
+            routes: [
+                .modal(to: RecentActivitySummaryView.flyoverID),
+            ],
+        ) { id, world in
+            .init(
+                id: id,
+                title: "Your Year",
+                navigationContainer: .none,
+                variants: [
+                    WhereFlyoverData.hostedVariant(
+                        id: "calendar",
+                        title: "Calendar",
+                        world: world,
+                    ) {
+                        YearView(report: world.report, initialMode: .calendar)
+                    },
+                    WhereFlyoverData.hostedVariant(
+                        id: "timeline",
+                        title: "Timeline",
+                        world: world,
+                    ) {
+                        YearView(report: world.report, initialMode: .timeline)
+                    },
+                ],
+            )
+        }
+    }
+#endif

@@ -139,11 +139,12 @@ Present Flyover outside the app's ambient `NavigationStack`, such as from a
 several nested screen stacks into an ancestor stack; a separate presentation
 domain keeps that chrome local to each frame.
 
-Registration is explicit in version one. Swift macros cannot discover all
-conformers or navigation destinations across a module, and a generated source
-scan would add build ordering and cache invalidation complexity. The typed
-catalog is searchable, reviewable, and can be completeness-tested against a
-`CaseIterable` app screen enum.
+Registration is explicit in version one. Apps should colocate each screen's
+typed registration and outgoing routes beside the represented view, then keep
+their central catalog limited to grouping and assembly. Swift macros cannot
+discover all conformers or navigation destinations across a module, and a
+generated source scan would add build ordering and cache invalidation
+complexity.
 
 ## Testing
 

@@ -1,50 +1,37 @@
 #if DEBUG
-    /// Every top-level/renderable WhereUI surface registered in Flyover.
-    enum WhereFlyoverScreenID: String, CaseIterable, Hashable {
-        case launch
-        case onboarding
-        case regionPicker
-        case regionCustomize
-        case locations
-        case regionCalendar
-        case elsewhere
-        case regionDays
-        case resolution
-        case manualDay
-        case dayRelabel
-        case abruptChange
-        case flightDay
-        case year
-        case calendar
-        case timeline
-        case recentActivity
-        case settings
-        case evidenceList
-        case evidenceDetail
-        case addEvidence
-        case loggedDays
-        case regions
-        case locationSettings
-        case alertsSettings
-        case appearanceSettings
-        case appIcon
-        case visibleYear
-        case backup
-        case dataSettings
-        case about
-        case license
-        case developerOverlay
-        case developerTools
-        case logs
-        case openSpans
-        case swiftDataInspector
-        case regionMap
-        case todayWidget
-        case todayInline
-        case todayCircular
-        case yearTotalsWidget
-        case yearTotalsRectangular
-        case daysSnippet
-        case regionsSnippet
+    /// Session-only Flyover identity derived from the represented screen type.
+    struct WhereFlyoverScreenID: Hashable, CustomStringConvertible {
+        private let value: Value
+        private let typeName: String
+
+        init(_ screenType: Any.Type) {
+            value = .screen(ObjectIdentifier(screenType))
+            typeName = String(reflecting: screenType)
+        }
+
+        init(_ screenType: Any.Type, in contextType: Any.Type) {
+            value = .contextual(
+                screen: ObjectIdentifier(screenType),
+                context: ObjectIdentifier(contextType),
+            )
+            typeName = "\(String(reflecting: screenType)) in \(String(reflecting: contextType))"
+        }
+
+        var description: String {
+            typeName
+        }
+
+        static func == (lhs: Self, rhs: Self) -> Bool {
+            lhs.value == rhs.value
+        }
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(value)
+        }
+
+        private enum Value: Hashable {
+            case screen(ObjectIdentifier)
+            case contextual(screen: ObjectIdentifier, context: ObjectIdentifier)
+        }
     }
 #endif

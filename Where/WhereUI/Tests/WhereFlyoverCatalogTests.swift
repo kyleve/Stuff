@@ -4,14 +4,16 @@
 
     @MainActor
     struct WhereFlyoverCatalogTests {
-        @Test func registersEveryDeclaredScreenExactlyOnce() async throws {
+        @Test func assemblesEveryColocatedRegistrationExactlyOnce() async throws {
             let world = try await WhereFlyoverWorld.build()
             let catalog = WhereFlyoverCatalog.make(world: world)
             let registered = catalog.screens.map(\.id)
+            let declared = WhereFlyoverCatalog.registrations.map(\.id)
 
             #expect(catalog.isValid)
-            #expect(Set(registered) == Set(WhereFlyoverScreenID.allCases))
-            #expect(registered.count == WhereFlyoverScreenID.allCases.count)
+            #expect(Set(registered) == Set(declared))
+            #expect(registered.count == declared.count)
+            #expect(declared.count == Set(declared).count)
         }
 
         @Test func recordsOnlyForwardPushAndModalRoutes() async throws {

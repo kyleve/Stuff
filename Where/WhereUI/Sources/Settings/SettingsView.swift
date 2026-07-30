@@ -281,3 +281,27 @@ struct SettingsView: View {
         SettingsView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension SettingsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            SettingsView.self,
+            title: "Settings",
+            navigationContainer: .none,
+            routes: [
+                .push(to: EvidenceListView.flyoverID),
+                .push(to: LoggedDaysView.flyoverID),
+                .modal(to: RegionsSettingsView.flyoverID),
+                .push(to: LocationSettingsView.flyoverID),
+                .push(to: AlertsSettingsView.flyoverID),
+                .push(to: AppearanceSettingsView.flyoverID),
+                .push(to: VisibleYearSettingsView.flyoverID),
+                .push(to: BackupSettingsView.flyoverID),
+                .push(to: DataSettingsView.flyoverID),
+                .push(to: AboutSettingsView.flyoverID),
+            ],
+        ) { world in
+            SettingsView(report: world.report)
+        }
+    }
+#endif

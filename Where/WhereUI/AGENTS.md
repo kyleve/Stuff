@@ -16,11 +16,16 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
-- Flyover integration stays under `#if DEBUG` in
-  [`Sources/Developer/Flyover`](Sources/Developer/Flyover): it may import the
-  app-agnostic `Flyover` module, build one unactivated in-memory `WhereScope`,
-  and register WhereUI screens. The shared Flyover module must never import
-  WhereUI.
+- Flyover infrastructure stays under `#if DEBUG` in
+  [`Sources/Developer/Flyover`](Sources/Developer/Flyover), while each
+  represented screen declares a DEBUG-only `WhereFlyoverProviding` extension
+  in its own source file. The integration may import the app-agnostic
+  `Flyover` module and build one unactivated in-memory `WhereScope`; the shared
+  module must never import WhereUI.
+- Derive `WhereFlyoverScreenID` from the represented view type, and keep that
+  screen's variants, viewport/navigation settings, and outgoing routes in its
+  colocated registration; never restore a centralized screen enum or catalog
+  factory methods.
 - Construct and retain the Where Flyover catalog once after its world loads;
   never rebuild fixture state from a SwiftUI `body`.
 - Present Where Flyover from Developer Tools with `fullScreenCover`, outside
@@ -90,10 +95,11 @@ glue and `whereBroadwayRoot()` seeding, including the WhereWidgets path.
 Adding, renaming, or retuning a token means updating those assertions in the
 same change.
 
-`WhereFlyoverCatalogTests` pins catalog completeness against the exhaustive
-`WhereFlyoverScreenID`; add a case and registration together for every new
-top-level screen. Flyover frames share one `WhereFlyoverWorld`; synthetic
-preview models are reserved for states the seeded demo cannot express.
+`WhereFlyoverCatalogTests` pins the catalog against the colocated registrations
+assembled by `WhereFlyoverCatalog`; add a registration beside every new
+top-level screen and list its type in the appropriate catalog group. Flyover
+frames share one `WhereFlyoverWorld`; synthetic preview models are reserved for
+states the seeded demo cannot express.
 
 Screens, widgets, and app-flow surfaces are pinned as matrixed image
 snapshots under [`SnapshotTests/`](SnapshotTests) — those, not hosting smoke

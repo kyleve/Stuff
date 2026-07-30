@@ -17,6 +17,16 @@
         }
     }
 
+    extension WhereFlyoverSwiftDataView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            WhereFlyoverSwiftDataView.self,
+            title: "SwiftData Inspector",
+            navigationContainer: .none,
+        ) { world in
+            WhereFlyoverSwiftDataView(world: world)
+        }
+    }
+
     #Preview {
         WhereFlyoverSwiftDataView(world: .preview())
     }

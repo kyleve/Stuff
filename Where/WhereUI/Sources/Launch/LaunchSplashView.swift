@@ -296,3 +296,13 @@ extension TimelineViewDefaultContext {
         LaunchSplashView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension LaunchSplashView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            LaunchSplashView.self,
+            title: "Launch",
+            navigationContainer: .none,
+        )
+    }
+#endif

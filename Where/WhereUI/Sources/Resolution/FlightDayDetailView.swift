@@ -197,3 +197,15 @@ struct FlightDayDetailView: View {
         FlightDayDetailView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension FlightDayDetailView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            FlightDayDetailView.self,
+            title: "Flight Day",
+            routes: [
+                .push(to: DayRelabelView.flyoverID),
+            ],
+        )
+    }
+#endif

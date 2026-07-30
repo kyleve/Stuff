@@ -402,3 +402,13 @@
         DeveloperOverlay.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension DeveloperOverlay: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            DeveloperOverlay.self,
+            title: "Developer Overlay",
+            navigationContainer: .none,
+        )
+    }
+#endif

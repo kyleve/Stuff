@@ -15,6 +15,15 @@
         }
     }
 
+    extension WhereFlyoverLogView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            WhereFlyoverLogView.self,
+            title: "Logs",
+        ) { world in
+            WhereFlyoverLogView(world: world)
+        }
+    }
+
     #Preview {
         WhereFlyoverLogView(world: .preview())
     }

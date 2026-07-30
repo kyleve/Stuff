@@ -293,3 +293,36 @@ private struct RegionPickerRow: View {
             .whereBroadwayRoot()
     }
 #endif
+
+#if DEBUG
+    extension RegionPickerView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData(RegionPickerView.self) { id, world in
+            .init(
+                id: id,
+                title: "Region Picker",
+                variants: [
+                    WhereFlyoverData.hostedVariant(
+                        id: "list",
+                        title: "List",
+                        world: world,
+                    ) {
+                        RegionPickerView(
+                            model: PreviewSupport.primaryRegionSelectionModel(),
+                            initialMode: .list,
+                        )
+                    },
+                    WhereFlyoverData.hostedVariant(
+                        id: "map",
+                        title: "Map",
+                        world: world,
+                    ) {
+                        RegionPickerView(
+                            model: PreviewSupport.primaryRegionSelectionModel(),
+                            initialMode: .map,
+                        )
+                    },
+                ],
+            )
+        }
+    }
+#endif

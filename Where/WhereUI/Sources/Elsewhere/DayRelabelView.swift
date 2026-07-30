@@ -298,3 +298,12 @@ struct DayRelabelView: View {
         DayRelabelView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension DayRelabelView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            DayRelabelView.self,
+            title: "Relabel Day",
+        )
+    }
+#endif

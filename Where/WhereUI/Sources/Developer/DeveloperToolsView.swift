@@ -137,3 +137,21 @@
         DeveloperToolsView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension DeveloperToolsView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.hosted(
+            DeveloperToolsView.self,
+            title: "Developer Tools",
+            navigationContainer: .none,
+            routes: [
+                .push(to: WhereFlyoverLogView.flyoverID),
+                .push(to: OpenSpansView.flyoverID),
+                .push(to: WhereFlyoverSwiftDataView.flyoverID),
+                .push(to: RegionMapView.flyoverID),
+            ],
+        ) { _ in
+            DeveloperToolsView()
+        }
+    }
+#endif

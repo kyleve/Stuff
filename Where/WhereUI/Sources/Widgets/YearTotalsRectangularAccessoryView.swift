@@ -81,3 +81,14 @@ public struct YearTotalsRectangularAccessoryView: View {
         YearTotalsRectangularAccessoryView.snapshotPreviews
     }
 #endif
+
+#if DEBUG
+    extension YearTotalsRectangularAccessoryView: WhereFlyoverProviding {
+        static let flyoverData = WhereFlyoverData.snapshots(
+            YearTotalsRectangularAccessoryView.self,
+            title: "Year Totals Rectangular",
+            viewport: .fixed(CGSize(width: 338, height: 76)),
+            navigationContainer: .none,
+        )
+    }
+#endif

@@ -14,7 +14,7 @@
                 return
             }
             #expect(catalog.isValid)
-            #expect(catalog.screens.count == WhereFlyoverScreenID.allCases.count)
+            #expect(catalog.screens.count == WhereFlyoverCatalog.registrations.count)
         }
     }
 #endif
