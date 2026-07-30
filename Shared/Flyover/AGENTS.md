@@ -21,6 +21,9 @@ conventions.
   build scripts, or macros without revisiting the API and build-cost tradeoff.
 - Overview screen content is inert. Native interaction is enabled only in the
   focused inspector; per-frame controls remain interactive in both modes.
+- Every screen receives an isolated `NavigationStack` by default so navigation
+  preferences cannot escape its frame; `.none` is only for self-contained
+  navigation roots and non-screen surfaces.
 - Variant content builders stay lazy; catalog construction must not instantiate
   off-screen views or their models.
 - Canvas loading follows the viewport and keeps at most six automatic screen

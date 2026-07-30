@@ -78,8 +78,11 @@ FlyoverView(catalog: catalog)
 
 - `FlyoverCatalog` owns groups and forward transitions.
 - `FlyoverGroup` gives a cluster a title and graph root.
-- `FlyoverScreen` owns a viewport, optional grid override, variants, controls,
-  and reset action.
+- `FlyoverScreen` owns a viewport, optional grid override, navigation
+  containment, variants, controls, and reset action. Screens receive an isolated
+  `NavigationStack` by default so titles, toolbars, and destinations stay inside
+  their frame; use `.none` only for content that owns its navigation root or is
+  not a screen, such as a widget.
 - `FlyoverVariant` stores lazy overview and focused content builders. The common
   initializer supplies the same builder to both; a second initializer allows
   an optimized overview and fully interactive focused view. Existing

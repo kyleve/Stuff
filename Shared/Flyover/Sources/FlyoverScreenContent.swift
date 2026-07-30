@@ -22,7 +22,14 @@ struct FlyoverScreenContent<ScreenID: Hashable>: View {
 
         Group {
             if let content {
-                content
+                switch screen.navigationContainer {
+                    case .stack:
+                        NavigationStack {
+                            content
+                        }
+                    case .none:
+                        content
+                }
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)

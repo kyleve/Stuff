@@ -23,6 +23,8 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   WhereUI.
 - Construct and retain the Where Flyover catalog once after its world loads;
   never rebuild fixture state from a SwiftUI `body`.
+- Register leaf screens against Flyover's default navigation container; use
+  `.none` only for views that own their root stack and for widgets/snippets.
 - Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI
   and must **not** link `BroadwayUI`/`BroadwayCore` themselves (root
   [double-link rule](../../AGENTS.md#never-double-link-a-product-whereui-already-carries));

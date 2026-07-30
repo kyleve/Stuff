@@ -221,10 +221,13 @@ controls can mutate only their own observable fixture—for example, Locations
 can show or hide its Resolve toolbar item—and Reset restores that fixture.
 
 Overview frames ignore hit testing so embedded navigation containers cannot
-fight the canvas. Selecting the inspect button opens the same screen in a
-full-screen interactive viewport. Flyover's appearance, device, Dynamic Type,
-contrast, layout-direction, and bold-text choices are session-only and apply
-only to registered content.
+fight the canvas. Leaf screens receive an isolated navigation stack so their
+titles, toolbar items, and destinations render inside the frame rather than
+escaping into the Developer Tools stack; app roots, widgets, and snippets opt
+out. Selecting the inspect button opens the same screen in a full-screen
+interactive viewport. Flyover's appearance, device, Dynamic Type, contrast,
+layout-direction, and bold-text choices are session-only and apply only to
+registered content.
 
 ## Testing
 

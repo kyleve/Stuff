@@ -7,6 +7,7 @@ public struct FlyoverScreen<ScreenID: Hashable> {
     public let title: String
     public let viewport: FlyoverViewport
     public let position: FlyoverPosition?
+    public let navigationContainer: FlyoverNavigationContainer
     public let variants: [FlyoverVariant]
     public let controls: [FlyoverControl]
     let customControls: AnyView?
@@ -17,6 +18,7 @@ public struct FlyoverScreen<ScreenID: Hashable> {
         title: String,
         viewport: FlyoverViewport = .device,
         position: FlyoverPosition? = nil,
+        navigationContainer: FlyoverNavigationContainer = .stack,
         variants: [FlyoverVariant],
         controls: [FlyoverControl] = [],
         reset: @escaping @MainActor () -> Void = {},
@@ -27,6 +29,7 @@ public struct FlyoverScreen<ScreenID: Hashable> {
         self.title = title
         self.viewport = viewport
         self.position = position
+        self.navigationContainer = navigationContainer
         self.variants = variants
         self.controls = controls
         self.customControls = AnyView(customControls())
@@ -38,6 +41,7 @@ public struct FlyoverScreen<ScreenID: Hashable> {
         title: String,
         viewport: FlyoverViewport = .device,
         position: FlyoverPosition? = nil,
+        navigationContainer: FlyoverNavigationContainer = .stack,
         variants: [FlyoverVariant],
         controls: [FlyoverControl] = [],
         reset: @escaping @MainActor () -> Void = {},
@@ -47,6 +51,7 @@ public struct FlyoverScreen<ScreenID: Hashable> {
         self.title = title
         self.viewport = viewport
         self.position = position
+        self.navigationContainer = navigationContainer
         self.variants = variants
         self.controls = controls
         customControls = nil

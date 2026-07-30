@@ -35,8 +35,18 @@
                 title: "App flows",
                 root: .locations,
                 screens: [
-                    snapshotScreen(.launch, title: "Launch", provider: LaunchSplashView.self),
-                    snapshotScreen(.onboarding, title: "Onboarding", provider: OnboardingView.self),
+                    snapshotScreen(
+                        .launch,
+                        title: "Launch",
+                        navigationContainer: .none,
+                        provider: LaunchSplashView.self,
+                    ),
+                    snapshotScreen(
+                        .onboarding,
+                        title: "Onboarding",
+                        navigationContainer: .none,
+                        provider: OnboardingView.self,
+                    ),
                     regionPickerScreen(world: world),
                     regionCustomizeScreen(world: world),
                     locationsScreen(world: world, state: locationsState),
@@ -100,7 +110,12 @@
                 title: "Settings",
                 root: .settings,
                 screens: [
-                    hostedScreen(.settings, title: "Settings", world: world) {
+                    hostedScreen(
+                        .settings,
+                        title: "Settings",
+                        world: world,
+                        navigationContainer: .none,
+                    ) {
                         SettingsView(report: world.report)
                     },
                     evidenceListScreen(world: world),
@@ -123,30 +138,24 @@
                         title: "Location Settings",
                         world: world,
                     ) {
-                        NavigationStack {
-                            LocationSettingsView()
-                        }
+                        LocationSettingsView()
                     },
                     hostedScreen(
                         .alertsSettings,
                         title: "Alerts Settings",
                         world: world,
                     ) {
-                        NavigationStack {
-                            AlertsSettingsView(
-                                report: world.report,
-                                reminders: world.reminders,
-                            )
-                        }
+                        AlertsSettingsView(
+                            report: world.report,
+                            reminders: world.reminders,
+                        )
                     },
                     hostedScreen(
                         .appearanceSettings,
                         title: "Appearance Settings",
                         world: world,
                     ) {
-                        NavigationStack {
-                            AppearanceSettingsView()
-                        }
+                        AppearanceSettingsView()
                     },
                     snapshotScreen(.appIcon, title: "App Icon", provider: AppIconView.self),
                     hostedScreen(
@@ -154,19 +163,13 @@
                         title: "Visible Year",
                         world: world,
                     ) {
-                        NavigationStack {
-                            VisibleYearSettingsView(report: world.report)
-                        }
+                        VisibleYearSettingsView(report: world.report)
                     },
                     hostedScreen(.backup, title: "Backup", world: world) {
-                        NavigationStack {
-                            BackupSettingsView(backup: world.backup)
-                        }
+                        BackupSettingsView(backup: world.backup)
                     },
                     hostedScreen(.dataSettings, title: "Data", world: world) {
-                        NavigationStack {
-                            DataSettingsView(report: world.report)
-                        }
+                        DataSettingsView(report: world.report)
                     },
                     snapshotScreen(
                         .about,
@@ -193,12 +196,14 @@
                     snapshotScreen(
                         .developerOverlay,
                         title: "Developer Overlay",
+                        navigationContainer: .none,
                         provider: DeveloperOverlay.self,
                     ),
                     hostedScreen(
                         .developerTools,
                         title: "Developer Tools",
                         world: world,
+                        navigationContainer: .none,
                     ) {
                         DeveloperToolsView()
                     },
@@ -206,14 +211,13 @@
                         WhereFlyoverLogView(world: world)
                     },
                     hostedScreen(.openSpans, title: "Open Spans", world: world) {
-                        NavigationStack {
-                            OpenSpansView(system: .shared)
-                        }
+                        OpenSpansView(system: .shared)
                     },
                     hostedScreen(
                         .swiftDataInspector,
                         title: "SwiftData Inspector",
                         world: world,
+                        navigationContainer: .none,
                     ) {
                         WhereFlyoverSwiftDataView(world: world)
                     },
@@ -236,30 +240,35 @@
                         .todayWidget,
                         title: "Today Widget",
                         viewport: .fixed(CGSize(width: 338, height: 158)),
+                        navigationContainer: .none,
                         provider: TodayWidgetView.self,
                     ),
                     snapshotScreen(
                         .todayInline,
                         title: "Today Inline",
                         viewport: .fixed(CGSize(width: 338, height: 60)),
+                        navigationContainer: .none,
                         provider: TodayInlineAccessoryView.self,
                     ),
                     snapshotScreen(
                         .todayCircular,
                         title: "Today Circular",
                         viewport: .fixed(CGSize(width: 76, height: 76)),
+                        navigationContainer: .none,
                         provider: TodayCircularAccessoryView.self,
                     ),
                     snapshotScreen(
                         .yearTotalsWidget,
                         title: "Year Totals Widget",
                         viewport: .fixed(CGSize(width: 338, height: 158)),
+                        navigationContainer: .none,
                         provider: YearTotalsWidgetView.self,
                     ),
                     snapshotScreen(
                         .yearTotalsRectangular,
                         title: "Year Totals Rectangular",
                         viewport: .fixed(CGSize(width: 338, height: 76)),
+                        navigationContainer: .none,
                         provider: YearTotalsRectangularAccessoryView.self,
                     ),
                 ],
@@ -279,6 +288,7 @@
                         title: "Days in Region Snippet",
                         world: world,
                         viewport: .fixed(CGSize(width: 360, height: 150)),
+                        navigationContainer: .none,
                     ) {
                         DaysInRegionSnippetView(
                             snapshot: DaysInRegionSnapshot(
@@ -293,6 +303,7 @@
                         title: "Regions Snippet",
                         world: world,
                         viewport: .fixed(CGSize(width: 360, height: 190)),
+                        navigationContainer: .none,
                     ) {
                         RegionsSnippetView.today(regions: [.california, .newYork])
                     },
@@ -307,6 +318,7 @@
             FlyoverScreen(
                 id: .locations,
                 title: "Locations",
+                navigationContainer: .none,
                 variants: [
                     hostedVariant(id: "demo", title: "Demo data", world: world) {
                         LocationsView(report: state.report)
@@ -327,6 +339,7 @@
             FlyoverScreen(
                 id: .year,
                 title: "Your Year",
+                navigationContainer: .none,
                 variants: [
                     hostedVariant(id: "calendar", title: "Calendar", world: world) {
                         YearView(report: world.report, initialMode: .calendar)
@@ -369,11 +382,9 @@
                 title: "Customize Regions",
                 world: world,
             ) {
-                NavigationStack {
-                    RegionCustomizeView(
-                        model: PreviewSupport.primaryRegionSelectionModel(),
-                    )
-                }
+                RegionCustomizeView(
+                    model: PreviewSupport.primaryRegionSelectionModel(),
+                )
             }
         }
 
@@ -381,24 +392,22 @@
             world: WhereFlyoverWorld,
         ) -> FlyoverScreen<WhereFlyoverScreenID> {
             hostedScreen(.abruptChange, title: "Abrupt Change", world: world) {
-                NavigationStack {
-                    AbruptChangeDetailView(
-                        issue: AbruptChangeIssue(
-                            earlierDay: DayPresence(
-                                date: PreviewSupport.referenceNow,
-                                in: world.report.calendar,
-                                regions: [.california],
-                            ),
-                            laterDay: DayPresence(
-                                date: PreviewSupport.referenceNow.addingTimeInterval(86400),
-                                in: world.report.calendar,
-                                regions: [.newYork],
-                            ),
+                AbruptChangeDetailView(
+                    issue: AbruptChangeIssue(
+                        earlierDay: DayPresence(
+                            date: PreviewSupport.referenceNow,
+                            in: world.report.calendar,
+                            regions: [.california],
                         ),
-                        report: world.report,
-                        resolve: PreviewSupport.resolveModel(),
-                    )
-                }
+                        laterDay: DayPresence(
+                            date: PreviewSupport.referenceNow.addingTimeInterval(86400),
+                            in: world.report.calendar,
+                            regions: [.newYork],
+                        ),
+                    ),
+                    report: world.report,
+                    resolve: PreviewSupport.resolveModel(),
+                )
             }
         }
 
@@ -410,32 +419,26 @@
                 title: "Evidence",
                 variants: [
                     hostedVariant(id: "loaded", title: "Loaded", world: world) {
-                        NavigationStack {
-                            EvidenceListView(
-                                report: world.report,
-                                model: PreviewSupport.evidenceListModel(
-                                    state: .loaded(PreviewSupport.sampleEvidence()),
-                                ),
-                            )
-                        }
+                        EvidenceListView(
+                            report: world.report,
+                            model: PreviewSupport.evidenceListModel(
+                                state: .loaded(PreviewSupport.sampleEvidence()),
+                            ),
+                        )
                     },
                     hostedVariant(id: "empty", title: "Empty", world: world) {
-                        NavigationStack {
-                            EvidenceListView(
-                                report: world.report,
-                                model: PreviewSupport.evidenceListModel(state: .empty),
-                            )
-                        }
+                        EvidenceListView(
+                            report: world.report,
+                            model: PreviewSupport.evidenceListModel(state: .empty),
+                        )
                     },
                     hostedVariant(id: "failed", title: "Failed", world: world) {
-                        NavigationStack {
-                            EvidenceListView(
-                                report: world.report,
-                                model: PreviewSupport.evidenceListModel(
-                                    state: .failed("The attachment index is unavailable."),
-                                ),
-                            )
-                        }
+                        EvidenceListView(
+                            report: world.report,
+                            model: PreviewSupport.evidenceListModel(
+                                state: .failed("The attachment index is unavailable."),
+                            ),
+                        )
                     },
                 ],
             )
@@ -445,13 +448,11 @@
             world: WhereFlyoverWorld,
         ) -> FlyoverScreen<WhereFlyoverScreenID> {
             hostedScreen(.evidenceDetail, title: "Evidence Detail", world: world) {
-                NavigationStack {
-                    EvidenceDetailView(model: PreviewSupport.evidenceDetailModel(
-                        kind: .planeTicket,
-                        contentType: .plainText,
-                        blob: Data("SFO → JFK · 14C".utf8),
-                    ))
-                }
+                EvidenceDetailView(model: PreviewSupport.evidenceDetailModel(
+                    kind: .planeTicket,
+                    contentType: .plainText,
+                    blob: Data("SFO → JFK · 14C".utf8),
+                ))
             }
         }
 
@@ -467,12 +468,14 @@
             _ id: WhereFlyoverScreenID,
             title: String,
             viewport: FlyoverViewport = .device,
+            navigationContainer: FlyoverNavigationContainer = .stack,
             provider _: Provider.Type,
         ) -> FlyoverScreen<WhereFlyoverScreenID> {
             FlyoverScreen(
                 id: id,
                 title: title,
                 viewport: viewport,
+                navigationContainer: navigationContainer,
                 variants: Provider.snapshots.enumerated().map { index, snapshotCase in
                     FlyoverVariant(
                         id: FlyoverVariantID("\(id.rawValue).\(index)"),
@@ -487,12 +490,14 @@
             title: String,
             world: WhereFlyoverWorld,
             viewport: FlyoverViewport = .device,
+            navigationContainer: FlyoverNavigationContainer = .stack,
             @ViewBuilder content: @escaping @MainActor () -> some View,
         ) -> FlyoverScreen<WhereFlyoverScreenID> {
             FlyoverScreen(
                 id: id,
                 title: title,
                 viewport: viewport,
+                navigationContainer: navigationContainer,
                 variants: [
                     hostedVariant(id: "default", title: "Default", world: world, content: content),
                 ],

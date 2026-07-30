@@ -61,6 +61,7 @@ struct FlyoverSnapshotTests {
                             id: .widget,
                             title: "Widget",
                             viewport: .fixed(CGSize(width: 338, height: 158)),
+                            navigationContainer: .none,
                             variants: [
                                 FlyoverVariant(
                                     id: FlyoverVariantID("default"),
@@ -97,20 +98,23 @@ struct FlyoverSnapshotTests {
                     id: FlyoverVariantID("populated"),
                     title: "Populated",
                 ) {
-                    NavigationStack {
-                        List {
-                            SnapshotCard(
-                                title: title,
-                                subtitle: "Populated state",
-                                color: color,
-                            )
-                            SnapshotCard(
-                                title: "Secondary",
-                                subtitle: "Additional content",
-                                color: color.opacity(0.75),
-                            )
+                    List {
+                        SnapshotCard(
+                            title: title,
+                            subtitle: "Populated state",
+                            color: color,
+                        )
+                        SnapshotCard(
+                            title: "Secondary",
+                            subtitle: "Additional content",
+                            color: color.opacity(0.75),
+                        )
+                    }
+                    .navigationTitle(title)
+                    .toolbar {
+                        ToolbarItem(placement: .primaryAction) {
+                            Button("Add", systemImage: "plus", action: {})
                         }
-                        .navigationTitle(title)
                     }
                 },
                 FlyoverVariant(
