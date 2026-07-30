@@ -115,6 +115,56 @@
             WhereSession(services: previewServices(), preferences: previewPreferences())
         }
 
+        /// Current + left-behind device rows for the Devices screen. The iPad's
+        /// off policy is intentionally unacknowledged so previews pin the
+        /// cross-device "waiting" state as well as the current happy path.
+        public static func recordingDeviceConfigurations() -> [RecordingDeviceConfiguration] {
+            let currentPolicyID = UUID(
+                uuidString: "10000000-0000-0000-0000-000000000001",
+            )!
+            let remoteAppliedPolicyID = UUID(
+                uuidString: "20000000-0000-0000-0000-000000000001",
+            )!
+            let remoteLatestPolicyID = UUID(
+                uuidString: "20000000-0000-0000-0000-000000000002",
+            )!
+            let remoteID = RecordingDeviceID(
+                rawValue: UUID(uuidString: "00000000-0000-0000-0000-000000000002")!,
+            )
+            return [
+                RecordingDeviceConfiguration(
+                    device: RecordingDevice(
+                        id: CurrentRecordingDevice.preview.id,
+                        systemName: "iPhone",
+                        nickname: "My iPhone",
+                        kind: .phone,
+                        registeredAt: referenceNow.addingTimeInterval(-90 * 24 * 60 * 60),
+                        lastSeenAt: referenceNow,
+                        archivedAt: nil,
+                        lastAppliedPolicyChangeID: currentPolicyID,
+                        status: .recording,
+                    ),
+                    isEnabled: true,
+                    latestPolicyChangeID: currentPolicyID,
+                ),
+                RecordingDeviceConfiguration(
+                    device: RecordingDevice(
+                        id: remoteID,
+                        systemName: "iPad",
+                        nickname: "Home iPad",
+                        kind: .tablet,
+                        registeredAt: referenceNow.addingTimeInterval(-60 * 24 * 60 * 60),
+                        lastSeenAt: referenceNow.addingTimeInterval(-2 * 24 * 60 * 60),
+                        archivedAt: nil,
+                        lastAppliedPolicyChangeID: remoteAppliedPolicyID,
+                        status: .recording,
+                    ),
+                    isEnabled: false,
+                    latestPolicyChangeID: remoteLatestPolicyID,
+                ),
+            ]
+        }
+
         // MARK: - Settings models (reminders / backup sub-screens)
 
         /// A reminders/summary editing model over in-memory services, for the

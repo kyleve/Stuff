@@ -298,6 +298,11 @@ public struct OnboardingView: View {
                 gate.fail(error)
                 return
             }
+            // This is also the initial synced policy for a newly registered
+            // installation. “Not Now” must therefore record false explicitly;
+            // leaving the old default true would make the next launch start
+            // recording despite the user's choice.
+            scope.preferences.wantsTracking = enableLocation
             if enableLocation {
                 await enableTracking(in: scope)
             }

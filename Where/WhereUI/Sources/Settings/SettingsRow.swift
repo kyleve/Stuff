@@ -104,13 +104,15 @@ struct SettingsFocusScope<Content: View>: View {
 
 #if DEBUG
     #Preview {
-        SettingsFocusScope(focus: SettingsFocus(LocationSettingsView.Item.tracking)) {
+        SettingsFocusScope(
+            focus: SettingsFocus(DevicesSettingsView.Item.automaticRecording),
+        ) {
             List {
                 Label(
-                    String(localized: .settingsLocationToggle),
+                    String(localized: .settingsDevicesAutomaticRecording),
                     systemImage: "location.fill",
                 )
-                .settingsRow(LocationSettingsView.Item.tracking)
+                .settingsRow(DevicesSettingsView.Item.automaticRecording)
             }
         }
         .whereBroadwayRoot()

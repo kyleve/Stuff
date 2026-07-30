@@ -89,6 +89,22 @@ actor TestStore: WhereStore {
         try await backing.allSamples()
     }
 
+    func recordingDevices() async throws -> [RecordingDevice] {
+        try await backing.recordingDevices()
+    }
+
+    func setRecordingDevice(_ device: RecordingDevice) async throws {
+        try await backing.setRecordingDevice(device)
+    }
+
+    func recordingPolicyChanges() async throws -> [RecordingPolicyChange] {
+        try await backing.recordingPolicyChanges()
+    }
+
+    func addRecordingPolicyChange(_ change: RecordingPolicyChange) async throws {
+        try await backing.addRecordingPolicyChange(change)
+    }
+
     func write(evidence: Evidence, blob: Data?) async throws {
         try await backing.write(evidence: evidence, blob: blob)
     }

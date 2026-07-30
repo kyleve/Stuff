@@ -29,6 +29,7 @@ public actor LocationIngestor {
 
     private let store: any WhereStore
     private let locationSource: any LocationSource
+    private let recordingDeviceID: RecordingDeviceID
     private let calendar: Calendar
     private let onPersisted: PostPersistHook
     /// Durable mirror of `retryQueue`, so a backlog survives the process dying
@@ -89,6 +90,7 @@ public actor LocationIngestor {
     init(
         store: any WhereStore,
         locationSource: any LocationSource,
+        recordingDeviceID: RecordingDeviceID,
         calendar: Calendar,
         outbox: any LocationOutbox = NoOpLocationOutbox(),
         retryQueueCapacity: Int = 1000,
@@ -97,6 +99,7 @@ public actor LocationIngestor {
         precondition(retryQueueCapacity > 0, "retryQueueCapacity must be positive")
         self.store = store
         self.locationSource = locationSource
+        self.recordingDeviceID = recordingDeviceID
         self.calendar = calendar
         self.outbox = outbox
         self.retryQueueCapacity = retryQueueCapacity
@@ -134,7 +137,7 @@ public actor LocationIngestor {
             if !restored.isEmpty {
                 Self.logger { .restoredBacklog(count: restored.count) }
             }
-            retryQueue = restored + retryQueue
+            retryQueue = restored.map { $0.recorded(by: recordingDeviceID) } + retryQueue
         }
         // Flush anything that failed to persist before this session started,
         // before we (re)attach the stream consumer.
@@ -262,8 +265,12 @@ public actor LocationIngestor {
         }
         let interval = DateInterval(start: startOfDay, end: endOfDay)
         do {
-            let existing = try await store.samples(in: interval)
-            if existing.contains(where: \.source.isGPS) { return }
+            let existing = try await LocationHistoryReader(store: store).samples(in: interval)
+            if existing.contains(where: {
+                $0.source.isGPS
+                    && ($0.recordingDeviceID == recordingDeviceID
+                        || $0.recordingDeviceID == nil)
+            }) { return }
         } catch {
             // Fail closed: if today's samples can't be read we skip rather than
             // risk logging a duplicate fix. Surfaced, not silently swallowed.
@@ -324,6 +331,7 @@ public actor LocationIngestor {
     /// failure. Drains any backlog first so a single transient outage doesn't
     /// permanently reorder samples on disk.
     private func processIngestedSample(_ sample: LocationSample) async {
+        let sample = sample.recorded(by: recordingDeviceID)
         let drainedDays = await drainRetryQueue()
         do {
             try await store.perform { try await store.add(sample: sample) }

@@ -14,6 +14,9 @@ public struct ReportReader: Sendable {
     let store: any WhereStore
     let aggregator: DayAggregator
     let attributor: any RegionAttributing
+    private var history: LocationHistoryReader {
+        LocationHistoryReader(store: store)
+    }
 
     /// The half-open date interval covering `year` in the aggregator's calendar.
     func yearInterval(year: Int) -> DateInterval {
@@ -34,7 +37,7 @@ public struct ReportReader: Sendable {
     public func yearReport(for year: Int) async throws -> YearReport {
         try await Self.logger.measure(.yearReport, budget: .seconds(1)) {
             let interval = aggregator.yearInterval(year: year)
-            let samples = try await store.samples(in: interval)
+            let samples = try await history.samples(in: interval)
             let manuals = try await store.manualDays(in: dayRange(for: year))
             return aggregator.report(
                 for: year,
@@ -53,7 +56,7 @@ public struct ReportReader: Sendable {
     /// raw); the `DaySamples` grouping is itself deferred until a detector asks.
     public func dataIssueReads(for year: Int) async throws -> DataIssueReads {
         try await Self.logger.measure(.dataIssueReads, budget: .seconds(2)) {
-            let samples = try await store.samples(in: aggregator.yearInterval(year: year))
+            let samples = try await history.samples(in: aggregator.yearInterval(year: year))
             let manuals = try await store.manualDays(in: dayRange(for: year))
             let report = aggregator.report(
                 for: year,
@@ -92,7 +95,7 @@ public struct ReportReader: Sendable {
     public func locations(in region: Region, year: Int) async throws -> [RegionDayLocations] {
         try await Self.logger.measure(.regionLocations, budget: .seconds(1)) {
             let interval = aggregator.yearInterval(year: year)
-            let samples = try await store.samples(in: interval)
+            let samples = try await history.samples(in: interval)
             return aggregator.locations(in: region, samples: samples, attributor: attributor)
         }
     }
@@ -108,7 +111,7 @@ public struct ReportReader: Sendable {
             guard let end = aggregator.calendar.date(byAdding: .day, value: 1, to: start) else {
                 return [:]
             }
-            let samples = try await store.samples(in: DateInterval(start: start, end: end))
+            let samples = try await history.samples(in: DateInterval(start: start, end: end))
             return aggregator.pointsByRegion(onDay: day, samples: samples, attributor: attributor)
         }
     }
@@ -119,7 +122,7 @@ public struct ReportReader: Sendable {
     public func representativeCoordinates(for year: Int) async throws -> [Region: Coordinate] {
         try await Self.logger.measure(.representativeCoordinates, budget: .seconds(1)) {
             let interval = aggregator.yearInterval(year: year)
-            let samples = try await store.samples(in: interval)
+            let samples = try await history.samples(in: interval)
             return aggregator.representativeCoordinates(samples: samples, attributor: attributor)
         }
     }

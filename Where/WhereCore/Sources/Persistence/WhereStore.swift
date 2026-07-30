@@ -8,9 +8,9 @@ import RegionKit
 /// All methods are `async throws` so the production CloudKit-backed
 /// implementation has somewhere to surface I/O errors.
 ///
-/// All mutating methods (`add(sample:)`, `write(evidence:blob:)`,
-/// `setManualDay`, `clearManualDay`, `clear(in:)`, and the
-/// `EvidenceBlobStore` writers)
+/// All mutating methods (`add(sample:)`, `setRecordingDevice`,
+/// `addRecordingPolicyChange`, `write(evidence:blob:)`, `setManualDay`,
+/// `clearManualDay`, `clear(in:)`, and the `EvidenceBlobStore` writers)
 /// MUST be called from inside a `perform { ... }` block — the block
 /// boundary is what owns the underlying write transaction. The
 /// production `SwiftDataStore` implementation traps with a
@@ -43,6 +43,20 @@ public protocol WhereStore: Sendable {
     func add(sample: LocationSample) async throws
     func samples(in interval: DateInterval) async throws -> [LocationSample]
     func allSamples() async throws -> [LocationSample]
+
+    /// Every synced device profile, including archived devices. Callers decide
+    /// whether archived rows belong in their surface.
+    func recordingDevices() async throws -> [RecordingDevice]
+
+    /// Upsert one synced device profile by ``RecordingDevice/id``. Must run
+    /// inside `perform { ... }`.
+    func setRecordingDevice(_ device: RecordingDevice) async throws
+
+    /// Every append-only recording-policy event, oldest first.
+    func recordingPolicyChanges() async throws -> [RecordingPolicyChange]
+
+    /// Add or update one policy event by id. Must run inside `perform { ... }`.
+    func addRecordingPolicyChange(_ change: RecordingPolicyChange) async throws
 
     func write(evidence: Evidence, blob: Data?) async throws
     func evidence(in interval: DateInterval) async throws -> [Evidence]

@@ -41,11 +41,11 @@ struct SettingsSearchTests {
     }
 
     @Test func matchesOnKeyword() {
-        // "gps" is a keyword for both the location-tracking and data-resolution
+        // "gps" is a keyword for both the device-recording and data-resolution
         // settings, but not part of either title.
         let results = SettingsCatalog.results(matching: "gps")
         let destinations = Set(results.map(\.destination))
-        #expect(destinations.contains(.location))
+        #expect(destinations.contains(.devices))
         #expect(destinations.contains(.alerts))
     }
 
@@ -64,6 +64,6 @@ struct SettingsSearchTests {
     }
 
     @Test func groupRouteHasNoFocus() {
-        #expect(SettingsRoute(.location).focus == nil)
+        #expect(SettingsRoute(.devices).focus == nil)
     }
 }

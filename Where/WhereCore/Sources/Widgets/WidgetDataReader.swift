@@ -68,6 +68,9 @@ public struct WidgetDataReader: Sendable {
     private let store: any WhereStore
     private let aggregator: DayAggregator
     private let attributor: any RegionAttributing
+    private var history: LocationHistoryReader {
+        LocationHistoryReader(store: store)
+    }
 
     public init(
         store: any WhereStore,
@@ -89,7 +92,7 @@ public struct WidgetDataReader: Sendable {
         let year = calendarDay.year
         let interval = aggregator.yearInterval(year: year)
         let dayRange = CalendarDay.yearRange(year)
-        let samples = try await store.samples(in: interval)
+        let samples = try await history.samples(in: interval)
         let manualDays = try await store.manualDays(in: dayRange)
         let report = aggregator.report(
             for: year,

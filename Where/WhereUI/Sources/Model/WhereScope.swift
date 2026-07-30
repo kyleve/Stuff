@@ -206,6 +206,7 @@ public final class WhereScope {
         let services = try await WhereServices.make(
             store: store,
             locationSource: locationSource,
+            currentDevice: .preview,
             aggregator: aggregator,
             // Authorized, like the location source is: the demo presents a user
             // who has granted everything, so the alerts screen shows its real

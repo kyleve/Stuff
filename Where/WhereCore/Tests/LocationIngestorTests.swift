@@ -51,6 +51,7 @@ struct LocationIngestorTests {
         LocationIngestor(
             store: store,
             locationSource: source,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
             calendar: WhereCoreTestSupport.calendar(),
             outbox: outbox,
             retryQueueCapacity: retryQueueCapacity,
@@ -115,7 +116,9 @@ struct LocationIngestorTests {
         // wait on it directly rather than on the sample count — a count poll can
         // observe the committed row before `onPersisted` records the outcome.
         try await waitUntil { await recorder.last?.liveSample != nil }
-        #expect(try await store.allSamples().count == 1)
+        let stored = try await store.allSamples()
+        #expect(stored.count == 1)
+        #expect(stored.first?.recordingDeviceID == CurrentRecordingDevice.preview.id)
     }
 
     @Test func captureTodaySkipsWhenGPSSampleAlreadyExistsToday() async throws {
@@ -181,6 +184,7 @@ struct LocationIngestorTests {
         let ingestor = LocationIngestor(
             store: store,
             locationSource: source,
+            recordingDeviceID: CurrentRecordingDevice.preview.id,
             calendar: WhereCoreTestSupport.calendar(),
             onPersisted: { outcome in await recorder.record(outcome) },
         )
@@ -530,6 +534,22 @@ private actor ToggleFailingStore: WhereStore {
 
     func allSamples() async throws -> [LocationSample] {
         try await backing.allSamples()
+    }
+
+    func recordingDevices() async throws -> [RecordingDevice] {
+        try await backing.recordingDevices()
+    }
+
+    func setRecordingDevice(_ device: RecordingDevice) async throws {
+        try await backing.setRecordingDevice(device)
+    }
+
+    func recordingPolicyChanges() async throws -> [RecordingPolicyChange] {
+        try await backing.recordingPolicyChanges()
+    }
+
+    func addRecordingPolicyChange(_ change: RecordingPolicyChange) async throws {
+        try await backing.addRecordingPolicyChange(change)
     }
 
     func write(evidence: Evidence, blob: Data?) async throws {

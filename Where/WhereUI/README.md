@@ -62,13 +62,14 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   `endSession()`, `resetPreferences()`).
 - **`WhereSession`** — the always-on coordinator: tracking + location
   authorization state and the intents that drive them (`requestPermission()`,
-  `startTracking()` / `stopTracking()`, `refreshWidgetSnapshot()`). It holds no
-  presentation state of its own.
+  per-device recording changes, `startTracking()` / `stopTracking()`,
+  `refreshWidgetSnapshot()`). It holds no presentation state of its own.
 - **Scope-tiered models** — scene-scoped **`YearReportModel`** (the selected
   year's `YearReport`, its `LoadState`, and the manual-day edit intents), plus
   view-scoped **`ResolveModel`** (data-issue triage), **`BackupModel`**
-  (export/import), and **`RemindersSettingsModel`** (notification prefs). Each
-  orchestrates `WhereServices`; none reimplements Core rules.
+  (export/import), **`RemindersSettingsModel`** (notification prefs), and
+  **`DevicesSettingsModel`** (synced installation names, policy, status, and
+  archival). Each orchestrates `WhereServices`; none reimplements Core rules.
 
 ### Reusable views & styling
 
@@ -87,6 +88,10 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   picker (segmented map/list) and per-region color/emoji/icon customization,
   backed by `PrimaryRegionSelectionModel`. Reused by onboarding and the Settings
   `RegionsSettingsView` editor.
+- **`DevicesSettingsView`** — Settings’ per-installation automatic-recording
+  controls. It distinguishes desired policy from acknowledged physical state,
+  labels the current installation, permits synced nicknames, and archives only
+  remote devices while preserving their history.
 - **Widget views** — the shared renderers the **WhereWidgets** extension draws
   with: `TodayWidgetView`, `YearTotalsWidgetView`, and the accessory family
   (`TodayInlineAccessoryView`, `TodayCircularAccessoryView`,

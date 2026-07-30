@@ -131,6 +131,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDManualDay.self,
             SDDismissedIssue.self,
             SDTrackedRegion.self,
+            SDRecordingDevice.self,
+            SDRecordingPolicyChange.self,
         ])
         // On-disk storage lives in the App Group container so the share
         // extension (and any other sibling process) writes into the same store
@@ -253,6 +255,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             SDManualDay.self,
             SDDismissedIssue.self,
             SDTrackedRegion.self,
+            SDRecordingDevice.self,
+            SDRecordingPolicyChange.self,
         ]
     }
 
@@ -466,6 +470,83 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
             let value = record.toValue()
             if value == nil { Self.logFault(forCorrupt: record) }
             return value
+        }
+    }
+
+    // MARK: - Recording devices
+
+    public func recordingDevices() async throws -> [RecordingDevice] {
+        let context = readContext()
+        var descriptor = FetchDescriptor<SDRecordingDevice>(
+            sortBy: [SortDescriptor(\.lastSeenAt, order: .reverse)],
+        )
+        descriptor.includePendingChanges = true
+        let values = try context.fetch(descriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
+        // CloudKit cannot enforce uniqueness. Converge duplicate rows by taking
+        // the most recently seen profile for each stable installation id.
+        return Dictionary(grouping: values, by: \.id)
+            .compactMap { _, duplicates in
+                duplicates.max { $0.lastSeenAt < $1.lastSeenAt }
+            }
+            .sorted {
+                if $0.lastSeenAt != $1.lastSeenAt { return $0.lastSeenAt > $1.lastSeenAt }
+                return $0.id.storeURL.absoluteString < $1.id.storeURL.absoluteString
+            }
+    }
+
+    public func setRecordingDevice(_ device: RecordingDevice) async throws {
+        let context = mutationContext()
+        let id = device.id.rawValue
+        let existing = try context.fetch(
+            FetchDescriptor<SDRecordingDevice>(predicate: #Predicate { $0.id == id }),
+        )
+        if let first = existing.first {
+            first.update(from: device)
+            for duplicate in existing.dropFirst() {
+                context.delete(duplicate)
+            }
+        } else {
+            context.insert(SDRecordingDevice(value: device))
+        }
+    }
+
+    public func recordingPolicyChanges() async throws -> [RecordingPolicyChange] {
+        let context = readContext()
+        var descriptor = FetchDescriptor<SDRecordingPolicyChange>(
+            sortBy: [
+                SortDescriptor(\.effectiveAt),
+                SortDescriptor(\.id),
+            ],
+        )
+        descriptor.includePendingChanges = true
+        let values = try context.fetch(descriptor).compactMap { record in
+            let value = record.toValue()
+            if value == nil { Self.logFault(forCorrupt: record) }
+            return value
+        }
+        // Keep one value per event id if CloudKit delivers duplicate rows.
+        return Dictionary(grouping: values, by: \.id)
+            .compactMap { _, duplicates in duplicates.first }
+            .sorted(by: RecordingPolicyChange.isOrderedBefore)
+    }
+
+    public func addRecordingPolicyChange(_ change: RecordingPolicyChange) async throws {
+        let context = mutationContext()
+        let id = change.id
+        let existing = try context.fetch(
+            FetchDescriptor<SDRecordingPolicyChange>(predicate: #Predicate { $0.id == id }),
+        )
+        if let first = existing.first {
+            first.update(from: change)
+            for duplicate in existing.dropFirst() {
+                context.delete(duplicate)
+            }
+        } else {
+            context.insert(SDRecordingPolicyChange(value: change))
         }
     }
 
@@ -691,6 +772,12 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
         for tracked in try context.fetch(FetchDescriptor<SDTrackedRegion>()) {
             context.delete(tracked)
         }
+        for device in try context.fetch(FetchDescriptor<SDRecordingDevice>()) {
+            context.delete(device)
+        }
+        for policy in try context.fetch(FetchDescriptor<SDRecordingPolicyChange>()) {
+            context.delete(policy)
+        }
     }
 
     public func dismissedIssueIDs() async throws -> Set<DataIssueID> {
@@ -905,6 +992,9 @@ final class SDLocationSample {
     /// `.other` label is not preserved here (fetch the `Evidence` row
     /// for that).
     var evidenceKindRaw: String?
+    /// Installation that produced an automatic sample. Nil on legacy rows and
+    /// manual/evidence-implied samples.
+    var recordingDeviceID: UUID?
 
     init() {}
 
@@ -922,6 +1012,7 @@ final class SDLocationSample {
         sourceRaw = value.source.discriminator
         evidenceId = value.source.evidenceId
         evidenceKindRaw = value.source.evidenceKind?.discriminator
+        recordingDeviceID = value.recordingDeviceID?.rawValue
     }
 
     func toValue() -> LocationSample? {
@@ -939,6 +1030,7 @@ final class SDLocationSample {
             coordinate: Coordinate(latitude: latitude, longitude: longitude),
             horizontalAccuracy: horizontalAccuracy,
             source: source,
+            recordingDeviceID: recordingDeviceID.map(RecordingDeviceID.init(rawValue:)),
         )
     }
 }
@@ -1154,5 +1246,96 @@ final class SDTrackedRegion {
         emoji = appearance?.emoji
         symbolName = appearance?.symbolName
         orderIndex = order
+    }
+}
+
+/// One synced installation profile. Every field is optional because CloudKit
+/// may materialize a partial row before all fields arrive.
+@Model
+final class SDRecordingDevice {
+    var id: UUID?
+    var systemName: String?
+    var nickname: String?
+    var kindRaw: String?
+    var registeredAt: Date?
+    var lastSeenAt: Date?
+    var archivedAt: Date?
+    var lastAppliedPolicyChangeID: UUID?
+    var statusRaw: String?
+
+    init() {}
+
+    convenience init(value: RecordingDevice) {
+        self.init()
+        update(from: value)
+    }
+
+    func update(from value: RecordingDevice) {
+        id = value.id.rawValue
+        systemName = value.systemName
+        nickname = value.nickname
+        kindRaw = value.kind.rawValue
+        registeredAt = value.registeredAt
+        lastSeenAt = value.lastSeenAt
+        archivedAt = value.archivedAt
+        lastAppliedPolicyChangeID = value.lastAppliedPolicyChangeID
+        statusRaw = value.status.rawValue
+    }
+
+    func toValue() -> RecordingDevice? {
+        guard let id,
+              let systemName,
+              let kindRaw,
+              let kind = RecordingDeviceKind(rawValue: kindRaw),
+              let registeredAt,
+              let lastSeenAt,
+              let statusRaw,
+              let status = RecordingDeviceStatus(rawValue: statusRaw)
+        else { return nil }
+        return RecordingDevice(
+            id: RecordingDeviceID(rawValue: id),
+            systemName: systemName,
+            nickname: nickname,
+            kind: kind,
+            registeredAt: registeredAt,
+            lastSeenAt: lastSeenAt,
+            archivedAt: archivedAt,
+            lastAppliedPolicyChangeID: lastAppliedPolicyChangeID,
+            status: status,
+        )
+    }
+}
+
+/// Append-only desired recording state. Optional columns keep the CloudKit
+/// schema additive and tolerant of partially synced rows.
+@Model
+final class SDRecordingPolicyChange {
+    var id: UUID?
+    var deviceID: UUID?
+    var effectiveAt: Date?
+    var isEnabled: Bool?
+
+    init() {}
+
+    convenience init(value: RecordingPolicyChange) {
+        self.init()
+        update(from: value)
+    }
+
+    func update(from value: RecordingPolicyChange) {
+        id = value.id
+        deviceID = value.deviceID.rawValue
+        effectiveAt = value.effectiveAt
+        isEnabled = value.isEnabled
+    }
+
+    func toValue() -> RecordingPolicyChange? {
+        guard let id, let deviceID, let effectiveAt, let isEnabled else { return nil }
+        return RecordingPolicyChange(
+            id: id,
+            deviceID: RecordingDeviceID(rawValue: deviceID),
+            effectiveAt: effectiveAt,
+            isEnabled: isEnabled,
+        )
     }
 }

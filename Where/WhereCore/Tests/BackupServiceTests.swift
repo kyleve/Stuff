@@ -12,6 +12,11 @@ struct BackupServiceTests {
     private static let evidenceWithBlobId =
         UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
     private static let evidenceNoBlobId = UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!
+    private static let recordingDeviceID = RecordingDeviceID(
+        rawValue: UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!,
+    )
+    private static let recordingPolicyID =
+        UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!
 
     private static func sampleFixtures() -> [LocationSample] {
         [
@@ -21,6 +26,7 @@ struct BackupServiceTests {
                 coordinate: Coordinate(latitude: 37.7749, longitude: -122.4194),
                 horizontalAccuracy: 5,
                 source: .gpsVisit,
+                recordingDeviceID: recordingDeviceID,
             ),
             LocationSample(
                 id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
@@ -28,6 +34,33 @@ struct BackupServiceTests {
                 coordinate: Coordinate(latitude: 40.7128, longitude: -74.0060),
                 horizontalAccuracy: 10,
                 source: .evidenceImplied(id: evidenceWithBlobId, kind: .boardingPass),
+            ),
+        ]
+    }
+
+    private static func recordingDeviceFixtures() -> [RecordingDevice] {
+        [
+            RecordingDevice(
+                id: recordingDeviceID,
+                systemName: "iPad",
+                nickname: "Travel iPad",
+                kind: .tablet,
+                registeredAt: exportDate,
+                lastSeenAt: exportDate,
+                archivedAt: nil,
+                lastAppliedPolicyChangeID: recordingPolicyID,
+                status: .recording,
+            ),
+        ]
+    }
+
+    private static func recordingPolicyFixtures() -> [RecordingPolicyChange] {
+        [
+            RecordingPolicyChange(
+                id: recordingPolicyID,
+                deviceID: recordingDeviceID,
+                effectiveAt: exportDate,
+                isEnabled: true,
             ),
         ]
     }
@@ -84,12 +117,16 @@ struct BackupServiceTests {
         let blobs: [UUID: Data] = [Self.evidenceWithBlobId: Data("boarding-pass-pdf".utf8)]
 
         let dismissedIssues = Self.dismissedIssueFixtures()
+        let recordingDevices = Self.recordingDeviceFixtures()
+        let recordingPolicies = Self.recordingPolicyFixtures()
 
         let url = try service.makeArchiveFile(
             samples: samples,
             evidence: evidence,
             manualDays: manualDays,
             dismissedIssues: dismissedIssues,
+            recordingDevices: recordingDevices,
+            recordingPolicyChanges: recordingPolicies,
             blobs: blobs,
             exportedAt: Self.exportDate,
         )
@@ -107,6 +144,8 @@ struct BackupServiceTests {
         #expect(result.archive.manualDays == manualDays)
         // Dismissals round-trip verbatim, id and timestamp.
         #expect(result.archive.dismissedIssues == dismissedIssues)
+        #expect(result.archive.recordingDevices == recordingDevices)
+        #expect(result.archive.recordingPolicyChanges == recordingPolicies)
         // Only the evidence with bytes gets an asset; the other is metadata-only.
         #expect(result.archive.assets.map(\.evidenceId) == [Self.evidenceWithBlobId])
         #expect(result.blobs == blobs)
@@ -258,6 +297,8 @@ struct BackupServiceTests {
                 ),
                 PrimaryRegion(region: .newYork, appearance: nil, order: 1),
             ],
+            recordingDevices: Self.recordingDeviceFixtures(),
+            recordingPolicyChanges: Self.recordingPolicyFixtures(),
             assets: [BackupAssetEntry(
                 evidenceId: Self.evidenceWithBlobId,
                 filename: "assets/\(Self.evidenceWithBlobId.uuidString)",
@@ -273,7 +314,7 @@ struct BackupServiceTests {
         let decoded = try decoder.decode(BackupArchive.self, from: data)
 
         #expect(decoded == archive)
-        #expect(decoded.formatVersion == 2)
+        #expect(decoded.formatVersion == BackupArchive.currentFormatVersion)
     }
 
     @Test func readingAFileThatIsNotAZipThrows() throws {

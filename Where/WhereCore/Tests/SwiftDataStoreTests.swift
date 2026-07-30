@@ -96,6 +96,42 @@ struct SwiftDataStoreTests {
         #expect(await !firstPing(stream, within: .milliseconds(200)))
     }
 
+    @Test func recordingDeviceAndPolicyRoundTripWithoutDuplicateLogicalRows() async throws {
+        let store = try SwiftDataStore.inMemory()
+        let deviceID = try RecordingDeviceID(
+            rawValue: #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")),
+        )
+        let policyID = try #require(UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB"))
+        let date = Date(timeIntervalSinceReferenceDate: 100)
+        let device = RecordingDevice(
+            id: deviceID,
+            systemName: "iPad",
+            nickname: "Home iPad",
+            kind: .tablet,
+            registeredAt: date,
+            lastSeenAt: date,
+            archivedAt: nil,
+            lastAppliedPolicyChangeID: policyID,
+            status: .off,
+        )
+        let policy = RecordingPolicyChange(
+            id: policyID,
+            deviceID: deviceID,
+            effectiveAt: date,
+            isEnabled: false,
+        )
+
+        try await store.perform {
+            try await store.setRecordingDevice(device)
+            try await store.setRecordingDevice(device)
+            try await store.addRecordingPolicyChange(policy)
+            try await store.addRecordingPolicyChange(policy)
+        }
+
+        #expect(try await store.recordingDevices() == [device])
+        #expect(try await store.recordingPolicyChanges() == [policy])
+    }
+
     /// A remote import (simulated via a scripted source) re-pings the same
     /// `changes()` fan-out a local commit does, so observers can't tell a sync
     /// from another device apart from a local write — one read path.

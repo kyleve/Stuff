@@ -26,6 +26,7 @@ extension WhereServices {
         WhereServices(
             store: base.store,
             locationSource: IdleLocationSource(),
+            currentDevice: base.currentDevice,
             attributor: base.attributor,
             aggregator: base.aggregator,
             reminderScheduler: base.reminderScheduler,
@@ -49,6 +50,7 @@ extension WhereServices {
         try await make(
             store: store,
             locationSource: IdleLocationSource(),
+            currentDevice: .preview,
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
             issueAlertScheduler: NoopDataIssueAlertScheduler(),

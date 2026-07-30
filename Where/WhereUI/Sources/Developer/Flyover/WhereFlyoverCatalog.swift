@@ -88,7 +88,7 @@
                 AddEvidenceView.flyoverData,
                 LoggedDaysView.flyoverData,
                 RegionsSettingsView.flyoverData,
-                LocationSettingsView.flyoverData,
+                DevicesSettingsView.flyoverData,
                 AlertsSettingsView.flyoverData,
                 AppearanceSettingsView.flyoverData,
                 AppIconView.flyoverData,

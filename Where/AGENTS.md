@@ -26,7 +26,7 @@ WhereUI — the app target stays tiny.
 | Layer | Where | Owns |
 |-------|-------|------|
 | **Domain / services** | `WhereCore` (`WhereServices` collaborators) | Rules, detection, aggregation, persistence, side effects. Unit-test here. |
-| **View model** | `WhereUI` (`WhereModel`, the `WhereSession` coordinator, the scoped `YearReportModel` / `ResolveModel` / `BackupModel` / `RemindersSettingsModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods. |
+| **View model** | `WhereUI` (`WhereModel`, the `WhereSession` coordinator, the scoped `YearReportModel` / `ResolveModel` / `BackupModel` / `RemindersSettingsModel` / `DevicesSettingsModel`) | Lifecycle wiring, observable mirrors of service output, UI intent methods. |
 | **Views** | `WhereUI` (`*View`) | Layout, navigation, localized copy, bindings. Never store I/O, detection, or cache/throttle policy. |
 
 When in doubt: if the behavior would still be correct without SwiftUI, it
@@ -62,6 +62,12 @@ Rules the code enforces and agents must preserve:
   `CoreLocationSource` in production, `ScriptedLocationSource` in
   tests/previews. The one-shot `requestCurrentLocation()` returns `nil` rather
   than throwing when no fix is available.
+- **Automatic location policy is per installation and append-only.** Stamp
+  every automatic GPS sample with its `RecordingDeviceID`; write enable/disable
+  events with an effective timestamp; route every user-facing sample read
+  through `LocationHistoryReader`. A synced cutoff hides later raw samples
+  immediately while the target device is still pending, and raw/legacy/manual
+  history is never deleted or hidden without an attributable device policy.
 - **Manual entries carry a `ManualEntryAudit`**; `DayJournal`'s write methods
   take an explicit `audit:` (no default). An additive backfill can't downgrade
   an authoritative row's regions, but the newer audit always wins.

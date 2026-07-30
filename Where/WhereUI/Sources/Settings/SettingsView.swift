@@ -5,15 +5,15 @@ import WhereCore
 
 /// Settings tab: an iOS-Settings-style top-level list of icon rows that drill
 /// into grouped sub-screens — a Data group at the top (attachments, logged days,
-/// regions), then location, alerts, appearance, report year, data management,
+/// regions), then devices, alerts, appearance, report year, data management,
 /// and About — plus a search field that filters individual settings and
 /// deep-links to the screen — and the row — containing each.
 ///
 /// The top level owns nothing but navigation; behavior lives in the sub-screens
-/// (`LocationSettingsView`, `AlertsSettingsView`, …). The scene's report model and
+/// (`DevicesSettingsView`, `AlertsSettingsView`, …). The scene's report model and
 /// the two view-scoped editing models (backup, reminders) are owned here and
-/// handed down; the `WhereSession` coordinator (location) and `WhereModel` (reset)
-/// come from the environment via the sub-screens.
+/// handed down; the `WhereSession` coordinator (recording/location) and
+/// `WhereModel` (reset) come from the environment via the sub-screens.
 struct SettingsView: View {
     let report: YearReportModel
     @State private var backup: BackupModel
@@ -157,7 +157,7 @@ struct SettingsView: View {
         switch destination {
             case .regions:
                 showRegions = true
-            case .attachments, .loggedDays, .location, .alerts, .appearance, .year, .data, .about:
+            case .attachments, .loggedDays, .devices, .alerts, .appearance, .year, .data, .about:
                 assertionFailure("\(destination) is a push destination, not a sheet")
         }
     }
@@ -183,7 +183,7 @@ struct SettingsView: View {
     /// for groups without a meaningful one-line summary.
     private func subtitle(for destination: SettingsDestination) -> String? {
         switch destination {
-            case .location:
+            case .devices:
                 LocationStatusRow.statusTitle(
                     status: session.authorizationStatus,
                     isTracking: session.isTracking,
@@ -220,8 +220,8 @@ struct SettingsView: View {
                 EvidenceListView(report: report)
             case .loggedDays:
                 LoggedDaysView(report: report)
-            case .location:
-                LocationSettingsView(focus: route.focus)
+            case .devices:
+                DevicesSettingsView(session: session, focus: route.focus)
             case .regions:
                 // Regions is presented as a sheet (`isSheet`), so it's never
                 // routed here; this arm only keeps the switch exhaustive.
@@ -289,7 +289,7 @@ struct SettingsView: View {
                 .push(to: EvidenceListView.flyoverID),
                 .push(to: LoggedDaysView.flyoverID),
                 .modal(to: RegionsSettingsView.flyoverID),
-                .push(to: LocationSettingsView.flyoverID),
+                .push(to: DevicesSettingsView.flyoverID),
                 .push(to: AlertsSettingsView.flyoverID),
                 .push(to: AppearanceSettingsView.flyoverID),
                 .push(to: VisibleYearSettingsView.flyoverID),

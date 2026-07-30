@@ -333,6 +333,17 @@
         }
       }
     },
+    "common.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        }
+      }
+    },
     "common.save" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3667,6 +3678,226 @@
         }
       }
     },
+    "settings.devices.archive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archive Device"
+          }
+        }
+      }
+    },
+    "settings.devices.archive.confirm.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic recording will be turned off from now on and this device will be hidden. Its existing history is kept."
+          }
+        }
+      }
+    },
+    "settings.devices.archive.confirm.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Archive this device?"
+          }
+        }
+      }
+    },
+    "settings.devices.automaticRecording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Automatic Recording"
+          }
+        }
+      }
+    },
+    "settings.devices.current.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This device applies changes immediately. Always location access is required for background recording."
+          }
+        }
+      }
+    },
+    "settings.devices.error.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn’t Update Devices"
+          }
+        }
+      }
+    },
+    "settings.devices.grant" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Grant location access"
+          }
+        }
+      }
+    },
+    "settings.devices.keywords.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "device, name, nickname, iphone, ipad"
+          }
+        }
+      }
+    },
+    "settings.devices.keywords.recording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "location, gps, tracking, background, automatic, device, travel"
+          }
+        }
+      }
+    },
+    "settings.devices.lastActive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last Active"
+          }
+        }
+      }
+    },
+    "settings.devices.loadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Devices Unavailable"
+          }
+        }
+      }
+    },
+    "settings.devices.name" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device Name"
+          }
+        }
+      }
+    },
+    "settings.devices.remote.footer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turning recording off hides new locations from the cutoff immediately. The device physically stops when it next syncs."
+          }
+        }
+      }
+    },
+    "settings.devices.status" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Status"
+          }
+        }
+      }
+    },
+    "settings.devices.status.off" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Off"
+          }
+        }
+      }
+    },
+    "settings.devices.status.pending" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Waiting for Device"
+          }
+        }
+      }
+    },
+    "settings.devices.status.permissionRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Location Access Needed"
+          }
+        }
+      }
+    },
+    "settings.devices.status.recording" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recording"
+          }
+        }
+      }
+    },
+    "settings.devices.thisDevice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This Device"
+          }
+        }
+      }
+    },
+    "settings.devices.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Devices"
+          }
+        }
+      }
+    },
     "settings.eraseYear.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3988,17 +4219,6 @@
         }
       }
     },
-    "settings.keywords.tracking" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "location, gps, tracking, background, permission"
-          }
-        }
-      }
-    },
     "settings.keywords.year" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4006,50 +4226,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "year, report, calendar"
-          }
-        }
-      }
-    },
-    "settings.location.footer" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Where watches for visits and big moves to figure out which region you're in. It needs Always access and a little patience."
-          }
-        }
-      }
-    },
-    "settings.location.grant" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Grant location access"
-          }
-        }
-      }
-    },
-    "settings.location.header" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Location"
-          }
-        }
-      }
-    },
-    "settings.location.toggle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Track in the background"
           }
         }
       }

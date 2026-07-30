@@ -47,6 +47,10 @@ layering, and the domain rules this target merely starts up.
   *behind* the onboarding gate, so this target opens nothing at startup; the
   intents stack derives from whatever scope the launch resolves, in the
   `onServicesReady` hook.
+- **Only the app owns the CloudKit capability.** Keep its App Group, CloudKit
+  container (`iCloud.com.stuff.where`), and remote-notification background mode
+  together in `Project.swift`; widgets and the share extension stay App
+  Group-only and never open a CloudKit container.
 - **Nothing here may assume the user has a store.** `didFinishLaunching` starts
   the ambient log sources and drives the launch; anything wanting the user's
   data waits for `.ready` and checks what it got — the Spotlight indexing after

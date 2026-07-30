@@ -30,6 +30,9 @@ public struct WhereServices: Sendable {
     public let issueAlerts: DataIssueAlertReconciler
     /// Live GPS ingestion: monitoring, retry queue, authorization.
     public let ingestor: LocationIngestor
+    /// Synced per-device recording intent and the current installation's
+    /// serialized physical start/stop reconciliation.
+    public let recording: DeviceRecordingController
     /// User-sourced writes: manual days, backfills, clears, evidence.
     public let journal: DayJournal
     /// Backup export / import.
@@ -66,6 +69,9 @@ public struct WhereServices: Sendable {
     /// The clock the stack was built with, retained so a derived stack can't
     /// diverge from an injected test/preview clock.
     let now: @Sendable () -> Date
+    /// Installation identity used to stamp automatic samples. Retained so a
+    /// derived App Intents stack preserves the same composition value.
+    let currentDevice: CurrentRecordingDevice
     /// The live SwiftData container when the backing store is the production
     /// `SwiftDataStore`; `nil` for non-SwiftData stores (e.g. test fakes).
     /// Surfaced only for read-only debug tooling (the SwiftData inspector) so
@@ -88,6 +94,7 @@ public struct WhereServices: Sendable {
     public init(
         store: any WhereStore,
         locationSource: any LocationSource,
+        currentDevice: CurrentRecordingDevice = .preview,
         attributor: any RegionAttributing = RegionAttributor.shared,
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling = NoopLoggingReminderScheduler(),
@@ -155,6 +162,7 @@ public struct WhereServices: Sendable {
         let ingestor = LocationIngestor(
             store: store,
             locationSource: locationSource,
+            recordingDeviceID: currentDevice.id,
             calendar: aggregator.calendar,
             outbox: locationOutbox,
             onPersisted: { outcome in
@@ -178,6 +186,12 @@ public struct WhereServices: Sendable {
                     }
                 }
             },
+        )
+        let recording = DeviceRecordingController(
+            store: store,
+            ingestor: ingestor,
+            currentDevice: currentDevice,
+            now: now,
         )
         let journal = DayJournal(
             store: store,
@@ -210,6 +224,7 @@ public struct WhereServices: Sendable {
         self.issueAlerts = issueAlerts
         self.widgets = widgets
         self.ingestor = ingestor
+        self.recording = recording
         self.journal = journal
         self.backup = backup
         self.resolution = resolution
@@ -222,6 +237,7 @@ public struct WhereServices: Sendable {
         self.issueAlertScheduler = issueAlertScheduler
         self.widgetRefresher = widgetRefresher
         self.now = now
+        self.currentDevice = currentDevice
         modelContainer = (store as? SwiftDataStore)?.inspectorContainer
     }
 
@@ -238,6 +254,7 @@ public struct WhereServices: Sendable {
     public static func make(
         store: any WhereStore,
         locationSource: any LocationSource,
+        currentDevice: CurrentRecordingDevice,
         aggregator: DayAggregator = DayAggregator(),
         reminderScheduler: any LoggingReminderScheduling,
         summaryScheduler: any DailySummaryScheduling,
@@ -258,6 +275,7 @@ public struct WhereServices: Sendable {
         return WhereServices(
             store: store,
             locationSource: locationSource,
+            currentDevice: currentDevice,
             attributor: attribution,
             aggregator: aggregator,
             reminderScheduler: reminderScheduler,
@@ -319,8 +337,13 @@ public struct WhereServices: Sendable {
     /// on persistence failure so the caller can surface it rather than silently
     /// half-erasing.
     public func reset() async throws {
-        await ingestor.quiesce()
-        try await journal.eraseAllData()
+        await recording.quiesce()
+        do {
+            try await journal.eraseAllData()
+        } catch {
+            await recording.resumeAfterFailedReset()
+            throw error
+        }
         // `eraseAllData()` commits, which pings `store.changes()` and the
         // scanner self-invalidates off it — but that observation is async. Drop
         // the cache inline too so it's provably empty by the time `reset()`

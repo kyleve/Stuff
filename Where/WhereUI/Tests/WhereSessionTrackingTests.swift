@@ -87,6 +87,41 @@ struct WhereSessionTrackingTests {
         #expect(!relaunched.isTracking)
     }
 
+    @Test func offWinsWhileAnEarlierEnableWaitsForPermission() async throws {
+        let source = SuspendedPermissionLocationSource()
+        let services = try WhereServices(
+            store: SwiftDataStore.inMemory(),
+            locationSource: source,
+        )
+        let preferences = makePreferences()
+        preferences.wantsTracking = false
+        let session = WhereSession(services: services, preferences: preferences)
+
+        let enabling = Task {
+            try await session.setRecordingEnabled(
+                true,
+                for: session.currentRecordingDeviceID,
+            )
+        }
+        await waitUntil { source.isAwaitingPermission }
+
+        _ = try await session.setRecordingEnabled(
+            false,
+            for: session.currentRecordingDeviceID,
+        )
+        source.resolvePermission(as: .always)
+        _ = try await enabling.value
+
+        let current = try #require(
+            try await session.recordingDevices()
+                .first(where: { $0.id == session.currentRecordingDeviceID }),
+        )
+        #expect(current.isEnabled == false)
+        #expect(current.device.status == .off)
+        #expect(session.isTracking == false)
+        #expect(preferences.wantsTracking == false)
+    }
+
     @Test func grantingLaterStartsTrackingViaLiveUpdates() async throws {
         let (session, source) = try makeSession(
             status: .notDetermined,
@@ -184,5 +219,49 @@ struct WhereSessionTrackingTests {
             try? await Task.sleep(for: .milliseconds(5))
         }
         #expect(await predicate(), "condition was not met before timeout")
+    }
+}
+
+/// Permission seam that parks until the test resolves it, matching the
+/// suspension point of Core Location's real system prompt.
+private final class SuspendedPermissionLocationSource: LocationSource, @unchecked Sendable {
+    let sampleStream = AsyncStream<LocationSample> { _ in }
+
+    var authorizationUpdates: AsyncStream<LocationAuthorizationStatus> {
+        AsyncStream { _ in }
+    }
+
+    private let lock = NSLock()
+    private var status = LocationAuthorizationStatus.notDetermined
+    private var permissionContinuation: CheckedContinuation<Void, Never>?
+
+    var isAwaitingPermission: Bool {
+        lock.withLock { permissionContinuation != nil }
+    }
+
+    func start() async {}
+    func stop() async {}
+
+    func requestCurrentLocation() async -> LocationSample? {
+        nil
+    }
+
+    func currentAuthorization() async -> LocationAuthorizationStatus {
+        lock.withLock { status }
+    }
+
+    func requestPermission() async throws {
+        await withCheckedContinuation { continuation in
+            lock.withLock { permissionContinuation = continuation }
+        }
+    }
+
+    func resolvePermission(as status: LocationAuthorizationStatus) {
+        let continuation = lock.withLock {
+            self.status = status
+            defer { permissionContinuation = nil }
+            return permissionContinuation
+        }
+        continuation?.resume()
     }
 }

@@ -46,9 +46,14 @@ struct BackupCoordinatorTests {
         id: .borderDrift(day: CalendarDay(year: 2026, month: 4, day: 1)),
         dismissedAt: Date(timeIntervalSince1970: 1_700_000_000),
     )
+    private static let recordingDeviceID = RecordingDeviceID(
+        rawValue: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
+    )
+    private static let recordingPolicyID =
+        UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")!
 
-    /// Seed all four tables (sample, evidence + blob, manual day, dismissed
-    /// issue) directly into a store so backup tests don't depend on the journal.
+    /// Seed every persisted domain directly into a store so backup tests don't
+    /// depend on the journal or recording controller.
     private static func seed(_ store: SwiftDataStore) async throws {
         try await store.perform {
             try await store.add(sample: sample(at: "2026-03-15T12:00:00-07:00"))
@@ -59,6 +64,23 @@ struct BackupCoordinatorTests {
                 regions: [.newYork],
             ))
             try await store.restoreDismissedIssue(dismissal)
+            try await store.setRecordingDevice(RecordingDevice(
+                id: recordingDeviceID,
+                systemName: "iPad",
+                nickname: "Travel iPad",
+                kind: .tablet,
+                registeredAt: dismissal.dismissedAt,
+                lastSeenAt: dismissal.dismissedAt,
+                archivedAt: nil,
+                lastAppliedPolicyChangeID: recordingPolicyID,
+                status: .recording,
+            ))
+            try await store.addRecordingPolicyChange(RecordingPolicyChange(
+                id: recordingPolicyID,
+                deviceID: recordingDeviceID,
+                effectiveAt: dismissal.dismissedAt,
+                isEnabled: true,
+            ))
         }
     }
 
@@ -76,6 +98,8 @@ struct BackupCoordinatorTests {
         #expect(summary.evidenceCount == 1)
         #expect(summary.manualDayCount == 1)
         #expect(summary.dismissedIssueCount == 1)
+        #expect(summary.recordingDeviceCount == 1)
+        #expect(summary.recordingPolicyChangeCount == 1)
 
         #expect(try await destination.store.allSamples() == source.store.allSamples())
         #expect(try await destination.store.allEvidence() == source.store.allEvidence())
@@ -84,6 +108,9 @@ struct BackupCoordinatorTests {
         #expect(try await destination.store.allDismissedIssues() == source.store
             .allDismissedIssues())
         #expect(try await destination.store.allDismissedIssues() == [Self.dismissal])
+        #expect(try await destination.store.recordingDevices() == source.store.recordingDevices())
+        #expect(try await destination.store.recordingPolicyChanges() == source.store
+            .recordingPolicyChanges())
         #expect(try await destination.store.evidenceBlob(for: Self.evidence.id) == Self.blob)
         // An import that lands new data runs the post-import hook once.
         #expect(await destination.onImport.count == 1)

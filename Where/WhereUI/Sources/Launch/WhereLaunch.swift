@@ -266,6 +266,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
     public func makeServices() async throws -> WhereServices {
         let source = locationSource ?? CoreLocationSource()
         locationSource = nil
+        let currentDevice = CurrentRecordingDeviceProvider.current(defaults: .standard)
         do {
             let store = try await Task.detached(priority: .userInitiated) {
                 try SwiftDataStore.make()
@@ -273,6 +274,7 @@ public final class WhereBootstrap: WhereScopeAssembling {
             let services = try await WhereServices.make(
                 store: store,
                 locationSource: source,
+                currentDevice: currentDevice,
                 // The real world's seams, named here because this is the only
                 // place that wants them: the demo scope builds the same stack
                 // out of no-ops, and every test and preview gets no-ops by

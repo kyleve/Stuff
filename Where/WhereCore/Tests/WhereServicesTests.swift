@@ -57,6 +57,7 @@ struct WhereServicesTests {
         let services = try await WhereServices.make(
             store: store,
             locationSource: ScriptedLocationSource(),
+            currentDevice: .preview,
             aggregator: Self.makeAggregator(),
             reminderScheduler: NoopLoggingReminderScheduler(),
             summaryScheduler: NoopDailySummaryScheduler(),
@@ -728,10 +729,29 @@ struct WhereServicesTests {
             in: Self.pacificCalendar,
             regions: [.california],
         )
+        let deviceID = CurrentRecordingDevice.preview.id
+        let policyID = try #require(UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"))
         try await store.perform {
             try await store.add(sample: seedSample)
             try await store.write(evidence: Self.backupEvidence, blob: Self.backupBlob)
             try await store.setManualDay(seedDay)
+            try await store.setRecordingDevice(RecordingDevice(
+                id: deviceID,
+                systemName: "iPhone",
+                nickname: nil,
+                kind: .phone,
+                registeredAt: seedSample.timestamp,
+                lastSeenAt: seedSample.timestamp,
+                archivedAt: nil,
+                lastAppliedPolicyChangeID: policyID,
+                status: .recording,
+            ))
+            try await store.addRecordingPolicyChange(RecordingPolicyChange(
+                id: policyID,
+                deviceID: deviceID,
+                effectiveAt: seedSample.timestamp,
+                isEnabled: true,
+            ))
         }
 
         try await store.perform { try await store.clearAll() }
@@ -739,6 +759,8 @@ struct WhereServicesTests {
         #expect(try await store.allSamples().isEmpty)
         #expect(try await store.allEvidence().isEmpty)
         #expect(try await store.allManualDays().isEmpty)
+        #expect(try await store.recordingDevices().isEmpty)
+        #expect(try await store.recordingPolicyChanges().isEmpty)
     }
 
     // MARK: - Logging reminders
@@ -1365,6 +1387,22 @@ private actor ToggleFailingStore: WhereStore {
 
     func allSamples() async throws -> [LocationSample] {
         try await backing.allSamples()
+    }
+
+    func recordingDevices() async throws -> [RecordingDevice] {
+        try await backing.recordingDevices()
+    }
+
+    func setRecordingDevice(_ device: RecordingDevice) async throws {
+        try await backing.setRecordingDevice(device)
+    }
+
+    func recordingPolicyChanges() async throws -> [RecordingPolicyChange] {
+        try await backing.recordingPolicyChanges()
+    }
+
+    func addRecordingPolicyChange(_ change: RecordingPolicyChange) async throws {
+        try await backing.addRecordingPolicyChange(change)
     }
 
     func write(evidence: Evidence, blob: Data?) async throws {

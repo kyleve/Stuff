@@ -8,20 +8,20 @@ import RegionKit
 ///
 /// The arrays mirror the SwiftData tables exactly (`SDLocationSample` /
 /// `SDEvidence` / `SDManualDay` / `SDDismissedIssue` / `SDTrackedRegion`) via
-/// their value-type representations, so an export captures everything and an
-/// import can upsert it back row-for-row.
+/// their value-type representations, plus `SDRecordingDevice` /
+/// `SDRecordingPolicyChange`, so an export captures everything and an import
+/// can upsert it back row-for-row.
 public struct BackupArchive: Codable, Sendable, Hashable {
     /// Bumped whenever the archive's on-disk shape changes in a way older
     /// readers can't understand, so an importer can refuse a file it doesn't
     /// know how to read instead of silently dropping data (see
     /// `BackupService.readArchive`, which rejects any other version).
     ///
-    /// v2 adds `primaryRegions` (each tracked region's picked appearance + pick
-    /// order). There's no in-app decode fallback for a pre-v2 archive — it's
-    /// reshaped out of band by `Tools/upgrade-backup.rb` (which synthesizes
-    /// `primaryRegions` from `trackedRegions`), matching the module's
-    /// no-migration-on-read rule (see `AGENTS.md`).
-    public static let currentFormatVersion = 2
+    /// v3 adds sample device provenance plus the synced recording-device and
+    /// append-only policy tables. There's no in-app decode fallback for an older
+    /// archive — it is reshaped out of band by `Tools/upgrade-backup.rb`,
+    /// matching the module's no-migration-on-read rule (see `AGENTS.md`).
+    public static let currentFormatVersion = 3
 
     public let formatVersion: Int
     public let exportedAt: Date
@@ -40,6 +40,10 @@ public struct BackupArchive: Codable, Sendable, Hashable {
     /// brings back the *look*, not just the region set. Import restores from
     /// this; `trackedRegions` is the derived id list.
     public let primaryRegions: [PrimaryRegion]
+    /// Every synced device profile, including archived devices.
+    public let recordingDevices: [RecordingDevice]
+    /// The full append-only policy timeline for every device.
+    public let recordingPolicyChanges: [RecordingPolicyChange]
     /// One entry per evidence record that has blob bytes in the archive.
     /// Evidence without bytes simply has no entry here.
     public let assets: [BackupAssetEntry]
@@ -53,6 +57,8 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         dismissedIssues: [DismissedIssue],
         trackedRegions: [Region],
         primaryRegions: [PrimaryRegion],
+        recordingDevices: [RecordingDevice] = [],
+        recordingPolicyChanges: [RecordingPolicyChange] = [],
         assets: [BackupAssetEntry],
     ) {
         self.formatVersion = formatVersion
@@ -63,6 +69,8 @@ public struct BackupArchive: Codable, Sendable, Hashable {
         self.dismissedIssues = dismissedIssues
         self.trackedRegions = trackedRegions
         self.primaryRegions = primaryRegions
+        self.recordingDevices = recordingDevices
+        self.recordingPolicyChanges = recordingPolicyChanges
         self.assets = assets
     }
 }

@@ -35,7 +35,9 @@ one it belongs to rather than to a god-object:
   which surface and persist each region's picked `RegionAppearance` — color
   token, emoji, SF Symbol — and pick order alongside the synced rows) — one row
   per region, defaulting to the four until the user chooses in the onboarding /
-  Settings region picker.
+  Settings region picker. It also stores one `RecordingDevice` profile per
+  installation plus the append-only `RecordingPolicyChange` timeline used to
+  control automatic recording across devices.
 - **`RegionAttribution`** — a live `RegionAttributing` built from the tracked
   regions that rebuilds on `changes()` (a local edit or a remote import), so the
   app + App Intents process attribute against the same synced set. Assemble
@@ -83,7 +85,16 @@ one it belongs to rather than to a god-object:
   (returns `nil`, never throws, when no fix is available).
 - **`LocationIngestor`** — monitoring, the persist-with-retry queue, and
   authorization; after each committed sample it reconciles the badge/reminders
-  and republishes the widget snapshot.
+  and republishes the widget snapshot. Every automatic sample is stamped with
+  the current installation's `RecordingDeviceID`.
+- **`DeviceRecordingController`** — serializes per-device enable/disable
+  policy with the current installation's physical `LocationIngestor`. A remote
+  disable is effective at its timestamp as soon as it syncs; the target device
+  later acknowledges that event after it has stopped.
+- **`LocationHistoryReader`** — the shared policy-aware read boundary used by
+  reports, widgets, recent activity, and foreground capture checks. It filters
+  GPS samples during disabled intervals while keeping raw storage, backups,
+  legacy samples without provenance, and user-asserted samples lossless.
 
 ### Detection, notifications & the rest
 
@@ -188,6 +199,10 @@ store so the retry queue can't repopulate it mid-erase.
   the live `ModelContainer` is surfaced only for the read-only debug inspector.
 - **Always-location.** Background day tracking needs Always; `requestPermission()`
   throws `LocationPermissionDeniedError` on denial / restriction.
+- **Strong remote cutoff.** Turning a device off does not depend on that device
+  being online before reports become correct: once the policy event syncs,
+  samples at or after its effective timestamp are excluded. Its row remains
+  "waiting" until the target installation physically stops and acknowledges it.
 - **Failures surface.** Store methods are `async throws`; errors are logged via
   `WhereLog` and left observable — never swallowed into an empty default.
 - **Foundation Models may be unavailable.** `RecentActivitySummarizer` reports a

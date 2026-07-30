@@ -46,6 +46,12 @@ public final class WhereSession {
     /// (authorization + the user's intent), not just the last button tap.
     public private(set) var isTracking = false
 
+    /// Stable installation identity used by the Devices settings screen to mark
+    /// the current row and prevent archiving it.
+    public var currentRecordingDeviceID: RecordingDeviceID {
+        services.recording.currentDevice.id
+    }
+
     /// The latest known location authorization status, kept live via
     /// `LocationIngestor.authorizationUpdates()`.
     public private(set) var authorizationStatus: LocationAuthorizationStatus = .notDetermined
@@ -295,6 +301,11 @@ public final class WhereSession {
             for await _ in services.dataChangeUpdates() {
                 guard let self else { break }
                 await seedRegionStyles()
+                // A CloudKit policy change for this installation arrives through
+                // the same store signal. Reconcile it even if the Devices screen
+                // is not open, so a left-behind device physically stops as soon
+                // as it receives the command.
+                await reconcileTracking()
             }
         }
     }
@@ -304,14 +315,24 @@ public final class WhereSession {
     /// launch step (see `WhereLaunch.plan(for:)`).
     func reconcileTracking() async {
         let wasTracking = isTracking
-        if wantsTracking, authorizationStatus.allowsBackgroundTracking {
-            await services.ingestor.start()
-            isTracking = true
-            if !wasTracking { Self.logger { .backgroundTrackingStarted } }
-        } else {
-            await services.ingestor.stop()
-            isTracking = false
-            if wasTracking { Self.logger { .backgroundTrackingStopped } }
+        do {
+            let configuration = try await services.recording.reconcile(
+                initialEnabled: wantsTracking,
+                authorization: authorizationStatus,
+            )
+            // Keep the legacy local preference as the migration seed/fallback,
+            // but synced policy is authoritative once the device exists.
+            wantsTracking = configuration.isEnabled
+            isTracking = configuration.device.status == .recording
+            if isTracking, !wasTracking {
+                Self.logger { .backgroundTrackingStarted }
+            } else if !isTracking, wasTracking {
+                Self.logger { .backgroundTrackingStopped }
+            }
+        } catch {
+            Self.logger(attachments: [.error(error, name: "recording-reconcile-error")]) {
+                .recordingReconcileFailed(description: error.localizedDescription)
+            }
         }
     }
 
@@ -353,25 +374,95 @@ public final class WhereSession {
     /// When-In-Use is granted the indicator guides the user to Settings; on a
     /// hard denial the Settings alert is surfaced.
     public func startTracking() async {
-        wantsTracking = true
         do {
-            try await services.ingestor.requestPermission()
-            permissionDenied = false
+            _ = try await setRecordingEnabled(true, for: currentRecordingDeviceID)
         } catch {
-            permissionDenied = true
-        }
-        await syncAuthorization()
-        await reconcileTracking()
-        if authorizationStatus.allowsBackgroundTracking {
-            Self.logger { .trackingEnabled }
+            Self.logger(attachments: [.error(error, name: "recording-enable-error")]) {
+                .recordingReconcileFailed(description: error.localizedDescription)
+            }
         }
     }
 
     public func stopTracking() async {
-        wantsTracking = false
-        await services.ingestor.stop()
-        isTracking = false
-        Self.logger { .stoppedBackgroundTracking }
+        do {
+            _ = try await setRecordingEnabled(false, for: currentRecordingDeviceID)
+        } catch {
+            Self.logger(attachments: [.error(error, name: "recording-disable-error")]) {
+                .recordingReconcileFailed(description: error.localizedDescription)
+            }
+        }
+    }
+
+    /// Current synced device list, registering this installation on first use.
+    public func recordingDevices() async throws -> [RecordingDeviceConfiguration] {
+        try await services.recording.devices(initialEnabled: wantsTracking)
+    }
+
+    /// Set automatic recording for any installation. The current device also
+    /// runs the permission flow and updates the session's live tracking mirror.
+    @discardableResult
+    public func setRecordingEnabled(
+        _ enabled: Bool,
+        for deviceID: RecordingDeviceID,
+    ) async throws -> [RecordingDeviceConfiguration] {
+        var devices = try await services.recording.setEnabled(
+            enabled,
+            for: deviceID,
+            initialEnabled: wantsTracking,
+        )
+        guard deviceID == currentRecordingDeviceID else { return devices }
+
+        var permissionRequestFailed = false
+        if enabled {
+            do {
+                try await services.ingestor.requestPermission()
+            } catch {
+                permissionRequestFailed = true
+            }
+            await syncAuthorization()
+            _ = try await services.recording.reconcile(
+                initialEnabled: wantsTracking,
+                authorization: authorizationStatus,
+            )
+            // The permission prompt is an actor suspension point. Re-read after
+            // it because a later Off action may have won while the prompt was
+            // visible; reconciliation honors that latest policy rather than
+            // appending another On event.
+            devices = try await services.recording.devices(initialEnabled: wantsTracking)
+        }
+
+        guard let current = devices.first(where: { $0.id == deviceID }) else {
+            return devices
+        }
+        wantsTracking = current.isEnabled
+        isTracking = current.device.status == .recording
+        permissionDenied = current.isEnabled && permissionRequestFailed
+        if current.isEnabled, isTracking {
+            Self.logger { .trackingEnabled }
+        } else if !current.isEnabled {
+            Self.logger { .stoppedBackgroundTracking }
+        }
+        return devices
+    }
+
+    public func renameRecordingDevice(
+        _ deviceID: RecordingDeviceID,
+        to nickname: String,
+    ) async throws -> [RecordingDeviceConfiguration] {
+        try await services.recording.rename(
+            deviceID,
+            to: nickname,
+            initialEnabled: wantsTracking,
+        )
+    }
+
+    public func archiveRecordingDevice(
+        _ deviceID: RecordingDeviceID,
+    ) async throws -> [RecordingDeviceConfiguration] {
+        try await services.recording.archive(
+            deviceID,
+            initialEnabled: wantsTracking,
+        )
     }
 
     /// Push the persisted reminder intent to the reminder reconciler and warn if
@@ -452,20 +543,29 @@ public final class WhereSession {
     /// so the reset step parks the launcher in `.failed` rather than silently
     /// half-erasing.
     public func eraseSession() async throws {
-        try await services.reset()
+        let authorizationObserver = authorizationTask
+        let dataObserver = regionStyleTask
+        authorizationTask = nil
+        regionStyleTask = nil
+        authorizationObserver?.cancel()
+        dataObserver?.cancel()
+        await authorizationObserver?.value
+        await dataObserver?.value
+
+        do {
+            try await services.reset()
+        } catch {
+            // A failed reset deliberately retains this session so the user can
+            // retry. Restore its live observers along with Core's operation
+            // gate rather than leaving the surviving UI stale.
+            isTracking = false
+            await reconcileTracking()
+            observeAuthorizationChanges()
+            observeRegionStyleChanges()
+            throw error
+        }
         isTracking = false
         Self.logger { .erasedSession }
-    }
-
-    /// Drives the background-tracking `Toggle`. Reads the live `isTracking`
-    /// state; assigning kicks off the matching async start/stop so the view can
-    /// bind straight to it (`$session.trackingEnabled`) instead of building a
-    /// closure-based `Binding`. `isTracking` stays the single source of truth.
-    public var trackingEnabled: Bool {
-        get { isTracking }
-        set {
-            Task { newValue ? await startTracking() : await stopTracking() }
-        }
     }
 }
 

@@ -28,6 +28,8 @@ struct SwiftDataInspectorWiringTests {
             "SDEvidence",
             "SDLocationSample",
             "SDManualDay",
+            "SDRecordingDevice",
+            "SDRecordingPolicyChange",
             "SDTrackedRegion",
         ])
     }

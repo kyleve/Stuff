@@ -33,6 +33,8 @@ public actor BackupCoordinator {
         public let manualDayCount: Int
         public let dismissedIssueCount: Int
         public let trackedRegionCount: Int
+        public let recordingDeviceCount: Int
+        public let recordingPolicyChangeCount: Int
 
         public init(
             sampleCount: Int,
@@ -40,12 +42,16 @@ public actor BackupCoordinator {
             manualDayCount: Int,
             dismissedIssueCount: Int,
             trackedRegionCount: Int,
+            recordingDeviceCount: Int = 0,
+            recordingPolicyChangeCount: Int = 0,
         ) {
             self.sampleCount = sampleCount
             self.evidenceCount = evidenceCount
             self.manualDayCount = manualDayCount
             self.dismissedIssueCount = dismissedIssueCount
             self.trackedRegionCount = trackedRegionCount
+            self.recordingDeviceCount = recordingDeviceCount
+            self.recordingPolicyChangeCount = recordingPolicyChangeCount
         }
     }
 
@@ -117,6 +123,8 @@ public actor BackupCoordinator {
                 manualDays: store.allManualDays(),
                 dismissedIssues: store.allDismissedIssues(),
                 primaryRegions: store.primaryRegions(),
+                recordingDevices: store.recordingDevices(),
+                recordingPolicyChanges: store.recordingPolicyChanges(),
             )
         }
         let evidence = tables.evidence
@@ -145,6 +153,8 @@ public actor BackupCoordinator {
                 // The bare ids ride alongside the primary regions for older readers.
                 trackedRegions: tables.primaryRegions.map(\.region),
                 primaryRegions: tables.primaryRegions,
+                recordingDevices: tables.recordingDevices,
+                recordingPolicyChanges: tables.recordingPolicyChanges,
                 blobs: blobs,
             )
         }.value
@@ -162,6 +172,8 @@ public actor BackupCoordinator {
         let manualDays: [DayPresence]
         let dismissedIssues: [DismissedIssue]
         let primaryRegions: [PrimaryRegion]
+        let recordingDevices: [RecordingDevice]
+        let recordingPolicyChanges: [RecordingPolicyChange]
     }
 
     /// Delete the most recent export's staging directory now, rather than
@@ -228,6 +240,7 @@ public actor BackupCoordinator {
         let blobs = result.blobs
         let total = archive.samples.count + archive.evidence.count
             + archive.manualDays.count + archive.dismissedIssues.count
+            + archive.recordingDevices.count + archive.recordingPolicyChanges.count
 
         try await Self.logger.measure(.importWrite) {
             try await store.perform {
@@ -263,6 +276,14 @@ public actor BackupCoordinator {
                     try await store.restoreDismissedIssue(dismissal)
                     report()
                 }
+                for device in archive.recordingDevices {
+                    try await store.setRecordingDevice(device)
+                    report()
+                }
+                for change in archive.recordingPolicyChanges {
+                    try await store.addRecordingPolicyChange(change)
+                    report()
+                }
                 // Primary regions (with their picked looks) round-trip like any
                 // other data. On `.replace` the store was cleared above, so write
                 // the archive's set exactly; on `.merge` union it into the current
@@ -294,6 +315,8 @@ public actor BackupCoordinator {
             manualDayCount: archive.manualDays.count,
             dismissedIssueCount: archive.dismissedIssues.count,
             trackedRegionCount: archive.primaryRegions.count,
+            recordingDeviceCount: archive.recordingDevices.count,
+            recordingPolicyChangeCount: archive.recordingPolicyChanges.count,
         )
     }
 

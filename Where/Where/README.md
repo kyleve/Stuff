@@ -41,3 +41,30 @@ The target is declared in [`Project.swift`](../../Project.swift). Generate and
 open the workspace with `./ide`, or install to a connected iPhone from the
 command line with [`./Where/install`](../install) (macOS only, needs a signing
 team — see [`Where/AGENTS.md`](../AGENTS.md#installing-to-a-device)).
+
+## CloudKit rollout and device validation
+
+The app target owns `iCloud.com.stuff.where` plus the remote-notification
+background mode. Widgets and the share extension intentionally have only the
+App Group entitlement: they write/read local shared artifacts, while the app's
+single SwiftData container owns CloudKit mirroring. Debug uses `.localOnly`;
+exercise sync with a Release-signed build.
+
+Before shipping a schema change:
+
+1. Install a Release build against the Development CloudKit environment and
+   open the store so SwiftData initializes the additive schema.
+2. Inspect the new fields/record types in CloudKit Console, then deploy that
+   schema to Production before distributing the build.
+3. On two devices signed into the same iCloud account, open Settings → Devices
+   and verify both generic hardware profiles arrive; rename one and verify the
+   nickname syncs.
+4. From the carried device, turn automatic recording off for the left-behind
+   device. Verify its row says it is waiting, and that locations at/after the
+   cutoff disappear from reports as soon as the policy syncs.
+5. Open the left-behind device. Verify it stops monitoring, acknowledges Off,
+   and the waiting state clears on the carried device. Re-enable it and verify
+   new locations appear again.
+6. Archive the non-current device and verify it is hidden without losing older
+   report history. Export and replace-import a backup and verify device names,
+   raw samples, policy history, and archived state round-trip.
