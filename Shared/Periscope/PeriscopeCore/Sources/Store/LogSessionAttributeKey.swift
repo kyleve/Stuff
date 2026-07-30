@@ -53,10 +53,27 @@ extension LogSessionAttributeKey {
 }
 
 /// Lets a session's attributes encode as a plain JSON object keyed by the
-/// attribute name — see ``StringCodingKey``.
+/// attribute name, instead of the flat alternating key/value array a
+/// dictionary with non-string keys falls back to.
 extension LogSessionAttributeKey: CodingKeyRepresentable {
+    private struct Key: CodingKey {
+        let stringValue: String
+
+        var intValue: Int? {
+            nil
+        }
+
+        init(stringValue: String) {
+            self.stringValue = stringValue
+        }
+
+        init?(intValue _: Int) {
+            nil
+        }
+    }
+
     public var codingKey: any CodingKey {
-        StringCodingKey(rawValue)
+        Key(stringValue: rawValue)
     }
 
     public init?(codingKey: some CodingKey) {
