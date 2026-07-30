@@ -23,6 +23,8 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
   WhereUI.
 - Construct and retain the Where Flyover catalog once after its world loads;
   never rebuild fixture state from a SwiftUI `body`.
+- Present Where Flyover from Developer Tools with `fullScreenCover`, outside
+  its `NavigationStack`.
 - Register leaf screens against Flyover's default navigation container; use
   `.none` only for views that own their root stack and for widgets/snippets.
 - Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI

@@ -23,6 +23,7 @@
         @Environment(WhereModel.self) private var model: WhereModel?
         @Environment(WhereSession.self) private var session: WhereSession?
         @Environment(\.periscopeInspector) private var inspector
+        @State private var isPresentingFlyover = false
 
         /// Extra bottom scroll inset so the last rows clear the floating HUD's
         /// resize grip. Zero (the default) when hosted without the overlay chrome
@@ -62,15 +63,13 @@
                             }
                         }
 
-                        NavigationLink {
-                            WhereFlyoverView()
-                                .onAppear(perform: openFlyover)
-                        } label: {
+                        Button(action: presentFlyover) {
                             Label(
                                 String(localized: .developerFlyoverLink),
                                 systemImage: "rectangle.3.group",
                             )
                         }
+                        .buttonStyle(.plain)
 
                         NavigationLink {
                             RegionMapView()
@@ -91,12 +90,20 @@
                 .scrollContentBackground(.hidden)
                 .contentMargins(.bottom, bottomContentInset, for: .scrollContent)
             }
+            .fullScreenCover(isPresented: $isPresentingFlyover) {
+                WhereFlyoverPresentationView()
+            }
         }
 
         func onOpenFlyover(_ action: @escaping @MainActor () -> Void) -> Self {
             var copy = self
             copy.openFlyover = action
             return copy
+        }
+
+        private func presentFlyover() {
+            openFlyover()
+            isPresentingFlyover = true
         }
     }
 

@@ -80,9 +80,9 @@ FlyoverView(catalog: catalog)
 - `FlyoverGroup` gives a cluster a title and graph root.
 - `FlyoverScreen` owns a viewport, optional grid override, navigation
   containment, variants, controls, and reset action. Screens receive an isolated
-  `NavigationStack` by default so titles, toolbars, and destinations stay inside
-  their frame; use `.none` only for content that owns its navigation root or is
-  not a screen, such as a widget.
+  `NavigationStack` by default so titles, toolbars, and destinations render with
+  the frame; use `.none` only for content that owns its navigation root or is not
+  a screen, such as a widget.
 - `FlyoverVariant` stores lazy overview and focused content builders. The common
   initializer supplies the same builder to both; a second initializer allows
   an optimized overview and fully interactive focused view. Existing
@@ -130,6 +130,11 @@ into every registered screen. Do not activate it as the app's real scope or
 route it through global persistence. Synthetic variants are appropriate for
 states the demo fixture cannot produce cleanly, such as empty, unavailable, or
 error content.
+
+Present Flyover outside the app's ambient `NavigationStack`, such as from a
+`fullScreenCover`. SwiftUI can promote navigation titles and toolbar items from
+several nested screen stacks into an ancestor stack; a separate presentation
+domain keeps that chrome local to each frame.
 
 Registration is explicit in version one. Swift macros cannot discover all
 conformers or navigation destinations across a module, and a generated source

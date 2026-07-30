@@ -24,7 +24,6 @@
                         }
                 }
             }
-            .navigationBarBackButtonHidden(true)
             .task(id: loader.request) {
                 await loader.load()
             }
