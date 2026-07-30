@@ -380,6 +380,18 @@
         }
       }
     },
+    "developer.cancelInspectorNextLaunch" : {
+      "comment" : "Button that cancels a pending Inspector boot.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel Inspector on Next Launch"
+          }
+        }
+      }
+    },
     "developer.close" : {
       "comment" : "Accessibility label for closing the developer panel.",
       "extractionState" : "manual",
@@ -416,6 +428,18 @@
         }
       }
     },
+    "developer.enterInspectorNextLaunch" : {
+      "comment" : "Button that schedules the standalone Inspector runtime for the next app launch.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter Inspector Mode on Next Launch"
+          }
+        }
+      }
+    },
     "developer.expand" : {
       "comment" : "Accessibility label for growing the developer panel to full screen.",
       "extractionState" : "manual",
@@ -440,26 +464,14 @@
         }
       }
     },
-    "developer.inspectorLink" : {
-      "comment" : "Label for the navigation link that opens the SwiftData inspector.",
+    "developer.inspectorNextLaunchSelected" : {
+      "comment" : "Status shown after Inspector has been selected for the next launch.",
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "SwiftData Inspector"
-          }
-        }
-      }
-    },
-    "developer.inspectorTitle" : {
-      "comment" : "Navigation title for the SwiftData inspector screen.",
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SwiftData"
+            "value" : "Inspector will replace the app UI after you close and reopen Where."
           }
         }
       }

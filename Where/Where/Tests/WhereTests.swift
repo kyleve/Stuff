@@ -1,32 +1,144 @@
-import LifecycleKit
+import Inspector
+import SwiftUI
 import Testing
 import UIKit
 @testable import Where
-import WhereUI
+import WhereCore
 
-/// App-target smoke tests: the production shell wiring from `WhereApp` through
-/// `AppDelegate` into `RootView`.
 @MainActor
 struct WhereAppTests {
-    @Test func appDelegateBuildsLauncherForRootView() {
-        let delegate = AppDelegate()
-        _ = delegate.application(UIApplication.shared, didFinishLaunchingWithOptions: nil)
+    @Test func delegateForwardsLaunchAndRootToItsRuntime() {
+        let runtime = RuntimeSpy()
+        let delegate = AppDelegate(runtime: runtime)
 
-        // Mirrors `WhereApp.body`: `RootView(model: appDelegate.model, launcher:
-        // appDelegate.launcher)`.
-        _ = RootView(model: delegate.model, launcher: delegate.launcher)
-        // The app always launches `.undetermined` under the UIScene lifecycle
-        // (it can't tell a user launch from a headless wake at
-        // `didFinishLaunching`); `RootView`'s `enterForeground()` promotes it to
-        // `.userForeground` once a scene activates. This holds regardless of
-        // whether the test host happens to be foregrounded.
-        #expect(delegate.launcher.reason == .undetermined)
+        #expect(
+            delegate.application(
+                UIApplication.shared,
+                didFinishLaunchingWithOptions: nil,
+            ),
+        )
+        _ = delegate.runtime.makeRootView()
 
-        // This `didFinishLaunching` also re-registered the intent-services
-        // handoff with `AppDependencyManager` (the host app's own launch
-        // registered first). That's tolerated, but its resolution can't be
-        // asserted here: `@Dependency` fatal-errors outside the intent perform
-        // flow, so the registration→resolution plumbing is device-verified
-        // only (see the comment in `AppDelegate`).
+        #expect(runtime.launchCount == 1)
+        #expect(runtime.rootCount == 1)
+    }
+
+    #if DEBUG
+        @Test func selectingInspectorConstructsOnlyInspectorRuntime() throws {
+            let fixture = try ModeFixture()
+            defer { fixture.cleanup() }
+            fixture.controller.enterInspectorOnNextLaunch()
+            var regularCount = 0
+            var inspectorCount = 0
+
+            let selected = AppDelegate.selectRuntime(
+                modeController: fixture.controller,
+                regular: {
+                    regularCount += 1
+                    return RuntimeSpy()
+                },
+                inspector: {
+                    inspectorCount += 1
+                    return RuntimeSpy()
+                },
+            )
+
+            _ = selected.makeRootView()
+            #expect(regularCount == 0)
+            #expect(inspectorCount == 1)
+        }
+
+        @Test func selectingRegularApplicationConstructsOnlyRegularRuntime() throws {
+            let fixture = try ModeFixture()
+            defer { fixture.cleanup() }
+            var regularCount = 0
+            var inspectorCount = 0
+
+            _ = AppDelegate.selectRuntime(
+                modeController: fixture.controller,
+                regular: {
+                    regularCount += 1
+                    return RuntimeSpy()
+                },
+                inspector: {
+                    inspectorCount += 1
+                    return RuntimeSpy()
+                },
+            )
+
+            #expect(regularCount == 1)
+            #expect(inspectorCount == 0)
+        }
+
+        @Test func inspectorConfigurationNamesOnlyWhereInspectionResources() throws {
+            let suiteName = "where.inspector.configuration.\(UUID().uuidString)"
+            let defaults = try #require(UserDefaults(suiteName: suiteName))
+            defer { defaults.removePersistentDomain(forName: suiteName) }
+            let groupURL = FileManager.default.temporaryDirectory
+                .appending(path: "where-inspector-group", directoryHint: .isDirectory)
+
+            let configuration = WhereInspectorApplicationRuntime.makeConfiguration(
+                fileManager: .default,
+                userDefaults: defaults,
+                bundleIdentifier: suiteName,
+                groupURL: groupURL,
+            )
+
+            #expect(
+                configuration.fileContainers.map(\.id.rawValue)
+                    == [
+                        "documents",
+                        "application-support",
+                        "caches",
+                        "temporary",
+                        "app-group",
+                    ],
+            )
+            #expect(configuration.fileContainers.last?.rootURL == groupURL)
+            #expect(configuration.defaultsDomains.map(\.persistentDomainName) == [suiteName])
+            #expect(configuration.swiftDataSources.count == 1)
+            #expect(
+                configuration.swiftDataSources.first?.modelTypes?.count
+                    == SwiftDataStore.inspectorModelTypes.count,
+            )
+        }
+    #endif
+}
+
+@MainActor
+private final class RuntimeSpy: WhereApplicationRuntime {
+    private(set) var launchCount = 0
+    private(set) var rootCount = 0
+
+    func didFinishLaunching(
+        application _: UIApplication,
+        options _: [UIApplication.LaunchOptionsKey: Any]?,
+    ) -> Bool {
+        launchCount += 1
+        return true
+    }
+
+    func makeRootView() -> AnyView {
+        rootCount += 1
+        return AnyView(EmptyView())
     }
 }
+
+#if DEBUG
+    @MainActor
+    private struct ModeFixture {
+        let suiteName: String
+        let defaults: UserDefaults
+        let controller: InspectorModeController
+
+        init() throws {
+            suiteName = "where.app-runtime.\(UUID().uuidString)"
+            defaults = try #require(UserDefaults(suiteName: suiteName))
+            controller = InspectorModeController(userDefaults: defaults)
+        }
+
+        func cleanup() {
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+    }
+#endif

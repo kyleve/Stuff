@@ -415,10 +415,10 @@ let project = Project(
             ],
         ),
         unitTests(
-            name: "SwiftDataInspectorTests",
-            bundleIdSuffix: "swiftdatainspector",
-            productDependency: "SwiftDataInspector",
-            sources: ["Shared/SwiftDataInspector/Tests/**"],
+            name: "InspectorTests",
+            bundleIdSuffix: "inspector",
+            productDependency: "Inspector",
+            sources: ["Shared/Inspector/Tests/**"],
         ),
         unitTests(
             name: "SnapshotKitTests",
@@ -457,7 +457,7 @@ let project = Project(
             extraPackageProducts: ["RegionKit"],
         ),
         // WhereUITests deliberately lists no `extraPackageProducts`: everything it
-        // needs (Broadway, LifecycleKit/LifecycleKitUI, Periscope, SwiftDataInspector,
+        // needs (Broadway, LifecycleKit/LifecycleKitUI, Periscope, Inspector,
         // RegionKit + its GeoJSON bundle) arrives statically through WhereUI, and
         // re-listing one lands a second copy in this image, silently breaking
         // type-keyed lookups — only in the full multi-bundle scheme, never in an
@@ -490,7 +490,7 @@ let project = Project(
         //
         // One bundle per module rather than one shared bundle, because a
         // module's image suite should link only what that module needs: the
-        // Periscope and SwiftDataInspector suites don't build against WhereUI
+        // Periscope and Inspector suites don't build against WhereUI
         // at all. Each records its references beside its own sources —
         // swift-snapshot-testing derives the `__Snapshots__` directory from the
         // calling file's `#filePath`, which `assertSnapshots` threads through.
@@ -535,10 +535,10 @@ let project = Project(
             environmentVariables: snapshotEnvironment,
         ),
         unitTests(
-            name: "SwiftDataInspectorSnapshotTests",
-            bundleIdSuffix: "swiftdatainspector.snapshot",
-            productDependency: "SwiftDataInspector",
-            sources: ["Shared/SwiftDataInspector/SnapshotTests/**"],
+            name: "InspectorSnapshotTests",
+            bundleIdSuffix: "inspector.snapshot",
+            productDependency: "Inspector",
+            sources: ["Shared/Inspector/SnapshotTests/**"],
             extraPackageProducts: ["SnapshotKitTesting"],
             environmentVariables: snapshotEnvironment,
         ),
@@ -619,7 +619,7 @@ let project = Project(
                 "PeriscopeCoreTests",
                 "PeriscopeUITests",
                 "PeriscopeToolsTests",
-                "SwiftDataInspectorTests",
+                "InspectorTests",
                 "SnapshotKitTests",
                 "SnapshotKitTestingTests",
                 "RegionKitTests",
@@ -642,7 +642,7 @@ let project = Project(
                     "PeriscopeCoreTests",
                     "PeriscopeUITests",
                     "PeriscopeToolsTests",
-                    "SwiftDataInspectorTests",
+                    "InspectorTests",
                     "SnapshotKitTests",
                     "SnapshotKitTestingTests",
                     "RegionKitTests",
@@ -665,7 +665,7 @@ let project = Project(
         testScheme(name: "PeriscopeCoreTests"),
         testScheme(name: "PeriscopeUITests"),
         testScheme(name: "PeriscopeToolsTests"),
-        testScheme(name: "SwiftDataInspectorTests"),
+        testScheme(name: "InspectorTests"),
         testScheme(name: "SnapshotKitTests"),
         testScheme(name: "SnapshotKitTestingTests"),
         testScheme(name: "RegionKitTests"),
@@ -687,13 +687,13 @@ let project = Project(
             buildAction: .buildAction(targets: [
                 "WhereUISnapshotTests",
                 "PeriscopeToolsSnapshotTests",
-                "SwiftDataInspectorSnapshotTests",
+                "InspectorSnapshotTests",
             ]),
             testAction: .targets(
                 [
                     "WhereUISnapshotTests",
                     "PeriscopeToolsSnapshotTests",
-                    "SwiftDataInspectorSnapshotTests",
+                    "InspectorSnapshotTests",
                 ],
                 arguments: .arguments(environmentVariables: snapshotEnvironment),
             ),

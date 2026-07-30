@@ -18,15 +18,24 @@ target, see [`AGENTS.md`](AGENTS.md).
 
 | File | Role |
 |------|------|
-| `Sources/WhereApp.swift` | `@main` `App`. One `WindowGroup` showing `RootView(model:launcher:)`, both taken from the delegate. |
-| `Sources/AppDelegate.swift` | The composition root. Owns the app's single `WhereModel`, `IntentServices`, and `LifecycleRunner`; bootstraps Periscope's log store; installs the App Intents stack when the launch opens the store; indexes regions into Spotlight. |
+| `Sources/WhereApp.swift` | `@main` `App`. One `WindowGroup` rendering the selected runtime's type-erased root. |
+| `Sources/AppDelegate.swift` | The boot router. Selects one `WhereApplicationRuntime` in its initializer and forwards lifecycle callbacks. |
+| `Sources/RegularApplicationRuntime.swift` | Owns the app's single `WhereModel`, `IntentServices`, and `LifecycleRunner`; starts logging, installs the App Intents handoff, and indexes Spotlight. |
+| `Sources/WhereInspectorApplicationRuntime.swift` | DEBUG-only alternate runtime. Configures the standalone Inspector without constructing regular app systems. |
+| `Sources/WhereApplicationRuntime.swift` | The class-bound launch/root-view protocol shared by both runtimes. |
 | `Sources/WhereShortcuts.swift` | The `AppShortcutsProvider` — the spoken phrases Siri, Spotlight, and the Shortcuts app offer for the `WhereIntents` intents. |
 | `Resources/AppIcon.xcassets` | The primary and alternate app icons. Generated and kept in sync by `./icons`; not hand-edited. |
 | `Tests/WhereTests.swift` | Smoke tests over the shell wiring, hosted by the app itself. |
 
 ## Launch, briefly
 
-`didFinishLaunching` does the wiring — not a SwiftUI `.task` — because
+`AppDelegate.init` makes one boot-time selection. In release this is always
+`RegularApplicationRuntime`; in DEBUG a dedicated UserDefaults suite can select
+`WhereInspectorApplicationRuntime` for the next process. Every later callback
+and root-view request uses protocol dispatch, so no feature or lifecycle code
+switches on a mode.
+
+In the regular runtime, `didFinishLaunching` does the wiring — not a SwiftUI `.task` — because
 CoreLocation can relaunch the app with no UI at all, and only the delegate
 callback is guaranteed to run. It registers the App Intents dependency, starts
 logging, and builds a [`LifecycleKit`](../../Shared/LifecycleKit) runner with
@@ -34,6 +43,11 @@ the reason `.undetermined`, since the UIScene lifecycle can't yet distinguish a
 user tap from a headless wake. The runner drives the background-safe launch
 steps immediately and builds no view tree; when a scene actually activates,
 `RootView` promotes the launch to `.userForeground` and the remaining steps run.
+
+The Inspector runtime returns its standalone `InspectorView` and starts none of
+the model, launch, CoreLocation, notification, Periscope, App Intents, or
+Spotlight systems. Its exit control selects the regular runtime for the next
+manual relaunch; neither runtime swaps live.
 
 ## Build & run
 

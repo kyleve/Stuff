@@ -21,6 +21,11 @@ reaches only *down*; each module's own `AGENTS.md` / `README.md` is the
 authority on what it is. Add domain behavior to WhereCore and presentation to
 WhereUI — the app target stays tiny.
 
+The DEBUG app has a second boot runtime from
+[`Shared/Inspector`](../Shared/Inspector). `AppDelegate` selects either the
+regular composition root or the standalone Inspector before launch; Inspector
+is not a `WhereScope` and must never construct regular app services.
+
 ## Layering
 
 | Layer | Where | Owns |

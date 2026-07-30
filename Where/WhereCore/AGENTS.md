@@ -28,8 +28,9 @@ internal shape.
 - **`WhereStore` is a value-type boundary.** Everything crossing it is a
   value, never a SwiftData record; every mutation runs inside
   `perform { … }` (the production store traps otherwise), and each committed
-  transaction pings `changes()`. The live `ModelContainer` is surfaced only
-  for the read-only debug inspector.
+  transaction pings `changes()`. Never expose its `ModelContainer` through
+  `WhereServices`; the separate DEBUG Inspector runtime opens directly from
+  `SwiftDataStore.makeContainer`.
 - **Each process opens its on-disk store once and injects it** — the app's
   launch opens it; the App Intents stack shares it via
   `WhereServices.forIntents(sharingStoreOf:)`. A second container over the

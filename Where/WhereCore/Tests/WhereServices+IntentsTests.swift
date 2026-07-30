@@ -46,9 +46,8 @@ struct WhereServicesForIntentsSharingTests {
 
         let shared = WhereServices.forIntents(sharingStoreOf: base)
 
-        #expect(shared.modelContainer != nil)
-        #expect(shared.modelContainer === base.modelContainer)
-        #expect(shared.modelContainer === store.inspectorContainer)
+        #expect((shared.store as? SwiftDataStore) === store)
+        #expect((base.store as? SwiftDataStore) === store)
     }
 
     @Test func sharedStackStillNeverOffersALocationFix() async throws {

@@ -234,17 +234,8 @@ public actor SwiftDataStore: WhereStore, EvidenceBlobStore {
 
     #endif
 
-    /// The live model container, re-exposed for read-only debug tooling (the
-    /// SwiftData inspector). The `@ModelActor`-synthesized `modelContainer` is
-    /// otherwise module-internal; this narrow accessor surfaces it without
-    /// widening the value-type `WhereStore` boundary — anything that isn't the
-    /// inspector should keep talking to `WhereStore`, never the container.
-    public nonisolated var inspectorContainer: ModelContainer {
-        modelContainer
-    }
-
     /// The live `@Model` record types, erased to existentials so a generic
-    /// SwiftData inspector can enumerate them without naming the (intentionally
+    /// Inspector runtime can enumerate them without naming the (intentionally
     /// internal) record types. Mirrors the `Schema` in `makeContainer`.
     public static var inspectorModelTypes: [any PersistentModel.Type] {
         [

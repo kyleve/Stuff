@@ -33,6 +33,9 @@ the feature [`Where/AGENTS.md`](../AGENTS.md) and this module's
   injects the launch-built model + runner
   (`init(model:launcher:)`); a no-arg `init()` builds its own for previews and
   the hosted UI test.
+- **Developer tools** — DEBUG-only logging, span, region-map, and next-launch
+  Inspector controls. The menu only updates `InspectorModeController`; the
+  current regular runtime continues until the developer relaunches.
 - **`WhereScope`** — what the app is logged in *to*: one open store's
   `WhereServices`, the `WherePreferences` driving it, and the durable log store
   they record into, created whole and never reconfigured. `WhereModel` owns
@@ -104,9 +107,8 @@ target's dependencies in [`Package.swift`](../../Package.swift):
 
 ## Quick start
 
-The app target is deliberately tiny — it builds the model + launch runner at
-startup (so CoreLocation is wired for background relaunch) and hands them to
-`RootView`:
+The app target is deliberately tiny. It selects one application runtime, then
+forwards the process launch and root view:
 
 ```swift
 import SwiftUI
@@ -118,13 +120,15 @@ struct WhereApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView(model: appDelegate.model, launcher: appDelegate.launcher)
+            appDelegate.runtime.makeRootView()
         }
     }
 }
 ```
 
-`RootView` applies `whereBroadwayRoot()` itself, so a host doesn't wrap it. For
+The regular runtime owns the model and launch runner; the DEBUG Inspector
+runtime supplies an entirely separate root. `RootView` applies
+`whereBroadwayRoot()` itself, so a host doesn't wrap it. For
 a self-contained preview or UI test, the no-arg `RootView()` builds its own
 model and a foreground launch runner.
 

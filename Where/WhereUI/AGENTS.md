@@ -16,6 +16,9 @@ and testing conventions live in the feature [`Where/AGENTS.md`](../AGENTS.md)
 - Composition is the one exception: `WhereScope` and `WhereModel` decide which
   world the app is logged in to and assemble it. That's launch wiring, not
   domain logic — see [Scopes and the launch](../AGENTS.md#scopes-and-the-launch).
+- The DEBUG developer menu may only latch or clear
+  `InspectorModeController` for the next launch. It must not host a live
+  SwiftData inspector or switch the current runtime.
 - Consumers (`WhereWidgets`, `WhereIntents`) get Broadway *through* WhereUI
   and must **not** link `BroadwayUI`/`BroadwayCore` themselves (root
   [double-link rule](../../AGENTS.md#never-double-link-a-product-whereui-already-carries));

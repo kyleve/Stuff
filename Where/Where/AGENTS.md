@@ -1,8 +1,10 @@
 # Where (app target) – Module Shape
 
 The **Where** iOS app target: the process's composition root and nothing else.
-Three files — `WhereApp` (`@main`), `AppDelegate` (the wiring), and
-`WhereShortcuts` (the App Shortcuts phrases). See [`README.md`](README.md).
+`AppDelegate` selects one process-lifetime `WhereApplicationRuntime`;
+`RegularApplicationRuntime` owns the shipping stack and the DEBUG-only
+`WhereInspectorApplicationRuntime` owns the alternate Inspector stack. See
+[`README.md`](README.md).
 
 This file complements the root [`AGENTS.md`](../../AGENTS.md) and the feature
 [`Where/AGENTS.md`](../AGENTS.md) — read those first; they own build/format,
@@ -34,13 +36,19 @@ layering, and the domain rules this target merely starts up.
 
 ## Invariants
 
-- **Launch is wired in `didFinishLaunching`, not a SwiftUI `.task`.** When
+- **Select exactly one runtime in `AppDelegate.init`.** The delegate and
+  `WhereApp` forward through `WhereApplicationRuntime`; never add mode switches
+  to lifecycle callbacks, `RootView`, or feature code.
+- **Release always builds `RegularApplicationRuntime`.** Boot preference reads,
+  Inspector configuration, and menu integration stay under `#if DEBUG`.
+- **Regular launch is wired in `didFinishLaunching`, not a SwiftUI `.task`.** When
   CoreLocation relaunches the app after termination there is no UI, so a view's
-  `.task` is not a reliable hook; `didFinishLaunching` always runs. It builds
+  `.task` is not a reliable hook; `didFinishLaunching` always runs. The regular
+  runtime builds
   the `LifecycleRunner` (whose synchronous `initializePrerequisites` installs
   the `CLLocationManager` in time to receive the queued event) and hands it to
   `RootView` through `WhereApp`. Don't move this wiring into a view.
-- **This target owns exactly one of each shared thing** — one `WhereModel`, one
+- **The regular runtime owns exactly one of each shared thing** — one `WhereModel`, one
   `IntentServices`, one launcher — created here and injected down, per
   [Composition](../../AGENTS.md#composition-create-once-inject-down). The
   launch's `resolve-scope` step is the process's only store open and runs
@@ -70,8 +78,7 @@ layering, and the domain rules this target merely starts up.
 
 `WhereTests` is the one bundle hosted by the **Where app itself** rather than
 `StuffTestHost`, so the host's own launch has already run — including the
-intent-services registration. Keep it to shell-wiring smoke tests, and **don't
-construct additional `AppDelegate`s**: each `didFinishLaunching` re-registers
-the handoff, and `AppDependencyManager`'s re-registration behavior is
-undocumented (see [`WhereIntents/AGENTS.md`](../WhereIntents/AGENTS.md#testing)
-for why intent `perform()` is untestable here).
+intent-services registration. Inject runtime spies without launching a second
+regular runtime. Tests may construct an `AppDelegate(runtime:)` only with such
+a spy; a second `RegularApplicationRuntime.didFinishLaunching` would
+re-register the handoff, whose behavior is undocumented.
