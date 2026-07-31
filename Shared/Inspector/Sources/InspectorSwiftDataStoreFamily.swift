@@ -8,11 +8,17 @@ import Foundation
 struct InspectorSwiftDataStoreFamily {
     enum Failure: LocalizedError, Equatable {
         case invalidConfiguration
+        case incompleteErasure([String])
 
         var errorDescription: String? {
             switch self {
                 case .invalidConfiguration:
                     "The configured SwiftData store is outside its declared storage root."
+                case let .incompleteErasure(memberNames):
+                    """
+                    The SwiftData store could not be fully deleted. Remaining items: \
+                    \(memberNames.joined(separator: ", ")).
+                    """
             }
         }
     }
@@ -34,7 +40,7 @@ struct InspectorSwiftDataStoreFamily {
             return
         }
 
-        let memberNames = Set([
+        let memberNames = [
             storeURL.lastPathComponent,
             "\(storeURL.lastPathComponent)-wal",
             "\(storeURL.lastPathComponent)-shm",
@@ -42,12 +48,13 @@ struct InspectorSwiftDataStoreFamily {
             "\(storeURL.lastPathComponent)_SUPPORT",
             "\(storeURL.lastPathComponent)_ckAssets",
             "\(storeURL.lastPathComponent)_ckAssetFiles",
-        ])
+        ]
+        let memberNameSet = Set(memberNames)
         let members = try fileManager.contentsOfDirectory(
             at: parent,
             includingPropertiesForKeys: nil,
         )
-        .filter { memberNames.contains($0.lastPathComponent) }
+        .filter { memberNameSet.contains($0.lastPathComponent) }
         .sorted { left, right in
             // Keep the primary database until every sidecar/support item has
             // been removed successfully.
@@ -65,6 +72,15 @@ struct InspectorSwiftDataStoreFamily {
         // operation, never between members.
         for member in members {
             try fileManager.removeItem(at: member)
+        }
+
+        let remainingMemberNames = memberNames.filter { memberName in
+            fileManager.fileExists(
+                atPath: parent.appending(path: memberName).path(percentEncoded: false),
+            )
+        }
+        guard remainingMemberNames.isEmpty else {
+            throw Failure.incompleteErasure(remainingMemberNames)
         }
     }
 

@@ -43,7 +43,7 @@ struct InspectorFileBrowserView: View {
             .lastPathComponent)
         .navigationBarTitleDisplayMode(.inline)
         .searchable(text: $searchText, prompt: "Search files")
-        .task { await load() }
+        .task(id: ObjectIdentifier(fileSystem)) { await load() }
         .refreshable { await load() }
         .quickLookPreview($previewURL)
         .toolbar {

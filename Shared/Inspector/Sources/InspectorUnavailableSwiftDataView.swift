@@ -34,7 +34,8 @@ struct InspectorUnavailableSwiftDataView: View {
                     Text(
                         """
                         The database, its recovery files, and external data will be permanently \
-                        deleted. Inspector will then create a new empty store. This cannot be undone.
+                        deleted and this source will be removed from Inspector until the app is \
+                        relaunched. This cannot be undone.
                         """,
                     )
                 }

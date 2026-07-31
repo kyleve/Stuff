@@ -1,6 +1,5 @@
 import Foundation
 @testable import Inspector
-import SwiftData
 import Testing
 
 @MainActor
@@ -23,12 +22,13 @@ struct InspectorModelTests {
 
         #expect(model.preparationState == .ready)
         #expect(model.configuration.swiftDataSources.map(\.id) == [source.id])
+        #expect(model.visibleSwiftDataSources.map(\.id) == [source.id])
         #expect(model.loadedSwiftDataSources[source.id] == nil)
         #expect(model.swiftDataFailures[source.id]?.isEmpty == false)
         #expect(model.fileSystem != nil)
     }
 
-    @Test func erasesAnUnreadableStoreFamilyAndReopensTheSource() async throws {
+    @Test func erasesAnUnreadableStoreFamilyAndRemovesTheSource() async throws {
         let rootURL = FileManager.default.temporaryDirectory.appending(
             path: "inspector-model-erase-\(UUID().uuidString)",
             directoryHint: .isDirectory,
@@ -41,32 +41,45 @@ struct InspectorModelTests {
         try Data("broken".utf8).write(to: storeURL)
         try Data("wal".utf8).write(to: walURL)
         try Data("keep".utf8).write(to: similarlyNamedURL)
+        let container = InspectorConfiguration.FileContainer(
+            id: .init(rawValue: "storage"),
+            title: "Storage",
+            rootURL: rootURL,
+        )
         let source = InspectorConfiguration.SwiftDataSource(
             id: .init(rawValue: "broken"),
             title: "Broken Store",
             storageRootURL: rootURL,
             storeURL: storeURL,
-            makeContainer: {
-                if FileManager.default.fileExists(
-                    atPath: storeURL.path(percentEncoded: false),
-                ) {
-                    throw IncompatibleStoreError()
-                }
-                return try Self.makeReopenedContainer()
-            },
+            makeContainer: { throw IncompatibleStoreError() },
         )
         let model = InspectorModel(configuration: InspectorConfiguration(
             title: "Inspector",
-            fileContainers: [],
+            fileContainers: [container],
             defaultsDomains: [],
             swiftDataSources: [source],
         ))
         await model.prepare()
 
         #expect(model.canEraseUnreadableStore(id: source.id))
+        let protectedFileSystem = try #require(model.fileSystem)
+        let protectedItems = try await protectedFileSystem.contents(of: rootURL, in: container)
+        #expect(
+            protectedItems.first(where: { $0.url == similarlyNamedURL })?
+                .deletionProhibition != nil,
+        )
+
         #expect(await model.eraseUnreadableStore(id: source.id))
         #expect(model.swiftDataFailures[source.id] == nil)
-        #expect(model.loadedSwiftDataSources[source.id] != nil)
+        #expect(model.loadedSwiftDataSources[source.id] == nil)
+        #expect(model.visibleSwiftDataSources.isEmpty)
+        #expect(model.removedSwiftDataSourceIDs == [source.id])
+        let refreshedFileSystem = try #require(model.fileSystem)
+        let refreshedItems = try await refreshedFileSystem.contents(of: rootURL, in: container)
+        #expect(
+            refreshedItems.first(where: { $0.url == similarlyNamedURL })?
+                .deletionProhibition == nil,
+        )
         #expect(
             FileManager.default.fileExists(atPath: storeURL.path(percentEncoded: false)) == false,
         )
@@ -100,19 +113,31 @@ struct InspectorModelTests {
         #expect(model.swiftDataFailures[source.id] != nil)
     }
 
-    @Test func failedReopenReportsThatTheFilesWereAlreadyDeleted() async throws {
-        let rootURL = FileManager.default.temporaryDirectory.appending(
-            path: "inspector-model-reopen-\(UUID().uuidString)",
+    @Test func invalidEraseConfigurationKeepsTheSourceVisible() async throws {
+        let storageRootURL = FileManager.default.temporaryDirectory.appending(
+            path: "inspector-model-root-\(UUID().uuidString)",
             directoryHint: .isDirectory,
         )
-        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
-        defer { try? FileManager.default.removeItem(at: rootURL) }
-        let storeURL = rootURL.appending(path: "broken.store")
+        let outsideRootURL = FileManager.default.temporaryDirectory.appending(
+            path: "inspector-model-outside-\(UUID().uuidString)",
+            directoryHint: .isDirectory,
+        )
+        try FileManager.default.createDirectory(
+            at: storageRootURL,
+            withIntermediateDirectories: true,
+        )
+        try FileManager.default.createDirectory(
+            at: outsideRootURL,
+            withIntermediateDirectories: true,
+        )
+        defer { try? FileManager.default.removeItem(at: storageRootURL) }
+        defer { try? FileManager.default.removeItem(at: outsideRootURL) }
+        let storeURL = outsideRootURL.appending(path: "broken.store")
         try Data("broken".utf8).write(to: storeURL)
         let source = InspectorConfiguration.SwiftDataSource(
             id: .init(rawValue: "broken"),
             title: "Broken Store",
-            storageRootURL: rootURL,
+            storageRootURL: storageRootURL,
             storeURL: storeURL,
             makeContainer: { throw IncompatibleStoreError() },
         )
@@ -126,15 +151,11 @@ struct InspectorModelTests {
 
         #expect(await model.eraseUnreadableStore(id: source.id) == false)
         #expect(
-            FileManager.default.fileExists(atPath: storeURL.path(percentEncoded: false)) == false,
+            FileManager.default.fileExists(atPath: storeURL.path(percentEncoded: false)),
         )
-        #expect(model.swiftDataFailures[source.id]?.contains("files were deleted") == true)
-    }
-
-    private nonisolated static func makeReopenedContainer() throws -> ModelContainer {
-        let schema = Schema([TestWidget.self, TestGadget.self])
-        let configuration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        return try ModelContainer(for: schema, configurations: [configuration])
+        #expect(model.visibleSwiftDataSources.map(\.id) == [source.id])
+        #expect(model.removedSwiftDataSourceIDs.isEmpty)
+        #expect(model.swiftDataFailures[source.id]?.contains("outside") == true)
     }
 }
 

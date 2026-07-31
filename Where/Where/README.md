@@ -49,8 +49,9 @@ the model, launch, CoreLocation, notification, Periscope pipeline, App Intents,
 or Spotlight systems. It opens Where and Periscope containers only through
 their schema adapters for inspection; a container that cannot open remains
 listed with its error and a confirmed action that deletes only its configured
-store family before reopening an empty container. Its exit control selects the
-regular runtime for the next manual relaunch; neither runtime swaps live.
+store family before removing the source from the current Inspector session. Its
+exit control selects the regular runtime for the next manual relaunch; neither
+runtime swaps live.
 
 ## Build & run
 

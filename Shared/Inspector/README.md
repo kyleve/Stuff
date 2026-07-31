@@ -114,9 +114,12 @@ Every configured SwiftData source remains in the sidebar when its container
 cannot open. Inspector shows the opening error instead of entity tables. When
 the source declares an exact `storeURL`, a confirmed recovery action deletes
 only that database, its WAL/SHM/journal files, and its external-data support
-and CloudKit asset directories, then immediately reopens an empty container
-through the configured factory. Similarly named files remain untouched.
-Without an exact URL the source stays read-only and protected.
+and CloudKit asset directories, then removes the source and its selected detail
+from the current Inspector session. The configured source may appear again
+after relaunch if its factory recreates the store. Similarly named files remain
+untouched. Inspector verifies that every known family member is absent before
+it dismisses the source. Without an exact URL the source stays read-only and
+protected.
 
 Inspector deliberately does not reflectively edit SwiftData attributes.
 

@@ -28,8 +28,9 @@ formatting, and repository-wide conventions.
   deletion in the unresolved storage tree.
 - Keep raw store files protected in the generic filesystem browser. An
   unreadable source may erase only its explicitly configured store URL's known
-  SQLite/support family through the confirmed recovery action, then must reopen
-  through its container factory.
+  SQLite/support family through the confirmed recovery action, then remove that
+  source from the current Inspector session only after verifying the family is
+  absent.
 - Keep file operations inside canonical configured roots; never follow a
   symlink outside one.
 - Enumerate only configured persistent defaults domains. Existing scalar values

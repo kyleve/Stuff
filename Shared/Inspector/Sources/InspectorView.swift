@@ -52,7 +52,7 @@ public struct InspectorView: View {
                 }
 
                 Section("SwiftData") {
-                    ForEach(model.configuration.swiftDataSources) { source in
+                    ForEach(model.visibleSwiftDataSources) { source in
                         NavigationLink(value: Destination.swiftData(source.id)) {
                             Label(source.title, systemImage: "cylinder.split.1x2")
                         }
@@ -92,6 +92,14 @@ public struct InspectorView: View {
             NavigationStack {
                 detail
             }
+        }
+        .onChange(of: model.removedSwiftDataSourceIDs) { _, removedSourceIDs in
+            guard case let .swiftData(id) = selection,
+                  removedSourceIDs.contains(id)
+            else {
+                return
+            }
+            selection = nil
         }
     }
 

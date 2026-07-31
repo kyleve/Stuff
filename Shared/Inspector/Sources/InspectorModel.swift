@@ -13,14 +13,11 @@ struct InspectorLoadedSwiftDataSource: Identifiable {
 actor InspectorSwiftDataSourceWorker {
     enum Failure: LocalizedError {
         case eraseNotConfigured
-        case reopenFailed(String)
 
         var errorDescription: String? {
             switch self {
                 case .eraseNotConfigured:
                     "This source does not declare an on-disk store URL."
-                case let .reopenFailed(error):
-                    "The store files were deleted, but a clean store could not reopen: \(error)"
             }
         }
     }
@@ -37,11 +34,11 @@ actor InspectorSwiftDataSourceWorker {
         try InspectorSwiftDataStore(source: source)
     }
 
-    /// Delete an unreadable source's configured store family and reopen it as
-    /// one serialized operation. Cancellation is honored only before erasure.
-    func eraseAndOpen(
+    /// Delete an unreadable source's configured store family as one serialized
+    /// operation. Cancellation is honored only before erasure.
+    func erase(
         _ source: InspectorConfiguration.SwiftDataSource,
-    ) throws -> InspectorSwiftDataStore {
+    ) throws {
         guard let storeURL = source.storeURL else {
             throw Failure.eraseNotConfigured
         }
@@ -50,11 +47,6 @@ actor InspectorSwiftDataSourceWorker {
             storageRootURL: source.storageRootURL,
         )
         try family.erase(using: fileManager)
-        do {
-            return try open(source)
-        } catch {
-            throw Failure.reopenFailed(error.localizedDescription)
-        }
     }
 }
 
@@ -75,12 +67,20 @@ final class InspectorModel {
         [InspectorConfiguration.SwiftDataSource.ID: String] = [:]
     private(set) var erasingSwiftDataSources:
         Set<InspectorConfiguration.SwiftDataSource.ID> = []
+    private(set) var removedSwiftDataSourceIDs:
+        Set<InspectorConfiguration.SwiftDataSource.ID> = []
     private(set) var fileSystem: InspectorFileSystem?
 
     private let worker = InspectorSwiftDataSourceWorker()
 
     init(configuration: InspectorConfiguration) {
         self.configuration = configuration
+    }
+
+    var visibleSwiftDataSources: [InspectorConfiguration.SwiftDataSource] {
+        configuration.swiftDataSources.filter {
+            removedSwiftDataSourceIDs.contains($0.id) == false
+        }
     }
 
     func prepare() async {
@@ -127,14 +127,10 @@ final class InspectorModel {
         defer { erasingSwiftDataSources.remove(id) }
 
         do {
-            let store = try await worker.eraseAndOpen(source)
-            let model = InspectorSwiftDataModel(source: source, store: store)
-            await model.loadEntities()
-            loadedSwiftDataSources[id] = InspectorLoadedSwiftDataSource(
-                source: source,
-                model: model,
-            )
+            try await worker.erase(source)
+            loadedSwiftDataSources[id] = nil
             swiftDataFailures[id] = nil
+            removedSwiftDataSourceIDs.insert(id)
             await rebuildFileSystemProtection()
             return true
         } catch is CancellationError {
@@ -151,8 +147,14 @@ final class InspectorModel {
             let storeURLs = await loaded.model.storeURLs()
             protectedStoreURLs.append(contentsOf: storeURLs)
         }
-        let unresolvedProtectionRoots = configuration.swiftDataSources.compactMap { source in
-            swiftDataFailures[source.id] == nil ? nil : source.storageRootURL
+        let unresolvedProtectionRoots: [URL] = configuration.swiftDataSources.compactMap {
+            source -> URL? in
+            guard removedSwiftDataSourceIDs.contains(source.id) == false,
+                  swiftDataFailures[source.id] != nil
+            else {
+                return nil
+            }
+            return source.storageRootURL
         }
         fileSystem = InspectorFileSystem(
             protectedStoreURLs: protectedStoreURLs,
